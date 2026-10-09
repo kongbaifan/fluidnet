@@ -1,0 +1,14 @@
+.runtime/
+.cache/
+.pytest_cache/
+__pycache__/
+*.pyc
+node_modules/
+web/dist/
+dist/
+build/
+workspace/
+tmp/
+test-results/
+playwright-report/
+*.egg-info/

@@ -1,0 +1,7 @@
+# 文本文件在仓库中统一使用 LF，检出时按平台转换
+* text=auto
+
+# 二进制文件不做换行转换和文本差异
+*.pdf binary
+*.png binary
+*.zip binary
