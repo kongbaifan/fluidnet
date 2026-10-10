@@ -1,0 +1,898 @@
+{
+  "format": "fluidnet-studio-prototype",
+  "activeProject": "water-net",
+  "modules": [
+    {
+      "id": "source",
+      "kind": "source",
+      "ports": [
+        {
+          "id": "out0",
+          "name": "EX0",
+          "label": "边界接口",
+          "direction": "out",
+          "domain": "fluid",
+          "x": 78,
+          "y": 50
+        }
+      ],
+      "channels": []
+    },
+    {
+      "id": "junction",
+      "kind": "junction",
+      "ports": [
+        {
+          "id": "in0",
+          "name": "IM0",
+          "label": "公共口",
+          "direction": "in",
+          "domain": "fluid",
+          "x": 20,
+          "y": 50
+        },
+        {
+          "id": "out0",
+          "name": "EX0",
+          "label": "A 支路",
+          "direction": "out",
+          "domain": "fluid",
+          "x": 80,
+          "y": 30
+        },
+        {
+          "id": "out1",
+          "name": "EX1",
+          "label": "B 支路",
+          "direction": "out",
+          "domain": "fluid",
+          "x": 80,
+          "y": 70
+        }
+      ],
+      "channels": []
+    },
+    {
+      "id": "tank",
+      "kind": "tank",
+      "ports": [
+        {
+          "id": "in0",
+          "name": "IM0",
+          "label": "进水口",
+          "direction": "in",
+          "domain": "fluid",
+          "x": 20,
+          "y": 50
+        },
+        {
+          "id": "out0",
+          "name": "EX0",
+          "label": "出水口",
+          "direction": "out",
+          "domain": "fluid",
+          "x": 80,
+          "y": 50
+        }
+      ],
+      "channels": []
+    },
+    {
+      "id": "pipe",
+      "kind": "pipe",
+      "ports": [
+        {
+          "id": "in0",
+          "name": "IM0",
+          "label": "入口",
+          "direction": "in",
+          "domain": "fluid",
+          "x": 20,
+          "y": 50
+        },
+        {
+          "id": "out0",
+          "name": "EX0",
+          "label": "出口",
+          "direction": "out",
+          "domain": "fluid",
+          "x": 80,
+          "y": 50
+        }
+      ],
+      "channels": [
+        {
+          "id": "ch0",
+          "name": "通路 0",
+          "input": "in0",
+          "output": "out0",
+          "kind": "resistance",
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "id": "valve",
+      "kind": "valve",
+      "ports": [
+        {
+          "id": "in0",
+          "name": "IM0",
+          "label": "入口",
+          "direction": "in",
+          "domain": "fluid",
+          "x": 20,
+          "y": 50
+        },
+        {
+          "id": "out0",
+          "name": "EX0",
+          "label": "出口",
+          "direction": "out",
+          "domain": "fluid",
+          "x": 80,
+          "y": 50
+        }
+      ],
+      "channels": [
+        {
+          "id": "ch0",
+          "name": "通路 0",
+          "input": "in0",
+          "output": "out0",
+          "kind": "resistance",
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "id": "check",
+      "kind": "check",
+      "ports": [
+        {
+          "id": "in0",
+          "name": "IM0",
+          "label": "入口",
+          "direction": "in",
+          "domain": "fluid",
+          "x": 20,
+          "y": 50
+        },
+        {
+          "id": "out0",
+          "name": "EX0",
+          "label": "出口",
+          "direction": "out",
+          "domain": "fluid",
+          "x": 80,
+          "y": 50
+        }
+      ],
+      "channels": [
+        {
+          "id": "ch0",
+          "name": "通路 0",
+          "input": "in0",
+          "output": "out0",
+          "kind": "resistance",
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "id": "pump",
+      "kind": "pump",
+      "ports": [
+        {
+          "id": "in0",
+          "name": "IM0",
+          "label": "入口",
+          "direction": "in",
+          "domain": "fluid",
+          "x": 20,
+          "y": 50
+        },
+        {
+          "id": "out0",
+          "name": "EX0",
+          "label": "出口",
+          "direction": "out",
+          "domain": "fluid",
+          "x": 80,
+          "y": 50
+        }
+      ],
+      "channels": [
+        {
+          "id": "ch0",
+          "name": "通路 0",
+          "input": "in0",
+          "output": "out0",
+          "kind": "resistance",
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "id": "exchanger",
+      "kind": "exchanger",
+      "ports": [
+        {
+          "id": "in0",
+          "name": "IM0",
+          "label": "一次侧入口",
+          "direction": "in",
+          "domain": "fluid",
+          "x": 20,
+          "y": 30
+        },
+        {
+          "id": "out0",
+          "name": "EX0",
+          "label": "一次侧出口",
+          "direction": "out",
+          "domain": "fluid",
+          "x": 80,
+          "y": 30
+        },
+        {
+          "id": "in1",
+          "name": "IM1",
+          "label": "二次侧入口",
+          "direction": "in",
+          "domain": "fluid",
+          "x": 20,
+          "y": 70
+        },
+        {
+          "id": "out1",
+          "name": "EX1",
+          "label": "二次侧出口",
+          "direction": "out",
+          "domain": "fluid",
+          "x": 80,
+          "y": 70
+        }
+      ],
+      "channels": [
+        {
+          "id": "ch0",
+          "name": "通路 0",
+          "input": "in0",
+          "output": "out0",
+          "kind": "resistance",
+          "enabled": true
+        },
+        {
+          "id": "ch1",
+          "name": "通路 1",
+          "input": "in1",
+          "output": "out1",
+          "kind": "resistance",
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "id": "heater",
+      "kind": "heater",
+      "ports": [
+        {
+          "id": "in0",
+          "name": "IM0",
+          "label": "入口",
+          "direction": "in",
+          "domain": "fluid",
+          "x": 20,
+          "y": 50
+        },
+        {
+          "id": "out0",
+          "name": "EX0",
+          "label": "出口",
+          "direction": "out",
+          "domain": "fluid",
+          "x": 80,
+          "y": 50
+        }
+      ],
+      "channels": [
+        {
+          "id": "ch0",
+          "name": "通路 0",
+          "input": "in0",
+          "output": "out0",
+          "kind": "resistance",
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "id": "sensor",
+      "kind": "sensor",
+      "ports": [
+        {
+          "id": "in0",
+          "name": "IM0",
+          "label": "入口",
+          "direction": "in",
+          "domain": "fluid",
+          "x": 20,
+          "y": 50
+        },
+        {
+          "id": "out0",
+          "name": "EX0",
+          "label": "出口",
+          "direction": "out",
+          "domain": "fluid",
+          "x": 80,
+          "y": 50
+        }
+      ],
+      "channels": [
+        {
+          "id": "ch0",
+          "name": "通路 0",
+          "input": "in0",
+          "output": "out0",
+          "kind": "resistance",
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "id": "pid",
+      "kind": "pid",
+      "ports": [
+        {
+          "id": "in0",
+          "name": "II0",
+          "label": "测量输入",
+          "direction": "in",
+          "domain": "info",
+          "x": 20,
+          "y": 50
+        },
+        {
+          "id": "out0",
+          "name": "IO0",
+          "label": "控制输出",
+          "direction": "out",
+          "domain": "info",
+          "x": 80,
+          "y": 50
+        }
+      ],
+      "channels": []
+    },
+    {
+      "id": "refprop",
+      "kind": "refprop",
+      "ports": [
+        {
+          "id": "in0",
+          "name": "IM0",
+          "label": "物性输入",
+          "direction": "in",
+          "domain": "fluid",
+          "x": 20,
+          "y": 50
+        }
+      ],
+      "channels": []
+    }
+  ],
+  "projects": [
+    {
+      "id": "water-net",
+      "name": "泵阀并联管网",
+      "medium": "water",
+      "pages": [
+        {
+          "id": "main",
+          "edges": [
+            [
+              "e1",
+              "B1",
+              "out0",
+              "P1",
+              "in0"
+            ],
+            [
+              "e2",
+              "P1",
+              "out0",
+              "N1",
+              "in0"
+            ],
+            [
+              "e3",
+              "N1",
+              "out0",
+              "V1",
+              "in0"
+            ],
+            [
+              "e4",
+              "V1",
+              "out0",
+              "L1",
+              "in0"
+            ],
+            [
+              "e5",
+              "L1",
+              "out0",
+              "N2",
+              "out0"
+            ],
+            [
+              "e6",
+              "N1",
+              "out1",
+              "V2",
+              "in0"
+            ],
+            [
+              "e7",
+              "V2",
+              "out0",
+              "L2",
+              "in0"
+            ],
+            [
+              "e8",
+              "L2",
+              "out0",
+              "N2",
+              "out1"
+            ],
+            [
+              "e9",
+              "N2",
+              "in0",
+              "B2",
+              "out0"
+            ]
+          ],
+          "nodes": [
+            {
+              "id": "B1",
+              "moduleId": "source",
+              "name": "供水边界",
+              "x": 70,
+              "y": 225,
+              "params": {
+                "pressure": 201.325,
+                "temperature": 20
+              },
+              "draft": {
+                "pressure": 201.325,
+                "temperature": 20
+              }
+            },
+            {
+              "id": "P1",
+              "moduleId": "pump",
+              "name": "循环泵",
+              "x": 230,
+              "y": 225,
+              "params": {
+                "speed": 1,
+                "efficiency": 75
+              },
+              "draft": {
+                "speed": 1,
+                "efficiency": 75
+              }
+            },
+            {
+              "id": "N1",
+              "moduleId": "junction",
+              "name": "分流节点",
+              "x": 380,
+              "y": 225,
+              "params": {
+                "elevation": 0
+              },
+              "draft": {
+                "elevation": 0
+              }
+            },
+            {
+              "id": "V1",
+              "moduleId": "valve",
+              "name": "A 路调节阀",
+              "x": 515,
+              "y": 135,
+              "params": {
+                "opening": 80,
+                "kv": 16
+              },
+              "draft": {
+                "opening": 80,
+                "kv": 16
+              }
+            },
+            {
+              "id": "L1",
+              "moduleId": "pipe",
+              "name": "A 路管道",
+              "x": 685,
+              "y": 135,
+              "params": {
+                "length": 30,
+                "diameter": 40
+              },
+              "draft": {
+                "length": 30,
+                "diameter": 40
+              }
+            },
+            {
+              "id": "V2",
+              "moduleId": "valve",
+              "name": "B 路调节阀",
+              "x": 515,
+              "y": 335,
+              "params": {
+                "opening": 55,
+                "kv": 16
+              },
+              "draft": {
+                "opening": 55,
+                "kv": 16
+              }
+            },
+            {
+              "id": "L2",
+              "moduleId": "pipe",
+              "name": "B 路管道",
+              "x": 685,
+              "y": 335,
+              "params": {
+                "length": 40,
+                "diameter": 40
+              },
+              "draft": {
+                "length": 40,
+                "diameter": 40
+              }
+            },
+            {
+              "id": "N2",
+              "moduleId": "junction",
+              "name": "汇流节点",
+              "x": 830,
+              "y": 225,
+              "params": {
+                "elevation": 0
+              },
+              "draft": {
+                "elevation": 0
+              }
+            },
+            {
+              "id": "B2",
+              "moduleId": "source",
+              "name": "回水边界",
+              "x": 975,
+              "y": 225,
+              "params": {
+                "pressure": 120,
+                "temperature": 20
+              },
+              "draft": {
+                "pressure": 120,
+                "temperature": 20
+              }
+            }
+          ]
+        }
+      ],
+      "solver": {
+        "duration": 30,
+        "dt": 0.1,
+        "massAtol": 1e-7,
+        "pressureAtol": 0.1,
+        "maxIter": 80,
+        "mode": "dynamic"
+      }
+    },
+    {
+      "id": "heat-loop",
+      "name": "双侧换热机组",
+      "medium": "water",
+      "pages": [
+        {
+          "id": "main",
+          "edges": [
+            [
+              "h1",
+              "B1",
+              "out0",
+              "P1",
+              "in0"
+            ],
+            [
+              "h2",
+              "P1",
+              "out0",
+              "HX1",
+              "in0"
+            ],
+            [
+              "h3",
+              "HX1",
+              "out0",
+              "B2",
+              "out0"
+            ],
+            [
+              "h4",
+              "B3",
+              "out0",
+              "P2",
+              "in0"
+            ],
+            [
+              "h5",
+              "P2",
+              "out0",
+              "HX1",
+              "in1"
+            ],
+            [
+              "h6",
+              "HX1",
+              "out1",
+              "B4",
+              "out0"
+            ]
+          ],
+          "nodes": [
+            {
+              "id": "B1",
+              "moduleId": "source",
+              "name": "一次侧供水",
+              "x": 100,
+              "y": 155,
+              "params": {
+                "pressure": 201.325,
+                "temperature": 65
+              },
+              "draft": {
+                "pressure": 201.325,
+                "temperature": 65
+              }
+            },
+            {
+              "id": "P1",
+              "moduleId": "pump",
+              "name": "一次泵",
+              "x": 290,
+              "y": 155,
+              "params": {
+                "speed": 1,
+                "efficiency": 75
+              },
+              "draft": {
+                "speed": 1,
+                "efficiency": 75
+              }
+            },
+            {
+              "id": "HX1",
+              "moduleId": "exchanger",
+              "name": "板式换热器",
+              "x": 545,
+              "y": 235,
+              "params": {
+                "ua": 2000,
+                "loss": 5
+              },
+              "draft": {
+                "ua": 2000,
+                "loss": 5
+              }
+            },
+            {
+              "id": "B2",
+              "moduleId": "source",
+              "name": "一次侧回水",
+              "x": 825,
+              "y": 155,
+              "params": {
+                "pressure": 120,
+                "temperature": 20
+              },
+              "draft": {
+                "pressure": 120,
+                "temperature": 20
+              }
+            },
+            {
+              "id": "B3",
+              "moduleId": "source",
+              "name": "二次侧供水",
+              "x": 100,
+              "y": 335,
+              "params": {
+                "pressure": 201.325,
+                "temperature": 25
+              },
+              "draft": {
+                "pressure": 201.325,
+                "temperature": 25
+              }
+            },
+            {
+              "id": "P2",
+              "moduleId": "pump",
+              "name": "二次泵",
+              "x": 290,
+              "y": 335,
+              "params": {
+                "speed": 1,
+                "efficiency": 75
+              },
+              "draft": {
+                "speed": 1,
+                "efficiency": 75
+              }
+            },
+            {
+              "id": "B4",
+              "moduleId": "source",
+              "name": "二次侧回水",
+              "x": 825,
+              "y": 335,
+              "params": {
+                "pressure": 120,
+                "temperature": 20
+              },
+              "draft": {
+                "pressure": 120,
+                "temperature": 20
+              }
+            }
+          ]
+        }
+      ],
+      "solver": {
+        "duration": 30,
+        "dt": 0.1,
+        "massAtol": 1e-7,
+        "pressureAtol": 0.1,
+        "maxIter": 80,
+        "mode": "dynamic"
+      }
+    },
+    {
+      "id": "tank-control",
+      "name": "水箱液位调节",
+      "medium": "water",
+      "pages": [
+        {
+          "id": "main",
+          "edges": [
+            [
+              "t1",
+              "B1",
+              "out0",
+              "V1",
+              "in0"
+            ],
+            [
+              "t2",
+              "V1",
+              "out0",
+              "TK1",
+              "in0"
+            ],
+            [
+              "t3",
+              "TK1",
+              "out0",
+              "V2",
+              "in0"
+            ],
+            [
+              "t4",
+              "V2",
+              "out0",
+              "B2",
+              "out0"
+            ]
+          ],
+          "nodes": [
+            {
+              "id": "B1",
+              "moduleId": "source",
+              "name": "补水边界",
+              "x": 120,
+              "y": 230,
+              "params": {
+                "pressure": 201.325,
+                "temperature": 20
+              },
+              "draft": {
+                "pressure": 201.325,
+                "temperature": 20
+              }
+            },
+            {
+              "id": "V1",
+              "moduleId": "valve",
+              "name": "进水调节阀",
+              "x": 330,
+              "y": 230,
+              "params": {
+                "opening": 65,
+                "kv": 16
+              },
+              "draft": {
+                "opening": 65,
+                "kv": 16
+              }
+            },
+            {
+              "id": "TK1",
+              "moduleId": "tank",
+              "name": "储水罐",
+              "x": 540,
+              "y": 230,
+              "params": {
+                "level": 2,
+                "area": 2.5
+              },
+              "draft": {
+                "level": 2,
+                "area": 2.5
+              }
+            },
+            {
+              "id": "V2",
+              "moduleId": "valve",
+              "name": "出水调节阀",
+              "x": 750,
+              "y": 230,
+              "params": {
+                "opening": 40,
+                "kv": 16
+              },
+              "draft": {
+                "opening": 40,
+                "kv": 16
+              }
+            },
+            {
+              "id": "B2",
+              "moduleId": "source",
+              "name": "回水边界",
+              "x": 960,
+              "y": 230,
+              "params": {
+                "pressure": 120,
+                "temperature": 20
+              },
+              "draft": {
+                "pressure": 120,
+                "temperature": 20
+              }
+            }
+          ]
+        }
+      ],
+      "solver": {
+        "duration": 30,
+        "dt": 0.1,
+        "massAtol": 1e-7,
+        "pressureAtol": 0.1,
+        "maxIter": 80,
+        "mode": "dynamic"
+      }
+    }
+  ]
+}
