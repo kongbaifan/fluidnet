@@ -128,16 +128,16 @@ function instanceVariableRows(f, n) {
     });
     if (!shown.length) return '';
     count += shown.length;
-    return `<tr class="instance-group"><th colspan="${4 + columns.length}" scope="rowgroup">${esc(title)}<span>${shown.length}</span></th></tr>` + shown.map(v => {
+    return `<tr class="instance-group"><th colspan="${5 + columns.length}" scope="rowgroup">${esc(title)}<span>${shown.length}</span></th></tr>` + shown.map(v => {
       const current = instanceVariableValue(n, v);
-      return `<tr data-instance-row="${esc(v.id)}"><th scope="row" title="${esc(n.id + '.' + v.name)}${instanceWritable(v) ? '' : ' · 只读'}"><span class="mono">${esc(n.id + '.' + v.name)}</span></th><td class="instance-variable-name" title="${esc(v.label)}">${esc(v.label)}</td><td class="instance-unit">${esc(v.unit)}</td><td class="num" data-instance-live="${esc(v.id)}">${instanceValueCell(n, v, -1, false, current)}</td>${columns.map(c => {
+      return `<tr data-instance-row="${esc(v.id)}"><th scope="row" title="${esc(n.id + '.' + v.name)}${instanceWritable(v) ? '' : ' · 只读'}"><span class="mono">${esc(n.id + '.' + v.name)}</span><small class="docked-variable-label" title="${esc(v.label + ' · ' + v.unit)}">${esc(v.label)} · ${esc(v.unit)}</small></th><td class="instance-variable-name" title="${esc(v.label)}">${esc(v.label)}</td><td class="instance-unit">${esc(v.unit)}</td><td class="num" data-instance-live="${esc(v.id)}">${instanceValueCell(n, v, -1, false, current)}</td>${columns.map(c => {
         const value = c < 0 ? (instanceWritable(v) ? instanceDraftValue(n, v) : null) : data.banks[c][v.id];
         const changed = instanceWritable(v) && !sameValue(current, value);
         return `<td class="num${changed ? ' edited' : ''}" data-instance-cell="${c}">${c < 0 && !instanceWritable(v) ? '<span class="muted">只读</span>' : instanceValueCell(n, v, c, c === config.source && instanceWritable(v), value)}</td>`;
-      }).join('')}</tr>`;
+      }).join('')}<td class="variable-actions">${variableObservationButton(n, v)}${ibtn('device-definition', `查看 ${v.name} 的变量定义`, 'ArrowUpRight', `data-id="${n.id}" data-variable="${esc(v.id)}"`)}</td></tr>`;
     }).join('');
   }).join('');
-  return `<table class="instance-value-table"><thead><tr><th>变量标识</th><th>中文名称</th><th>单位</th><th class="num">当前值</th>${columns.map(c => `<th class="num${c === config.source ? ' editing-column' : ''}">${c < 0 ? '待应用草稿' : '库值 ' + (c + 1)}${c === config.source ? '<small>编辑此列</small>' : ''}</th>`).join('')}</tr></thead><tbody>${rows || `<tr><td colspan="${4 + columns.length}" class="instance-empty">没有符合条件的变量</td></tr>`}</tbody></table><span class="instance-row-count">显示 ${count} / ${m.variables.length} 个变量</span>`;
+  return `<table class="instance-value-table"><thead><tr><th>变量标识</th><th>中文名称</th><th>单位</th><th class="num">当前值</th>${columns.map(c => `<th class="num${c === config.source ? ' editing-column' : ''}">${c < 0 ? '待应用草稿' : '库值 ' + (c + 1)}${c === config.source ? '<small>编辑此列</small>' : ''}</th>`).join('')}<th class="variable-actions">观察 / 定义</th></tr></thead><tbody>${rows || `<tr><td colspan="${5 + columns.length}" class="instance-empty">没有符合条件的变量</td></tr>`}</tbody></table><span class="instance-row-count">显示 ${count} / ${m.variables.length} 个变量</span>`;
 }
 function instanceVariablesBody(f, n) {
   const config = variableWindowState(f), data = ensureInstanceVariables(n), owner = ownerOfInstance(n);
@@ -146,7 +146,7 @@ function instanceVariablesBody(f, n) {
     <div class="instance-filters"><label class="search">${icon('Search')}<input data-instance-search="${n.id}" aria-label="${n.id} 搜索全部变量" value="${esc(config.search)}" placeholder="中文名称、变量标识"></label><select data-instance-group="${n.id}" aria-label="${n.id} 变量分组">${[['all', '全部分组'], ['parameter', '设备参数'], ['port', '端口变量'], ['custom', '自定义变量'], ['system', '系统变量']].map(([key, label]) => option(key, label, config.group)).join('')}</select><label class="instance-edit-source">编辑<select data-instance-source-select="${n.id}" aria-label="${n.id} 编辑目标">${option(-1, '待应用草稿', config.source)}${data.bankNames.map((name, i) => option(i, '库值 ' + (i + 1) + ' · ' + name, config.source)).join('')}</select></label></div>
     <div class="instance-bank-actions"><label class="check-label"><input type="checkbox" data-instance-toggle="allBanks" data-id="${n.id}" ${config.allBanks ? 'checked' : ''}>三组对照</label><label class="check-label"><input type="checkbox" data-instance-toggle="onlyDiff" data-id="${n.id}" ${config.onlyDiff ? 'checked' : ''}>仅可写差异</label>${config.source < 0 ? `<span>草稿 → ${esc(n.id)}</span><span class="badge ${pendingCount(n) ? 'warn' : 'good'}" data-pending-for="${n.id}">${pendingCount(n)} 项待应用</span>` : `<span>库值 ${config.source + 1} → ${esc(n.id)}</span><span class="badge warn" data-bank-diff>${instanceBankDiff(n, config.source).length} 项差异</span>${btn('capture-instance-bank', '当前值存入此库', 'Copy', `data-id="${n.id}" data-bank="${config.source}"`, 'small ghost')}`}</div>
     <div class="instance-table-wrap" data-instance-table="${n.id}">${instanceVariableRows(f, n)}</div>
-    <div class="instance-footnote">端口示例结果只读；“—”表示未采样。系统值随项目设置。保存保留草稿，确认应用后生效。</div>
+    <div class="instance-footnote">${btn('save-instance-model', '保存为型号', 'Database', `data-id="${n.id}"`, 'small ghost')}<span>曲线记录已生效值。端口“—”表示未采样；保存保留草稿，确认应用后生效。</span></div>
   </div>`;
 }
 function editInstanceArray(n, id, source) {

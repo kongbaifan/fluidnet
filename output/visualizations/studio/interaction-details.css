@@ -1,0 +1,69 @@
+/* 模块紧凑列表、画布快捷操作和变量联动。 */
+#fn-studio .module-compact-list { display:flex;flex-direction:column;gap:0;border:1px solid var(--border);border-radius:7px;background:var(--surface);overflow:hidden; }
+#fn-studio .module-compact-list .module-card { display:grid;grid-template-columns:minmax(180px,1.15fr) minmax(90px,.65fr) minmax(155px,1fr) auto;align-items:center;gap:12px;padding:10px 13px;border:0;border-bottom:1px solid var(--border);border-radius:0; }
+#fn-studio .module-compact-list .module-card:last-child { border-bottom:0; }
+#fn-studio .module-compact-list .module-card:hover { background:var(--soft); }
+#fn-studio .module-compact-list .module-card-title { min-width:0;gap:9px; }
+#fn-studio .module-compact-list .module-card-title .grow { min-width:0; }
+#fn-studio .module-compact-list .module-card h3 { font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+#fn-studio .module-compact-list .module-card .mono { display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+#fn-studio .module-compact-list .module-card .object-icon { width:28px;height:28px;flex:none; }
+#fn-studio .module-compact-list .module-card .badge { font-size:10px;padding:2px 4px; }
+#fn-studio .module-compact-list .module-card>p { display:none; }
+#fn-studio .module-compact-list .module-group-chip { align-self:center;min-width:0; }
+#fn-studio .module-compact-list .stat-line { font-size:11px;gap:8px;white-space:nowrap; }
+#fn-studio .module-compact-list .card-footer { margin:0;padding:0;border:0;gap:5px; }
+#fn-studio .module-compact-list .card-footer>.push { display:none; }
+#fn-studio .module-compact-list .card-footer .btn { padding:4px 6px;white-space:nowrap; }
+#fn-studio .device-tools { display:flex;align-items:center;gap:3px;flex-wrap:wrap;padding:5px 8px;border-bottom:1px solid var(--border);background:var(--surface);min-height:36px; }
+#fn-studio .device-tools>strong { font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px;margin-right:auto; }
+#fn-studio .device-tools .icon-btn { min-width:27px;min-height:27px;padding:4px; }
+#fn-studio .device-tools .icon-btn svg { width:15px;height:15px; }
+#fn-studio .canvas-inspection { position:absolute;left:8px;bottom:42px;max-width:calc(100% - 68px);padding:5px 8px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);font-size:11px;pointer-events:none;z-index:4; }
+#fn-studio .internal-channels { pointer-events:none; }
+#fn-studio .internal-channel { stroke:var(--orange);stroke-width:3;fill:none;stroke-dasharray:4 2;opacity:0; }
+#fn-studio .net-node.inspecting .internal-channel { opacity:.12; }
+#fn-studio .net-node.inspecting .internal-channel.channel-active { opacity:1; }
+#fn-studio .context-menu { max-height:calc(100dvh - 112px);overflow:auto; }
+#fn-studio .parameter-label-actions { display:flex;align-items:center;gap:3px; }
+#fn-studio .parameter-label-actions .icon-btn { min-width:22px;min-height:22px;padding:2px; }
+#fn-studio .parameter-label-actions .icon-btn svg { width:13px;height:13px; }
+#fn-studio .instance-value-table { min-width:750px; }
+#fn-studio .instance-value-table:has(th:nth-child(9)) { min-width:1120px; }
+#fn-studio .instance-value-table .variable-actions { width:72px;text-align:center; }
+#fn-studio .instance-value-table .docked-variable-label { display:none; }
+#fn-studio .workbench.has-docked-variables { --dock-size:clamp(490px,41vw,600px); }
+#fn-studio .docked .instance-value-table { min-width:480px; }
+#fn-studio .docked .instance-value-table:has(th:nth-child(9)) { min-width:810px; }
+#fn-studio .docked .instance-value-table thead th:first-child { width:170px; }
+#fn-studio .docked .instance-value-table thead th:nth-child(2),
+#fn-studio .docked .instance-value-table thead th:nth-child(3),
+#fn-studio .docked .instance-variable-name,
+#fn-studio .docked .instance-unit { display:none; }
+#fn-studio .docked .instance-value-table .docked-variable-label { display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+#fn-studio .variable-actions .icon-btn { min-width:24px;min-height:24px;padding:3px; }
+#fn-studio .variable-actions .icon-btn svg { width:14px;height:14px; }
+#fn-studio .variable-actions [aria-pressed=true] { color:var(--accent);background:var(--accent-soft); }
+#fn-studio .instance-bank-actions { flex-wrap:wrap; }
+#fn-studio .model-source-preview { margin-top:16px;max-height:300px;overflow:auto; }
+#fn-studio .model-source-table td { overflow-wrap:anywhere; }
+#fn-studio .model-variable-summary { border-top:1px solid var(--border);padding-top:12px;font-size:12px; }
+#fn-studio .model-variable-summary dt { color:var(--muted);margin-top:10px; }
+#fn-studio .model-variable-summary dd { margin-top:4px;overflow-wrap:anywhere; }
+#fn-studio .instance-footnote { display:flex;gap:7px;align-items:center;flex-wrap:wrap; }
+#fn-studio .instance-footnote .btn { white-space:nowrap; }
+@media(max-width:1200px) and (min-width:761px) {
+  #fn-studio .module-compact-list .module-card { grid-template-columns:minmax(140px,1fr) minmax(95px,.7fr) auto;gap:8px; }
+  #fn-studio .module-compact-list .stat-line { display:none; }
+}
+@media(max-width:760px) {
+  #fn-studio .module-compact-list .module-card { grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:10px; }
+  #fn-studio .module-compact-list .module-card-title { grid-column:1/-1; }
+  #fn-studio .module-compact-list .module-card-title .badge { margin-left:auto; }
+  #fn-studio .module-compact-list .stat-line { display:none; }
+  #fn-studio .module-compact-list .card-footer .btn svg { display:none; }
+  #fn-studio .module-compact-list .card-footer .icon-btn { min-width:27px;min-height:29px; }
+  #fn-studio .device-tools>strong { flex-basis:100%;max-width:none; }
+  #fn-studio .device-tools .icon-btn { min-width:30px;min-height:30px; }
+  #fn-studio .canvas-inspection { bottom:44px;max-height:74px;overflow:hidden; }
+}

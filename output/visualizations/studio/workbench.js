@@ -72,6 +72,7 @@ function syncDockLayout() {
   if (!workbench) return;
   const active = ui.floats.find(f => instance(f.id) && isDocked(f));
   workbench.classList.toggle('has-docked', !!active);
+  workbench.classList.toggle('has-docked-variables', active?.tab === 'variables');
 }
 
 function dockWindowBounds(f) {
@@ -103,7 +104,7 @@ function workbenchChartData() {
   const variable = state.charts.extra.find(v => v.projectId === project().id && v.id === key);
   const seriesKey = 'extra:' + key;
   SERIES[seriesKey] = { name: variable.label, unit: variable.unit, color: 'blue' };
-  return { history: run.history.filter(r => extraVariableValue(r, key) !== null).map(r => ({ t: r.t, [seriesKey]: extraVariableValue(r, key) })), keys: [seriesKey] };
+  return { history: run.history.filter(r => extraVariableValue(r, variable) !== null).map(r => ({ t: r.t, [seriesKey]: extraVariableValue(r, variable) })), keys: [seriesKey] };
 }
 
 function parameterEvents() {

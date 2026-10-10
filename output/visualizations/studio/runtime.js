@@ -112,7 +112,7 @@ function createModelDialog(existingId) {
     if (existing) {
       existing.version++; existing.name = name; existing.description = note; existing.params = params;
       if (existing.values) for (const [key, value] of Object.entries(params)) existing.values['param:' + key] = value;
-      existing.versions.push({ version: existing.version, note, params: clone(params) });
+      existing.versions.push({ version: existing.version, note, params: clone(params), ...(existing.values ? { values: clone(existing.values) } : {}) });
       state.selectedModel = existing.id;
     } else {
       const id = uid('model');
@@ -160,14 +160,14 @@ function openDevice(id) {
   if (!f) { f = { id, tab: 'parameters', ...(state.windowPositions?.[windowKey(id)] || {}), order: ++ui.floatSerial }; ui.floats.push(f); }
   if (f.docked) for (const other of ui.floats) if (other !== f && other.docked) { other.docked = false; rememberWindow(other); }
   f.minimized = false; f.order = ++ui.floatSerial; ui.frontId = id;
-  renderFloats();
+  syncDeviceSelection(); renderFloats();
 }
 function floatBody(f, n) {
   const m = moduleOf(n), run = project().run;
   if (f.tab === 'variables') return instanceVariablesBody(f, n);
   if (f.tab === 'results') return `<div class="notice">${icon('Info')}主系统 · ${statusText(run)} · ${clockLabel(run.time)}</div><div class="metric-row"><div class="metric"><span>质量流量 · kg/s</span><strong>${number(flowFor(n), 3)}</strong></div><div class="metric"><span>温度 · °C</span><strong>${number(run.values.temperature, 1)}</strong></div></div>${btn('device-curve', '将流量加入曲线', 'Activity', `data-id="${n.id}"`)}`;
   if (f.tab === 'connections') return `<div class="stack">${m.ports.map(p => { const pg = project().pages.find(pg => pg.nodes.some(x => x.id === n.id)), edge = pg.edges.find(e => e[1] === n.id && e[2] === p.id || e[3] === n.id && e[4] === p.id); return `<div class="list-row" style="padding:10px 0"><div class="grow"><strong>${esc(p.name)} · ${esc(p.label)}</strong><small>${DOMAINS[p.domain].label} · ${edge ? esc(edge[1] + ' ↔ ' + edge[3]) : '未连接'}</small></div>${edge ? btn('delete-edge', '断开', 'X', `data-id="${edge[0]}"`, 'small') : badge('空闲')}</div>`; }).join('')}</div>`;
-  return `<label class="field"><span>设备名称</span><input data-instance-name="${n.id}" value="${esc(n.name)}" aria-label="${n.id} 设备名称" maxlength="50"></label><div class="field" style="margin-top:13px"><span>选择型号 → 进入待应用草稿</span><select data-instance-model="${n.id}" aria-label="${n.id} 设备型号">${option('', '自定义参数', n.draftModelId || n.modelId)}${state.models.filter(v => v.moduleId === m.id && !v.archived).map(v => option(v.id, v.name + ' · v' + v.version, n.draftModelId || n.modelId)).join('')}</select></div><div class="row spread" style="margin-top:12px"><strong>常用参数</strong><span class="badge ${pendingCount(n) ? 'warn' : 'good'}" data-pending-for="${n.id}">${pendingCount(n)} 项待应用</span></div>${paramDefs(n).filter(f => m.variables.find(v => v.param === f[0])?.display !== false).map(f => `<div class="parameter-row${n.draft[f[0]] !== n.params[f[0]] ? ' edited' : ''}"><div class="param-title"><strong>${f[1]}</strong><small>当前 ${number(n.params[f[0]], f[0] === 'opening' ? 0 : 2)} ${f[2]}</small>${quickFieldMarkup(n, m, f)}</div><input type="number" step="any" min="${f[3]}" max="${f[4]}" data-instance-param="${f[0]}" data-id="${n.id}" value="${n.draft[f[0]]}" aria-label="${n.id} ${f[1]}草稿" ${m.quickParam === f[0] && m.quickType === "display" ? "readonly" : ""}><span class="muted">${f[2]}</span></div>`).join('') || '<p class="muted" style="margin:14px 0">此模块没有常用可调参数。</p>'}<div class="row wrap" style="margin-top:16px">${btn('edit-module', '完整模块定义', 'Box', `data-id="${m.id}"`, 'small ghost')}</div>`;
+  return `<label class="field"><span>设备名称</span><input data-instance-name="${n.id}" value="${esc(n.name)}" aria-label="${n.id} 设备名称" maxlength="50"></label><div class="field" style="margin-top:13px"><span>选择型号 → 进入待应用草稿</span><select data-instance-model="${n.id}" aria-label="${n.id} 设备型号">${option('', '自定义参数', n.draftModelId || n.modelId)}${state.models.filter(v => v.moduleId === m.id && !v.archived).map(v => option(v.id, v.name + ' · v' + v.version, n.draftModelId || n.modelId)).join('')}</select></div><div class="row spread" style="margin-top:12px"><strong>常用参数</strong><span class="badge ${pendingCount(n) ? 'warn' : 'good'}" data-pending-for="${n.id}">${pendingCount(n)} 项待应用</span></div>${paramDefs(n).filter(f => m.variables.find(v => v.param === f[0])?.display !== false).map(f => `<div class="parameter-row${n.draft[f[0]] !== n.params[f[0]] ? ' edited' : ''}"><div class="param-title"><div class="parameter-label-actions"><strong>${f[1]}</strong>${ibtn('device-variables', '查看 ' + f[1] + ' 的全部变量', 'Table2', `data-id="${n.id}" data-variable="param:${f[0]}"`)}</div><small>当前 ${number(n.params[f[0]], f[0] === 'opening' ? 0 : 2)} ${f[2]}</small>${quickFieldMarkup(n, m, f)}</div><input type="number" step="any" min="${f[3]}" max="${f[4]}" data-instance-param="${f[0]}" data-id="${n.id}" value="${n.draft[f[0]]}" aria-label="${n.id} ${f[1]}草稿" ${m.quickParam === f[0] && m.quickType === "display" ? "readonly" : ""}><span class="muted">${f[2]}</span></div>`).join('') || '<p class="muted" style="margin:14px 0">此模块没有常用可调参数。</p>'}<div class="row wrap" style="margin-top:16px">${btn('device-definition', '完整模块定义', 'Box', `data-id="${n.id}"`, 'small ghost')}${btn('save-instance-model', '保存为型号', 'Database', `data-id="${n.id}"`, 'small')}</div>`;
 }
 function quickCanvasMarkup(n, m) {
   const def = paramDefs(n).find(f => f[0] === m.quickParam);
@@ -198,7 +198,7 @@ function renderFloats() {
       ${f.minimized ? '' : `<nav class="tabs float-tabs" aria-label="设备属性页签">${[['parameters', '参数与型号'], ['variables', '全部变量'], ['results', '运行结果'], ['connections', '连接']].map(([id, label]) => `<button type="button" data-action="float-tab" data-id="${f.id}" data-value="${id}" class="${f.tab === id ? 'active' : ''}" aria-pressed="${f.tab === id}">${label}</button>`).join('')}</nav><div class="float-body">${floatBody(f, n)}</div><footer class="float-footer"><div class="float-save-state grow"><small data-float-save>${state.dirty ? '草稿未保存' : '草稿已保存'}</small><small data-device-apply-status="${n.id}"></small></div>${btn('save', '保存草稿', 'Save', 'title="保存整个原型；待应用参数保持草稿状态"', 'small')}${apply}</footer><button class="float-resize" data-float-resize="${f.id}" aria-label="调整窗口大小">${icon('Grip')}</button>`}
     </section>`;
   }).join('');
-  if (contextMenu) html += `<div class="context-menu" style="left:${contextMenu.x}px;top:${contextMenu.y}px">${btn('open-device', '参数与型号', 'SlidersHorizontal', `data-id="${contextMenu.id}"`)}${btn('copy-device', '复制设备', 'Copy', `data-id="${contextMenu.id}"`)}${btn('rotate-device', '旋转 90°', 'RotateCw', `data-id="${contextMenu.id}"`)}${btn('delete-node', '删除设备', 'Trash2', `data-id="${contextMenu.id}"`)}</div>`;
+  if (contextMenu) html += `<div class="context-menu" style="left:${contextMenu.x}px;top:${contextMenu.y}px">${deviceContextMarkup(contextMenu.id)}</div>`;
   if (ui.taskDrawer) html += `<section class="task-drawer"><div class="panel-head"><h3>运行任务</h3>${ibtn('tasks', '关闭任务列表', 'X')}</div><div class="panel-body stack">${state.projects.filter(p => ['running', 'paused'].includes(p.run.status)).map(p => `<div class="row"><div class="grow"><strong>${esc(p.name)}</strong><small>${statusText(p.run)} · ${clockLabel(p.run.time)}</small></div>${btn('open-project', '查看', '', `data-id="${p.id}"`, 'small')}${btn('stop-task', '停止', '', `data-id="${p.id}"`, 'small')}</div>`).join('')}<small class="muted">切换页面或关闭查看窗口后，任务继续保留。</small></div></section>`;
   layer.innerHTML = html;
   syncWorkbenchStatus();
@@ -301,7 +301,7 @@ function sampleStep(run, owner, scope = 'project') {
     variables[n.id + '.OUT_FLOW'] = /[VL]1$/.test(n.id) ? run.values.a : /[VL]2$/.test(n.id) ? run.values.b : q;
     variables[n.id + '.OUT_PRE'] = run.values.pressure; variables[n.id + '.OUT_TEMP'] = run.values.temperature;
   }
-  run.history.push({ t, ...run.values, variables });
+  run.history.push({ t, ...run.values, variables, ...(scope === 'project' ? { variableValues: sampleVariableValues(owner, variables) } : {}) });
   if (scope === 'project') run.parameterKey = projectParameterKey(owner);
   if (run.history.length > 1200) run.history.shift();
   state.dirty = true;
@@ -348,7 +348,7 @@ function refreshLive() {
   if (ui.route === 'workbench') refreshWorkbenchChart();
   restoreChartCursor();
   if (ui.route === 'workbench' && !pointer) {
-    const svg = document.getElementById('network'); if (svg) svg.innerHTML = networkMarkup(activePage());
+    const svg = document.getElementById('network'); if (svg) svg.innerHTML = networkMarkup(activePage()); paintCanvasInspection();
     for (const f of ui.floats.filter(f => f.tab === 'results' && !f.minimized)) {
       const body = root.querySelector(`[data-float-id="${f.id}"] .float-body`); if (body) body.innerHTML = floatBody(f, instance(f.id));
     }
@@ -396,7 +396,7 @@ function previewDesign(i = ui.bank) {
 }
 function bindingsForProject() {
   if (!project().bindings) {
-    const variables = projectVariables(), temperature = variables.find(v => v.id === 'P1.OUT_TEMP') || variables.find(v => v.id.endsWith('.OUT_TEMP')), writable = variables.find(v => v.id === 'V1.OPENING') || variables.find(v => v.writable);
+    const variables = projectVariables(), temperature = variables.find(v => v.legacyId === 'P1.OUT_TEMP') || variables.find(v => v.legacyId?.endsWith('.OUT_TEMP')), writable = variables.find(v => v.id === 'V1.OPENING') || variables.find(v => v.writable);
     project().bindings = [];
     if (temperature) project().bindings.push({ external: 'Sensor.Temperature', variable: temperature.id, direction: 'read', unit: temperature.unit });
     if (writable) project().bindings.push({ external: 'Control.Parameter', variable: writable.id, direction: 'write', unit: writable.unit });
@@ -412,12 +412,24 @@ function apiPreview(kind = ui.apiKind || 'read') {
   document.getElementById('api-response').textContent = JSON.stringify(out, null, 2);
   const method = path?.previousElementSibling; if (method) method.textContent = kind === 'set' ? 'POST' : 'GET';
 }
-function addChartVariable(id, label) {
-  const v = projectVariables().find(v => v.id === id); if (!v) throw Error('变量不属于当前项目。');
-  if (!state.charts.extra.some(x => x.id === id && x.projectId === project().id)) state.charts.extra.push({ id, label: label || `${v.device} · ${v.name}`, unit: v.unit, projectId: project().id });
-  state.charts.source = 'live'; markDirty(); navigate('curves');
+function addChartVariable(id, label, inline = false) {
+  const v = projectVariables().find(v => v.id === id); if (!v) throw Error('变量不属于当前项目或暂未提供采样。');
+  let binding = state.charts.extra.find(x => x.projectId === project().id && (x.nodeId === v.nodeId && x.variableId === v.variableId || !x.variableId && v.origin !== 'custom' && x.id === v.legacyId));
+  if (!binding) { binding = {}; state.charts.extra.push(binding); }
+  const stableId = v.sampleKey;
+  Object.assign(binding, { id: stableId, label: label || `${v.device} · ${v.name}`, unit: v.unit, projectId: project().id, nodeId: v.nodeId,
+    variableId: v.variableId, identifier: v.identifier, sampleKey: v.sampleKey, legacyId: v.legacyId, legacyFactor: v.legacyFactor });
+  state.charts.source = 'live'; markDirty();
+  if (inline) { ui.showChart = true; ui.workbenchChart = stableId; ui.pinnedChart = null; saveUI(); retainFocus(); msg('已加入同屏观察，运行或单步后更新当前值曲线。'); }
+  else navigate('curves');
 }
-function extraVariableValue(row, id) {
+function extraVariableValue(row, binding) {
+  const id = typeof binding === 'string' ? binding : binding.id;
+  if (binding.sampleKey) {
+    if (row.variableValues) { const value = row.variableValues[binding.sampleKey]; return Number.isFinite(value) ? value : null; }
+    const value = binding.legacyId ? row.variables?.[binding.legacyId] : null;
+    return Number.isFinite(value) ? value * binding.legacyFactor : null;
+  }
   if (Number.isFinite(row.variables?.[id])) return row.variables[id];
   if (id.endsWith('.OUT_FLOW')) return /^[VL]1\./.test(id) ? row.a : /^[VL]2\./.test(id) ? row.b : row.q;
   if (id.endsWith('.OUT_PRE')) return row.pressure;
@@ -452,9 +464,9 @@ function extraChartsMarkup() {
   const run = currentChartRun(), projectId = state.charts.source === 'live' ? project().id : run.projectId;
   return state.charts.extra.filter(v => v.projectId === projectId).map((v, i) => {
     const key = 'extra:' + v.id;
-    const history = run.history.filter(r => extraVariableValue(r, v.id) !== null).map(r => ({ t: r.t, [key]: extraVariableValue(r, v.id) }));
+    const history = run.history.filter(r => extraVariableValue(r, v) !== null).map(r => ({ t: r.t, [key]: extraVariableValue(r, v) }));
     SERIES[key] = { name: v.label, unit: v.unit, color: 'blue' };
-    return `<section class="panel"><div class="chart-panel"><div class="chart-heading"><div class="grow"><h3>${esc(v.label)}</h3><small class="muted">${esc(v.id)} · ${esc(v.unit)}</small></div>${ibtn('remove-chart-var', '移除观察变量', 'X', `data-id="${v.id}"`)}</div>${history.length ? chartSvg(history, [key], 'extra-chart-' + i) : '<div class="empty"><p>此变量尚未采样，运行或单步后查看。</p></div>'}<div class="chart-readout" id="extra-chart-${i}-readout"></div></div></section>`;
+    return `<section class="panel"><div class="chart-panel"><div class="chart-heading"><div class="grow"><h3>${esc(v.label)}</h3><small class="muted">${esc(v.identifier || v.id)} · ${esc(v.unit)}</small></div>${ibtn('remove-chart-var', '移除观察变量', 'X', `data-id="${v.id}"`)}</div>${history.length ? chartSvg(history, [key], 'extra-chart-' + i) : '<div class="empty"><p>此变量尚未采样，运行或单步后查看。</p></div>'}<div class="chart-readout" id="extra-chart-${i}-readout"></div></div></section>`;
   }).join('');
 }
 function updateExtraCharts() { const e = document.getElementById('extra-charts'); if (e) e.innerHTML = extraChartsMarkup(); }
@@ -496,7 +508,7 @@ function validateImport(data) {
   for (const item of data.models) {
     const m = data.modules.find(m => m.id === item.moduleId);
     if (!safeId(item.id) || !m || typeof item.name !== 'string' || !Array.isArray(item.versions) || !item.versions.length) throw Error('型号引用或版本数据不完整。');
-    readParams(item.params, m.kind);
+    readParams(item.params, m.kind); validateModelVariables(item, m);
   }
   if (data.format === 'fluidnet-prototype-models') return;
   if (!Array.isArray(data.projects) || !data.projects.length || data.projects.length > 20 || !unique(data.projects.map(p => p.id)) || !data.bench || !data.charts || !Array.isArray(data.records) || !Array.isArray(data.messages) || !Array.isArray(data.connectors) || !Number.isInteger(data.serial)) throw Error('项目、测试或运行数据不完整。');
@@ -539,11 +551,11 @@ function chooseChartVariables(control = false) {
     openDialog('控制输入与输出', '配置观察变量与可写目标。', `<div class="stack">${selectField('input', '读取变量', variables.map(v => [v.id, v.id + ' · ' + v.name]), cfg.input)}${selectField('output', '设置目标', variables.filter(v => v.writable).map(v => [v.id, v.id + ' · ' + v.name]), cfg.output)}</div>`, data => {
       cfg.input = data.input; cfg.output = data.output; markDirty(project()); render();
     }, '保存绑定');
-  } else openDialog('添加观察变量', '选择设备和物理量；曲线采样与主系统的仿真时间一致。', selectField('variable', '项目变量', variables.map(v => [v.id, `${v.id} · ${v.device} · ${v.name} / ${v.unit}`]), variables[0].id), data => addChartVariable(data.variable), '加入曲线');
+  } else openDialog('添加观察变量', '选择设备和物理量；曲线采样与主系统的仿真时间一致。', selectField('variable', '项目变量', variables.map(v => [v.id, `${v.identifier || v.id} · ${v.device} · ${v.name} / ${v.unit}`]), variables[0].id), data => addChartVariable(data.variable), '加入曲线');
 }
 function handleAction(action, el) {
   const d = el.dataset, id = d.id;
-  const changes = { 'editor-tab': 'moduleTab', 'project-filter': 'projectFilter', 'project-view': 'projectView', 'module-category': 'category', 'model-filter': 'modelFilter', 'bench-tab': 'benchTab', 'run-filter': 'runFilter', 'settings-tab': 'settingsTab', 'connection-tab': 'connectionTab', 'node-domain': 'nodeDomain' };
+  const changes = { 'editor-tab': 'moduleTab', 'project-filter': 'projectFilter', 'project-view': 'projectView', 'module-category': 'category', 'module-view': 'moduleView', 'model-filter': 'modelFilter', 'bench-tab': 'benchTab', 'run-filter': 'runFilter', 'settings-tab': 'settingsTab', 'connection-tab': 'connectionTab', 'node-domain': 'nodeDomain' };
   if (changes[action]) { ui[changes[action]] = d.value; saveUI(); render(); return; }
   switch (action) {
     case 'nav': closeDialog(); navigate(d.route, d.sub ? { connectionTab: d.sub } : {}); break;
@@ -604,7 +616,13 @@ function handleAction(action, el) {
     case 'capture-instance-bank': captureInstanceBank(instance(id), Number(d.bank)); break;
     case 'instance-array': editInstanceArray(instance(id), d.instanceValue, Number(d.instanceSource)); break;
     case 'copy-device': copyDevice(id); break;
-    case 'rotate-device': remember(); instance(id).rotation = ((instance(id).rotation || 0) + 90) % 360; markDirty(project()); render(); break;
+    case 'rotate-device': rotateDevice(id, d.direction === '-1' ? -1 : 1); break;
+    case 'device-variables': openDeviceVariables(id, d.variable); break;
+    case 'choose-device-model': chooseDeviceModel(id); break;
+    case 'device-definition': openDeviceDefinition(id, d.variable); break;
+    case 'return-device': returnToDevice(); break;
+    case 'observe-instance-variable': observeInstanceVariable(id, d.variable); break;
+    case 'save-instance-model': saveInstanceModel(id); break;
     case 'delete-node': deleteNode(id || ui.selectedNode); break;
     case 'delete-edge': deleteEdge(id || ui.selectedEdge); break;
     case 'undo': undo(); break;
@@ -693,7 +711,11 @@ function handleAction(action, el) {
     case 'add-chart-variable': chooseChartVariables(); break;
     case 'choose-control-vars': chooseChartVariables(true); break;
     case 'add-specific-curve': addChartVariable(id, d.label); break;
-    case 'device-curve': addChartVariable(id + '.OUT_FLOW'); break;
+    case 'device-curve': {
+      const v = projectVariables().find(v => v.nodeId === id && v.origin === 'port' && v.variableId.endsWith(':FLOW'));
+      if (!v) throw Error('此设备暂未提供出口流量采样。');
+      addChartVariable(v.id); break;
+    }
     case 'remove-chart-var': state.charts.extra = state.charts.extra.filter(v => v.id !== id || v.projectId !== project().id); markDirty(); render(); break;
     case 'control-template': confirmChange('载入控制示例', '替换当前脚本文本，保留独立的观察变量配置。', () => { project().control = makeProject('', '', '', waterPage()).control; markDirty(project()); render(); }); break;
     case 'preview-control': {
@@ -724,12 +746,7 @@ function handleAction(action, el) {
     case 'reset-prototype': confirmChange('恢复内置示例', '替换当前原型草稿。可先取消并导出编辑内容。', () => { try { localStorage.setItem(STORAGE_KEY + '-before-reset', JSON.stringify(state)); } catch {} state = initialState(); normalizeState(); ui.floats = []; ui.selectedNode = ''; undoStack = []; redoStack = []; state.dirty = true; navigate('home'); msg('已恢复示例；保存后更新浏览器记录。'); }, '恢复示例'); break;
     case 'float-close': { const f = ui.floats.find(f => f.id === id); rememberWindow(f); ui.floats = ui.floats.filter(f => f.id !== id); renderFloats(); break; }
     case 'float-tab': {
-      const f = ui.floats.find(f => f.id === id); f.tab = d.value;
-      if (d.value === 'variables' && !f.variablesOpened) {
-        const r = page.getBoundingClientRect(); f.variablesOpened = true;
-        f.w = Math.min(780, r.width - 16); f.h = Math.min(650, r.height - 16);
-        f.x = r.right - f.w - 12; f.y = r.top + 12;
-      }
+      const f = ui.floats.find(f => f.id === id); setDeviceTab(f, d.value);
       renderFloats(); break;
     }
     case 'float-pin': { const f = ui.floats.find(f => f.id === id); f.pinned = !f.pinned; rememberWindow(f); renderFloats(); break; }
@@ -778,6 +795,7 @@ function handleInput(el) {
 }
 function handleChange(el) {
   const d = el.dataset, value = el.value; let redraw = true;
+  if (d.deviceModelSource) { document.getElementById('device-model-preview').innerHTML = instanceModelPreview(instance(d.deviceModelSource), value); return; }
   if ('workbenchChart' in d) { ui.workbenchChart = value; ui.pinnedChart = null; saveUI(); retainFocus(); return; }
   if (el.type === 'file' && modal && el.name === 'file') {
     const file = el.files[0], current = modal; if (!file) return;
@@ -902,7 +920,7 @@ root.addEventListener('click', e => {
     const port = target.closest('[data-port-node]'), quick = target.closest('[data-quick-node]'), node = target.closest('[data-node]'), edge = target.closest('[data-edge]'), draw = target.closest('[data-draw-id]');
     if (port) connectPort(port.dataset.portNode, port.dataset.portId);
     else if (quick) openDevice(quick.dataset.quickNode);
-    else if (node) { ui.selectedNode = node.dataset.node; ui.selectedEdge = ''; document.getElementById('selected-properties').innerHTML = propertiesMarkup(instance(ui.selectedNode)); root.querySelectorAll('#network [data-node]').forEach(el => el.classList.toggle('selected', el.dataset.node === ui.selectedNode)); }
+    else if (node) { ui.selectedNode = node.dataset.node; ui.selectedEdge = ''; syncDeviceSelection(); }
     else if (edge) { ui.selectedEdge = edge.dataset.edge; ui.selectedNode = ''; render(); }
     else if (draw) { ui.editorPort = draw.dataset.drawId; render(); }
     else if (target.closest('#network') && ui.placing) newInstance(ui.placing, svgPoint(document.getElementById('network'), e));
@@ -913,7 +931,7 @@ root.addEventListener('click', e => {
 root.addEventListener('dblclick', e => { const n = e.target.closest('[data-node]'); if (n && !e.target.closest('[data-port-node]')) openDevice(n.dataset.node); });
 root.addEventListener('contextmenu', e => {
   const n = e.target.closest('[data-node]'); if (!n) return; e.preventDefault(); ui.selectedNode = n.dataset.node;
-  contextMenu = { id: n.dataset.node, x: clamp(e.clientX, 70, innerWidth - 202), y: clamp(e.clientY, 60, innerHeight - 210) }; renderFloats();
+  contextMenu = { id: n.dataset.node, x: clamp(e.clientX, 70, innerWidth - 202), y: clamp(e.clientY, 60, innerHeight - 370) }; syncDeviceSelection(); renderFloats();
 });
 function selectCodeTarget(kind) {
   if (!['runtime', 'header', 'design'].includes(kind)) return;
@@ -921,7 +939,10 @@ function selectCodeTarget(kind) {
   const picker = root.querySelector('[data-code-target]'); if (picker) picker.value = kind;
   saveUI();
 }
-root.addEventListener('focusin', e => { if (e.target.matches('textarea[data-code-kind]')) selectCodeTarget(e.target.dataset.codeKind); });
+root.addEventListener('pointerover', e => { if (!pointer) showCanvasInspection(e.target); });
+root.addEventListener('pointerout', e => { if (!pointer) showCanvasInspection(e.relatedTarget); });
+root.addEventListener('focusin', e => { if (e.target.closest('#network [data-node]')) showCanvasInspection(e.target); if (e.target.matches('textarea[data-code-kind]')) selectCodeTarget(e.target.dataset.codeKind); });
+root.addEventListener('focusout', e => { if (e.target.closest('#network [data-node]')) showCanvasInspection(e.relatedTarget); });
 root.addEventListener('scroll', e => { if (e.target.matches?.('textarea[data-code-kind]')) e.target.previousElementSibling.scrollTop = e.target.scrollTop; }, true);
 root.addEventListener('input', e => { try { handleInput(e.target); } catch (err) { msg(err.message, true); } });
 root.addEventListener('change', e => { try { handleChange(e.target); } catch (err) { e.target.setAttribute('aria-invalid', 'true'); msg(err.message, true); } });
@@ -964,6 +985,7 @@ document.addEventListener('keydown', e => {
     if (p || n || draw) { e.preventDefault(); if (p) { try { connectPort(p.dataset.portNode, p.dataset.portId); } catch (err) { msg(err.message, true); } } else if (n) openDevice(n.dataset.node); else { ui.editorPort = draw.dataset.drawId; render(); } return; }
   }
   if (ui.route === 'workbench') {
+    if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === 'r' && ui.selectedNode) { e.preventDefault(); rotateDevice(ui.selectedNode, e.shiftKey ? -1 : 1); return; }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(e.shiftKey); }
     else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); undo(true); }
     else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') copyDevice();
@@ -982,6 +1004,10 @@ function normalizeState() {
     p.controlConfig ||= { name: '供水温度调节', when: 'accepted', period: 100, input: p.pages.flatMap(pg => pg.nodes).some(n => n.id === 'P1') ? 'P1.OUT_TEMP' : '', output: p.pages.flatMap(pg => pg.nodes).some(n => n.id === 'V1') ? 'V1.OPENING' : '' };
     p.run.events ||= []; p.run.history ||= [];
     for (const pg of p.pages) { pg.zoom ||= 1; pg.pan ||= [0, 0]; for (const n of pg.nodes) { n.draft ||= clone(n.params); validateInstanceVariableState(n, moduleOf(n)); ensureInstanceVariables(n, moduleOf(n), p); } }
+    const variables = projectVariables(p);
+    for (const field of ['input', 'output']) if (!variables.some(v => v.id === p.controlConfig[field])) {
+      const legacy = variables.find(v => v.legacyId === p.controlConfig[field]); if (legacy) p.controlConfig[field] = legacy.id;
+    }
   }
   state.bench.run.events ||= []; state.bench.run.history ||= [];
 }

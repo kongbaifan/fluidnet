@@ -2,6 +2,12 @@
 
 当前版本：**[FluidNet Studio 全页面原型](fluidnet-studio-prototype.html)**。
 
+2026-10-10 已完成模块库紧凑列表、画布直接操作及变量使用流程：模块列表与卡片可切换并记忆；选中设备快捷栏和右键菜单可查看变量、选择型号、旋转、进入模块定义；`R` / `Shift+R` 支持旋转与撤销，端口提示关联内部通路。设备与模块定义之间可定位并返回原设备。
+
+全部变量可直接加入同屏曲线，采样只取已生效值，压力单位与变量表一致。参数、自定义标量及可采样出口使用稳定标识，兼容旧记录并避免自定义变量同名误读。宽屏观察自动停靠并同时显示当前值和草稿，窄屏收起后可恢复未应用编辑。设备当前值、草稿和三组库值可预览后保存为型号，保留可写自定义变量，应用到另一台设备仍须确认。
+
+新增 `interaction-details.mjs` 通过 9 组专项检查；原有 6 份回归脚本通过，浏览器未捕获脚本异常，布局检查覆盖 320 / 736 / 1024 / 1366 / 1600 px 及深色显示。证据见 `.cache/studio-prototype-qa/interaction-details.json`、`compact-module-list-1366.png`、`canvas-device-actions-320.png`、`variable-flow-1366.png` 和 `variable-flow-dark.png`；当前构建及完整验收汇总见 [studio/QA_SUMMARY.json](studio/QA_SUMMARY.json)。
+
 2026-10-10 已修复模块分类无法新增分组：左侧“模块分类”提供“新增分组”，自建分组可独立保存，空分组在刷新和 JSON 交换后保留。新建模块可选择分组，模块卡片可调整所属分组；自建分组支持重命名和删除空分组，建模模块库同步归类，型号与项目设备引用保持稳定。
 
 分组专项检查覆盖新增 / 取消 / 名称校验、空分组保存恢复、模块移动、重命名、删除保护、完整原型与型号库 JSON、无效导入拒绝及旧存档兼容。原有 5 组浏览器检查通过，分组页覆盖 1366 / 1024 / 736 / 320 px 和深色显示；证据见 `.cache/studio-prototype-qa/module-groups.json`、`module-group-empty.png`、`module-groups-1366.png` 和 `module-groups-dark.png`。

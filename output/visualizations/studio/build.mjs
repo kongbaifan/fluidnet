@@ -10,9 +10,9 @@ const icons = Object.fromEntries(names.map(name => {
   return [name, renderToStaticMarkup(createElement(Lucide[name], { width:18, height:18, strokeWidth:1.65, 'aria-hidden':'true', focusable:'false' }))];
 }));
 const here = new URL('.', import.meta.url);
-const [template, css, workbenchCss, data, app, variables, workbench, groups, runtime] = await Promise.all(['index.html','styles.css','workbench.css','data.js','app.js','instance-variables.js','workbench.js','module-groups.js','runtime.js'].map(name=>readFile(new URL(name,here),'utf8')));
-const script = `(() => {\n'use strict';\nconst ICONS = ${JSON.stringify(icons)};\n${data}\n${app}\n${variables}\n${workbench}\n${groups}\n${runtime}\n})();`;
-const html = template.replace('<!-- STUDIO_STYLES -->', `<style>\n${css}\n${workbenchCss}\n</style>`).replace('<!-- STUDIO_SCRIPT -->', `<script>\n${script.replace(/<\/script/gi, '<\\/script')}\n</script>`);
+const [template, css, workbenchCss, interactionCss, data, app, variables, workbench, groups, canvasActions, variableFlow, runtime] = await Promise.all(['index.html','styles.css','workbench.css','interaction-details.css','data.js','app.js','instance-variables.js','workbench.js','module-groups.js','canvas-actions.js','variable-flow.js','runtime.js'].map(name=>readFile(new URL(name,here),'utf8')));
+const script = `(() => {\n'use strict';\nconst ICONS = ${JSON.stringify(icons)};\n${data}\n${app}\n${variables}\n${workbench}\n${groups}\n${canvasActions}\n${variableFlow}\n${runtime}\n})();`;
+const html = template.replace('<!-- STUDIO_STYLES -->', `<style>\n${css}\n${workbenchCss}\n${interactionCss}\n</style>`).replace('<!-- STUDIO_SCRIPT -->', `<script>\n${script.replace(/<\/script/gi, '<\\/script')}\n</script>`);
 const destination = new URL('../fluidnet-studio-prototype.html',here);
 await writeFile(destination,html);
 console.log(JSON.stringify({ file:fileURLToPath(destination), bytes:Buffer.byteLength(html), pages:12 }));

@@ -1,8 +1,8 @@
 {
-  "checked_at": "2026-10-10T06:20:19.710562+00:00",
+  "checked_at": "2026-10-10T06:58:59.234768+00:00",
   "file": "output/visualizations/fluidnet-studio-prototype.html",
-  "bytes": 350031,
-  "sha256": "dbbd12aa24cccc0236b63f4d2d8a652d528ec77d591a3fb5152eabcd95c407f1",
+  "bytes": 375186,
+  "sha256": "f86bdf6ec266b94a75afa06cdff2c768a7f92efc59d85f3b7534ba7ae0e26c99",
   "pages": 12,
   "module_tabs": 6,
   "device_tabs": 4,
@@ -57,7 +57,7 @@
       "table": {
         "width": 778,
         "scroll": 778,
-        "height": 344
+        "height": 333
       }
     },
     {
@@ -70,8 +70,8 @@
       },
       "table": {
         "width": 656,
-        "scroll": 680,
-        "height": 344
+        "scroll": 750,
+        "height": 333
       }
     },
     {
@@ -84,8 +84,8 @@
       },
       "table": {
         "width": 248,
-        "scroll": 635,
-        "height": 171
+        "scroll": 750,
+        "height": 154
       }
     }
   ],
@@ -273,23 +273,28 @@
     }
   ],
   "last_revision_verification": {
-    "checked_at": "2026-10-10T06:20:19.710562+00:00",
-    "change": "修复模块分类无法新增分组：独立保存空分组、新模块选组、模块归类、重命名与空分组删除、JSON 交换及旧存档兼容",
+    "checked_at": "2026-10-10T06:58:59.234768+00:00",
+    "change": "模块库紧凑列表、画布设备快捷操作与内部通路提示、变量同屏观察及设备保存型号；保留显式应用、稳定采样标识与旧记录兼容，完善停靠和窄屏恢复",
     "checks": [
-      "module-groups.mjs",
+      "interaction-details.mjs",
       "pages.mjs",
       "workflow.mjs",
       "details.mjs",
       "instance-variables.mjs",
-      "workbench.mjs"
+      "workbench.mjs",
+      "module-groups.mjs"
     ],
+    "passed_check_groups": 47,
     "screenshots": [
-      "module-group-empty.png",
-      "module-groups-1366.png",
-      "module-groups-1024.png",
-      "module-groups-736.png",
-      "module-groups-320.png",
-      "module-groups-dark.png"
+      "compact-module-list-1366.png",
+      "compact-module-list-1024.png",
+      "compact-module-list-736.png",
+      "compact-module-list-320.png",
+      "compact-module-list-dark.png",
+      "canvas-device-actions-1366.png",
+      "canvas-device-actions-320.png",
+      "variable-flow-1366.png",
+      "variable-flow-dark.png"
     ],
     "errors": []
   },
@@ -338,6 +343,44 @@
   ],
   "module_group_errors": [],
   "module_group_layouts": [
+    {
+      "width": 1366,
+      "outer": 1366,
+      "page": 1300,
+      "content": 1300
+    },
+    {
+      "width": 1024,
+      "outer": 1024,
+      "page": 958,
+      "content": 958
+    },
+    {
+      "width": 736,
+      "outer": 736,
+      "page": 682,
+      "content": 682
+    },
+    {
+      "width": 320,
+      "outer": 320,
+      "page": 266,
+      "content": 266
+    }
+  ],
+  "interaction_details_checks": [
+    "Compact rows, search/category preservation, editing entry and persisted view preference",
+    "Rotation and inverse shortcut, connected geometry, undo/redo, typing guard, port inspection and model staging from canvas",
+    "Dual-circuit exchanger highlights only the matching channel and does not offer unsampled outlet curves",
+    "Parameter-to-variable navigation, applied-only same-screen curves, pressure units, stable bindings, custom scalar sampling and return to the device",
+    "Current/draft/bank to named model, source preview and validation, custom values displayed and explicit isolated application to another instance",
+    "Model and variable bindings survive JSON/reload; invalid model arrays reject import; renamed variables retain stable sampling identity",
+    "Custom variables never borrow legacy outlet samples with the same displayed name",
+    "Narrow-screen observation exposes run controls; restoring the variable window preserves search and unapplied edits",
+    "Compact list at 1366/1024/736/320 px without overflow, narrow canvas actions and dark appearance"
+  ],
+  "interaction_details_errors": [],
+  "interaction_details_layouts": [
     {
       "width": 1366,
       "outer": 1366,
