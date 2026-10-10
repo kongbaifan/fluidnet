@@ -75,8 +75,7 @@ function makeModule(spec) {
   m.variables=variablesFor(m);m.values=Object.fromEntries(m.variables.map(v=>[v.id,clone(v.value)]));
   m.banks=[clone(m.values),clone(m.values),clone(m.values)];m.bankNames=['额定工况','部分负荷','调试备份'];
   if(id==='valve'){m.banks[1]['param:opening']=65;m.banks[2]['param:opening']=40;}
-  m.source={runtime:`// ${code} · 运行函数\n// 参数与端口由模块定义提供\n\nvoid Run() {\n  // 读取已接受的端口状态\n  double opening = OPENING / 100.0;\n\n  // 提供设备关系，由全网统一求解\n  // 运行代码在本原型中仅作编辑预览\n}\n`,header:`#pragma once\n\n// ${code} · 公共声明\nstruct PortState {\n  double pressure;    // Pa\n  double temperature; // K\n  double density;     // kg/m³\n};\n`,design:[`// 库值 1 · 额定工况\nvoid Design1() {\n  OPENING = 80.0;\n  KV = 16.0;\n}\n`,`// 库值 2 · 部分负荷\nvoid Design2() {\n  OPENING = 65.0;\n  KV = 16.0;\n}\n`,`// 库值 3 · 调试备份\nvoid Design3() {\n  OPENING = 40.0;\n  KV = 16.0;\n}\n`]};
-  if(id!=='valve'){m.source.runtime=`// ${code} · 运行函数\nvoid Run() {\n  // 在此编辑设备算法\n  // 当前原型不编译或执行代码\n}\n`;m.source.design=[1,2,3].map(i=>`// ${code} · 库值 ${i}\nvoid Design${i}() {\n  // 编辑设计参数\n}\n`);}
+  m.source = pythonModuleSource(id, code); m.sourceFormat = 'python-v1';
   return m;
 }
 function makeInstance(id,kind,name,x,y,params={}) { const p={...defaultsFor(kind),...params};return {id,moduleId:kind,name,x,y,rotation:0,params:p,draft:clone(p),modelId:kind==='valve'?'valve-16':kind==='pump'?'pump-standard':null,modelVersion:1,draftModelId:null}; }

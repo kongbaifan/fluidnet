@@ -368,28 +368,23 @@ function recordRun(scope) {
 function showDiagnostics(issues = validateNetwork()) {
   openDialog('连接与定义检查', issues.length ? `${issues.length} 项需要检查，点击可定位设备。` : '结构检查通过。计算结果仍由示例数据演示。', issues.length ? `<div class="stack">${issues.map(x => btn('locate-issue', esc(x.text), 'Info', `data-id="${x.node || ''}" data-page="${x.page || ''}"`, 'ghost')).join('')}</div>` : `<div class="notice good">${icon('CheckCircle2')}端口存在、类型匹配，且没有重复连接。</div>`, null, '', true);
 }
-function balancedCode(source) {
-  const clean = source.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'/g, '');
-  const stack = [], pairs = { ')': '(', ']': '[', '}': '{' };
-  for (const c of clean) { if ('([{'.includes(c)) stack.push(c); else if (pairs[c] && stack.pop() !== pairs[c]) return false; }
-  return stack.length === 0;
-}
 function previewCode(kind = 'runtime', build = false) {
-  const m = mod(), name = { runtime: '运行代码', header: 'Header', design: `设计函数 ${ui.designIndex + 1}` }[kind];
-  const sources = build ? [['运行代码', m.source.runtime], ['Header', m.source.header], ...m.source.design.map((code, i) => [`设计函数 ${i + 1}`, code])] : [[name, kind === 'design' ? m.source.design[ui.designIndex] : m.source[kind]]];
-  const checks = sources.map(([label, source]) => `${balancedCode(source) ? '✓ ' + label + '：括号结构检查通过' : '× ' + label + '：括号不配对，请检查代码'}`);
+  const m = mod(), name = { runtime: '运行代码', header: '公共代码', design: `设计函数 ${ui.designIndex + 1}` }[kind];
+  const sources = build ? [['运行代码', m.source.runtime], ['公共代码', m.source.header], ...m.source.design.map((code, i) => [`设计函数 ${i + 1}`, code])] : [[name, kind === 'design' ? m.source.design[ui.designIndex] : m.source[kind]]];
+  const checks = sources.map(([label, source]) => { const issue = pythonCodeIssue(source); return issue ? `× ${label}：${issue}` : `✓ ${label}：Python 基础结构检查通过`; });
   if (build) {
     const errors = checkChannels(m);
-    checks.push(errors.length ? '× ' + errors.join('\n') : '✓ 端口与通路检查通过', '编译流程预览：生成接口 → 编译模块 → 项目运行', '未启动编译器，未生成二进制模块。');
-  } else checks.push(`检查对象：${m.code} / ${name}。仅做结构检查，不判断算法正确性。`);
+    checks.push(errors.length ? '× ' + errors.join('\n') : '✓ 端口与通路检查通过', 'Python 调用流程预览：载入公共代码 → 载入运行函数 / 设计函数 → 项目调用');
+  } else checks.push(`检查对象：${m.code} / ${name}。`);
+  checks.push('仅检查括号与字符串；未进行完整 Python 语法、缩进或算法校验，代码未执行。');
   ui.compileOutput = checks.join('\n');
   const out = document.getElementById('code-output');
   if (out) out.textContent = ui.compileOutput;
-  else openDialog('检查与编译流程', m.name, `<pre class="code-preview">${esc(ui.compileOutput)}</pre>`);
+  else openDialog('Python 检查与调用预览', m.name, `<pre class="code-preview">${esc(ui.compileOutput)}</pre>`);
 }
 function previewDesign(i = ui.bank) {
   const m = mod();
-  ui.compileOutput = `设计函数 ${i + 1} → 库值 ${i + 1} · ${m.bankNames[i]}\n${balancedCode(m.source.design[i]) ? '括号结构正常。' : '请检查括号结构。'}\n这是调用流程预览；库值未被修改，代码未执行。`;
+  ui.compileOutput = `设计函数 ${i + 1} → 库值 ${i + 1} · ${m.bankNames[i]}\n${pythonCodeIssue(m.source.design[i]) || 'Python 基础结构检查通过。'}\n这是调用流程预览；库值未被修改，代码未执行。`;
   const out = document.getElementById('code-output');
   if (out) out.textContent = ui.compileOutput;
   else openDialog('设计函数调用预览', m.name, `<pre class="code-preview">${esc(ui.compileOutput)}</pre>`);
@@ -496,7 +491,7 @@ function validateImport(data) {
   const unique = values => new Set(values).size === values.length;
   if (!unique(data.modules.map(m => m.id)) || !unique(data.models.map(m => m.id))) throw Error('模块或型号标识重复。');
   for (const m of data.modules) {
-    if (!safeId(m.id) || !PARAM_DEFS[m.kind] || !isIdentifier(m.code) || typeof m.name !== 'string' || !Array.isArray(m.ports) || !Array.isArray(m.variables) || !Array.isArray(m.channels) || !m.values || m.banks?.length !== 3 || m.bankNames?.length !== 3 || !m.source || typeof m.source.runtime !== 'string' || typeof m.source.header !== 'string' || m.source.design?.length !== 3 || !m.drawing) throw Error('模块定义不完整。');
+    if (!safeId(m.id) || !PARAM_DEFS[m.kind] || !isIdentifier(m.code) || typeof m.name !== 'string' || !Array.isArray(m.ports) || !Array.isArray(m.variables) || !Array.isArray(m.channels) || !m.values || m.banks?.length !== 3 || m.bankNames?.length !== 3 || !m.source || typeof m.source.runtime !== 'string' || typeof m.source.header !== 'string' || m.source.design?.length !== 3 || m.source.design.some(code => typeof code !== 'string') || !m.drawing) throw Error('模块定义不完整。');
     if (m.ports.length > 24 || m.variables.length > 160 || !unique(m.ports.map(p => p.id)) || !unique(m.variables.map(v => v.id))) throw Error('端口 / 变量标识重复或数量超限。');
     if (m.ports.some(p => !safeId(p.id) || !isIdentifier(p.name) || !DOMAINS[p.domain] || !['in', 'out'].includes(p.direction) || !Number.isFinite(p.x) || !Number.isFinite(p.y))) throw Error('端口定义不合法。');
     if (m.variables.some(v => !isIdentifier(v.name) || !['int', 'double', 'int[8]', 'double[8]'].includes(v.type) || v.port && !m.ports.some(p => p.id === v.port))) throw Error('变量定义不合法。');
@@ -976,7 +971,7 @@ document.addEventListener('keydown', e => {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); pageMap(); return; }
   if (e.key === 'Escape') { closeDialog(); contextMenu = null; ui.connecting = null; ui.placing = null; ui.pinnedChart = null; render(); return; }
   if (edit) {
-    if (e.key === 'Tab' && e.target.tagName === 'TEXTAREA' && (e.target.dataset.codeKind || 'controlCode' in e.target.dataset)) { e.preventDefault(); const el = e.target; el.setRangeText('  ', el.selectionStart, el.selectionEnd, 'end'); el.dispatchEvent(new Event('input', { bubbles: true })); }
+    if (e.key === 'Tab' && e.target.tagName === 'TEXTAREA' && (e.target.dataset.codeKind || 'controlCode' in e.target.dataset)) { e.preventDefault(); const el = e.target; el.setRangeText(el.dataset.codeKind ? '    ' : '  ', el.selectionStart, el.selectionEnd, 'end'); el.dispatchEvent(new Event('input', { bubbles: true })); }
     return;
   }
   if (modal) return;
@@ -999,6 +994,7 @@ document.addEventListener('keydown', e => {
 });
 function normalizeState() {
   normalizeModuleGroups();
+  state.modules.forEach(normalizePythonSource);
   state.windowPositions ||= {}; state.charts.extra ||= []; state.serial ||= 30;
   for (const p of state.projects) {
     p.controlConfig ||= { name: '供水温度调节', when: 'accepted', period: 100, input: p.pages.flatMap(pg => pg.nodes).some(n => n.id === 'P1') ? 'P1.OUT_TEMP' : '', output: p.pages.flatMap(pg => pg.nodes).some(n => n.id === 'V1') ? 'V1.OPENING' : '' };

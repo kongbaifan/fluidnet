@@ -1,8 +1,8 @@
 {
-  "checked_at": "2026-10-10T06:58:59.234768+00:00",
+  "checked_at": "2026-10-10T07:09:06.043881+00:00",
   "file": "output/visualizations/fluidnet-studio-prototype.html",
-  "bytes": 375186,
-  "sha256": "f86bdf6ec266b94a75afa06cdff2c768a7f92efc59d85f3b7534ba7ae0e26c99",
+  "bytes": 378591,
+  "sha256": "ff0031f607ec7518f553643a795f7f027911d6d03dbfccbad539e4408e63bafd",
   "pages": 12,
   "module_tabs": 6,
   "device_tabs": 4,
@@ -31,7 +31,7 @@
     "Window resizing and accessible footer at 1024, 736 and 320 px",
     "Module common-variable and quick-control definitions affect project parameters",
     "Occupied port protection, reconnecting, unique IDs across canvases and round-trip",
-    "Three simultaneous editors, Tab indentation, per-pane diagnostics and independent design functions",
+    "Three Python editors, four-space Tab indentation, per-pane diagnostics and independent design functions",
     "Variable insertion follows the chosen editor and selection; full checks include unselected functions",
     "Function switching preserves other editor cursors and scroll; all sources survive save/reload and JSON export; old code tabs migrate"
   ],
@@ -257,7 +257,7 @@
           "y": 734.796875,
           "width": 246,
           "height": 250,
-          "editorHeight": 179,
+          "editorHeight": 204,
           "editorWidth": 204
         },
         {
@@ -273,28 +273,22 @@
     }
   ],
   "last_revision_verification": {
-    "checked_at": "2026-10-10T06:58:59.234768+00:00",
-    "change": "模块库紧凑列表、画布设备快捷操作与内部通路提示、变量同屏观察及设备保存型号；保留显式应用、稳定采样标识与旧记录兼容，完善停靠和窄屏恢复",
+    "checked_at": "2026-10-10T07:09:06.043881+00:00",
+    "change": "模块代码页改用 Python：运行/公共/设计代码、四空格缩进、基础结构检查、旧默认模板按区域迁移及已编辑代码保护",
     "checks": [
-      "interaction-details.mjs",
-      "pages.mjs",
-      "workflow.mjs",
+      "python-code.mjs",
       "details.mjs",
-      "instance-variables.mjs",
-      "workbench.mjs",
-      "module-groups.mjs"
+      "pages.mjs",
+      "workflow.mjs"
     ],
-    "passed_check_groups": 47,
+    "passed_check_groups": 25,
+    "python_templates_parsed": 60,
     "screenshots": [
-      "compact-module-list-1366.png",
-      "compact-module-list-1024.png",
-      "compact-module-list-736.png",
-      "compact-module-list-320.png",
-      "compact-module-list-dark.png",
-      "canvas-device-actions-1366.png",
-      "canvas-device-actions-320.png",
-      "variable-flow-1366.png",
-      "variable-flow-dark.png"
+      "python-module-code-1366.png",
+      "python-module-code-dark.png",
+      "editor-code-1366.png",
+      "editor-code-320.png",
+      "editor-code-320-design.png"
     ],
     "errors": []
   },
@@ -405,5 +399,39 @@
       "page": 266,
       "content": 266
     }
-  ]
+  ],
+  "python_code_checks": [
+    "All 60 built-in run/common/design templates pass Python ast.parse without executing module code",
+    "Python comments, triple-quoted strings, raw strings and floor division are accepted; unmatched brackets/quotes and legacy declarations are reported",
+    "Migration replaces only exact legacy defaults in each pane, preserves edited source and is idempotent",
+    "Browser restoration migrates untouched panes, preserves edited legacy code, and saves/reloads replacement Python drafts",
+    "JSON export retains Python and migration metadata; importing a legacy file updates the untouched pump example in the code page"
+  ],
+  "python_code_errors": [],
+  "previous_revision_verification": {
+    "checked_at": "2026-10-10T06:58:59.234768+00:00",
+    "change": "模块库紧凑列表、画布设备快捷操作与内部通路提示、变量同屏观察及设备保存型号；保留显式应用、稳定采样标识与旧记录兼容，完善停靠和窄屏恢复",
+    "checks": [
+      "interaction-details.mjs",
+      "pages.mjs",
+      "workflow.mjs",
+      "details.mjs",
+      "instance-variables.mjs",
+      "workbench.mjs",
+      "module-groups.mjs"
+    ],
+    "passed_check_groups": 47,
+    "screenshots": [
+      "compact-module-list-1366.png",
+      "compact-module-list-1024.png",
+      "compact-module-list-736.png",
+      "compact-module-list-320.png",
+      "compact-module-list-dark.png",
+      "canvas-device-actions-1366.png",
+      "canvas-device-actions-320.png",
+      "variable-flow-1366.png",
+      "variable-flow-dark.png"
+    ],
+    "errors": []
+  }
 }
