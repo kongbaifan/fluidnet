@@ -1,0 +1,12 @@
+{
+  "chapters": 16,
+  "findings": 12,
+  "images": 3,
+  "known_reference_ids": 35,
+  "all_local_links_exist": true,
+  "source_hashes_unchanged": true,
+  "backend_tests": 42,
+  "reproductions_observed": 5,
+  "tracked_product_files_changed": false,
+  "report_sha256": "f0fe42b35b4ddc2409d7748d5704e3782c965aa2c9bb6e09061319c33590bcae"
+}

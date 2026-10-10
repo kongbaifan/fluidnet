@@ -1,0 +1,110 @@
+<div id="fluidnet-client-concept">
+  <style>
+    #fluidnet-client-concept { --fn-bg:light-dark(#f3f5f7,#171e28);--fn-panel:light-dark(#ffffff,#202a37);--fn-text:light-dark(#263344,#e0e7ef);--fn-muted:light-dark(#607084,#acbbc9);--fn-border:light-dark(#d6dde5,#3b4857);--fn-accent:light-dark(#126d81,#7ac9d8);--fn-soft:light-dark(#e7f3f6,#243f4b);--fn-grid:light-dark(#dce3eb,#354251);--fn-line:light-dark(#387e91,#80c9d7);font:13px/1.55 "Segoe UI","Microsoft YaHei",sans-serif;color:var(--fn-text);width:100%; }
+    #fluidnet-client-concept * { box-sizing:border-box; }
+    #fluidnet-client-concept [hidden] { display:none!important; }
+    #fluidnet-client-concept .fn-window { background:var(--fn-bg);border:1px solid var(--fn-border);border-radius:10px; }
+    #fluidnet-client-concept .fn-title { min-height:48px;padding:10px 108px 10px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap; }
+    #fluidnet-client-concept .fn-brand { font-weight:600;letter-spacing:.2px; }
+    #fluidnet-client-concept .fn-caption { color:var(--fn-muted);font-size:12px; }
+    #fluidnet-client-concept .fn-nav { display:flex;gap:5px;flex-wrap:wrap;background:var(--fn-panel);border-block:1px solid var(--fn-border);padding:7px 12px; }
+    #fluidnet-client-concept button { font:inherit;color:inherit; }
+    #fluidnet-client-concept .fn-tab { padding:8px 13px;border:1px solid transparent;border-radius:5px;background:transparent; }
+    #fluidnet-client-concept .fn-tab[aria-selected="true"] { background:var(--fn-soft);color:var(--fn-accent);border-color:var(--fn-border);font-weight:600; }
+    #fluidnet-client-concept .fn-layout { display:grid;grid-template-columns:155px minmax(0,1fr) 194px; }
+    #fluidnet-client-concept .fn-side { padding:15px 12px;border-right:1px solid var(--fn-border);min-width:0; }
+    #fluidnet-client-concept .fn-inspector { padding:15px 12px;border-left:1px solid var(--fn-border);background:var(--fn-panel);min-width:0; }
+    #fluidnet-client-concept .fn-label { color:var(--fn-muted);font-size:12px;margin:0 0 9px; }
+    #fluidnet-client-concept .fn-tree { list-style:none;padding:0;margin:0 0 24px; }
+    #fluidnet-client-concept .fn-tree li { margin:3px 0;padding:6px 8px;border-radius:4px;overflow-wrap:anywhere; }
+    #fluidnet-client-concept .fn-tree .fn-current { background:var(--fn-soft);color:var(--fn-accent); }
+    #fluidnet-client-concept .fn-library { display:flex;flex-wrap:wrap;gap:7px; }
+    #fluidnet-client-concept .fn-library span { background:var(--fn-panel);border:1px solid var(--fn-border);border-radius:4px;padding:3px 9px; }
+    #fluidnet-client-concept .fn-center { min-width:0;background:var(--fn-panel); }
+    #fluidnet-client-concept .fn-docbar { display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;min-height:48px;padding:12px 15px;border-bottom:1px solid var(--fn-border); }
+    #fluidnet-client-concept .fn-canvas { position:relative;height:310px;background-color:var(--fn-panel);background-image:radial-gradient(var(--fn-grid) .8px,transparent .8px);background-size:16px 16px; }
+    #fluidnet-client-concept .fn-network { position:absolute;inset:0;width:100%;height:100%; }
+    #fluidnet-client-concept .fn-node { position:absolute;transform:translate(-50%,-50%);width:104px;min-height:61px;padding:8px 5px;border:1px solid var(--fn-border);border-radius:6px;background:var(--fn-panel);text-align:center; }
+    #fluidnet-client-concept .fn-node[aria-pressed="true"] { border:2px solid var(--fn-accent);background:var(--fn-soft); }
+    #fluidnet-client-concept .fn-node small { display:block;color:var(--fn-muted);font-size:11px; }
+    #fluidnet-client-concept .fn-selected-title { margin:0 0 16px;font-weight:600; }
+    #fluidnet-client-concept dl { margin:0; }
+    #fluidnet-client-concept dt { font-size:12px;color:var(--fn-muted);margin:12px 0 3px; }
+    #fluidnet-client-concept dd { margin:0;overflow-wrap:anywhere; }
+    #fluidnet-client-concept .fn-note { margin-top:18px;padding-top:12px;border-top:1px solid var(--fn-border);font-size:12px;color:var(--fn-muted); }
+    #fluidnet-client-concept .fn-bottom { border-top:1px solid var(--fn-border);padding:10px 15px;min-height:78px; }
+    #fluidnet-client-concept .fn-bottom strong { font-weight:500; }
+    #fluidnet-client-concept .fn-bottom p { margin:7px 0 0;color:var(--fn-muted);font-size:12px; }
+    #fluidnet-client-concept .fn-footer { display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;border-top:1px solid var(--fn-border);padding:7px 14px;font-size:11px;color:var(--fn-muted); }
+    #fluidnet-client-concept .fn-module-area { padding:22px 18px;min-height:310px; }
+    #fluidnet-client-concept .fn-module-flow { display:grid;grid-template-columns:1fr 28px 1fr;align-items:center;gap:9px;margin:30px 0; }
+    #fluidnet-client-concept .fn-module-device { border:1px solid var(--fn-border);border-radius:6px;padding:15px 8px;text-align:center;background:var(--fn-bg); }
+    #fluidnet-client-concept .fn-module-arrow { text-align:center;color:var(--fn-accent); }
+    #fluidnet-client-concept .fn-module-ports { display:flex;justify-content:space-between;gap:12px;font-size:12px;color:var(--fn-accent); }
+    #fluidnet-client-concept .fn-module-info { font-size:12px;color:var(--fn-muted); }
+    #fluidnet-client-concept .fn-chart-wrap { padding:10px 8px 0; }
+    #fluidnet-client-concept .fn-chart { width:100%;height:260px;display:block; }
+    #fluidnet-client-concept .fn-legend { padding:5px 18px 12px;display:flex;gap:20px;flex-wrap:wrap;font-size:12px; }
+    #fluidnet-client-concept .fn-legend span:before { content:"";display:inline-block;width:18px;border-top:2px solid var(--fn-line);vertical-align:middle;margin-right:7px; }
+    #fluidnet-client-concept .fn-legend span+span:before { border-top-style:dashed;border-top-color:var(--fn-muted); }
+    @media(max-width:790px) { #fluidnet-client-concept .fn-layout { grid-template-columns:140px minmax(0,1fr); } #fluidnet-client-concept .fn-inspector { grid-column:1/-1;border-top:1px solid var(--fn-border);border-left:0; } #fluidnet-client-concept .fn-inspector dl { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px 20px; } #fluidnet-client-concept .fn-inspector dt { margin-top:2px; } #fluidnet-client-concept .fn-inspector .fn-selected-title { margin-bottom:10px; } }
+    @media(max-width:520px) { #fluidnet-client-concept .fn-layout { grid-template-columns:minmax(0,1fr); } #fluidnet-client-concept .fn-side { border-right:0;border-bottom:1px solid var(--fn-border);padding:10px 12px; } #fluidnet-client-concept .fn-side .fn-tree { display:flex;flex-wrap:wrap;gap:4px;margin:0 0 8px; } #fluidnet-client-concept .fn-tree li { padding:4px 7px; } #fluidnet-client-concept .fn-title { padding-right:100px;gap:2px; } #fluidnet-client-concept .fn-tab { padding:9px 10px; } #fluidnet-client-concept .fn-node { width:96px; } #fluidnet-client-concept .fn-canvas { height:275px; } }
+    @media(pointer:coarse) { #fluidnet-client-concept button { min-height:44px; } }
+  </style>
+  <div class="fn-window">
+    <div class="fn-title"><span class="fn-brand">FluidNet Studio</span><span class="fn-caption">暖通示例 · 本地工作区</span></div>
+    <div class="fn-nav" role="tablist" aria-label="工作区">
+      <button type="button" class="fn-tab cursor-interaction" role="tab" id="fn-project-tab" aria-controls="fn-project-panel" aria-selected="true" data-view="project">项目建模</button>
+      <button type="button" class="fn-tab cursor-interaction" role="tab" id="fn-equipment-tab" aria-controls="fn-equipment-panel" aria-selected="false" data-view="equipment">设备开发</button>
+      <button type="button" class="fn-tab cursor-interaction" role="tab" id="fn-analysis-tab" aria-controls="fn-analysis-panel" aria-selected="false" data-view="analysis">运行分析</button>
+    </div>
+    <section id="fn-project-panel" role="tabpanel" aria-labelledby="fn-project-tab">
+      <div class="fn-layout">
+        <aside class="fn-side"><p class="fn-label">项目资源</p><ul class="fn-tree"><li class="fn-current">主系统</li><li>循环泵组</li><li>设计工况</li></ul><p class="fn-label">元件库</p><div class="fn-library"><span>水源</span><span>管道</span><span>泵</span><span>阀</span><span>水箱</span><span>换热器</span></div></aside>
+        <div class="fn-center"><div class="fn-docbar"><span>主系统 / 循环水回路</span><span class="fn-caption">选择设备查看属性</span></div>
+          <div class="fn-canvas"><svg class="fn-network" role="img" aria-label="水源、循环泵、调节阀和换热机组组成的示意回路"></svg>
+            <button type="button" class="fn-node cursor-interaction" data-device="pump" aria-pressed="true" style="left:25%;top:28%">循环泵<small>P-01</small></button>
+            <button type="button" class="fn-node cursor-interaction" data-device="valve" aria-pressed="false" style="left:75%;top:28%">调节阀<small>V-01</small></button>
+            <button type="button" class="fn-node cursor-interaction" data-device="exchanger" aria-pressed="false" style="left:75%;top:73%">换热机组<small>HX-01</small></button>
+            <button type="button" class="fn-node cursor-interaction" data-device="source" aria-pressed="false" style="left:25%;top:73%">压力边界<small>B-01</small></button>
+          </div><div class="fn-bottom"><strong>诊断</strong><p>未运行 · 暂无计算诊断</p></div>
+        </div>
+        <aside class="fn-inspector" aria-live="polite"><p class="fn-label">设备属性</p><p class="fn-selected-title" id="fn-selected-title">循环泵 P-01</p><dl id="fn-device-properties"><dt>型号</dt><dd>标准离心泵 v1</dd><dt>转速比</dt><dd>1.00</dd><dt>介质</dt><dd>液态水</dd><dt>端口</dt><dd>in → out</dd></dl><div class="fn-note">型号、参数与结果在同一设备位置查看。</div></aside>
+      </div>
+    </section>
+    <section id="fn-equipment-panel" role="tabpanel" aria-labelledby="fn-equipment-tab" hidden>
+      <div class="fn-layout">
+        <aside class="fn-side"><p class="fn-label">设备资源</p><ul class="fn-tree"><li>内置设备</li><li class="fn-current">泵阀组合</li><li>双侧换热机组</li><li>水箱调节单元</li></ul><p class="fn-label">当前型号</p><div class="fn-caption">工作副本<br>已发布版本 v1</div></aside>
+        <div class="fn-center"><div class="fn-docbar"><span>泵阀组合 / 内部结构</span><span class="fn-caption">组合型号</span></div><div class="fn-module-area"><div class="fn-module-ports"><span>入口 in</span><span>出口 out</span></div><div class="fn-module-flow"><div class="fn-module-device">循环泵<br><span class="fn-caption">P-01</span></div><div class="fn-module-arrow" aria-hidden="true">→</div><div class="fn-module-device">调节阀<br><span class="fn-caption">V-01</span></div></div><div class="fn-module-info">对外参数</div><div class="fn-library" style="margin-top:10px"><span>泵转速</span><span>阀门开度</span></div></div><div class="fn-bottom"><strong>独立验证</strong><p>测试边界：入口压力、出口压力、水温</p></div></div>
+        <aside class="fn-inspector"><p class="fn-label">型号接口</p><p class="fn-selected-title">泵阀组合</p><dl><dt>入口映射</dt><dd>P-01.in</dd><dt>出口映射</dt><dd>V-01.out</dd><dt>泵转速</dt><dd>P-01.speed_ratio</dd><dt>阀门开度</dt><dd>V-01.opening</dd></dl><div class="fn-note">验证后发布新版本，项目实例通过差异预览选择更新。</div></aside>
+      </div>
+    </section>
+    <section id="fn-analysis-panel" role="tabpanel" aria-labelledby="fn-analysis-tab" hidden>
+      <div class="fn-layout">
+        <aside class="fn-side"><p class="fn-label">运行记录</p><ul class="fn-tree"><li class="fn-current">设计工况</li><li>阀门节流</li></ul><p class="fn-label">观测变量</p><div class="fn-caption">主管质量流量<br>泵出口压力<br>回水温度</div></aside>
+        <div class="fn-center"><div class="fn-docbar"><span>工况对比 / 主管流量</span><span class="fn-caption">示意曲线</span></div><div class="fn-chart-wrap"><svg class="fn-chart" role="img" aria-label="两条示意质量流量曲线，展示设计工况和阀门节流后的差异；不代表实际计算结果"></svg></div><div class="fn-legend"><span>设计工况</span><span>阀门节流</span></div><div class="fn-bottom"><strong>运行快照</strong><p>每次结果关联模型版本、工况、参数与计算诊断。</p></div></div>
+        <aside class="fn-inspector"><p class="fn-label">运行详情</p><p class="fn-selected-title">设计工况</p><dl><dt>模式</dt><dd>慢动态</dd><dt>观测区间</dt><dd>0–60 s（示意）</dd><dt>项目快照</dt><dd>运行时固定保存</dd><dt>导出</dt><dd>CSV / JSON / 报告</dd></dl><div class="fn-note">编辑中的项目与历史计算结果分别保留。</div></aside>
+      </div>
+    </section>
+    <div class="fn-footer"><span id="fn-context">项目建模 · 选择、连接与配置</span><span>布局草图 · 示例数据</span></div>
+  </div>
+  <script>
+    (() => {
+      const root=document.getElementById('fluidnet-client-concept');
+      const props={pump:{name:'循环泵 P-01',items:[['型号','标准离心泵 v1'],['转速比','1.00'],['介质','液态水'],['端口','in → out']]},valve:{name:'调节阀 V-01',items:[['型号','调节阀 v1'],['开度','60%'],['Kv','16 m³/h'],['端口','in → out']]},exchanger:{name:'换热机组 HX-01',items:[['型号','双侧换热机组 v1'],['设备形式','单层组合'],['工作介质','两侧独立水回路'],['编辑入口','组合内部画布']]},source:{name:'压力边界 B-01',items:[['设备类型','定压边界'],['绝对压力','201.325 kPa'],['温度','20 °C'],['介质','液态水']]}};
+      const descriptions={project:'项目建模 · 选择、连接与配置',equipment:'设备开发 · 接口、型号与独立验证',analysis:'运行分析 · 曲线、诊断与结果追溯'};
+      let state={view:'project',device:'pump'};
+      const save=()=>{if(window.openai?.setWidgetState)window.openai.setWidgetState({modelContent:{workspace:state.view,selectedDevice:state.device},privateContent:{...state}}).catch(()=>{});};
+      const apply=(incoming={})=>{state={view:descriptions[incoming.view]?incoming.view:'project',device:props[incoming.device]?incoming.device:'pump'};root.querySelectorAll('[data-view]').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.view===state.view)));for(const name of Object.keys(descriptions))root.querySelector('#fn-'+name+'-panel').hidden=name!==state.view;root.querySelectorAll('[data-device]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.device===state.device)));const item=props[state.device];root.querySelector('#fn-selected-title').textContent=item.name;const dl=root.querySelector('#fn-device-properties');dl.replaceChildren();for(const [key,val] of item.items){const dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=key;dd.textContent=val;dl.append(dt,dd);}root.querySelector('#fn-context').textContent=descriptions[state.view];draw();};
+      root.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>{apply({...state,view:b.dataset.view});save();}));
+      root.querySelectorAll('[data-device]').forEach(b=>b.addEventListener('click',()=>{apply({...state,device:b.dataset.device});save();}));
+      const ns='http://www.w3.org/2000/svg';
+      function add(svg,name,attrs,text){const el=document.createElementNS(ns,name);for(const [key,val] of Object.entries(attrs))el.setAttribute(key,val);if(text!==undefined)el.textContent=text;svg.append(el);return el;}
+      function draw(){const net=root.querySelector('.fn-network'),w=net.clientWidth,h=net.clientHeight;if(w>0){net.replaceChildren();net.setAttribute('viewBox',`0 0 ${w} ${h}`);add(net,'path',{d:`M ${w*.25} ${h*.28} H ${w*.75} V ${h*.73} H ${w*.25} Z`,fill:'none',stroke:'var(--fn-line)','stroke-width':2});add(net,'text',{x:w*.5,y:h*.28-14,'text-anchor':'middle',fill:'var(--fn-muted)','font-size':12},'供水');add(net,'text',{x:w*.5,y:h*.73+28,'text-anchor':'middle',fill:'var(--fn-muted)','font-size':12},'回水');}
+        const chart=root.querySelector('.fn-chart'),cw=chart.clientWidth,ch=260;if(cw<1)return;chart.replaceChildren();chart.setAttribute('viewBox',`0 0 ${cw} ${ch}`);const L=45,R=cw-18,T=40,B=219;add(chart,'text',{x:L,y:22,fill:'var(--fn-muted)','font-size':12},'质量流量 (kg/s)');for(const q of [0,1,2,3]){const y=B-q/3*(B-T);add(chart,'line',{x1:L,x2:R,y1:y,y2:y,stroke:'var(--fn-border)','stroke-width':1});add(chart,'text',{x:L-10,y:y+4,'text-anchor':'end',fill:'var(--fn-muted)','font-size':11},String(q));}for(const t of [0,20,40,60])add(chart,'text',{x:L+t/60*(R-L),y:B+18,'text-anchor':'middle',fill:'var(--fn-muted)','font-size':11},String(t));add(chart,'text',{x:R,y:ch-4,'text-anchor':'end',fill:'var(--fn-muted)','font-size':11},'时间 (s)');for(const variant of [0,1]){let d='';for(let t=0;t<=60;t+=2){const q=variant?1.3+1.3*Math.exp(-t/13):2.5+.1*Math.exp(-t/13);d+=(t===0?'M':'L')+(L+t/60*(R-L))+','+(B-q/3*(B-T))+' ';}add(chart,'path',{d,fill:'none',stroke:variant?'var(--fn-muted)':'var(--fn-line)','stroke-width':2,'stroke-dasharray':variant?'6 4':'none'});}}
+      apply(window.openai?.widgetState?.privateContent||state);
+      window.addEventListener('openai:set_globals',event=>{const value=event.detail?.globals?.widgetState?.privateContent;if(value)apply(value);});
+      new ResizeObserver(draw).observe(root);
+    })();
+  </script>
+</div>

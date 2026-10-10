@@ -1,0 +1,237 @@
+{
+  "generated_at": "2026-10-09T04:03:29.264481+00:00",
+  "baseline_commit": "1b846cd16c6cac2ee7c5373445a905a7468e6fee",
+  "python": "3.11.0",
+  "platform": "Windows-10-10.0.29680-SP0",
+  "workspace": "E:\\liuwangjisuan\\.cache\\review-probes\\20261009T040325773561Z",
+  "source_sha256": {
+    "fluidnet/__init__.py": "cd7103b56ff005f5a6330a5675acc0c2b1aaa94aa53da9884223ecd855126a8b",
+    "fluidnet/__main__.py": "3129adff95e0f38b87ab34cddfc27082c7892bcaec267ff5d40f160fdf55b44a",
+    "fluidnet/api.py": "e8dbe0c4ce6a399946083175d5c1fc6c9df280a611ed2e482c54b2da57ba16d2",
+    "fluidnet/catalog.py": "f1708215139a27aece132a75bf75ebb4c988e82be4f19b93433690286ff90454",
+    "fluidnet/cli.py": "1d836ea9feeb7a40fe2869c846018b64ddb55bd8d69ce0aadce172daf59b9149",
+    "fluidnet/compiler.py": "5780002732fea24ebfddf851a8a50306fbb6dbc638e3dba6b8bb41950af560ed",
+    "fluidnet/errors.py": "a59b8d22323b993552e1059cd566b5f2990dcd2406ea15afb1def8f0cb2a7a40",
+    "fluidnet/examples.py": "021b827e754cfb81dd8100ff3f5d4c11069e1c87feb0ce18dcc75193ba53ad82",
+    "fluidnet/hydraulics.py": "466ad4d5bb495a0bcb2d5f3551796bbb383b7e7a7a4d90ec5a4eb5a9cc64f61b",
+    "fluidnet/jobs.py": "541a128ac16800c76df5feee560ff9693e540d7491cd43c925b5d6ec9c41e1df",
+    "fluidnet/media.py": "e759396af25c1e37e7295fc9e1bc653d4f563097f49afc7e591509018c401b1d",
+    "fluidnet/models.py": "a0fa9f31ed67004135a003a98b7c71c1eafd55529763b3cc10cea7eb22e21b12",
+    "fluidnet/modules.py": "90d7d5ac92fc28020f81b8d5d9f4432bb49e551330cb8f01d6f67b552bcd4891",
+    "fluidnet/simulation.py": "da72da931ded1c42e56ba245e844df50f9ceeaf2e6d55ec2a5f9482335cd1bb5",
+    "fluidnet/solver.py": "23861fec5eb409eac058fdda851411c243086b71f7666a936b718bb9a4de6335",
+    "fluidnet/storage.py": "4f7bbd6615bbbb87c915b68b5bcbeb2f538c6d87bd89f749626f01f401330da5",
+    "fluidnet/thermal.py": "4a8dfbad0c383b1823995535b6a25bc29f3f6657b7418040efa62c2e25ad65dd",
+    "fluidnet/units.py": "88959836829108cfdb95000fdbd27775dc99d1cbb8f9c854a854e6635b9146cb"
+  },
+  "meaning": "observed=true confirms the review limitation; it does not mean a product acceptance test passed.",
+  "observations": [
+    {
+      "id": "R01",
+      "finding": "F01",
+      "description": "Changing each hydraulic tolerance leaves the complete iteration history and solution unchanged.",
+      "method": "Unmodified hydraulic solver; built-in parallel network; 8 one-field variants plus baseline.",
+      "observed": true,
+      "baseline_options": {
+        "max_iterations": 100,
+        "max_thermal_iterations": 80,
+        "mass_atol": 1e-08,
+        "mass_rtol": 1e-06,
+        "pressure_atol": 1.0,
+        "pressure_rtol": 1e-06,
+        "thermal_tolerance_k": 1e-05,
+        "thermal": true
+      },
+      "baseline_iterations": 11,
+      "variants": [
+        {
+          "field": "mass_atol",
+          "value": 1e-15,
+          "same_pressures": true,
+          "same_flows": true,
+          "same_iteration_history": true,
+          "iterations": 11,
+          "mass_residual_kg_s": 2.220446049250313e-16,
+          "pressure_residual_pa": 2.9103830456733704e-11
+        },
+        {
+          "field": "mass_atol",
+          "value": 100.0,
+          "same_pressures": true,
+          "same_flows": true,
+          "same_iteration_history": true,
+          "iterations": 11,
+          "mass_residual_kg_s": 2.220446049250313e-16,
+          "pressure_residual_pa": 2.9103830456733704e-11
+        },
+        {
+          "field": "mass_rtol",
+          "value": 1e-15,
+          "same_pressures": true,
+          "same_flows": true,
+          "same_iteration_history": true,
+          "iterations": 11,
+          "mass_residual_kg_s": 2.220446049250313e-16,
+          "pressure_residual_pa": 2.9103830456733704e-11
+        },
+        {
+          "field": "mass_rtol",
+          "value": 0.5,
+          "same_pressures": true,
+          "same_flows": true,
+          "same_iteration_history": true,
+          "iterations": 11,
+          "mass_residual_kg_s": 2.220446049250313e-16,
+          "pressure_residual_pa": 2.9103830456733704e-11
+        },
+        {
+          "field": "pressure_atol",
+          "value": 1e-15,
+          "same_pressures": true,
+          "same_flows": true,
+          "same_iteration_history": true,
+          "iterations": 11,
+          "mass_residual_kg_s": 2.220446049250313e-16,
+          "pressure_residual_pa": 2.9103830456733704e-11
+        },
+        {
+          "field": "pressure_atol",
+          "value": 100.0,
+          "same_pressures": true,
+          "same_flows": true,
+          "same_iteration_history": true,
+          "iterations": 11,
+          "mass_residual_kg_s": 2.220446049250313e-16,
+          "pressure_residual_pa": 2.9103830456733704e-11
+        },
+        {
+          "field": "pressure_rtol",
+          "value": 1e-15,
+          "same_pressures": true,
+          "same_flows": true,
+          "same_iteration_history": true,
+          "iterations": 11,
+          "mass_residual_kg_s": 2.220446049250313e-16,
+          "pressure_residual_pa": 2.9103830456733704e-11
+        },
+        {
+          "field": "pressure_rtol",
+          "value": 0.5,
+          "same_pressures": true,
+          "same_flows": true,
+          "same_iteration_history": true,
+          "iterations": 11,
+          "mass_residual_kg_s": 2.220446049250313e-16,
+          "pressure_residual_pa": 2.9103830456733704e-11
+        }
+      ]
+    },
+    {
+      "id": "R02",
+      "finding": "F07",
+      "description": "Unflushed curve tail remains invisible even after the 2-second threshold when no append occurs.",
+      "method": "Real Recorder/read_history and isolated files; wall clock advanced by 10 seconds with a mock; explicit flush control.",
+      "observed": true,
+      "buffered_rows_before_flush": 1,
+      "history_rows_after_10_seconds_without_append": 0,
+      "history_rows_after_explicit_flush": 1
+    },
+    {
+      "id": "R03",
+      "finding": "F08",
+      "description": "Both rejection and successful command acknowledgements are dropped by the worker under output queue saturation.",
+      "method": "Unmodified worker with an injected full 16-item queue; final send allowed after one consumer read. Not a production load benchmark.",
+      "observed": true,
+      "dropped_command_ids": [
+        "review-rejected",
+        "review-stop"
+      ],
+      "persisted_command_events": [
+        {
+          "command_id": "review-rejected",
+          "time_s": 0.0,
+          "accepted": false,
+          "diagnostic": {
+            "code": "PARAMETER_REQUIRES_REINITIALIZATION",
+            "message": "该参数需要停止并重新初始化",
+            "element_id": "trunk",
+            "severity": "error",
+            "field": "length_m"
+          }
+        },
+        {
+          "command_id": "review-stop",
+          "time_s": 0.0,
+          "accepted": true,
+          "action": "stop",
+          "element_id": null,
+          "parameter": null,
+          "value": null
+        }
+      ],
+      "final_status": "stopped"
+    },
+    {
+      "id": "R04",
+      "finding": "F04",
+      "description": "A failed physical advance leaves controller state/target changed while physical time remains at the old accepted state.",
+      "method": "Fault injection at _attempt_step; all physical attempts rejected. Does not establish occurrence or frequency in ordinary projects.",
+      "observed": true,
+      "rejected_attempts": 10,
+      "time_s_after_failure": 0.0,
+      "physical_state_unchanged": true,
+      "controller_before": {
+        "controller": {
+          "integral": 1.3073453686860266,
+          "previous_error": -2.0489691245735107,
+          "next_time_s": 0.0,
+          "output": 1.0,
+          "error": -2.0489691245735107
+        }
+      },
+      "controller_after": {
+        "controller": {
+          "integral": 1.2909536156894386,
+          "previous_error": -2.0489691245735107,
+          "next_time_s": 0.1,
+          "output": 0.983608247003412,
+          "error": -2.0489691245735107
+        }
+      },
+      "pump_speed_before": 1,
+      "pump_speed_after": 0.983608247003412,
+      "controller_in_last_valid_frame": {
+        "output": 1.0,
+        "error": -2.0489691245735107
+      },
+      "status": "failed",
+      "last_valid_state": true
+    },
+    {
+      "id": "R05",
+      "finding": "F08",
+      "description": "REST acceptance includes command_id, but the subsequent command error in both status and WebSocket lacks it.",
+      "method": "Real in-process HTTP/WebSocket app with its spawned worker and a fresh isolated SQLite workspace; no congestion injection.",
+      "observed": true,
+      "http_status": 202,
+      "received_command_id": "bae337e84a8a4e55",
+      "status_command_error": {
+        "code": "PARAMETER_REQUIRES_REINITIALIZATION",
+        "message": "该参数需要停止并重新初始化",
+        "element_id": "trunk",
+        "severity": "error",
+        "field": "length_m"
+      },
+      "status_has_command_id": false,
+      "websocket_command_error": {
+        "code": "PARAMETER_REQUIRES_REINITIALIZATION",
+        "message": "该参数需要停止并重新初始化",
+        "element_id": "trunk",
+        "severity": "error",
+        "field": "length_m"
+      },
+      "websocket_has_command_id": false,
+      "event_lookup_retains_command_id": true
+    }
+  ]
+}

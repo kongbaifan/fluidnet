@@ -1,0 +1,407 @@
+<div id="fn-chrome-study">
+  <style>
+    #fn-chrome-study { container-type:inline-size; }
+    #fn-chrome-study .fn-product {
+      --fn-surface:light-dark(#ffffff,#20272e); --fn-soft:light-dark(#f5f7f9,#252e37);
+      --fn-text:light-dark(#293641,#e2e8ee); --fn-muted:light-dark(#667787,#a2b0bd);
+      --fn-border:light-dark(#e0e6ec,#394550); --fn-accent:light-dark(#b86219,#f5a451);
+      --fn-orange:light-dark(#df842e,#efa352); --fn-accent-bg:light-dark(#fff2e4,#453425);
+      --fn-blue:light-dark(#327faa,#83bbdf); --fn-blue-bg:light-dark(#edf5fa,#273d4a);
+      --fn-green:light-dark(#237b60,#77c7a7); --fn-on-green:light-dark(#ffffff,#14291f);
+      --fn-rail:light-dark(#252e36,#1a2128); --fn-rail-text:light-dark(#b4c0ca,#b4c0ca);
+      --fn-active:light-dark(#ffbd76,#ffbd76); --fn-rail-hover:light-dark(#343e47,#303a44);
+      --fn-shadow:light-dark(#1e293b20,#00000055); --fn-library:178px;
+      color:var(--fn-text); background:var(--fn-surface); font:13px/1.5 "Segoe UI","Microsoft YaHei",sans-serif;
+      height:704px; display:grid; grid-template:56px minmax(0,1fr) 30px / 66px minmax(0,1fr);
+      border:1px solid var(--fn-border); border-radius:8px; overflow:hidden; position:relative;
+    }
+    #fn-chrome-study .fn-product * { box-sizing:border-box; }
+    #fn-chrome-study .fn-product [hidden] { display:none!important; }
+    #fn-chrome-study .fn-product button { font:inherit; color:inherit; border:0; background:transparent; padding:0; }
+    #fn-chrome-study .fn-product button:disabled { opacity:.38; cursor:not-allowed; }
+    #fn-chrome-study .fn-product button:focus-visible { outline:2px solid var(--fn-accent); outline-offset:2px; }
+    #fn-chrome-study .fn-product svg { vertical-align:middle; flex-shrink:0; }
+    #fn-chrome-study .fn-product [data-lucide],#fn-chrome-study .fn-product .lucide { width:16px; height:16px; }
+    #fn-chrome-study .fn-header { grid-column:1/-1; display:flex; align-items:center; gap:14px; padding:0 14px; border-bottom:1px solid var(--fn-border); min-width:0; }
+    #fn-chrome-study .fn-brand { display:flex; gap:8px; align-items:center; white-space:nowrap; font-size:15px; font-weight:500; }
+    #fn-chrome-study .fn-brand-mark { width:29px; height:29px; border:1px solid var(--fn-orange); border-radius:50%; display:grid; place-items:center; color:var(--fn-accent); }
+    #fn-chrome-study .fn-project { display:flex; gap:8px; align-items:center; min-width:0; border-left:1px solid var(--fn-border); padding-left:14px; }
+    #fn-chrome-study .fn-project-name { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    #fn-chrome-study .fn-badge { display:inline-flex; align-items:center; border-radius:4px; background:var(--fn-accent-bg); color:var(--fn-accent); padding:2px 6px; font-size:11px; white-space:nowrap; }
+    #fn-chrome-study .fn-search { margin-left:auto; display:flex; align-items:center; gap:7px; color:var(--fn-muted); border:1px solid var(--fn-border); padding:6px 9px; border-radius:5px; font-size:12px; white-space:nowrap; }
+    #fn-chrome-study .fn-save-state { color:var(--fn-muted); font-size:11px; white-space:nowrap; }
+    #fn-chrome-study .fn-product .fn-btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:6px 10px; border:1px solid var(--fn-border); border-radius:5px; background:var(--fn-surface); white-space:nowrap; }
+    #fn-chrome-study .fn-product .fn-btn:hover { background:var(--fn-soft); }
+    #fn-chrome-study .fn-product .fn-icon { display:inline-grid; place-items:center; width:30px; height:30px; border-radius:4px; color:var(--fn-muted); flex-shrink:0; }
+    #fn-chrome-study .fn-product .fn-icon:hover:not(:disabled),#fn-chrome-study .fn-product .fn-icon[aria-pressed=true] { background:var(--fn-accent-bg); color:var(--fn-accent); }
+    #fn-chrome-study .fn-rail { grid-row:2; grid-column:1; background:var(--fn-rail); color:var(--fn-rail-text); display:flex; flex-direction:column; gap:3px; padding:7px 5px; }
+    #fn-chrome-study .fn-rail-item { display:flex; align-items:center; justify-content:center; flex-direction:column; gap:4px; padding:5px 0; min-height:43px; font-size:11px; border-radius:5px; position:relative; }
+    #fn-chrome-study .fn-rail-item.fn-active { color:var(--fn-active); background:var(--fn-rail-hover); }
+    #fn-chrome-study .fn-rail-item.fn-active:before { content:""; position:absolute; left:-5px; top:9px; bottom:9px; width:3px; background:var(--fn-active); border-radius:0 3px 3px 0; }
+    #fn-chrome-study .fn-rail-separator { border-top:1px solid var(--fn-rail-hover); margin:3px 8px; }
+    #fn-chrome-study .fn-rail-bottom { margin-top:auto; }
+    #fn-chrome-study .fn-workspace { grid-column:2; grid-row:2; display:grid; grid-template-columns:var(--fn-library) minmax(0,1fr); min-width:0; min-height:0; position:relative; }
+    #fn-chrome-study .fn-library { display:flex; flex-direction:column; min-width:0; min-height:0; background:var(--fn-soft); border-right:1px solid var(--fn-border); }
+    #fn-chrome-study .fn-library-top { padding:12px 10px 7px; display:flex; align-items:center; gap:8px; }
+    #fn-chrome-study .fn-library-top strong { font-size:12px; font-weight:500; }
+    #fn-chrome-study .fn-library-top small { margin-left:auto; color:var(--fn-muted); font-size:11px; }
+    #fn-chrome-study .fn-library-search { display:flex; gap:7px; align-items:center; margin:0 8px 8px; padding:7px 8px; border:1px solid var(--fn-border); border-radius:5px; color:var(--fn-muted); background:var(--fn-surface); font-size:12px; }
+    #fn-chrome-study .fn-library-list { flex:1; padding:0 10px; min-height:0; }
+    #fn-chrome-study .fn-category { color:var(--fn-accent); font-size:11px; padding:7px 0 5px; }
+    #fn-chrome-study .fn-library-item { display:flex; gap:8px; align-items:center; padding:5px 1px; font-size:12px; }
+    #fn-chrome-study .fn-library-item .lucide { width:14px; height:14px; color:var(--fn-muted); }
+    #fn-chrome-study .fn-library-item small { margin-left:auto; font-size:11px; color:var(--fn-muted); }
+    #fn-chrome-study .fn-properties { padding:10px 11px 12px; border-top:1px solid var(--fn-border); background:var(--fn-surface); font-size:11px; }
+    #fn-chrome-study .fn-properties strong { display:block; font-size:12px; font-weight:500; margin-bottom:8px; }
+    #fn-chrome-study .fn-property { display:flex; gap:12px; margin-top:5px; }
+    #fn-chrome-study .fn-property span:first-child { color:var(--fn-muted); min-width:33px; }
+    #fn-chrome-study .fn-canvas-column { display:flex; flex-direction:column; min-width:0; min-height:0; }
+    #fn-chrome-study .fn-toolbar { min-height:43px; display:flex; align-items:center; gap:5px; padding:0 9px; border-bottom:1px solid var(--fn-border); background:var(--fn-soft); }
+    #fn-chrome-study .fn-tab { align-self:stretch; display:flex; align-items:center; padding:0 11px; border-bottom:2px solid var(--fn-orange); color:var(--fn-accent); background:var(--fn-surface); white-space:nowrap; }
+    #fn-chrome-study .fn-tool-spacer { flex:1; }
+    #fn-chrome-study .fn-tools { display:flex; align-items:center; gap:3px; position:relative; }
+    #fn-chrome-study .fn-tool-divider { height:16px; border-left:1px solid var(--fn-border); margin:0 4px; }
+    #fn-chrome-study .fn-menu { position:absolute; z-index:7; top:35px; right:0; min-width:158px; padding:6px; border:1px solid var(--fn-border); background:var(--fn-surface); box-shadow:0 8px 24px var(--fn-shadow); border-radius:6px; }
+    #fn-chrome-study .fn-menu-item { display:flex; align-items:center; gap:9px; padding:9px 8px; font-size:12px; }
+    #fn-chrome-study .fn-canvas { flex:1; position:relative; min-height:0; background:var(--fn-surface); }
+    #fn-chrome-study .fn-canvas.fn-grid { background-image:radial-gradient(var(--fn-border) 1px,transparent 1px); background-size:20px 20px; }
+    #fn-chrome-study .fn-caption { position:absolute; top:14px; left:16px; display:flex; align-items:center; gap:10px; font-size:12px; color:var(--fn-muted); }
+    #fn-chrome-study .fn-caption strong { font-weight:400; color:var(--fn-text); }
+    #fn-chrome-study .fn-medium { padding:2px 6px; font-size:11px; color:var(--fn-blue); background:var(--fn-blue-bg); border-radius:4px; }
+    #fn-chrome-study .fn-diagram { position:absolute; inset:58px 73px 62px 18px; }
+    #fn-chrome-study .fn-network { display:block; width:100%; height:100%; }
+    #fn-chrome-study .fn-network .fn-net-pipe { stroke:var(--fn-orange); fill:none; stroke-width:1.6; stroke-linejoin:round; }
+    #fn-chrome-study .fn-network .fn-net-port { fill:var(--fn-orange); }
+    #fn-chrome-study .fn-network .fn-net-label { fill:var(--fn-muted); font-size:12px; }
+    #fn-chrome-study .fn-network .fn-net-code { fill:var(--fn-text); font-size:12px; }
+    #fn-chrome-study .fn-network .fn-net-value { fill:var(--fn-muted); font-size:11px; }
+    #fn-chrome-study .fn-network text { paint-order:stroke; stroke:var(--fn-surface); stroke-width:3px; stroke-linejoin:round; }
+    #fn-chrome-study .fn-runbar { position:absolute; right:10px; top:50%; transform:translateY(-50%); display:flex; flex-direction:column; gap:5px; padding:6px; border:1px solid var(--fn-border); border-radius:7px; background:var(--fn-surface); box-shadow:0 3px 12px var(--fn-shadow); }
+    #fn-chrome-study .fn-runbar button { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; width:39px; min-height:43px; font-size:11px; border-radius:4px; color:var(--fn-muted); }
+    #fn-chrome-study .fn-runbar button:hover:not(:disabled) { background:var(--fn-soft); }
+    #fn-chrome-study .fn-runbar .fn-go { background:var(--fn-green); color:var(--fn-on-green); }
+    #fn-chrome-study .fn-runbar .fn-go:hover:not(:disabled) { background:var(--fn-green); }
+    #fn-chrome-study .fn-runbar-rule { border-top:1px solid var(--fn-border); margin:4px 2px; }
+    #fn-chrome-study .fn-canvas-bottom { position:absolute; bottom:13px; left:16px; right:74px; display:flex; align-items:center; gap:8px; justify-content:space-between; color:var(--fn-muted); font-size:11px; }
+    #fn-chrome-study .fn-zoom { display:flex; align-items:center; gap:6px; border:1px solid var(--fn-border); background:var(--fn-surface); border-radius:5px; padding:2px; white-space:nowrap; }
+    #fn-chrome-study .fn-old-info { min-height:42px; padding:5px 12px; display:flex; align-items:center; gap:12px; border-top:1px solid var(--fn-border); background:var(--fn-soft); font-size:11px; color:var(--fn-muted); }
+    #fn-chrome-study .fn-old-links { margin-left:auto; display:flex; gap:15px; align-items:center; white-space:nowrap; }
+    #fn-chrome-study .fn-old-links span { display:flex; gap:5px; align-items:center; }
+    #fn-chrome-study .fn-status { grid-column:1/-1; display:flex; align-items:center; gap:12px; padding:0 12px; border-top:1px solid var(--fn-border); font-size:11px; color:var(--fn-muted); min-width:0; white-space:nowrap; }
+    #fn-chrome-study .fn-status-main { display:flex; align-items:center; gap:7px; }
+    #fn-chrome-study .fn-dot { width:6px; height:6px; background:var(--fn-muted); border-radius:50%; }
+    #fn-chrome-study .fn-product[data-running=true] .fn-dot { background:var(--fn-green); }
+    #fn-chrome-study .fn-time { font-variant-numeric:tabular-nums; }
+    #fn-chrome-study .fn-status-right { margin-left:auto; }
+    #fn-chrome-study .fn-product[data-version=compact] .fn-old-info,
+    #fn-chrome-study .fn-product[data-version=compact] .fn-old-save { display:none; }
+    #fn-chrome-study .fn-product[data-version=current] .fn-new-count,
+    #fn-chrome-study .fn-product[data-version=current] .fn-more { display:none; }
+    #fn-chrome-study .fn-product[data-version=compact][data-library=closed] .fn-workspace { grid-template-columns:minmax(0,1fr); }
+    #fn-chrome-study .fn-product[data-version=compact][data-library=closed] .fn-library { display:none; }
+    #fn-chrome-study .fn-notice { position:absolute; left:50%; bottom:46px; transform:translateX(-50%); max-width:80%; padding:9px 13px; border:1px solid var(--fn-border); background:var(--fn-surface); color:var(--fn-text); box-shadow:0 5px 18px var(--fn-shadow); border-radius:6px; font-size:12px; z-index:9; }
+    @container (max-width:1100px) {
+      #fn-chrome-study .fn-header { gap:10px; }
+      #fn-chrome-study .fn-search span { display:none; }
+      #fn-chrome-study .fn-brand-sub { display:none; }
+      #fn-chrome-study .fn-header .fn-help { margin-right:86px; }
+    }
+    @container (max-width:850px) {
+      #fn-chrome-study .fn-product { height:836px; grid-template-columns:54px minmax(0,1fr); --fn-library:152px; }
+      #fn-chrome-study .fn-header { gap:8px; padding:0 9px; }
+      #fn-chrome-study .fn-header .fn-help { margin-right:0; }
+      #fn-chrome-study .fn-save-state,#fn-chrome-study .fn-brand span,#fn-chrome-study .fn-caption .fn-caption-hint { display:none; }
+      #fn-chrome-study .fn-old-links { gap:9px; }
+      #fn-chrome-study .fn-status { gap:8px; }
+      #fn-chrome-study .fn-status .fn-optional { display:none; }
+      #fn-chrome-study .fn-old-info .fn-count { display:none; }
+      #fn-chrome-study .fn-canvas-bottom .fn-hint { display:none; }
+      #fn-chrome-study .fn-canvas-bottom { justify-content:flex-end; }
+      #fn-chrome-study .fn-toolbar { flex-wrap:wrap; padding:3px 6px; gap:2px; }
+      #fn-chrome-study .fn-toolbar .fn-tab { min-height:36px; }
+      #fn-chrome-study .fn-tools { gap:0; }
+      #fn-chrome-study .fn-product .fn-icon { width:28px; }
+    }
+    @container (max-width:620px) {
+      #fn-chrome-study .fn-product { height:946px; grid-template-rows:54px minmax(0,1fr) 46px; }
+      #fn-chrome-study .fn-project { padding-left:8px; font-size:12px; }
+      #fn-chrome-study .fn-project-name { max-width:130px; }
+      #fn-chrome-study .fn-header .fn-help,#fn-chrome-study .fn-header .fn-search,#fn-chrome-study .fn-header>.fn-badge { display:none; }
+      #fn-chrome-study .fn-header .fn-save { margin-left:auto; }
+      #fn-chrome-study .fn-header .fn-save span { display:none; }
+      #fn-chrome-study .fn-workspace { grid-template-columns:minmax(0,1fr); }
+      #fn-chrome-study .fn-library { display:none; }
+      #fn-chrome-study .fn-product[data-mobile-library=open] .fn-library { display:flex; position:absolute; top:0; left:0; bottom:0; width:178px; z-index:8; box-shadow:6px 0 22px var(--fn-shadow); }
+      #fn-chrome-study .fn-product[data-version=compact][data-mobile-library=open] .fn-library { display:flex; }
+      #fn-chrome-study .fn-product .fn-library-close { display:inline-grid; }
+      #fn-chrome-study .fn-runbar { left:12px; right:12px; top:auto; bottom:11px; transform:none; flex-direction:row; justify-content:center; gap:3px; padding:4px; }
+      #fn-chrome-study .fn-runbar button { width:auto; flex:1; min-width:32px; min-height:44px; }
+      #fn-chrome-study .fn-runbar-rule { border-top:0; border-left:1px solid var(--fn-border); margin:3px; }
+      #fn-chrome-study .fn-diagram { inset:51px 11px 112px; }
+      #fn-chrome-study .fn-canvas-bottom { bottom:77px; right:13px; }
+      #fn-chrome-study .fn-toolbar { min-height:78px; align-content:center; }
+      #fn-chrome-study .fn-tools { width:100%; justify-content:space-between; }
+      #fn-chrome-study .fn-tools .fn-tool-divider { display:none; }
+      #fn-chrome-study .fn-tool-spacer { display:none; }
+      #fn-chrome-study .fn-tab { margin-right:auto; }
+      #fn-chrome-study .fn-status { flex-wrap:wrap; gap:2px 10px; padding:4px 9px; white-space:normal; align-content:center; }
+      #fn-chrome-study .fn-status-right { display:none; }
+      #fn-chrome-study .fn-new-count { width:100%; }
+      #fn-chrome-study .fn-old-info { flex-wrap:wrap; gap:4px 8px; padding:6px 9px; min-height:54px; }
+      #fn-chrome-study .fn-old-links { width:100%; margin-left:0; }
+      #fn-chrome-study .fn-notice { max-width:calc(100% - 24px); width:max-content; bottom:57px; }
+    }
+    #fn-chrome-study .fn-product .fn-library-close { display:none; }
+    @container (max-width:620px) {
+      #fn-chrome-study .fn-product .fn-library-close { display:inline-grid; }
+    }
+    @media (pointer:coarse) {
+      #fn-chrome-study .fn-product .fn-icon { width:44px; min-height:44px; }
+      #fn-chrome-study .fn-product .fn-btn { min-height:44px; }
+      #fn-chrome-study .fn-tools { flex-wrap:wrap; }
+      #fn-chrome-study .fn-product .fn-runbar button { min-height:44px; }
+    }
+  </style>
+
+  <div class="viz-carousel" aria-label="工作台栏位精简方案" data-previous-label="上一版" data-next-label="下一版">
+    <section data-variant="精简布局" aria-label="精简布局，可收起模块库">
+      <div class="fn-product" data-version="compact" data-library="open" data-mobile-library="closed" aria-label="FluidNet 精简工作台">
+        <header class="fn-header">
+          <div class="fn-brand"><b class="fn-brand-mark"><i data-lucide="network" aria-hidden="true"></i></b><span>FluidNet <span class="fn-brand-sub">Studio</span></span></div>
+          <div class="fn-project"><i data-lucide="folder-open" aria-hidden="true"></i><span class="fn-project-name">泵阀并联管网</span><i data-lucide="chevron-down" aria-hidden="true"></i></div>
+          <span class="fn-badge">布局预览</span>
+          <div class="fn-search"><i data-lucide="search" aria-hidden="true"></i><span>页面与操作</span></div>
+          <span class="fn-save-state" data-save-label>示例已就绪</span>
+          <button type="button" class="fn-btn fn-save cursor-interaction" data-act="save" aria-label="保存原型预览"><i data-lucide="save" aria-hidden="true"></i><span>保存原型</span></button>
+          <span class="fn-icon fn-help"><i data-lucide="circle-help" aria-hidden="true"></i></span>
+        </header>
+        <nav class="fn-rail" aria-label="应用导航示意">
+          <span class="fn-rail-item"><i data-lucide="house" aria-hidden="true"></i>首页</span>
+          <span class="fn-rail-item"><i data-lucide="folder" aria-hidden="true"></i>项目</span>
+          <span class="fn-rail-item fn-active"><i data-lucide="network" aria-hidden="true"></i>建模</span>
+          <span class="fn-rail-separator"></span>
+          <span class="fn-rail-item"><i data-lucide="boxes" aria-hidden="true"></i>模块</span>
+          <span class="fn-rail-item"><i data-lucide="database" aria-hidden="true"></i>型号</span>
+          <span class="fn-rail-item"><i data-lucide="gauge" aria-hidden="true"></i>验证</span>
+          <span class="fn-rail-item"><i data-lucide="activity" aria-hidden="true"></i>曲线</span>
+          <span class="fn-rail-item"><i data-lucide="history" aria-hidden="true"></i>记录</span>
+          <span class="fn-rail-separator"></span>
+          <span class="fn-rail-item"><i data-lucide="code-xml" aria-hidden="true"></i>控制</span>
+          <span class="fn-rail-item"><i data-lucide="plug" aria-hidden="true"></i>对接</span>
+          <span class="fn-rail-item fn-rail-bottom"><i data-lucide="sliders-horizontal" aria-hidden="true"></i>设置</span>
+        </nav>
+        <main class="fn-workspace">
+          <aside class="fn-library" aria-label="模块库">
+            <div class="fn-library-top"><strong>模块库</strong><small>12 类</small><button type="button" class="fn-icon fn-library-close cursor-interaction" data-act="library" aria-label="收起模块库"><i data-lucide="x" aria-hidden="true"></i></button></div>
+            <div class="fn-library-search"><i data-lucide="search" aria-hidden="true"></i>查找模块</div>
+            <div class="fn-library-list">
+              <div class="fn-category">⌄　边界与节点</div>
+              <div class="fn-library-item"><i data-lucide="droplets" aria-hidden="true"></i>压力边界<small>BO</small></div>
+              <div class="fn-library-item"><i data-lucide="waypoints" aria-hidden="true"></i>连接节点<small>JU</small></div>
+              <div class="fn-library-item"><i data-lucide="database" aria-hidden="true"></i>储水罐<small>TA</small></div>
+              <div class="fn-category">⌄　管道与阻力</div>
+              <div class="fn-library-item"><i data-lucide="minus" aria-hidden="true"></i>圆管<small>PI</small></div>
+              <div class="fn-library-item"><i data-lucide="sliders-horizontal" aria-hidden="true"></i>调节阀<small>VA</small></div>
+              <div class="fn-library-item"><i data-lucide="arrow-right-left" aria-hidden="true"></i>止回阀<small>CH</small></div>
+              <div class="fn-category">⌄　流体机械</div>
+              <div class="fn-library-item"><i data-lucide="triangle" aria-hidden="true"></i>离心泵<small>PU</small></div>
+              <div class="fn-category">⌄　热力设备</div>
+              <div class="fn-library-item"><i data-lucide="arrow-right-left" aria-hidden="true"></i>双侧换热器<small>HE</small></div>
+              <div class="fn-library-item"><i data-lucide="flame" aria-hidden="true"></i>加热器<small>HE</small></div>
+            </div>
+            <div class="fn-properties"><strong>画布属性</strong><div class="fn-property"><span>画布</span><span>主系统</span></div><div class="fn-property"><span>介质</span><span>液态水</span></div><div class="fn-property"><span>设备</span><span>9 个 · 9 条连接</span></div></div>
+          </aside>
+          <div class="fn-canvas-column">
+            <div class="fn-toolbar">
+              <span class="fn-tab">主系统</span><span class="fn-icon"><i data-lucide="plus" aria-hidden="true"></i></span><span class="fn-tool-spacer"></span>
+              <div class="fn-tools">
+                <button type="button" class="fn-icon cursor-interaction" data-act="library" aria-label="收起模块库" aria-expanded="true" data-tooltip="收起模块库"><i data-lucide="panel-left-close" aria-hidden="true"></i></button>
+                <span class="fn-icon"><i data-lucide="mouse-pointer-2" aria-hidden="true"></i></span>
+                <span class="fn-icon"><i data-lucide="cable" aria-hidden="true"></i></span>
+                <span class="fn-tool-divider"></span>
+                <button type="button" class="fn-icon" aria-label="撤销" disabled><i data-lucide="undo-2" aria-hidden="true"></i></button>
+                <button type="button" class="fn-icon" aria-label="重做" disabled><i data-lucide="redo-2" aria-hidden="true"></i></button>
+                <button type="button" class="fn-icon cursor-interaction" data-act="fit" aria-label="适应画布" data-tooltip="适应画布"><i data-lucide="scan" aria-hidden="true"></i></button>
+                <button type="button" class="fn-icon cursor-interaction" data-act="grid" aria-label="显示点阵" aria-pressed="false" data-tooltip="显示点阵"><i data-lucide="grid-2x2" aria-hidden="true"></i></button>
+                <span class="fn-icon"><i data-lucide="list-checks" aria-hidden="true"></i></span>
+                <button type="button" class="fn-icon fn-more cursor-interaction" data-act="more" aria-label="项目设置与控制逻辑" aria-expanded="false" data-tooltip="项目设置与控制逻辑"><i data-lucide="ellipsis" aria-hidden="true"></i></button>
+                <div class="fn-menu" data-menu hidden><span class="fn-menu-item"><i data-lucide="settings-2" aria-hidden="true"></i>项目设置</span><span class="fn-menu-item"><i data-lucide="code-xml" aria-hidden="true"></i>控制逻辑</span></div>
+              </div>
+            </div>
+            <div class="fn-canvas">
+              <div class="fn-caption"><strong>主系统</strong><span class="fn-caption-hint">单击选择 · 双击参数</span><span class="fn-medium">液态水</span></div>
+              <div class="fn-diagram"><svg class="fn-network" role="img" aria-label="泵阀并联管网示例：供水边界、循环泵、分流节点、两条阀门管道支路、汇流节点及回水边界"></svg></div>
+              <div class="fn-runbar" aria-label="主系统运行控制示意">
+                <button type="button" class="fn-old-save cursor-interaction" data-act="save"><i data-lucide="save" aria-hidden="true"></i>保存</button>
+                <button type="button" class="fn-go cursor-interaction" data-act="run"><i data-lucide="play" aria-hidden="true"></i><span data-run-label>运行</span></button>
+                <button type="button" class="cursor-interaction" data-act="pause" disabled><i data-lucide="pause" aria-hidden="true"></i>暂停</button>
+                <button type="button" class="cursor-interaction" data-act="step"><i data-lucide="step-forward" aria-hidden="true"></i>单步</button>
+                <button type="button" class="cursor-interaction" data-act="stop" disabled><i data-lucide="square" aria-hidden="true"></i>停止</button>
+                <span class="fn-runbar-rule"></span>
+                <button type="button" class="cursor-interaction" data-act="curves"><i data-lucide="activity" aria-hidden="true"></i>曲线</button>
+              </div>
+              <div class="fn-canvas-bottom"><span class="fn-hint">双击设备编辑参数 · 拖动空白处平移</span><div class="fn-zoom"><button type="button" class="fn-icon cursor-interaction" data-act="zoom-out" aria-label="缩小"><i data-lucide="minus" aria-hidden="true"></i></button><span data-zoom-label>100%</span><button type="button" class="fn-icon cursor-interaction" data-act="zoom-in" aria-label="放大"><i data-lucide="plus" aria-hidden="true"></i></button></div></div>
+            </div>
+            <div class="fn-old-info"><span>主系统 · <span data-run-state>就绪</span></span><span class="fn-time" data-clock>t = 0.0 s</span><span class="fn-count">9 个设备 · 9 条连接</span><span class="fn-old-links"><span><i data-lucide="settings-2" aria-hidden="true"></i>项目设置</span><span><i data-lucide="code-xml" aria-hidden="true"></i>控制逻辑</span></span></div>
+          </div>
+        </main>
+        <footer class="fn-status"><span class="fn-status-main"><span class="fn-dot"></span><span data-status-scope>主系统</span> · <span data-run-state aria-live="polite">就绪</span></span><span class="fn-time" data-clock>t = 0.0 s</span><span class="fn-new-count">9 个设备 · 9 条连接</span><span class="fn-optional">参数已同步</span><span class="fn-status-right">布局预览 · 示例数据</span></footer>
+        <div class="fn-notice" data-notice role="status" hidden></div>
+      </div>
+    </section>
+    <section data-variant="当前布局" aria-label="当前布局，两层状态栏与两个保存入口" hidden><div data-current-mount></div></section>
+  </div>
+  <script>
+    (() => {
+      const root = document.getElementById('fn-chrome-study');
+      const compact = root.querySelector('[data-version="compact"]');
+      const current = compact.cloneNode(true);
+      current.dataset.version = 'current';
+      current.setAttribute('aria-label', 'FluidNet 当前栏位布局');
+      current.querySelector('[data-status-scope]').textContent = '泵阀并联管网';
+      root.querySelector('[data-current-mount]').replaceWith(current);
+      const saved = window.openai?.widgetState?.privateContent;
+      const valid = saved && saved.schema === 1;
+      const states = new Map();
+      const names = { ready:'就绪', running:'运行中', paused:'已暂停', stopped:'已停止' };
+
+      function persist() {
+        const s = states.get(compact);
+        if (!s || !window.openai?.setWidgetState) return;
+        window.openai.setWidgetState({
+          modelContent:{view:'工作台栏位精简',library:s.libraryOpen?'展开':'收起'},
+          privateContent:{schema:1,libraryOpen:s.libraryOpen,grid:s.grid}
+        }).catch(() => {});
+      }
+      function notice(shell, message) {
+        const s = states.get(shell), el = shell.querySelector('[data-notice]');
+        clearTimeout(s.noticeTimer); el.textContent = message; el.hidden = false;
+        s.noticeTimer = setTimeout(() => { el.hidden = true; }, 3500);
+      }
+      function netShape(kind, vertical) {
+        const rotate = vertical ? ' transform="rotate(90)"' : '';
+        if (kind === 'boundary') return '<circle r="16" fill="var(--fn-blue-bg)" stroke="var(--fn-blue)" stroke-width="1.3"/><text y="4" text-anchor="middle" fill="var(--fn-blue)" font-size="12">P</text>';
+        if (kind === 'pump') return '<circle r="17" fill="var(--fn-surface)" stroke="var(--fn-muted)" stroke-width="1.3"/><path d="M -5 -9 L 10 0 L -5 9 Z" fill="none" stroke="var(--fn-muted)" stroke-width="1.4"' + rotate + '/>';
+        if (kind === 'junction') return '<circle r="4.5" fill="var(--fn-orange)"/>';
+        if (kind === 'valve') return '<path d="M -14 -9 L 14 9 V -9 L -14 9 Z" fill="var(--fn-surface)" stroke="var(--fn-accent)" stroke-width="1.3"' + rotate + '/>';
+        return '<rect x="-20" y="-5" width="40" height="10" rx="2" fill="var(--fn-surface)" stroke="var(--fn-accent)" stroke-width="1.2"' + rotate + '/>';
+      }
+      function draw(shell) {
+        const s = states.get(shell), svg = shell.querySelector('.fn-network');
+        const box = shell.querySelector('.fn-diagram').getBoundingClientRect();
+        if (box.width < 1 || box.height < 1) return;
+        const w = box.width, h = box.height, vertical = w < 560;
+        const cx = w/2, cy = h/2 - 18;
+        const left = Math.max(55,w*.27), right = w-left;
+        const y = p => 24 + (h-84)*p;
+        const points = vertical
+          ? [[cx,y(0)],[cx,y(.16)],[cx,y(.31)],[left,y(.47)],[left,y(.68)],[right,y(.47)],[right,y(.68)],[cx,y(.84)],[cx,y(1)]]
+          : [[29,cy],[w*.185,cy],[w*.34,cy],[w*.51,cy-91],[w*.71,cy-91],[w*.51,cy+100],[w*.71,cy+100],[w*.85,cy],[w-29,cy]];
+        const links = [[0,1],[1,2],[2,3],[3,4],[2,5],[5,6],[4,7],[6,7],[7,8]];
+        const nodes = [['B1','供水边界','201.3 kPa','boundary'],['P1','循环泵','1.0 倍','pump'],['N1','分流节点','','junction'],['V1','A 路调节阀','80 %','valve'],['L1','A 路管道','30.0 m','pipe'],['V2','B 路调节阀','55 %','valve'],['L2','B 路管道','40.0 m','pipe'],['N2','汇流节点','','junction'],['B2','回水边界','120.0 kPa','boundary']];
+        let html = '<title>泵阀并联管网</title><desc>9 个设备、9 条连接。画布随模块库显隐重新布置，数值为固定示例。</desc>';
+        html += links.map(([a,b]) => {
+          const [ax,ay] = points[a], [bx,by] = points[b];
+          const d = vertical ? `M ${ax} ${ay} V ${b === 7 ? by : (ay+by)/2} H ${bx} V ${by}` : `M ${ax} ${ay} H ${(ax+bx)/2} V ${by} H ${bx}`;
+          return `<path class="fn-net-pipe" d="${d}"/>`;
+        }).join('');
+        html += nodes.map(([id,label,value,kind],i) => {
+          const [xv,yv] = points[i];
+          if (vertical && (i === 2 || i === 7)) return `<g transform="translate(${xv},${yv})">${netShape(kind,true)}<text class="fn-net-label" x="13" y="${i === 7 ? -9 : 4}">${id}</text></g>`;
+          const tx = vertical && [0,1,8].includes(i) ? 29 : 0;
+          const anchor = tx ? 'start' : 'middle';
+          const firstY = tx ? -6 : 34;
+          const valueLine = value ? `<text class="fn-net-value" x="${tx}" y="${firstY+29}" text-anchor="${anchor}">${value}</text>` : '';
+          return `<g transform="translate(${xv},${yv})">${netShape(kind,vertical)}<text class="fn-net-code" x="${tx}" y="${firstY}" text-anchor="${anchor}">${id}</text><text class="fn-net-label" x="${tx}" y="${firstY+14}" text-anchor="${anchor}">${label}</text>${valueLine}</g>`;
+        }).join('');
+        const sw = w/s.zoom, sh = h/s.zoom;
+        svg.setAttribute('viewBox', `${(w-sw)/2} ${(h-sh)/2} ${sw} ${sh}`);
+        svg.innerHTML = html;
+      }
+      function render(shell) {
+        const s = states.get(shell), mobile = root.getBoundingClientRect().width <= 620;
+        const open = mobile ? s.mobileOpen : shell === current || s.libraryOpen;
+        shell.dataset.library = s.libraryOpen ? 'open' : 'closed';
+        shell.dataset.mobileLibrary = s.mobileOpen ? 'open' : 'closed';
+        shell.dataset.running = String(s.run === 'running');
+        shell.querySelector('.fn-canvas').classList.toggle('fn-grid',s.grid);
+        shell.querySelectorAll('[data-act="library"]').forEach(btn => {
+          btn.setAttribute('aria-expanded',String(open));
+          btn.setAttribute('aria-label',open?'收起模块库':'展开模块库');
+          btn.setAttribute('data-tooltip',shell === current && !mobile?'当前桌面布局：收起规则尚未接通':open?'收起模块库':'展开模块库');
+        });
+        shell.querySelector('[data-act="grid"]').setAttribute('aria-pressed',String(s.grid));
+        shell.querySelectorAll('[data-run-state]').forEach(el => { el.textContent = names[s.run]; });
+        shell.querySelectorAll('[data-clock]').forEach(el => { el.textContent = `t = ${s.time.toFixed(1)} s`; });
+        shell.querySelector('[data-run-label]').textContent = s.run === 'paused' ? '继续' : '运行';
+        shell.querySelector('[data-act="run"]').disabled = s.run === 'running';
+        shell.querySelector('[data-act="pause"]').disabled = s.run !== 'running';
+        shell.querySelector('[data-act="step"]').disabled = s.run === 'running';
+        shell.querySelector('[data-act="stop"]').disabled = s.run === 'ready' || s.run === 'stopped';
+        shell.querySelector('[data-zoom-label]').textContent = Math.round(s.zoom*100)+'%';
+        draw(shell);
+      }
+      for (const shell of [compact,current]) {
+        const state = {libraryOpen:shell === current || !valid || saved.libraryOpen !== false,mobileOpen:false,grid:valid && !!saved.grid,run:'ready',time:0,zoom:1,noticeTimer:null};
+        states.set(shell,state);
+        shell.addEventListener('click',event => {
+          const button = event.target.closest('button[data-act]');
+          if (!button || !shell.contains(button)) return;
+          const act = button.dataset.act;
+          if (act === 'library') {
+            if (root.getBoundingClientRect().width <= 620) state.mobileOpen = !state.mobileOpen;
+            else if (shell === current) notice(shell,'当前桌面布局的模块库收起尚未接通。');
+            else state.libraryOpen = !state.libraryOpen;
+          } else if (act === 'save') {
+            shell.querySelector('[data-save-label]').textContent = '预览已保存';
+            notice(shell,'预览状态已保留');
+          } else if (act === 'grid') state.grid = !state.grid;
+          else if (act === 'fit') state.zoom = 1;
+          else if (act === 'zoom-in') state.zoom = Math.min(1.4,state.zoom+.1);
+          else if (act === 'zoom-out') state.zoom = Math.max(.7,state.zoom-.1);
+          else if (act === 'run') state.run = 'running';
+          else if (act === 'pause') state.run = 'paused';
+          else if (act === 'stop') state.run = 'stopped';
+          else if (act === 'step') { state.time += .1; state.run = 'paused'; }
+          else if (act === 'curves') notice(shell,'曲线仍从这里进入；本次预览聚焦栏位布局。');
+          else if (act === 'more') {
+            const menu = shell.querySelector('[data-menu]'); menu.hidden = !menu.hidden;
+            button.setAttribute('aria-expanded',String(!menu.hidden));
+          }
+          render(shell); persist();
+        });
+        shell.addEventListener('keydown',event => {
+          if (event.key === 'Escape') {
+            shell.querySelector('[data-menu]').hidden = true;
+            shell.querySelector('[data-act="more"]').setAttribute('aria-expanded','false');
+            state.mobileOpen = false; render(shell);
+          }
+        });
+        render(shell);
+        const observer = new ResizeObserver(() => { render(shell); });
+        observer.observe(shell.querySelector('.fn-diagram'));
+        observer.observe(root);
+      }
+      window.addEventListener('openai:set_globals',event => {
+        const next = event.detail?.globals?.widgetState?.privateContent;
+        if (!next || next.schema !== 1) return;
+        const s = states.get(compact); s.libraryOpen = next.libraryOpen !== false; s.grid = !!next.grid;
+        render(compact);
+      });
+      setInterval(() => {
+        for (const [shell,s] of states) {
+          if (s.run === 'running' && !shell.closest('[data-variant]').hidden) {
+            s.time += .1;
+            shell.querySelectorAll('[data-clock]').forEach(el => { el.textContent = `t = ${s.time.toFixed(1)} s`; });
+          }
+        }
+      },100);
+      if (globalThis.Tweak) {
+        const s = states.get(compact);
+        const tweak = new Tweak({container:compact,onChange:() => { render(compact); persist(); }});
+        tweak.addToggle(s,'libraryOpen',{label:'展开模块库'});
+      }
+      if (globalThis.lucide) lucide.createIcons({attrs:{width:16,height:16}});
+    })();
+  </script>
+</div>

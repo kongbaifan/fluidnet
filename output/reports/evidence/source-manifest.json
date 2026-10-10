@@ -1,0 +1,249 @@
+{
+  "generated_at": "2026-10-09T04:18:41.507856+00:00",
+  "baseline_commit": "1b846cd16c6cac2ee7c5373445a905a7468e6fee",
+  "tracked_diff": [],
+  "sources": [
+    {
+      "kind": "reference_pdf",
+      "id": "P",
+      "path": "V1.1多线程并行流体网络计算算法优缺点及调用说明.pdf",
+      "bytes": 536544,
+      "sha256": "ea1107b0edf52d2894fe5bc06069983f3c7ea5607fc5ad6a3d5985cbdea875c8",
+      "file_modified_at": "2026-04-25T06:37:52.658785+00:00"
+    },
+    {
+      "kind": "source_code",
+      "id": "C01",
+      "path": "fluidnet/models.py",
+      "bytes": 9096,
+      "sha256": "a0fa9f31ed67004135a003a98b7c71c1eafd55529763b3cc10cea7eb22e21b12",
+      "file_modified_at": "2026-10-08T08:47:01.215486+00:00"
+    },
+    {
+      "kind": "source_code",
+      "id": "C02",
+      "path": "fluidnet/compiler.py",
+      "bytes": 7836,
+      "sha256": "5780002732fea24ebfddf851a8a50306fbb6dbc638e3dba6b8bb41950af560ed",
+      "file_modified_at": "2026-10-08T06:41:59.739926+00:00"
+    },
+    {
+      "kind": "source_code",
+      "id": "C03",
+      "path": "fluidnet/hydraulics.py",
+      "bytes": 15730,
+      "sha256": "466ad4d5bb495a0bcb2d5f3551796bbb383b7e7a7a4d90ec5a4eb5a9cc64f61b",
+      "file_modified_at": "2026-10-08T06:32:57.597747+00:00"
+    },
+    {
+      "kind": "source_code",
+      "id": "C04",
+      "path": "fluidnet/thermal.py",
+      "bytes": 13173,
+      "sha256": "4a8dfbad0c383b1823995535b6a25bc29f3f6657b7418040efa62c2e25ad65dd",
+      "file_modified_at": "2026-10-08T06:35:57.209137+00:00"
+    },
+    {
+      "kind": "source_code",
+      "id": "C05",
+      "path": "fluidnet/solver.py",
+      "bytes": 7573,
+      "sha256": "23861fec5eb409eac058fdda851411c243086b71f7666a936b718bb9a4de6335",
+      "file_modified_at": "2026-10-08T06:35:57.418428+00:00"
+    },
+    {
+      "kind": "source_code",
+      "id": "C06",
+      "path": "fluidnet/simulation.py",
+      "bytes": 15577,
+      "sha256": "da72da931ded1c42e56ba245e844df50f9ceeaf2e6d55ec2a5f9482335cd1bb5",
+      "file_modified_at": "2026-10-08T06:41:59.929013+00:00"
+    },
+    {
+      "kind": "source_code",
+      "id": "C07",
+      "path": "fluidnet/jobs.py",
+      "bytes": 12071,
+      "sha256": "541a128ac16800c76df5feee560ff9693e540d7491cd43c925b5d6ec9c41e1df",
+      "file_modified_at": "2026-10-08T06:48:43.552716+00:00"
+    },
+    {
+      "kind": "source_code",
+      "id": "C08",
+      "path": "fluidnet/storage.py",
+      "bytes": 16345,
+      "sha256": "4f7bbd6615bbbb87c915b68b5bcbeb2f538c6d87bd89f749626f01f401330da5",
+      "file_modified_at": "2026-10-08T08:44:58.075032+00:00"
+    },
+    {
+      "kind": "source_code",
+      "id": "C09",
+      "path": "fluidnet/api.py",
+      "bytes": 13447,
+      "sha256": "e8dbe0c4ce6a399946083175d5c1fc6c9df280a611ed2e482c54b2da57ba16d2",
+      "file_modified_at": "2026-10-08T08:44:58.077030+00:00"
+    },
+    {
+      "kind": "source_code",
+      "id": "C10",
+      "path": "fluidnet/modules.py",
+      "bytes": 25013,
+      "sha256": "90d7d5ac92fc28020f81b8d5d9f4432bb49e551330cb8f01d6f67b552bcd4891",
+      "file_modified_at": "2026-10-08T09:52:33.492347+00:00"
+    },
+    {
+      "kind": "source_code",
+      "id": "C11",
+      "path": "fluidnet/catalog.py",
+      "bytes": 15252,
+      "sha256": "f1708215139a27aece132a75bf75ebb4c988e82be4f19b93433690286ff90454",
+      "file_modified_at": "2026-10-08T06:30:00.211670+00:00"
+    },
+    {
+      "kind": "source_code",
+      "id": "C14",
+      "path": "fluidnet/media.py",
+      "bytes": 6020,
+      "sha256": "e759396af25c1e37e7295fc9e1bc653d4f563097f49afc7e591509018c401b1d",
+      "file_modified_at": "2026-10-08T06:41:59.549618+00:00"
+    },
+    {
+      "kind": "historical_document",
+      "id": "C12",
+      "path": "PROJECT_STATUS.md",
+      "bytes": 5136,
+      "sha256": "ec8a802c0e156110ff2a0e6a5f07c1ac9cb94c37a07dfc938a855d151d055640",
+      "file_modified_at": "2026-10-08T10:13:38.508450+00:00"
+    },
+    {
+      "kind": "historical_document",
+      "id": "C12",
+      "path": "docs/DEVELOPMENT.md",
+      "bytes": 10612,
+      "sha256": "edb5a1a0936347d42d00ba36937fa9702f18e4af241b743a9c47f7b44b3bd9b8",
+      "file_modified_at": "2026-10-08T10:02:13.865455+00:00"
+    },
+    {
+      "kind": "existing_test",
+      "id": "C13",
+      "path": "tests/test_kernel.py",
+      "bytes": 5787,
+      "sha256": "3b32dcb12d8dbd10f54a46b2cba4447e6bd59027a02b979c6b89d7b58bc819d9",
+      "file_modified_at": "2026-10-08T06:38:18.309013+00:00"
+    },
+    {
+      "kind": "existing_test",
+      "id": "C13",
+      "path": "tests/test_simulation.py",
+      "bytes": 2354,
+      "sha256": "85a97ab31ecd9103af00ffc9663adeaf50659ffd29e59614383ef26617f89a21",
+      "file_modified_at": "2026-10-08T06:42:00.120350+00:00"
+    },
+    {
+      "kind": "existing_test",
+      "id": "C13",
+      "path": "tests/test_api.py",
+      "bytes": 3385,
+      "sha256": "737158244331d7bd4faaf8f0942d87f8b14a23cc62cf7edc04aeecc8f9089700",
+      "file_modified_at": "2026-10-08T06:48:44.360648+00:00"
+    },
+    {
+      "kind": "existing_test",
+      "id": "C13",
+      "path": "tests/test_modules.py",
+      "bytes": 10521,
+      "sha256": "51e5196c3bd36fe7802beea13acc6f3c9482991e7a12361ee772d46882c7f179",
+      "file_modified_at": "2026-10-08T09:54:37.394441+00:00"
+    },
+    {
+      "kind": "cached_article",
+      "id": "B00",
+      "path": "tmp/baselu/moqz46qyu3mb.md",
+      "bytes": 13692,
+      "sha256": "ddfe63ab7609be949422827e9f3a52e8af4777810f7c6335e036b4f642a4713f",
+      "file_modified_at": "2026-10-09T01:37:25.831128+00:00",
+      "article_url": "https://www.baselu.cn/article?id=moqz46qyu3mb"
+    },
+    {
+      "kind": "cached_article",
+      "id": "B01",
+      "path": "tmp/baselu/moqzjiw0iw9j.md",
+      "bytes": 10523,
+      "sha256": "3fbc30e4b65cf1953587e41afc9950d1507fa9511fe039731bea83d92b6f6969",
+      "file_modified_at": "2026-10-09T01:37:23.995819+00:00",
+      "article_url": "https://www.baselu.cn/article?id=moqzjiw0iw9j"
+    },
+    {
+      "kind": "cached_article",
+      "id": "B02",
+      "path": "tmp/baselu/moqzlesz5s9a.md",
+      "bytes": 12036,
+      "sha256": "aad91b522df818bc75229251e1ca750387f3d45a2bc40684b5c044bcee910970",
+      "file_modified_at": "2026-10-09T01:37:22.358255+00:00",
+      "article_url": "https://www.baselu.cn/article?id=moqzlesz5s9a"
+    },
+    {
+      "kind": "cached_article",
+      "id": "B03",
+      "path": "tmp/baselu/moqzplol4gps.md",
+      "bytes": 11876,
+      "sha256": "e615ec4c30644826ed07e6ff087d8b31492a67995720b0d6733fbc6d6f7cce31",
+      "file_modified_at": "2026-10-09T01:37:20.717839+00:00",
+      "article_url": "https://www.baselu.cn/article?id=moqzplol4gps"
+    },
+    {
+      "kind": "cached_article",
+      "id": "B05",
+      "path": "tmp/baselu/moqzravpx5rh.md",
+      "bytes": 6420,
+      "sha256": "07e279e780c965d2469e37a3f73bb75043a2d8c293a1c26b8c341f7f9f3c797d",
+      "file_modified_at": "2026-10-09T01:37:16.947382+00:00",
+      "article_url": "https://www.baselu.cn/article?id=moqzravpx5rh"
+    },
+    {
+      "kind": "cached_article",
+      "id": "B06",
+      "path": "tmp/baselu/moqzrzsiziyg.md",
+      "bytes": 4693,
+      "sha256": "eb7e27c1a40ad3920bc55942a68e2387bb816105f23cfb18a955f31f551ee7dc",
+      "file_modified_at": "2026-10-09T01:37:15.336880+00:00",
+      "article_url": "https://www.baselu.cn/article?id=moqzrzsiziyg"
+    },
+    {
+      "kind": "cached_article",
+      "id": "B07",
+      "path": "tmp/baselu/moqzuqg1p5qi.md",
+      "bytes": 6416,
+      "sha256": "346bf669b26bb9d829ff0bed3939ec205526ba60bd547be6c0914faf72124238",
+      "file_modified_at": "2026-10-09T01:37:10.020667+00:00",
+      "article_url": "https://www.baselu.cn/article?id=moqzuqg1p5qi"
+    },
+    {
+      "kind": "cached_article",
+      "id": "B09",
+      "path": "tmp/baselu/moqzy16vv1nj.md",
+      "bytes": 3264,
+      "sha256": "9703b7657e1e95433bac5aae6a4179937bf63e1e8751d9dfb7a4d5da9687dd8c",
+      "file_modified_at": "2026-10-09T01:37:02.993105+00:00",
+      "article_url": "https://www.baselu.cn/article?id=moqzy16vv1nj"
+    },
+    {
+      "kind": "cached_article",
+      "id": "B11",
+      "path": "tmp/baselu/moqzwhj3nj8e.md",
+      "bytes": 4396,
+      "sha256": "52ed091357dfe69259569521f2fd8b788f9fbe26a84efd334e8208c649804bac",
+      "file_modified_at": "2026-10-09T01:37:04.834157+00:00",
+      "article_url": "https://www.baselu.cn/article?id=moqzwhj3nj8e"
+    },
+    {
+      "kind": "cached_article",
+      "id": "BU",
+      "path": "tmp/baselu/moqzzfwaj4jm.md",
+      "bytes": 4991,
+      "sha256": "bb982700abda46a9e7906cd1e11ccbb05fd69af33c4840d2b69a40707715e1dd",
+      "file_modified_at": "2026-10-09T01:36:59.736051+00:00",
+      "article_url": "https://www.baselu.cn/article?id=moqzzfwaj4jm"
+    }
+  ]
+}

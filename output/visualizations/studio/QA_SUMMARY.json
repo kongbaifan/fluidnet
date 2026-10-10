@@ -1,0 +1,292 @@
+{
+  "checked_at": "2026-10-10T04:21:50.403640+00:00",
+  "file": "output/visualizations/fluidnet-studio-prototype.html",
+  "bytes": 321455,
+  "sha256": "664ee8cc3a5cb523f2088e8836781c360b1f866e69b1c92dd3521580cb314d6b",
+  "pages": 12,
+  "module_tabs": 6,
+  "device_tabs": 4,
+  "layout_observations": 65,
+  "page_script_errors": [],
+  "page_checks": [
+    "12 routes rendered at 1366 × 768 without validation-bench or connection entry points",
+    "Page map lists current destinations and retired bookmarks recover to the home page",
+    "6 module editor tabs rendered, including the combined code page",
+    "5 settings pages rendered",
+    "Layout observations at 1600, 1024, 736 and 320 px",
+    "Combined code editors fit desktop, stack on narrow screens and support dark appearance"
+  ],
+  "workflow_checks": [
+    "Port creation, variable synchronization, protected definition editing and Tab focus",
+    "Library value validation, atomic application and named model creation",
+    "Model to instance, saved draft versus applied value and first project step",
+    "Project tasks across pages, pause and step, variable-bound curves, cursor and parameter snapshots",
+    "Project control configuration, cycle preview and writable output targets",
+    "Export, reload restore, retired bench stays inactive, legacy records remain readable without removed links, malformed import rejection and full JSON round-trip",
+    "Window movement, minimize/restore, multiple windows and canvas copy/undo/redo"
+  ],
+  "workflow_errors": [],
+  "detail_checks": [
+    "New version on the same model ID stages explicitly; editing invalidates saved status",
+    "Window resizing and accessible footer at 1024, 736 and 320 px",
+    "Module common-variable and quick-control definitions affect project parameters",
+    "Occupied port protection, reconnecting, unique IDs across canvases and round-trip",
+    "Three simultaneous editors, Tab indentation, per-pane diagnostics and independent design functions",
+    "Variable insertion follows the chosen editor and selection; full checks include unselected functions",
+    "Function switching preserves other editor cursors and scroll; all sources survive save/reload and JSON export; old code tabs migrate"
+  ],
+  "detail_errors": [],
+  "instance_variable_checks": [
+    "Two-way common/all-variable drafts, explicit preview/cancel/apply, read-only ports and instance isolation",
+    "Independent banks, invalid bank atomic rejection, current-to-bank direction, saved reload",
+    "Live result source and units, missing samples, focus/scroll preserved during input",
+    "Search, groups, writable differences, three-bank comparison, maximize, sibling value and 320–1024 px layouts",
+    "Custom scalars/arrays, independent applied values and full JSON round-trip",
+    "Malformed bank import rejection, legacy migration and no invented dual-circuit results"
+  ],
+  "instance_variable_errors": [],
+  "instance_variable_layouts": [
+    {
+      "width": 1024,
+      "box": {
+        "x": 236,
+        "y": 68,
+        "width": 780,
+        "height": 650
+      },
+      "table": {
+        "width": 778,
+        "scroll": 778,
+        "height": 353
+      }
+    },
+    {
+      "width": 736,
+      "box": {
+        "x": 62,
+        "y": 68,
+        "width": 658,
+        "height": 650
+      },
+      "table": {
+        "width": 656,
+        "scroll": 680,
+        "height": 353
+      }
+    },
+    {
+      "width": 320,
+      "box": {
+        "x": 62,
+        "y": 68,
+        "width": 250,
+        "height": 650
+      },
+      "table": {
+        "width": 248,
+        "scroll": 635,
+        "height": 190
+      }
+    }
+  ],
+  "layout_overflow": [],
+  "code_layouts": [
+    {
+      "route": "editor-code",
+      "width": 1366,
+      "outer": 1366,
+      "pageWidth": 1300,
+      "contentWidth": 1300,
+      "panes": [
+        {
+          "kind": "runtime",
+          "x": 82,
+          "y": 240.796875,
+          "width": 671.8125,
+          "height": 382.1875,
+          "editorHeight": 336,
+          "editorWidth": 630
+        },
+        {
+          "kind": "header",
+          "x": 765.8125,
+          "y": 240.796875,
+          "width": 584.171875,
+          "height": 172.171875,
+          "editorHeight": 126,
+          "editorWidth": 542
+        },
+        {
+          "kind": "design",
+          "x": 765.8125,
+          "y": 424.96875,
+          "width": 584.171875,
+          "height": 198.015625,
+          "editorHeight": 111,
+          "editorWidth": 542
+        }
+      ]
+    },
+    {
+      "route": "editor-code",
+      "width": 1600,
+      "outer": 1600,
+      "pageWidth": 1534,
+      "contentWidth": 1534,
+      "panes": [
+        {
+          "kind": "runtime",
+          "x": 82,
+          "y": 240.796875,
+          "width": 796.96875,
+          "height": 614.1875,
+          "editorHeight": 568,
+          "editorWidth": 755
+        },
+        {
+          "kind": "header",
+          "x": 890.96875,
+          "y": 240.796875,
+          "width": 693.03125,
+          "height": 280.09375,
+          "editorHeight": 234,
+          "editorWidth": 651
+        },
+        {
+          "kind": "design",
+          "x": 890.96875,
+          "y": 532.890625,
+          "width": 693.03125,
+          "height": 322.09375,
+          "editorHeight": 235,
+          "editorWidth": 651
+        }
+      ]
+    },
+    {
+      "route": "editor-code",
+      "width": 1024,
+      "outer": 1024,
+      "pageWidth": 958,
+      "contentWidth": 958,
+      "panes": [
+        {
+          "kind": "runtime",
+          "x": 82,
+          "y": 240.796875,
+          "width": 488.875,
+          "height": 382.1875,
+          "editorHeight": 336,
+          "editorWidth": 447
+        },
+        {
+          "kind": "header",
+          "x": 582.875,
+          "y": 240.796875,
+          "width": 425.109375,
+          "height": 172.171875,
+          "editorHeight": 126,
+          "editorWidth": 383
+        },
+        {
+          "kind": "design",
+          "x": 582.875,
+          "y": 424.96875,
+          "width": 425.109375,
+          "height": 198.015625,
+          "editorHeight": 111,
+          "editorWidth": 383
+        }
+      ]
+    },
+    {
+      "route": "editor-code",
+      "width": 736,
+      "outer": 736,
+      "pageWidth": 682,
+      "contentWidth": 682,
+      "panes": [
+        {
+          "kind": "runtime",
+          "x": 70,
+          "y": 227.796875,
+          "width": 650,
+          "height": 340,
+          "editorHeight": 294,
+          "editorWidth": 608
+        },
+        {
+          "kind": "header",
+          "x": 70,
+          "y": 579.796875,
+          "width": 650,
+          "height": 250,
+          "editorHeight": 204,
+          "editorWidth": 608
+        },
+        {
+          "kind": "design",
+          "x": 70,
+          "y": 841.796875,
+          "width": 650,
+          "height": 290,
+          "editorHeight": 203,
+          "editorWidth": 608
+        }
+      ]
+    },
+    {
+      "route": "editor-code",
+      "width": 320,
+      "outer": 320,
+      "pageWidth": 266,
+      "contentWidth": 266,
+      "panes": [
+        {
+          "kind": "runtime",
+          "x": 64,
+          "y": 384.796875,
+          "width": 246,
+          "height": 340,
+          "editorHeight": 294,
+          "editorWidth": 204
+        },
+        {
+          "kind": "header",
+          "x": 64,
+          "y": 734.796875,
+          "width": 246,
+          "height": 250,
+          "editorHeight": 179,
+          "editorWidth": 204
+        },
+        {
+          "kind": "design",
+          "x": 64,
+          "y": 994.796875,
+          "width": 246,
+          "height": 290,
+          "editorHeight": 178,
+          "editorWidth": 204
+        }
+      ]
+    }
+  ],
+  "last_revision_verification": {
+    "checked_at": "2026-10-10T04:21:50.403640+00:00",
+    "change": "Remove validation bench and data connection pages and their entry points; keep saved data and historical records compatible",
+    "checks": [
+      "pages.mjs",
+      "workflow.mjs",
+      "details.mjs",
+      "instance-variables.mjs"
+    ],
+    "screenshots": [
+      "home-1366.png",
+      "controls-1366.png",
+      "device-parameters.png",
+      "editor-code-1366.png"
+    ],
+    "errors": []
+  }
+}

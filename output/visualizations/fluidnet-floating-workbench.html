@@ -1,0 +1,473 @@
+<div id="fluidnet-floating-workbench" aria-label="FluidNet 桌面工作台交互原型">
+  <style>
+    #fluidnet-floating-workbench {
+      --fn-bg:light-dark(#edf0f4,#182029);--fn-surface:light-dark(#fff,#242f3b);
+      --fn-canvas:light-dark(#fbfcfd,#1b2530);--fn-text:light-dark(#273448,#e0e8f1);
+      --fn-muted:light-dark(#69788a,#a6b5c6);--fn-border:light-dark(#d6dde6,#3d4b5b);
+      --fn-strong:light-dark(#98adbf,#6f8499);--fn-blue:light-dark(#28648f,#92c9ee);
+      --fn-blue-soft:light-dark(#e8f1f8,#2c4355);--fn-pipe:light-dark(#b77819,#daa44a);
+      --fn-port:light-dark(#eeb657,#e1b45f);--fn-green:light-dark(#1f795c,#85c8aa);
+      --fn-green-soft:light-dark(#e8f5ee,#283f37);--fn-red:light-dark(#b54040,#ed9696);
+      --fn-dot:light-dark(#dbe2e9,#3a4552);--fn-shadow:light-dark(#31455830,#00000060);
+      --fn-library-width:144px;--fn-row-height:36px;
+      color:var(--fn-text);font:13px/1.45 "Segoe UI","Microsoft YaHei",sans-serif;width:100%;
+    }
+    #fluidnet-floating-workbench * { box-sizing:border-box; }
+    #fluidnet-floating-workbench [hidden] { display:none!important; }
+    #fluidnet-floating-workbench button,#fluidnet-floating-workbench input,#fluidnet-floating-workbench select { font:inherit;color:inherit; }
+    #fluidnet-floating-workbench button { touch-action:manipulation; }
+    #fluidnet-floating-workbench button:disabled { opacity:.4;cursor:default; }
+    #fluidnet-floating-workbench .fn-shell { background:var(--fn-bg);border:1px solid var(--fn-border);border-radius:10px; }
+    #fluidnet-floating-workbench .fn-titlebar { min-height:46px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:9px 106px 9px 16px;border-radius:10px 10px 0 0;background:var(--fn-surface); }
+    #fluidnet-floating-workbench .fn-brand { display:flex;align-items:center;gap:8px;font-weight:600;letter-spacing:.1px;white-space:nowrap; }
+    #fluidnet-floating-workbench .fn-brand-mark { display:grid;place-items:center;background:var(--fn-blue);color:var(--fn-surface);width:24px;height:24px;border-radius:6px; }
+    #fluidnet-floating-workbench .fn-project-name { display:flex;align-items:center;gap:8px;color:var(--fn-muted);font-size:12px; }
+    #fluidnet-floating-workbench .fn-project-dot { width:5px;height:5px;background:var(--fn-blue);border-radius:50%; }
+    #fluidnet-floating-workbench .fn-toolbar { display:flex;align-items:center;flex-wrap:wrap;gap:6px;padding:6px 12px;border-block:1px solid var(--fn-border); }
+    #fluidnet-floating-workbench .fn-tool { border:1px solid transparent;border-radius:5px;background:transparent;padding:6px 9px;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:31px;white-space:nowrap; }
+    #fluidnet-floating-workbench .fn-tool:hover:not(:disabled) { background:var(--fn-blue-soft); }
+    #fluidnet-floating-workbench .fn-tool[aria-pressed="true"] { background:var(--fn-blue-soft);color:var(--fn-blue);border-color:var(--fn-border); }
+    #fluidnet-floating-workbench .fn-tool svg { width:15px;height:15px; }
+    #fluidnet-floating-workbench .fn-separator { height:18px;border-left:1px solid var(--fn-border);margin:0 3px; }
+    #fluidnet-floating-workbench .fn-project-status { margin-left:auto;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--fn-muted);padding:3px 4px; }
+    #fluidnet-floating-workbench .fn-led { background:var(--fn-muted);height:6px;width:6px;border-radius:50%; }
+    #fluidnet-floating-workbench .fn-led.is-running { background:var(--fn-green); }
+    #fluidnet-floating-workbench .fn-desktop { position:relative;isolation:isolate; }
+    #fluidnet-floating-workbench .fn-desktop-body { display:grid;grid-template-columns:var(--fn-library-width) minmax(0,1fr); }
+    #fluidnet-floating-workbench .fn-library { background:var(--fn-bg);border-right:1px solid var(--fn-border);padding:13px 9px 12px;min-width:0; }
+    #fluidnet-floating-workbench .fn-library-title { display:flex;align-items:center;justify-content:space-between;padding:0 5px 11px;font-size:12px;color:var(--fn-muted); }
+    #fluidnet-floating-workbench .fn-library-group { margin:10px 0 7px;padding:0 7px;font-size:11px;color:var(--fn-muted); }
+    #fluidnet-floating-workbench .fn-library-item { display:flex;align-items:center;gap:8px;min-height:35px;padding:7px;width:100%;text-align:left;border:1px solid transparent;background:transparent;border-radius:5px;font-size:12px; }
+    #fluidnet-floating-workbench .fn-library-item:hover { background:var(--fn-surface);border-color:var(--fn-border); }
+    #fluidnet-floating-workbench .fn-library-item[aria-pressed="true"] { background:var(--fn-blue-soft);color:var(--fn-blue);border-color:var(--fn-strong); }
+    #fluidnet-floating-workbench .fn-library-item svg { width:15px;height:15px;flex:0 0 auto; }
+    #fluidnet-floating-workbench .fn-library-bottom { border-top:1px solid var(--fn-border);padding:12px 6px 0;margin-top:20px;color:var(--fn-muted);font-size:11px; }
+    #fluidnet-floating-workbench .fn-scene { min-width:0;position:relative;background:var(--fn-canvas); }
+    #fluidnet-floating-workbench .fn-canvasbar { height:38px;border-bottom:1px solid var(--fn-border);background:var(--fn-surface);display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 14px; }
+    #fluidnet-floating-workbench .fn-canvas-tab { height:38px;display:flex;align-items:center;gap:6px;border-bottom:2px solid var(--fn-blue);font-size:12px; }
+    #fluidnet-floating-workbench .fn-canvasbar small { font-size:11px;color:var(--fn-muted); }
+    #fluidnet-floating-workbench .fn-canvas { height:640px;position:relative;background-image:radial-gradient(var(--fn-dot) .8px,transparent .8px);background-size:18px 18px; }
+    #fluidnet-floating-workbench .fn-canvas.is-placing { cursor:crosshair; }
+    #fluidnet-floating-workbench .fn-network { position:absolute;inset:0;width:100%;height:100%;pointer-events:none; }
+    #fluidnet-floating-workbench .fn-device { position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:4px;min-width:69px;padding:5px;border:1px solid transparent;background:transparent;border-radius:7px;user-select:none;touch-action:none; }
+    #fluidnet-floating-workbench .fn-device:hover { background:var(--fn-blue-soft); }
+    #fluidnet-floating-workbench .fn-device[aria-pressed="true"] { border-color:var(--fn-blue);background:var(--fn-blue-soft); }
+    #fluidnet-floating-workbench .fn-symbol { height:39px;width:46px;position:relative;display:grid;place-items:center;color:var(--fn-blue);background:var(--fn-surface);border:1.5px solid var(--fn-strong);border-radius:7px; }
+    #fluidnet-floating-workbench .fn-symbol svg { height:21px;width:21px; }
+    #fluidnet-floating-workbench .fn-type-pump .fn-symbol { border-radius:50%;width:39px; }
+    #fluidnet-floating-workbench .fn-type-valve .fn-symbol { width:42px;height:34px;color:var(--fn-pipe);border-radius:5px; }
+    #fluidnet-floating-workbench .fn-type-pipe .fn-symbol { width:60px;height:21px;margin-block:9px;color:var(--fn-pipe);background:var(--fn-surface);border-radius:4px; }
+    #fluidnet-floating-workbench .fn-type-pipe .fn-symbol svg { height:15px;width:20px; }
+    #fluidnet-floating-workbench .fn-port { position:absolute;top:50%;transform:translateY(-50%);width:6px;height:6px;border:1.5px solid var(--fn-pipe);background:var(--fn-surface);border-radius:50%; }
+    #fluidnet-floating-workbench .fn-port.left { left:-5px; }
+    #fluidnet-floating-workbench .fn-port.right { right:-5px; }
+    #fluidnet-floating-workbench .fn-device-code { font:11px/1.3 Consolas,monospace;color:var(--fn-text); }
+    #fluidnet-floating-workbench .fn-device-name { color:var(--fn-muted);font-size:11px;line-height:1.2;white-space:nowrap; }
+    #fluidnet-floating-workbench .fn-device-flow { position:absolute;bottom:calc(100% + 2px);font:11px/1.3 Consolas,monospace;color:var(--fn-pipe);white-space:nowrap;padding:1px 4px;border-radius:3px;background:var(--fn-canvas); }
+    #fluidnet-floating-workbench .fn-device-opener { position:absolute;transform:translate(-50%,-50%);border:1px solid var(--fn-border);background:var(--fn-surface);color:var(--fn-blue);padding:4px 9px;border-radius:5px;box-shadow:0 3px 10px var(--fn-shadow);font-size:11px;white-space:nowrap;z-index:2; }
+    #fluidnet-floating-workbench .fn-rail { position:absolute;right:10px;top:57px;display:flex;flex-direction:column;gap:5px;padding:5px;background:var(--fn-surface);border:1px solid var(--fn-border);border-radius:7px;box-shadow:0 3px 10px var(--fn-shadow);z-index:3; }
+    #fluidnet-floating-workbench .fn-rail button { background:transparent;border:1px solid transparent;border-radius:5px;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 5px;min-width:38px;font-size:11px; }
+    #fluidnet-floating-workbench .fn-rail button:hover:not(:disabled) { background:var(--fn-blue-soft); }
+    #fluidnet-floating-workbench .fn-rail button[data-action="run"] { color:var(--fn-green); }
+    #fluidnet-floating-workbench .fn-rail svg { width:17px;height:17px; }
+    #fluidnet-floating-workbench .fn-rail-separator { border-top:1px solid var(--fn-border);margin:2px 5px; }
+    #fluidnet-floating-workbench .fn-canvas-message { position:absolute;top:13px;left:18px;right:77px;font-size:11px;color:var(--fn-muted);pointer-events:none; }
+    #fluidnet-floating-workbench .fn-windows { position:absolute;inset:0;pointer-events:none;z-index:10; }
+    #fluidnet-floating-workbench .fn-window { position:absolute;width:350px;min-width:300px;background:var(--fn-surface);border:1px solid var(--fn-border);border-radius:8px;box-shadow:0 8px 28px var(--fn-shadow),0 2px 6px var(--fn-shadow);pointer-events:auto;display:flex;flex-direction:column; }
+    #fluidnet-floating-workbench .fn-window.is-front { border-color:var(--fn-strong);box-shadow:0 12px 36px var(--fn-shadow),0 2px 8px var(--fn-shadow); }
+    #fluidnet-floating-workbench .fn-window-header { display:flex;align-items:center;border-bottom:1px solid var(--fn-border);background:var(--fn-bg);min-height:39px;border-radius:7px 7px 0 0; }
+    #fluidnet-floating-workbench .fn-window.is-front .fn-window-header { background:var(--fn-blue-soft); }
+    #fluidnet-floating-workbench .fn-drag-title { flex:1;min-width:0;display:flex;align-items:center;gap:7px;text-align:left;border:0;background:transparent;padding:10px 10px 10px 12px;font-weight:600;cursor:grab;touch-action:none;user-select:none; }
+    #fluidnet-floating-workbench .fn-drag-title:active { cursor:grabbing; }
+    #fluidnet-floating-workbench .fn-drag-title svg { width:14px;height:14px;flex:0 0 auto;color:var(--fn-blue); }
+    #fluidnet-floating-workbench .fn-drag-title span { overflow-wrap:anywhere; }
+    #fluidnet-floating-workbench .fn-window-tools { display:flex;gap:1px;padding-right:5px; }
+    #fluidnet-floating-workbench .fn-window-tools button { display:grid;place-items:center;padding:0;width:27px;height:29px;border:0;border-radius:4px;background:transparent; }
+    #fluidnet-floating-workbench .fn-window-tools button:hover { background:var(--fn-border); }
+    #fluidnet-floating-workbench .fn-window-tools button[data-w-action="close"]:hover { color:var(--fn-red); }
+    #fluidnet-floating-workbench .fn-window-tools button[aria-pressed="true"] { color:var(--fn-blue);background:var(--fn-blue-soft); }
+    #fluidnet-floating-workbench .fn-window-tools svg { width:13px;height:13px; }
+    #fluidnet-floating-workbench .fn-window-tabs { display:flex;align-items:center;gap:4px;border-bottom:1px solid var(--fn-border);padding:0 10px; }
+    #fluidnet-floating-workbench .fn-window-tab { background:transparent;border:0;border-bottom:2px solid transparent;padding:9px 9px 8px;font-size:12px; }
+    #fluidnet-floating-workbench .fn-window-tab[aria-selected="true"] { border-color:var(--fn-blue);color:var(--fn-blue);font-weight:600; }
+    #fluidnet-floating-workbench .fn-bound { margin-left:auto;color:var(--fn-muted);font-size:11px;padding-right:2px; }
+    #fluidnet-floating-workbench .fn-window-body { min-width:0;flex:1; }
+    #fluidnet-floating-workbench .fn-model-row { display:flex;align-items:center;gap:12px;padding:11px 12px;border-bottom:1px solid var(--fn-border);font-size:12px; }
+    #fluidnet-floating-workbench .fn-model-row label { color:var(--fn-muted); }
+    #fluidnet-floating-workbench .fn-model-row select { flex:1;width:0;min-width:0;background:var(--fn-surface);border:1px solid var(--fn-border);border-radius:4px;padding:4px 6px;font-size:12px; }
+    #fluidnet-floating-workbench .fn-table { width:100%;border-collapse:collapse;table-layout:fixed;font-size:12px; }
+    #fluidnet-floating-workbench .fn-table th { text-align:left;font-weight:400;color:var(--fn-muted);font-size:11px;padding:8px 11px;border-bottom:1px solid var(--fn-border);background:var(--fn-bg); }
+    #fluidnet-floating-workbench .fn-table th:first-child { width:40%; }
+    #fluidnet-floating-workbench .fn-table td { padding:7px 11px;min-height:var(--fn-row-height);height:var(--fn-row-height);border-bottom:1px solid var(--fn-border);overflow-wrap:anywhere; }
+    #fluidnet-floating-workbench .fn-table td:nth-child(2),#fluidnet-floating-workbench .fn-table td:nth-child(3) { font-variant-numeric:tabular-nums; }
+    #fluidnet-floating-workbench .fn-unit { display:block;font-size:11px;line-height:1.3;color:var(--fn-muted); }
+    #fluidnet-floating-workbench .fn-table input { width:100%;min-width:0;border:1px solid var(--fn-border);border-radius:4px;background:var(--fn-surface);padding:4px 5px;text-align:right;font:12px Consolas,monospace; }
+    #fluidnet-floating-workbench .fn-table input.is-edited { background:var(--fn-blue-soft);border-color:var(--fn-strong); }
+    #fluidnet-floating-workbench .fn-input-error { min-height:22px;margin:0;padding:5px 12px 0;font-size:11px;color:var(--fn-muted); }
+    #fluidnet-floating-workbench .fn-input-error.is-error { color:var(--fn-red); }
+    #fluidnet-floating-workbench .fn-window-actions { display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:7px;padding:9px 12px 12px; }
+    #fluidnet-floating-workbench .fn-button { display:inline-flex;align-items:center;justify-content:center;gap:5px;border:1px solid var(--fn-border);border-radius:4px;background:var(--fn-surface);padding:6px 9px;min-height:29px;font-size:11px; }
+    #fluidnet-floating-workbench .fn-button:hover { background:var(--fn-bg); }
+    #fluidnet-floating-workbench .fn-button.primary { background:var(--fn-blue);border-color:var(--fn-blue);color:var(--fn-surface); }
+    #fluidnet-floating-workbench .fn-button svg { height:13px;width:13px; }
+    #fluidnet-floating-workbench .fn-window-time { color:var(--fn-muted);font:11px Consolas,monospace;margin-right:auto; }
+    #fluidnet-floating-workbench .fn-resize { position:absolute;right:1px;bottom:1px;width:14px;height:14px;border:0;background:transparent;color:var(--fn-muted);cursor:nwse-resize;touch-action:none;padding:0; }
+    #fluidnet-floating-workbench .fn-resize svg { width:11px;height:11px; }
+    #fluidnet-floating-workbench .fn-curve-header { display:flex;align-items:center;gap:8px;justify-content:space-between;flex-wrap:wrap;padding:11px 12px 0;font-size:12px; }
+    #fluidnet-floating-workbench .fn-curve-tag { font-size:11px;color:var(--fn-muted); }
+    #fluidnet-floating-workbench .fn-chart { display:block;height:180px;width:100%; }
+    #fluidnet-floating-workbench .fn-chart-legend { display:flex;flex-wrap:wrap;gap:9px;padding:0 12px 5px; }
+    #fluidnet-floating-workbench .fn-legend-button { display:flex;align-items:center;gap:6px;border:0;background:transparent;padding:2px;font-size:11px; }
+    #fluidnet-floating-workbench .fn-legend-button[aria-pressed="false"] { opacity:.45; }
+    #fluidnet-floating-workbench .fn-line-key { width:15px;border-top:2px solid var(--fn-blue); }
+    #fluidnet-floating-workbench .fn-line-key.a { border-color:var(--fn-pipe); }
+    #fluidnet-floating-workbench .fn-line-key.b { border-color:var(--fn-green);border-top-style:dashed; }
+    #fluidnet-floating-workbench .fn-chart-detail { padding:5px 12px 10px;color:var(--fn-muted);font:11px Consolas,monospace;min-height:28px; }
+    #fluidnet-floating-workbench .fn-context { position:absolute;width:218px;pointer-events:auto;background:var(--fn-surface);border:1px solid var(--fn-border);border-radius:7px;box-shadow:0 8px 25px var(--fn-shadow);padding:10px;z-index:1500; }
+    #fluidnet-floating-workbench .fn-context-title { font-size:12px;font-weight:600;margin-bottom:8px; }
+    #fluidnet-floating-workbench .fn-context label { display:block;color:var(--fn-muted);font-size:11px;margin-bottom:4px; }
+    #fluidnet-floating-workbench .fn-context select { width:100%;padding:5px;background:var(--fn-surface);border:1px solid var(--fn-border);border-radius:4px;font-size:12px; }
+    #fluidnet-floating-workbench .fn-context-values { display:flex;justify-content:space-between;gap:8px;font-size:11px;padding:10px 0;color:var(--fn-muted); }
+    #fluidnet-floating-workbench .fn-context .fn-button { width:100%; }
+    #fluidnet-floating-workbench .fn-toast { position:absolute;left:50%;top:12px;transform:translateX(-50%);max-width:calc(100% - 24px);padding:8px 13px;pointer-events:none;border:1px solid var(--fn-border);border-radius:6px;background:var(--fn-surface);box-shadow:0 4px 16px var(--fn-shadow);font-size:12px;z-index:1600;overflow-wrap:anywhere; }
+    #fluidnet-floating-workbench .fn-statusbar { min-height:33px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;border-top:1px solid var(--fn-border);padding:5px 11px;border-radius:0 0 10px 10px;font-size:11px;color:var(--fn-muted); }
+    #fluidnet-floating-workbench .fn-window-switcher { display:flex;flex-wrap:wrap;gap:4px;align-items:center; }
+    #fluidnet-floating-workbench .fn-window-chip { border:1px solid var(--fn-border);background:var(--fn-surface);border-radius:4px;padding:3px 7px;font-size:11px;display:flex;gap:5px;align-items:center; }
+    #fluidnet-floating-workbench .fn-window-chip.is-minimized { background:transparent;border-style:dashed; }
+    #fluidnet-floating-workbench .fn-window-chip.is-active { color:var(--fn-blue);border-color:var(--fn-strong); }
+    #fluidnet-floating-workbench .fn-window-chip svg { width:11px;height:11px; }
+    #fluidnet-floating-workbench.library-collapsed .fn-desktop-body { grid-template-columns:minmax(0,1fr); }
+    #fluidnet-floating-workbench.library-collapsed .fn-library { display:none; }
+    #fluidnet-floating-workbench .fn-sr-only { position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap; }
+    @media(max-width:700px) {
+      #fluidnet-floating-workbench .fn-desktop-body { grid-template-columns:minmax(0,1fr); }
+      #fluidnet-floating-workbench .fn-library { display:none; }
+      #fluidnet-floating-workbench.mobile-library-open .fn-library { display:block;border-bottom:1px solid var(--fn-border);border-right:0; }
+      #fluidnet-floating-workbench .fn-library-list { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3px; }
+      #fluidnet-floating-workbench .fn-library-group,#fluidnet-floating-workbench .fn-library-bottom { display:none; }
+      #fluidnet-floating-workbench .fn-library-title { padding-bottom:5px; }
+      #fluidnet-floating-workbench .fn-canvas { height:470px; }
+      #fluidnet-floating-workbench .fn-windows { position:relative;inset:auto;display:flex;flex-wrap:wrap;align-items:flex-start;gap:12px;padding:12px;background:var(--fn-bg); }
+      #fluidnet-floating-workbench .fn-windows:empty { padding:0; }
+      #fluidnet-floating-workbench .fn-window { position:relative!important;left:auto!important;top:auto!important;width:100%!important;min-width:0;max-width:460px;height:auto!important;min-height:0!important; }
+      #fluidnet-floating-workbench .fn-context { left:12px!important;top:100px!important; }
+      #fluidnet-floating-workbench .fn-drag-title { cursor:default; }
+      #fluidnet-floating-workbench .fn-resize { display:none; }
+      #fluidnet-floating-workbench .fn-titlebar { gap:6px;padding-right:104px; }
+      #fluidnet-floating-workbench .fn-project-status { margin-left:0; }
+      #fluidnet-floating-workbench .fn-device { min-width:60px; }
+      #fluidnet-floating-workbench .fn-device-name { font-size:11px; }
+      #fluidnet-floating-workbench .fn-rail { right:6px;top:46px;padding:3px; }
+      #fluidnet-floating-workbench .fn-rail button { min-width:32px;padding:7px 3px; }
+      #fluidnet-floating-workbench .fn-table td { padding:7px 9px; }
+      #fluidnet-floating-workbench .fn-canvasbar small { display:none; }
+      #fluidnet-floating-workbench .fn-canvas-message { display:none; }
+      #fluidnet-floating-workbench .fn-canvas.is-placing .fn-canvas-message { display:block;background:var(--fn-surface);padding:4px 6px; }
+      #fluidnet-floating-workbench .fn-toolbar { padding:6px;gap:3px; }
+      #fluidnet-floating-workbench .fn-tool { padding:6px;font-size:12px; }
+      #fluidnet-floating-workbench .fn-separator { display:none; }
+    }
+    @media(pointer:coarse) {
+      #fluidnet-floating-workbench .fn-tool,#fluidnet-floating-workbench .fn-button,#fluidnet-floating-workbench .fn-library-item,#fluidnet-floating-workbench .fn-window-chip,#fluidnet-floating-workbench .fn-window-tab { min-height:44px; }
+      #fluidnet-floating-workbench .fn-window-tools button { min-width:34px;height:44px; }
+      #fluidnet-floating-workbench .fn-table input,#fluidnet-floating-workbench select { font-size:16px; }
+    }
+  </style>
+  <div class="fn-shell">
+    <div class="fn-titlebar">
+      <span class="fn-brand"><span class="fn-brand-mark"><i data-lucide="waypoints" aria-hidden="true"></i></span>FluidNet Studio</span>
+      <span class="fn-project-name"><span class="fn-project-dot"></span>泵阀并联管网<span id="fn-unsaved"> · 示例</span></span>
+    </div>
+    <div class="fn-toolbar" aria-label="工作台工具">
+      <button type="button" class="fn-tool cursor-interaction" data-action="library" aria-pressed="true"><i data-lucide="panel-left" aria-hidden="true"></i>模块库</button>
+      <button type="button" class="fn-tool cursor-interaction" data-action="save"><i data-lucide="save" aria-hidden="true"></i>保存</button>
+      <span class="fn-separator"></span>
+      <button type="button" class="fn-tool cursor-interaction" data-action="properties"><i data-lucide="square-pen" aria-hidden="true"></i>设备属性</button>
+      <button type="button" class="fn-tool cursor-interaction" data-action="curves"><i data-lucide="chart-no-axes-combined" aria-hidden="true"></i>曲线</button>
+      <span class="fn-separator"></span>
+      <button type="button" class="fn-tool cursor-interaction" data-action="arrange"><i data-lucide="panels-top-left" aria-hidden="true"></i>排列窗口</button>
+      <button type="button" class="fn-tool cursor-interaction" data-action="minimize-all"><i data-lucide="minimize-2" aria-hidden="true"></i>收起窗口</button>
+      <span class="fn-project-status"><span class="fn-led" id="fn-run-led"></span><span id="fn-run-status">已暂停</span><span id="fn-clock">t = 12.0 s</span></span>
+    </div>
+    <div class="fn-desktop">
+      <div class="fn-desktop-body">
+        <aside class="fn-library" aria-label="模块库">
+          <div class="fn-library-title"><span>模块库</span><i data-lucide="boxes" aria-hidden="true"></i></div>
+          <div class="fn-library-list">
+            <p class="fn-library-group">边界与连接</p>
+            <button type="button" class="fn-library-item cursor-interaction" data-add="source" aria-pressed="false"><i data-lucide="cylinder" aria-hidden="true"></i>压力边界</button>
+            <button type="button" class="fn-library-item cursor-interaction" data-add="pipe" aria-pressed="false"><i data-lucide="move-horizontal" aria-hidden="true"></i>管道</button>
+            <p class="fn-library-group">泵与阀门</p>
+            <button type="button" class="fn-library-item cursor-interaction" data-add="pump" aria-pressed="false"><i data-lucide="fan" aria-hidden="true"></i>离心泵</button>
+            <button type="button" class="fn-library-item cursor-interaction" data-add="valve" aria-pressed="false"><i data-lucide="sliders-horizontal" aria-hidden="true"></i>调节阀</button>
+            <p class="fn-library-group">容积与换热</p>
+            <button type="button" class="fn-library-item cursor-interaction" data-add="tank" aria-pressed="false"><i data-lucide="container" aria-hidden="true"></i>开式水箱</button>
+            <button type="button" class="fn-library-item cursor-interaction" data-add="exchanger" aria-pressed="false"><i data-lucide="arrow-left-right" aria-hidden="true"></i>换热机组</button>
+          </div>
+          <div class="fn-library-bottom">单击模块后放置<br>双击设备打开属性<br>右键设备选择型号</div>
+        </aside>
+        <div class="fn-scene">
+          <div class="fn-canvasbar"><span class="fn-canvas-tab"><i data-lucide="workflow" aria-hidden="true"></i>画布 1 · 主系统</span><small>液态水 · 流量单位 kg/s</small></div>
+          <div class="fn-canvas" aria-label="管网建模画布">
+            <svg class="fn-network" role="img" aria-label="循环泵供给两条并联管路，支路由调节阀控制后汇合至回水边界"></svg>
+            <div class="fn-devices"></div>
+            <button type="button" class="fn-device-opener cursor-interaction" data-action="properties" hidden>打开属性</button>
+            <div class="fn-canvas-message" id="fn-canvas-message">双击设备打开独立窗口 · 拖动窗口标题栏自由摆放</div>
+          </div>
+          <div class="fn-rail" aria-label="运行控制">
+            <button type="button" class="cursor-interaction" data-action="run"><i data-lucide="play" aria-hidden="true"></i><span>运行</span></button>
+            <button type="button" class="cursor-interaction" data-action="pause" disabled><i data-lucide="pause" aria-hidden="true"></i><span>暂停</span></button>
+            <button type="button" class="cursor-interaction" data-action="step"><i data-lucide="step-forward" aria-hidden="true"></i><span>单步</span></button>
+            <button type="button" class="cursor-interaction" data-action="stop"><i data-lucide="square" aria-hidden="true"></i><span>停止</span></button>
+            <span class="fn-rail-separator"></span>
+            <button type="button" class="cursor-interaction" data-action="curves"><i data-lucide="chart-no-axes-combined" aria-hidden="true"></i><span>曲线</span></button>
+          </div>
+        </div>
+      </div>
+      <div class="fn-windows" aria-label="已打开的独立窗口"></div>
+      <div class="fn-context" hidden></div>
+      <div class="fn-toast" role="status" hidden></div>
+    </div>
+    <div class="fn-statusbar">
+      <div class="fn-window-switcher" aria-label="窗口切换"></div>
+      <span>交互原型 · 示例数值</span>
+    </div>
+    <span class="fn-sr-only" id="fn-announcement" aria-live="polite"></span>
+  </div>
+  <script>
+    (() => {
+      const root=document.getElementById('fluidnet-floating-workbench');
+      const desktop=root.querySelector('.fn-desktop');
+      const canvas=root.querySelector('.fn-canvas');
+      const layer=root.querySelector('.fn-windows');
+      const nodeLayer=root.querySelector('.fn-devices');
+      const context=root.querySelector('.fn-context');
+      const svgNS='http://www.w3.org/2000/svg';
+      const kinds={
+        pump:{name:'循环泵',icon:'fan',code:'P'},valve:{name:'调节阀',icon:'sliders-horizontal',code:'V'},
+        pipe:{name:'管道',icon:'move-horizontal',code:'L'},source:{name:'压力边界',icon:'cylinder',code:'B'},
+        tank:{name:'开式水箱',icon:'container',code:'T'},exchanger:{name:'换热机组',icon:'arrow-left-right',code:'HX'}
+      };
+      const originals=[
+        {id:'source',code:'B-01',name:'供水边界',kind:'source'},
+        {id:'pump',code:'P-01',name:'循环泵',kind:'pump'},
+        {id:'valve_a',code:'V-01',name:'A 路调节阀',kind:'valve'},
+        {id:'pipe_a',code:'L-01',name:'A 路管道',kind:'pipe'},
+        {id:'valve_b',code:'V-02',name:'B 路调节阀',kind:'valve'},
+        {id:'pipe_b',code:'L-02',name:'B 路管道',kind:'pipe'},
+        {id:'sink',code:'B-02',name:'回水边界',kind:'source'}
+      ];
+      const defaults={speed:1,efficiency:75,openingA:80,kvA:16,openingB:55,kvB:16,pressure:201.325,temperature:20,sinkPressure:201.325,sinkTemperature:20,lengthA:30,diameterA:40,lengthB:40,diameterB:40};
+      const state={version:2,selected:'pump',time:12,running:false,mode:'paused',runtime:{...defaults},library:{...defaults},windows:{},order:[],extras:[],positions:{},dirty:false,libraryCollapsed:false,readings:{q:3.55,qa:3.55*80/135,qb:3.55*55/135},history:[],series:{total:true,a:true,b:true}};
+      for(let t=0;t<=12;t+=.5){const q=3.55-.48*Math.exp(-t/2.4);state.history.push({t,q,qa:q*80/135,qb:q*55/135});}
+      const design={libraryWidth:144,compact:true,showValues:true};
+      const nodes=new Map(originals.map(n=>[n.id,{...n}]));
+      const panels=new Map();
+      let timer=null,toastTimer=null,placing=null,pointer=null,contextId=null,scheduled=0;
+      const small=()=>root.clientWidth<=700;
+      const esc=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+      const finite=(n,fallback)=>Number.isFinite(Number(n))?Number(n):fallback;
+      const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
+      const icon=name=>`<i data-lucide="${name}" aria-hidden="true"></i>`;
+      function icons(){if(globalThis.lucide&&root.querySelector('i[data-lucide]')){root.querySelectorAll('svg[data-lucide]').forEach(el=>el.removeAttribute('data-lucide'));globalThis.lucide.createIcons({attrs:{width:16,height:16}});root.querySelectorAll('svg[data-lucide]').forEach(el=>el.removeAttribute('data-lucide'));}}
+      function announce(text){root.querySelector('#fn-announcement').textContent=text;}
+      function notify(text){const toast=root.querySelector('.fn-toast');toast.textContent=text;toast.hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>{toast.hidden=true;},2600);announce(text);}
+      function snapshot(){return {version:2,selected:state.selected,time:state.time,runtime:{...state.runtime},library:{...state.library},windows:JSON.parse(JSON.stringify(state.windows)),order:[...state.order],extras:state.extras.map(n=>({...n})),positions:{...state.positions},readings:{...state.readings},history:state.history.slice(-45),series:{...state.series},libraryCollapsed:state.libraryCollapsed,design:{...design}};}
+      function persist(){if(window.openai?.setWidgetState)window.openai.setWidgetState({modelContent:{prototype:'浮动设备窗口',selectedDevice:nodes.get(state.selected)?.code||state.selected,openWindows:state.order.filter(id=>state.windows[id]?.open),parameters:{pumpSpeed:state.runtime.speed,valveAOpening:state.runtime.openingA,valveBOpening:state.runtime.openingB}},privateContent:snapshot()}).catch(()=>{});}
+      function fields(node){
+        const id=node.id,extra=!!node.extra;
+        const field=(key,label,unit,min,max,step,value,digits=2)=>({key:extra?id+'_'+key:key,label,unit,min,max,step,value,digits});
+        if(node.kind==='pump')return [field('speed','转速比','倍',.2,1.3,.05,1,2),field('efficiency','泵效率','%',1,100,1,75,1)];
+        if(node.kind==='valve')return [field(id==='valve_b'?'openingB':'openingA','阀门开度','%',0,100,1,id==='valve_b'?55:80,1),field(id==='valve_b'?'kvB':'kvA','流量系数 Kv','m³/h',.1,200,.5,16,2)];
+        if(node.kind==='pipe')return [field(id==='pipe_b'?'lengthB':'lengthA','管道长度','m',.1,1000,.5,id==='pipe_b'?40:30,1),field(id==='pipe_b'?'diameterB':'diameterA','内径','mm',5,1000,1,40,1)];
+        if(node.kind==='tank')return [field('level','初始液位','m',.01,10,.1,2,2),field('temperature','水温','°C',1,90,.5,20,1)];
+        if(node.kind==='exchanger')return [field('ua','传热系数 UA','W/K',1,50000,100,2000,0),field('loss','局部阻力系数','-',0,1000,.5,5,1)];
+        return [field(id==='sink'?'sinkPressure':'pressure','绝对压力','kPa',110,1000,1,201.325,3),field(id==='sink'?'sinkTemperature':'temperature','温度','°C',1,90,.5,20,1)];
+      }
+      function ensureValues(node){for(const field of fields(node)){if(!(field.key in state.runtime))state.runtime[field.key]=field.value;if(!(field.key in state.library))state.library[field.key]=field.value;}}
+      function models(node){return node.kind==='pump'?['标准离心泵','高效变频泵']:node.kind==='valve'?['调节阀 Kv16','调节阀 Kv25']:node.kind==='pipe'?['DN40 标准管','DN50 标准管']:node.kind==='source'?['恒压水源','温水边界']:node.kind==='tank'?['开式水箱 2 m³','开式水箱 5 m³']:['双侧换热机组','高传热机组'];}
+      function fmt(value,digits=2){return finite(value,0).toFixed(digits);}
+      function reading(node){if(node.extra)return 0;if(['valve_a','pipe_a'].includes(node.id))return state.readings.qa;if(['valve_b','pipe_b'].includes(node.id))return state.readings.qb;return state.readings.q;}
+      function measurements(node){const q=reading(node),p=state.runtime.pressure;return [
+        ['质量流量',fmt(q,3),'kg/s'],
+        ['入口压力',fmt(node.kind==='pump'?p:p+((node.id==='valve_a'||node.id==='valve_b')?145:40),2),'kPa'],
+        ['出口压力',fmt(node.kind==='pump'?p+155*state.runtime.speed:p,2),'kPa'],
+        ['流体温度',fmt(state.runtime.temperature+.1,1),'°C']
+      ];}
+      function markDirty(){state.dirty=true;root.querySelector('#fn-unsaved').textContent=' · 未保存';}
+      function createNodes(){
+        for(const node of nodes.values()){
+          if(nodeLayer.querySelector(`[data-node="${node.id}"]`))continue;
+          ensureValues(node);
+          const b=document.createElement('button');b.type='button';b.className=`fn-device fn-type-${node.kind} cursor-interaction`;b.dataset.node=node.id;b.setAttribute('aria-label',`${node.name} ${node.code}，双击打开独立属性窗口`);b.setAttribute('aria-pressed',String(node.id===state.selected));
+          b.innerHTML=`<span class="fn-device-flow">${fmt(reading(node),3)}</span><span class="fn-symbol">${icon(kinds[node.kind].icon)}<span class="fn-port left"></span><span class="fn-port right"></span></span><span class="fn-device-code">${node.code}</span><span class="fn-device-name">${esc(node.name)}</span>`;
+          b.addEventListener('click',()=>{if(b.dataset.dragged==='yes'){b.dataset.dragged='';return;}selectNode(node.id);if(small())openWindow(node.id);});
+          b.addEventListener('dblclick',()=>openWindow(node.id));
+          b.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();openWindow(node.id);}if(event.key==='Delete'&&node.extra){event.preventDefault();removeExtra(node.id);}});
+          b.addEventListener('contextmenu',event=>{event.preventDefault();selectNode(node.id);showContext(node.id,event.clientX,event.clientY);});
+          b.addEventListener('pointerdown',event=>startNodeMove(event,node.id));
+          nodeLayer.append(b);
+        }
+        icons();selectNode(state.selected,false);drawGraph();
+      }
+      function selectNode(id,closeContext=true){if(!nodes.has(id))return;state.selected=id;nodeLayer.querySelectorAll('[data-node]').forEach(el=>el.setAttribute('aria-pressed',String(el.dataset.node===id)));if(closeContext)context.hidden=true;drawOpener();}
+      function nodeLocations(){
+        const w=canvas.clientWidth,h=canvas.clientHeight;
+        let pos;
+        if(w<540){const left=38,right=Math.max(145,w-91),mid=(left+right)/2;pos={source:[left,64],pump:[right,64],valve_a:[left,190],pipe_a:[left,291],valve_b:[right,190],pipe_b:[right,291],sink:[mid,402]};}
+        else {const left=41,span=w-145;const x=n=>left+span*n;pos={source:[x(.035),158],pump:[x(.23),158],valve_a:[x(.545),91],pipe_a:[x(.755),91],valve_b:[x(.545),230],pipe_b:[x(.755),230],sink:[x(.96),158]};}
+        for(const node of nodes.values()){
+          const custom=state.positions[node.id];
+          if(custom)pos[node.id]=[clamp(custom.x*w,35,w-40),clamp(custom.y*h,55,h-57)];
+          else if(node.extra)pos[node.id]=[w*.48,h*.55];
+        }
+        return pos;
+      }
+      function addSvg(svg,name,attrs,text){const el=document.createElementNS(svgNS,name);for(const [key,value] of Object.entries(attrs))el.setAttribute(key,value);if(text!==undefined)el.textContent=text;svg.append(el);return el;}
+      function drawGraph(){
+        if(!canvas.clientWidth)return;
+        const points=nodeLocations();
+        for(const [id,p] of Object.entries(points)){const el=nodeLayer.querySelector(`[data-node="${id}"]`);if(el){el.style.left=p[0]+'px';el.style.top=p[1]+'px';el.querySelector('.fn-device-flow').hidden=!design.showValues;}}
+        const svg=root.querySelector('.fn-network'),w=canvas.clientWidth,h=canvas.clientHeight,box=canvas.getBoundingClientRect();svg.replaceChildren();svg.setAttribute('viewBox',`0 0 ${w} ${h}`);
+        const port=(id,side)=>{const p=nodeLayer.querySelector(`[data-node="${id}"] .fn-symbol`).getBoundingClientRect();return {x:(side==='left'?p.left:p.right)-box.left,y:p.top+p.height/2-box.top};};
+        const drawLine=pts=>addSvg(svg,'polyline',{points:pts.map(p=>`${p.x},${p.y}`).join(' '),fill:'none',stroke:'var(--fn-pipe)','stroke-width':2,'stroke-linejoin':'round'});
+        const joint=p=>addSvg(svg,'circle',{cx:p.x,cy:p.y,r:3.5,fill:'var(--fn-pipe)'});
+        const line=(a,b,vertical=false)=>{const mid=vertical?(a.y+b.y)/2:(a.x+b.x)/2;drawLine(vertical?[a,{x:a.x,y:mid},{x:b.x,y:mid},b]:[a,{x:mid,y:a.y},{x:mid,y:b.y},b]);};
+        line(port('source','right'),port('pump','left'));
+        if(w>=540){
+          const p=port('pump','right'),a=port('valve_a','left'),b=port('valve_b','left'),join={x:(p.x+Math.min(a.x,b.x))/2,y:p.y};
+          line(p,join);drawLine([join,{x:join.x,y:a.y},a]);drawLine([join,{x:join.x,y:b.y},b]);joint(join);
+          line(port('valve_a','right'),port('pipe_a','left'));line(port('valve_b','right'),port('pipe_b','left'));
+          const ap=port('pipe_a','right'),bp=port('pipe_b','right'),sink=port('sink','left'),merge={x:(Math.max(ap.x,bp.x)+sink.x)/2,y:sink.y};drawLine([ap,{x:merge.x,y:ap.y},merge]);drawLine([bp,{x:merge.x,y:bp.y},merge]);line(merge,sink);joint(merge);
+        } else {
+          const p=port('pump','right'),a=port('valve_a','left'),b=port('valve_b','left');const y=125;
+          drawLine([p,{x:p.x+10,y},{x:Math.max(16,a.x-11),y},{x:Math.max(16,a.x-11),y:a.y},a]);
+          drawLine([{x:b.x-12,y},{x:b.x-12,y:b.y},b]);joint({x:b.x-12,y});
+          line(port('valve_a','right'),port('pipe_a','right'),true);line(port('valve_b','right'),port('pipe_b','right'),true);
+          const ap=port('pipe_a','left'),bp=port('pipe_b','left'),sink=port('sink','left'),ax=Math.max(8,ap.x-8),bx=Math.max(8,bp.x-8);drawLine([ap,{x:ax,y:ap.y},{x:ax,y:349},{x:sink.x-14,y:349},{x:sink.x-14,y:sink.y},sink]);drawLine([bp,{x:bx,y:bp.y},{x:bx,y:349},{x:sink.x-14,y:349}]);joint({x:sink.x-14,y:349});
+        }
+        drawOpener();
+      }
+      function drawOpener(){const opener=root.querySelector('.fn-device-opener');const el=nodeLayer.querySelector(`[data-node="${state.selected}"]`);if(!el||small()){opener.hidden=true;return;}opener.hidden=false;opener.style.left=el.style.left;opener.style.top=(parseFloat(el.style.top)+62)+'px';}
+      function windowDefaults(id){const w=desktop.clientWidth;return {open:true,minimized:false,pinned:false,tab:'parameters',model:0,x:id==='pump'?w*.18:id==='valve_a'?w*.56:w*.42,y:id==='pump'?320:id==='valve_a'?341:120,width:id==='curves'?424:350,height:0};}
+      function windowTitle(id){return id==='curves'?'趋势曲线 · 主系统':`${nodes.get(id).name} · ${nodes.get(id).code}`;}
+      function windowHeader(id){const isCurve=id==='curves';return `<div class="fn-window-header"><button type="button" class="fn-drag-title" data-move="${id}" aria-label="移动${esc(windowTitle(id))}窗口；也可使用方向键">${icon(isCurve?'chart-no-axes-combined':kinds[nodes.get(id).kind].icon)}<span id="fn-window-title-${id}">${esc(windowTitle(id))}</span></button><div class="fn-window-tools"><button type="button" class="cursor-interaction" data-w-action="pin" aria-label="置顶${esc(windowTitle(id))}" aria-pressed="false">${icon('pin')}</button><button type="button" class="cursor-interaction" data-w-action="minimize" aria-label="收起${esc(windowTitle(id))}">${icon('minus')}</button><button type="button" class="cursor-interaction" data-w-action="close" aria-label="关闭${esc(windowTitle(id))}">${icon('x')}</button></div></div>`;}
+      function makeWindow(id){
+        if(panels.has(id))return panels.get(id);
+        const el=document.createElement('section');el.className='fn-window';el.dataset.window=id;el.setAttribute('role','dialog');el.setAttribute('aria-modal','false');el.setAttribute('aria-labelledby','fn-window-title-'+id);
+        let body='';
+        if(id==='curves'){
+          body=`<div class="fn-window-body"><div class="fn-curve-header"><span>质量流量</span><span class="fn-curve-tag">示例趋势 · kg/s</span></div><svg class="fn-chart" role="img" aria-label="主管及两条支路质量流量示例曲线，不代表真实求解结果"></svg><div class="fn-chart-legend"><button type="button" class="fn-legend-button cursor-interaction" data-series="total" aria-pressed="true"><span class="fn-line-key"></span>主管</button><button type="button" class="fn-legend-button cursor-interaction" data-series="a" aria-pressed="true"><span class="fn-line-key a"></span>A 路</button><button type="button" class="fn-legend-button cursor-interaction" data-series="b" aria-pressed="true"><span class="fn-line-key b"></span>B 路</button></div><div class="fn-chart-detail"></div></div>`;
+        } else {
+          const node=nodes.get(id);ensureValues(node);const opts=models(node);
+          body=`<div class="fn-window-tabs" role="tablist" aria-label="${esc(node.name)}窗口内容"><button type="button" role="tab" class="fn-window-tab cursor-interaction" data-tab="parameters" id="fn-tab-p-${id}" aria-controls="fn-params-${id}" aria-selected="true">参数 / 库值</button><button type="button" role="tab" class="fn-window-tab cursor-interaction" data-tab="variables" id="fn-tab-v-${id}" aria-controls="fn-vars-${id}" aria-selected="false">运行变量</button><span class="fn-bound">${node.extra?'未连接':'液态水'}</span></div><div class="fn-window-body"><div role="tabpanel" id="fn-params-${id}" aria-labelledby="fn-tab-p-${id}" data-pane="parameters"><div class="fn-model-row"><label for="fn-model-${id}">型号</label><select id="fn-model-${id}" data-model>${opts.map((v,i)=>`<option value="${i}">${esc(v)}</option>`).join('')}</select></div><table class="fn-table"><thead><tr><th>参数</th><th>运行值</th><th>库值 1</th></tr></thead><tbody>${fields(node).map(f=>`<tr><td>${f.label}<span class="fn-unit">${f.unit}</span></td><td data-current="${f.key}">${fmt(state.runtime[f.key],f.digits)}</td><td><input type="number" inputmode="decimal" min="${f.min}" max="${f.max}" step="any" value="${state.library[f.key]}" data-field="${f.key}" aria-label="${node.code} ${f.label} 库值1"></td></tr>`).join('')}</tbody></table><p class="fn-input-error" data-feedback>运行值与库值独立保存</p><div class="fn-window-actions"><button type="button" class="fn-button cursor-interaction" data-w-action="capture">运行值 → 库值</button><button type="button" class="fn-button primary cursor-interaction" data-w-action="apply">应用库值</button></div></div><div role="tabpanel" id="fn-vars-${id}" aria-labelledby="fn-tab-v-${id}" data-pane="variables" hidden><table class="fn-table"><thead><tr><th>变量</th><th>当前值</th><th>单位</th></tr></thead><tbody data-readings></tbody></table><div class="fn-window-actions"><span class="fn-window-time" data-time></span><button type="button" class="fn-button cursor-interaction" data-w-action="curve">${icon('chart-no-axes-combined')}查看曲线</button></div></div></div>`;
+        }
+        el.innerHTML=windowHeader(id)+body+`<button type="button" class="fn-resize" data-resize="${id}" aria-label="调整${esc(windowTitle(id))}窗口宽度；可使用左右方向键">${icon('move-down-right')}</button>`;
+        el.addEventListener('pointerdown',()=>raiseWindow(id,false));
+        el.querySelector('[data-move]').addEventListener('pointerdown',event=>startWindowMove(event,id));
+        el.querySelector('[data-move]').addEventListener('keydown',event=>{const delta={ArrowLeft:[-10,0],ArrowRight:[10,0],ArrowUp:[0,-10],ArrowDown:[0,10]}[event.key];if(!delta||small())return;event.preventDefault();const win=state.windows[id];win.x+=delta[0];win.y+=delta[1];positionWindow(id);persist();});
+        el.querySelector('[data-resize]').addEventListener('pointerdown',event=>startResize(event,id));
+        el.querySelector('[data-resize]').addEventListener('keydown',event=>{if(!['ArrowLeft','ArrowRight'].includes(event.key)||small())return;event.preventDefault();state.windows[id].width+=event.key==='ArrowRight'?15:-15;positionWindow(id);drawChart();persist();});
+        el.querySelectorAll('[data-w-action]').forEach(button=>button.addEventListener('click',()=>windowAction(id,button.dataset.wAction)));
+        el.querySelectorAll('[data-tab]').forEach(button=>button.addEventListener('click',()=>setWindowTab(id,button.dataset.tab)));
+        el.querySelectorAll('[data-field]').forEach(input=>input.addEventListener('input',()=>{input.classList.add('is-edited');const feedback=el.querySelector('[data-feedback]');feedback.classList.remove('is-error');feedback.textContent='库值已修改，尚未应用';state.library[input.dataset.field]=input.value===''?'':Number(input.value);markDirty();persist();}));
+        el.querySelector('[data-model]')?.addEventListener('change',event=>chooseModel(id,Number(event.target.value)));
+        el.querySelectorAll('[data-series]').forEach(button=>button.addEventListener('click',()=>{const name=button.dataset.series;state.series[name]=!state.series[name];button.setAttribute('aria-pressed',String(state.series[name]));drawChart();persist();}));
+        if(id!=='curves'){
+          el.querySelector('[data-model]').value=String(state.windows[id]?.model||0);
+          const changed=fields(nodes.get(id)).filter(field=>Number(state.library[field.key])!==state.runtime[field.key]);
+          for(const field of changed)el.querySelector(`[data-field="${field.key}"]`).classList.add('is-edited');
+          if(changed.length)el.querySelector('[data-feedback]').textContent='库值与运行值不同，点击应用后生效';
+          el.querySelector('[data-feedback]').setAttribute('aria-live','polite');
+        }
+        layer.append(el);panels.set(id,el);icons();
+        return el;
+      }
+      function openWindow(id){
+        if(id!=='curves'&&!nodes.has(id))return;
+        context.hidden=true;
+        state.windows[id]??=windowDefaults(id);state.windows[id].open=true;state.windows[id].minimized=false;
+        const el=makeWindow(id);el.hidden=false;positionWindow(id);raiseWindow(id);setWindowTab(id,state.windows[id].tab,false);updateValues();drawChart();persist();announce(windowTitle(id)+'窗口已打开');
+      }
+      function positionWindow(id){const el=panels.get(id),win=state.windows[id];if(!el||!win)return;el.hidden=!win.open||win.minimized;if(small())return;
+        const width=clamp(finite(win.width,350),300,Math.min(600,desktop.clientWidth-16));el.style.width=width+'px';
+        if(win.height)el.style.minHeight=Math.max(id==='curves'?295:305,win.height)+'px';
+        const x=clamp(finite(win.x,200),8,Math.max(8,desktop.clientWidth-width-8)),h=el.offsetHeight||315,y=clamp(finite(win.y,320),8,Math.max(8,desktop.clientHeight-h-8));el.style.left=x+'px';el.style.top=y+'px';
+      }
+      function raiseWindow(id,save=true){state.order=state.order.filter(x=>x!==id);state.order.push(id);for(const [key,el] of panels){const index=state.order.indexOf(key),win=state.windows[key];el.style.zIndex=String((win.pinned?500:100)+index);el.classList.toggle('is-front',key===id);el.querySelector('[data-w-action="pin"]').setAttribute('aria-pressed',String(!!win.pinned));}updateSwitcher();if(save)persist();}
+      function updateSwitcher(){const switcher=root.querySelector('.fn-window-switcher');switcher.replaceChildren();const open=state.order.filter(id=>state.windows[id]?.open);if(!open.length){switcher.textContent='主系统 · 双击设备打开属性';return;}
+        for(const id of open){const win=state.windows[id],b=document.createElement('button');b.type='button';b.className='fn-window-chip cursor-interaction'+(win.minimized?' is-minimized':'')+(state.order.at(-1)===id?' is-active':'');b.dataset.restore=id;b.setAttribute('aria-label',(win.minimized?'恢复':'切换到')+windowTitle(id));b.innerHTML=icon(id==='curves'?'chart-no-axes-combined':'app-window')+esc(id==='curves'?'趋势曲线':nodes.get(id).code+' '+nodes.get(id).name);b.addEventListener('click',()=>openWindow(id));switcher.append(b);}icons();
+      }
+      function setWindowTab(id,tab,save=true){if(id==='curves')return;const el=panels.get(id);state.windows[id].tab=tab==='variables'?'variables':'parameters';el.querySelectorAll('[data-tab]').forEach(button=>button.setAttribute('aria-selected',String(button.dataset.tab===state.windows[id].tab)));el.querySelectorAll('[data-pane]').forEach(pane=>pane.hidden=pane.dataset.pane!==state.windows[id].tab);positionWindow(id);if(save)persist();}
+      function windowAction(id,action){
+        const win=state.windows[id],el=panels.get(id);
+        if(action==='close'||action==='minimize'){if(action==='close')win.open=false;else win.minimized=true;el.hidden=true;updateSwitcher();persist();return;}
+        if(action==='pin'){win.pinned=!win.pinned;raiseWindow(id);notify(win.pinned?'窗口已置顶':'已取消置顶');return;}
+        if(action==='curve'){openWindow('curves');return;}
+        const node=nodes.get(id),defs=fields(node),feedback=el.querySelector('[data-feedback]');
+        if(action==='capture'){for(const field of defs){state.library[field.key]=state.runtime[field.key];const input=el.querySelector(`[data-field="${field.key}"]`);input.value=state.library[field.key];input.classList.remove('is-edited');}feedback.classList.remove('is-error');feedback.textContent='当前运行值已保存到库值 1';markDirty();persist();return;}
+        if(action==='apply'){
+          const candidate={};for(const field of defs){const input=el.querySelector(`[data-field="${field.key}"]`),value=input.value===''?NaN:Number(input.value);if(!Number.isFinite(value)||value<field.min||value>field.max){feedback.textContent=`${field.label}请输入 ${field.min}–${field.max} ${field.unit}`;feedback.classList.add('is-error');input.focus();return;}candidate[field.key]=value;}
+          Object.assign(state.runtime,candidate);Object.assign(state.library,candidate);el.querySelectorAll('[data-field]').forEach(input=>input.classList.remove('is-edited'));feedback.classList.remove('is-error');feedback.textContent=`已应用 · t = ${fmt(state.time,1)} s${state.running?'':' · 单步可更新结果'}`;markDirty();updateValues();notify(node.code+' 库值已应用');persist();
+        }
+      }
+      function chooseModel(id,index){const node=nodes.get(id);state.windows[id]??=windowDefaults(id);state.windows[id].model=index===1?1:0;const defs=fields(node),mult=index===1?1:0;const values=node.kind==='pump'?[mult?1.1:1,mult?82:75]:node.kind==='valve'?[node.id==='valve_b'?55:80,mult?25:16]:node.kind==='pipe'?[node.id==='pipe_b'?40:30,mult?50:40]:node.kind==='source'?[201.325,mult?35:20]:node.kind==='tank'?[mult?3:2,20]:[mult?4000:2000,5];
+        defs.forEach((field,i)=>state.library[field.key]=values[i]);const el=panels.get(id);if(el){el.querySelector('[data-model]').value=String(index);for(const field of defs){const input=el.querySelector(`[data-field="${field.key}"]`);input.value=state.library[field.key];input.classList.add('is-edited');}const feedback=el.querySelector('[data-feedback]');feedback.classList.remove('is-error');feedback.textContent='型号参数已载入库值，点击应用后生效';}markDirty();persist();
+      }
+      function updateValues(){
+        for(const [id,el] of panels){if(id==='curves')continue;const node=nodes.get(id);for(const field of fields(node)){const td=el.querySelector(`[data-current="${field.key}"]`);td.textContent=fmt(state.runtime[field.key],field.digits);}el.querySelector('[data-readings]').innerHTML=measurements(node).map(row=>`<tr>${row.map(text=>`<td>${esc(text)}</td>`).join('')}</tr>`).join('');el.querySelector('[data-time]').textContent='t = '+fmt(state.time,1)+' s';}
+        for(const [id,node] of nodes){const text=nodeLayer.querySelector(`[data-node="${id}"] .fn-device-flow`);if(text)text.textContent=node.extra?'未连接':fmt(reading(node),3);}
+        root.querySelector('#fn-clock').textContent='t = '+fmt(state.time,1)+' s';root.querySelector('#fn-run-status').textContent=state.running?'运行中':state.mode==='stopped'?'已停止':'已暂停';root.querySelector('#fn-run-led').classList.toggle('is-running',state.running);
+        root.querySelector('[data-action="run"]').disabled=state.running;root.querySelector('[data-action="pause"]').disabled=!state.running;root.querySelector('[data-action="step"]').disabled=state.running;drawChart();
+      }
+      function advance(){state.time=Math.round((state.time+.1)*10)/10;const total=3.55*state.runtime.speed*(.72+.28*(state.runtime.openingA+state.runtime.openingB)/135);const weights=state.runtime.openingA+state.runtime.openingB;const target=weights?total:0;state.readings.q+=(target-state.readings.q)*.65;const ratio=weights?state.runtime.openingA/weights:.5;state.readings.qa=state.readings.q*ratio;state.readings.qb=state.readings.q-state.readings.qa;state.history.push({t:state.time,...state.readings});if(state.history.length>100)state.history.shift();updateValues();}
+      function runAction(action){
+        if(action==='run'){if(state.running)return;state.running=true;state.mode='running';clearInterval(timer);timer=setInterval(()=>{if(document.visibilityState==='hidden')return;advance();if(state.time>=600)runAction('pause');},200);announce('演示运行已开始');}
+        else {clearInterval(timer);timer=null;state.running=false;state.mode=action==='stop'?'stopped':'paused';if(action==='step'){advance();announce('已单步推进至 '+fmt(state.time,1)+' 秒');}else announce(action==='stop'?'演示运行已停止':'演示运行已暂停');persist();}
+        updateValues();
+      }
+      function drawChart(){const el=panels.get('curves');if(!el||el.hidden)return;const svg=el.querySelector('.fn-chart'),w=svg.clientWidth;if(!w)return;const h=180,left=46,right=w-15,top=25,bottom=145;svg.replaceChildren();svg.setAttribute('viewBox',`0 0 ${w} ${h}`);const history=state.history.slice(-70);if(!history.length)return;const start=history[0].t,end=Math.max(start+1,history.at(-1).t);const maximum=Math.max(1,Math.ceil(Math.max(...history.map(r=>r.q))*1.15));const x=t=>left+(t-start)/(end-start)*(right-left),y=q=>bottom-q/maximum*(bottom-top);
+        addSvg(svg,'text',{x:left,y:14,fill:'var(--fn-muted)','font-size':11},'质量流量 (kg/s)');
+        for(let i=0;i<=3;i++){const value=maximum*i/3;addSvg(svg,'line',{x1:left,x2:right,y1:y(value),y2:y(value),stroke:'var(--fn-border)','stroke-width':1});addSvg(svg,'text',{x:left-9,y:y(value)+4,'text-anchor':'end',fill:'var(--fn-muted)','font-size':11},fmt(value,1));}
+        const ticks=w<360?3:4;for(let i=0;i<ticks;i++){const t=start+(end-start)*i/(ticks-1);addSvg(svg,'text',{x:x(t),y:bottom+17,'text-anchor':i===0?'start':i===ticks-1?'end':'middle',fill:'var(--fn-muted)','font-size':11},fmt(t,1));}
+        addSvg(svg,'text',{x:right,y:178,'text-anchor':'end',fill:'var(--fn-muted)','font-size':11},'时间 (s)');
+        const series=[['total','q','var(--fn-blue)',''],['a','qa','var(--fn-pipe)',''],['b','qb','var(--fn-green)','5 3']];
+        for(const [key,field,color,dash] of series){el.querySelector(`[data-series="${key}"]`).setAttribute('aria-pressed',String(state.series[key]));if(!state.series[key])continue;addSvg(svg,'path',{d:history.map((r,i)=>(i?'L':'M')+x(r.t)+','+y(r[field])).join(' '),fill:'none',stroke:color,'stroke-width':2,'stroke-dasharray':dash});}
+        const detail=el.querySelector('.fn-chart-detail');const show=r=>detail.textContent=`${fmt(r.t,1)} s · 主管 ${fmt(r.q,2)} · A ${fmt(r.qa,2)} · B ${fmt(r.qb,2)} kg/s`;show(history.at(-1));
+        const guide=addSvg(svg,'line',{x1:left,x2:left,y1:top,y2:bottom,stroke:'var(--fn-strong)','stroke-width':1,visibility:'hidden'});
+        const overlay=addSvg(svg,'rect',{x:left,y:top,width:right-left,height:bottom-top,fill:'transparent'});overlay.addEventListener('pointermove',event=>{const rect=svg.getBoundingClientRect(),px=clamp(event.clientX-rect.left,left,right),t=start+(px-left)/(right-left)*(end-start);let index=history.findIndex(r=>r.t>=t);index=Math.max(1,index<0?history.length-1:index);const a=history[index-1],b=history[index],f=clamp((t-a.t)/Math.max(.0001,b.t-a.t),0,1);show({t,q:a.q+(b.q-a.q)*f,qa:a.qa+(b.qa-a.qa)*f,qb:a.qb+(b.qb-a.qb)*f});guide.setAttribute('x1',px);guide.setAttribute('x2',px);guide.setAttribute('visibility','visible');});overlay.addEventListener('pointerleave',()=>{guide.setAttribute('visibility','hidden');show(history.at(-1));});
+      }
+      function startWindowMove(event,id){if(event.button!==0||small())return;event.preventDefault();context.hidden=true;const el=panels.get(id);pointer={type:'window',id,x:event.clientX,y:event.clientY,originX:parseFloat(el.style.left),originY:parseFloat(el.style.top),target:event.currentTarget};event.currentTarget.setPointerCapture(event.pointerId);}
+      function startResize(event,id){if(event.button!==0||small())return;event.preventDefault();event.stopPropagation();pointer={type:'resize',id,x:event.clientX,y:event.clientY,width:panels.get(id).offsetWidth,target:event.currentTarget};event.currentTarget.setPointerCapture(event.pointerId);}
+      function startNodeMove(event,id){if(event.button!==0||placing)return;const el=event.currentTarget;pointer={type:'node',id,x:event.clientX,y:event.clientY,originX:parseFloat(el.style.left),originY:parseFloat(el.style.top),target:el,moved:false};el.setPointerCapture(event.pointerId);}
+      root.addEventListener('pointermove',event=>{if(!pointer)return;const dx=event.clientX-pointer.x,dy=event.clientY-pointer.y;if(pointer.type==='window'){state.windows[pointer.id].x=pointer.originX+dx;state.windows[pointer.id].y=pointer.originY+dy;positionWindow(pointer.id);}else if(pointer.type==='resize'){state.windows[pointer.id].width=pointer.width+dx;positionWindow(pointer.id);drawChart();}else if(Math.hypot(dx,dy)>5||pointer.moved){pointer.moved=true;pointer.target.dataset.dragged='yes';state.positions[pointer.id]={x:clamp(pointer.originX+dx,35,canvas.clientWidth-40)/canvas.clientWidth,y:clamp(pointer.originY+dy,50,canvas.clientHeight-57)/canvas.clientHeight};drawGraph();}});
+      function endPointer(){if(!pointer)return;if(pointer.type==='node'&&pointer.moved)markDirty();if(pointer.type==='window'){const el=panels.get(pointer.id);state.windows[pointer.id].x=parseFloat(el.style.left);state.windows[pointer.id].y=parseFloat(el.style.top);}if(pointer.type==='resize')state.windows[pointer.id].width=panels.get(pointer.id).offsetWidth;pointer=null;persist();}
+      root.addEventListener('pointerup',endPointer);root.addEventListener('pointercancel',endPointer);
+      function showContext(id,clientX,clientY){contextId=id;const node=nodes.get(id),rect=desktop.getBoundingClientRect();context.innerHTML=`<div class="fn-context-title">${esc(node.code+' · '+node.name)}</div><label for="fn-context-model">设备型号</label><select id="fn-context-model">${models(node).map((name,i)=>`<option value="${i}">${esc(name)}</option>`).join('')}</select><div class="fn-context-values"><span>质量流量</span><span>${fmt(reading(node),3)} kg/s</span></div><button type="button" class="fn-button cursor-interaction" data-context-open>打开独立属性窗口</button>`;context.hidden=false;context.style.left=clamp(clientX-rect.left,8,desktop.clientWidth-226)+'px';context.style.top=clamp(clientY-rect.top,8,desktop.clientHeight-190)+'px';context.querySelector('select').value=String(state.windows[id]?.model||0);context.querySelector('select').addEventListener('change',event=>{chooseModel(contextId,Number(event.target.value));openWindow(contextId);notify('型号已载入库值，应用后生效');});context.querySelector('[data-context-open]').addEventListener('click',()=>openWindow(contextId));}
+      function cancelPlacement(){placing=null;canvas.classList.remove('is-placing');root.querySelectorAll('[data-add]').forEach(b=>b.setAttribute('aria-pressed','false'));root.querySelector('#fn-canvas-message').textContent='双击设备打开独立窗口 · 拖动窗口标题栏自由摆放';}
+      root.querySelectorAll('[data-add]').forEach(button=>button.addEventListener('click',()=>{const same=placing===button.dataset.add;cancelPlacement();if(same)return;placing=button.dataset.add;button.setAttribute('aria-pressed','true');canvas.classList.add('is-placing');root.querySelector('#fn-canvas-message').textContent='单击画布放置'+kinds[placing].name+' · Esc 取消';announce('在画布中单击放置'+kinds[placing].name);}));
+      canvas.addEventListener('click',event=>{if(!placing||event.target.closest('button'))return;const kind=placing,number=state.extras.length+1,id='extra_'+kind+'_'+number,rect=canvas.getBoundingClientRect(),node={id,kind,code:kinds[kind].code+'-'+String(number+2).padStart(2,'0'),name:kinds[kind].name,extra:true};state.extras.push(node);nodes.set(id,node);state.positions[id]={x:clamp(event.clientX-rect.left,40,canvas.clientWidth-60)/canvas.clientWidth,y:clamp(event.clientY-rect.top,55,canvas.clientHeight-55)/canvas.clientHeight};cancelPlacement();createNodes();selectNode(id);markDirty();notify(node.code+' 已放置 · 尚未连接');persist();});
+      function removeExtra(id){const node=nodes.get(id);state.extras=state.extras.filter(n=>n.id!==id);nodes.delete(id);delete state.positions[id];if(panels.has(id)){panels.get(id).remove();panels.delete(id);}delete state.windows[id];state.order=state.order.filter(x=>x!==id);nodeLayer.querySelector(`[data-node="${id}"]`)?.remove();selectNode('pump');updateSwitcher();notify(node.code+' 已移除');markDirty();persist();}
+      function arrange(){const ids=state.order.filter(id=>state.windows[id]?.open);if(!ids.length){notify('双击设备即可打开属性窗口');return;}for(const id of ids){state.windows[id].minimized=false;makeWindow(id).hidden=false;}if(!small()){const cols=ids.length===1?1:2,gap=15,width=Math.min(350,(desktop.clientWidth-40-gap)/cols),startX=(desktop.clientWidth-(width*cols+gap*(cols-1)))/2,rows=Math.ceil(ids.length/cols),maxHeight=Math.max(...ids.map(id=>panels.get(id).offsetHeight||315));ids.forEach((id,i)=>{const win=state.windows[id];win.width=width;win.x=startX+(i%cols)*(width+gap);win.y=rows===1?desktop.clientHeight-maxHeight-16:12+Math.floor(i/cols)*(maxHeight+gap);positionWindow(id);});}drawChart();updateSwitcher();persist();notify('已排列打开的窗口');}
+      root.querySelectorAll('[data-action]').forEach(button=>button.addEventListener('click',()=>{const action=button.dataset.action;if(['run','pause','step','stop'].includes(action)){runAction(action);return;}if(action==='properties')openWindow(state.selected);else if(action==='curves')openWindow('curves');else if(action==='arrange')arrange();else if(action==='minimize-all'){for(const [id,el] of panels){if(state.windows[id].open){state.windows[id].minimized=true;el.hidden=true;}}updateSwitcher();persist();}else if(action==='save'){state.dirty=false;root.querySelector('#fn-unsaved').textContent=' · 已保存';persist();notify('示例项目与窗口布局已保存');}else if(action==='library'){if(small())root.classList.toggle('mobile-library-open');else {state.libraryCollapsed=!state.libraryCollapsed;root.classList.toggle('library-collapsed',state.libraryCollapsed);}button.setAttribute('aria-pressed',String(small()?root.classList.contains('mobile-library-open'):!state.libraryCollapsed));scheduleLayout();persist();}}));
+      root.addEventListener('pointerdown',event=>{if(!event.target.closest('.fn-context')&&!event.target.closest('.fn-device'))context.hidden=true;});
+      root.addEventListener('keydown',event=>{if(event.key==='Escape'){cancelPlacement();context.hidden=true;}if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='s'){event.preventDefault();root.querySelector('[data-action="save"]').click();}});
+      function scheduleLayout(){if(scheduled)return;scheduled=requestAnimationFrame(()=>{scheduled=0;root.style.setProperty('--fn-library-width',design.libraryWidth+'px');root.style.setProperty('--fn-row-height',design.compact?'36px':'44px');drawGraph();for(const id of panels.keys())positionWindow(id);drawChart();});}
+      function restore(saved){if(!saved||saved.version!==2)return false;state.time=clamp(finite(saved.time,12),0,600);for(const [key,value] of Object.entries(saved.runtime||{}))if(Number.isFinite(value)&&/^[A-Za-z0-9_]+$/.test(key))state.runtime[key]=value;for(const [key,value] of Object.entries(saved.library||{}))if((Number.isFinite(value)||value==='')&&/^[A-Za-z0-9_]+$/.test(key))state.library[key]=value;
+        for(const item of (saved.extras||[]).slice(0,12)){if(!kinds[item.kind]||!/^extra_[a-z]+_[0-9]+$/.test(item.id))continue;const node={id:item.id,kind:item.kind,code:kinds[item.kind].code+'-'+item.id.split('_').at(-1),name:kinds[item.kind].name,extra:true};state.extras.push(node);nodes.set(node.id,node);}
+        for(const [id,pos] of Object.entries(saved.positions||{}))if(nodes.has(id)&&Number.isFinite(pos.x)&&Number.isFinite(pos.y))state.positions[id]={x:clamp(pos.x,0,1),y:clamp(pos.y,0,1)};
+        for(const [id,win] of Object.entries(saved.windows||{})){if(id!=='curves'&&!nodes.has(id))continue;state.windows[id]={...windowDefaults(id),open:!!win.open,minimized:!!win.minimized,pinned:!!win.pinned,tab:win.tab==='variables'?'variables':'parameters',model:win.model===1?1:0,x:finite(win.x,180),y:finite(win.y,320),width:finite(win.width,350)};}
+        state.order=(saved.order||[]).filter(id=>id==='curves'||nodes.has(id));state.selected=nodes.has(saved.selected)?saved.selected:'pump';state.libraryCollapsed=!!saved.libraryCollapsed;root.classList.toggle('library-collapsed',state.libraryCollapsed);if(saved.readings&&['q','qa','qb'].every(k=>Number.isFinite(saved.readings[k])))state.readings={...saved.readings};if(Array.isArray(saved.history)&&saved.history.length>1&&saved.history.every(row=>['t','q','qa','qb'].every(k=>Number.isFinite(row[k]))))state.history=saved.history.slice(-70);for(const key of ['total','a','b'])if(typeof saved.series?.[key]==='boolean')state.series[key]=saved.series[key];design.libraryWidth=clamp(finite(saved.design?.libraryWidth,144),124,184);if(typeof saved.design?.compact==='boolean')design.compact=saved.design.compact;if(typeof saved.design?.showValues==='boolean')design.showValues=saved.design.showValues;return true;
+      }
+      const restored=restore(window.openai?.widgetState?.privateContent);
+      createNodes();
+      if(!restored){state.windows.pump=windowDefaults('pump');state.windows.valve_a=windowDefaults('valve_a');state.order=['pump','valve_a'];}
+      for(const id of [...state.order]){if(!state.windows[id]?.open)continue;makeWindow(id);positionWindow(id);setWindowTab(id,state.windows[id].tab,false);const el=panels.get(id);if(id!=='curves')el.querySelector('[data-model]').value=String(state.windows[id].model);}
+      if(state.order.length)raiseWindow(state.order.at(-1),false);updateValues();icons();scheduleLayout();
+      new ResizeObserver(scheduleLayout).observe(root);new ResizeObserver(scheduleLayout).observe(canvas);
+      window.addEventListener('pagehide',()=>{clearInterval(timer);clearTimeout(toastTimer);});
+      window.addEventListener('openai:set_globals',event=>{const incoming=event.detail?.globals?.widgetState?.privateContent;if(!incoming||incoming.version!==2||pointer||state.running||root.contains(document.activeElement))return;for(const el of panels.values())el.hidden=true;state.extras=[];restore(incoming);createNodes();for(const id of state.order){if(!state.windows[id]?.open)continue;makeWindow(id);positionWindow(id);setWindowTab(id,state.windows[id].tab,false);}updateValues();updateSwitcher();scheduleLayout();});
+      if(globalThis.Tweak){const tweak=new Tweak({container:root,onChange:()=>{scheduleLayout();persist();}});tweak.addSlider(design,'libraryWidth',{label:'模块库宽度',min:124,max:184,step:4,unit:'px',reference:'--fn-library-width'});tweak.addToggle(design,'compact',{label:'紧凑参数表'});tweak.addToggle(design,'showValues',{label:'画布显示设备流量'});}
+    })();
+  </script>
+</div>

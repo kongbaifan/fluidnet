@@ -1,0 +1,2069 @@
+<div id="fluidnet-canvas-workbench" aria-label="FluidNet 大画布工作台原型">
+  <style>
+    #fluidnet-canvas-workbench {
+      --fc-paper:light-dark(#ffffff,#171c22);--fc-panel:light-dark(#f6f7f8,#21272e);--fc-raised:light-dark(#ffffff,#272e36);
+      --fc-text:light-dark(#303a45,#e3e8ef);--fc-muted:light-dark(#6d7681,#a0abb8);--fc-border:light-dark(#dde1e6,#39434e);
+      --fc-accent:light-dark(#ec841c,#ffab52);--fc-accent-ink:light-dark(#a65b0a,#ffc17e);--fc-soft:light-dark(#fff2e3,#423122);
+      --fc-line:light-dark(#f48b24,#f6a04b);--fc-blue:light-dark(#367baf,#83bdeb);--fc-green:light-dark(#22815e,#6fcea6);
+      --fc-danger:light-dark(#bc4050,#ff98a6);--fc-rail:light-dark(#252c32,#11161c);--fc-rail-text:light-dark(#cbd1d8,#b4beca);
+      --fc-shadow:light-dark(#20283024,#00000065);--fc-water:light-dark(#dbeff7,#244a5c);--fc-grid:light-dark(#e7ebf0,#303a44);
+      --fc-library-width:156px;--fc-symbol-size:29px;font:12px/1.45 "Segoe UI","Microsoft YaHei",sans-serif;color:var(--fc-text);width:100%;
+    }
+    #fluidnet-canvas-workbench * {box-sizing:border-box;}
+    #fluidnet-canvas-workbench [hidden] {display:none!important;}
+    #fluidnet-canvas-workbench button,#fluidnet-canvas-workbench input,#fluidnet-canvas-workbench select,#fluidnet-canvas-workbench textarea {font:inherit;color:inherit;}
+    #fluidnet-canvas-workbench button {touch-action:manipulation;}
+    #fluidnet-canvas-workbench button:disabled {opacity:.36;cursor:default;}
+    #fluidnet-canvas-workbench svg[data-lucide] {width:16px;height:16px;flex:none;}
+    #fluidnet-canvas-workbench .fc-shell {display:grid;grid-template-columns:48px var(--fc-library-width) minmax(0,1fr);background:var(--fc-paper);border:1px solid var(--fc-border);border-radius:9px;overflow:hidden;position:relative;}
+    #fluidnet-canvas-workbench .fc-rail {grid-row:1/3;background:var(--fc-rail);color:var(--fc-rail-text);display:flex;align-items:center;flex-direction:column;gap:8px;padding:13px 4px 9px;}
+    #fluidnet-canvas-workbench .fc-logo {height:32px;width:32px;border:1px solid var(--fc-accent);border-radius:50%;display:grid;place-items:center;color:var(--fc-accent);margin-bottom:12px;}
+    #fluidnet-canvas-workbench .fc-logo svg[data-lucide] {height:21px;width:21px;}
+    #fluidnet-canvas-workbench .fc-rail-button {border:0;background:transparent;color:inherit;display:flex;align-items:center;flex-direction:column;justify-content:center;gap:5px;border-radius:5px;min-height:49px;width:39px;padding:6px 2px;font-size:11px;}
+    #fluidnet-canvas-workbench .fc-rail-button:hover,#fluidnet-canvas-workbench .fc-rail-button[aria-pressed="true"] {background:#ffffff0d;color:var(--fc-accent);}
+    #fluidnet-canvas-workbench .fc-rail-spacer {flex:1;min-height:50px;}
+    #fluidnet-canvas-workbench .fc-rail-mark {font-size:11px;color:var(--fc-rail-text);opacity:.7;writing-mode:vertical-rl;letter-spacing:2px;}
+    #fluidnet-canvas-workbench .fc-library {grid-column:2;grid-row:1;background:var(--fc-panel);border-right:1px solid var(--fc-border);display:flex;flex-direction:column;min-width:0;}
+    #fluidnet-canvas-workbench .fc-library-heading {display:flex;align-items:center;justify-content:space-between;min-height:43px;padding:0 12px;border-bottom:1px solid var(--fc-border);font-weight:500;}
+    #fluidnet-canvas-workbench .fc-count {color:var(--fc-muted);font-size:11px;font-variant-numeric:tabular-nums;}
+    #fluidnet-canvas-workbench .fc-library-groups {padding:4px 6px 8px;}
+    #fluidnet-canvas-workbench .fc-group-heading {display:flex;align-items:center;gap:5px;width:100%;padding:9px 5px 5px;color:var(--fc-accent-ink);font-size:11px;font-weight:500;border:0;background:transparent;text-align:left;}
+    #fluidnet-canvas-workbench .fc-group-heading svg[data-lucide] {width:11px;height:11px;}
+    #fluidnet-canvas-workbench .fc-group-heading[aria-expanded="false"] svg {transform:rotate(-90deg);}
+    #fluidnet-canvas-workbench .fc-item {display:flex;align-items:center;gap:7px;width:100%;min-height:27px;padding:3px 6px;margin-bottom:2px;border:1px solid transparent;border-radius:3px;background:light-dark(#eceef0,#2b333d);text-align:left;}
+    #fluidnet-canvas-workbench .fc-item svg[data-lucide] {width:13px;height:13px;color:var(--fc-muted);}
+    #fluidnet-canvas-workbench .fc-item:hover,#fluidnet-canvas-workbench .fc-item[aria-pressed="true"] {background:var(--fc-soft);border-color:var(--fc-accent);}
+    #fluidnet-canvas-workbench .fc-item-code {margin-left:auto;font-size:11px;color:var(--fc-muted);}
+    #fluidnet-canvas-workbench .fc-properties {margin-top:auto;border-top:1px solid var(--fc-border);padding:8px 10px 10px;min-height:155px;}
+    #fluidnet-canvas-workbench .fc-property-heading {display:flex;align-items:center;justify-content:space-between;font-weight:500;margin-bottom:8px;}
+    #fluidnet-canvas-workbench .fc-property-heading span:last-child {font-size:11px;color:var(--fc-accent-ink);}
+    #fluidnet-canvas-workbench .fc-property-grid {display:grid;grid-template-columns:48px minmax(0,1fr);gap:5px;font-size:11px;margin:0;}
+    #fluidnet-canvas-workbench .fc-property-grid dt {color:var(--fc-muted);}
+    #fluidnet-canvas-workbench .fc-property-grid dd {margin:0;overflow-wrap:anywhere;}
+    #fluidnet-canvas-workbench .fc-property-actions {display:flex;gap:5px;margin-top:10px;}
+    #fluidnet-canvas-workbench .fc-button {display:inline-flex;align-items:center;justify-content:center;gap:5px;min-height:28px;padding:4px 8px;border:1px solid var(--fc-border);border-radius:4px;background:var(--fc-raised);font-size:11px;}
+    #fluidnet-canvas-workbench .fc-button:hover:not(:disabled) {border-color:var(--fc-accent);color:var(--fc-accent-ink);}
+    #fluidnet-canvas-workbench .fc-button.primary {color:var(--fc-paper);background:var(--fc-text);border-color:var(--fc-text);}
+    #fluidnet-canvas-workbench .fc-button svg[data-lucide] {width:13px;height:13px;}
+    #fluidnet-canvas-workbench .fc-main {grid-column:3;grid-row:1;min-width:0;display:flex;flex-direction:column;}
+    #fluidnet-canvas-workbench .fc-titlebar {display:flex;align-items:center;gap:12px;min-height:43px;padding:8px 101px 8px 16px;background:var(--fc-paper);border-bottom:1px solid var(--fc-border);flex-wrap:wrap;}
+    #fluidnet-canvas-workbench .fc-app-name {font-weight:500;letter-spacing:.2px;white-space:nowrap;}
+    #fluidnet-canvas-workbench .fc-title-divider {height:12px;width:1px;background:var(--fc-border);}
+    #fluidnet-canvas-workbench .fc-project-title {font-size:11px;color:var(--fc-muted);display:flex;align-items:center;gap:6px;}
+    #fluidnet-canvas-workbench .fc-unsaved-dot {width:5px;height:5px;border-radius:50%;background:var(--fc-accent);}
+    #fluidnet-canvas-workbench .fc-topbar {display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;min-height:37px;background:var(--fc-panel);border-bottom:1px solid var(--fc-border);padding:0 10px 0 6px;}
+    #fluidnet-canvas-workbench .fc-tabs {display:flex;align-items:center;gap:1px;flex-wrap:wrap;}
+    #fluidnet-canvas-workbench .fc-tab {border:0;border-bottom:2px solid transparent;background:transparent;padding:8px 10px 7px;font-size:11px;min-height:36px;color:var(--fc-muted);}
+    #fluidnet-canvas-workbench .fc-tab[aria-selected="true"] {color:var(--fc-accent-ink);background:var(--fc-paper);border-bottom-color:var(--fc-accent);}
+    #fluidnet-canvas-workbench .fc-icon-button {border:0;background:transparent;display:inline-grid;place-items:center;border-radius:3px;min-width:27px;min-height:27px;padding:4px;}
+    #fluidnet-canvas-workbench .fc-icon-button:hover:not(:disabled),#fluidnet-canvas-workbench .fc-icon-button[aria-pressed="true"] {background:var(--fc-soft);color:var(--fc-accent-ink);}
+    #fluidnet-canvas-workbench .fc-tools {display:flex;align-items:center;gap:3px;}
+    #fluidnet-canvas-workbench .fc-tool-separator {height:12px;width:1px;margin:0 5px;background:var(--fc-border);}
+    #fluidnet-canvas-workbench .fc-medium {font-size:11px;color:var(--fc-muted);margin-left:3px;white-space:nowrap;}
+    #fluidnet-canvas-workbench .fc-medium-dot {display:inline-block;width:6px;height:6px;background:var(--fc-accent);border-radius:50%;margin-right:5px;}
+    #fluidnet-canvas-workbench .fc-desktop {position:relative;flex:1;min-height:600px;background:var(--fc-paper);}
+    #fluidnet-canvas-workbench .fc-canvas {position:absolute;inset:0 56px 0 0;touch-action:none;overflow:hidden;}
+    #fluidnet-canvas-workbench.is-grid .fc-canvas {background-image:radial-gradient(var(--fc-grid) .8px,transparent .8px);background-size:18px 18px;}
+    #fluidnet-canvas-workbench .fc-canvas.is-placing,#fluidnet-canvas-workbench .fc-canvas.is-connecting {cursor:crosshair;}
+    #fluidnet-canvas-workbench .fc-network {position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;}
+    #fluidnet-canvas-workbench .fc-edge {fill:none;stroke:var(--fc-line);stroke-width:1.65;stroke-linecap:round;stroke-linejoin:round;}
+    #fluidnet-canvas-workbench .fc-edge.is-selected {stroke-width:3;}
+    #fluidnet-canvas-workbench .fc-edge-hit {fill:none;stroke:transparent;stroke-width:16;pointer-events:stroke;cursor:crosshair;}
+    #fluidnet-canvas-workbench .fc-edge-preview {fill:none;stroke:var(--fc-accent);stroke-width:1.5;stroke-dasharray:4 4;}
+    #fluidnet-canvas-workbench .fc-node {position:absolute;width:44px;height:40px;transform:translate(-50%,-50%);touch-action:none;}
+    #fluidnet-canvas-workbench .fc-node-body {width:44px;height:40px;background:transparent;border:1px solid transparent;border-radius:5px;padding:4px;display:grid;place-items:center;position:relative;touch-action:none;}
+    #fluidnet-canvas-workbench .fc-node-body:hover {background:var(--fc-soft);}
+    #fluidnet-canvas-workbench .fc-node-body[aria-pressed="true"] {border-color:var(--fc-accent);background:var(--fc-soft);}
+    #fluidnet-canvas-workbench .fc-node-symbol {position:relative;display:grid;place-items:center;width:var(--fc-symbol-size);height:var(--fc-symbol-size);color:var(--fc-muted);}
+    #fluidnet-canvas-workbench .fc-node-symbol svg[data-lucide] {width:calc(var(--fc-symbol-size) - 5px);height:calc(var(--fc-symbol-size) - 5px);stroke-width:1.45;}
+    #fluidnet-canvas-workbench .fc-kind-pump .fc-node-symbol {border:1px solid var(--fc-muted);border-radius:50%;background:var(--fc-panel);}
+    #fluidnet-canvas-workbench .fc-kind-pump .fc-node-symbol:after {content:"";position:absolute;width:17px;border-top:2px solid var(--fc-muted);bottom:-4px;}
+    #fluidnet-canvas-workbench .fc-kind-source .fc-node-symbol,#fluidnet-canvas-workbench .fc-kind-tank .fc-node-symbol {background:linear-gradient(to top,var(--fc-water) 45%,var(--fc-paper) 45%);border:1px solid var(--fc-blue);border-radius:50%;color:var(--fc-blue);overflow:hidden;}
+    #fluidnet-canvas-workbench .fc-kind-source .fc-node-symbol svg {width:20px;height:20px;}
+    #fluidnet-canvas-workbench .fc-kind-valve .fc-node-symbol,#fluidnet-canvas-workbench .fc-kind-check .fc-node-symbol {color:var(--fc-accent-ink);}
+    #fluidnet-canvas-workbench .fc-kind-pipe .fc-node-symbol {width:30px;height:10px;border:1px solid var(--fc-accent);background:var(--fc-paper);border-radius:1px;color:var(--fc-accent-ink);}
+    #fluidnet-canvas-workbench .fc-kind-pipe .fc-node-symbol svg {height:13px;width:18px;}
+    #fluidnet-canvas-workbench .fc-kind-junction .fc-node-symbol {width:9px;height:9px;border-radius:50%;background:var(--fc-line);}
+    #fluidnet-canvas-workbench .fc-kind-junction .fc-node-symbol svg {display:none;}
+    #fluidnet-canvas-workbench .fc-node-code {position:absolute;top:40px;left:50%;transform:translateX(-50%);font-size:11px;line-height:1.25;white-space:nowrap;color:var(--fc-text);pointer-events:none;}
+    #fluidnet-canvas-workbench .fc-node-name {display:block;color:var(--fc-muted);font-size:11px;line-height:1.4;margin-top:2px;}
+    #fluidnet-canvas-workbench:not(.is-names) .fc-node-name {display:none;}
+    #fluidnet-canvas-workbench .fc-node-value {position:absolute;bottom:43px;left:50%;transform:translateX(-50%);color:var(--fc-accent-ink);font-variant-numeric:tabular-nums;font-size:11px;white-space:nowrap;pointer-events:none;}
+    #fluidnet-canvas-workbench .fc-port {position:absolute;top:10px;left:-12px;width:22px;height:22px;background:transparent;border:0;padding:0;display:grid;place-items:center;}
+    #fluidnet-canvas-workbench .fc-port[data-side="out"] {left:auto;right:-12px;}
+    #fluidnet-canvas-workbench .fc-port:after {content:"";width:5px;height:5px;border:1px solid var(--fc-line);border-radius:50%;background:var(--fc-paper);}
+    #fluidnet-canvas-workbench .fc-port.is-connected:after {background:var(--fc-line);}
+    #fluidnet-canvas-workbench .fc-port:hover:after,#fluidnet-canvas-workbench .fc-port.is-pending:after {width:9px;height:9px;background:var(--fc-accent);box-shadow:0 0 0 3px var(--fc-soft);}
+    #fluidnet-canvas-workbench .fc-runbar {position:absolute;right:9px;top:145px;display:flex;flex-direction:column;gap:5px;padding:5px 0;z-index:20;}
+    #fluidnet-canvas-workbench .fc-run-button {display:flex;align-items:center;justify-content:center;flex-direction:column;gap:3px;min-height:42px;width:37px;border:1px solid var(--fc-border);background:var(--fc-raised);border-radius:4px;font-size:11px;}
+    #fluidnet-canvas-workbench .fc-run-button[data-action="run"] {background:var(--fc-green);border-color:var(--fc-green);color:var(--fc-paper);}
+    #fluidnet-canvas-workbench .fc-run-button[data-action="step"] {color:var(--fc-accent-ink);}
+    #fluidnet-canvas-workbench .fc-run-button:hover:not(:disabled) {box-shadow:0 2px 7px var(--fc-shadow);}
+    #fluidnet-canvas-workbench .fc-run-separator {height:6px;}
+    #fluidnet-canvas-workbench .fc-canvas-caption {position:absolute;top:14px;left:16px;color:var(--fc-muted);font-size:11px;pointer-events:none;}
+    #fluidnet-canvas-workbench .fc-canvas-caption strong {font-weight:400;color:var(--fc-text);margin-right:8px;}
+    #fluidnet-canvas-workbench .fc-empty {position:absolute;left:24px;right:24px;top:43%;text-align:center;color:var(--fc-muted);pointer-events:none;}
+    #fluidnet-canvas-workbench .fc-empty svg {display:block;margin:0 auto 10px;}
+    #fluidnet-canvas-workbench .fc-canvas-foot {position:absolute;bottom:13px;left:16px;right:64px;display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:11px;pointer-events:none;}
+    #fluidnet-canvas-workbench .fc-hint {color:var(--fc-muted);max-width:72%;}
+    #fluidnet-canvas-workbench .fc-zoom {display:flex;align-items:center;gap:3px;background:var(--fc-raised);border:1px solid var(--fc-border);border-radius:4px;padding:2px;pointer-events:auto;white-space:nowrap;}
+    #fluidnet-canvas-workbench .fc-zoom span {min-width:34px;text-align:center;font-size:11px;font-variant-numeric:tabular-nums;}
+    #fluidnet-canvas-workbench .fc-zoom .fc-icon-button {min-width:23px;min-height:23px;}
+    #fluidnet-canvas-workbench .fc-footer {grid-column:2/4;grid-row:2;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;border-top:1px solid var(--fc-border);min-height:29px;padding:5px 12px;background:var(--fc-panel);font-size:11px;color:var(--fc-muted);}
+    #fluidnet-canvas-workbench .fc-footer-left {display:flex;align-items:center;flex-wrap:wrap;gap:11px;}
+    #fluidnet-canvas-workbench .fc-status {display:flex;align-items:center;gap:5px;color:var(--fc-text);}
+    #fluidnet-canvas-workbench .fc-led {height:5px;width:5px;background:var(--fc-muted);border-radius:50%;}
+    #fluidnet-canvas-workbench.is-running .fc-led {background:var(--fc-green);}
+    #fluidnet-canvas-workbench .fc-clock {font-variant-numeric:tabular-nums;}
+    #fluidnet-canvas-workbench .fc-window-tray {display:flex;gap:4px;flex-wrap:wrap;}
+    #fluidnet-canvas-workbench .fc-window-chip {font-size:11px;border:1px solid var(--fc-border);border-radius:3px;background:var(--fc-raised);padding:1px 6px;}
+    #fluidnet-canvas-workbench .fc-window-chip.is-minimized {color:var(--fc-muted);}
+    #fluidnet-canvas-workbench .fc-windows {position:absolute;inset:0;pointer-events:none;z-index:30;}
+    #fluidnet-canvas-workbench .fc-window {position:absolute;pointer-events:auto;width:340px;max-width:calc(100% - 16px);border:1px solid var(--fc-border);border-radius:7px;background:var(--fc-raised);box-shadow:0 7px 26px var(--fc-shadow);}
+    #fluidnet-canvas-workbench .fc-window-header {display:flex;align-items:center;justify-content:space-between;min-height:37px;padding:4px 5px 4px 10px;background:var(--fc-panel);border-bottom:1px solid var(--fc-border);border-radius:7px 7px 0 0;gap:4px;}
+    #fluidnet-canvas-workbench .fc-window-title {display:flex;align-items:center;gap:7px;min-width:0;flex:1;background:transparent;border:0;font-weight:500;padding:3px 0;text-align:left;cursor:grab;touch-action:none;}
+    #fluidnet-canvas-workbench .fc-window-title span {overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    #fluidnet-canvas-workbench .fc-window-controls {display:flex;gap:1px;}
+    #fluidnet-canvas-workbench .fc-window-controls .fc-icon-button {min-width:24px;min-height:25px;}
+    #fluidnet-canvas-workbench .fc-window-controls svg[data-lucide] {width:13px;height:13px;}
+    #fluidnet-canvas-workbench .fc-window-controls [data-window-action="close"]:hover {color:var(--fc-danger);}
+    #fluidnet-canvas-workbench .fc-window-tabs {display:flex;align-items:center;padding:0 12px;border-bottom:1px solid var(--fc-border);}
+    #fluidnet-canvas-workbench .fc-window-tab {border:0;border-bottom:2px solid transparent;padding:10px 8px 8px;background:transparent;font-size:11px;color:var(--fc-muted);}
+    #fluidnet-canvas-workbench .fc-window-tab[aria-selected="true"] {border-bottom-color:var(--fc-accent);color:var(--fc-accent-ink);}
+    #fluidnet-canvas-workbench .fc-window-body {padding:12px;}
+    #fluidnet-canvas-workbench .fc-model {display:flex;align-items:center;gap:12px;margin-bottom:11px;font-size:11px;}
+    #fluidnet-canvas-workbench .fc-model label {white-space:nowrap;color:var(--fc-muted);}
+    #fluidnet-canvas-workbench select,#fluidnet-canvas-workbench input {background:var(--fc-paper);border:1px solid var(--fc-border);border-radius:3px;padding:4px 6px;min-width:0;}
+    #fluidnet-canvas-workbench .fc-model select {width:100%;font-size:11px;}
+    #fluidnet-canvas-workbench .fc-table {border-collapse:collapse;width:100%;font-size:11px;}
+    #fluidnet-canvas-workbench .fc-table th {text-align:left;font-weight:400;color:var(--fc-muted);padding:6px 5px;border-bottom:1px solid var(--fc-border);}
+    #fluidnet-canvas-workbench .fc-table td {padding:9px 5px;border-bottom:1px solid var(--fc-border);font-variant-numeric:tabular-nums;}
+    #fluidnet-canvas-workbench .fc-table th:nth-child(n+2),#fluidnet-canvas-workbench .fc-table td:nth-child(n+2) {text-align:right;}
+    #fluidnet-canvas-workbench .fc-table input {width:74px;text-align:right;font-size:11px;}
+    #fluidnet-canvas-workbench .fc-unit {color:var(--fc-muted);margin-left:3px;font-size:11px;}
+    #fluidnet-canvas-workbench .fc-feedback {font-size:11px;color:var(--fc-muted);margin:10px 0;min-height:16px;}
+    #fluidnet-canvas-workbench .fc-feedback.is-error {color:var(--fc-danger);}
+    #fluidnet-canvas-workbench .fc-window-actions {display:flex;align-items:center;justify-content:flex-end;gap:7px;}
+    #fluidnet-canvas-workbench .fc-window-actions [data-measure-time] {margin-right:auto;font-size:11px;color:var(--fc-muted);}
+    #fluidnet-canvas-workbench .fc-chart-title {display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--fc-muted);margin-bottom:5px;}
+    #fluidnet-canvas-workbench .fc-chart {width:100%;height:190px;display:block;}
+    #fluidnet-canvas-workbench .fc-chart text {font:11px "Segoe UI","Microsoft YaHei",sans-serif;fill:var(--fc-muted);}
+    #fluidnet-canvas-workbench .fc-chart-legend {display:flex;gap:13px;flex-wrap:wrap;margin:3px 0 8px;}
+    #fluidnet-canvas-workbench .fc-series {display:flex;align-items:center;gap:5px;border:0;background:transparent;padding:3px 0;font-size:11px;}
+    #fluidnet-canvas-workbench .fc-series[aria-pressed="false"] {opacity:.4;}
+    #fluidnet-canvas-workbench .fc-series-key {display:block;width:15px;border-top:2px solid var(--fc-blue);}
+    #fluidnet-canvas-workbench .fc-series[data-series="a"] .fc-series-key {border-top-color:var(--fc-line);}
+    #fluidnet-canvas-workbench .fc-series[data-series="b"] .fc-series-key {border-top-color:var(--fc-green);border-top-style:dashed;}
+    #fluidnet-canvas-workbench .fc-chart-detail {min-height:30px;font-size:11px;color:var(--fc-muted);font-variant-numeric:tabular-nums;}
+    #fluidnet-canvas-workbench .fc-toast {position:absolute;left:50%;top:48px;transform:translateX(-50%);max-width:calc(100% - 25px);padding:8px 13px;border:1px solid var(--fc-border);background:var(--fc-raised);box-shadow:0 3px 14px var(--fc-shadow);border-radius:5px;font-size:11px;z-index:900;pointer-events:none;}
+    #fluidnet-canvas-workbench .fc-popover {position:absolute;top:80px;left:55px;z-index:800;width:215px;max-width:calc(100% - 70px);padding:12px;background:var(--fc-raised);border:1px solid var(--fc-border);border-radius:6px;box-shadow:0 5px 20px var(--fc-shadow);}
+    #fluidnet-canvas-workbench .fc-popover-heading {display:flex;align-items:center;justify-content:space-between;font-weight:500;margin-bottom:9px;}
+    #fluidnet-canvas-workbench .fc-project-link {display:flex;align-items:center;gap:7px;width:100%;text-align:left;border:0;padding:8px 5px;background:transparent;border-radius:3px;font-size:11px;}
+    #fluidnet-canvas-workbench .fc-project-link:hover {background:var(--fc-soft);}
+    #fluidnet-canvas-workbench .fc-shortcuts {display:grid;grid-template-columns:1fr auto;gap:8px;font-size:11px;color:var(--fc-muted);}
+    #fluidnet-canvas-workbench .fc-sr {position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);}
+    #fluidnet-canvas-workbench .fc-node.has-bottom .fc-node-code {top:2px;left:49px;transform:none;text-align:left;}
+    #fluidnet-canvas-workbench .fc-node.has-bottom .fc-node-name {display:none;}
+    #fluidnet-canvas-workbench .fc-kind-junction .fc-node-code {top:2px;left:49px;transform:none;text-align:left;}
+    #fluidnet-canvas-workbench .fc-kind-junction .fc-node-name {display:none;}
+    #fluidnet-canvas-workbench .fc-kind-source .fc-node-symbol svg {display:none;}
+    #fluidnet-canvas-workbench .fc-kind-source .fc-node-symbol:after {content:"P";font-size:13px;font-weight:500;}
+    #fluidnet-canvas-workbench .fc-kind-pump .fc-node-symbol svg {transform:rotate(90deg);}
+    #fluidnet-canvas-workbench .fc-kind-pump.has-bottom .fc-node-symbol svg {transform:rotate(180deg);}
+    #fluidnet-canvas-workbench .fc-kind-valve:not(.has-bottom) .fc-node-symbol svg {transform:rotate(90deg);}
+    #fluidnet-canvas-workbench .fc-kind-pipe.has-bottom .fc-node-symbol {width:10px;height:30px;}
+    #fluidnet-canvas-workbench .fc-kind-pipe.has-bottom .fc-node-symbol svg {transform:rotate(90deg);}
+    #fluidnet-canvas-workbench .fc-port:before {content:"";position:absolute;background:var(--fc-line);pointer-events:none;}
+    #fluidnet-canvas-workbench .fc-port:after {z-index:1;}
+    #fluidnet-canvas-workbench .fc-port[data-dir="left"]:before {left:11px;top:10.5px;width:10px;height:1px;}
+    #fluidnet-canvas-workbench .fc-port[data-dir="right"]:before {right:11px;top:10.5px;width:10px;height:1px;}
+    #fluidnet-canvas-workbench .fc-port[data-dir="top"]:before {top:11px;left:10.5px;width:1px;height:8px;}
+    #fluidnet-canvas-workbench .fc-port[data-dir="bottom"]:before {bottom:11px;left:10.5px;width:1px;height:8px;}
+    #fluidnet-canvas-workbench .fc-kind-junction .fc-port[data-dir="left"]:before,
+    #fluidnet-canvas-workbench .fc-kind-junction .fc-port[data-dir="right"]:before {width:23px;}
+    #fluidnet-canvas-workbench .fc-kind-junction .fc-port[data-dir="top"]:before,
+    #fluidnet-canvas-workbench .fc-kind-junction .fc-port[data-dir="bottom"]:before {height:21px;}
+    #fluidnet-canvas-workbench .fc-port[data-dir="left"] {left:-12px;right:auto;top:9px;}
+    #fluidnet-canvas-workbench .fc-port[data-dir="right"] {right:-12px;left:auto;top:9px;}
+    #fluidnet-canvas-workbench .fc-port[data-dir="top"] {left:11px;right:auto;top:-12px;}
+    #fluidnet-canvas-workbench .fc-port[data-dir="bottom"] {left:11px;right:auto;top:auto;bottom:-12px;}
+    #fluidnet-canvas-workbench .fc-window {display:flex;flex-direction:column;min-height:160px;}
+    #fluidnet-canvas-workbench .fc-window.is-front {border-color:var(--fc-accent);}
+    #fluidnet-canvas-workbench .fc-window.is-front .fc-window-header {background:var(--fc-soft);}
+    #fluidnet-canvas-workbench .fc-window-body {flex:1;min-width:0;display:flex;flex-direction:column;}
+    #fluidnet-canvas-workbench .fc-window-actions {margin-top:auto;padding-top:9px;padding-right:7px;}
+    #fluidnet-canvas-workbench .fc-window-controls [aria-pressed="true"] {color:var(--fc-accent-ink);background:var(--fc-soft);}
+    #fluidnet-canvas-workbench .fc-resize {position:absolute;bottom:0;right:0;width:18px;height:18px;border:0;background:transparent;color:var(--fc-muted);padding:2px;cursor:nwse-resize;touch-action:none;}
+    #fluidnet-canvas-workbench .fc-resize svg[data-lucide] {width:12px;height:12px;}
+    #fluidnet-canvas-workbench .fc-table input.is-edited {background:var(--fc-soft);border-color:var(--fc-accent);}
+    #fluidnet-canvas-workbench .fc-table td:first-child {overflow-wrap:anywhere;}
+    #fluidnet-canvas-workbench .fc-port-list {display:grid;gap:6px;margin-top:10px;}
+    #fluidnet-canvas-workbench .fc-port-row {display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:11px;color:var(--fc-muted);}
+    #fluidnet-canvas-workbench .fc-check-list {display:grid;gap:8px;margin:0;padding:0;list-style:none;}
+    #fluidnet-canvas-workbench .fc-check-list li {display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;padding:6px 0;border-bottom:1px solid var(--fc-border);}
+    #fluidnet-canvas-workbench .fc-check-list li span {overflow-wrap:anywhere;}
+    #fluidnet-canvas-workbench .fc-check-summary {color:var(--fc-green);font-size:12px;margin:0 0 12px;}
+    #fluidnet-canvas-workbench .fc-check-summary.has-issues {color:var(--fc-danger);}
+    #fluidnet-canvas-workbench .fc-context-info {color:var(--fc-muted);font-size:11px;margin:7px 0;}
+    #fluidnet-canvas-workbench .fc-chart {flex:1;min-height:190px;}
+    #fluidnet-canvas-workbench .fc-chart-detail {color:var(--fc-text);}
+    #fluidnet-canvas-workbench .fc-project-link.is-active {background:var(--fc-soft);}
+    #fluidnet-canvas-workbench.library-hidden .fc-shell {grid-template-columns:48px 0 minmax(0,1fr);}
+    #fluidnet-canvas-workbench.library-hidden .fc-library {display:none;}
+    @media(max-width:800px) {
+      #fluidnet-canvas-workbench {--fc-library-width:138px;}
+      #fluidnet-canvas-workbench .fc-titlebar {padding-left:10px;gap:8px;}
+      #fluidnet-canvas-workbench .fc-app-name {font-size:11px;}
+      #fluidnet-canvas-workbench .fc-medium {display:none;}
+      #fluidnet-canvas-workbench .fc-tab {padding-inline:7px;}
+      #fluidnet-canvas-workbench .fc-topbar {gap:0;padding-right:5px;}
+      #fluidnet-canvas-workbench .fc-node-name {display:none!important;}
+      #fluidnet-canvas-workbench .fc-node-value {font-size:11px;}
+    }
+    @media(max-width:620px) {
+      #fluidnet-canvas-workbench .fc-shell,#fluidnet-canvas-workbench.library-hidden .fc-shell {grid-template-columns:40px minmax(0,1fr);}
+      #fluidnet-canvas-workbench .fc-main {grid-column:2;grid-row:1;}
+      #fluidnet-canvas-workbench .fc-rail {grid-row:1/4;padding-inline:1px;}
+      #fluidnet-canvas-workbench .fc-rail-button {width:35px;}
+      #fluidnet-canvas-workbench .fc-library {display:none;grid-column:2;grid-row:2;border-top:1px solid var(--fc-border);border-right:0;}
+      #fluidnet-canvas-workbench.mobile-library .fc-library {display:flex;}
+      #fluidnet-canvas-workbench .fc-library-groups {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 9px;padding-inline:9px;}
+      #fluidnet-canvas-workbench .fc-properties {min-height:0;}
+      #fluidnet-canvas-workbench .fc-property-grid {grid-template-columns:40px 1fr 40px 1fr;}
+      #fluidnet-canvas-workbench .fc-titlebar {padding-top:10px;padding-bottom:10px;min-height:62px;gap:5px;}
+      #fluidnet-canvas-workbench .fc-title-divider {display:none;}
+      #fluidnet-canvas-workbench .fc-project-title {width:100%;}
+      #fluidnet-canvas-workbench .fc-topbar {align-items:flex-start;padding:0 5px;}
+      #fluidnet-canvas-workbench .fc-tabs {max-width:100%;}
+      #fluidnet-canvas-workbench .fc-tools {padding:4px 0;}
+      #fluidnet-canvas-workbench .fc-desktop {min-height:590px;}
+      #fluidnet-canvas-workbench .fc-canvas {position:relative;height:590px;inset:auto;margin-right:0;}
+      #fluidnet-canvas-workbench .fc-canvas-caption {top:12px;left:10px;}
+      #fluidnet-canvas-workbench .fc-runbar {position:relative;top:auto;right:auto;flex-direction:row;flex-wrap:wrap;justify-content:center;gap:5px;border-top:1px solid var(--fc-border);padding:8px;}
+      #fluidnet-canvas-workbench .fc-run-button {min-height:38px;width:38px;gap:2px;}
+      #fluidnet-canvas-workbench .fc-run-separator {height:auto;width:4px;}
+      #fluidnet-canvas-workbench .fc-canvas-foot {top:545px;bottom:auto;left:10px;right:10px;align-items:flex-end;}
+      #fluidnet-canvas-workbench .fc-hint {max-width:50%;}
+      #fluidnet-canvas-workbench .fc-footer {grid-column:2;grid-row:3;padding:7px 9px;gap:5px;}
+      #fluidnet-canvas-workbench .fc-windows {position:relative;inset:auto;display:flex;flex-direction:column;gap:10px;padding:0 8px 10px;}
+      #fluidnet-canvas-workbench .fc-windows:empty {padding:0;}
+      #fluidnet-canvas-workbench .fc-window {position:relative;left:auto!important;top:auto!important;width:100%!important;max-width:100%;}
+      #fluidnet-canvas-workbench .fc-window {height:auto!important;}
+      #fluidnet-canvas-workbench .fc-resize {display:none;}
+      #fluidnet-canvas-workbench .fc-window-title {cursor:default;}
+      #fluidnet-canvas-workbench .fc-window-body {padding:10px;}
+      #fluidnet-canvas-workbench .fc-table input {width:65px;}
+      #fluidnet-canvas-workbench .fc-window-actions {flex-wrap:wrap;}
+      #fluidnet-canvas-workbench .fc-popover {left:44px;max-width:calc(100% - 51px);}
+    }
+    @media(pointer:coarse) {
+      #fluidnet-canvas-workbench .fc-item,#fluidnet-canvas-workbench .fc-tab,#fluidnet-canvas-workbench .fc-button,#fluidnet-canvas-workbench .fc-window-tab {min-height:44px;}
+      #fluidnet-canvas-workbench .fc-rail-button {min-height:46px;}
+      #fluidnet-canvas-workbench input,#fluidnet-canvas-workbench select {font-size:16px!important;min-height:36px;}
+      #fluidnet-canvas-workbench .fc-icon-button,#fluidnet-canvas-workbench .fc-window-controls .fc-icon-button {min-width:44px;min-height:44px;}
+      #fluidnet-canvas-workbench .fc-tools {flex-wrap:wrap;max-width:100%;}
+      #fluidnet-canvas-workbench .fc-run-button {min-width:44px;min-height:46px;}
+      #fluidnet-canvas-workbench .fc-desktop {min-height:1000px;}
+      #fluidnet-canvas-workbench .fc-canvas {min-height:1000px;}
+      #fluidnet-canvas-workbench .fc-node-value {bottom:68px;}
+      #fluidnet-canvas-workbench .fc-port {width:44px;height:44px;}
+      #fluidnet-canvas-workbench .fc-port[data-dir="left"] {left:-45px;top:-2px;}
+      #fluidnet-canvas-workbench .fc-port[data-dir="right"] {right:-45px;top:-2px;}
+      #fluidnet-canvas-workbench .fc-port[data-dir="top"] {left:0;top:-47px;}
+      #fluidnet-canvas-workbench .fc-port[data-dir="bottom"] {left:0;bottom:-47px;}
+      #fluidnet-canvas-workbench .fc-port[data-dir="left"]:before {left:22px;top:21.5px;width:32px;}
+      #fluidnet-canvas-workbench .fc-port[data-dir="right"]:before {right:22px;top:21.5px;width:32px;}
+      #fluidnet-canvas-workbench .fc-port[data-dir="top"]:before {top:22px;left:21.5px;height:32px;}
+      #fluidnet-canvas-workbench .fc-port[data-dir="bottom"]:before {bottom:22px;left:21.5px;height:32px;}
+      #fluidnet-canvas-workbench .fc-kind-junction .fc-port[data-dir="left"]:before,
+      #fluidnet-canvas-workbench .fc-kind-junction .fc-port[data-dir="right"]:before {width:45px;}
+      #fluidnet-canvas-workbench .fc-kind-junction .fc-port[data-dir="top"]:before,
+      #fluidnet-canvas-workbench .fc-kind-junction .fc-port[data-dir="bottom"]:before {height:45px;}
+    }
+    @media(pointer:coarse) and (max-width:620px) {
+      #fluidnet-canvas-workbench .fc-shell,#fluidnet-canvas-workbench.library-hidden .fc-shell {grid-template-columns:44px minmax(0,1fr);}
+      #fluidnet-canvas-workbench .fc-rail-button {width:42px;}
+      #fluidnet-canvas-workbench .fc-canvas {height:1000px;}
+      #fluidnet-canvas-workbench .fc-canvas-foot {top:948px;}
+    }
+    #fluidnet-canvas-workbench .fc-device-window {container:device-editor / inline-size;min-height:360px;}
+    #fluidnet-canvas-workbench .fc-device-window .fc-window-header {flex:none;}
+    #fluidnet-canvas-workbench .fc-device-tabs {display:flex;align-items:center;flex-wrap:wrap;gap:0;padding:0 9px;border-bottom:1px solid var(--fc-border);background:var(--fc-panel);flex:none;}
+    #fluidnet-canvas-workbench .fc-device-tabs [role="tablist"] {display:flex;align-items:center;flex-wrap:wrap;flex:1;min-width:0;}
+    #fluidnet-canvas-workbench .fc-device-tabs .fc-window-tab {font-size:12px;padding:11px 12px 9px;white-space:nowrap;}
+    #fluidnet-canvas-workbench .fc-device-tabs .fc-window-tab[aria-selected="true"] {background:var(--fc-raised);font-weight:500;}
+    #fluidnet-canvas-workbench .fc-device-tabs .fc-button {margin:5px 0 5px 7px;}
+    #fluidnet-canvas-workbench .fc-device-content {flex:1;min-height:0;overflow:auto;background:var(--fc-raised);}
+    #fluidnet-canvas-workbench .fc-device-content > [data-pane] {min-width:0;}
+    #fluidnet-canvas-workbench .fc-device-footer {display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:8px 12px;background:var(--fc-panel);border-top:1px solid var(--fc-border);flex:none;}
+    #fluidnet-canvas-workbench .fc-device-message {margin:0;min-width:0;flex:1 1 220px;font-size:11px;color:var(--fc-muted);overflow-wrap:anywhere;}
+    #fluidnet-canvas-workbench .fc-device-message.is-error {color:var(--fc-danger);}
+    #fluidnet-canvas-workbench .fc-device-run {display:flex;align-items:center;gap:5px;flex-wrap:wrap;font-size:11px;}
+    #fluidnet-canvas-workbench .fc-device-run [data-device-clock] {font-variant-numeric:tabular-nums;color:var(--fc-muted);margin-right:5px;}
+    #fluidnet-canvas-workbench .fc-device-toolbar {display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 12px;border-bottom:1px solid var(--fc-border);font-size:11px;}
+    #fluidnet-canvas-workbench .fc-device-toolbar label {display:flex;align-items:center;gap:6px;}
+    #fluidnet-canvas-workbench .fc-device-toolbar .fc-push {margin-left:auto;}
+    #fluidnet-canvas-workbench .fc-device-muted {font-size:11px;color:var(--fc-muted);}
+    #fluidnet-canvas-workbench .fc-device-table-wrap {width:100%;min-width:0;overflow-x:auto;}
+    #fluidnet-canvas-workbench .fc-device-table {width:100%;border-collapse:collapse;table-layout:fixed;font-size:12px;}
+    #fluidnet-canvas-workbench .fc-device-table th {padding:8px;text-align:left;font-weight:500;background:var(--fc-panel);color:var(--fc-muted);border-bottom:1px solid var(--fc-border);}
+    #fluidnet-canvas-workbench .fc-device-table td {padding:6px 8px;border-bottom:1px solid var(--fc-border);border-right:1px solid var(--fc-border);height:39px;vertical-align:middle;}
+    #fluidnet-canvas-workbench .fc-device-table td:last-child {border-right:0;}
+    #fluidnet-canvas-workbench .fc-device-table tr.is-selected td:first-child {box-shadow:inset 3px 0 var(--fc-accent);background:var(--fc-soft);}
+    #fluidnet-canvas-workbench .fc-device-table input:not([type="checkbox"]),#fluidnet-canvas-workbench .fc-device-table select {width:100%;font-size:12px;}
+    #fluidnet-canvas-workbench .fc-variable-name {font:12px Consolas,monospace;overflow-wrap:anywhere;}
+    #fluidnet-canvas-workbench .fc-variable-note {display:block;font-size:11px;color:var(--fc-muted);margin-top:2px;overflow-wrap:anywhere;}
+    #fluidnet-canvas-workbench .fc-variable-tag {font-size:11px;color:var(--fc-muted);}
+    #fluidnet-canvas-workbench .fc-attributes-table {min-width:680px;}
+    #fluidnet-canvas-workbench .fc-attributes-table th:first-child {width:146px;}
+    #fluidnet-canvas-workbench .fc-attributes-table th:nth-child(2) {width:100px;}
+    #fluidnet-canvas-workbench .fc-attributes-table th:nth-child(3),#fluidnet-canvas-workbench .fc-attributes-table th:nth-child(4) {width:75px;}
+    #fluidnet-canvas-workbench .fc-attributes-table th:nth-child(6) {width:55px;}
+    #fluidnet-canvas-workbench .fc-attributes-table th:last-child {width:44px;}
+    #fluidnet-canvas-workbench .fc-value-layout {display:grid;grid-template-columns:minmax(0,1fr) 218px;align-items:start;}
+    #fluidnet-canvas-workbench .fc-value-table {min-width:505px;}
+    #fluidnet-canvas-workbench .fc-value-table th:first-child {width:133px;}
+    #fluidnet-canvas-workbench .fc-value-table th {text-align:center;}
+    #fluidnet-canvas-workbench .fc-value-table th:first-child {text-align:left;}
+    #fluidnet-canvas-workbench .fc-value-table td {padding:5px;}
+    #fluidnet-canvas-workbench .fc-value-table td:first-child {padding-left:9px;}
+    #fluidnet-canvas-workbench .fc-value-table input[type="number"] {text-align:right;font:11px Consolas,monospace;font-variant-numeric:tabular-nums;appearance:textfield;}
+    #fluidnet-canvas-workbench .fc-value-table input::-webkit-inner-spin-button,#fluidnet-canvas-workbench .fc-value-table input::-webkit-outer-spin-button {appearance:none;margin:0;}
+    #fluidnet-canvas-workbench .fc-bank-heading {border:0;background:transparent;padding:0;color:inherit;}
+    #fluidnet-canvas-workbench .fc-bank-heading[aria-pressed="true"] {color:var(--fc-accent-ink);font-weight:500;}
+    #fluidnet-canvas-workbench .fc-array-cell {display:block;width:100%;border:1px solid transparent;background:transparent;padding:5px 3px;text-align:left;font:11px Consolas,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    #fluidnet-canvas-workbench .fc-array-cell[aria-pressed="true"] {background:var(--fc-soft);border-color:var(--fc-accent);border-radius:3px;}
+    #fluidnet-canvas-workbench .fc-value-side {padding:10px;border-left:1px solid var(--fc-border);background:var(--fc-panel);min-width:0;}
+    #fluidnet-canvas-workbench .fc-bank-actions {display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:12px;}
+    #fluidnet-canvas-workbench .fc-bank-actions .fc-button {padding:6px 4px;font-size:11px;white-space:normal;}
+    #fluidnet-canvas-workbench .fc-side-heading {display:flex;justify-content:space-between;align-items:center;gap:5px;margin:0 0 8px;font-size:12px;font-weight:500;}
+    #fluidnet-canvas-workbench .fc-side-heading select {max-width:104px;font-size:11px;}
+    #fluidnet-canvas-workbench .fc-array-editor {display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:12px;}
+    #fluidnet-canvas-workbench .fc-array-editor label {display:flex;align-items:center;gap:5px;font-size:11px;color:var(--fc-muted);}
+    #fluidnet-canvas-workbench .fc-array-editor input {width:100%;font:12px Consolas,monospace;text-align:right;}
+    #fluidnet-canvas-workbench .fc-fluid-list {display:grid;grid-template-columns:1fr 1fr;gap:2px 4px;max-height:200px;overflow:auto;margin:7px 0;}
+    #fluidnet-canvas-workbench .fc-fluid-list label {display:flex;align-items:center;gap:5px;font-size:11px;min-height:26px;}
+    #fluidnet-canvas-workbench input[type="checkbox"] {accent-color:var(--fc-accent-ink);margin:0;width:14px;height:14px;flex:none;}
+    #fluidnet-canvas-workbench .fc-mixture-row {display:grid;grid-template-columns:minmax(0,1fr) 70px;align-items:center;gap:6px;font-size:11px;margin:5px 0;}
+    #fluidnet-canvas-workbench .fc-mixture-row input {width:100%;text-align:right;font-size:11px;}
+    #fluidnet-canvas-workbench .fc-mixture-total {display:flex;align-items:center;justify-content:space-between;gap:5px;margin-top:7px;font-size:11px;}
+    #fluidnet-canvas-workbench .fc-mixture-total.is-error {color:var(--fc-danger);}
+    #fluidnet-canvas-workbench .fc-draw-layout {display:grid;grid-template-columns:minmax(0,1fr) 205px;min-height:435px;}
+    #fluidnet-canvas-workbench .fc-draw-workspace {min-width:0;display:flex;flex-direction:column;}
+    #fluidnet-canvas-workbench .fc-draw-board {flex:1;position:relative;min-height:355px;background-color:var(--fc-paper);background-image:radial-gradient(var(--fc-border) .9px,transparent .9px);background-size:12px 12px;overflow:hidden;touch-action:none;}
+    #fluidnet-canvas-workbench .fc-draw-board.no-grid {background-image:none;}
+    #fluidnet-canvas-workbench .fc-draw-object {position:absolute;transform:translate(-50%,-50%);display:flex;align-items:center;justify-content:center;gap:6px;background:var(--fc-paper);color:var(--fc-text);border:1px solid var(--fc-blue);border-radius:4px;min-width:30px;min-height:30px;padding:4px;cursor:move;touch-action:none;}
+    #fluidnet-canvas-workbench .fc-draw-object[aria-pressed="true"] {outline:1px dashed var(--fc-accent);outline-offset:5px;}
+    #fluidnet-canvas-workbench .fc-draw-object.fc-picture {flex-direction:column;z-index:1;font-weight:500;}
+    #fluidnet-canvas-workbench .fc-draw-object.fc-picture svg {height:30px;width:30px;color:var(--fc-blue);}
+    #fluidnet-canvas-workbench .fc-draw-object.is-circle {border-radius:50%;}
+    #fluidnet-canvas-workbench .fc-draw-object.fc-draw-port {z-index:2;width:36px;height:36px;background:transparent;border:0;}
+    #fluidnet-canvas-workbench .fc-draw-port .fc-port-mark {width:12px;height:12px;border-width:2px;}
+    #fluidnet-canvas-workbench .fc-draw-port-label {position:absolute;top:100%;font-size:11px;white-space:nowrap;color:var(--fc-text);background:var(--fc-paper);padding:1px 3px;}
+    #fluidnet-canvas-workbench .fc-port-mark {display:inline-block;width:8px;height:8px;border:1.5px solid currentColor;border-radius:50%;color:var(--fc-accent-ink);flex:none;}
+    #fluidnet-canvas-workbench .fc-port-mark.is-input {background:currentColor;}
+    #fluidnet-canvas-workbench .fc-port-mark.info {color:var(--fc-green);}
+    #fluidnet-canvas-workbench .fc-port-mark.power {color:light-dark(#c23984,#f393c6);}
+    #fluidnet-canvas-workbench .fc-port-mark.mech {color:var(--fc-blue);}
+    #fluidnet-canvas-workbench .fc-port-mark.picture {border-radius:0;color:var(--fc-blue);}
+    #fluidnet-canvas-workbench .fc-draw-sidebar {padding:10px;border-left:1px solid var(--fc-border);background:var(--fc-panel);}
+    #fluidnet-canvas-workbench .fc-draw-palette {display:grid;gap:2px;margin-bottom:12px;}
+    #fluidnet-canvas-workbench .fc-draw-palette button {display:flex;align-items:center;gap:8px;width:100%;border:1px solid transparent;border-radius:3px;background:transparent;padding:4px;font-size:11px;text-align:left;}
+    #fluidnet-canvas-workbench .fc-draw-palette button:hover {background:var(--fc-raised);border-color:var(--fc-border);}
+    #fluidnet-canvas-workbench .fc-draw-palette button span:last-child {margin-left:auto;color:var(--fc-muted);}
+    #fluidnet-canvas-workbench .fc-object-properties {border-top:1px solid var(--fc-border);padding-top:10px;}
+    #fluidnet-canvas-workbench .fc-object-properties label {display:grid;grid-template-columns:42px minmax(0,1fr);align-items:center;gap:6px;font-size:11px;margin:6px 0;}
+    #fluidnet-canvas-workbench .fc-object-properties input,#fluidnet-canvas-workbench .fc-object-properties select {width:100%;font-size:11px;}
+    #fluidnet-canvas-workbench .fc-object-coordinates {display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+    #fluidnet-canvas-workbench .fc-object-coordinates label {grid-template-columns:20px minmax(0,1fr);}
+    #fluidnet-canvas-workbench .fc-code-pane {padding:12px;}
+    #fluidnet-canvas-workbench .fc-code-top {display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:9px;font-size:11px;color:var(--fc-muted);}
+    #fluidnet-canvas-workbench .fc-code-top select {max-width:160px;}
+    #fluidnet-canvas-workbench .fc-code-editor {display:grid;grid-template-columns:38px minmax(0,1fr);background:var(--fc-paper);border:1px solid var(--fc-border);border-radius:4px;overflow:hidden;}
+    #fluidnet-canvas-workbench .fc-code-lines {padding:10px 7px;margin:0;text-align:right;color:var(--fc-muted);background:var(--fc-panel);font:12px/1.7 Consolas,monospace;user-select:none;overflow:hidden;max-height:300px;}
+    #fluidnet-canvas-workbench .fc-code-editor textarea {resize:vertical;width:100%;min-height:285px;max-height:450px;min-width:0;padding:10px;border:0;border-radius:0;background:var(--fc-paper);font:12px/1.7 Consolas,"Microsoft YaHei",monospace;tab-size:2;white-space:pre;}
+    #fluidnet-canvas-workbench .fc-code-output {padding:10px 0 0;margin:0;font-size:11px;color:var(--fc-muted);white-space:pre-wrap;overflow-wrap:anywhere;}
+    #fluidnet-canvas-workbench .fc-general-settings {padding:12px;}
+    #fluidnet-canvas-workbench .fc-settings-grid {display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;margin-bottom:14px;}
+    #fluidnet-canvas-workbench .fc-settings-grid label {display:flex;flex-direction:column;gap:5px;font-size:11px;color:var(--fc-muted);}
+    #fluidnet-canvas-workbench .fc-settings-grid .fc-wide {grid-column:1/-1;}
+    #fluidnet-canvas-workbench .fc-settings-grid input,#fluidnet-canvas-workbench .fc-settings-grid textarea {width:100%;background:var(--fc-paper);border:1px solid var(--fc-border);border-radius:3px;padding:6px;}
+    #fluidnet-canvas-workbench .fc-settings-grid label.fc-check-setting {flex-direction:row;align-items:center;}
+    #fluidnet-canvas-workbench .fc-general-links {display:flex;gap:8px;flex-wrap:wrap;border-block:1px solid var(--fc-border);padding:9px 0;margin:6px 0 12px;}
+    #fluidnet-canvas-workbench .fc-general-links button[aria-pressed="true"] {background:var(--fc-soft);border-color:var(--fc-accent);}
+    #fluidnet-canvas-workbench .fc-prototype-entry {padding:8px 10px;border-top:1px solid var(--fc-border);}
+    #fluidnet-canvas-workbench .fc-prototype-entry .fc-button {width:100%;font-size:11px;padding:7px 3px;}
+    @container device-editor (max-width:650px) {
+      #fluidnet-canvas-workbench .fc-value-layout,#fluidnet-canvas-workbench .fc-draw-layout {grid-template-columns:minmax(0,1fr);}
+      #fluidnet-canvas-workbench .fc-value-side,#fluidnet-canvas-workbench .fc-draw-sidebar {border-left:0;border-top:1px solid var(--fc-border);}
+      #fluidnet-canvas-workbench .fc-value-side {display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+      #fluidnet-canvas-workbench .fc-mixture-section {grid-column:1/-1;}
+      #fluidnet-canvas-workbench .fc-fluid-list {grid-template-columns:repeat(3,minmax(0,1fr));}
+      #fluidnet-canvas-workbench .fc-draw-sidebar {display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+      #fluidnet-canvas-workbench .fc-object-properties {border-top:0;padding-top:0;}
+      #fluidnet-canvas-workbench .fc-device-tabs .fc-window-tab {padding-inline:9px;}
+    }
+    @container device-editor (max-width:350px) {
+      #fluidnet-canvas-workbench .fc-value-side,#fluidnet-canvas-workbench .fc-draw-sidebar,#fluidnet-canvas-workbench .fc-settings-grid {grid-template-columns:minmax(0,1fr);}
+      #fluidnet-canvas-workbench .fc-fluid-list {grid-template-columns:1fr 1fr;}
+      #fluidnet-canvas-workbench .fc-device-tabs {padding-inline:5px;}
+      #fluidnet-canvas-workbench .fc-device-tabs .fc-window-tab {padding:9px 7px;font-size:11px;}
+      #fluidnet-canvas-workbench .fc-device-tabs > .fc-button {margin-left:0;}
+      #fluidnet-canvas-workbench .fc-device-toolbar {padding:9px;}
+      #fluidnet-canvas-workbench .fc-device-footer {padding:8px;}
+      #fluidnet-canvas-workbench .fc-draw-board {min-height:300px;}
+      #fluidnet-canvas-workbench .fc-code-editor {grid-template-columns:27px minmax(0,1fr);}
+      #fluidnet-canvas-workbench .fc-code-lines {padding-inline:3px;}
+    }
+    @media(max-width:620px) {
+      #fluidnet-canvas-workbench .fc-device-content {overflow:visible;}
+      #fluidnet-canvas-workbench .fc-device-window {min-height:0;}
+    }
+    @media(pointer:coarse) {
+      #fluidnet-canvas-workbench .fc-value-table {min-width:780px;}
+      #fluidnet-canvas-workbench .fc-draw-palette button,#fluidnet-canvas-workbench .fc-fluid-list label,#fluidnet-canvas-workbench .fc-array-cell {min-height:44px;}
+      #fluidnet-canvas-workbench .fc-draw-object.fc-draw-port {width:44px;height:44px;}
+      #fluidnet-canvas-workbench .fc-device-table input:not([type="checkbox"]),#fluidnet-canvas-workbench .fc-device-table select {min-width:60px;}
+      #fluidnet-canvas-workbench .fc-code-editor textarea {font-size:16px;}
+      #fluidnet-canvas-workbench .fc-code-lines {font-size:16px;}
+      #fluidnet-canvas-workbench .fc-draw-board {min-height:400px;}
+    }
+  </style>
+  <div class="fc-shell">
+    <nav class="fc-rail" aria-label="工作台导航">
+      <div class="fc-logo" aria-label="FluidNet"><i data-lucide="waypoints" aria-hidden="true"></i></div>
+      <button type="button" class="fc-rail-button cursor-interaction" data-action="library" aria-pressed="true"><i data-lucide="panels-top-left" aria-hidden="true"></i><span>模块</span></button>
+      <button type="button" class="fc-rail-button cursor-interaction" data-action="projects" aria-pressed="false"><i data-lucide="folder-open" aria-hidden="true"></i><span>项目</span></button>
+      <button type="button" class="fc-rail-button cursor-interaction" data-action="new-canvas"><i data-lucide="plus" aria-hidden="true"></i><span>画布</span></button>
+      <div class="fc-rail-spacer"></div>
+      <span class="fc-rail-mark">FLUIDNET</span>
+      <button type="button" class="fc-rail-button cursor-interaction" data-action="help" aria-pressed="false"><i data-lucide="keyboard" aria-hidden="true"></i><span>快捷键</span></button>
+    </nav>
+    <aside class="fc-library" aria-label="模块库与对象属性">
+      <div class="fc-library-heading"><span>模块列表</span><span class="fc-count" data-library-count></span></div>
+      <div class="fc-library-groups"></div>
+      <div class="fc-prototype-entry"><button type="button" class="fc-button cursor-interaction" data-action="device-example"><i data-lucide="panels-top-left" aria-hidden="true"></i>REFPROPTEST 示例</button></div>
+      <section class="fc-properties" aria-label="选中对象属性"></section>
+    </aside>
+    <main class="fc-main">
+      <header class="fc-titlebar"><span class="fc-app-name">FluidNet Studio</span><span class="fc-title-divider"></span><span class="fc-project-title"><span class="fc-unsaved-dot" hidden></span>泵阀并联管网</span></header>
+      <div class="fc-topbar">
+        <div class="fc-tabs" role="tablist" aria-label="项目画布"></div>
+        <div class="fc-tools" aria-label="画布工具">
+          <button type="button" class="fc-icon-button cursor-interaction" data-action="select" aria-label="选择设备" aria-pressed="true" data-tooltip="选择设备 · V"><i data-lucide="mouse-pointer-2" aria-hidden="true"></i></button>
+          <button type="button" class="fc-icon-button cursor-interaction" data-action="connect" aria-label="连接端口" aria-pressed="false" data-tooltip="连接端口 · C"><i data-lucide="cable" aria-hidden="true"></i></button>
+          <span class="fc-tool-separator"></span>
+          <button type="button" class="fc-icon-button cursor-interaction" data-action="undo" aria-label="撤销编辑" disabled data-tooltip="撤销 · Ctrl+Z"><i data-lucide="undo-2" aria-hidden="true"></i></button>
+          <button type="button" class="fc-icon-button cursor-interaction" data-action="redo" aria-label="重做编辑" disabled data-tooltip="重做 · Ctrl+Shift+Z"><i data-lucide="redo-2" aria-hidden="true"></i></button>
+          <button type="button" class="fc-icon-button cursor-interaction" data-action="fit" aria-label="适应画布" data-tooltip="适应画布"><i data-lucide="scan" aria-hidden="true"></i></button>
+          <button type="button" class="fc-icon-button cursor-interaction" data-action="check" aria-label="检查连接" data-tooltip="检查连接"><i data-lucide="list-checks" aria-hidden="true"></i></button>
+          <span class="fc-medium"><span class="fc-medium-dot"></span>液态水</span>
+        </div>
+      </div>
+      <div class="fc-desktop">
+        <div class="fc-canvas" id="fc-canvas-panel" role="tabpanel" aria-label="管网画布">
+          <div class="fc-canvas-caption"><strong data-canvas-name>主系统</strong><span>质量流量 · kg/s</span></div>
+          <svg class="fc-network" role="img" aria-label="供水边界经过循环泵与总阀，分成两条调节支路后汇合至回水边界"></svg>
+          <div class="fc-nodes"></div>
+          <div class="fc-empty" hidden><i data-lucide="workflow" aria-hidden="true"></i>选择左侧模块，单击画布放置</div>
+        </div>
+        <div class="fc-runbar" aria-label="运行控制">
+          <button type="button" class="fc-run-button cursor-interaction" data-action="save"><i data-lucide="save" aria-hidden="true"></i><span>保存</span></button>
+          <span class="fc-run-separator"></span>
+          <button type="button" class="fc-run-button cursor-interaction" data-action="run"><i data-lucide="play" aria-hidden="true"></i><span>运行</span></button>
+          <button type="button" class="fc-run-button cursor-interaction" data-action="pause" disabled><i data-lucide="pause" aria-hidden="true"></i><span>暂停</span></button>
+          <button type="button" class="fc-run-button cursor-interaction" data-action="step"><i data-lucide="step-forward" aria-hidden="true"></i><span>步进</span></button>
+          <button type="button" class="fc-run-button cursor-interaction" data-action="stop"><i data-lucide="square" aria-hidden="true"></i><span>停止</span></button>
+          <span class="fc-run-separator"></span>
+          <button type="button" class="fc-run-button cursor-interaction" data-action="curves"><i data-lucide="chart-no-axes-combined" aria-hidden="true"></i><span>曲线</span></button>
+        </div>
+        <div class="fc-canvas-foot"><span class="fc-hint">双击设备编辑参数 · 拖动设备调整布局</span><div class="fc-zoom"><button type="button" class="fc-icon-button cursor-interaction" data-action="zoom-out" aria-label="缩小"><i data-lucide="minus" aria-hidden="true"></i></button><span data-zoom>100%</span><button type="button" class="fc-icon-button cursor-interaction" data-action="zoom-in" aria-label="放大"><i data-lucide="plus" aria-hidden="true"></i></button></div></div>
+        <div class="fc-windows" aria-label="设备属性与趋势窗口"></div>
+        <div class="fc-toast" role="status" hidden></div>
+      </div>
+    </main>
+    <footer class="fc-footer"><div class="fc-footer-left"><span class="fc-status"><span class="fc-led"></span><span data-status>就绪</span></span><span class="fc-clock" data-clock>t = 0.0 s</span><span data-graph-count></span><div class="fc-window-tray" aria-label="打开的窗口"></div></div><span>交互原型 · 示例数据</span></footer>
+    <div class="fc-popover" hidden></div>
+    <span class="fc-sr" aria-live="polite" data-announcement></span>
+  </div>
+  <script>
+    (() => {
+      'use strict';
+      const root = document.getElementById('fluidnet-canvas-workbench');
+      const canvas = root.querySelector('.fc-canvas');
+      const desktop = root.querySelector('.fc-desktop');
+      const nodeLayer = root.querySelector('.fc-nodes');
+      const network = root.querySelector('.fc-network');
+      const windowLayer = root.querySelector('.fc-windows');
+      const popover = root.querySelector('.fc-popover');
+      const svgNS = 'http://www.w3.org/2000/svg';
+      const esc = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+      const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+      const copy = value => JSON.parse(JSON.stringify(value));
+      const fmt = (v, digits = 2) => Number.isFinite(v) ? v.toFixed(digits) : '—';
+      const icon = name => '<i data-lucide="' + name + '" aria-hidden="true"></i>';
+      const small = () => root.clientWidth <= 620;
+      const coarse = () => matchMedia('(pointer:coarse)').matches;
+      const catalog = {
+        source: {name:'压力边界', icon:'container', prefix:'B', group:'边界与节点', fields:[['pressure','绝对压力','kPa',110,1000,1,201.325,3],['temperature','温度','°C',1,90,1,20,1]], models:['恒压水源','温水边界']},
+        junction: {name:'连接节点', icon:'waypoints', prefix:'N', group:'边界与节点', fields:[['elevation','标高','m',-100,1000,1,0,1]], models:['三通节点','高位节点']},
+        tank: {name:'水箱', icon:'cylinder', prefix:'TK', group:'边界与节点', fields:[['level','初始液位','m',0.1,10,0.1,2,2],['temperature','温度','°C',1,90,1,20,1]], models:['标准水箱','高位水箱']},
+        pipe: {name:'管道', icon:'minus', prefix:'L', group:'管道与阻力', fields:[['length','管道长度','m',0.1,1000,0.5,30,1],['diameter','内径','mm',5,1000,1,40,1]], models:['DN40 标准管','DN50 标准管']},
+        valve: {name:'调节阀', icon:'hourglass', prefix:'V', group:'管道与阻力', fields:[['opening','阀门开度','%',0,100,1,80,1],['kv','流量系数 Kv','m³/h',0.1,200,0.5,16,2]], models:['调节阀 Kv16','调节阀 Kv25']},
+        check: {name:'止回阀', icon:'chevrons-right', prefix:'CV', group:'管道与阻力', fields:[['loss','阻力系数','—',0,1000,0.1,2,2]], models:['标准止回阀','低阻止回阀']},
+        resistance: {name:'局部阻力', icon:'separator-horizontal', prefix:'K', group:'管道与阻力', fields:[['loss','阻力系数','—',0,1000,0.1,5,2]], models:['标准局部阻力','高阻局部阻力']},
+        pump: {name:'离心泵', icon:'triangle', prefix:'P', group:'流体机械', fields:[['speed','转速比','倍',0.2,1.3,0.05,1,2],['efficiency','泵效率','%',1,100,1,75,1]], models:['标准离心泵','高效变频泵']},
+        exchanger: {name:'换热器', icon:'heater', prefix:'HX', group:'热力设备', fields:[['ua','传热系数 UA','W/K',1,50000,100,2000,0],['loss','阻力系数','—',0,1000,0.1,5,2]], models:['标准换热单元','高传热单元']},
+        heater: {name:'加热器', icon:'flame', prefix:'HT', group:'热力设备', fields:[['power','加热功率','kW',0,1000,1,20,1]], models:['20 kW 加热器','40 kW 加热器']},
+        flowmeter: {name:'流量计', icon:'gauge', prefix:'FT', group:'测量与控制', fields:[['range','量程','kg/s',0.1,1000,1,10,1]], models:['10 kg/s 流量计','20 kg/s 流量计']},
+        thermometer: {name:'温度计', icon:'thermometer', prefix:'TT', group:'测量与控制', fields:[['range','量程上限','°C',30,100,1,90,1]], models:['90 °C 温度计','100 °C 温度计']},
+        refprop: {name:'物性测试模块',icon:'atom',prefix:'REF',group:'自定义模块',fields:[],models:['REFPROPTEST','自定义工质']}
+      };
+      function makeNode(id, kind, code, name, role, params = {}) {
+        const values = Object.fromEntries(catalog[kind].fields.map(f => [f[0], f[6]]));
+        Object.assign(values, params);
+        return {id, kind, code, name, role:role || '', params:values, draft:{...values}, model:0, positions:{}};
+      }
+      function initialPage() {
+        const nodes = [
+          makeNode('source','source','B1','供水边界','source'),
+          makeNode('pump','pump','P1','循环泵','pump'),
+          makeNode('split','junction','N1','分流节点','split'),
+          makeNode('valve_a','valve','V1','A 路调节阀','valve_a'),
+          makeNode('pipe_a','pipe','L1','A 路管道','pipe_a'),
+          makeNode('valve_b','valve','V2','B 路调节阀','valve_b',{opening:55}),
+          makeNode('pipe_b','pipe','L2','B 路管道','pipe_b',{length:40}),
+          makeNode('merge','junction','N2','汇流节点','merge'),
+          makeNode('sink','source','B2','回水边界','sink')
+        ];
+        const pairs = [
+          ['source','port','pump','in'],['pump','out','split','c'],
+          ['split','a','valve_a','in'],['valve_a','out','pipe_a','in'],['pipe_a','out','merge','a'],
+          ['split','b','valve_b','in'],['valve_b','out','pipe_b','in'],['pipe_b','out','merge','b'],
+          ['merge','c','sink','port']
+        ];
+        return {id:'main',name:'主系统',nodes,edges:pairs.map((p,i) => ({id:'e' + (i+1),a:p.slice(0,2),b:p.slice(2)})),zoom:1,pan:[0,0]};
+      }
+      const state = {version:3,prototype:'canvas-workbench',pages:[initialPage()],active:'main',selected:'',edge:'',serial:20,
+        mode:'ready',time:0,runPage:'main',hasResults:false,readings:{q:0,a:0,b:0},history:[],series:{q:true,a:true,b:true},
+        windows:{},order:[],dirty:false,libraryHidden:false,mobileLibrary:false,collapsed:[]};
+      const design = {libraryWidth:156,symbolSize:29,names:true,grid:false,values:true};
+      const panels = new Map(), undoStack = [], redoStack = [];
+      let timer = null, toastTimer = null, persistTimer = null, pointer = null, placing = '', mode = 'select', pending = null;
+      let positions = {}, layoutKey = '', scheduled = 0, lastPointer = null, suppressClick = false, contextNode = '';
+      const currentPage = () => state.pages.find(p => p.id === state.active) || state.pages[0];
+      const allNodes = () => state.pages.flatMap(p => p.nodes);
+      const nodeById = id => allNodes().find(n => n.id === id);
+      const ownerPage = id => state.pages.find(p => p.nodes.some(n => n.id === id));
+      const portNames = node => node.kind === 'refprop' ? ['in'] : node.kind === 'source' ? ['port'] : node.kind === 'junction' ? ['c','a','b'] :
+        node.kind === 'exchanger' ? ['a_in','a_out','b_in','b_out'] : ['in','out'];
+      const portLabel = key => ({port:'接口',in:'入口',out:'出口',c:'公共口',a:'A 口',b:'B 口',
+        a_in:'一次侧入口',a_out:'一次侧出口',b_in:'二次侧入口',b_out:'二次侧出口'}[key] || key);
+      function icons() {
+        if (!globalThis.lucide || !root.querySelector('i[data-lucide]')) return;
+        const existing = [...root.querySelectorAll('svg[data-lucide]')].map(el => [el,el.getAttribute('data-lucide')]);
+        existing.forEach(([el]) => el.removeAttribute('data-lucide'));
+        globalThis.lucide.createIcons({attrs:{width:16,height:16}});
+        existing.forEach(([el,name]) => el.setAttribute('data-lucide',name));
+      }
+      function announce(message) { root.querySelector('[data-announcement]').textContent = message; }
+      function notify(message) {
+        const el = root.querySelector('.fc-toast');
+        el.textContent = message; el.hidden = false; announce(message);
+        clearTimeout(toastTimer); toastTimer = setTimeout(() => { el.hidden = true; }, 2600);
+      }
+      function svgElement(parent, tag, attrs, textValue) {
+        const el = document.createElementNS(svgNS, tag);
+        for (const [k,v] of Object.entries(attrs)) el.setAttribute(k, String(v));
+        if (textValue !== undefined) el.textContent = textValue;
+        parent.append(el); return el;
+      }
+      function remember() {
+        undoStack.push(copy({pages:state.pages,active:state.active}));
+        if (undoStack.length > 25) undoStack.shift();
+        redoStack.length = 0;
+      }
+      function markDirty() { state.dirty = true; updateChrome(); persistSoon(); }
+      function canEdit() {
+        if (state.mode !== 'running') return true;
+        notify('请先暂停演示，再修改设备或连接'); return false;
+      }
+      function invalidateResults() {
+        clearInterval(timer); timer = null; state.mode = 'ready'; state.hasResults = false; state.time = 0;
+        state.history = []; state.readings = {q:0,a:0,b:0};
+      }
+      function snapshot() {
+        const result = copy(state);
+        result.mode = state.mode === 'running' ? 'paused' : state.mode;
+        result.history = state.history.slice(-24); result.design = {...design};
+        for (const p of result.pages) for (const n of p.nodes) {
+          if (n.editor) n.editor = compactEditor(n);
+          if (JSON.stringify(n.params) === JSON.stringify(n.draft)) delete n.draft;
+          if (n.draftModel === n.model) delete n.draftModel;
+          if (!n.role) delete n.role;
+          if (!Object.keys(n.positions).length) delete n.positions;
+        }
+        return result;
+      }
+      function persist() {
+        clearTimeout(persistTimer);
+        if (!window.openai?.setWidgetState) return false;
+        const saved = snapshot();
+        const content = {modelContent:{prototype:'大画布与浮动属性窗口',canvas:currentPage().name,
+          selectedDevice:nodeById(state.selected)?.code || null,mode:state.mode,
+          openWindows:state.order.filter(id => state.windows[id]?.open).map(windowTitle),
+          parameters:Object.fromEntries(allNodes().filter(n => ['pump','valve_a','valve_b'].includes(n.id)).map(n => [n.code,n.params]))},
+          privateContent:saved};
+        if (new TextEncoder().encode(JSON.stringify(content)).length > 16000) saved.history = [];
+        if (new TextEncoder().encode(JSON.stringify(content)).length <= 16384) {
+          lastSavedState = JSON.stringify(saved);
+          window.openai.setWidgetState(content).catch(() => {});
+          return true;
+        }
+        return false;
+      }
+      function persistSoon() { clearTimeout(persistTimer); persistTimer = setTimeout(persist, 180); }
+      function renderLibrary() {
+        const groups = [...new Set(Object.values(catalog).map(k => k.group))];
+        root.querySelector('[data-library-count]').textContent = Object.keys(catalog).length + ' 类';
+        root.querySelector('.fc-library-groups').innerHTML = groups.map((group,index) =>
+          '<section><button type="button" class="fc-group-heading cursor-interaction" data-group="' + index + '" aria-expanded="' + !state.collapsed.includes(index) + '">' +
+          icon('chevron-down') + esc(group) + '</button><div data-group-items="' + index + '"' + (state.collapsed.includes(index) ? ' hidden' : '') + '>' +
+          Object.entries(catalog).filter(([,k]) => k.group === group).map(([key,k]) =>
+            '<button type="button" draggable="true" class="fc-item cursor-interaction" data-add="' + key + '" aria-pressed="' + (placing === key) + '" aria-label="添加' + esc(k.name) + '">' +
+            icon(k.icon) + '<span>' + esc(k.name) + '</span><span class="fc-item-code">' + k.prefix + '</span></button>').join('') + '</div></section>').join('');
+        icons();
+      }
+      function updateChrome() {
+        root.classList.toggle('is-running', state.mode === 'running');
+        root.classList.toggle('library-hidden', state.libraryHidden);
+        root.classList.toggle('mobile-library', state.mobileLibrary);
+        root.querySelector('[data-action="library"]').setAttribute('aria-pressed', String(small() ? state.mobileLibrary : !state.libraryHidden));
+        root.querySelector('.fc-unsaved-dot').hidden = !state.dirty;
+        const runName = state.pages.find(p => p.id === state.runPage)?.name || '主系统';
+        root.querySelector('[data-status]').textContent = ({ready:'就绪',running:'示例运行中 · ' + runName,paused:'已暂停',stopped:'已停止'}[state.mode]);
+        root.querySelector('[data-clock]').textContent = 't = ' + fmt(state.time,1) + ' s';
+        root.querySelector('[data-graph-count]').textContent = currentPage().nodes.length + ' 个设备 · ' + currentPage().edges.length + ' 条连接';
+        root.querySelector('[data-zoom]').textContent = Math.round(currentPage().zoom * 100) + '%';
+        root.querySelector('[data-action="run"]').disabled = state.mode === 'running';
+        root.querySelector('[data-action="run"] span').textContent = state.mode === 'paused' ? '继续' : '运行';
+        root.querySelector('[data-action="pause"]').disabled = state.mode !== 'running';
+        root.querySelector('[data-action="step"]').disabled = state.mode === 'running';
+        root.querySelector('[data-action="stop"]').disabled = ['ready','stopped'].includes(state.mode);
+        root.querySelector('[data-action="undo"]').disabled = !undoStack.length || state.mode === 'running';
+        root.querySelector('[data-action="redo"]').disabled = !redoStack.length || state.mode === 'running';
+        root.querySelector('[data-action="select"]').setAttribute('aria-pressed', String(mode === 'select' && !placing));
+        root.querySelector('[data-action="connect"]').setAttribute('aria-pressed', String(mode === 'connect'));
+        canvas.classList.toggle('is-placing', !!placing);
+        canvas.classList.toggle('is-connecting', !!pending || mode === 'connect');
+        root.querySelector('.fc-hint').textContent = placing ? '单击画布放置' + catalog[placing].name + ' · Esc 取消' :
+          pending ? '选择另一设备的空闲端口 · Esc 取消' : '双击设备编辑参数 · 拖动空白处平移';
+      }
+      function renderTabs() {
+        root.querySelector('.fc-tabs').innerHTML = state.pages.map(p =>
+          '<button type="button" class="fc-tab cursor-interaction" role="tab" id="fc-tab-' + p.id + '" aria-controls="fc-canvas-panel" aria-selected="' +
+          (p.id === state.active) + '" data-page="' + p.id + '">' + esc(p.name) + '</button>').join('') +
+          '<button type="button" class="fc-icon-button cursor-interaction" data-action="new-canvas" aria-label="新建画布">' + icon('plus') + '</button>';
+        canvas.setAttribute('aria-labelledby', 'fc-tab-' + state.active);
+        root.querySelector('[data-canvas-name]').textContent = currentPage().name;
+        network.setAttribute('aria-label', currentPage().name + '的设备与端口连接');
+        icons();
+      }
+      function renderProperties() {
+        const el = root.querySelector('.fc-properties'), n = nodeById(state.selected);
+        const edge = currentPage().edges.find(e => e.id === state.edge);
+        if (edge) {
+          const a = nodeById(edge.a[0]), b = nodeById(edge.b[0]);
+          el.innerHTML = '<div class="fc-property-heading">连接通路<span>' + esc(edge.id.toUpperCase()) + '</span></div>' +
+            '<dl class="fc-property-grid"><dt>起点</dt><dd>' + esc(a.code) + ' · ' + portLabel(edge.a[1]) + '</dd><dt>终点</dt><dd>' + esc(b.code) + ' · ' + portLabel(edge.b[1]) +
+            '</dd><dt>介质</dt><dd>液态水</dd></dl><div class="fc-property-actions"><button class="fc-button cursor-interaction" type="button" data-action="delete">删除连接</button></div>';
+        } else if (n) {
+          const count = ownerPage(n.id).edges.filter(e => e.a[0] === n.id || e.b[0] === n.id).length;
+          el.innerHTML = '<div class="fc-property-heading"><span>对象属性</span><span>' + esc(n.code) + '</span></div>' +
+            '<dl class="fc-property-grid"><dt>名称</dt><dd>' + esc(n.name) + '</dd><dt>类型</dt><dd>' + catalog[n.kind].name + '</dd><dt>型号</dt><dd>' + esc(catalog[n.kind].models[n.model]) +
+            '</dd><dt>端口</dt><dd>' + count + ' / ' + portNames(n).length + ' 已连接</dd>' +
+            catalog[n.kind].fields.slice(0,2).map(([key,label,unit,,,,,digits]) => '<dt>' + label + '</dt><dd>' + fmt(n.params[key],digits) + ' ' + unit + '</dd>').join('') +
+            '</dl><div class="fc-property-actions">' +
+            '<button type="button" class="fc-button cursor-interaction" data-open="' + n.id + '">详细参数</button>' +
+            '<button type="button" class="fc-button cursor-interaction" data-action="delete" aria-label="删除选中设备">' + icon('trash-2') + '</button></div>';
+        } else {
+          el.innerHTML = '<div class="fc-property-heading">对象属性</div><dl class="fc-property-grid"><dt>画布</dt><dd>' + esc(currentPage().name) +
+            '</dd><dt>介质</dt><dd>液态水</dd><dt>选择</dt><dd>单击设备或连接</dd></dl>';
+        }
+        icons();
+      }
+      function selectNode(id) {
+        state.selected = id; state.edge = ''; popover.hidden = true;
+        nodeLayer.querySelectorAll('[data-node-body]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.nodeBody === id)));
+        network.querySelectorAll('.fc-edge').forEach(p => p.classList.remove('is-selected'));
+        renderProperties(); persistSoon();
+      }
+      function basePositions() {
+        const w = canvas.clientWidth, h = canvas.clientHeight;
+        layoutKey = coarse() ? 'narrow' : w >= 630 ? 'wide' : w >= 390 ? 'compact' : 'narrow';
+        let p;
+        if (coarse()) {
+          p = {source:[w*.20,110],pump:[w*.74,110],split:[w*.74,270],
+            valve_a:[w*.22,430],pipe_a:[w*.22,590],valve_b:[w*.74,430],pipe_b:[w*.74,590],
+            merge:[w*.50,750],sink:[w*.50,910]};
+        } else if (layoutKey === 'wide') {
+          const x = t => 44 + (w - 88) * t;
+          p = {source:[x(0),245],pump:[x(.17),245],split:[x(.33),245],
+            valve_a:[x(.49),150],pipe_a:[x(.68),150],valve_b:[x(.49),345],pipe_b:[x(.68),345],
+            merge:[x(.84),245],sink:[x(1),245]};
+        } else if (layoutKey === 'compact') {
+          p = {source:[w*.14,104],pump:[w*.46,104],split:[w*.78,104],
+            valve_a:[w*.28,245],pipe_a:[w*.28,360],valve_b:[w*.72,245],pipe_b:[w*.72,360],
+            merge:[w*.43,465],sink:[w*.80,465]};
+        } else {
+          p = {source:[w*.22,82],pump:[w*.72,82],split:[w*.72,180],
+            valve_a:[w*.23,276],pipe_a:[w*.23,388],valve_b:[w*.73,276],pipe_b:[w*.73,388],
+            merge:[w*.39,481],sink:[w*.80,481]};
+        }
+        const page = currentPage();
+        const center = [w/2, h/2];
+        for (const n of page.nodes) {
+          const saved = n.positions[layoutKey] || (!n.role ? Object.values(n.positions)[0] : null);
+          let pt = saved ? [saved[0]*w, saved[1]*h] : p[n.role] || [w*.5,h*.55];
+          pt = [center[0] + (pt[0]-center[0])*page.zoom + page.pan[0], center[1] + (pt[1]-center[1])*page.zoom + page.pan[1]];
+          p[n.id] = pt;
+        }
+        return p;
+      }
+      function portDirections(n) {
+        let dirs = n.kind === 'source' ? {port:n.role === 'sink' ? 'left':'right'} :
+          n.kind === 'junction' ? {c:'left',a:'top',b:'bottom'} : {in:'left',out:'right'};
+        if (n.kind === 'exchanger') dirs = {a_in:'left',a_out:'right',b_in:'top',b_out:'bottom'};
+        if (n.role === 'merge') dirs = {c:'right',a:'top',b:'bottom'};
+        if (layoutKey !== 'wide') {
+          if (['valve_a','valve_b','pipe_a','pipe_b'].includes(n.role)) dirs = {in:'top',out:'bottom'};
+          if (n.role === 'split') dirs = {c:layoutKey === 'narrow' ? 'top':'left',a:'left',b:'bottom'};
+          if (n.role === 'split' && layoutKey === 'compact') dirs.a = 'bottom';
+          if (n.role === 'split' && layoutKey === 'compact') dirs.b = 'right';
+          if (n.role === 'merge') dirs = {c:'right',a:'left',b:'top'};
+          if (n.role === 'pump' && layoutKey === 'narrow') dirs = {in:'left',out:'bottom'};
+        }
+        if (coarse() && n.role === 'merge') dirs = {a:'left',b:'right',c:'bottom'};
+        if (coarse() && n.role === 'sink') dirs = {port:'top'};
+        return dirs;
+      }
+      function renderNodes() {
+        positions = basePositions();
+        nodeLayer.innerHTML = currentPage().nodes.map(n => {
+          const dirs = portDirections(n);
+          return '<div class="fc-node fc-kind-' + n.kind + (Object.values(dirs).includes('bottom') ? ' has-bottom':'') + '" data-node="' + n.id + '">' +
+            '<button type="button" class="fc-node-body cursor-interaction" data-node-body="' + n.id + '" aria-pressed="' + (state.selected === n.id) +
+            '" aria-label="' + esc(n.name + ' ' + n.code) + '"><span class="fc-node-symbol">' + icon(catalog[n.kind].icon) + '</span></button>' +
+            '<span class="fc-node-code">' + esc(n.code) + '<span class="fc-node-name">' + esc(n.name) + '</span></span><span class="fc-node-value"></span>' +
+            portNames(n).map(key => '<button type="button" class="fc-port cursor-interaction" data-port="' + key + '" data-owner="' + n.id + '" data-dir="' + dirs[key] +
+              '" aria-label="' + esc(n.code) + ' ' + portLabel(key) + '" data-tooltip="' + esc(n.code) + ' · ' + portLabel(key) + '"></button>').join('') + '</div>';
+        }).join('');
+        root.querySelector('.fc-empty').hidden = !!currentPage().nodes.length;
+        icons(); layoutGraph(); updateValues();
+      }
+      function portPoint(endpoint) {
+        const [id,key] = endpoint, node = nodeById(id), p = positions[id];
+        if (!node || !p) return null;
+        const dir = portDirections(node)[key], vector = {left:[-1,0],right:[1,0],top:[0,-1],bottom:[0,1]}[dir];
+        return {x:p[0]+vector[0]*(coarse()?45:23),y:p[1]+vector[1]*(coarse()?45:21),dir,dx:vector[0],dy:vector[1]};
+      }
+      function route(a,b) {
+        const stub = 14, sa = {x:a.x+a.dx*stub,y:a.y+a.dy*stub}, sb = {x:b.x+b.dx*stub,y:b.y+b.dy*stub};
+        let points = [a,sa];
+        if (a.dx && b.dx) {
+          const x = a.dx === b.dx ? (a.dx>0 ? Math.max(sa.x,sb.x)+14 : Math.min(sa.x,sb.x)-14) : (sa.x+sb.x)/2;
+          points.push({x,y:sa.y},{x,y:sb.y});
+        } else if (a.dy && b.dy) {
+          const y = a.dy === b.dy ? (a.dy>0 ? Math.max(sa.y,sb.y)+14 : Math.min(sa.y,sb.y)-14) : (sa.y+sb.y)/2;
+          points.push({x:sa.x,y},{x:sb.x,y});
+        } else points.push(a.dx ? {x:sb.x,y:sa.y} : {x:sa.x,y:sb.y});
+        points.push(sb,b);
+        return points.map((p,i) => (i?'L':'M') + p.x.toFixed(1) + ',' + p.y.toFixed(1)).join(' ');
+      }
+      function drawEdges() {
+        network.replaceChildren(); network.setAttribute('viewBox','0 0 ' + canvas.clientWidth + ' ' + canvas.clientHeight);
+        for (const e of currentPage().edges) {
+          const a = portPoint(e.a), b = portPoint(e.b); if (!a || !b) continue;
+          const d = route(a,b);
+          svgElement(network,'path',{d,class:'fc-edge' + (state.edge===e.id?' is-selected':''),'data-edge-line':e.id});
+          svgElement(network,'path',{d,class:'fc-edge-hit','data-edge':e.id,'aria-label':nodeById(e.a[0]).code + ' 至 ' + nodeById(e.b[0]).code});
+        }
+        if (pending && lastPointer) {
+          const a = portPoint(pending);
+          if (a) svgElement(network,'path',{d:route(a,{x:lastPointer[0],y:lastPointer[1],dx:-a.dx,dy:-a.dy}),class:'fc-edge-preview'});
+        }
+        nodeLayer.querySelectorAll('[data-port]').forEach(el => {
+          const ep = [el.dataset.owner,el.dataset.port];
+          el.classList.toggle('is-connected', !!connectedEdge(ep));
+          el.classList.toggle('is-pending', !!pending && pending[0] === ep[0] && pending[1] === ep[1]);
+        });
+      }
+      function connectedEdge(ep) {
+        return currentPage().edges.find(e => [e.a,e.b].some(p => p[0] === ep[0] && p[1] === ep[1]));
+      }
+      function layoutGraph() {
+        positions = basePositions();
+        for (const n of currentPage().nodes) {
+          const el = nodeLayer.querySelector('[data-node="' + n.id + '"]'); if (!el) continue;
+          el.style.left = positions[n.id][0] + 'px'; el.style.top = positions[n.id][1] + 'px';
+          const dirs = portDirections(n);
+          el.classList.toggle('has-bottom', Object.values(dirs).includes('bottom'));
+          el.querySelectorAll('[data-port]').forEach(b => b.dataset.dir = dirs[b.dataset.port]);
+        }
+        drawEdges(); updateChrome();
+      }
+      function scheduleLayout() {
+        if (scheduled) return;
+        scheduled = requestAnimationFrame(() => {
+          scheduled = 0; root.classList.toggle('is-names',design.names); root.classList.toggle('is-grid',design.grid);
+          root.style.setProperty('--fc-library-width',design.libraryWidth+'px');
+          root.style.setProperty('--fc-symbol-size',design.symbolSize+'px');
+          layoutGraph(); for (const id of panels.keys()) positionWindow(id); drawChart(); updateValues();
+        });
+      }
+      const deviceTabs = [['drawing','绘制模块'],['attributes','变量属性'],['values','变量值'],['code','运行代码'],['design','设计函数'],['header','Header'],['general','通用设置']];
+      const valueColumns = ['运行值','库值1','库值2','库值3'];
+      const drawingTypes = [
+        ['Picture','图形','picture',''],['FluidInput','流体输入','fluid','IM'],['FluidOutput','流体输出','fluid','OM'],
+        ['InfoInput','信息输入','info','II'],['InfoOutput','信息输出','info','IO'],
+        ['PowerInput','电力输入','power','PI'],['PowerOutput','电力输出','power','PO'],
+        ['MechInput','机械输入','mech','MI'],['MechOutput','机械输出','mech','MO']
+      ];
+      const fluidChoices = [[1,'1-丁烯'],[2,'丙酮'],[3,'空气'],[4,'氨'],[5,'氩'],[6,'苯'],[7,'丁烷'],[8,'C11'],[9,'C12'],[10,'C1CC6'],[11,'顺丁烯'],[12,'C3CC6'],[13,'C4F10'],[14,'C5F12'],[15,'CF3I'],[16,'CO'],[17,'CO2'],[18,'COS'],[92,'R134a']];
+      const deviceSessions = new Map();
+      const blankArray = () => Array(8).fill(0);
+      const variableSize = type => type.endsWith('[8]') ? 8 : 1;
+      const variableDefault = v => v.initial !== undefined ? copy(v.initial) : variableSize(v.type) === 8 ? blankArray() : 0;
+      const deviceButton = (action,label,extra = '',primary = false) => '<button type="button" class="fc-button cursor-interaction' + (primary?' primary':'') + '" data-device-action="' + action + '" ' + extra + '>' + label + '</button>';
+      function portMark(type) {
+        const info = drawingTypes.find(t => t[0] === type) || drawingTypes[0];
+        return '<span class="fc-port-mark ' + info[2] + (type.endsWith('Input')?' is-input':'') + '" aria-hidden="true"></span>';
+      }
+      function portVariables(object) {
+        if (object.type === 'Picture') return [];
+        if (object.type.startsWith('Fluid')) return [
+          ['FLOW','质量流量 · kg/s','double'],['PRE','绝对压力 · MPa','double'],['ENTHALPY','比焓 · kJ/kg','double'],
+          ['TEMP','温度 · °C','double'],['VOLUME','比容 · m³/kg','double'],['Q','干度','double'],['X','组分比例','double[8]']
+        ].map(([suffix,note,type]) => ({name:object.label+'_'+suffix,type,port:object.label,channel:'N',note,display:false,origin:'port',object:object.id}));
+        return [{name:object.label+'_VALUE',type:'double',port:object.label,channel:'N',note:drawingTypes.find(t=>t[0]===object.type)?.[1] || '端口数值',display:false,origin:'port',object:object.id}];
+      }
+      function defaultDeviceEditor(n) {
+        const objects = [{id:'picture0',type:'Picture',label:n.code,x:50,y:44,w:36,h:28,shape:'rectangle'},
+          {id:'input0',type:'FluidInput',label:'IM0',x:22,y:44,w:6,h:6,shape:'circle'}];
+        if (n.kind !== 'refprop') objects.push({id:'output0',type:'FluidOutput',label:'OM0',x:78,y:44,w:6,h:6,shape:'circle'});
+        const variables = [
+          ...objects.flatMap(portVariables),
+          {name:'S_T',type:'int',port:'N',channel:'N',note:'步长时间 · ms',display:false,origin:'system',initial:100},
+          {name:'RUN_S',type:'int',port:'N',channel:'N',note:'状态：0 可编辑，1 运行中',display:false,origin:'system',readOnly:true},
+          {name:'MIX',type:'double[8]',port:'N',channel:'N',note:'工质混合比例，与 FORM 顺序对应',display:true,origin:'system'},
+          {name:'FORM',type:'int[8]',port:'N',channel:'N',note:'工质编号 · 最多 8 个组分',display:true,origin:'system'},
+          ...catalog[n.kind].fields.map(([key,label,unit]) => ({name:key.toUpperCase(),type:'double',port:'N',channel:'N',note:label+' · '+unit,display:true,origin:'parameter',param:key}))
+        ];
+        const values = n.kind === 'refprop' ? {FORM:{1:[3,11,17,0,0,0,0,0]},MIX:{1:[1,0,0,0,0,0,0,0]},IM0_PRE:{1:0.0847},IM0_ENTHALPY:{1:161.9}} : {};
+        return {version:1,variables,values,objects,object:'picture0',variable:'FORM',column:1,functionIndex:1,generalView:'parameters',bankModels:{2:n.model,3:n.model},
+          settings:{description:'',step:100,precision:8,grid:true},
+          code:{runtime:'// '+n.code+' · 运行代码\n// 可用变量见“变量属性”页。\n// 原型保存代码文本，不编译或执行。\n\nvoid Run() {\n  // 在此编写设备每个步长的计算逻辑\n}\n',
+            header:'#pragma once\n\n// '+n.code+' · 公共声明\n// 在此添加头文件引用、常量与函数声明。\n\nvoid Run();\nvoid Design1();\nvoid Design2();\nvoid Design3();\n'},
+          functions:[1,2,3].map(i=>'// 设计函数 '+i+' · 对应库值'+i+'\n// 原型仅预览调用，不编译或执行代码。\n\nvoid Design'+i+'() {\n  // 在此编写设计工况或初始化逻辑\n}\n')};
+      }
+      function editor(n) { return n.editor ||= defaultDeviceEditor(n); }
+      function deviceSession(id) {
+        if (!deviceSessions.has(id)) deviceSessions.set(id,{mode:'ready',time:0,timer:null,output:''});
+        return deviceSessions.get(id);
+      }
+      function compactEditor(n) {
+        const defaults = defaultDeviceEditor(n), result = {version:1};
+        for (const key of Object.keys(defaults)) if (key !== 'version' && JSON.stringify(n.editor[key]) !== JSON.stringify(defaults[key])) result[key] = copy(n.editor[key]);
+        return result;
+      }
+      function restoreEditor(n, raw) {
+        if (!raw || raw.version !== 1) return;
+        const e = defaultDeviceEditor(n), safeName = value => typeof value === 'string' && /^[A-Za-z_][A-Za-z0-9_]{0,39}$/.test(value) && !['__proto__','constructor','prototype'].includes(value);
+        if (Array.isArray(raw.objects)) {
+          const ids = new Set(), labels = new Set();
+          e.objects = raw.objects.slice(0,24).filter(o => o && safeName(o.id) && drawingTypes.some(t=>t[0]===o.type) && !ids.has(o.id) && (o.type==='Picture' || safeName(o.label) && !labels.has(o.label))).map(o => {
+            ids.add(o.id); if (o.type!=='Picture') labels.add(o.label);
+            return {id:o.id,type:o.type,label:String(o.label).slice(0,40),x:clamp(Number(o.x)||50,8,92),y:clamp(Number(o.y)||45,12,82),w:clamp(Number(o.w)||30,8,70),h:clamp(Number(o.h)||25,8,70),shape:o.shape==='circle'?'circle':'rectangle'};
+          });
+        }
+        e.variables = [...e.objects.flatMap(portVariables),...e.variables.filter(v=>v.origin!=='port')];
+        if (Array.isArray(raw.variables)) {
+          const names = new Set(e.variables.map(v=>v.name));
+          for (const v of raw.variables.slice(0,64)) {
+            if (!v || !safeName(v.name)) continue;
+            const existing = e.variables.find(item=>item.name===v.name);
+            if (existing) { existing.note = String(v.note ?? existing.note).slice(0,160); existing.display = !!v.display; }
+            else if (v.origin==='custom' && !names.has(v.name) && ['int','double','int[8]','double[8]'].includes(v.type)) {
+              e.variables.push({name:v.name,type:v.type,port:safeName(v.port)?v.port:'N',channel:safeName(v.channel)?v.channel:'N',note:String(v.note||'').slice(0,160),display:!!v.display,origin:'custom'}); names.add(v.name);
+            }
+          }
+        }
+        if (raw.values && typeof raw.values === 'object') for (const v of e.variables) for (let c=0;c<4;c++) {
+          const value = raw.values[v.name]?.[c]; if (value === undefined) continue;
+          try { const parsed = validateDeviceValue(v,value); (e.values[v.name] ||= {})[c] = parsed; } catch { /* Keep the compatible default for invalid saved values. */ }
+        }
+        if (raw.code) for (const key of ['runtime','header']) if (typeof raw.code[key]==='string') e.code[key]=raw.code[key].slice(0,8192);
+        if (Array.isArray(raw.functions)) e.functions=e.functions.map((s,i)=>typeof raw.functions[i]==='string'?raw.functions[i].slice(0,8192):s);
+        e.settings={description:String(raw.settings?.description||'').slice(0,240),step:clamp(Math.round(Number(raw.settings?.step)||100),1,60000),precision:[0,2,4,6,8].includes(raw.settings?.precision)?raw.settings.precision:8,grid:raw.settings?.grid!==false};
+        e.column=[0,1,2,3].includes(raw.column)?raw.column:1;
+        e.variable=e.variables.some(v=>v.name===raw.variable)?raw.variable:'FORM';
+        e.object=e.objects.some(o=>o.id===raw.object)?raw.object:e.objects[0]?.id||'';
+        e.functionIndex=[1,2,3].includes(raw.functionIndex)?raw.functionIndex:1;
+        for(const c of [2,3]) if([0,1].includes(raw.bankModels?.[c]))e.bankModels[c]=raw.bankModels[c];
+        e.generalView=raw.generalView==='variables'?'variables':'parameters';
+        n.editor=e;
+      }
+      function deviceValue(n,v,column) {
+        const e=editor(n);
+        if (v.name==='RUN_S' && column===0) return deviceSession(n.id).mode==='running'?1:0;
+        if (v.name==='S_T' && column===0) return e.settings.step;
+        if (v.param && column<2) return (column===0?n.params:n.draft)[v.param];
+        return copy(e.values[v.name]?.[column] ?? variableDefault(v));
+      }
+      function validateDeviceValue(v,value) {
+        const check = item => {
+          if (item === '' || typeof item === 'string' && !item.trim()) throw Error('请输入数值');
+          const number=Number(item);
+          if (!Number.isFinite(number)) throw Error('请输入有限数值');
+          if (v.type.startsWith('int') && (!Number.isInteger(number) || Math.abs(number)>2147483647)) throw Error('请输入有效整数');
+          if (v.name==='MIX' && (number<0 || number>1)) throw Error('组分比例应在 0–1 之间');
+          if (v.name==='FORM' && (number<0 || number>9999)) throw Error('工质编号应为 0–9999 的整数');
+          if (v.name==='S_T' && (number<1 || number>60000)) throw Error('步长应为 1–60000 ms');
+          return number;
+        };
+        if (variableSize(v.type)===8) {
+          if (!Array.isArray(value) || value.length!==8) throw Error('数组必须包含 8 个数值');
+          const result=value.map(check), used=result.filter(x=>x!==0);
+          if (v.name==='FORM' && new Set(used).size!==used.length) throw Error('工质编号不能重复');
+          return result;
+        }
+        return check(value);
+      }
+      function putDeviceValue(n,v,column,value) {
+        const e=editor(n), parsed=validateDeviceValue(v,value);
+        if (v.param && column<2) (column===0?n.params:n.draft)[v.param]=parsed;
+        else (e.values[v.name] ||= {})[column]=parsed;
+        if (v.name==='S_T' && column===0) e.settings.step=parsed;
+      }
+      function deviceMessage(id,text,error=false) {
+        const el=panels.get(id)?.querySelector('[data-device-feedback]');
+        if (el) { el.textContent=text; el.classList.toggle('is-error',error); el.setAttribute('role',error?'alert':'status'); }
+      }
+      function deviceCanEdit(id) {
+        if (deviceSession(id).mode==='running' || state.mode==='running') { deviceMessage(id,'请先暂停运行，再修改设备定义或数值。',true); return false; }
+        return true;
+      }
+      function deviceWindowHTML(n) {
+        return '<div class="fc-device-tabs"><div role="tablist" aria-label="设备编辑页">'+deviceTabs.map(([key,label])=>
+          '<button type="button" class="fc-window-tab cursor-interaction" role="tab" id="fc-'+n.id+'-'+key+'-tab" data-window-tab="'+key+'" aria-controls="fc-'+n.id+'-'+key+'" aria-selected="false">'+label+'</button>').join('')+'</div>'+
+          deviceButton('save',icon('save')+'保存')+'</div><div class="fc-device-content">'+deviceTabs.map(([key])=>
+          '<div id="fc-'+n.id+'-'+key+'" role="tabpanel" aria-labelledby="fc-'+n.id+'-'+key+'-tab" data-pane="'+key+'" hidden></div>').join('')+'</div>'+
+          '<div class="fc-device-footer"><p class="fc-device-message" data-device-feedback role="status">设备定义与库值保存在此原型中</p><div class="fc-device-run"><span data-device-clock>示例 · 0.0 s</span>'+
+          deviceButton('run',icon('play')+'运行')+deviceButton('pause',icon('pause')+'暂停','disabled')+deviceButton('step',icon('step-forward')+'单步')+deviceButton('stop',icon('square')+'停止','disabled')+'</div></div>';
+      }
+      function renderDeviceAttributes(n) {
+        const e=editor(n);
+        return '<div class="fc-device-toolbar"><span>'+e.variables.length+' 个变量</span><span class="fc-device-muted">端口变量随绘制页联动</span><span class="fc-push"></span>'+deviceButton('add-variable',icon('plus')+'新增变量')+'</div>'+
+          '<div class="fc-device-table-wrap"><table class="fc-device-table fc-attributes-table"><thead><tr><th>变量名</th><th>变量类型</th><th>端口</th><th>通道</th><th>备注</th><th>典显</th><th></th></tr></thead><tbody>'+e.variables.map(v=>
+          '<tr data-variable-row="'+esc(v.name)+'"><td>'+(v.origin==='custom'?'<input data-var-attr="name" aria-label="变量名 '+esc(v.name)+'" maxlength="40" value="'+esc(v.name)+'">':'<span class="fc-variable-name">'+esc(v.name)+'</span>')+'</td><td>'+
+          (v.origin==='custom'?'<select data-var-attr="type" aria-label="变量类型 '+esc(v.name)+'">'+['double','int','double[8]','int[8]'].map(t=>'<option'+(v.type===t?' selected':'')+'>'+t+'</option>').join('')+'</select>':esc(v.type))+'</td><td>'+
+          (v.origin==='custom'?'<input data-var-attr="port" aria-label="端口 '+esc(v.name)+'" value="'+esc(v.port)+'">':esc(v.port))+'</td><td>'+
+          (v.origin==='custom'?'<input data-var-attr="channel" aria-label="通道 '+esc(v.name)+'" value="'+esc(v.channel)+'">':esc(v.channel))+'</td><td><input data-var-attr="note" aria-label="备注 '+esc(v.name)+'" maxlength="160" value="'+esc(v.note)+'"></td><td><input type="checkbox" data-var-attr="display" aria-label="典型显示 '+esc(v.name)+'"'+(v.display?' checked':'')+'></td><td>'+
+          (v.origin==='custom'?deviceButton('delete-variable',icon('trash-2'),'data-variable="'+esc(v.name)+'" aria-label="删除变量 '+esc(v.name)+'"'):'')+'</td></tr>').join('')+'</tbody></table></div>';
+      }
+      function renderValueTable(n) {
+        const e=editor(n), precision=e.settings.precision;
+        return '<table class="fc-device-table fc-value-table"><thead><tr><th>变量名</th>'+valueColumns.map((label,c)=>'<th><button type="button" class="fc-bank-heading cursor-interaction" data-device-column="'+c+'" aria-pressed="'+(e.column===c)+'">'+label+'</button></th>').join('')+'</tr></thead><tbody>'+e.variables.map(v=>
+          '<tr class="'+(e.variable===v.name?'is-selected':'')+'" data-value-row="'+esc(v.name)+'"><td><span class="fc-variable-name">'+esc(v.name)+'</span>'+(v.param?'<span class="fc-variable-note">'+esc(catalog[n.kind].fields.find(f=>f[0]===v.param)?.[1])+'</span>':'')+'</td>'+valueColumns.map((_,c)=>{
+            const value=deviceValue(n,v,c), locked=c===0&&v.readOnly;
+            if (Array.isArray(value)) return '<td><button type="button" class="fc-array-cell cursor-interaction" data-device-array="'+esc(v.name)+'" data-column="'+c+'" aria-label="编辑 '+v.name+' '+valueColumns[c]+' 数组" aria-pressed="'+(e.variable===v.name&&e.column===c)+'" data-tooltip="'+esc(value.join(', '))+'">'+esc(value.join(','))+'</button></td>';
+            return '<td><input type="number" step="'+(v.type==='int'?'1':'any')+'" data-device-value="'+esc(v.name)+'" data-column="'+c+'" aria-label="'+esc(v.name)+' '+valueColumns[c]+'" value="'+(Number.isFinite(value)?(v.type==='int'?value:Number(value).toFixed(precision)):'')+'"'+(locked?' readonly':'')+'></td>';
+          }).join('')+'</tr>').join('')+'</tbody></table>';
+      }
+      function renderArrayEditor(n) {
+        const e=editor(n), v=e.variables.find(item=>item.name===e.variable&&variableSize(item.type)===8)||e.variables.find(item=>item.name==='FORM');
+        e.variable=v.name; const value=deviceValue(n,v,e.column);
+        return '<div class="fc-side-heading"><span>'+esc(v.name)+' · '+v.type+'</span><select data-array-column aria-label="数组编辑列">'+valueColumns.map((label,c)=>'<option value="'+c+'"'+(c===e.column?' selected':'')+'>'+label+'</option>').join('')+'</select></div>'+
+          '<div class="fc-array-editor">'+value.map((item,i)=>'<label>['+i+']<input type="number" step="'+(v.type.startsWith('int')?'1':'any')+'" data-array-index="'+i+'" aria-label="'+v.name+' ['+i+'] '+valueColumns[e.column]+'" value="'+item+'"></label>').join('')+'</div>';
+      }
+      function renderMixture(n) {
+        const e=editor(n), form=deviceValue(n,e.variables.find(v=>v.name==='FORM'),e.column), mix=deviceValue(n,e.variables.find(v=>v.name==='MIX'),e.column);
+        const active=form.map((id,i)=>({id,i})).filter(item=>item.id>0), sum=mix.reduce((a,b)=>a+b,0);
+        return '<div class="fc-side-heading"><span>工质选择</span><span class="fc-device-muted">'+valueColumns[e.column]+' · '+active.length+'/8</span></div>'+
+          '<div class="fc-fluid-list">'+fluidChoices.map(([id,label])=>'<label><input type="checkbox" data-fluid-choice="'+id+'" aria-label="工质 '+esc(label)+' ('+id+')"'+(form.includes(id)?' checked':'')+'><span>'+esc(label)+'</span></label>').join('')+'</div>'+
+          '<div class="fc-device-muted">FORM 编号 / MIX 对应比例</div>'+active.map(({id,i})=>'<label class="fc-mixture-row"><span>'+esc(fluidChoices.find(f=>f[0]===id)?.[1]||'工质')+' <span class="fc-device-muted">#'+id+'</span></span><input type="number" min="0" max="1" step="any" data-mixture-index="'+i+'" aria-label="'+(fluidChoices.find(f=>f[0]===id)?.[1]||id)+' 混合比例" value="'+mix[i]+'"></label>').join('')+
+          '<div class="fc-mixture-total'+(active.length&&Math.abs(sum-1)>1e-8?' is-error':'')+'"><span>比例合计 '+fmt(sum,4)+'</span>'+deviceButton('normalize','归一化',active.length?'':'disabled')+'</div>';
+      }
+      function renderDeviceValues(n) {
+        return '<div class="fc-device-toolbar"><span>运行值与三组库值</span><span class="fc-push"></span><span class="fc-device-muted">点击数组单元格逐项编辑</span></div><div class="fc-value-layout"><div class="fc-device-table-wrap" data-value-table>'+renderValueTable(n)+'</div><aside class="fc-value-side">'+
+          '<div><div class="fc-side-heading">库值操作</div><div class="fc-bank-actions">'+[1,2,3].map(i=>deviceButton('capture-bank','库值'+i+'入库','data-bank="'+i+'" data-tooltip="运行值 → 库值'+i+'"')+deviceButton('design-call','运行设计函数'+i,'data-bank="'+i+'" data-tooltip="预览设计函数调用"')).join('')+
+          [1,2,3].map(i=>deviceButton('apply-bank','出库库值'+i,'data-bank="'+i+'" data-tooltip="库值'+i+' → 运行值"')).join('')+'</div></div><div data-array-editor>'+renderArrayEditor(n)+'</div><div class="fc-mixture-section" data-mixture>'+renderMixture(n)+'</div></aside></div>';
+      }
+      function renderDrawing(n) {
+        const e=editor(n), selected=e.objects.find(o=>o.id===e.object);
+        return '<div class="fc-draw-layout"><div class="fc-draw-workspace"><div class="fc-device-toolbar"><span>'+e.objects.length+' 个对象</span><span class="fc-device-muted">拖动布置 · 方向键微调</span><span class="fc-push"></span>'+deviceButton('delete-object',icon('trash-2')+'删除',selected?'':'disabled')+'</div>'+
+          '<div class="fc-draw-board'+(e.settings.grid?'':' no-grid')+'" aria-label="设备符号与端口绘制画布">'+e.objects.map(o=>'<button type="button" class="fc-draw-object '+(o.type==='Picture'?'fc-picture'+(o.shape==='circle'?' is-circle':''):'fc-draw-port')+'" data-draw-object="'+o.id+'" aria-label="绘制对象 '+esc(o.label)+'" aria-pressed="'+(e.object===o.id)+'" style="left:'+o.x+'%;top:'+o.y+'%;'+(o.type==='Picture'?'width:'+o.w+'%;height:'+o.h+'%;':'')+'">'+
+          (o.type==='Picture'?icon(catalog[n.kind].icon)+'<span>'+esc(o.label)+'</span>':portMark(o.type)+'<span class="fc-draw-port-label">'+esc(o.label)+'</span>')+'</button>').join('')+'</div></div><aside class="fc-draw-sidebar"><div><div class="fc-side-heading">添加对象</div><div class="fc-draw-palette">'+drawingTypes.map(([type,label])=>'<button type="button" class="cursor-interaction" data-draw-kind="'+type+'" aria-label="添加 '+type+' '+label+'">'+portMark(type)+'<span>'+type+'</span><span>+</span></button>').join('')+'</div></div>'+
+          '<div class="fc-object-properties"><div class="fc-side-heading">对象属性</div>'+(selected?'<div class="fc-device-muted">'+selected.type+'</div><label>名称<input data-object-prop="label" aria-label="绘制对象名称" maxlength="40" value="'+esc(selected.label)+'"></label><div class="fc-object-coordinates">'+['x','y'].map(key=>'<label>'+key.toUpperCase()+' %<input type="number" data-object-prop="'+key+'" aria-label="绘制对象 '+key.toUpperCase()+'" min="8" max="92" value="'+Math.round(selected[key])+'"></label>').join('')+'</div>'+
+          (selected.type==='Picture'?'<label>形状<select data-object-prop="shape" aria-label="图形形状"><option value="rectangle"'+(selected.shape==='rectangle'?' selected':'')+'>矩形</option><option value="circle"'+(selected.shape==='circle'?' selected':'')+'>圆形</option></select></label><div class="fc-object-coordinates">'+['w','h'].map(key=>'<label>'+(key==='w'?'宽':'高')+' %<input type="number" data-object-prop="'+key+'" aria-label="图形'+(key==='w'?'宽度':'高度')+'" min="8" max="70" value="'+selected[key]+'"></label>').join('')+'</div>':'<p class="fc-device-muted">'+portVariables(selected).length+' 个关联变量</p>'):'<span class="fc-device-muted">选择画布对象查看属性</span>')+'</div></aside></div>';
+      }
+      function renderCode(n,key) {
+        const e=editor(n), code=key==='design'?e.functions[e.functionIndex-1]:e.code[key==='header'?'header':'runtime'];
+        return '<div class="fc-code-pane"><div class="fc-code-top">'+(key==='design'?'<label>设计函数 <select data-design-index aria-label="选择设计函数">'+[1,2,3].map(i=>'<option value="'+i+'"'+(i===e.functionIndex?' selected':'')+'>设计函数 '+i+' · 库值'+i+'</option>').join('')+'</select></label>':'<span>'+esc(n.code)+(key==='header'?' / Header.h':' / Run.cpp')+'</span>')+'<span>C / C++ · 编辑预览</span>'+deviceButton('check-code','检查括号','data-code-kind="'+key+'"')+(key==='design'?deviceButton('design-call','预览调用','data-bank="'+e.functionIndex+'"'):'')+'</div>'+
+          '<div class="fc-code-editor"><pre class="fc-code-lines" aria-hidden="true">'+code.split('\n').map((_,i)=>i+1).join('\n')+'</pre><textarea spellcheck="false" wrap="off" maxlength="8192" data-device-code="'+key+'" aria-label="'+(key==='header'?'Header':key==='design'?'设计函数'+e.functionIndex:'运行代码')+'编辑器">'+esc(code)+'</textarea></div><div class="fc-code-output" data-code-output role="status">'+esc(deviceSession(n.id).output||'代码文本随设备保存；原型不编译或执行代码。')+'</div></div>';
+      }
+      function renderGeneral(n) {
+        const e=editor(n);
+        return '<div class="fc-general-settings"><div class="fc-settings-grid"><label>设备名称<input data-device-setting="name" aria-label="设备名称" maxlength="60" value="'+esc(n.name)+'"></label><label>显示精度<select data-device-setting="precision" aria-label="数值显示精度">'+[0,2,4,6,8].map(p=>'<option value="'+p+'"'+(e.settings.precision===p?' selected':'')+'>'+p+' 位小数</option>').join('')+'</select></label><label>步长 S_T / ms<input type="number" min="1" max="60000" step="1" data-device-setting="step" aria-label="设备步长" value="'+e.settings.step+'"></label><label class="fc-check-setting"><input type="checkbox" data-device-setting="grid"'+(e.settings.grid?' checked':'')+'>显示绘制点阵</label><label class="fc-wide">说明<textarea rows="2" maxlength="240" data-device-setting="description" aria-label="设备说明">'+esc(e.settings.description)+'</textarea></label></div>'+
+          '<div class="fc-general-links">'+['parameters','variables'].map((key,i)=>'<button type="button" class="fc-button cursor-interaction" data-general-view="'+key+'" aria-pressed="'+(e.generalView===key)+'">'+(i?'运行结果与连接':'参数与型号')+'</button>').join('')+'</div>'+
+          '<div data-general-pane="parameters"'+(e.generalView==='parameters'?'':' hidden')+'><div class="fc-model"><label for="fc-model-'+n.id+'">设备型号</label><select id="fc-model-'+n.id+'" data-model>'+catalog[n.kind].models.map((name,i)=>'<option value="'+i+'"'+((n.draftModel??n.model)===i?' selected':'')+'>'+esc(name)+'</option>').join('')+'</select></div>'+
+          '<table class="fc-table"><thead><tr><th>参数</th><th>运行值</th><th>库值1</th></tr></thead><tbody>'+catalog[n.kind].fields.map(([key,label,unit,min,max,step,,digits])=>'<tr><td>'+label+'<span class="fc-unit">'+unit+'</span></td><td data-current="'+key+'">'+fmt(n.params[key],digits)+'</td><td><input type="number" data-field="'+key+'" aria-label="'+label+'库值" min="'+min+'" max="'+max+'" step="'+step+'" value="'+n.draft[key]+'"></td></tr>').join('')+'</tbody></table>'+
+          (!catalog[n.kind].fields.length?'<p class="fc-device-muted">此模块通过变量属性与变量值配置。</p>':'')+'<div class="fc-feedback" data-feedback role="status">库值1点击应用后写入运行值</div><div class="fc-window-actions"><button type="button" class="fc-button cursor-interaction" data-window-action="capture">运行值存为库值</button><button type="button" class="fc-button primary cursor-interaction" data-window-action="apply">应用库值</button></div></div>'+
+          '<div data-general-pane="variables"'+(e.generalView==='variables'?'':' hidden')+'><table class="fc-table"><thead><tr><th>变量</th><th>示例值</th><th>单位</th></tr></thead><tbody data-readings></tbody></table><div class="fc-port-list" data-port-list></div><div class="fc-window-actions"><span data-measure-time></span><button type="button" class="fc-button cursor-interaction" data-action="curves">查看曲线</button></div></div></div>';
+      }
+      function renderDevicePane(id,key=state.windows[id]?.tab) {
+        const n=nodeById(id), el=panels.get(id)?.querySelector('[data-pane="'+key+'"]'); if (!n||!el) return;
+        el.innerHTML=key==='drawing'?renderDrawing(n):key==='attributes'?renderDeviceAttributes(n):key==='values'?renderDeviceValues(n):key==='general'?renderGeneral(n):renderCode(n,key);
+        if (key==='general') { syncDraft(id); renderPortList(id); updateValues(); }
+        refreshDeviceRun(id); icons();
+      }
+      function refreshDeviceRun(id) {
+        const el=panels.get(id), n=nodeById(id); if(!el||!n) return;
+        const session=deviceSession(id), running=session.mode==='running';
+        el.querySelector('[data-device-clock]').textContent='示例 · '+({ready:'就绪',running:'运行中',paused:'已暂停',stopped:'已停止'}[session.mode])+' · '+fmt(session.time,1)+' s';
+        for (const key of ['run','pause','stop','step']) { const b=el.querySelector('[data-device-action="'+key+'"]'); if(b) b.disabled=key==='pause'?!running:key==='stop'?['ready','stopped'].includes(session.mode):running; }
+        el.querySelectorAll('[data-device-value="RUN_S"][data-column="0"]').forEach(input=>input.value=running?'1':'0');
+        el.querySelectorAll('input,select,textarea,[data-draw-kind],[data-draw-object],[data-window-action="apply"],[data-window-action="capture"]').forEach(control=>control.disabled=running);
+      }
+      function refreshDeviceValues(id) {
+        const n=nodeById(id), el=panels.get(id); if(!n||!el) return;
+        if(state.windows[id].tab==='values') renderDevicePane(id,'values');
+        syncDraft(id); updateValues(); renderProperties();
+      }
+      function checkBank(n,column) {
+        const e=editor(n), values={};
+        for(const v of e.variables) {
+          if(v.readOnly) continue;
+          const val=validateDeviceValue(v,deviceValue(n,v,column));
+          if(v.param) { const f=catalog[n.kind].fields.find(f=>f[0]===v.param); if(val<f[3]||val>f[4]) throw Error(f[1]+'应为 '+f[3]+'–'+f[4]+' '+f[2]); }
+          values[v.name]=val;
+        }
+        const form=values.FORM, mix=values.MIX;
+        if(form.some(x=>x>0)) {
+          if(mix.some((x,i)=>x>0&&!form[i])) throw Error('MIX 的非零比例必须对应已选择的工质');
+          if(Math.abs(mix.reduce((a,b)=>a+b,0)-1)>1e-8) throw Error('组分比例之和必须为 1，可点击“归一化”');
+        } else if(mix.some(x=>x>0)) throw Error('请先在 FORM 中选择工质');
+        return values;
+      }
+      function deviceRunAction(id,action) {
+        const n=nodeById(id), session=deviceSession(id), e=editor(n);
+        if(action==='pause'||action==='stop') { clearInterval(session.timer); session.timer=null; session.mode=action==='pause'?'paused':'stopped'; }
+        else {
+          if(session.mode==='running') return;
+          try { checkBank(n,0); } catch(error) { deviceMessage(id,error.message,true); return; }
+          if(['ready','stopped'].includes(session.mode)) session.time=0;
+          const tick=()=>{ if(!root.isConnected||!nodeById(id)) { clearInterval(session.timer); return; } session.time=Math.round((session.time+e.settings.step/1000)*1000)/1000; refreshDeviceRun(id); };
+          if(action==='step') { session.mode='paused'; tick(); }
+          else { session.mode='running'; session.timer=setInterval(tick,Math.max(50,Math.min(1000,e.settings.step))); }
+        }
+        refreshDeviceRun(id); deviceMessage(id,'设备独立演示 · 推进时间与运行状态，不执行代码或物性计算');
+      }
+      function deviceAction(id,action,data={}) {
+        const n=nodeById(id); if(!n) return;
+        const e=editor(n), column=Number(data.bank)||e.column;
+        if(['run','pause','stop','step'].includes(action)) { deviceRunAction(id,action); return; }
+        if(action==='save') {
+          const saved=persist();
+          deviceMessage(id,saved?'设备定义、三组库值与代码已保存':window.openai?.setWidgetState?'内容超出保存容量，请缩短代码后再保存；当前页面内容仍保留':'设备内容已保留在当前页面',!saved&&!!window.openai?.setWidgetState); return;
+        }
+        if(action==='check-code') {
+          const key=data.codeKind, source=key==='design'?e.functions[e.functionIndex-1]:e.code[key==='header'?'header':'runtime'];
+          const text=source.replace(/\/\*[\s\S]*?\*\//g,'').replace(/\/\/[^\n]*/g,'').replace(/"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'/g,'');
+          const stack=[]; let valid=true; const pairs={')':'(',']':'[','}':'{'};
+          for(const c of text) { if('([{'.includes(c)) stack.push(c); else if(')]}'.includes(c)&&stack.pop()!==pairs[c]) {valid=false;break;} }
+          const result=valid&&!stack.length?'括号结构检查通过；此检查不等同于编译。':'括号未配对，请检查圆括号、方括号和花括号。';
+          deviceSession(id).output=result; panels.get(id).querySelector('[data-pane="'+key+'"] [data-code-output]').textContent=result; deviceMessage(id,result,!valid||!!stack.length); return;
+        }
+        if(action==='design-call') {
+          e.functionIndex=column; deviceSession(id).output='调用预览：Design'+column+'() → 库值'+column+'。原型未执行代码，库值保持当前编辑内容。';
+          if(state.windows[id].tab==='design') renderDevicePane(id,'design');
+          deviceMessage(id,deviceSession(id).output); return;
+        }
+        if(!deviceCanEdit(id)) return;
+        if(action==='capture-bank'||action==='apply-bank') {
+          try {
+            const from=action==='capture-bank'?0:column, to=action==='capture-bank'?column:0, candidate=checkBank(n,from);
+            remember(); for(const v of e.variables) if(!v.readOnly) putDeviceValue(n,v,to,candidate[v.name]);
+            if(to===0) n.model=column===1?(n.draftModel??n.model):e.bankModels[column];
+            else if(column===1) n.draftModel=n.model;
+            else e.bankModels[column]=n.model;
+            e.column=column;
+            refreshDeviceValues(id); markDirty(); deviceMessage(id,valueColumns[from]+' → '+valueColumns[to]+'，已完成');
+          } catch(error) { deviceMessage(id,error.message,true); } return;
+        }
+        if(action==='add-variable') {
+          if(e.variables.length>=64) { deviceMessage(id,'此原型最多定义 64 个变量',true); return; }
+          let index=1; while(e.variables.some(v=>v.name==='VAR_'+index)) index++;
+          remember(); e.variables.push({name:'VAR_'+index,type:'double',port:'N',channel:'N',note:'自定义变量',display:false,origin:'custom'});
+          renderDevicePane(id,'attributes'); markDirty(); panels.get(id).querySelector('[aria-label="变量名 VAR_'+index+'"]').focus(); return;
+        }
+        if(action==='delete-variable') {
+          const v=e.variables.find(v=>v.name===data.variable&&v.origin==='custom'); if(!v) return;
+          remember(); e.variables=e.variables.filter(item=>item!==v); delete e.values[v.name]; renderDevicePane(id,'attributes'); markDirty(); return;
+        }
+        if(action==='delete-object') {
+          const selected=e.objects.find(o=>o.id===e.object); if(!selected) return;
+          remember(); e.objects=e.objects.filter(o=>o!==selected);
+          e.variables=e.variables.filter(v=>{if(v.object!==selected.id)return true;delete e.values[v.name];return false;});
+          e.object=e.objects[0]?.id||''; renderDevicePane(id,'drawing'); markDirty(); deviceMessage(id,'对象与关联变量已删除，可撤销'); return;
+        }
+        if(action==='normalize') {
+          const form=deviceValue(n,e.variables.find(v=>v.name==='FORM'),e.column), v=e.variables.find(v=>v.name==='MIX'), mix=deviceValue(n,v,e.column);
+          const indices=form.map((id,i)=>id?i:-1).filter(i=>i>=0), sum=indices.reduce((a,i)=>a+mix[i],0); if(!indices.length) return;
+          remember(); const values=blankArray(); indices.forEach(i=>values[i]=sum?mix[i]/sum:1/indices.length);
+          putDeviceValue(n,v,e.column,values); refreshDeviceValues(id); markDirty(); deviceMessage(id,'MIX 已按所选工质归一化，比例合计为 1');
+        }
+      }
+      function addDrawingObject(id,type) {
+        const n=nodeById(id), e=editor(n); if(!deviceCanEdit(id)) return;
+        if(e.objects.length>=24 || e.variables.length+(type.startsWith('Fluid')?7:type==='Picture'?0:1)>64) {deviceMessage(id,'已达到此原型的对象或变量数量上限',true);return;}
+        const def=drawingTypes.find(t=>t[0]===type); if(!def) return;
+        let index=0; while(e.objects.some(o=>o.label===def[3]+index||o.id==='object'+index)) index++;
+        const object={id:'object'+index,type,label:type==='Picture'?'Picture'+index:def[3]+index,x:35+(e.objects.length%3)*15,y:65+(e.objects.length%2)*12,w:30,h:22,shape:'rectangle'};
+        const generated=portVariables(object); if(generated.some(v=>e.variables.some(item=>item.name===v.name))) {deviceMessage(id,'端口变量名已存在，请先调整同名变量',true);return;}
+        remember(); e.objects.push(object); e.object=object.id; e.variables.push(...generated); renderDevicePane(id,'drawing'); markDirty();
+        deviceMessage(id,def[1]+'已添加'+(generated.length?'，已生成 '+generated.length+' 个关联变量':''));
+      }
+      function changeFluidSelection(n,newForm,column) {
+        const e=editor(n), formVar=e.variables.find(v=>v.name==='FORM'), mixVar=e.variables.find(v=>v.name==='MIX');
+        const previous=deviceValue(n,formVar,column), mix=deviceValue(n,mixVar,column);
+        const proportions=newForm.map(id=>id&&previous.includes(id)?mix[previous.indexOf(id)]:0);
+        if(!previous.some(id=>id>0)&&newForm.some(id=>id>0)) proportions[newForm.findIndex(id=>id>0)]=1;
+        putDeviceValue(n,formVar,column,newForm); putDeviceValue(n,mixVar,column,proportions);
+      }
+      function openDeviceExample() {
+        let page=state.pages.find(p=>p.nodes.some(n=>n.id==='refproptest'))||state.pages.find(p=>p.id==='device_example'), n=page?.nodes.find(n=>n.id==='refproptest');
+        if(!n) {
+          if(!canEdit()) return;
+          if(allNodes().length>=32) {notify('此原型最多演示 32 个设备');return;}
+          remember(); n=makeNode('refproptest','refprop','REFPROPTEST','物性测试模块','');
+          if(!page && state.pages.length<4) {page={id:'device_example',name:'设备示例',nodes:[],edges:[],zoom:1,pan:[0,0]};state.pages.push(page);}
+          page ||= currentPage(); n.positions={wide:[.43,.4],compact:[.43,.4],narrow:[.45,.4]}; page.nodes.push(n); markDirty();
+        }
+        switchPage(page.id); selectNode(n.id); openWindow(n.id); setWindowTab(n.id,'values');
+      }
+      function deviceInput(event) {
+        const input=event.target, id=input.closest('[data-window]')?.dataset.window;
+        if(!id || !input.matches('[data-device-code]')) return false;
+        const n=nodeById(id), e=editor(n), key=input.dataset.deviceCode;
+        if(!deviceCanEdit(id)) return true;
+        if(key==='design') e.functions[e.functionIndex-1]=input.value;
+        else e.code[key==='header'?'header':'runtime']=input.value;
+        input.closest('.fc-code-editor').querySelector('.fc-code-lines').textContent=input.value.split('\n').map((_,i)=>i+1).join('\n');
+        deviceSession(id).output=''; markDirty(); return true;
+      }
+      function deviceChange(event) {
+        const input=event.target, id=input.closest('[data-window]')?.dataset.window;
+        if(!id || !input.matches('[data-device-value],[data-array-index],[data-fluid-choice],[data-mixture-index],[data-var-attr],[data-object-prop],[data-array-column],[data-design-index],[data-device-setting]')) return false;
+        const n=nodeById(id), e=editor(n);
+        if(input.matches('[data-array-column]')) { e.column=Number(input.value); renderDevicePane(id,'values'); persistSoon(); return true; }
+        if(input.matches('[data-design-index]')) { e.functionIndex=Number(input.value); renderDevicePane(id,'design'); persistSoon(); return true; }
+        if(!deviceCanEdit(id)) {renderDevicePane(id);return true;}
+        try {
+          if(input.matches('[data-var-attr]')) {
+            const v=e.variables.find(v=>v.name===input.closest('[data-variable-row]').dataset.variableRow), key=input.dataset.varAttr;
+            let value=key==='display'?input.checked:input.value.trim();
+            if(['name','port','channel'].includes(key) && (!/^[A-Za-z_][A-Za-z0-9_]{0,39}$/.test(value)||['__proto__','constructor','prototype'].includes(value))) throw Error('名称须以字母或下划线开头，只能包含字母、数字和下划线');
+            if(key==='name'&&e.variables.some(item=>item!==v&&item.name===value)) throw Error('变量名已存在');
+            if(key==='type') {
+              const next={...v,type:value}, candidate=[];
+              for(let c=0;c<4;c++) {
+                const previous=deviceValue(n,v,c), converted=variableSize(value)===8?(Array.isArray(previous)?previous:[previous,0,0,0,0,0,0,0]):Array.isArray(previous)?previous[0]:previous;
+                candidate.push(validateDeviceValue(next,converted));
+              }
+              remember(); v.type=value; candidate.forEach((item,c)=>putDeviceValue(n,v,c,item));
+            } else {
+              remember(); if(key==='name' && e.values[v.name]) {e.values[value]=e.values[v.name];delete e.values[v.name];}
+              if(key==='name'&&e.variable===v.name)e.variable=value;
+              v[key]=value;
+            }
+            renderDevicePane(id,'attributes'); deviceMessage(id,'变量属性已更新');
+          } else if(input.matches('[data-device-value]')) {
+            const v=e.variables.find(v=>v.name===input.dataset.deviceValue), column=Number(input.dataset.column);
+            if(v.readOnly) throw Error('运行状态由运行控制维护');
+            const value=validateDeviceValue(v,input.value);
+            if(v.param) {const f=catalog[n.kind].fields.find(f=>f[0]===v.param);if(value<f[3]||value>f[4])throw Error(f[1]+'应为 '+f[3]+'–'+f[4]+' '+f[2]);}
+            remember(); putDeviceValue(n,v,column,value); updateValues(); renderProperties();
+            deviceMessage(id,v.name+' · '+valueColumns[column]+'已更新');
+          } else if(input.matches('[data-array-index],[data-mixture-index]')) {
+            const mixing=input.matches('[data-mixture-index]'), v=e.variables.find(v=>v.name===(mixing?'MIX':e.variable)), values=deviceValue(n,v,e.column);
+            values[Number(mixing?input.dataset.mixtureIndex:input.dataset.arrayIndex)]=input.value;
+            const parsed=validateDeviceValue(v,values);
+            remember(); if(v.name==='FORM') changeFluidSelection(n,parsed,e.column); else putDeviceValue(n,v,e.column,parsed);
+            refreshDeviceValues(id); deviceMessage(id,v.name+' · '+valueColumns[e.column]+'数组已更新');
+          } else if(input.matches('[data-fluid-choice]')) {
+            const v=e.variables.find(v=>v.name==='FORM'), current=deviceValue(n,v,e.column).filter(x=>x>0), selected=Number(input.dataset.fluidChoice);
+            if(input.checked&&!current.includes(selected)&&current.length>=8)throw Error('最多可选择 8 个工质');
+            const next=input.checked?[...new Set([...current,selected])]:current.filter(x=>x!==selected);
+            while(next.length<8)next.push(0);
+            remember(); changeFluidSelection(n,next,e.column); e.variable='FORM'; refreshDeviceValues(id);
+            deviceMessage(id,'工质选择已同步到 FORM，MIX 保留对应工质的比例');
+          } else if(input.matches('[data-object-prop]')) {
+            const o=e.objects.find(o=>o.id===e.object), key=input.dataset.objectProp;
+            let value=input.value.trim();
+            if(['x','y','w','h'].includes(key)) {
+              value=Number(value); const minimum=key==='y'?12:8, maximum=key==='x'?92:key==='y'?82:70;
+              if(!Number.isFinite(value)||value<minimum||value>maximum)throw Error('数值应为 '+minimum+'–'+maximum);
+            }
+            if(key==='label') {
+              if(!value)throw Error('对象名称不能为空');
+              if(o.type!=='Picture'&&!/^[A-Za-z_][A-Za-z0-9_]{0,23}$/.test(value))throw Error('端口名称须为字母、数字与下划线，且不能以数字开头');
+              if(o.type!=='Picture'&&e.objects.some(item=>item!==o&&item.label===value))throw Error('端口名称已存在');
+              if(o.type!=='Picture'&&portVariables({...o,label:value}).some(next=>e.variables.some(v=>v.object!==o.id&&v.name===next.name)))throw Error('此名称会产生重复变量');
+            }
+            remember();
+            if(key==='label'&&o.type!=='Picture') for(const v of e.variables.filter(v=>v.object===o.id)) {
+              const next=value+v.name.slice(o.label.length);
+              if(e.values[v.name]) {e.values[next]=e.values[v.name];delete e.values[v.name];}
+              if(e.variable===v.name)e.variable=next;
+              v.name=next;v.port=value;
+            }
+            o[key]=value; renderDevicePane(id,'drawing'); deviceMessage(id,'对象属性与端口变量已同步');
+          } else if(input.matches('[data-device-setting]')) {
+            const key=input.dataset.deviceSetting;
+            let value=key==='grid'?input.checked:['step','precision'].includes(key)?Number(input.value):input.value;
+            if(key==='name'&&!value.trim())throw Error('设备名称不能为空');
+            if(key==='step')value=validateDeviceValue({name:'S_T',type:'int'},input.value);
+            remember(); if(key==='name') {n.name=value;panels.get(id).querySelector('#fc-window-title-'+id).textContent=windowTitle(id);renderNodes();renderProperties();updateTray();}
+            else e.settings[key]=value;
+            deviceMessage(id,'设备设置已更新');
+          }
+          markDirty();
+        } catch(error) {
+          renderDevicePane(id); deviceMessage(id,error.message,true);
+        }
+        return true;
+      }
+      function windowTitle(id) {
+        if (id === 'curves') return '趋势曲线 · 示例运行';
+        if (id === 'check') return '连接检查 · ' + currentPage().name;
+        const n = nodeById(id); return n ? n.code + ' · ' + n.name : '设备属性';
+      }
+      function windowDefaults(id) {
+        const count = state.order.filter(k => state.windows[k]?.open).length;
+        const device = !!nodeById(id);
+        return {open:true,minimized:false,pinned:false,tab:device?'values':'parameters',x:device?12+count*24:24+count*46,y:device?12+count*24:28+count*32,
+          width:device?880:id === 'curves'?436:340,height:device?680:0,issuePage:0};
+      }
+      function makeWindow(id) {
+        if (panels.has(id)) return panels.get(id);
+        const n = nodeById(id);
+        if (!n && !['curves','check'].includes(id)) return null;
+        const el = document.createElement('section');
+        el.className = 'fc-window'; el.dataset.window = id;
+        el.setAttribute('role','dialog'); el.setAttribute('aria-modal','false');
+        el.setAttribute('aria-labelledby','fc-window-title-' + id);
+        const winIcon = id === 'curves' ? 'chart-no-axes-combined' : id === 'check' ? 'list-checks' : catalog[n.kind].icon;
+        el.innerHTML = '<div class="fc-window-header"><button type="button" class="fc-window-title" data-move="' + id +
+          '" aria-label="移动' + esc(windowTitle(id)) + '窗口，可用方向键">' + icon(winIcon) + '<span id="fc-window-title-' + id + '">' + esc(windowTitle(id)) +
+          '</span></button><div class="fc-window-controls">' +
+          '<button type="button" class="fc-icon-button cursor-interaction" data-window-action="pin" aria-label="置顶窗口" aria-pressed="false">' + icon('pin') + '</button>' +
+          '<button type="button" class="fc-icon-button cursor-interaction" data-window-action="minimize" aria-label="收起窗口">' + icon('minus') + '</button>' +
+          '<button type="button" class="fc-icon-button cursor-interaction" data-window-action="close" aria-label="关闭窗口">' + icon('x') + '</button></div></div>';
+        if (id === 'curves') {
+          el.innerHTML += '<div class="fc-window-body"><div class="fc-chart-title"><span>质量流量</span><span>示例数据</span></div>' +
+            '<div class="fc-chart-legend">' + [['q','主管'],['a','A 路'],['b','B 路']].map(([key,label]) =>
+              '<button type="button" class="fc-series cursor-interaction" data-series="' + key + '" aria-pressed="' + state.series[key] + '">' +
+              '<span class="fc-series-key"></span>' + label + '</button>').join('') + '</div>' +
+            '<svg class="fc-chart" role="img" aria-label="主管和两条支路的质量流量随时间变化，单位 kg/s"></svg>' +
+            '<div class="fc-chart-detail"></div><div class="fc-window-actions"><span data-measure-time></span>' +
+            '<button type="button" class="fc-button cursor-interaction" data-window-action="minimize">收起曲线</button></div></div>';
+        } else if (id === 'check') {
+          el.innerHTML += '<div class="fc-window-body" data-check-body></div>';
+        } else {
+          el.classList.add('fc-device-window');
+          el.innerHTML += deviceWindowHTML(n);
+        }
+        el.innerHTML += '<button type="button" class="fc-resize" data-resize="' + id + '" aria-label="调整窗口大小，可用方向键">' + icon('grip') + '</button>';
+        windowLayer.append(el); panels.set(id,el);
+        if (id === 'curves') {
+          const svg = el.querySelector('.fc-chart');
+          svg.addEventListener('pointermove',event => chartPointer(event,false));
+          svg.addEventListener('pointerdown',event => chartPointer(event,true));
+          svg.addEventListener('pointerleave',() => { if (!chartHover?.pinned) { chartHover = null; showChartDetail(); } });
+        }
+        icons(); return el;
+      }
+      function openWindow(id, save = true) {
+        if (!['curves','check'].includes(id) && !nodeById(id)) return;
+        state.windows[id] ||= windowDefaults(id);
+        Object.assign(state.windows[id],{open:true,minimized:false});
+        const el = makeWindow(id); if (!el) return;
+        el.hidden = false; raiseWindow(id,false);
+        if (id === 'check') renderCheck();
+        else if (id !== 'curves') setWindowTab(id,state.windows[id].tab,false);
+        positionWindow(id); updateValues(); drawChart(); updateTray();
+        if (save) { persist(); announce(windowTitle(id) + '已打开'); }
+      }
+      function raiseWindow(id, save = true) {
+        state.order = state.order.filter(k => k !== id); state.order.push(id);
+        for (const [key,el] of panels) {
+          el.classList.toggle('is-front', key === id);
+          el.style.zIndex = String(10 + state.order.indexOf(key) + (state.windows[key]?.pinned ? 100 : 0));
+          el.querySelector('[data-window-action="pin"]').setAttribute('aria-pressed', String(!!state.windows[key]?.pinned));
+        }
+        if (save) persistSoon();
+      }
+      function positionWindow(id) {
+        const el = panels.get(id), win = state.windows[id]; if (!el || !win) return;
+        el.hidden = !win.open || win.minimized; if (el.hidden) return;
+        if (small()) { el.style.width = ''; el.style.height = ''; return; }
+        if (nodeById(id)) {
+          const available = desktop.clientWidth - 16;
+          const width = clamp(win.width,Math.min(300,available),Math.min(1040,available));
+          const height = clamp(win.height || 680,360,Math.max(360,desktop.clientHeight-16));
+          el.style.width=width+'px'; el.style.height=height+'px';
+          el.style.left=clamp(win.x,8,Math.max(8,desktop.clientWidth-width-8))+'px';
+          el.style.top=clamp(win.y,8,Math.max(8,desktop.clientHeight-height-8))+'px'; return;
+        }
+        const available = desktop.clientWidth - 64;
+        const width = clamp(win.width, Math.min(300,available), Math.min(580,available));
+        el.style.width = width + 'px'; el.style.height = 'auto';
+        const naturalHeight = el.offsetHeight;
+        const height = Math.max(naturalHeight, Math.min(win.height || naturalHeight,desktop.clientHeight - 16));
+        el.style.height = height + 'px';
+        el.style.left = clamp(win.x,8,Math.max(8,available-width)) + 'px';
+        el.style.top = clamp(win.y,8,Math.max(8,desktop.clientHeight-height-8)) + 'px';
+      }
+      function updateTray() {
+        const open = state.order.filter(id => state.windows[id]?.open && (nodeById(id) || ['curves','check'].includes(id)));
+        root.querySelector('.fc-window-tray').innerHTML = open.map(id =>
+          '<button type="button" class="fc-window-chip cursor-interaction' + (state.windows[id].minimized?' is-minimized':'') +
+          '" data-restore="' + id + '" aria-label="' + (state.windows[id].minimized?'恢复':'切换到') + esc(windowTitle(id)) + '">' +
+          (id === 'curves' ? '趋势曲线' : id === 'check' ? '连接检查' : esc(nodeById(id).code)) + '</button>').join('');
+      }
+      function setWindowTab(id, tab, save = true) {
+        const el = panels.get(id); if (!el || ['curves','check'].includes(id)) return;
+        const legacy = ['parameters','variables'].includes(tab);
+        if (legacy) editor(nodeById(id)).generalView=tab;
+        const key = legacy ? 'general' : deviceTabs.some(t=>t[0]===tab)?tab:'values';
+        state.windows[id].tab = key;
+        el.querySelectorAll('[data-window-tab]').forEach(b => b.setAttribute('aria-selected',String(b.dataset.windowTab === key)));
+        el.querySelectorAll('[data-pane]').forEach(p => p.hidden = p.dataset.pane !== key);
+        renderDevicePane(id,key); positionWindow(id); if (save) persistSoon();
+      }
+      function syncDraft(id) {
+        const n = nodeById(id), el = panels.get(id); if (!n || !el) return;
+        const model=el.querySelector('[data-model]'); if(model) model.value = String(n.draftModel ?? n.model);
+        el.querySelectorAll('[data-field]').forEach(input => {
+          input.value = n.draft[input.dataset.field];
+          input.classList.toggle('is-edited', n.draft[input.dataset.field] !== n.params[input.dataset.field]);
+        });
+      }
+      function feedback(id,message,error = false) {
+        const el = panels.get(id)?.querySelector('[data-feedback]'); if (!el) return;
+        el.textContent = message; el.classList.toggle('is-error',error);
+        el.setAttribute('role',error?'alert':'status');
+        positionWindow(id);
+      }
+      function modelValues(n,index) {
+        const values = Object.fromEntries(catalog[n.kind].fields.map(f => [f[0],f[6]]));
+        if (n.role === 'valve_b') values.opening = 55;
+        if (n.role === 'pipe_b') values.length = 40;
+        if (!index) return values;
+        Object.assign(values,({
+          source:{temperature:35},junction:{elevation:10},tank:{level:4},pipe:{diameter:50},
+          valve:{kv:25},check:{loss:1},resistance:{loss:12},pump:{speed:1.1,efficiency:82},
+          exchanger:{ua:4000},heater:{power:40},flowmeter:{range:20},thermometer:{range:100}
+        })[n.kind]);
+        return values;
+      }
+      function chooseModel(id,index) {
+        const n = nodeById(id); if (!n) return;
+        n.draftModel = index === 1 ? 1 : 0; n.draft = modelValues(n,n.draftModel);
+        syncDraft(id); feedback(id,'型号已载入库值，点击应用后生效'); markDirty();
+      }
+      function windowAction(id,action) {
+        const win = state.windows[id], el = panels.get(id); if (!win || !el) return;
+        if (action === 'pin') { win.pinned = !win.pinned; raiseWindow(id); return; }
+        if (action === 'minimize' || action === 'close') {
+          if (action === 'close') win.open = false; else win.minimized = true;
+          el.hidden = true; updateTray(); persist();
+          const opener = nodeLayer.querySelector('[data-node-body="' + id + '"]') || root.querySelector('[data-action="curves"]');
+          opener?.focus({preventScroll:true}); return;
+        }
+        const n = nodeById(id); if (!n) return;
+        if (action === 'capture') {
+          n.draft = {...n.params}; n.draftModel = n.model;
+          syncDraft(id); feedback(id,'当前运行值已存为库值'); markDirty(); return;
+        }
+        if (action === 'apply') {
+          const candidate = {};
+          for (const [key,label,unit,min,max] of catalog[n.kind].fields) {
+            const input = el.querySelector('[data-field="' + key + '"]');
+            const value = input.value.trim() === '' ? NaN : Number(input.value);
+            if (!Number.isFinite(value) || value < min || value > max) {
+              feedback(id,label + '应为 ' + min + '–' + max + ' ' + unit,true); input.focus(); return;
+            }
+            candidate[key] = value;
+          }
+          remember(); n.params = candidate; n.draft = {...candidate}; n.model = n.draftModel ?? n.model;
+          syncDraft(id); updateValues(); renderProperties(); markDirty();
+          feedback(id,'参数已应用，下一步更新示例数据'); announce(n.code + '参数已应用');
+        }
+      }
+      function reading(n) {
+        if (!state.hasResults || ownerPage(n.id)?.id !== state.runPage) return null;
+        if (['valve_a','pipe_a'].includes(n.role)) return state.readings.a;
+        if (['valve_b','pipe_b'].includes(n.role)) return state.readings.b;
+        if (n.role) return state.readings.q;
+        return null;
+      }
+      function renderPortList(id) {
+        const n = nodeById(id), el = panels.get(id); if (!n || !el) return;
+        const page = ownerPage(id);
+        const list=el.querySelector('[data-port-list]'); if(!list) return;
+        list.innerHTML = portNames(n).map(key => {
+          const e = page.edges.find(e => [e.a,e.b].some(p => p[0]===id && p[1]===key));
+          const other = e ? (e.a[0]===id ? e.b : e.a) : null;
+          return '<div class="fc-port-row"><span>' + portLabel(key) + ' · ' +
+            (other ? esc(nodeById(other[0])?.code || '') + ' ' + portLabel(other[1]) : '未连接') + '</span>' +
+            (e ? '<button type="button" class="fc-button cursor-interaction" data-disconnect="' + e.id + '" data-owner-page="' + page.id + '">断开</button>' : '') + '</div>';
+        }).join('');
+      }
+      function updateValues() {
+        for (const n of currentPage().nodes) {
+          const label = nodeLayer.querySelector('[data-node="' + n.id + '"] .fc-node-value'); if (!label) continue;
+          const value = reading(n);
+          label.hidden = !design.values || value === null || n.kind === 'junction';
+          label.textContent = fmt(value,3);
+        }
+        for (const [id,el] of panels) {
+          const n = nodeById(id);
+          if (n) {
+            for (const [key,,,,,,,digits] of catalog[n.kind].fields) { const current=el.querySelector('[data-current="' + key + '"]'); if(current) current.textContent=fmt(n.params[key],digits); }
+            const value = reading(n), source = ownerPage(id).nodes.find(node => node.role === 'source');
+            const temperature = value === null ? null : source?.params.temperature ?? 20;
+            const readings=el.querySelector('[data-readings]'); if(readings) readings.innerHTML = '<tr><td>质量流量</td><td>' + fmt(value,3) + '</td><td>kg/s</td></tr>' +
+              '<tr><td>流体温度</td><td>' + fmt(temperature,1) + '</td><td>°C</td></tr>';
+            el.querySelectorAll('[data-device-value][data-column="0"]').forEach(input=>{
+              const v=editor(n).variables.find(v=>v.name===input.dataset.deviceValue);
+              if(v && input!==input.ownerDocument.activeElement && v.param) input.value=Number(deviceValue(n,v,0)).toFixed(editor(n).settings.precision);
+            });
+          }
+          const time = el.querySelector('[data-measure-time]'); if (time) time.textContent = 't = ' + fmt(state.time,1) + ' s';
+        }
+        updateChrome();
+      }
+      let chartInfo = null, chartHover = null;
+      const chartSeries = [['q','主管','var(--fc-blue)',''],['a','A 路','var(--fc-line)',''],['b','B 路','var(--fc-green)','5 3']];
+      function drawChart() {
+        const el = panels.get('curves'); if (!el || el.hidden) return;
+        const svg = el.querySelector('.fc-chart'), w = svg.clientWidth, h = Math.max(190,svg.clientHeight);
+        if (!w) return;
+        svg.replaceChildren(); svg.setAttribute('viewBox','0 0 ' + w + ' ' + h);
+        el.querySelectorAll('[data-series]').forEach(b => b.setAttribute('aria-pressed',String(state.series[b.dataset.series])));
+        if (!state.history.length) {
+          svgElement(svg,'text',{x:w/2,y:h/2,'text-anchor':'middle'},'运行后显示示例曲线');
+          el.querySelector('.fc-chart-detail').textContent = '尚无运行记录'; chartInfo = null; return;
+        }
+        const history = state.history, left = 64, right = w-14, top = 29, bottom = h-35;
+        const start = history[0].t, end = Math.max(start+0.1,history.at(-1).t);
+        const maximum = Math.max(1,...history.flatMap(r => [r.q,r.a,r.b]))*1.12;
+        const x = t => left+(t-start)/(end-start)*(right-left), y = v => bottom-v/maximum*(bottom-top);
+        svgElement(svg,'text',{x:7,y:14},'流量 · kg/s');
+        svgElement(svg,'text',{x:right,y:h-3,'text-anchor':'end'},'时间 · s');
+        for (let i=0;i<=3;i++) {
+          const value = maximum*i/3;
+          svgElement(svg,'line',{x1:left,x2:right,y1:y(value),y2:y(value),stroke:'var(--fc-border)','stroke-width':1});
+          svgElement(svg,'text',{x:left-9,y:y(value)+4,'text-anchor':'end'},fmt(value,1));
+        }
+        svgElement(svg,'rect',{x:left,y:top,width:Math.max(1,right-left),height:bottom-top,fill:'none',stroke:'var(--fc-border)','stroke-width':1,'data-chart-frame':''});
+        const tickCount = w < 340 ? 3 : 4;
+        for (let i=0;i<tickCount;i++) {
+          const t = start+(end-start)*i/(tickCount-1);
+          svgElement(svg,'text',{x:x(t),y:bottom+17,'text-anchor':i===0?'start':i===tickCount-1?'end':'middle'},fmt(t,1));
+        }
+        for (const [key,,color,dash] of chartSeries) {
+          if (!state.series[key]) continue;
+          svgElement(svg,'path',{d:history.map((r,i) => (i?'L':'M') + x(r.t) + ',' + y(r[key])).join(' '),fill:'none',stroke:color,
+            'stroke-width':1.8,'stroke-dasharray':dash,'data-curve':key});
+          if (history.length === 1) svgElement(svg,'circle',{cx:x(history[0].t),cy:y(history[0][key]),r:2.5,fill:color});
+        }
+        svgElement(svg,'line',{x1:left,x2:left,y1:top,y2:bottom,stroke:'var(--fc-muted)','stroke-width':1,visibility:'hidden','data-chart-guide':''});
+        for (const [key,,color] of chartSeries) svgElement(svg,'circle',{r:3,fill:color,visibility:'hidden','data-chart-marker':key});
+        svgElement(svg,'rect',{x:left,y:top,width:Math.max(1,right-left),height:bottom-top,fill:'transparent','data-chart-overlay':''});
+        chartInfo = {history,start,end,left,right,top,bottom,x,y,svg};
+        showChartDetail();
+      }
+      function chartPointer(event,toggle) {
+        if (!chartInfo || !event.target.closest('[data-chart-overlay]')) return;
+        const rect = chartInfo.svg.getBoundingClientRect();
+        const fraction = clamp((event.clientX-rect.left-chartInfo.left)/(chartInfo.right-chartInfo.left),0,1);
+        if (toggle) chartHover = {fraction,pinned:!chartHover?.pinned};
+        else if (!chartHover?.pinned) chartHover = {fraction,pinned:false};
+        showChartDetail();
+      }
+      function showChartDetail() {
+        if (!chartInfo) return;
+        const {history,start,end,left,right,x,y,svg} = chartInfo;
+        let row = history.at(-1);
+        if (chartHover) {
+          const time = start + chartHover.fraction*(end-start);
+          let index = history.findIndex(r => r.t >= time); if (index < 0) index = history.length-1;
+          const a = history[Math.max(0,index-1)], b = history[index], f = clamp((time-a.t)/Math.max(0.0001,b.t-a.t),0,1);
+          row = {t:time,q:a.q+(b.q-a.q)*f,a:a.a+(b.a-a.a)*f,b:a.b+(b.b-a.b)*f};
+        }
+        const guide = svg.querySelector('[data-chart-guide]');
+        guide.setAttribute('visibility',chartHover?'visible':'hidden');
+        guide.setAttribute('x1',chartHover?left+chartHover.fraction*(right-left):x(row.t));
+        guide.setAttribute('x2',guide.getAttribute('x1'));
+        for (const [key] of chartSeries) {
+          const marker = svg.querySelector('[data-chart-marker="' + key + '"]');
+          marker.setAttribute('visibility',chartHover && state.series[key]?'visible':'hidden');
+          marker.setAttribute('cx',guide.getAttribute('x1')); marker.setAttribute('cy',y(row[key]));
+        }
+        panels.get('curves').querySelector('.fc-chart-detail').textContent = fmt(row.t,1) + ' s · ' +
+          (chartSeries.filter(([k]) => state.series[k]).map(([key,label]) => label + ' ' + fmt(row[key],2)).join(' · ') || '未选择曲线') +
+          ' kg/s' + (chartHover?.pinned?' · 已固定':'');
+      }
+      function issues() {
+        const page = currentPage(), result = [];
+        if (!page.nodes.length) return [{id:'',text:'画布中还没有设备'}];
+        for (const n of page.nodes) {
+          const missing = portNames(n).filter(key => !page.edges.some(e => [e.a,e.b].some(p => p[0] === n.id && p[1] === key)));
+          if (missing.length) result.push({id:n.id,text:n.code + ' · ' + missing.map(portLabel).join('、') + '未连接'});
+        }
+        if (!page.nodes.some(n => ['source','tank'].includes(n.kind))) result.push({id:'',text:'需要压力边界或水箱'});
+        return result;
+      }
+      function renderCheck() {
+        const el = panels.get('check'); if (!el) return;
+        const list = issues(), pageCount = Math.max(1,Math.ceil(list.length/6)), win = state.windows.check;
+        win.issuePage = clamp(win.issuePage || 0,0,pageCount-1);
+        el.querySelector('#fc-window-title-check').textContent = windowTitle('check');
+        el.querySelector('[data-check-body]').innerHTML = '<p class="fc-check-summary' + (list.length?' has-issues':'') + '">' +
+          (list.length ? list.length + ' 处连接需要处理' : '所有端口均已连接') + '</p><ul class="fc-check-list">' +
+          list.slice(win.issuePage*6,win.issuePage*6+6).map(item => '<li><span>' + esc(item.text) + '</span>' +
+            (item.id ? '<button type="button" class="fc-button cursor-interaction" data-locate="' + item.id + '">定位</button>' : '') + '</li>').join('') +
+          '</ul><div class="fc-feedback">' + (list.length?'连接完整后可播放示例运行':'连接检查通过 · 计算演示使用示例数据') +
+          '</div><div class="fc-window-actions">' + (pageCount>1 ? '<span>' + (win.issuePage+1) + ' / ' + pageCount + '</span><button type="button" class="fc-button cursor-interaction" data-action="next-issue">下一组</button>' : '') +
+          '<button type="button" class="fc-button cursor-interaction" data-action="check">重新检查</button></div>';
+        positionWindow('check');
+      }
+      function initializeRun() {
+        invalidateResults(); state.runPage = state.active; state.hasResults = true; state.mode = 'paused';
+        state.history = [{t:0,q:0,a:0,b:0}]; updateValues(); drawChart();
+      }
+      function advance() {
+        const page = state.pages.find(p => p.id === state.runPage), n = role => page?.nodes.find(n => n.role === role);
+        const speed = n('pump')?.params.speed ?? 1;
+        const wa = (n('valve_a')?.params.opening ?? 80)/100 * (n('valve_a')?.params.kv ?? 16);
+        const wb = (n('valve_b')?.params.opening ?? 55)/100 * (n('valve_b')?.params.kv ?? 16);
+        // Deliberately illustrative; this prototype does not invoke the FluidNet solver.
+        const target = 3.55 * speed * Math.min(1.8,(wa+wb)/21.6);
+        state.readings.q += (target-state.readings.q)*0.16;
+        state.readings.a = wa+wb ? state.readings.q*wa/(wa+wb) : 0;
+        state.readings.b = state.readings.q-state.readings.a;
+        state.time = Math.round((state.time+0.1)*10)/10;
+        state.history.push({t:state.time,...state.readings});
+        if (state.history.length > 100) state.history.shift();
+        updateValues(); drawChart();
+      }
+      function runAction(action) {
+        if (action === 'pause' && state.mode === 'running') {
+          clearInterval(timer); timer = null; state.mode = 'paused';
+        } else if (action === 'stop') {
+          clearInterval(timer); timer = null; state.mode = 'stopped';
+        } else if (['run','step'].includes(action)) {
+          if (state.mode === 'running') return;
+          if (issues().length) { openWindow('check'); notify('先处理未完成的连接'); return; }
+          const initializing = !state.hasResults || ['ready','stopped'].includes(state.mode) || state.runPage !== state.active;
+          if (initializing) initializeRun();
+          if (action === 'run') {
+            state.mode = 'running'; clearInterval(timer);
+            timer = setInterval(() => { if (!root.isConnected) { clearInterval(timer); return; } advance(); },160);
+          } else if (!initializing) advance();
+          else notify('已初始化到 0.0 s，再次步进推进 0.1 s');
+        }
+        updateValues(); drawChart(); persist(); announce(root.querySelector('[data-status]').textContent);
+      }
+      function reconcile() {
+        for (const [id,el] of panels) {
+          if (!['curves','check'].includes(id) && !nodeById(id)) {
+            clearInterval(deviceSessions.get(id)?.timer); deviceSessions.delete(id);
+            el.remove(); panels.delete(id); delete state.windows[id];
+            state.order = state.order.filter(k => k !== id);
+          } else if (nodeById(id)) { renderDevicePane(id); syncDraft(id); renderPortList(id); }
+        }
+        if (!nodeById(state.selected)) state.selected = '';
+        if (!currentPage().edges.some(e => e.id === state.edge)) state.edge = '';
+        renderTabs(); renderNodes(); renderProperties(); updateTray(); renderCheck(); updateValues(); scheduleLayout();
+      }
+      function nextCode(kind) {
+        const prefix = catalog[kind].prefix;
+        const suffixes = allNodes().filter(n => n.kind === kind).map(n => Number(n.code.slice(prefix.length)) || 0);
+        return prefix + (Math.max(0,...suffixes)+1);
+      }
+      function normalizedPoint(point) {
+        const page = currentPage(), w = canvas.clientWidth, h = canvas.clientHeight;
+        return [(w/2+(point[0]-w/2-page.pan[0])/page.zoom)/w,(h/2+(point[1]-h/2-page.pan[1])/page.zoom)/h];
+      }
+      function addNode(kind,point,duplicate = null) {
+        if (!catalog[kind] || !canEdit()) return;
+        if (allNodes().length >= 32) { notify('此原型最多演示 32 个设备'); return; }
+        remember();
+        const id = 'node_' + (++state.serial), code = nextCode(kind);
+        const n = makeNode(id,kind,code,duplicate ? duplicate.name + ' 副本' : catalog[kind].name,'',duplicate?.params);
+        if (duplicate) { n.draft = copy(duplicate.draft); n.model = duplicate.model; n.draftModel = duplicate.draftModel; if(duplicate.editor) n.editor=copy(duplicate.editor); }
+        const w = canvas.clientWidth, h = canvas.clientHeight;
+        n.positions[layoutKey] = normalizedPoint([clamp(point[0],38,w-42),clamp(point[1],60,h-80)]);
+        currentPage().nodes.push(n);
+        placing = ''; mode = 'select'; pending = null; invalidateResults();
+        state.selected = id; state.edge = '';
+        renderLibrary(); reconcile(); markDirty(); announce(code + '已放置');
+        nodeLayer.querySelector('[data-node-body="' + id + '"]')?.focus({preventScroll:true});
+      }
+      function finishStructuralEdit() {
+        pending = null; invalidateResults(); reconcile(); markDirty();
+      }
+      function deleteSelection() {
+        if (!canEdit()) return;
+        const page = currentPage();
+        if (!state.selected && !state.edge) return;
+        remember();
+        if (state.selected) {
+          const id = state.selected; page.nodes = page.nodes.filter(n => n.id !== id);
+          page.edges = page.edges.filter(e => e.a[0]!==id && e.b[0]!==id);
+          state.selected = ''; notify('设备及其连接已删除，可撤销');
+        } else {
+          page.edges = page.edges.filter(e => e.id !== state.edge); state.edge = '';
+          notify('连接已删除，可撤销');
+        }
+        finishStructuralEdit();
+      }
+      function disconnect(id,pageId) {
+        if (!canEdit()) return;
+        const page = state.pages.find(p => p.id === pageId);
+        if (!page?.edges.some(e => e.id === id)) return;
+        remember(); page.edges = page.edges.filter(e => e.id !== id);
+        finishStructuralEdit(); notify('端口连接已断开，可撤销');
+      }
+      function connectEndpoint(ep) {
+        if (!canEdit() || !nodeById(ep[0])) return;
+        const occupied = connectedEdge(ep);
+        if (occupied) {
+          if (!pending) { state.edge = occupied.id; state.selected = ''; renderProperties(); drawEdges(); }
+          notify('此端口已有连接，可在“变量与端口”中断开'); return;
+        }
+        if (!pending) { pending = ep; lastPointer = null; updateChrome(); drawEdges(); return; }
+        if (pending[0] === ep[0] && pending[1] === ep[1]) { pending = null; updateChrome(); drawEdges(); return; }
+        if (pending[0] === ep[0]) { notify('请选择另一台设备的端口'); return; }
+        remember(); currentPage().edges.push({id:'e'+(++state.serial),a:[...pending],b:[...ep]});
+        finishStructuralEdit(); announce('端口连接已建立');
+      }
+      function selectEdge(id) {
+        state.selected = ''; state.edge = id; popover.hidden = true;
+        nodeLayer.querySelectorAll('[data-node-body]').forEach(b => b.setAttribute('aria-pressed','false'));
+        renderProperties(); drawEdges(); persistSoon();
+      }
+      function switchPage(id) {
+        if (!state.pages.some(p => p.id === id)) return;
+        state.active = id; state.selected = ''; state.edge = ''; pending = null; placing = ''; mode = 'select';
+        popover.hidden = true; renderLibrary(); reconcile(); persist();
+      }
+      function newCanvas() {
+        if (!canEdit()) return;
+        if (state.pages.length >= 4) { notify('此原型最多演示 4 张画布'); return; }
+        remember(); const id = 'canvas_' + (++state.serial);
+        state.pages.push({id,name:'画布 ' + (state.pages.length+1),nodes:[],edges:[],zoom:1,pan:[0,0]});
+        switchPage(id); markDirty();
+      }
+      function undo(redo = false) {
+        if (!canEdit()) return;
+        const from = redo ? redoStack : undoStack, to = redo ? undoStack : redoStack;
+        if (!from.length) return;
+        for(const session of deviceSessions.values()) if(session.mode==='running') {clearInterval(session.timer);session.timer=null;session.mode='paused';}
+        to.push(copy({pages:state.pages,active:state.active}));
+        const previous = from.pop();
+        state.pages = copy(previous.pages); state.active = previous.active;
+        invalidateResults(); reconcile(); markDirty(); notify(redo?'已重做编辑':'已撤销编辑');
+      }
+      function locateNode(id) {
+        const page = ownerPage(id); if (!page) return;
+        if (state.active !== page.id) switchPage(page.id);
+        page.zoom = 1; page.pan = [0,0]; layoutGraph();
+        const p = positions[id];
+        if (p[0]<40 || p[0]>canvas.clientWidth-40 || p[1]<60 || p[1]>canvas.clientHeight-70)
+          page.pan = [canvas.clientWidth/2-p[0],canvas.clientHeight/2-p[1]];
+        selectNode(id); layoutGraph();
+        if (state.windows.check?.open) windowAction('check','minimize');
+        nodeLayer.querySelector('[data-node-body="' + id + '"]')?.focus({preventScroll:true});
+        if (small()) { state.mobileLibrary = true; updateChrome(); }
+      }
+      function setMode(value) {
+        mode = value; placing = ''; pending = null; renderLibrary(); drawEdges(); updateChrome();
+      }
+      function togglePopover(type,point = null) {
+        if (!point && popover.dataset.type === type && !popover.hidden) { popover.hidden = true; return; }
+        popover.dataset.type = type;
+        let content = '';
+        const header = title => '<div class="fc-popover-heading"><span>' + title + '</span><button type="button" class="fc-icon-button cursor-interaction" data-action="close-popover" aria-label="关闭菜单">' + icon('x') + '</button></div>';
+        if (type === 'help') {
+          content = header('快捷键') + '<div class="fc-shortcuts"><span>选择设备</span><span>V</span><span>连接端口</span><span>C</span><span>打开属性</span><span>Enter</span>' +
+            '<span>删除选中对象</span><span>Delete</span><span>撤销 / 重做</span><span>Ctrl+Z / Y</span><span>保存原型状态</span><span>Ctrl+S</span><span>取消当前操作</span><span>Esc</span></div>';
+        } else if (type === 'projects') {
+          content = header('当前项目') + '<div class="fc-context-info">泵阀并联管网 · ' + state.pages.length + ' 张画布</div>' +
+            '<button type="button" class="fc-project-link cursor-interaction" data-action="save">' + icon('save') + '保存原型状态</button>' +
+            '<button type="button" class="fc-project-link cursor-interaction" data-action="reload-example">' + icon('folder-open') + '重新载入示例</button>';
+        } else {
+          const n = nodeById(contextNode); if (!n) return;
+          content = header(esc(n.code + ' · ' + n.name)) + '<div class="fc-model"><label for="fc-context-model">型号</label><select id="fc-context-model" data-context-model>' +
+            catalog[n.kind].models.map((name,index) => '<option value="' + index + '"' + (index===(n.draftModel ?? n.model)?' selected':'') + '>' + esc(name) + '</option>').join('') +
+            '</select></div>' +
+            '<button type="button" class="fc-project-link cursor-interaction" data-open="' + n.id + '">' + icon('sliders-horizontal') + '详细参数</button>' +
+            '<button type="button" class="fc-project-link cursor-interaction" data-action="duplicate">' + icon('copy') + '复制设备</button>' +
+            '<button type="button" class="fc-project-link cursor-interaction" data-action="delete">' + icon('trash-2') + '删除设备</button>';
+        }
+        popover.innerHTML = content; popover.hidden = false; icons();
+        const shell = root.querySelector('.fc-shell').getBoundingClientRect();
+        const x = point ? point[0]-shell.left : (small()?45:55), y = point ? point[1]-shell.top : type==='help'?shell.height-popover.offsetHeight-38:72;
+        popover.style.left = clamp(x,8,Math.max(8,shell.width-popover.offsetWidth-8)) + 'px';
+        popover.style.top = clamp(y,8,Math.max(8,shell.height-popover.offsetHeight-8)) + 'px';
+      }
+      function action(name) {
+        if (name === 'device-example') { openDeviceExample(); return; }
+        if (['run','pause','step','stop'].includes(name)) { runAction(name); return; }
+        if (name === 'library') {
+          if (small()) state.mobileLibrary = !state.mobileLibrary; else state.libraryHidden = !state.libraryHidden;
+          updateChrome(); scheduleLayout(); persist(); return;
+        }
+        if (name === 'projects' || name === 'help') { togglePopover(name); return; }
+        if (name === 'close-popover') { popover.hidden = true; return; }
+        if (name === 'new-canvas') { newCanvas(); return; }
+        if (name === 'select' || name === 'connect') { setMode(name); return; }
+        if (name === 'undo' || name === 'redo') { undo(name === 'redo'); return; }
+        if (name === 'delete') { popover.hidden = true; deleteSelection(); return; }
+        if (name === 'fit') { currentPage().zoom = 1; currentPage().pan = [0,0]; layoutGraph(); persist(); return; }
+        if (name === 'zoom-in' || name === 'zoom-out') {
+          currentPage().zoom = clamp(Math.round((currentPage().zoom+(name==='zoom-in'?.1:-.1))*10)/10,.6,1.6);
+          layoutGraph(); persist(); return;
+        }
+        if (name === 'curves' || name === 'check') { openWindow(name); return; }
+        if (name === 'next-issue') {
+          state.windows.check.issuePage = ((state.windows.check.issuePage || 0)+1)%Math.max(1,Math.ceil(issues().length/6));
+          renderCheck(); return;
+        }
+        if (name === 'save') {
+          state.dirty = false; const saved = persist(); popover.hidden = true;
+          if (!saved && window.openai?.setWidgetState) state.dirty = true;
+          updateChrome();
+          notify(saved ? '当前原型状态已保存' : window.openai?.setWidgetState ? '超出状态保存容量，内容仍保留在当前页面' : '已保留在当前页面'); return;
+        }
+        if (name === 'reload-example') {
+          if (!canEdit()) return;
+          remember(); state.pages = [initialPage()]; state.active = 'main'; state.selected = ''; state.edge = '';
+          popover.hidden = true; finishStructuralEdit(); notify('示例已重新载入，可撤销'); return;
+        }
+        if (name === 'duplicate') {
+          const n = nodeById(state.selected); if (!n) return;
+          const p = positions[n.id]; popover.hidden = true; addNode(n.kind,[p[0]+54,p[1]+72],n);
+        }
+      }
+      root.addEventListener('click',event => {
+        if (suppressClick) return;
+        const button = event.target.closest('button'), edge = event.target.closest('[data-edge]');
+        if (edge) { selectEdge(edge.dataset.edge); return; }
+        if (!button || !root.contains(button)) {
+          if (canvas.contains(event.target)) {
+            const rect = canvas.getBoundingClientRect();
+            if (placing) addNode(placing,[event.clientX-rect.left,event.clientY-rect.top]);
+            else if (!pending) { selectNode(''); popover.hidden = true; }
+          }
+          return;
+        }
+        const data = button.dataset, panelId = button.closest('[data-window]')?.dataset.window;
+        if (data.deviceAction) {deviceAction(panelId,data.deviceAction,data);return;}
+        if (data.deviceColumn !== undefined) {editor(nodeById(panelId)).column=Number(data.deviceColumn);renderDevicePane(panelId,'values');persistSoon();return;}
+        if (data.deviceArray) {Object.assign(editor(nodeById(panelId)),{variable:data.deviceArray,column:Number(data.column)});renderDevicePane(panelId,'values');persistSoon();return;}
+        if (data.drawKind) {addDrawingObject(panelId,data.drawKind);return;}
+        if (data.drawObject) {editor(nodeById(panelId)).object=data.drawObject;renderDevicePane(panelId,'drawing');panels.get(panelId).querySelector('[data-draw-object="'+data.drawObject+'"]').focus({preventScroll:true});persistSoon();return;}
+        if (data.generalView) {editor(nodeById(panelId)).generalView=data.generalView;renderDevicePane(panelId,'general');persistSoon();return;}
+        if (data.windowAction) { windowAction(panelId,data.windowAction); return; }
+        if (data.windowTab) { setWindowTab(panelId,data.windowTab); return; }
+        if (data.series) { state.series[data.series] = !state.series[data.series]; drawChart(); persist(); return; }
+        if (data.restore) { openWindow(data.restore); return; }
+        if (data.open) { popover.hidden = true; openWindow(data.open); return; }
+        if (data.locate) { locateNode(data.locate); return; }
+        if (data.disconnect) { disconnect(data.disconnect,data.ownerPage); return; }
+        if (data.action) { action(data.action); return; }
+        if (data.page) { switchPage(data.page); return; }
+        if (data.nodeBody) { selectNode(data.nodeBody); return; }
+        if (data.port) { connectEndpoint([data.owner,data.port]); return; }
+        if (data.add) {
+          if (!canEdit()) return;
+          placing = data.add; mode = 'select'; pending = null; renderLibrary(); updateChrome(); drawEdges();
+          if (small()) canvas.scrollIntoView({block:'center',behavior:'auto'});
+          return;
+        }
+        if (data.group !== undefined) {
+          const index = Number(data.group);
+          state.collapsed = state.collapsed.includes(index) ? state.collapsed.filter(i => i!==index) : [...state.collapsed,index];
+          renderLibrary(); persist();
+        }
+      });
+      root.addEventListener('dblclick',event => {
+        const body = event.target.closest('[data-node-body]'); if (body) openWindow(body.dataset.nodeBody);
+      });
+      root.addEventListener('contextmenu',event => {
+        const node = event.target.closest('[data-node]');
+        if (node) { event.preventDefault(); selectNode(node.dataset.node); contextNode = node.dataset.node; togglePopover('device',[event.clientX,event.clientY]); }
+      });
+      root.addEventListener('input',event => {
+        if(deviceInput(event))return;
+        const input = event.target.closest('[data-field]'); if (!input) return;
+        const id = input.closest('[data-window]').dataset.window, n = nodeById(id);
+        n.draft[input.dataset.field] = input.value === '' ? '' : Number(input.value);
+        input.classList.toggle('is-edited',n.draft[input.dataset.field] !== n.params[input.dataset.field]);
+        feedback(id,'库值已修改，尚未应用'); markDirty();
+      });
+      root.addEventListener('change',event => {
+        if(deviceChange(event))return;
+        if (event.target.matches('[data-model]')) chooseModel(event.target.closest('[data-window]').dataset.window,Number(event.target.value));
+        if (event.target.matches('[data-context-model]')) {
+          const value = Number(event.target.value); popover.hidden = true;
+          openWindow(contextNode); setWindowTab(contextNode,'parameters'); chooseModel(contextNode,value);
+        }
+      });
+      root.addEventListener('dragstart',event => {
+        const item = event.target.closest('[data-add]');
+        if (!item || !canEdit()) { event.preventDefault(); return; }
+        event.dataTransfer.setData('text/plain',item.dataset.add); event.dataTransfer.effectAllowed = 'copy';
+        placing = item.dataset.add; mode = 'select'; updateChrome();
+      });
+      canvas.addEventListener('dragover',event => { if (placing) { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; } });
+      canvas.addEventListener('drop',event => {
+        const kind = event.dataTransfer.getData('text/plain'); if (!Object.hasOwn(catalog,kind)) return;
+        event.preventDefault(); const rect = canvas.getBoundingClientRect();
+        addNode(kind,[event.clientX-rect.left,event.clientY-rect.top]);
+      });
+      root.addEventListener('dragend',() => { placing = ''; renderLibrary(); updateChrome(); });
+      root.addEventListener('pointerdown',event => {
+        if (event.button !== 0) return;
+        const panel = event.target.closest('[data-window]');
+        if (panel) raiseWindow(panel.dataset.window);
+        const move = event.target.closest('[data-move]'), resize = event.target.closest('[data-resize]');
+        const body = event.target.closest('[data-node-body]'), port = event.target.closest('[data-port]');
+        const art=event.target.closest('[data-draw-object]');
+        let target;
+        if (art) {
+          const id=panel.dataset.window; if(!deviceCanEdit(id))return;
+          const e=editor(nodeById(id)), object=e.objects.find(o=>o.id===art.dataset.drawObject), board=art.closest('.fc-draw-board');
+          e.object=object.id; art.focus({preventScroll:true});
+          pointer={type:'drawing',id,object:object.id,x:event.clientX,y:event.clientY,origin:[object.x,object.y],boardWidth:board.clientWidth,boardHeight:board.clientHeight};target=art;
+        } else if ((move || resize) && !small()) {
+          event.preventDefault(); const id = (move || resize).dataset[move?'move':'resize'], el = panels.get(id);
+          pointer = {type:move?'window':'resize',id,x:event.clientX,y:event.clientY,ox:parseFloat(el.style.left),oy:parseFloat(el.style.top),
+            width:el.offsetWidth,height:el.offsetHeight}; target = move || resize;
+        } else if (port && state.mode !== 'running') {
+          pointer = {type:'port',ep:[port.dataset.owner,port.dataset.port],x:event.clientX,y:event.clientY}; target = port;
+        } else if (body) {
+          selectNode(body.dataset.nodeBody);
+          pointer = {type:'node',id:body.dataset.nodeBody,x:event.clientX,y:event.clientY,origin:[...positions[body.dataset.nodeBody]]}; target = body;
+        } else if (canvas.contains(event.target) && !event.target.closest('[data-edge]') && !placing && !pending && mode === 'select') {
+          pointer = {type:'pan',x:event.clientX,y:event.clientY,origin:[...currentPage().pan]}; target = canvas;
+        }
+        if (pointer && target) { pointer.target = target; pointer.pointerId = event.pointerId; target.setPointerCapture(event.pointerId); }
+      });
+      root.addEventListener('pointermove',event => {
+        const rect = canvas.getBoundingClientRect();
+        if (pending && canvas.contains(event.target)) { lastPointer = [event.clientX-rect.left,event.clientY-rect.top]; drawEdges(); }
+        if (!pointer) return;
+        const dx = event.clientX-pointer.x, dy = event.clientY-pointer.y;
+        if (!pointer.moved && Math.hypot(dx,dy) < 4) return;
+        if (!pointer.moved && ['node','drawing'].includes(pointer.type)) remember();
+        pointer.moved = true;
+        if (pointer.type === 'drawing') {
+          const o=editor(nodeById(pointer.id)).objects.find(o=>o.id===pointer.object);
+          o.x=clamp(pointer.origin[0]+dx/pointer.boardWidth*100,8,92);o.y=clamp(pointer.origin[1]+dy/pointer.boardHeight*100,12,82);
+          pointer.target.style.left=o.x+'%';pointer.target.style.top=o.y+'%';
+        } else if (pointer.type === 'window') {
+          const win = state.windows[pointer.id]; win.x = pointer.ox+dx; win.y = pointer.oy+dy; positionWindow(pointer.id);
+        } else if (pointer.type === 'resize') {
+          const win = state.windows[pointer.id]; win.width = pointer.width+dx; win.height = pointer.height+dy; positionWindow(pointer.id); drawChart();
+        } else if (pointer.type === 'node') {
+          const n = nodeById(pointer.id);
+          n.positions[layoutKey] = normalizedPoint([clamp(pointer.origin[0]+dx,38,canvas.clientWidth-40),clamp(pointer.origin[1]+dy,58,canvas.clientHeight-75)]);
+          layoutGraph();
+        } else if (pointer.type === 'pan') {
+          currentPage().pan = [pointer.origin[0]+dx,pointer.origin[1]+dy]; layoutGraph();
+        } else if (pointer.type === 'port') {
+          if (!connectedEdge(pointer.ep)) {
+            pending = pointer.ep; lastPointer = [event.clientX-rect.left,event.clientY-rect.top]; updateChrome(); drawEdges();
+          }
+        }
+      });
+      function finishPointer(event,cancelled = false) {
+        if (!pointer) return;
+        const p = pointer; pointer = null;
+        if (p.target.hasPointerCapture(p.pointerId)) p.target.releasePointerCapture(p.pointerId);
+        if (!p.moved) return;
+        suppressClick = true; setTimeout(() => { suppressClick = false; },0);
+        if (p.type === 'port' && !cancelled) {
+          const end = document.elementFromPoint(event.clientX,event.clientY)?.closest('[data-port]');
+          if (end && pending && !(end.dataset.owner===p.ep[0] && end.dataset.port===p.ep[1])) connectEndpoint([end.dataset.owner,end.dataset.port]);
+        } else if (p.type === 'node') markDirty();
+        else if (p.type === 'drawing') {renderDevicePane(p.id,'drawing');markDirty();panels.get(p.id).querySelector('[data-draw-object="'+p.object+'"]').focus({preventScroll:true});}
+        if (p.type === 'window' || p.type === 'resize') {
+          const el = panels.get(p.id), win = state.windows[p.id];
+          win.x = parseFloat(el.style.left); win.y = parseFloat(el.style.top);
+          win.width = el.offsetWidth; win.height = el.offsetHeight;
+        }
+        persist();
+      }
+      root.addEventListener('pointerup',event => finishPointer(event));
+      root.addEventListener('pointercancel',event => finishPointer(event,true));
+      root.addEventListener('keydown',event => {
+        const target = event.target;
+        const deviceId=target.closest('.fc-device-window')?.dataset.window;
+        if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='s') {event.preventDefault();if(deviceId)deviceAction(deviceId,'save');else action('save');return;}
+        if(target.matches('[data-device-code]')&&event.key==='Tab') {event.preventDefault();target.setRangeText('  ',target.selectionStart,target.selectionEnd,'end');deviceInput(event);return;}
+        if (target.matches('input,select,textarea')) return;
+        const direction = {ArrowLeft:[-10,0],ArrowRight:[10,0],ArrowUp:[0,-10],ArrowDown:[0,10]}[event.key];
+        const art=target.closest('[data-draw-object]');
+        if(art&&(direction||['Delete','Backspace'].includes(event.key))) {
+          event.preventDefault();if(!deviceCanEdit(deviceId))return;
+          const e=editor(nodeById(deviceId));e.object=art.dataset.drawObject;
+          if(!direction){deviceAction(deviceId,'delete-object');return;}
+          remember();const object=e.objects.find(o=>o.id===e.object);object.x=clamp(object.x+direction[0]/5,8,92);object.y=clamp(object.y+direction[1]/5,12,82);
+          renderDevicePane(deviceId,'drawing');markDirty();panels.get(deviceId).querySelector('[data-draw-object="'+object.id+'"]').focus({preventScroll:true});return;
+        }
+        if (direction && target.closest('[data-move],[data-resize]') && !small()) {
+          event.preventDefault(); const id = target.closest('[data-window]').dataset.window, win = state.windows[id];
+          if (target.closest('[data-move]')) { win.x += direction[0]; win.y += direction[1]; }
+          else { win.width += direction[0]; win.height = (win.height || panels.get(id).offsetHeight)+direction[1]; }
+          positionWindow(id); drawChart(); persist(); return;
+        }
+        if (event.key === 'Escape') {
+          event.preventDefault(); placing = ''; pending = null; mode = 'select'; popover.hidden = true;
+          renderLibrary(); updateChrome(); drawEdges(); return;
+        }
+        if (event.ctrlKey || event.metaKey) {
+          const key = event.key.toLowerCase();
+          if (key === 'z') { event.preventDefault(); undo(event.shiftKey); }
+          if (key === 'y') { event.preventDefault(); undo(true); }
+          if (key === 's') { event.preventDefault(); action('save'); }
+          return;
+        }
+        if (target.closest('[data-window]')) return;
+        const nodeButton = target.closest('[data-node-body]');
+        if (event.key === 'Enter' && nodeButton) { event.preventDefault(); openWindow(nodeButton.dataset.nodeBody); return; }
+        if (direction && nodeButton) {
+          event.preventDefault(); remember(); const n = nodeById(nodeButton.dataset.nodeBody), p = positions[n.id];
+          n.positions[layoutKey] = normalizedPoint([clamp(p[0]+direction[0],38,canvas.clientWidth-40),clamp(p[1]+direction[1],58,canvas.clientHeight-75)]);
+          layoutGraph(); markDirty(); return;
+        }
+        if (event.key === 'Delete' || event.key === 'Backspace') { event.preventDefault(); deleteSelection(); }
+        if (event.key.toLowerCase() === 'v') setMode('select');
+        if (event.key.toLowerCase() === 'c') setMode('connect');
+      });
+      let lastSavedState = '';
+      function restore(saved) {
+        if (!saved || saved.version !== 3 || saved.prototype !== 'canvas-workbench' || !Array.isArray(saved.pages) || !saved.pages.length || saved.pages.length>4) return false;
+        const used = new Set(), pageIds = new Set();
+        const safeId = id => typeof id === 'string' && /^[a-zA-Z0-9_]{1,48}$/.test(id) && !['__proto__','prototype','constructor'].includes(id);
+        const safeNumber = (value,fallback,lo,hi) => typeof value === 'number' && Number.isFinite(value) ? clamp(value,lo,hi) : fallback;
+        const pages = [];
+        for (const raw of saved.pages) {
+          if (!safeId(raw.id) || pageIds.has(raw.id) || !Array.isArray(raw.nodes) || !Array.isArray(raw.edges)) return false;
+          pageIds.add(raw.id);
+          const nodes = [];
+          for (const entry of raw.nodes) {
+            if (!entry || !safeId(entry.id) || used.has(entry.id) || !Object.hasOwn(catalog,entry.kind) || used.size>=32) return false;
+            used.add(entry.id);
+            const n = makeNode(entry.id,entry.kind,String(entry.code || '').slice(0,15),String(entry.name || catalog[entry.kind].name).slice(0,60),
+              ['source','pump','split','valve_a','pipe_a','valve_b','pipe_b','merge','sink'].includes(entry.role)?entry.role:'');
+            for (const [key,,,min,max,,fallback] of catalog[n.kind].fields) {
+              n.params[key] = safeNumber(entry.params?.[key],fallback,min,max);
+              const draft = entry.draft?.[key];
+              n.draft[key] = draft === '' ? '' : safeNumber(draft,n.params[key],-100000,100000);
+            }
+            n.model = entry.model === 1 ? 1 : 0; n.draftModel = entry.draftModel === 1 ? 1 : entry.draftModel === 0 ? 0 : n.model;
+            restoreEditor(n,entry.editor);
+            for (const key of ['wide','compact','narrow']) {
+              const pos = entry.positions?.[key];
+              if (Array.isArray(pos) && pos.length === 2 && pos.every(Number.isFinite)) n.positions[key] = pos.map(v => clamp(v,-5,5));
+            }
+            nodes.push(n);
+          }
+          const endpoints = new Set(), edgeIds = new Set(), edges = [];
+          for (const edge of raw.edges) {
+            if (!edge || !safeId(edge.id) || edgeIds.has(edge.id) || !Array.isArray(edge.a) || !Array.isArray(edge.b) || edge.a[0]===edge.b[0]) continue;
+            const valid = [edge.a,edge.b].every(ep => { const n = nodes.find(n => n.id===ep[0]); return n && portNames(n).includes(ep[1]) && !endpoints.has(ep.join(':')); });
+            if (!valid) continue;
+            edgeIds.add(edge.id); endpoints.add(edge.a.join(':')); endpoints.add(edge.b.join(':'));
+            edges.push({id:edge.id,a:edge.a.slice(0,2),b:edge.b.slice(0,2)});
+          }
+          pages.push({id:raw.id,name:String(raw.name || '画布').slice(0,30),nodes,edges,zoom:safeNumber(raw.zoom,1,.6,1.6),
+            pan:[safeNumber(raw.pan?.[0],0,-4000,4000),safeNumber(raw.pan?.[1],0,-4000,4000)]});
+        }
+        state.pages = pages; state.active = pageIds.has(saved.active) ? saved.active : pages[0].id;
+        state.selected = used.has(saved.selected) ? saved.selected : ''; state.edge = safeId(saved.edge) ? saved.edge : '';
+        state.serial = Math.max(20,safeNumber(saved.serial,20,20,100000),...pages.flatMap(p => [...p.nodes.map(n => Number(n.id.split('_').at(-1))||0),...p.edges.map(e=>Number(e.id.slice(1))||0)]));
+        state.mode = ['ready','paused','stopped'].includes(saved.mode) ? saved.mode : 'paused';
+        state.time = safeNumber(saved.time,0,0,1000000); state.hasResults = !!saved.hasResults;
+        state.runPage = pageIds.has(saved.runPage) ? saved.runPage : state.active;
+        state.readings = {q:0,a:0,b:0};
+        for (const key of ['q','a','b']) { state.readings[key] = safeNumber(saved.readings?.[key],0,0,10000); state.series[key] = saved.series?.[key] !== false; }
+        state.history = Array.isArray(saved.history) ? saved.history.filter(r => r && ['t','q','a','b'].every(k => Number.isFinite(r[k]) && r[k]>=0)).slice(-24).map(r => ({t:r.t,q:r.q,a:r.a,b:r.b})).sort((a,b)=>a.t-b.t) : [];
+        state.dirty = !!saved.dirty; state.libraryHidden = !!saved.libraryHidden; state.mobileLibrary = !!saved.mobileLibrary;
+        state.collapsed = Array.isArray(saved.collapsed) ? saved.collapsed.filter(i=>Number.isInteger(i) && i>=0 && i<6) : [];
+        state.windows = {};
+        for (const [id,entry] of Object.entries(saved.windows || {})) {
+          if ((!used.has(id) && !['curves','check'].includes(id)) || !entry) continue;
+          const tab=deviceTabs.some(t=>t[0]===entry.tab)?entry.tab:entry.tab==='variables'?'variables':entry.tab==='parameters'?'parameters':'values';
+          state.windows[id] = {open:!!entry.open,minimized:!!entry.minimized,pinned:!!entry.pinned,tab,
+            x:safeNumber(entry.x,24,0,4000),y:safeNumber(entry.y,28,0,4000),width:safeNumber(entry.width,used.has(id)?880:340,240,1040),height:safeNumber(entry.height,0,0,1200),issuePage:0};
+        }
+        state.order = Array.isArray(saved.order) ? [...new Set(saved.order)].filter(id=>Object.hasOwn(state.windows,id)) : Object.keys(state.windows);
+        design.libraryWidth = safeNumber(saved.design?.libraryWidth,156,124,184);
+        design.symbolSize = safeNumber(saved.design?.symbolSize,29,24,34);
+        for (const key of ['names','values']) design[key] = saved.design?.[key] !== false;
+        design.grid = !!saved.design?.grid;
+        return true;
+      }
+      restore(window.openai?.widgetState?.privateContent);
+      renderLibrary(); reconcile();
+      for (const id of state.order.slice()) {
+        const win = state.windows[id]; if (!win.open) continue;
+        makeWindow(id); if (nodeById(id)) setWindowTab(id,win.tab,false);
+        positionWindow(id); raiseWindow(id,false);
+      }
+      updateTray(); updateValues(); renderCheck(); drawChart();
+      const observer = new ResizeObserver(scheduleLayout); observer.observe(canvas); observer.observe(root);
+      window.addEventListener('openai:set_globals',event => {
+        const incoming = event.detail?.globals?.widgetState?.privateContent;
+        if (!incoming || JSON.stringify(incoming) === lastSavedState || pointer || state.mode === 'running' || [...deviceSessions.values()].some(s=>s.mode==='running') || root.querySelector('input:focus,select:focus,textarea:focus')) return;
+        if (!restore(incoming)) return;
+        for (const el of panels.values()) el.remove(); panels.clear();
+        pending = null; placing = ''; undoStack.length = 0; redoStack.length = 0;
+        renderLibrary(); reconcile();
+        for (const id of state.order.slice()) {
+          if (!state.windows[id].open) continue;
+          makeWindow(id); if (nodeById(id)) setWindowTab(id,state.windows[id].tab,false);
+          positionWindow(id); raiseWindow(id,false);
+        }
+        updateTray(); updateValues(); renderCheck(); drawChart();
+      });
+      if (globalThis.Tweak) {
+        const tweak = new Tweak({container:root,onChange:() => { scheduleLayout(); persistSoon(); }});
+        tweak.addSlider(design,'libraryWidth',{label:'模块库宽度',min:124,max:184,step:4,unit:'px',reference:'--fc-library-width'});
+        tweak.addSlider(design,'symbolSize',{label:'设备符号大小',min:24,max:34,step:1,unit:'px',reference:'--fc-symbol-size'});
+        tweak.addToggle(design,'names',{label:'显示设备名称'});
+        tweak.addToggle(design,'grid',{label:'显示画布点阵'});
+        tweak.addToggle(design,'values',{label:'显示示例流量'});
+      }
+      window.addEventListener('pagehide',() => { clearInterval(timer); for(const s of deviceSessions.values())clearInterval(s.timer);clearTimeout(toastTimer); clearTimeout(persistTimer); observer.disconnect(); });
+    })();
+  </script>
+</div>

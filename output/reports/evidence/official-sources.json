@@ -1,0 +1,106 @@
+[
+  {
+    "id": "O01",
+    "url": "https://www.epa.gov/water-research/epanet",
+    "resolved_url": "https://www.epa.gov/water-research/epanet",
+    "title": "EPANET | US EPA",
+    "status": "retrieved",
+    "sha256": "30ec1113be5dea8c750ca4cd3f629c3aac35ecf6634b48c859b5af3821336608",
+    "bytes": 77843,
+    "excerpt": [
+      "rity threats or natural disasters.\nOn this page:\nCompatibility and Open Source Project\nSoftware and Manuals\nCapabilities\nApplications\nTechnical Support\nRelated Resources\nCompatibility and Open Source Project\nEPANET is public domain software that can be freely copied and distributed. It is a Windows®-based program that will work with all version"
+    ],
+    "pdf_links": [],
+    "retrieved_at": "2026-10-09T03:59:35.094294+00:00",
+    "manual_url": "https://usepa.github.io/EPANET2.2/",
+    "manual_sha256": "58cd34c59a083dceb954a3d859d73f7460ce7a121f97606c7ecf5d2c7153c76e",
+    "algorithm_url": "https://usepa.github.io/EPANET2.2/12_analysis_algorithms.html",
+    "algorithm_sha256": "87936cee6398d5d66292907887e1ad522d42d71b50a783f531b2f89f25e2057b",
+    "algorithm_excerpt": [
+      "divided by the sum of all flows in all links (both real and virtual) must be less than a stipulated ACCURACY value: \\[\\begin{aligned} \\frac {\\sum_{} \\: |{\\Delta}q|} { \\sum_{} \\: |q| } < \\text{ACCURACY} \\end{aligned}\\] The error in satisfying the energy balance equation Eq. (12.3) for each link (excluding closed links and active PRVs/PSVs) must be less than a specified head tolerance. The largest flow change among all links (both real and virtual) must be less than a specified flow tolerance. The first of these criteria is ",
+      "system of equations. The GGA uses a linearization of the conservation equations within an iterative Newton-Raphson scheme that results in a two-step solution procedure at each iteration. The first step solves a \\((N \\times N)\\) sparse system of linear equations for nodal heads while the second step applies a scaler updating formula to each link to compute its new flow. Todini and Rossman (2013) provide a full derivation of the GGA and discuss the advantages it has over other network solution methods. The algorithm begins",
+      "al emitter flows are set to zero. Pipe Resistance Coefficent As can be seen from Table 3.1, for the Hazen-Williams and Chezy-Manning pipe head loss formulas the resistance coefficient ( \\(r\\) ) depends only on the pipe’s diameter, length and a constant roughness coefficient. The same table shows that for the Darcy-Weisbach formula, the resistance coefficient contains a friction factor term, \\(f\\) , whose value depends on both a constant roughness length \\(\\epsilon\\) and pipe’s flow rate \\(q\\) . EPANET computes this fric",
+      "the pipe’s diameter, length and a constant roughness coefficient. The same table shows that for the Darcy-Weisbach formula, the resistance coefficient contains a friction factor term, \\(f\\) , whose value depends on both a constant roughness length \\(\\epsilon\\) and pipe’s flow rate \\(q\\) . EPANET computes this friction factor by different equations depending on the flow’s Reynolds Number ( \\(Re\\) ) defined as: (12.18)  \\[Re = \\frac{4 \\; |q|}{\\pi \\: d \\: \\nu}\\] where \\(d\\) is the pipe’s diameter and \\(\\nu\\) is the fluid’",
+      "nction of flow rate. For fully turbulent flow (Re > 4,000) the Swamee and Jain approximation to the Colebrook - White equation (Bhave, 1991) is used to compute \\(f\\) : \\[f = \\frac{0.25}{{ \\left[ \\log \\left( \\frac{\\epsilon}{3.7d} + \\frac{5.74}{{Re}^{0.9} } \\right) \\right] }^{2}}\\] For transitional flow ( \\(2,000 < Re < 4,000\\) ) \\(f\\) is computed using a cubic interpolation formula derived from the Moody Diagram by Dunlop (1991): \\[\\begin{split}\\begin{aligned} f &= X1 + R \\: (X2 + R \\: (X3 + R \\: X4)) \\\\ R &= \\frac{Re}{2000}"
+    ]
+  },
+  {
+    "id": "O02",
+    "url": "https://sundials.readthedocs.io/en/latest/ida/Mathematics_link.html",
+    "resolved_url": "https://sundials.readthedocs.io/en/latest/ida/Mathematics_link.html",
+    "title": "5.2. Mathematical Considerations &mdash; Documentation for SUNDIALS  documentation",
+    "status": "retrieved",
+    "sha256": "8817ddd7bf551330e35568c5aaead6ad4d3f6c86269dd1c07bf411d1ed6a3527",
+    "bytes": 64827,
+    "excerpt": [
+      ". IVP solution\nThe integration method used in IDA is the variable-order, variable-coefficient\nBDF (Backward Differentiation Formula), in fixed-leading-coefficient form\n[23]. The method order ranges from 1 to 5, with the BDF of order\n\\(q\\) given by the multistep formula\n(5.2)\\[\\sum_{i=0}^q \\alpha_{n,i}y_{n-i} = h_n \\dot{y}_n \\, ,\\]\nwhere \\(y_n\\) and \\(\\dot{y}_n",
+      "tical Considerations\n5.2.1. Initial Condition\n5.2.2. IVP solution\n5.2.2.1. Nonlinear Solve\n5.2.2.2. Local Error Test\n5.2.2.3. Step Size and Order Selection\n5.2.2.4. Inequality Constraints\n5.2.3. Preconditioning\n5.2.4. Rootfinding\n5.3. Code Organization\n5.4. Using IDA for IVP Solution\n5.5. IDA Constants\n6. IDAS Documentation\n7. KINSOL Documentation\n8",
+      "5.2.2. IVP solution\nThe integration method used in IDA is the variable-order, variable-coefficient\nBDF (Backward Differentiation Formula), in fixed-leading-coefficient form\n[23]. The method order ranges from 1 to 5, with the BDF of order\n\\(q\\) given by the multistep formula\n(5.2)\\[\\sum_{i=0}^q \\alpha_{n,i}y_{n-i} = h_n \\dot{y}_n \\, ,\\]\nwhe"
+    ],
+    "pdf_links": [],
+    "retrieved_at": "2026-10-09T03:59:35.262139+00:00"
+  },
+  {
+    "id": "O03",
+    "url": "https://coolprop.org/fluid_properties/IF97.html",
+    "resolved_url": "https://coolprop.org/fluid_properties/IF97.html",
+    "title": "IF97 Steam/Water Properties &#8212; CoolProp 8.0.0 documentation",
+    "status": "retrieved",
+    "sha256": "5c59cf5875abaa79dd01d2d038f5a5020fdf5469c9990646e7e97188c5ef2c2f",
+    "bytes": 66387,
+    "excerpt": [
+      "IF97 Steam/Water Properties — CoolProp 8.0.0 documentation\nSkip to main content\nBack to top\nCtrl+K\nHome\nCitation\nCoolProp Online\nExamples\nCode\nInterfaces\n💚 Sponsor\nSearch\nCtrl+K\nSystem Settings\nLight\nDark\nSearch\nCtrl+K\nHome\nCitation\nCoolProp Online\nExample",
+      "F97 Steam/Water Properties\nGeneral Introduction\nPiecewise structure of IAPWS-IF97\nIF97 Backend\nIF97 Range of Validity\nIF97 Water Property Examples\nIF97 Conformance and Timing\nDeviation of SVDSBTL&IF97::Water from IAPWS-IF97\nBackend timing (AbstractState.update regime)\nSVDSBTL&IF97 — open-source, fast, fully traceable\nIF97 vs HEOS timing — per-"
+    ],
+    "pdf_links": [],
+    "retrieved_at": "2026-10-09T03:59:35.221478+00:00"
+  },
+  {
+    "id": "O04",
+    "url": "https://docs.python.org/3.11/library/multiprocessing.html",
+    "resolved_url": "https://docs.python.org/3.11/library/multiprocessing.html",
+    "title": "multiprocessing — Process-based parallelism &#8212; Python 3.11.17 documentation",
+    "status": "retrieved",
+    "sha256": "a62d4d5277df9f1e7b1615ba889f6b01cdaf5f9f62331abc285d0bb96a3e3891",
+    "bytes": 425604,
+    "excerpt": [
+      "xits, it attempts to terminate all of its daemonic child\nprocesses.\nNote that a daemonic process is not allowed to create child processes.\nOtherwise a daemonic process would leave its children orphaned if it gets\nterminated when its parent process exits. Additionally, these are not\nUnix daemons or services, they are normal processes that will be\nterminated (and not joined) i",
+      "e is inherited from the creating process.\nWhen a process exits, it attempts to terminate all of its daemonic child\nprocesses.\nNote that a daemonic process is not allowed to create child processes.\nOtherwise a daemonic process would leave its children orphaned if it gets\nterminated when its parent process exits. Additionally, these are not\nUnix da"
+    ],
+    "pdf_links": [],
+    "retrieved_at": "2026-10-09T03:59:35.645893+00:00"
+  },
+  {
+    "id": "O05",
+    "url": "https://fmi-standard.org/docs/3.0.2/",
+    "resolved_url": "https://fmi-standard.org/docs/3.0.2/",
+    "title": "Functional Mock-up Interface Specification",
+    "status": "retrieved",
+    "sha256": "fb8b39b0a74a9aff8d84a4e15ffce3af3571fb474f2b8af120d9b8382cd5c739",
+    "bytes": 796389,
+    "excerpt": [
+      ". Introduction\n1.1. What is new in FMI 3.0\n1.1.1. Changes in FMI 3.0.x\n1.2. Overview\n1.2.1. FMI for Model Exchange (ME)\n1.2.2. FMI for Co-Simulation (CS)\n1.2.3. FMI for Scheduled Execution (SE)\n1.2.4. Feature Overview of the Interface Types\n1.3. Properties and Guiding Ideas\n1.4. How to Read This Document\n2. Common Concepts\n2.1. Mathematical Notation\n2.",
+      "x\n1.2. Overview\n1.2.1. FMI for Model Exchange (ME)\n1.2.2. FMI for Co-Simulation (CS)\n1.2.3. FMI for Scheduled Execution (SE)\n1.2.4. Feature Overview of the Interface Types\n1.3. Properties and Guiding Ideas\n1.4. How to Read This Document\n2. Common Concepts\n2.1. Mathematical Notation\n2.2. General Mechanisms\n2.2.1. Requirements for Implementations of the C-API"
+    ],
+    "pdf_links": [],
+    "retrieved_at": "2026-10-09T03:59:37.340571+00:00"
+  },
+  {
+    "id": "O06",
+    "url": "https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.linalg.spsolve.html",
+    "resolved_url": "https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.linalg.spsolve.html",
+    "title": "spsolve &#8212; SciPy v1.18.0 Manual",
+    "status": "retrieved",
+    "sha256": "c1c6936a2e1840d351184d816e8756b4ef048733b29a0c25fa2ebc6ab7114259",
+    "bytes": 33976,
+    "excerpt": [
+      "e\nscipy.interpolate\nscipy.io\nscipy.linalg\nscipy.ndimage\nscipy.odr\nscipy.optimize\nscipy.signal\nscipy.sparse\nscipy.spatial\nscipy.special\nscipy.stats\nSciPy API\nSparse arrays (scipy.sparse)\nSparse linear algebra (scipy.sparse.linalg)\nspsolve\nscipy.sparse.linalg.\nspsolve#\nscipy.sparse.linalg.spsolve(A, b, permc_spec=None, use_umfpack=True)[source]#\n",
+      "inalg)\nspsolve\nscipy.sparse.linalg.\nspsolve#\nscipy.sparse.linalg.spsolve(A, b, permc_spec=None, use_umfpack=True)[source]#\nSolve the sparse linear system Ax=b, where b may be a vector or a matrix.\nParameters:\nAndarray or sparse array or matrix\nThe square matrix A will be converted into CSC or CSR form\nbndarray or sparse array or matrix\nThe matri"
+    ],
+    "pdf_links": [],
+    "retrieved_at": "2026-10-09T03:59:36.677174+00:00",
+    "versioned_url": "https://docs.scipy.org/doc/scipy-1.17.0/reference/generated/scipy.sparse.linalg.spsolve.html",
+    "versioned_sha256": "b7bcc55b732be60fcbc6726fe74fdf54e6d2502278a40ddd09f049df8da70d11",
+    "versioned_title": "spsolve &#8212; SciPy v1.17.0 Manual"
+  }
+]

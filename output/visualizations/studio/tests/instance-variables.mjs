@@ -1,0 +1,186 @@
+import { chromium, expect } from '@playwright/test';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
+
+const output = resolve('.cache/studio-prototype-qa');
+await mkdir(output, { recursive: true });
+const browser = await chromium.launch({ channel: 'msedge', headless: true });
+const page = await browser.newPage({ viewport: { width: 1366, height: 768 }, acceptDownloads: true });
+const errors = [], checks = [], layouts = [];
+page.on('pageerror', error => errors.push(error.message));
+const url = pathToFileURL(resolve('output/visualizations/fluidnet-studio-prototype.html')).href;
+const storageKey = 'fluidnet-studio-prototype-20261009-v1';
+const floating = id => page.locator(`[data-float-id="${id}"]`);
+const click = (action, attrs = '') => page.locator(`[data-action="${action}"]${attrs}`).first().click();
+const submit = () => page.locator('#dialog-form button[type="submit"]').click();
+const variableInput = (id, variable, source = -1) => floating(id).locator(`input[data-instance-value="${variable}"][data-instance-source="${source}"]`);
+const current = (id, variable) => floating(id).locator(`[data-instance-live="${variable}"]`);
+const save = async () => { await click('save'); return page.evaluate(key => JSON.parse(localStorage.getItem(key)), storageKey); };
+const node = (state, id, project = 'water-net') => state.projects.find(p => p.id === project).pages.flatMap(pg => pg.nodes).find(n => n.id === id);
+const open = async id => {
+  await page.locator(`[data-node="${id}"]`).dblclick();
+  await floating(id).locator('[data-action="float-tab"][data-value="variables"]').click();
+};
+const close = id => floating(id).locator('[data-action="float-close"]').click();
+
+try {
+  await page.goto(url + '#workbench');
+  await open('V1');
+  await expect(floating('V1').locator('[data-instance-row]')).toHaveCount(20);
+  await expect(floating('V1').locator('[data-instance-value="in0:FLOW"]')).toHaveCount(0);
+  await expect(current('V1', 'out0:FLOW')).toHaveText('—');
+  await expect(current('V1', 'system:step')).toHaveText('100');
+  await variableInput('V1', 'param:opening').fill('65');
+  await expect(current('V1', 'param:opening')).toHaveText('80.0000');
+  await expect(floating('V1').locator('[data-pending-for]')).toHaveText('1 项待应用');
+  await floating('V1').locator('[data-action="float-tab"][data-value="parameters"]').click();
+  await expect(floating('V1').locator('input[type=number][data-instance-param="opening"]')).toHaveValue('65');
+  await floating('V1').locator('input[type=number][data-instance-param="kv"]').fill('18');
+  await floating('V1').locator('[data-action="float-tab"][data-value="variables"]').click();
+  await expect(variableInput('V1', 'param:kv')).toHaveValue('18');
+  const draft = await save();
+  if (node(draft, 'V1').params.opening !== 80 || node(draft, 'V1').draft.opening !== 65 || node(draft, 'V2').params.opening !== 55) throw Error('Draft leaked into applied or sibling values');
+  await floating('V1').locator('[data-action="apply-instance"]').click();
+  await expect(page.locator('#dialog-form')).toContainText('65');
+  await click('close-dialog');
+  await expect(current('V1', 'param:opening')).toHaveText('80.0000');
+  await floating('V1').locator('[data-action="apply-instance"]').click(); await submit();
+  await expect(current('V1', 'param:opening')).toHaveText('65.0000');
+  checks.push('Two-way common/all-variable drafts, explicit preview/cancel/apply, read-only ports and instance isolation');
+
+  await floating('V1').locator('[data-instance-source-select]').selectOption('1');
+  await variableInput('V1', 'param:opening', 1).fill('40');
+  await variableInput('V1', 'param:kv', 1).fill('-1');
+  await floating('V1').locator('[data-action="apply-instance-bank"]').click();
+  await expect(page.locator('#toast')).toContainText('流量系数');
+  await expect(current('V1', 'param:opening')).toHaveText('65.0000');
+  await variableInput('V1', 'param:kv', 1).fill('20');
+  await floating('V1').locator('[data-action="apply-instance-bank"]').click(); await submit();
+  await expect(current('V1', 'param:opening')).toHaveText('40.0000');
+  await floating('V1').locator('[data-instance-source-select]').selectOption('2');
+  await floating('V1').locator('[data-action="capture-instance-bank"]').click(); await submit();
+  await expect(variableInput('V1', 'param:opening', 2)).toHaveValue('40');
+  const applied = await save();
+  if (node(applied, 'V1').variableState.banks[0]['param:opening'] !== 80 || node(applied, 'V1').variableState.banks[1]['param:opening'] !== 40 || node(applied, 'V2').variableState.banks[1]['param:opening'] !== 65 || applied.modules.find(m => m.id === 'valve').banks[1]['param:opening'] !== 65) throw Error('Instance bank aliasing');
+  await page.reload(); await open('V1');
+  await expect(current('V1', 'param:opening')).toHaveText('40.0000');
+  await floating('V1').locator('[data-instance-source-select]').selectOption('2');
+  await expect(variableInput('V1', 'param:kv', 2)).toHaveValue('20');
+  checks.push('Independent banks, invalid bank atomic rejection, current-to-bank direction, saved reload');
+
+  await floating('V1').locator('[data-action="float-min"]').click();
+  await click('run-project', '[data-command="run"]');
+  await floating('V1').locator('[data-action="float-min"]').click();
+  await floating('V1').locator('[data-instance-source-select]').selectOption('-1');
+  await variableInput('V1', 'param:opening').fill('37');
+  await variableInput('V1', 'param:opening').focus();
+  const wrap = floating('V1').locator('.instance-table-wrap');
+  await wrap.evaluate(el => el.scrollTop = 180);
+  await page.waitForTimeout(650);
+  await expect(variableInput('V1', 'param:opening')).toBeFocused();
+  await expect(variableInput('V1', 'param:opening')).toHaveValue('37');
+  if (await wrap.evaluate(el => el.scrollTop) !== 180) throw Error('Live updates reset table scroll');
+  await expect(current('V1', 'out0:FLOW')).not.toHaveText('—');
+  await expect(current('V1', 'in0:FLOW')).toHaveText('—');
+  await expect(current('V1', 'out0:ENTHALPY')).toHaveText('—');
+  await floating('V1').locator('[data-action="float-min"]').click();
+  await click('run-project', '[data-command="pause"]');
+  await floating('V1').locator('[data-action="float-min"]').click();
+  const paused = await save(), run = paused.projects[0].run;
+  if (Math.abs(Number(await current('V1', 'out0:PRE').innerText()) - run.history.at(-1).variables['V1.OUT_PRE'] / 1000) > .000051) throw Error('kPa to MPa conversion');
+  if (await current('V1', 'system:run').innerText() !== '0') throw Error('Paused state mismatch');
+  checks.push('Live result source and units, missing samples, focus/scroll preserved during input');
+
+  await floating('V1').locator('[data-instance-toggle="allBanks"]').check();
+  await floating('V1').locator('[data-action="float-max"]').click();
+  await wrap.evaluate(el => { el.scrollTop = 0; el.scrollLeft = 0; });
+  await page.screenshot({ path: resolve(output, 'instance-variables-compare.png') });
+  await floating('V1').locator('[data-instance-search]').fill('开度');
+  await expect(floating('V1').locator('[data-instance-row]')).toHaveCount(1);
+  await floating('V1').locator('[data-instance-search]').fill('不存在的变量');
+  await expect(floating('V1')).toContainText('没有符合条件的变量');
+  await floating('V1').locator('[data-instance-search]').fill('');
+  await floating('V1').locator('[data-instance-toggle="allBanks"]').uncheck();
+  await floating('V1').locator('[data-instance-toggle="onlyDiff"]').check();
+  await expect(floating('V1').locator('[data-instance-row]')).toHaveCount(1);
+  await floating('V1').locator('[data-instance-toggle="onlyDiff"]').uncheck();
+  await floating('V1').locator('[data-instance-group]').selectOption('system');
+  await expect(floating('V1').locator('[data-instance-row]')).toHaveCount(4);
+  await floating('V1').locator('[data-instance-group]').selectOption('all');
+  await floating('V1').locator('[data-action="float-max"]').click();
+  await page.screenshot({ path: resolve(output, 'instance-variables-window.png') });
+  for (const width of [1024, 736, 320]) {
+    await page.setViewportSize({ width, height: 768 }); await page.waitForTimeout(160);
+    const box = await floating('V1').boundingBox();
+    if (box.x < 0 || box.x + box.width > width + 1) throw Error(`Window clipped at ${width}: ${JSON.stringify(box)}`);
+    await expect(floating('V1').locator('[data-action="apply-instance"]')).toBeInViewport();
+    await expect(floating('V1').locator('[data-instance-source-select]')).toBeInViewport();
+    await wrap.evaluate(el => el.scrollLeft = el.scrollWidth);
+    await expect(variableInput('V1', 'param:opening')).toBeInViewport();
+    layouts.push({ width, box, table: await wrap.evaluate(el => ({ width: el.clientWidth, scroll: el.scrollWidth, height: el.clientHeight })) });
+    await page.screenshot({ path: resolve(output, `instance-variables-${width}.png`) });
+  }
+  await page.setViewportSize({ width: 1366, height: 768 }); await page.waitForTimeout(160);
+  await click('theme'); await page.screenshot({ path: resolve(output, 'instance-variables-dark.png') });
+  await close('V1'); await open('V2');
+  await expect(current('V2', 'param:opening')).toHaveText('55.0000');
+  await close('V2');
+  checks.push('Search, groups, writable differences, three-bank comparison, maximize, sibling value and 320–1024 px layouts');
+
+  // Add custom scalar/array definitions to a saved fixture, as a module author would.
+  const fixture = await save(), valve = fixture.modules.find(m => m.id === 'valve');
+  for (const [id, type, value] of [['GAIN', 'double', 1], ['COEFFS', 'double[8]', [1, 0, 0, 0, 0, 0, 0, 0]]]) {
+    const variable = { id: 'custom:' + id, name: id, label: id === 'GAIN' ? '修正系数' : '系数数组', unit: '—', type, origin: 'custom', port: '', note: '', display: true, writable: true, value };
+    valve.variables.push(variable); [valve.values, ...valve.banks].forEach(values => values[variable.id] = structuredClone(value));
+  }
+  await page.evaluate(({ key, fixture }) => localStorage.setItem(key, JSON.stringify(fixture)), { key: storageKey, fixture });
+  await page.reload(); await open('V1');
+  await floating('V1').locator('[data-instance-group]').selectOption('custom');
+  await variableInput('V1', 'custom:GAIN').fill('2');
+  await floating('V1').locator('[data-action="instance-array"]').click();
+  await page.locator('#dialog-form [name="item1"]').fill('0.25'); await submit();
+  await floating('V1').locator('[data-action="apply-instance"]').click(); await submit();
+  const custom = await save();
+  if (node(custom, 'V1').variableState.values['custom:GAIN'] !== 2 || node(custom, 'V1').variableState.values['custom:COEFFS'][1] !== .25 || node(custom, 'V2').variableState.values['custom:GAIN'] !== 1 || custom.modules.find(m => m.id === 'valve').values['custom:GAIN'] !== 1) throw Error('Custom variable scope leak');
+  await page.evaluate(() => location.hash = 'settings');
+  await click('settings-tab', '[data-value="storage"]');
+  const [download] = await Promise.all([page.waitForEvent('download'), click('export', '[data-format="prototype"]')]);
+  const exported = await readFile(await download.path(), 'utf8');
+  await click('import');
+  await page.locator('input[type=file]').setInputFiles({ name: 'instance-values.json', mimeType: 'application/json', buffer: Buffer.from(exported) });
+  await expect(page.locator('#import-preview')).toContainText('3 个项目'); await submit();
+  await page.evaluate(() => location.hash = 'workbench'); await open('V1');
+  await floating('V1').locator('[data-instance-group]').selectOption('custom');
+  await expect(current('V1', 'custom:GAIN')).toHaveText('2.0000');
+  checks.push('Custom scalars/arrays, independent applied values and full JSON round-trip');
+
+  await page.evaluate(() => location.hash = 'settings');
+  await click('settings-tab', '[data-value="storage"]');
+  const broken = JSON.parse(exported); node(broken, 'V1').variableState.banks[1] = null;
+  await click('import');
+  await page.locator('input[type=file]').setInputFiles({ name: 'invalid-bank.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(broken)) });
+  await expect(page.locator('#import-preview')).toContainText('检查失败'); await click('close-dialog');
+  const legacy = JSON.parse(exported);
+  legacy.projects.forEach(p => p.pages.forEach(pg => pg.nodes.forEach(n => delete n.variableState)));
+  await click('import');
+  await page.locator('input[type=file]').setInputFiles({ name: 'legacy.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(legacy)) });
+  await expect(page.locator('#import-preview')).toContainText('3 个项目'); await submit();
+  await page.evaluate(() => location.hash = 'workbench'); await open('V1');
+  await expect(current('V1', 'param:opening')).toHaveText(Number(node(legacy, 'V1').params.opening).toFixed(4));
+  const upgraded = await save();
+  if (node(upgraded, 'V1').variableState.banks.length !== 3) throw Error('Legacy instance banks not initialized');
+  await page.evaluate(() => location.hash = 'projects');
+  await click('open-project', '[data-id="heat-loop"]');
+  await click('run-project', '[data-command="step"]'); await open('HX1');
+  await expect(current('HX1', 'out0:FLOW')).toHaveText('—');
+  await expect(current('HX1', 'out1:FLOW')).toHaveText('—');
+  checks.push('Malformed bank import rejection, legacy migration and no invented dual-circuit results');
+  if (errors.length) throw Error(errors.join('\n'));
+} catch (error) {
+  await page.screenshot({ path: resolve(output, 'instance-variables-failure.png') }); throw error;
+} finally {
+  await writeFile(resolve(output, 'instance-variables.json'), JSON.stringify({ checks, errors, layouts }, null, 2));
+  console.log(JSON.stringify({ checks, errors, layouts }, null, 2));
+  await browser.close();
+}

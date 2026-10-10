@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1680" height="1285" viewBox="0 0 1680 1285">
+<rect width="100%" height="100%" fill="white"/>
+<text x="55.0" y="87.0" font-family="Microsoft YaHei, sans-serif" font-size="42" font-weight="700" fill="#163047">建议目标：试算与接受状态分离</text>
+<text x="58.0" y="137.0" font-family="Microsoft YaHei, sans-serif" font-size="25" font-weight="400" fill="#536777">建议未实施  |  渐进适配现有求解器；先明确状态、数值与设备协议，再按测量并行</text>
+<rect x="70" y="220" width="400" height="135" rx="18" fill="#f4f8fc" stroke="#a9c5dc" stroke-width="2"/>
+<text x="212.0" y="275.5" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#163047">项目定义</text>
+<text x="132.5" y="318.5" font-family="Microsoft YaHei, sans-serif" font-size="25" font-weight="400" fill="#536777">拓扑、参数、型号与单位</text>
+<rect x="610" y="220" width="450" height="135" rx="18" fill="#f4f8fc" stroke="#a9c5dc" stroke-width="2"/>
+<text x="791.5" y="275.5" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#163047">计算图</text>
+<text x="685.0" y="318.5" font-family="Microsoft YaHei, sans-serif" font-size="25" font-weight="400" fill="#536777">方程索引、依赖与原图映射</text>
+<rect x="1190" y="220" width="420" height="135" rx="18" fill="#f4f8fc" stroke="#a9c5dc" stroke-width="2"/>
+<text x="1313.0" y="275.5" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#163047">设备模型协议</text>
+<text x="1262.5" y="318.5" font-family="Microsoft YaHei, sans-serif" font-size="25" font-weight="400" fill="#536777">能力、状态、方程与观测</text>
+<polyline points="470,287 610,287" fill="none" stroke="#2966a3" stroke-width="4" stroke-linejoin="round"/>
+<polygon points="610.0,287.0 595.0,280.0 595.0,294.0" fill="#2966a3"/>
+<polyline points="1060,287 1190,287" fill="none" stroke="#2966a3" stroke-width="4" stroke-linejoin="round"/>
+<polygon points="1190.0,287.0 1175.0,280.0 1175.0,294.0" fill="#2966a3"/>
+<rect x="70" y="490" width="400" height="170" rx="18" fill="#eef9f8" stroke="#9bcfc9" stroke-width="2"/>
+<text x="168.5" y="545.5" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#163047">已接受状态 S_n</text>
+<text x="157.5" y="588.5" font-family="Microsoft YaHei, sans-serif" font-size="25" font-weight="400" fill="#536777">物理状态与控制状态</text>
+<text x="157.5" y="623.5" font-family="Microsoft YaHei, sans-serif" font-size="25" font-weight="400" fill="#536777">本步有效命令与事件</text>
+<rect x="610" y="490" width="450" height="170" rx="18" fill="#f4f8fc" stroke="#a9c5dc" stroke-width="2"/>
+<text x="748.0" y="545.5" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#163047">设备方程贡献</text>
+<text x="685.0" y="588.5" font-family="Microsoft YaHei, sans-serif" font-size="25" font-weight="400" fill="#536777">只读试算、按需批量或并行</text>
+<text x="735.0" y="623.5" font-family="Microsoft YaHei, sans-serif" font-size="25" font-weight="400" fill="#536777">残差、导数与事件</text>
+<rect x="1190" y="490" width="420" height="170" rx="18" fill="#f4f8fc" stroke="#a9c5dc" stroke-width="2"/>
+<text x="1298.5" y="545.5" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#163047">求解与时间协调</text>
+<text x="1287.5" y="588.5" font-family="Microsoft YaHei, sans-serif" font-size="25" font-weight="400" fill="#536777">网络装配与耦合迭代</text>
+<text x="1262.5" y="623.5" font-family="Microsoft YaHei, sans-serif" font-size="25" font-weight="400" fill="#536777">物理域、误差与事件检查</text>
+<polyline points="835,355 835,490" fill="none" stroke="#2966a3" stroke-width="4" stroke-linejoin="round"/>
+<polygon points="835.0,490.0 842.0,475.0 828.0,475.0" fill="#2966a3"/>
+<polyline points="1400,355 1400,415 915,415 915,490" fill="none" stroke="#2966a3" stroke-width="4" stroke-linejoin="round"/>
+<polygon points="915.0,490.0 922.0,475.0 908.0,475.0" fill="#2966a3"/>
+<polyline points="470,575 610,575" fill="none" stroke="#2966a3" stroke-width="4" stroke-linejoin="round"/>
+<polygon points="610.0,575.0 595.0,568.0 595.0,582.0" fill="#2966a3"/>
+<text x="517.0" y="556.0" font-family="Microsoft YaHei, sans-serif" font-size="23" font-weight="400" fill="#2966a3">只读</text>
+<polyline points="1060,575 1190,575" fill="none" stroke="#2966a3" stroke-width="4" stroke-linejoin="round"/>
+<polygon points="1190.0,575.0 1175.0,568.0 1175.0,582.0" fill="#2966a3"/>
+<rect x="1190" y="805" width="420" height="155" rx="18" fill="#eef9f8" stroke="#9bcfc9" stroke-width="2"/>
+<text x="1293.0" y="853.0" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#163047">统一提交 S_n+1</text>
+<text x="1262.5" y="896.0" font-family="Microsoft YaHei, sans-serif" font-size="25" font-weight="400" fill="#536777">按契约更新全部接受状态</text>
+<text x="1287.5" y="931.0" font-family="Microsoft YaHei, sans-serif" font-size="25" font-weight="400" fill="#536777">生成有序观测与回执</text>
+<polyline points="1460,660 1460,805" fill="none" stroke="#087f8c" stroke-width="4" stroke-linejoin="round"/>
+<polygon points="1460.0,805.0 1467.0,790.0 1453.0,790.0" fill="#087f8c"/>
+<text x="1511.0" y="743.0" font-family="Microsoft YaHei, sans-serif" font-size="24" font-weight="400" fill="#087f8c">接受</text>
+<polyline points="1300,660 1300,722 835,722 835,660" fill="none" stroke="#2966a3" stroke-width="4" stroke-linejoin="round"/>
+<polygon points="835.0,660.0 828.0,675.0 842.0,675.0" fill="#2966a3"/>
+<text x="907.5" y="780.0" font-family="Microsoft YaHei, sans-serif" font-size="25" font-weight="400" fill="#2966a3">未接受：重试或缩步</text>
+<polyline points="1190,882 270,882 270,660" fill="none" stroke="#087f8c" stroke-width="4" stroke-linejoin="round"/>
+<polygon points="270.0,660.0 263.0,675.0 277.0,675.0" fill="#087f8c"/>
+<text x="527.5" y="861.0" font-family="Microsoft YaHei, sans-serif" font-size="25" font-weight="400" fill="#087f8c">下一步读取统一的已接受状态</text>
+<polyline points="1400,960 1400,1005" fill="none" stroke="#2966a3" stroke-width="4" stroke-linejoin="round"/>
+<polyline points="245,1005 1415,1005" fill="none" stroke="#2966a3" stroke-width="4" stroke-linejoin="round"/>
+<polyline points="245,1005 245,1060" fill="none" stroke="#2966a3" stroke-width="4" stroke-linejoin="round"/>
+<polygon points="245.0,1060.0 252.0,1045.0 238.0,1045.0" fill="#2966a3"/>
+<rect x="70" y="1060" width="350" height="140" rx="18" fill="#fbf7ee" stroke="#d9c79d" stroke-width="2"/>
+<text x="158.0" y="1118.0" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#163047">可靠命令回执</text>
+<text x="150.0" y="1161.0" font-family="Microsoft YaHei, sans-serif" font-size="25" font-weight="400" fill="#536777">按 ID 查询与补读</text>
+<polyline points="635,1005 635,1060" fill="none" stroke="#2966a3" stroke-width="4" stroke-linejoin="round"/>
+<polygon points="635.0,1060.0 642.0,1045.0 628.0,1045.0" fill="#2966a3"/>
+<rect x="460" y="1060" width="350" height="140" rx="18" fill="#fbf7ee" stroke="#d9c79d" stroke-width="2"/>
+<text x="577.0" y="1118.0" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#163047">最新观测</text>
+<text x="547.5" y="1161.0" font-family="Microsoft YaHei, sans-serif" font-size="25" font-weight="400" fill="#536777">允许合并展示帧</text>
+<polyline points="1025,1005 1025,1060" fill="none" stroke="#2966a3" stroke-width="4" stroke-linejoin="round"/>
+<polygon points="1025.0,1060.0 1032.0,1045.0 1018.0,1045.0" fill="#2966a3"/>
+<rect x="850" y="1060" width="350" height="140" rx="18" fill="#fbf7ee" stroke="#d9c79d" stroke-width="2"/>
+<text x="967.0" y="1118.0" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#163047">历史记录</text>
+<text x="900.0" y="1161.0" font-family="Microsoft YaHei, sans-serif" font-size="25" font-weight="400" fill="#536777">采样、背压与落盘水位</text>
+<polyline points="1415,1005 1415,1060" fill="none" stroke="#2966a3" stroke-width="4" stroke-linejoin="round"/>
+<polygon points="1415.0,1060.0 1422.0,1045.0 1408.0,1045.0" fill="#2966a3"/>
+<rect x="1240" y="1060" width="350" height="140" rx="18" fill="#fbf7ee" stroke="#d9c79d" stroke-width="2"/>
+<text x="1313.5" y="1118.0" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#163047">检查点（按需）</text>
+<text x="1302.5" y="1161.0" font-family="Microsoft YaHei, sans-serif" font-size="25" font-weight="400" fill="#536777">完整续算状态与版本</text>
+<text x="58.0" y="1254.0" font-family="Microsoft YaHei, sans-serif" font-size="24" font-weight="400" fill="#536777">失败与命令拒绝也进入可靠通道；分别约定采样与持久化，不要求立即拆成多个进程。</text>
+</svg>

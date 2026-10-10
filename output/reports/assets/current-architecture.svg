@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1680" height="1190" viewBox="0 0 1680 1190">
+<rect width="100%" height="100%" fill="white"/>
+<text x="55.0" y="87.0" font-family="Microsoft YaHei, sans-serif" font-size="42" font-weight="700" fill="#163047">当前实现：任务并行，任务内统一求解</text>
+<text x="58.0" y="137.0" font-family="Microsoft YaHei, sans-serif" font-size="25" font-weight="400" fill="#536777">当前源码  |  HTTP 服务与计算进程分离；设备数值行为分布在现有内核中</text>
+<rect x="35" y="205" width="405" height="865" rx="18" fill="#f6f8fb" stroke="#bfd0df" stroke-width="2"/>
+<rect x="490" y="205" width="1135" height="865" rx="18" fill="#fafcfe" stroke="#bfd0df" stroke-width="2"/>
+<text x="179.0" y="253.0" font-family="Microsoft YaHei, sans-serif" font-size="28" font-weight="700" fill="#2966a3">服务进程</text>
+<text x="831.0" y="253.0" font-family="Microsoft YaHei, sans-serif" font-size="28" font-weight="700" fill="#2966a3">计算工作进程（每个运行任务一个）</text>
+<rect x="70" y="300" width="335" height="130" rx="18" fill="#f4f8fc" stroke="#a9c5dc" stroke-width="2"/>
+<text x="162.5" y="353.0" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#163047">Web / API</text>
+<text x="112.5" y="396.0" font-family="Microsoft YaHei, sans-serif" font-size="25" font-weight="400" fill="#536777">项目编辑、运行与查询</text>
+<rect x="70" y="520" width="335" height="180" rx="18" fill="#f4f8fc" stroke="#a9c5dc" stroke-width="2"/>
+<text x="146.0" y="563.0" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#163047">JobManager</text>
+<text x="112.5" y="606.0" font-family="Microsoft YaHei, sans-serif" font-size="25" font-weight="400" fill="#536777">请求、命令与最新状态</text>
+<text x="90.0" y="641.0" font-family="Microsoft YaHei, sans-serif" font-size="25" font-weight="400" fill="#536777">默认最多 2 个 spawn 进程</text>
+<text x="99.0" y="676.0" font-family="Microsoft YaHei, sans-serif" font-size="25" font-weight="400" fill="#536777">计算进程 daemon=True</text>
+<rect x="70" y="890" width="335" height="140" rx="18" fill="#f4f8fc" stroke="#a9c5dc" stroke-width="2"/>
+<text x="125.0" y="933.5" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#163047">Store / 文件查询</text>
+<text x="167.0" y="973.5" font-family="Microsoft YaHei, sans-serif" font-size="22" font-weight="400" fill="#536777">SQLite 元数据</text>
+<text x="160.5" y="1005.5" font-family="Microsoft YaHei, sans-serif" font-size="22" font-weight="400" fill="#536777">历史曲线与事件</text>
+<polyline points="235,430 235,520" fill="none" stroke="#2966a3" stroke-width="4" stroke-linejoin="round"/>
+<polygon points="235.0,520.0 242.0,505.0 228.0,505.0" fill="#2966a3"/>
+<polygon points="235.0,430.0 228.0,445.0 242.0,445.0" fill="#2966a3"/>
+<rect x="555" y="310" width="415" height="135" rx="18" fill="#f4f8fc" stroke="#a9c5dc" stroke-width="2"/>
+<text x="704.5" y="353.0" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#163047">项目编译</text>
+<text x="637.5" y="391.0" font-family="Microsoft YaHei, sans-serif" font-size="20" font-weight="400" fill="#536777">Project → compile_project</text>
+<text x="662.5" y="421.0" font-family="Microsoft YaHei, sans-serif" font-size="20" font-weight="400" fill="#536777">节点、支路与介质归属</text>
+<rect x="1100" y="310" width="440" height="135" rx="18" fill="#f4f8fc" stroke="#a9c5dc" stroke-width="2"/>
+<text x="1186.5" y="365.5" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#163047">SimulationSession</text>
+<text x="1170.0" y="408.5" font-family="Microsoft YaHei, sans-serif" font-size="25" font-weight="400" fill="#536777">控制时钟、试算与接受状态</text>
+<polyline points="405,585 460,585 460,377 555,377" fill="none" stroke="#2966a3" stroke-width="4" stroke-linejoin="round"/>
+<polygon points="555.0,377.0 540.0,370.0 540.0,384.0" fill="#2966a3"/>
+<polyline points="970,377 1100,377" fill="none" stroke="#2966a3" stroke-width="4" stroke-linejoin="round"/>
+<polygon points="1100.0,377.0 1085.0,370.0 1085.0,384.0" fill="#2966a3"/>
+<rect x="575" y="580" width="400" height="200" rx="18" fill="#f4f8fc" stroke="#a9c5dc" stroke-width="2"/>
+<text x="670.0" y="633.0" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#163047">solve_network</text>
+<text x="646.0" y="676.0" font-family="Microsoft YaHei, sans-serif" font-size="25" font-weight="400" fill="#536777">水力 Newton 与活动集</text>
+<text x="712.5" y="711.0" font-family="Microsoft YaHei, sans-serif" font-size="25" font-weight="400" fill="#536777">热力焓平衡</text>
+<text x="712.5" y="746.0" font-family="Microsoft YaHei, sans-serif" font-size="25" font-weight="400" fill="#536777">水热外迭代</text>
+<polyline points="762,445 762,580" fill="none" stroke="#2966a3" stroke-width="4" stroke-linejoin="round"/>
+<polygon points="762.0,580.0 769.0,565.0 755.0,565.0" fill="#2966a3"/>
+<text x="547.5" y="525.0" font-family="Microsoft YaHei, sans-serif" font-size="25" font-weight="400" fill="#2966a3">稳态 / 动态共用</text>
+<polyline points="1320,445 1320,490 960,490 960,580" fill="none" stroke="#2966a3" stroke-width="4" stroke-linejoin="round"/>
+<polygon points="960.0,580.0 967.0,565.0 953.0,565.0" fill="#2966a3"/>
+<text x="1067.0" y="481.0" font-family="Microsoft YaHei, sans-serif" font-size="24" font-weight="400" fill="#2966a3">时间推进</text>
+<rect x="1120" y="560" width="420" height="120" rx="18" fill="#eef9f8" stroke="#9bcfc9" stroke-width="2"/>
+<text x="1162.0" y="608.0" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#163047">MediumRegistry / IF97</text>
+<text x="1205.0" y="651.0" font-family="Microsoft YaHei, sans-serif" font-size="25" font-weight="400" fill="#536777">物性缓存与适用域检查</text>
+<polyline points="975,620 1120,620" fill="none" stroke="#087f8c" stroke-width="4" stroke-linejoin="round"/>
+<polygon points="1120.0,620.0 1105.0,613.0 1105.0,627.0" fill="#087f8c"/>
+<polygon points="975.0,620.0 990.0,627.0 990.0,613.0" fill="#087f8c"/>
+<rect x="1120" y="765" width="420" height="120" rx="18" fill="#f4f8fc" stroke="#a9c5dc" stroke-width="2"/>
+<text x="1263.5" y="813.0" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#163047">snapshot</text>
+<text x="1192.5" y="856.0" font-family="Microsoft YaHei, sans-serif" font-size="25" font-weight="400" fill="#536777">压力、流量、温度与诊断</text>
+<polyline points="975,730 1040,730 1040,825 1120,825" fill="none" stroke="#2966a3" stroke-width="4" stroke-linejoin="round"/>
+<polygon points="1120.0,825.0 1105.0,818.0 1105.0,832.0" fill="#2966a3"/>
+<polyline points="1120,855 465,855 465,660 405,660" fill="none" stroke="#2966a3" stroke-width="4" stroke-linejoin="round"/>
+<polygon points="405.0,660.0 420.0,667.0 420.0,653.0" fill="#2966a3"/>
+<text x="619.0" y="841.0" font-family="Microsoft YaHei, sans-serif" font-size="24" font-weight="400" fill="#2966a3">最新帧与回执共用可丢弃通道</text>
+<rect x="1120" y="950" width="420" height="100" rx="18" fill="#fbf7ee" stroke="#d9c79d" stroke-width="2"/>
+<text x="1264.5" y="990.5" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#163047">Recorder</text>
+<text x="1250.0" y="1028.5" font-family="Microsoft YaHei, sans-serif" font-size="20" font-weight="400" fill="#536777">同进程压缩并刷盘</text>
+<polyline points="1330,885 1330,950" fill="none" stroke="#2966a3" stroke-width="4" stroke-linejoin="round"/>
+<polygon points="1330.0,950.0 1337.0,935.0 1323.0,935.0" fill="#2966a3"/>
+<rect x="555" y="950" width="420" height="100" rx="18" fill="#fbf7ee" stroke="#d9c79d" stroke-width="2"/>
+<text x="707.0" y="990.5" font-family="Microsoft YaHei, sans-serif" font-size="29" font-weight="700" fill="#163047">运行文件</text>
+<text x="657.0" y="1028.5" font-family="Microsoft YaHei, sans-serif" font-size="20" font-weight="400" fill="#536777">曲线、事件、result.json</text>
+<polyline points="1120,1000 975,1000" fill="none" stroke="#087f8c" stroke-width="4" stroke-linejoin="round"/>
+<polygon points="975.0,1000.0 990.0,1007.0 990.0,993.0" fill="#087f8c"/>
+<polyline points="555,1000 405,1000" fill="none" stroke="#087f8c" stroke-width="4" stroke-linejoin="round"/>
+<polygon points="405.0,1000.0 420.0,1007.0 420.0,993.0" fill="#087f8c"/>
+<text x="58.0" y="1135.0" font-family="Microsoft YaHei, sans-serif" font-size="25" font-weight="400" fill="#536777">F01：容差配置未接入  ·  F07：暂停尾部不可见  ·  F08：回执缺 ID 且可丢弃</text>
+<text x="58.0" y="1173.0" font-family="Microsoft YaHei, sans-serif" font-size="23" font-weight="400" fill="#536777">仅绘制主要职责与数据流；组合外壳不会创建独立的网络求解分区。</text>
+</svg>
