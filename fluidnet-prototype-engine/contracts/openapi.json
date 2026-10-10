@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "FluidNet Prototype Engine",
-    "version": "0.1.0"
+    "version": "0.2.0"
   },
   "paths": {
     "/api/v1/health": {
@@ -30,7 +30,103 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/modules": {
+      "get": {
+        "summary": "Modules",
+        "operationId": "modules_api_v1_modules_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModuleCatalogResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/modules/validate": {
+      "post": {
+        "summary": "Validate Module",
+        "operationId": "validate_module_api_v1_modules_validate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModuleDefinition"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/modules/test": {
+      "post": {
+        "summary": "Test Module",
+        "operationId": "test_module_api_v1_modules_test_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModuleTestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModuleTestResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
               }
             }
           }
@@ -56,7 +152,9 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationResponse"
+                }
               }
             }
           },
@@ -153,22 +251,36 @@
       "post": {
         "summary": "Run",
         "operationId": "run_api_v1_runs_post",
+        "parameters": [
+          {
+            "name": "background",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Background"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/RunRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "201": {
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/RunCreateResponse"
+                }
               }
             }
           },
@@ -205,7 +317,48 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/RunRecordResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/runs/{run_id}/events": {
+      "get": {
+        "summary": "Run Events",
+        "operationId": "run_events_api_v1_runs__run_id__events_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunEventsResponse"
+                }
               }
             }
           },
@@ -265,7 +418,9 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/RunHistoryResponse"
+                }
               }
             }
           },
@@ -285,6 +440,30 @@
   },
   "components": {
     "schemas": {
+      "CatalogResponse": {
+        "properties": {
+          "modules": {
+            "items": {
+              "$ref": "#/components/schemas/ModuleDefinition"
+            },
+            "type": "array",
+            "title": "Modules"
+          },
+          "prototype_parameter_bindings": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "type": "object",
+            "title": "Prototype Parameter Bindings"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "CatalogResponse"
+      },
       "ChannelSpec": {
         "properties": {
           "id": {
@@ -336,6 +515,48 @@
           "solver_model"
         ],
         "title": "ChannelSpec"
+      },
+      "CommitStepResponse": {
+        "properties": {
+          "state": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "State"
+          },
+          "variables": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Variables"
+          },
+          "diagnostics": {
+            "items": {
+              "$ref": "#/components/schemas/Diagnostic"
+            },
+            "type": "array",
+            "title": "Diagnostics"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "CommitStepResponse"
       },
       "Connection": {
         "properties": {
@@ -448,6 +669,95 @@
         ],
         "title": "Endpoint"
       },
+      "EvaluateResponse": {
+        "properties": {
+          "relations": {
+            "items": {
+              "$ref": "#/components/schemas/NetworkRelation"
+            },
+            "type": "array",
+            "title": "Relations"
+          },
+          "variables": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Variables"
+          },
+          "diagnostics": {
+            "items": {
+              "$ref": "#/components/schemas/Diagnostic"
+            },
+            "type": "array",
+            "title": "Diagnostics"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "EvaluateResponse"
+      },
+      "FluidConfig": {
+        "properties": {
+          "backend": {
+            "type": "string",
+            "const": "coolprop",
+            "title": "Backend",
+            "default": "coolprop"
+          },
+          "fluid": {
+            "type": "string",
+            "title": "Fluid",
+            "default": "Water"
+          },
+          "composition": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Composition"
+          },
+          "reference": {
+            "type": "string",
+            "enum": [
+              "mass",
+              "mole"
+            ],
+            "title": "Reference",
+            "default": "mass"
+          },
+          "phase_policy": {
+            "type": "string",
+            "enum": [
+              "single_phase",
+              "liquid",
+              "gas"
+            ],
+            "title": "Phase Policy",
+            "default": "single_phase"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "FluidConfig",
+        "description": "Serializable fluid selection passed to the property service."
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -479,6 +789,193 @@
           "name"
         ],
         "title": "LibraryBank"
+      },
+      "ModuleCatalogItem": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "const": 1,
+            "title": "Schema Version",
+            "default": 1
+          },
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Version",
+            "default": 1
+          },
+          "category": {
+            "type": "string",
+            "title": "Category",
+            "default": "自定义模块"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "default": ""
+          },
+          "ports": {
+            "items": {
+              "$ref": "#/components/schemas/PortSpec"
+            },
+            "type": "array",
+            "title": "Ports"
+          },
+          "parameters": {
+            "items": {
+              "$ref": "#/components/schemas/ParameterSpec"
+            },
+            "type": "array",
+            "title": "Parameters"
+          },
+          "variables": {
+            "items": {
+              "$ref": "#/components/schemas/VariableSpec"
+            },
+            "type": "array",
+            "title": "Variables"
+          },
+          "channels": {
+            "items": {
+              "$ref": "#/components/schemas/ChannelSpec"
+            },
+            "type": "array",
+            "title": "Channels"
+          },
+          "solver_model": {
+            "type": "string",
+            "title": "Solver Model",
+            "default": "generic"
+          },
+          "state_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State Model"
+          },
+          "thermal_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thermal Model"
+          },
+          "source_format": {
+            "type": "string",
+            "title": "Source Format",
+            "default": "python-v1"
+          },
+          "source": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Source"
+          },
+          "runtime": {
+            "type": "string",
+            "enum": [
+              "builtin",
+              "python"
+            ],
+            "title": "Runtime",
+            "default": "builtin"
+          },
+          "entrypoint": {
+            "type": "string",
+            "title": "Entrypoint",
+            "default": ""
+          },
+          "content_hash": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-fA-F0-9]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Hash"
+          },
+          "package_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Package Path"
+          },
+          "bank_names": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Bank Names"
+          },
+          "package": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ModulePackageRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "ModuleCatalogItem"
+      },
+      "ModuleCatalogResponse": {
+        "properties": {
+          "modules": {
+            "items": {
+              "$ref": "#/components/schemas/ModuleCatalogItem"
+            },
+            "type": "array",
+            "title": "Modules"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ModuleCatalogResponse"
       },
       "ModuleDefinition": {
         "properties": {
@@ -590,6 +1087,43 @@
             "type": "object",
             "title": "Source"
           },
+          "runtime": {
+            "type": "string",
+            "enum": [
+              "builtin",
+              "python"
+            ],
+            "title": "Runtime",
+            "default": "builtin"
+          },
+          "entrypoint": {
+            "type": "string",
+            "title": "Entrypoint",
+            "default": ""
+          },
+          "content_hash": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-fA-F0-9]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Hash"
+          },
+          "package_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Package Path"
+          },
           "bank_names": {
             "items": {
               "type": "string"
@@ -682,6 +1216,156 @@
           "name"
         ],
         "title": "ModuleInstance"
+      },
+      "ModulePackageRef": {
+        "properties": {
+          "module_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+            "title": "Module Id"
+          },
+          "version": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d+\\.\\d+(?:[-+][0-9A-Za-z.-]+)?$",
+            "title": "Version"
+          },
+          "content_hash": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{64}$",
+            "title": "Content Hash"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "module_id",
+          "version",
+          "content_hash"
+        ],
+        "title": "ModulePackageRef"
+      },
+      "ModuleTestRequest": {
+        "properties": {
+          "module": {
+            "$ref": "#/components/schemas/ModuleDefinition"
+          },
+          "parameters": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Parameters"
+          },
+          "fluid": {
+            "$ref": "#/components/schemas/FluidConfig"
+          },
+          "inlet_pressure_pa": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Inlet Pressure Pa",
+            "default": 250000.0
+          },
+          "outlet_pressure_pa": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Outlet Pressure Pa",
+            "default": 120000.0
+          },
+          "temperature_k": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Temperature K",
+            "default": 293.15
+          },
+          "duration_s": {
+            "type": "number",
+            "maximum": 60.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Duration S",
+            "default": 0.1
+          },
+          "dt_s": {
+            "type": "number",
+            "maximum": 60.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Dt S",
+            "default": 0.1
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "module"
+        ],
+        "title": "ModuleTestRequest"
+      },
+      "ModuleTestResponse": {
+        "properties": {
+          "module_id": {
+            "type": "string",
+            "title": "Module Id"
+          },
+          "content_hash": {
+            "type": "string",
+            "title": "Content Hash"
+          },
+          "state": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "State"
+          },
+          "evaluation": {
+            "$ref": "#/components/schemas/EvaluateResponse"
+          },
+          "committed": {
+            "$ref": "#/components/schemas/CommitStepResponse"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "module_id",
+          "content_hash",
+          "evaluation",
+          "committed"
+        ],
+        "title": "ModuleTestResponse"
+      },
+      "NetworkRelation": {
+        "properties": {
+          "relation_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+            "title": "Relation Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "pipe",
+              "valve",
+              "pump",
+              "compressor",
+              "resistance"
+            ],
+            "title": "Kind"
+          },
+          "channel": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+            "title": "Channel"
+          },
+          "parameters": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Parameters"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "relation_id",
+          "kind",
+          "channel"
+        ],
+        "title": "NetworkRelation"
       },
       "ParameterSpec": {
         "properties": {
@@ -836,6 +1520,9 @@
             "title": "Description",
             "default": ""
           },
+          "fluid": {
+            "$ref": "#/components/schemas/FluidConfig"
+          },
           "modules": {
             "items": {
               "$ref": "#/components/schemas/ModuleDefinition"
@@ -891,6 +1578,89 @@
           "name"
         ],
         "title": "Project"
+      },
+      "RunCreateResponse": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "completed",
+              "failed",
+              "cancelled"
+            ],
+            "title": "Status"
+          },
+          "frame": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunFrame"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "total_rows": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total Rows",
+            "default": 0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "run_id",
+          "status"
+        ],
+        "title": "RunCreateResponse"
+      },
+      "RunEvent": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "time_s": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Time S",
+            "default": 0.0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "RunEvent"
+      },
+      "RunEventsResponse": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/RunEvent"
+            },
+            "type": "array",
+            "title": "Events"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "run_id"
+        ],
+        "title": "RunEventsResponse"
       },
       "RunFrame": {
         "properties": {
@@ -962,6 +1732,77 @@
           "time_s"
         ],
         "title": "RunFrame"
+      },
+      "RunHistoryResponse": {
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/RunFrame"
+            },
+            "type": "array",
+            "title": "Rows"
+          },
+          "total_rows": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total Rows",
+            "default": 0
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Offset",
+            "default": 0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "RunHistoryResponse"
+      },
+      "RunRecordResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "mode": {
+            "type": "string",
+            "title": "Mode"
+          },
+          "request": {
+            "$ref": "#/components/schemas/RunRequest"
+          },
+          "frame": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunFrame"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/RunEvent"
+            },
+            "type": "array",
+            "title": "Events"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "mode",
+          "request"
+        ],
+        "title": "RunRecordResponse"
       },
       "RunRequest": {
         "properties": {
@@ -1159,6 +2000,27 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "ValidationResponse": {
+        "properties": {
+          "valid": {
+            "type": "boolean",
+            "title": "Valid"
+          },
+          "diagnostics": {
+            "items": {
+              "$ref": "#/components/schemas/Diagnostic"
+            },
+            "type": "array",
+            "title": "Diagnostics"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "valid"
+        ],
+        "title": "ValidationResponse"
       },
       "VariableSpec": {
         "properties": {

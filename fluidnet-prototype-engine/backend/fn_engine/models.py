@@ -82,6 +82,101 @@ class VariableSpec(StrictModel):
     port_id: str | None = None
 
 
+class FluidConfig(StrictModel):
+    """Serializable fluid selection passed to the property service."""
+
+    backend: Literal["coolprop"] = "coolprop"
+    fluid: str = "Water"
+    composition: dict[str, float] = Field(default_factory=dict)
+    reference: Literal["mass", "mole"] = "mass"
+    phase_policy: Literal["single_phase", "liquid", "gas"] = "single_phase"
+
+    @model_validator(mode="after")
+    def validate_composition(self):
+        if any(not isinstance(value, (int, float)) or value < 0 for value in self.composition.values()):
+            raise ValueError("工质组分必须是非负数")
+        if self.composition:
+            total = sum(self.composition.values())
+            if total <= 0 or abs(total - 1.0) > 1e-8:
+                raise ValueError("工质组分比例之和必须为 1")
+        return self
+
+
+class ModulePackageRef(StrictModel):
+    module_id: Identifier
+    version: str = Field(pattern=r"^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$")
+    content_hash: str = Field(pattern=r"^[a-fA-F0-9]{64}$")
+
+
+class FluidState(StrictModel):
+    pressure_pa: float
+    temperature_k: float
+    enthalpy_j_kg: float
+    density_kg_m3: float
+    viscosity_pa_s: float
+    specific_heat_j_kg_k: float | None = None
+    thermal_conductivity_w_m_k: float | None = None
+    phase: str = "unknown"
+    quality: float | None = None
+    composition: dict[str, float] = Field(default_factory=dict)
+
+
+class PortState(StrictModel):
+    pressure_pa: float | None = None
+    temperature_k: float | None = None
+    enthalpy_j_kg: float | None = None
+    density_kg_m3: float | None = None
+    viscosity_pa_s: float | None = None
+    mass_flow_kg_s: float | None = None
+    quality: float | None = None
+    composition: dict[str, float] = Field(default_factory=dict)
+
+
+class NetworkRelation(StrictModel):
+    relation_id: Identifier
+    kind: Literal["pipe", "valve", "pump", "compressor", "resistance"]
+    channel: Identifier
+    parameters: dict[str, Any] = Field(default_factory=dict)
+
+
+class InitializeRequest(StrictModel):
+    run_id: Identifier
+    instance_id: Identifier
+    package: ModulePackageRef
+    parameters: dict[str, Any] = Field(default_factory=dict)
+    fluid: FluidConfig = Field(default_factory=FluidConfig)
+    initial_state: dict[str, Any] = Field(default_factory=dict)
+
+
+class EvaluateRequest(StrictModel):
+    run_id: Identifier
+    instance_id: Identifier
+    iteration_id: int = Field(ge=0)
+    time_s: float = Field(ge=0)
+    trial_ports: dict[Identifier, PortState] = Field(default_factory=dict)
+    readonly_state: dict[str, Any] = Field(default_factory=dict)
+
+
+class EvaluateResponse(StrictModel):
+    relations: list[NetworkRelation] = Field(default_factory=list)
+    variables: dict[str, float | int | str | bool | None] = Field(default_factory=dict)
+    diagnostics: list["Diagnostic"] = Field(default_factory=list)
+
+
+class CommitStepRequest(StrictModel):
+    run_id: Identifier
+    instance_id: Identifier
+    time_s: float = Field(ge=0)
+    dt_s: float = Field(gt=0)
+    converged_ports: dict[Identifier, PortState] = Field(default_factory=dict)
+
+
+class CommitStepResponse(StrictModel):
+    state: dict[str, Any] = Field(default_factory=dict)
+    variables: dict[str, float | int | str | bool | None] = Field(default_factory=dict)
+    diagnostics: list["Diagnostic"] = Field(default_factory=list)
+
+
 class ModuleDefinition(StrictModel):
     schema_version: Literal[1] = 1
     id: Identifier
@@ -98,6 +193,10 @@ class ModuleDefinition(StrictModel):
     thermal_model: str | None = None
     source_format: str = "python-v1"
     source: dict[str, str | list[str]] = Field(default_factory=dict)
+    runtime: Literal["builtin", "python"] = "builtin"
+    entrypoint: str = ""
+    content_hash: str | None = Field(default=None, pattern=r"^[a-fA-F0-9]{64}$")
+    package_path: str | None = None
     bank_names: list[str] = Field(default_factory=lambda: ["额定工况", "部分负荷", "调试备份"])
 
     @model_validator(mode="after")
@@ -178,6 +277,7 @@ class Project(StrictModel):
     id: str
     name: str
     description: str = ""
+    fluid: FluidConfig = Field(default_factory=FluidConfig)
     modules: list[ModuleDefinition] = Field(default_factory=list)
     instances: list[ModuleInstance] = Field(default_factory=list, max_length=1000)
     connections: list[Connection] = Field(default_factory=list)
@@ -259,3 +359,102 @@ class RunRecord(StrictModel):
     request: RunRequest
     frame: RunFrame | None = None
     history: list[RunFrame] = Field(default_factory=list)
+
+
+class ModuleManifest(ModuleDefinition):
+    """Public name for a module package manifest."""
+
+    runtime: Literal["builtin", "python"] = "python"
+
+
+class ModuleTestRequest(StrictModel):
+    module: ModuleDefinition
+    parameters: dict[str, Any] = Field(default_factory=dict)
+    fluid: FluidConfig = Field(default_factory=FluidConfig)
+    inlet_pressure_pa: float = Field(default=250000.0, gt=0)
+    outlet_pressure_pa: float = Field(default=120000.0, gt=0)
+    temperature_k: float = Field(default=293.15, gt=0)
+    duration_s: float = Field(default=0.1, gt=0, le=60)
+    dt_s: float = Field(default=0.1, gt=0, le=60)
+
+
+class ModuleTestResponse(StrictModel):
+    module_id: str
+    content_hash: str
+    state: dict[str, Any] = Field(default_factory=dict)
+    evaluation: EvaluateResponse
+    committed: CommitStepResponse
+
+
+class RunStatus(StrictModel):
+    run_id: str
+    status: Literal["queued", "running", "completed", "failed", "cancelled"]
+    mode: Literal["steady", "dynamic"]
+    progress: float = Field(default=0.0, ge=0, le=1)
+    frame: RunFrame | None = None
+    total_rows: int = Field(default=0, ge=0)
+
+
+class ErrorResponse(StrictModel):
+    code: str
+    message: str
+    diagnostics: list[Diagnostic] = Field(default_factory=list)
+    request_id: str | None = None
+
+
+class ValidationResponse(StrictModel):
+    valid: bool
+    diagnostics: list[Diagnostic] = Field(default_factory=list)
+
+
+class RunCreateResponse(StrictModel):
+    run_id: str
+    status: Literal["queued", "running", "completed", "failed", "cancelled"]
+    frame: RunFrame | None = None
+    total_rows: int = Field(default=0, ge=0)
+
+
+class RunHistoryResponse(StrictModel):
+    rows: list[RunFrame] = Field(default_factory=list)
+    total_rows: int = Field(default=0, ge=0)
+    offset: int = Field(default=0, ge=0)
+
+
+class RunEvent(StrictModel):
+    type: str
+    time_s: float = Field(default=0.0, ge=0)
+
+
+class RunEventsResponse(StrictModel):
+    run_id: str
+    events: list[RunEvent] = Field(default_factory=list)
+
+
+class CatalogResponse(StrictModel):
+    modules: list[ModuleDefinition] = Field(default_factory=list)
+    prototype_parameter_bindings: dict[str, dict[str, str]] = Field(default_factory=dict)
+
+
+class ModuleCatalogItem(ModuleDefinition):
+    package: ModulePackageRef | None = None
+
+
+class ModuleCatalogResponse(StrictModel):
+    modules: list[ModuleCatalogItem] = Field(default_factory=list)
+
+
+class ProjectValidationResponse(ValidationResponse):
+    pass
+
+
+class RunRecordResponse(StrictModel):
+    id: str
+    status: str
+    mode: str
+    request: RunRequest
+    frame: RunFrame | None = None
+    events: list[RunEvent] = Field(default_factory=list)
+
+
+EvaluateResponse.model_rebuild()
+CommitStepResponse.model_rebuild()

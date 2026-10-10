@@ -1,6 +1,6 @@
 # FluidNet Prototype Engine
 
-基于现有 FluidNet Studio 交互原型建立的独立项目。前端继承画布、模块库、型号、设备属性、草稿/应用和曲线工作流；后端重新定义模块合同、网络编译、水力算法和 HTTP 接口。
+基于现有 FluidNet Studio 交互原型建立的独立项目。前端继承画布、模块库、型号、设备属性、草稿/应用和曲线工作流；后端重新定义模块合同、网络编译、水力算法和 HTTP 接口，并提供基于 Pydantic 的契约层、CoolProp 单相物性服务、版本化 Python 模块包和独立 Worker 生命周期。
 
 本目录独立于原来的 `fluidnet/` 与 `web/`。原型来源为 `../output/visualizations/fluidnet-studio-prototype.html`。前端原型脚本已拆为 `frontend/studio.js`，新增 `frontend/engine-client.js` 负责真实计算接口。
 
@@ -48,6 +48,10 @@ python -m venv .venv
 | Python、控制脚本、自定义变量、串口演示 | 保留定义/编辑功能，不执行物理算法或真实外部控制 |
 | 单机测试面板 | 尚未接入真实求解，提示到主系统配置边界后运行 |
 | 组合设备 | 已展开为普通实例/连接的项目可计算；专用组合定义的递归展开待实现 |
+| Pydantic 契约 | API、项目、模块包和 Worker 消息使用严格模型；自动生成 JSON Schema/OpenAPI |
+| Python 模块包 | `modules/programmable_valve` 可在独立 Worker 中执行 `initialize/evaluate/commit_step/finalize` |
+| CoolProp 单相物性 | Water、Air 的 `state_pt/state_ph` 查询已接通；混合物和两相网络仍未实现 |
+| 后台运行 | `POST /api/v1/runs?background=true` 返回 `run_id`，可查询状态、历史和事件 |
 
 水力内核采用定密度、定黏度液态水近似，不计算温度相关物性、汽蚀、相变、重力标高或水锤。非零节点标高会被参数校验拒绝。换热器原型没有水力内径输入时使用目录默认 40 mm；建议通过规范合同指定参数。
 
@@ -86,4 +90,4 @@ npm run test:browser
 
 Windows 测试使用本机 Edge 的无头模式。验证真实页面加载、连接检查、求解、修改开度、应用、曲线值、保存和刷新。截图写入忽略提交的 `artifacts/workbench.png`。仅在明确更新原型基线时执行 `npm run test:browser -- --refresh-fixture`。
 
-当前测试包含单位双向转换、Kv 解析解、管道层流压降、粗糙度影响、节点流量守恒、关阀、反向流、未收敛、断开子网络、冲突压力边界、不支持模型、双侧换热器、API 错误响应、工况覆盖和采样上限。
+当前测试包含单位双向转换、Kv 解析解、管道层流压降、粗糙度影响、节点流量守恒、关阀、反向流、未收敛、断开子网络、冲突压力边界、不支持模型、双侧换热器、API 错误响应、工况覆盖和采样上限。平台契约测试另外覆盖 CoolProp 水/空气状态、版本化可编程阀门 Worker、`evaluate` 关系进入网络求解器、模块默认值和后台运行事件。

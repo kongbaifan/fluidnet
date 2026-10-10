@@ -1,0 +1,143 @@
+{
+  "$defs": {
+    "PortState": {
+      "additionalProperties": false,
+      "properties": {
+        "pressure_pa": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pressure Pa"
+        },
+        "temperature_k": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Temperature K"
+        },
+        "enthalpy_j_kg": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Enthalpy J Kg"
+        },
+        "density_kg_m3": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Density Kg M3"
+        },
+        "viscosity_pa_s": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Viscosity Pa S"
+        },
+        "mass_flow_kg_s": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mass Flow Kg S"
+        },
+        "quality": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Quality"
+        },
+        "composition": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Composition",
+          "type": "object"
+        }
+      },
+      "title": "PortState",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "run_id": {
+      "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+      "title": "Run Id",
+      "type": "string"
+    },
+    "instance_id": {
+      "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+      "title": "Instance Id",
+      "type": "string"
+    },
+    "time_s": {
+      "minimum": 0,
+      "title": "Time S",
+      "type": "number"
+    },
+    "dt_s": {
+      "exclusiveMinimum": 0,
+      "title": "Dt S",
+      "type": "number"
+    },
+    "converged_ports": {
+      "patternProperties": {
+        "^[A-Za-z][A-Za-z0-9_-]{0,80}$": {
+          "$ref": "#/$defs/PortState"
+        }
+      },
+      "title": "Converged Ports",
+      "type": "object"
+    }
+  },
+  "required": [
+    "run_id",
+    "instance_id",
+    "time_s",
+    "dt_s"
+  ],
+  "title": "CommitStepRequest",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

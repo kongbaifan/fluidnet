@@ -1,0 +1,99 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "pressure_pa": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Pressure Pa"
+    },
+    "temperature_k": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Temperature K"
+    },
+    "enthalpy_j_kg": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Enthalpy J Kg"
+    },
+    "density_kg_m3": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Density Kg M3"
+    },
+    "viscosity_pa_s": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Viscosity Pa S"
+    },
+    "mass_flow_kg_s": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Mass Flow Kg S"
+    },
+    "quality": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Quality"
+    },
+    "composition": {
+      "additionalProperties": {
+        "type": "number"
+      },
+      "title": "Composition",
+      "type": "object"
+    }
+  },
+  "title": "PortState",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

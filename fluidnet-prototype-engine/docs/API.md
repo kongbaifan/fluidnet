@@ -8,12 +8,31 @@
 | --- | --- | --- |
 | GET /api/v1/health | 无 | 版本、能力标志、2001 帧上限、20 次记录保留数 |
 | GET /api/v1/catalog | 无 | 模块参数/通路/变量目录、原型参数名映射 |
+| GET /api/v1/modules | 无 | 可安装模块包和内置模块清单、版本与内容哈希 |
+| POST /api/v1/modules/validate | ModuleDefinition | 模块清单、入口和源码哈希诊断 |
+| POST /api/v1/modules/test | ModuleTestRequest | 在独立 Worker 中执行一次 initialize/evaluate/commit_step |
 | POST /api/v1/prototype/normalize | 原型导出对象 | 规范 Project；显示单位转换；不能归一化时 422 |
 | POST /api/v1/projects/validate | Project | valid 和 diagnostics；检查失败时 valid=false |
 | POST /api/v1/solve | Project | 同步稳态 RunFrame；计算失败时 422 |
 | POST /api/v1/runs | RunRequest | **201**；run_id、status、frame、total_rows |
 | GET /api/v1/runs/{run_id} | 无 | 状态、请求快照和最后一帧，不重复携带整段历史 |
 | GET /api/v1/runs/{run_id}/history | offset≥0, 1≤limit≤2001 | rows、total_rows、offset |
+| GET /api/v1/runs/{run_id}/events | 无 | queued/running/completed/failed 事件 |
+
+`POST /api/v1/runs?background=true` 创建后台运行，返回 HTTP 202 和 `run_id`。默认仍保持兼容的同步模式：稳态和现有前端动态回放请求直接在请求期间完成并返回 HTTP 201。后台模式当前用于验证运行编排和查询协议，暂停、取消和参数命令仍未开放。
+
+## 模块包和 Worker
+
+模块包目录至少包含：
+
+```text
+manifest.json
+module.py
+```
+
+`manifest.json` 由 `ModuleDefinition` 校验；`module.py` 的 SHA-256 保存为 `content_hash`。Python 模块入口必须实现 `initialize/evaluate/commit_step/finalize` 生命周期中的 `evaluate`，其他阶段可以为空实现。
+
+Worker 消息使用 Pydantic 的 `InitializeRequest`、`EvaluateRequest`、`EvaluateResponse`、`CommitStepRequest` 和 `CommitStepResponse`。`evaluate` 输出 `NetworkRelation`，由网络求解器决定最终压力和流量；模块不能直接返回全网解。
 
 运行接口现在是同步计算。返回 201 时，计算已经 completed 或 failed；没有后台排队、流式推送或命令端点。进程内保留最近 20 次运行，超出或重启后查询返回 404。项目编辑和永久导出目前由前端浏览器管理，不是服务端数据库。
 

@@ -2,7 +2,7 @@
 
 ## 版本与来源
 
-`schema_version = 1`。Pydantic 模型是唯一合同来源；运行 `python scripts/generate_contracts.py` 同步 JSON Schema、OpenAPI 与参考文件。额外字段默认拒绝，数值参数在编译时进行有限性和模型范围校验。
+`schema_version = 1`。Pydantic v2 模型是唯一合同来源；运行 `python scripts/generate_contracts.py` 同步 JSON Schema、OpenAPI 与参考文件。额外字段默认拒绝，数值参数在编译时进行有限性和模型范围校验。项目和 Worker 边界使用 Pydantic，求解器内部不把每次迭代包装成 JSON 对象。
 
 模块、实例、端口、参数、通路的 ID 使用字母开头、字母/数字/下划线/短横线组合，最长 81 个字符。`.` 和 `:` 留给变量路径及端口内部键。
 
@@ -21,8 +21,16 @@
 | `Project` | modules, instances, connections, scenarios, selected_variables, solver | 一次可独立计算和复现的项目 |
 | `RunRequest` | project, mode, duration_s, dt_s, scenario_id, selected_variables | 创建一次运行；变量选择不影响物理求解 |
 | `RunFrame` | status, valid, time_s, variables, diagnostics, metrics | 一个时刻的结果与质量证据 |
+| `FluidConfig` | backend, fluid, composition, phase_policy | 物性服务选择和单相约束 |
+| `ModulePackageRef` | module_id, version, content_hash | 项目运行锁定的模块版本 |
+| `PortState` | pressure, temperature, enthalpy, density, viscosity, flow | Worker 试算和收敛后的端口状态 |
+| `NetworkRelation` | relation_id, kind, channel, parameters | 模块向平台注册的设备关系 |
+| `EvaluateRequest/Response` | trial_ports, readonly_state / relations, variables | 无副作用的数值试算协议 |
+| `CommitStepRequest/Response` | converged_ports, dt / state | 收敛时间步的状态提交协议 |
 
 `source` 支持 runtime/header 文本和 design 文本数组，作为定义资料保存。`state_model`、`thermal_model` 是扩展标识，不代表对应功能已经实现。未知水力模型直接拒绝，水箱状态模型也明确拒绝；当前换热器的热力标识产生未求解警告。
+
+模块包的 `manifest.json` 与源码构成可追踪单元；`content_hash` 不一致时，模块校验和项目编译都会拒绝执行。当前提供的 `modules/programmable_valve` 是首个可执行示例。
 
 ## 单位
 
@@ -41,7 +49,7 @@ canonical = (display - display_offset) × display_scale
 | 内径、粗糙度 | m | mm | 0.001 | 0 |
 | 质量流量 | kg/s | kg/s | 1 | 0 |
 
-体积流量是派生量：`Q_m3_h = m_kg_s / 998.2 × 3600`。原型设备变量表压力使用 MPa，适配器明确按 1e6 转换；画布和总览压力按 kPa 显示。不得把表压自动当绝对压力，也不加隐含大气压。
+体积流量是派生量：`Q_m3_h = m_kg_s / rho × 3600`。水力回归兼容值使用约 998.275 kg/m³；配置其他单相流体时由 CoolProp 在参考压力和温度处提供密度与黏度。原型设备变量表压力使用 MPa，适配器明确按 1e6 转换；画布和总览压力按 kPa 显示。不得把表压自动当绝对压力，也不加隐含大气压。
 
 ## 变量命名与符号
 

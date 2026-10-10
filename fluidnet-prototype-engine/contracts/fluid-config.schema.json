@@ -1,0 +1,46 @@
+{
+  "additionalProperties": false,
+  "description": "Serializable fluid selection passed to the property service.",
+  "properties": {
+    "backend": {
+      "const": "coolprop",
+      "default": "coolprop",
+      "title": "Backend",
+      "type": "string"
+    },
+    "fluid": {
+      "default": "Water",
+      "title": "Fluid",
+      "type": "string"
+    },
+    "composition": {
+      "additionalProperties": {
+        "type": "number"
+      },
+      "title": "Composition",
+      "type": "object"
+    },
+    "reference": {
+      "default": "mass",
+      "enum": [
+        "mass",
+        "mole"
+      ],
+      "title": "Reference",
+      "type": "string"
+    },
+    "phase_policy": {
+      "default": "single_phase",
+      "enum": [
+        "single_phase",
+        "liquid",
+        "gas"
+      ],
+      "title": "Phase Policy",
+      "type": "string"
+    }
+  },
+  "title": "FluidConfig",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

@@ -2,17 +2,43 @@ from __future__ import annotations
 
 import uuid
 from collections import OrderedDict
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from threading import Lock
 
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import __version__
 from .bridge import PARAMETER_BINDINGS, normalize_prototype_export
 from .catalog import builtin_catalog
 from .compiler import CompilationError, compile_project, validate_project
-from .models import Diagnostic, Project, RunFrame, RunRequest
+from .models import (
+    CommitStepRequest,
+    CatalogResponse,
+    Diagnostic,
+    EvaluateRequest,
+    FluidConfig,
+    ModuleDefinition,
+    ModuleTestRequest,
+    ModuleTestResponse,
+    ModuleCatalogResponse,
+    Project,
+    RunFrame,
+    RunRequest,
+    RunStatus,
+    RunRecordResponse,
+    RunCreateResponse,
+    RunEventsResponse,
+    RunEvent,
+    RunHistoryResponse,
+    ValidationResponse,
+    PortState,
+)
+from .properties import PropertyError, property_service
+from .packages import discover_module_packages
+from .runtime import WorkerProcess, module_content_hash
 from .solver import solve_dynamic, solve_steady
 
 
@@ -32,25 +58,89 @@ def apply_scenario(project, scenario_id):
 
 
 def diagnostic(error):
-    return error.diagnostic if isinstance(error, CompilationError) else Diagnostic(code='SOLVER_ERROR',message=str(error))
+    if isinstance(error, CompilationError):
+        return error.diagnostic
+    if isinstance(error, PropertyError):
+        return Diagnostic(code=error.code, message=str(error))
+    return Diagnostic(code=getattr(error, 'code', 'SOLVER_ERROR'), message=str(error))
 
 
 def create_app(frontend_root: str | Path | None = None) -> FastAPI:
     app = FastAPI(title='FluidNet Prototype Engine',version=__version__)
     runs = OrderedDict()
     lock = Lock()
+    executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix='fluidnet-run')
 
     @app.get('/api/v1/health')
     def health():
         return {'status':'ok','version':__version__,'solver':'declarative-fluid-v1','supported_domains':['fluid'],
-                'capabilities':{'steady_hydraulics':True,'quasi_steady_series':True,'thermal':False,'tank_state':False,'user_code':False},
+                'capabilities':{'steady_hydraulics':True,'quasi_steady_series':True,'thermal':False,'tank_state':False,
+                                'coolprop_single_phase':True,'user_code':True,'worker_process':True,'async_runs':True},
                 'max_frames':2001,'run_retention':20}
 
-    @app.get('/api/v1/catalog')
+    @app.get('/api/v1/catalog', response_model=CatalogResponse)
     def catalog():
-        return {'modules':[m.model_dump(mode='json') for m in builtin_catalog()], 'prototype_parameter_bindings':PARAMETER_BINDINGS}
+        return {'modules':builtin_catalog(), 'prototype_parameter_bindings':PARAMETER_BINDINGS}
 
-    @app.post('/api/v1/projects/validate')
+    @app.get('/api/v1/modules', response_model=ModuleCatalogResponse)
+    def modules():
+        items = []
+        package_root = Path(__file__).resolve().parents[2] / 'modules'
+        definitions = builtin_catalog() + discover_module_packages(package_root)
+        for definition in definitions:
+            payload = definition.model_dump(mode='json')
+            payload['package'] = {
+                'module_id': definition.id,
+                'version': f'{definition.version}.0.0' if definition.runtime == 'builtin' else f'{definition.version}.0.0',
+                'content_hash': definition.content_hash,
+            } if definition.runtime == 'python' else None
+            items.append(payload)
+        return {'modules': items}
+
+    @app.post('/api/v1/modules/validate', response_model=ValidationResponse)
+    def validate_module(module: ModuleDefinition):
+        diagnostics: list[Diagnostic] = []
+        if module.runtime == 'python':
+            try:
+                digest = module_content_hash(module)
+                if module.content_hash and module.content_hash != digest:
+                    diagnostics.append(Diagnostic(code='MODULE_HASH_MISMATCH', message='模块内容哈希与源码不一致'))
+                if not module.entrypoint:
+                    diagnostics.append(Diagnostic(code='MODULE_ENTRYPOINT_MISSING', message='Python 模块必须声明 entrypoint'))
+            except ValueError as error:
+                diagnostics.append(Diagnostic(code='MODULE_SOURCE_MISSING', message=str(error)))
+        return {'valid': not any(item.severity == 'error' for item in diagnostics), 'diagnostics': diagnostics}
+
+    @app.post('/api/v1/modules/test', response_model=ModuleTestResponse)
+    def test_module(request: ModuleTestRequest):
+        module = request.module
+        if module.runtime != 'python':
+            raise HTTPException(422, detail={'code': 'MODULE_RUNTIME_UNSUPPORTED', 'message': '模块测试端点只执行 Python 模块包'})
+        try:
+            digest = module_content_hash(module)
+            if module.content_hash and module.content_hash != digest:
+                raise ValueError('模块内容哈希与源码不一致')
+            values = {spec.id: spec.default for spec in module.parameters}
+            values.update(request.parameters)
+            runner = WorkerProcess(module, values, request.fluid)
+            try:
+                state = runner.initialize()
+                ports = {
+                    'in0': PortState(pressure_pa=request.inlet_pressure_pa, temperature_k=request.temperature_k),
+                    'out0': PortState(pressure_pa=request.outlet_pressure_pa, temperature_k=request.temperature_k),
+                }
+                evaluation = runner.evaluate(EvaluateRequest(run_id='module-test', instance_id=module.id,
+                    iteration_id=0, time_s=0.0, trial_ports=ports, readonly_state=state))
+                committed = runner.commit_step(CommitStepRequest(run_id='module-test', instance_id=module.id,
+                    time_s=request.dt_s, dt_s=request.dt_s, converged_ports=ports))
+            finally:
+                runner.close()
+            return ModuleTestResponse(module_id=module.id, content_hash=digest, state=state,
+                                       evaluation=evaluation, committed=committed)
+        except Exception as error:
+            raise HTTPException(422, detail=diagnostic(error).model_dump(mode='json')) from error
+
+    @app.post('/api/v1/projects/validate', response_model=ValidationResponse)
     def validate(project: Project):
         items = validate_project(project)
         return {'valid':not any(d.severity == 'error' for d in items),'diagnostics':items}
@@ -69,9 +159,7 @@ def create_app(frontend_root: str | Path | None = None) -> FastAPI:
         except ValueError as error:
             raise HTTPException(422,detail=diagnostic(error).model_dump()) from error
 
-    @app.post('/api/v1/runs',status_code=201)
-    def run(request: RunRequest):
-        run_id = uuid.uuid4().hex
+    def compute_run(run_id: str, request: RunRequest):
         try:
             project = apply_scenario(request.project,request.scenario_id)
             network = compile_project(project)
@@ -87,13 +175,37 @@ def create_app(frontend_root: str | Path | None = None) -> FastAPI:
         except ValueError as error:
             history, status = [], 'failed'
             frame = RunFrame(status='failed',valid=False,time_s=0,diagnostics=[diagnostic(error)])
+        with lock:
+            previous = runs.get(run_id, {})
+        events = list(previous.get('events', []))
+        events.append({'type':'completed' if status == 'completed' else 'failed','time_s':frame.time_s})
         record = {'id':run_id,'status':status,'mode':request.mode,'request':request.model_dump(mode='json'),
-                  'frame':frame.model_dump(mode='json'),'history':[f.model_dump(mode='json') for f in history]}
+                  'frame':frame.model_dump(mode='json'),'history':[f.model_dump(mode='json') for f in history],
+                  'events':events}
         with lock:
             runs[run_id] = record
             while len(runs) > 20:
                 runs.popitem(last=False)
-        return {'run_id':run_id,'status':status,'frame':frame,'total_rows':len(history)}
+        return record
+
+    @app.post('/api/v1/runs',status_code=201, response_model=RunCreateResponse)
+    def run(request: RunRequest, background: bool = Query(False)):
+        run_id = uuid.uuid4().hex
+        if background:
+            with lock:
+                runs[run_id] = {'id':run_id,'status':'queued','mode':request.mode,
+                                'request':request.model_dump(mode='json'),'frame':None,'history':[],
+                                'events':[{'type':'queued','time_s':0.0}]}
+            def task():
+                with lock:
+                    if run_id in runs:
+                        runs[run_id]['status'] = 'running'
+                        runs[run_id]['events'].append({'type':'running','time_s':0.0})
+                compute_run(run_id, request)
+            executor.submit(task)
+            return JSONResponse(status_code=202, content=RunStatus(run_id=run_id,status='queued',mode=request.mode).model_dump(mode='json'))
+        record = compute_run(run_id, request)
+        return {'run_id':run_id,'status':record['status'],'frame':record['frame'],'total_rows':len(record['history'])}
 
     def get_run(run_id):
         with lock:
@@ -102,12 +214,16 @@ def create_app(frontend_root: str | Path | None = None) -> FastAPI:
             raise HTTPException(404,detail='运行记录不存在或已过期；仅在内存保留最近 20 次运行')
         return record
 
-    @app.get('/api/v1/runs/{run_id}')
+    @app.get('/api/v1/runs/{run_id}', response_model=RunRecordResponse)
     def run_status(run_id: str):
         record = get_run(run_id)
-        return {key:value for key,value in record.items() if key != 'history'}
+        return {key:value for key,value in record.items() if key not in {'history', 'events'} or key == 'events'}
 
-    @app.get('/api/v1/runs/{run_id}/history')
+    @app.get('/api/v1/runs/{run_id}/events', response_model=RunEventsResponse)
+    def run_events(run_id: str):
+        return {'run_id': run_id, 'events': [RunEvent.model_validate(event) for event in get_run(run_id).get('events', [])]}
+
+    @app.get('/api/v1/runs/{run_id}/history', response_model=RunHistoryResponse)
     def run_history(run_id: str, offset: int = Query(0,ge=0), limit: int = Query(2001,ge=1,le=2001)):
         history = get_run(run_id)['history']
         return {'rows':history[offset:offset+limit],'total_rows':len(history),'offset':offset}

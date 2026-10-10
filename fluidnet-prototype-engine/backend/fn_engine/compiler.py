@@ -55,11 +55,24 @@ class CompiledNetwork:
 
 
 def validated_parameters(instance, definition):
-    # Registered model constraints remain authoritative even for edited definitions.
+    # Registered model constraints remain authoritative for safety limits, while
+    # the project definition owns defaults. This keeps custom package defaults
+    # from being silently replaced by a same-shaped built-in model.
     registered = next((m for m in builtin_catalog() if m.solver_model == definition.solver_model), None)
     specs = {p.id: p for p in definition.parameters}
     if registered:
-        specs.update({p.id: p for p in registered.parameters})
+        for registered_spec in registered.parameters:
+            current = specs.get(registered_spec.id)
+            if current is None:
+                specs[registered_spec.id] = registered_spec
+            else:
+                updates = {}
+                if registered_spec.minimum is not None:
+                    updates['minimum'] = max(current.minimum, registered_spec.minimum) if current.minimum is not None else registered_spec.minimum
+                if registered_spec.maximum is not None:
+                    updates['maximum'] = min(current.maximum, registered_spec.maximum) if current.maximum is not None else registered_spec.maximum
+                if updates:
+                    specs[registered_spec.id] = current.model_copy(update=updates)
     unknown = instance.parameters.keys() - specs.keys()
     if unknown:
         raise CompilationError('UNKNOWN_PARAMETER', f'{instance.id} 未定义参数：{sorted(unknown)}', instance.id)
@@ -95,6 +108,19 @@ def compile_project(project: Project) -> CompiledNetwork:
         definition = modules[inst.module_id]
         if definition.solver_model not in supported or definition.state_model:
             raise CompilationError('MODEL_NOT_SUPPORTED', f'{inst.id} 的模型 {definition.state_model or definition.solver_model} 尚未实现；不能生成替代计算结果', inst.id)
+        if definition.runtime == 'python':
+            if not definition.entrypoint:
+                raise CompilationError('MODULE_ENTRYPOINT_MISSING', f'{inst.id} 的 Python 模块没有入口', inst.id)
+            source = definition.source.get('runtime', '') if definition.source else ''
+            if isinstance(source, list):
+                source = '\n'.join(source)
+            if not source.strip():
+                raise CompilationError('MODULE_SOURCE_MISSING', f'{inst.id} 的 Python 模块没有 runtime 源码', inst.id)
+            if definition.content_hash:
+                import hashlib
+                digest = hashlib.sha256(source.encode('utf-8')).hexdigest()
+                if digest != definition.content_hash:
+                    raise CompilationError('MODULE_HASH_MISMATCH', f'{inst.id} 的模块内容哈希与源码不一致', inst.id)
         parameters[inst.id] = validated_parameters(inst, definition)
         if not definition.ports:
             raise CompilationError('PORTS_MISSING', f'{inst.id} 没有端口', inst.id)

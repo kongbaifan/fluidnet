@@ -418,6 +418,45 @@
       "title": "Source",
       "type": "object"
     },
+    "runtime": {
+      "default": "builtin",
+      "enum": [
+        "builtin",
+        "python"
+      ],
+      "title": "Runtime",
+      "type": "string"
+    },
+    "entrypoint": {
+      "default": "",
+      "title": "Entrypoint",
+      "type": "string"
+    },
+    "content_hash": {
+      "anyOf": [
+        {
+          "pattern": "^[a-fA-F0-9]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Content Hash"
+    },
+    "package_path": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Package Path"
+    },
     "bank_names": {
       "items": {
         "type": "string"

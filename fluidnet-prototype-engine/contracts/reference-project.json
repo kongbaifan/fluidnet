@@ -3,6 +3,13 @@
   "id": "water-net",
   "name": "泵阀并联管网",
   "description": "",
+  "fluid": {
+    "backend": "coolprop",
+    "fluid": "Water",
+    "composition": {},
+    "reference": "mass",
+    "phase_policy": "single_phase"
+  },
   "modules": [
     {
       "schema_version": 1,
@@ -150,6 +157,10 @@
       "thermal_model": null,
       "source_format": "python-v1",
       "source": {},
+      "runtime": "builtin",
+      "entrypoint": "",
+      "content_hash": null,
+      "package_path": null,
       "bank_names": [
         "额定工况",
         "部分负荷",
@@ -586,6 +597,10 @@
       "thermal_model": null,
       "source_format": "python-v1",
       "source": {},
+      "runtime": "builtin",
+      "entrypoint": "",
+      "content_hash": null,
+      "package_path": null,
       "bank_names": [
         "额定工况",
         "部分负荷",
@@ -822,6 +837,10 @@
       "thermal_model": null,
       "source_format": "python-v1",
       "source": {},
+      "runtime": "builtin",
+      "entrypoint": "",
+      "content_hash": null,
+      "package_path": null,
       "bank_names": [
         "额定工况",
         "部分负荷",
@@ -1213,6 +1232,10 @@
       "thermal_model": null,
       "source_format": "python-v1",
       "source": {},
+      "runtime": "builtin",
+      "entrypoint": "",
+      "content_hash": null,
+      "package_path": null,
       "bank_names": [
         "额定工况",
         "部分负荷",
@@ -1638,6 +1661,10 @@
       "thermal_model": null,
       "source_format": "python-v1",
       "source": {},
+      "runtime": "builtin",
+      "entrypoint": "",
+      "content_hash": null,
+      "package_path": null,
       "bank_names": [
         "额定工况",
         "部分负荷",

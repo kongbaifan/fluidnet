@@ -1,0 +1,39 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "relation_id": {
+      "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+      "title": "Relation Id",
+      "type": "string"
+    },
+    "kind": {
+      "enum": [
+        "pipe",
+        "valve",
+        "pump",
+        "compressor",
+        "resistance"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "channel": {
+      "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+      "title": "Channel",
+      "type": "string"
+    },
+    "parameters": {
+      "additionalProperties": true,
+      "title": "Parameters",
+      "type": "object"
+    }
+  },
+  "required": [
+    "relation_id",
+    "kind",
+    "channel"
+  ],
+  "title": "NetworkRelation",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}
