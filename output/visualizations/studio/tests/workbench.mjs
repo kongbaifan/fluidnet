@@ -1,0 +1,145 @@
+import { chromium, expect } from '@playwright/test';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
+
+const output = resolve('.cache/studio-prototype-qa');
+await mkdir(output, { recursive: true });
+const browser = await chromium.launch({ channel: 'msedge', headless: true });
+const page = await browser.newPage({ viewport: { width: 1366, height: 768 } });
+const errors = [], checks = [], layouts = [];
+page.on('pageerror', error => errors.push(error.message));
+const click = (action, attrs = '') => page.locator(`[data-action="${action}"]${attrs}`).first().click();
+const float = page.locator('[data-float-id="V1"]');
+const step = () => click('run-project', '[data-command="step"]');
+const state = () => page.evaluate(() => JSON.parse(localStorage.getItem('fluidnet-studio-prototype-20261009-v1')));
+
+try {
+  await page.goto(pathToFileURL(resolve('output/visualizations/fluidnet-studio-prototype.html')).href);
+  await expect(page.getByRole('button', { name: '打开示例调参', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '进入模块开发', exact: true })).toBeVisible();
+  await page.screenshot({ path: resolve(output, 'refined-home-1366.png') });
+  await click('start-modeling');
+  await expect(page).toHaveURL(/#workbench$/);
+  await expect(float).toHaveClass(/docked/);
+  await expect(page.getByRole('region', { name: '同屏曲线' })).toBeVisible();
+  await expect(page.locator('.canvas-library')).toBeHidden();
+  const canvasBefore = await page.locator('.canvas-column').boundingBox();
+  await page.locator('.canvas-tools [data-action="toggle-library"]').click();
+  await expect(page.locator('.canvas-library')).toBeVisible();
+  const canvasAfter = await page.locator('.canvas-column').boundingBox();
+  if (canvasBefore.width - canvasAfter.width < 150) throw Error('Collapsing the library must release canvas space');
+  await page.locator('.canvas-tools [data-action="toggle-library"]').click();
+  const dock = await float.boundingBox(), canvas = await page.locator('.canvas-column').boundingBox();
+  if (canvas.x + canvas.width > dock.x + 1) throw Error('Docked properties overlap the canvas');
+  const view = () => page.locator('#network').evaluate(svg => {
+    const b = svg.viewBox.baseVal; return { x: b.x, y: b.y, width: b.width, height: b.height, cx: b.x + b.width / 2, cy: b.y + b.height / 2 };
+  });
+  await click('fit'); const fitted = await view();
+  await click('zoom-in'); const zoomed = await view();
+  if (zoomed.width >= fitted.width || Math.abs(zoomed.cx - fitted.cx) > .01 || Math.abs(zoomed.cy - fitted.cy) > .01) throw Error('Zoom must preserve the fitted view center');
+  const network = await page.locator('#network').boundingBox();
+  await page.mouse.move(network.x + 20, network.y + 20); await page.mouse.down();
+  await page.mouse.move(network.x + 55, network.y + 35, { steps: 5 }); await page.mouse.up();
+  const panned = await view(); if (Math.abs(panned.x - zoomed.x) < 1) throw Error('Panning failed after fitting');
+  await click('fit'); const reset = await view();
+  if (Math.abs(reset.cx - fitted.cx) > .01 || Math.abs(reset.width - fitted.width) > .01) throw Error('Fit did not restore the actual network bounds');
+  checks.push('Separate entry paths, desktop library collapse and reserved property dock space');
+  checks.push('Fit uses actual network bounds; centered zoom, panning and refitting remain consistent');
+
+  await step();
+  await expect(page.locator('#workbench-flow-chart')).toBeVisible();
+  const opening = float.locator('[data-instance-param="opening"][type="number"]');
+  await opening.fill('65');
+  await expect(float.locator('[data-device-apply-status]')).toContainText('1 项待应用');
+  await float.locator('[data-action="save"]').click();
+  let saved = await state();
+  let n = saved.projects.find(p => p.id === 'water-net').pages[0].nodes.find(n => n.id === 'V1');
+  if (n.params.opening !== 80 || n.draft.opening !== 65) throw Error('Saving incorrectly applied the draft');
+  await expect(float.locator('[data-float-save]')).toHaveText('草稿已保存');
+  await expect(float.locator('[data-device-apply-status]')).toContainText('1 项待应用');
+  await float.locator('[data-action="apply-instance"]').click();
+  await page.locator('#dialog-form button[type="submit"]').click();
+  await expect(page.locator('.canvas-info [data-result-status]')).toContainText('等待重新采样');
+  await step();
+  await expect(page.locator('.canvas-info [data-result-status]')).toContainText('结果已更新');
+  await expect(page.locator('#workbench-flow-chart .chart-event')).toHaveCount(1);
+  await expect(page.locator('[data-workbench-event]')).toContainText('65');
+  await expect(page.locator('#workbench-flow-chart-readout')).toContainText('A 路');
+  await expect(page.locator('#workbench-flow-chart-readout')).toContainText('B 路');
+  await expect(float.locator('[data-device-apply-status]')).toHaveText('参数已生效');
+  checks.push('Save versus apply, result freshness, same-screen branch flows and parameter event markers');
+
+  await page.locator('[data-workbench-chart]').selectOption('pressure');
+  await expect(page.locator('#workbench-flow-chart')).toHaveAttribute('aria-label', /kPa/);
+  await page.locator('[data-workbench-chart]').selectOption('flow');
+  const hit = await page.locator('#workbench-flow-chart [data-chart-hit]').boundingBox();
+  await page.mouse.click(hit.x + hit.width * .5, hit.y + hit.height * .5);
+  await expect(page.locator('#workbench-flow-chart-readout')).toContainText('已固定');
+  const pinned = await page.locator('#workbench-flow-chart-readout').textContent();
+  await click('run-project', '[data-command="run"]');
+  await opening.focus();
+  await page.waitForTimeout(650);
+  await expect(opening).toBeFocused();
+  await expect(page.locator('#workbench-flow-chart-readout')).toHaveText(pinned);
+  await click('run-project', '[data-command="pause"]');
+  await click('release-cursor');
+  await expect(page.locator('#workbench-flow-chart-readout')).not.toContainText('已固定');
+  await expect(page.locator('#toast')).toBeHidden({ timeout: 5000 });
+  await page.screenshot({ path: resolve(output, 'refined-workbench-1366.png') });
+  checks.push('Observation switching and a fixed time cursor survive live sampling without stealing parameter focus');
+
+  await float.locator('[data-action="float-dock"]').click();
+  await expect(float).not.toHaveClass(/docked/);
+  await float.locator('[data-action="float-dock"]').click();
+  await expect(float).toHaveClass(/docked/);
+  await float.locator('[data-action="save"]').click();
+  await page.reload();
+  await expect(page.locator('.canvas-library')).toBeHidden();
+  await expect(page.locator('.workbench-chart')).toBeVisible();
+  await page.locator('[data-node="V1"]').dblclick();
+  await expect(float).toHaveClass(/docked/);
+  await expect(float.locator('[data-instance-param="opening"][type="number"]')).toHaveValue('65');
+  await expect(page.locator('.canvas-info [data-result-status]')).toContainText('结果已更新');
+  await click('full-curves');
+  await expect(page).toHaveURL(/#curves$/);
+  await page.locator('.app-rail [data-route="workbench"]').click();
+  await expect(float).toHaveClass(/docked/);
+  await float.locator('[data-action="float-tab"][data-value="variables"]').click();
+  await expect(float.locator('.instance-table-wrap')).toBeVisible();
+  await expect(float.locator('[data-action="apply-instance"]')).toBeVisible();
+  await float.locator('[data-action="float-tab"][data-value="parameters"]').click();
+  checks.push('Dock/float switching, persisted layout, applied parameters and return from the complete curve page');
+
+  for (const width of [1600, 1024, 736, 320]) {
+    await page.setViewportSize({ width, height: width === 1600 ? 1000 : 768 });
+    await page.waitForTimeout(200);
+    if (width < 1000) await expect(float).not.toHaveClass(/docked/);
+    const rect = await float.boundingBox();
+    if (rect.x < 0 || rect.x + rect.width > width + 1) throw Error(`Properties escape ${width}px viewport`);
+    const layout = await page.evaluate(() => ({ width: innerWidth, outer: document.documentElement.scrollWidth, page: document.getElementById('page').clientWidth, content: document.getElementById('page').scrollWidth }));
+    if (layout.outer > width || layout.content > layout.page + 1) throw Error(`Workbench overflow: ${JSON.stringify(layout)}`);
+    layouts.push(layout);
+    await page.screenshot({ path: resolve(output, `refined-workbench-${width}.png`) });
+  }
+  await float.locator('[data-action="float-close"]').click();
+  await page.locator('.canvas-tools [data-action="toggle-library"]').click();
+  await expect(page.locator('.canvas-library')).toBeVisible();
+  await page.locator('.library-heading [data-action="toggle-library"]').click();
+  await expect(page.locator('.canvas-library')).toBeHidden();
+  await page.screenshot({ path: resolve(output, 'refined-chart-320.png') });
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await page.waitForTimeout(200);
+  await page.locator('[data-node="V1"]').dblclick();
+  await click('theme');
+  await page.screenshot({ path: resolve(output, 'refined-workbench-dark.png') });
+  checks.push('Desktop, narrow-window, mobile library overlay and dark appearance');
+  if (errors.length) throw Error(errors.join('\n'));
+} catch (error) {
+  await page.screenshot({ path: resolve(output, 'workbench-refinements-failure.png') });
+  throw error;
+} finally {
+  await writeFile(resolve(output, 'workbench-refinements.json'), JSON.stringify({ checks, errors, layouts }, null, 2));
+  console.log(JSON.stringify({ checks, errors, layouts }, null, 2));
+  await browser.close();
+}

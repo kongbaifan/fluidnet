@@ -140,7 +140,7 @@ function applyInstanceDialog(n) {
     remember(); commitInstanceEdits(n, values);
     if (n.draftModelId) { n.modelId = n.draftModelId; n.modelVersion = n.draftModelVersion; }
     n.draftModelId = null; n.draftModelVersion = null;
-    project().run.events.push({ t: project().run.time, text: `${n.id} 参数已应用：${rows.map(([label, , value]) => `${label}=${value}`).join('，')}` });
+    project().run.events.push({ t: project().run.time, kind: 'parameters', text: `${n.id} 参数已应用：${rows.map(([label, , value]) => `${label}=${value}`).join('，')}` });
     markDirty(project()); render(); msg(`${n.id} 参数已应用 · ${clockLabel(project().run.time)}`);
   }, '确认应用', true);
 }
@@ -152,12 +152,13 @@ function windowBounds(f) {
   f.y = clamp(f.y ?? p.top + 28, p.top + 8, p.bottom - (f.minimized ? 46 : f.h) - 8);
   return f;
 }
-function rememberWindow(f) { state.windowPositions ||= {}; state.windowPositions[windowKey(f.id)] = { x: f.x, y: f.y, w: f.w, h: f.h, pinned: f.pinned }; }
+function rememberWindow(f) { state.windowPositions ||= {}; state.windowPositions[windowKey(f.id)] = { x: f.x, y: f.y, w: f.w, h: f.h, pinned: f.pinned, docked: !!f.docked }; }
 function openDevice(id) {
   if (!instance(id)) return;
   ui.selectedNode = id;
   let f = ui.floats.find(f => f.id === id);
   if (!f) { f = { id, tab: 'parameters', ...(state.windowPositions?.[windowKey(id)] || {}), order: ++ui.floatSerial }; ui.floats.push(f); }
+  if (f.docked) for (const other of ui.floats) if (other !== f && other.docked) { other.docked = false; rememberWindow(other); }
   f.minimized = false; f.order = ++ui.floatSerial; ui.frontId = id;
   renderFloats();
 }
@@ -184,21 +185,24 @@ function quickFieldMarkup(n, m, f) {
 }
 function renderFloats() {
   const layer = document.getElementById('floating-layer');
+  syncDockLayout();
   let html = '';
   if (ui.route === 'workbench') html = ui.floats.filter(f => instance(f.id)).map(f => {
-    windowBounds(f); const n = instance(f.id);
+    const bounds = isDocked(f) ? dockWindowBounds(f) : windowBounds(f); const n = instance(f.id);
     const bank = f.tab === 'variables' ? variableWindowState(f).source : -1;
     const apply = bank < 0
       ? btn('apply-instance', '预览并应用', 'Check', `data-id="${n.id}" ${pendingCount(n) ? '' : 'disabled'}`, 'primary small')
       : btn('apply-instance-bank', `应用库值 ${bank + 1}`, 'Check', `data-id="${n.id}" data-bank="${bank}" ${instanceBankDiff(n, bank).length ? '' : 'disabled'}`, 'primary small');
-    return `<section class="floater${ui.frontId === f.id ? ' front' : ''}${f.minimized ? ' minimized' : ''}${f.tab === 'variables' ? ' variables-floater' : ''}" role="region" aria-label="${esc(n.id + ' 设备参数')}" data-float-id="${f.id}" style="left:${f.x}px;top:${f.y}px;width:${f.w}px;height:${f.minimized ? 46 : f.h}px;z-index:${50 + (f.pinned ? 50 : 0) + f.order % 40}">
-      <header class="float-head" data-float-move="${f.id}">${icon('SlidersHorizontal')}<strong class="float-title">${esc(n.id + ' · ' + n.name)}</strong>${ibtn('float-pin', '置顶窗口', 'Pin', `data-id="${f.id}" aria-pressed="${!!f.pinned}"`)}${ibtn('float-max', '最大化或还原', 'Maximize2', `data-id="${f.id}"`)}${ibtn('float-min', f.minimized ? '还原窗口' : '收起窗口', f.minimized ? 'ChevronDown' : 'Minus', `data-id="${f.id}"`)}${ibtn('float-close', '关闭设备窗口', 'X', `data-id="${f.id}"`)}</header>
-      ${f.minimized ? '' : `<nav class="tabs float-tabs" aria-label="设备属性页签">${[['parameters', '参数与型号'], ['variables', '全部变量'], ['results', '运行结果'], ['connections', '连接']].map(([id, label]) => `<button type="button" data-action="float-tab" data-id="${f.id}" data-value="${id}" class="${f.tab === id ? 'active' : ''}" aria-pressed="${f.tab === id}">${label}</button>`).join('')}</nav><div class="float-body">${floatBody(f, n)}</div><footer class="float-footer"><small class="grow" data-float-save>${state.dirty ? '草稿未保存' : '草稿已保存'}</small>${btn('save', '保存草稿', 'Save', '', 'small')}${apply}</footer><button class="float-resize" data-float-resize="${f.id}" aria-label="调整窗口大小">${icon('Grip')}</button>`}
+    return `<section class="floater${isDocked(f) ? ' docked' : ''}${ui.frontId === f.id ? ' front' : ''}${f.minimized ? ' minimized' : ''}${f.tab === 'variables' ? ' variables-floater' : ''}" role="region" aria-label="${esc(n.id + ' 设备参数')}" data-float-id="${f.id}" style="left:${bounds.x}px;top:${bounds.y}px;width:${bounds.w}px;height:${f.minimized ? 46 : bounds.h}px;z-index:${50 + (f.pinned ? 50 : 0) + f.order % 40}">
+      <header class="float-head" data-float-move="${f.id}">${icon('SlidersHorizontal')}<strong class="float-title">${esc(n.id + ' · ' + n.name)}</strong>${ibtn('float-dock', f.docked ? '取消停靠' : '停靠到右侧', f.docked ? 'ExternalLink' : 'Columns2', `data-id="${f.id}" aria-pressed="${!!f.docked}" ${innerWidth < 1000 && !f.docked ? 'hidden' : ''}`)}${ibtn('float-pin', '置顶窗口', 'Pin', `data-id="${f.id}" aria-pressed="${!!f.pinned}"`)}${ibtn('float-max', '最大化或还原', 'Maximize2', `data-id="${f.id}"`)}${ibtn('float-min', f.minimized ? '还原窗口' : '收起窗口', f.minimized ? 'ChevronDown' : 'Minus', `data-id="${f.id}"`)}${ibtn('float-close', '关闭设备窗口', 'X', `data-id="${f.id}"`)}</header>
+      ${f.minimized ? '' : `<nav class="tabs float-tabs" aria-label="设备属性页签">${[['parameters', '参数与型号'], ['variables', '全部变量'], ['results', '运行结果'], ['connections', '连接']].map(([id, label]) => `<button type="button" data-action="float-tab" data-id="${f.id}" data-value="${id}" class="${f.tab === id ? 'active' : ''}" aria-pressed="${f.tab === id}">${label}</button>`).join('')}</nav><div class="float-body">${floatBody(f, n)}</div><footer class="float-footer"><div class="float-save-state grow"><small data-float-save>${state.dirty ? '草稿未保存' : '草稿已保存'}</small><small data-device-apply-status="${n.id}"></small></div>${btn('save', '保存草稿', 'Save', 'title="保存整个原型；待应用参数保持草稿状态"', 'small')}${apply}</footer><button class="float-resize" data-float-resize="${f.id}" aria-label="调整窗口大小">${icon('Grip')}</button>`}
     </section>`;
   }).join('');
   if (contextMenu) html += `<div class="context-menu" style="left:${contextMenu.x}px;top:${contextMenu.y}px">${btn('open-device', '参数与型号', 'SlidersHorizontal', `data-id="${contextMenu.id}"`)}${btn('copy-device', '复制设备', 'Copy', `data-id="${contextMenu.id}"`)}${btn('rotate-device', '旋转 90°', 'RotateCw', `data-id="${contextMenu.id}"`)}${btn('delete-node', '删除设备', 'Trash2', `data-id="${contextMenu.id}"`)}</div>`;
   if (ui.taskDrawer) html += `<section class="task-drawer"><div class="panel-head"><h3>运行任务</h3>${ibtn('tasks', '关闭任务列表', 'X')}</div><div class="panel-body stack">${state.projects.filter(p => ['running', 'paused'].includes(p.run.status)).map(p => `<div class="row"><div class="grow"><strong>${esc(p.name)}</strong><small>${statusText(p.run)} · ${clockLabel(p.run.time)}</small></div>${btn('open-project', '查看', '', `data-id="${p.id}"`, 'small')}${btn('stop-task', '停止', '', `data-id="${p.id}"`, 'small')}</div>`).join('')}<small class="muted">切换页面或关闭查看窗口后，任务继续保留。</small></div></section>`;
   layer.innerHTML = html;
+  syncWorkbenchStatus();
+  requestAnimationFrame(() => { resizeCharts(); restoreChartCursor(); });
 }
 function updateFloatBodies() { retainFocus(renderFloats); }
 function setBench(id, params) {
@@ -223,7 +227,7 @@ function newInstance(moduleId, point, selectedModel) {
     const value = clone(selectedModel.values[v.id] ?? node.variableState.values[v.id]);
     node.variableState.values[v.id] = clone(value); node.variableState.draft[v.id] = clone(value); node.variableState.banks[0][v.id] = clone(value);
   }
-  pg.nodes.push(node); ui.selectedNode = node.id; ui.placing = null; ui.showLibrary = false;
+  pg.nodes.push(node); ui.selectedNode = node.id; ui.placing = null; if (innerWidth <= 500) ui.showLibrary = false;
   markDirty(project()); render(); return node;
 }
 function validateNetwork(p = project()) {
@@ -298,6 +302,7 @@ function sampleStep(run, owner, scope = 'project') {
     variables[n.id + '.OUT_PRE'] = run.values.pressure; variables[n.id + '.OUT_TEMP'] = run.values.temperature;
   }
   run.history.push({ t, ...run.values, variables });
+  if (scope === 'project') run.parameterKey = projectParameterKey(owner);
   if (run.history.length > 1200) run.history.shift();
   state.dirty = true;
   if (scope === 'project' && (owner.solver.mode === 'steady' || t >= owner.solver.duration)) {
@@ -340,6 +345,8 @@ function refreshLive() {
     const readout = document.getElementById('main-flow-chart-readout');
     if (readout && !ui.pinnedChart) readout.textContent = `${clockLabel(run.time)} · 主管 ${number(run.values?.q ?? run.history.at(-1)?.q, 3)} kg/s`;
   }
+  if (ui.route === 'workbench') refreshWorkbenchChart();
+  restoreChartCursor();
   if (ui.route === 'workbench' && !pointer) {
     const svg = document.getElementById('network'); if (svg) svg.innerHTML = networkMarkup(activePage());
     for (const f of ui.floats.filter(f => f.tab === 'results' && !f.minimized)) {
@@ -417,10 +424,10 @@ function extraVariableValue(row, id) {
   if (id.endsWith('.OUT_TEMP')) return row.temperature;
   return null;
 }
-function chartSvg(history, keys = ['q', 'a', 'b'], id = 'flow-chart', compare = false) {
+function chartSvg(history, keys = ['q', 'a', 'b'], id = 'flow-chart', compare = false, options = {}) {
   const measured = document.getElementById(id)?.getBoundingClientRect().width;
   const w = Math.max(200, Math.round(measured || (ui.route === 'bench' ? page.clientWidth - 390 : page.clientWidth - 125)));
-  const h = 270, left = 58, right = w - 20, top = 23, bottom = 222;
+  const h = options.compact ? 168 : 270, left = w < 360 ? 42 : 58, right = w - 20, top = 23, bottom = h - 48;
   const rows = history.length ? history : [{ t: 0, q: 0, a: 0, b: 0, pressure: 0, temperature: 0 }, { t: 10, q: 0, a: 0, b: 0, pressure: 0, temperature: 0 }];
   const minT = rows[0].t, maxT = Math.max(minT + .1, rows.at(-1).t);
   const baseline = compare ? sampleHistory(80).filter(r => r.t >= minT && r.t <= maxT) : [];
@@ -431,13 +438,13 @@ function chartSvg(history, keys = ['q', 'a', 'b'], id = 'flow-chart', compare = 
   const unit = SERIES[keys[0]]?.unit || 'kg/s', visible = keys.filter(k => state.charts.series[k] !== false || id === 'bench-chart');
   const path = (rows, key) => rows.map((r, i) => `${i ? 'L' : 'M'} ${x(r.t).toFixed(2)} ${y(r[key] || 0).toFixed(2)}`).join(' ');
   const ticks = w < 420 ? 3 : 4;
-  chartRegistry.set(id, { rows, keys: visible, minT, maxT, left, right, top, bottom, y });
-  return `<svg class="chart" id="${id}" viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(keys.map(k => SERIES[k]?.name || k).join('、'))}随时间变化，单位 ${esc(unit)}" data-chart="${id}"><text x="5" y="14" class="chart-text">${esc(unit)}</text>${[0, 1, 2, 3, 4].map(i => { const n = minY + (maxY - minY) * i / 4, yy = y(n); return `<line x1="${left}" y1="${yy}" x2="${right}" y2="${yy}" class="chart-grid"/><text x="${left - 9}" y="${yy + 4}" text-anchor="end" class="chart-text">${number(n, maxY > 10 ? 0 : 1)}</text>`; }).join('')}${Array.from({ length: ticks + 1 }, (_, i) => `<text x="${left + i / ticks * (right - left)}" y="${bottom + 20}" text-anchor="${i === 0 ? 'start' : i === ticks ? 'end' : 'middle'}" class="chart-text">${number(minT + (maxT - minT) * i / ticks, 1)}</text>`).join('')}<text x="${right}" y="264" text-anchor="end" class="chart-text">时间 · s</text>${visible.map(k => `<path d="${path(rows, k)}" class="chart-line" stroke="var(--${SERIES[k]?.color || 'blue'})"/>`).join('')}${baseline.length ? `<path d="${path(baseline, 'q')}" class="chart-line" stroke="var(--muted)" stroke-dasharray="5 5"/>` : ''}<line data-chart-guide x1="0" x2="0" y1="${top}" y2="${bottom}" stroke="var(--muted)" opacity="0"/>${visible.map(k => `<circle data-hover-mark="${esc(k)}" r="3" fill="var(--${SERIES[k]?.color || 'blue'})" opacity="0"/>`).join('')}<rect x="${left}" y="${top}" width="${right - left}" height="${bottom - top}" fill="transparent" data-chart-hit="${id}" style="cursor:crosshair"/></svg>`;
+  chartRegistry.set(id, { rows, keys: visible, minT, maxT, left, right, top, bottom, y, options });
+  return `<svg class="chart" id="${id}" viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(keys.map(k => SERIES[k]?.name || k).join('、'))}随时间变化，单位 ${esc(unit)}" data-chart="${id}"><text x="5" y="14" class="chart-text">${esc(unit)}</text>${[0, 1, 2, 3, 4].map(i => { const n = minY + (maxY - minY) * i / 4, yy = y(n); return `<line x1="${left}" y1="${yy}" x2="${right}" y2="${yy}" class="chart-grid"/><text x="${left - 9}" y="${yy + 4}" text-anchor="end" class="chart-text">${number(n, maxY > 10 ? 0 : 1)}</text>`; }).join('')}${Array.from({ length: ticks + 1 }, (_, i) => `<text x="${left + i / ticks * (right - left)}" y="${bottom + 20}" text-anchor="${i === 0 ? 'start' : i === ticks ? 'end' : 'middle'}" class="chart-text">${number(minT + (maxT - minT) * i / ticks, 1)}</text>`).join('')}<text x="${right}" y="${h - 6}" text-anchor="end" class="chart-text">时间 · s</text>${visible.map(k => `<path d="${path(rows, k)}" class="chart-line" stroke="var(--${SERIES[k]?.color || 'blue'})"/>`).join('')}${baseline.length ? `<path d="${path(baseline, 'q')}" class="chart-line" stroke="var(--muted)" stroke-dasharray="5 5"/>` : ''}${(options.events || []).filter(e => e.t >= minT && e.t <= maxT).slice(-12).map(e => `<g class="chart-event"><title>${esc(clockLabel(e.t) + ' · ' + e.text)}</title><line x1="${x(e.t)}" x2="${x(e.t)}" y1="${top}" y2="${bottom}" stroke="var(--accent)" stroke-dasharray="3 4" opacity=".65"/><circle cx="${x(e.t)}" cy="${top}" r="3" fill="var(--accent)"/></g>`).join('')}<line data-chart-guide x1="0" x2="0" y1="${top}" y2="${bottom}" stroke="var(--muted)" opacity="0"/>${visible.map(k => `<circle data-hover-mark="${esc(k)}" r="3" fill="var(--${SERIES[k]?.color || 'blue'})" opacity="0"/>`).join('')}<rect x="${left}" y="${top}" width="${right - left}" height="${bottom - top}" fill="transparent" data-chart-hit="${id}" style="cursor:crosshair"/></svg>`;
 }
 function resizeCharts() {
   for (const svg of root.querySelectorAll('svg[data-chart]')) {
     const data = chartRegistry.get(svg.id); if (!data) continue;
-    const html = chartSvg(data.rows, data.keys, svg.id, svg.id === 'main-flow-chart' && state.charts.compare);
+    const html = chartSvg(data.rows, data.keys, svg.id, svg.id === 'main-flow-chart' && state.charts.compare, data.options);
     svg.outerHTML = html;
   }
 }
@@ -543,6 +550,11 @@ function handleAction(action, el) {
     case 'save': saveAll(); break;
     case 'theme': ui.theme = ui.theme === 'dark' ? 'light' : 'dark'; saveUI(); render(); break;
     case 'open-project': closeDialog(); if (id) openProject(id); break;
+    case 'start-modeling': startModeling(); break;
+    case 'toggle-chart': ui.showChart = !ui.showChart; ui.pinnedChart = null; saveUI(); retainFocus(); break;
+    case 'full-curves': state.charts.source = 'live'; ui.pinnedChart = null; navigate('curves'); break;
+    case 'release-cursor': ui.pinnedChart = null; ui.chartCursor = null; refreshWorkbenchChart(); break;
+    case 'float-dock': toggleDeviceDock(id); break;
     case 'guided-demo': state.selectedModule = 'valve'; ui.bank = 1; openEditor('valve', 'channels'); msg('从端口与通路开始，再编辑库值、保存型号并应用到项目。'); break;
     case 'new-project':
       openDialog('新建项目', '选择一份示例作为起点，或创建空白画布。', `<div class="stack">${field('name', '项目名称', '新管网项目', 'required maxlength="50"')}${selectField('template', '起始内容', [['blank', '空白画布'], ['water', '泵阀并联管网'], ['heat', '双侧换热机组'], ['tank', '水箱液位调节']], 'blank')}</div>`, data => {
@@ -590,10 +602,10 @@ function handleAction(action, el) {
     case 'redo': undo(true); break;
     case 'select-mode': ui.canvasMode = 'select'; ui.connecting = null; ui.placing = null; render(); break;
     case 'connect-mode': ui.canvasMode = 'connect'; ui.placing = null; msg('点击两个空闲端口建立连接，也可以拖动连线。'); break;
-    case 'toggle-library': ui.showLibrary = !ui.showLibrary; render(); break;
+    case 'toggle-library': ui.showLibrary = !ui.showLibrary; saveUI(); retainFocus(); break;
     case 'zoom-in': activePage().zoom = clamp(activePage().zoom * 1.2, .35, 3); render(); break;
     case 'zoom-out': activePage().zoom = clamp(activePage().zoom / 1.2, .35, 3); render(); break;
-    case 'fit': activePage().zoom = 1; activePage().pan = [0, 0]; render(); break;
+    case 'fit': fitNetwork(); render(); break;
     case 'grid': ui.pageGrid = !ui.pageGrid; saveUI(); render(); break;
     case 'validate': showDiagnostics(); break;
     case 'locate-issue': closeDialog(); if (d.page) project().activePage = d.page; navigate('workbench'); if (id) openDevice(id); break;
@@ -668,7 +680,7 @@ function handleAction(action, el) {
     case 'tasks': ui.taskDrawer = !ui.taskDrawer; renderFloats(); break;
     case 'select-record': ui.selectedRecord = id; render(); break;
     case 'record-curves': state.charts.source = id; navigate('curves'); break;
-    case 'toggle-series': state.charts.series[d.value] = !state.charts.series[d.value]; markDirty(); render(); break;
+    case 'toggle-series': ui.pinnedChart = null; state.charts.series[d.value] = !state.charts.series[d.value]; markDirty(); render(); break;
     case 'add-chart-variable': chooseChartVariables(); break;
     case 'choose-control-vars': chooseChartVariables(true); break;
     case 'add-specific-curve': addChartVariable(id, d.label); break;
@@ -699,7 +711,7 @@ function handleAction(action, el) {
     case 'demo-message': log('演示消息：变量快照已更新，原型接口没有外部连接。', 'DEMO'); markDirty(); render(); break;
     case 'export': exportData(d.format, id); break;
     case 'import': importDialog(); break;
-    case 'reset-windows': state.windowPositions = {}; ui.floats.forEach(f => { delete f.x; delete f.y; f.w = 440; f.h = 520; }); markDirty(); render(); msg('窗口位置已恢复。'); break;
+    case 'reset-windows': state.windowPositions = {}; ui.floats.forEach(f => { delete f.x; delete f.y; delete f.restore; f.docked = false; f.minimized = false; f.w = 440; f.h = 520; }); markDirty(); render(); msg('窗口位置已恢复。'); break;
     case 'reset-prototype': confirmChange('恢复内置示例', '替换当前原型草稿。可先取消并导出编辑内容。', () => { try { localStorage.setItem(STORAGE_KEY + '-before-reset', JSON.stringify(state)); } catch {} state = initialState(); normalizeState(); ui.floats = []; ui.selectedNode = ''; undoStack = []; redoStack = []; state.dirty = true; navigate('home'); msg('已恢复示例；保存后更新浏览器记录。'); }, '恢复示例'); break;
     case 'float-close': { const f = ui.floats.find(f => f.id === id); rememberWindow(f); ui.floats = ui.floats.filter(f => f.id !== id); renderFloats(); break; }
     case 'float-tab': {
@@ -713,7 +725,7 @@ function handleAction(action, el) {
     }
     case 'float-pin': { const f = ui.floats.find(f => f.id === id); f.pinned = !f.pinned; rememberWindow(f); renderFloats(); break; }
     case 'float-min': { const f = ui.floats.find(f => f.id === id); f.minimized = !f.minimized; renderFloats(); break; }
-    case 'float-max': { const f = ui.floats.find(f => f.id === id), r = page.getBoundingClientRect(); if (f.restore) { Object.assign(f, f.restore); delete f.restore; } else { f.restore = { x: f.x, y: f.y, w: f.w, h: f.h }; Object.assign(f, { x: r.left + 8, y: r.top + 8, w: r.width - 16, h: r.height - 16 }); } renderFloats(); break; }
+    case 'float-max': { const f = ui.floats.find(f => f.id === id), r = page.getBoundingClientRect(); f.docked = false; rememberWindow(f); if (f.restore) { Object.assign(f, f.restore); delete f.restore; } else { f.restore = { x: f.x, y: f.y, w: f.w, h: f.h }; Object.assign(f, { x: r.left + 8, y: r.top + 8, w: r.width - 16, h: r.height - 16 }); } renderFloats(); break; }
     default: throw Error(`尚未识别此操作：${action}`);
   }
 }
@@ -757,6 +769,7 @@ function handleInput(el) {
 }
 function handleChange(el) {
   const d = el.dataset, value = el.value; let redraw = true;
+  if ('workbenchChart' in d) { ui.workbenchChart = value; ui.pinnedChart = null; saveUI(); retainFocus(); return; }
   if (el.type === 'file' && modal && el.name === 'file') {
     const file = el.files[0], current = modal; if (!file) return;
     if (file.size > 5_000_000) throw Error('请使用小于 5 MB 的原型 JSON。');
@@ -809,7 +822,7 @@ function handleChange(el) {
   else if (d.benchParam) { if (state.bench.run.status === 'running') throw Error('暂停后编辑测试参数。'); const f = (PARAM_DEFS[mod(state.bench.moduleId).kind] || []).find(f => f[0] === d.benchParam); state.bench.params[d.benchParam] = numeric(value, f[3], f[4]); markDirty(); }
   else if (d.benchBoundary) { if (state.bench.run.status === 'running') throw Error('暂停后编辑测试边界。'); state.bench.boundary[d.benchBoundary] = numeric(value, d.benchBoundary === 'temperature' ? -273 : .001, 100000); markDirty(); }
   else if ('benchStep' in d) { state.bench.run.step = numeric(value, .01, 10); markDirty(); }
-  else if ('chartSource' in d) { state.charts.source = value; markDirty(); }
+  else if ('chartSource' in d) { ui.pinnedChart = null; state.charts.source = value; markDirty(); }
   else if ('chartCompare' in d) { state.charts.compare = el.checked; markDirty(); }
   else if (d.projectField) { project()[d.projectField] = value; markDirty(project()); }
   else if (d.solverField) {
@@ -828,7 +841,7 @@ root.addEventListener('pointerdown', e => {
   if (e.button !== 0 || modal) return;
   const target = e.target, resize = target.closest('[data-float-resize]'), move = target.closest('[data-float-move]'), draw = target.closest('[data-draw-id]'), portEl = target.closest('[data-port-node]'), node = target.closest('[data-node]');
   if (resize || move && !target.closest('button,input,select')) {
-    const f = ui.floats.find(f => f.id === (resize ? resize.dataset.floatResize : move.dataset.floatMove)); ui.frontId = f.id; f.order = ++ui.floatSerial;
+    const f = ui.floats.find(f => f.id === (resize ? resize.dataset.floatResize : move.dataset.floatMove)); if (isDocked(f)) return; ui.frontId = f.id; f.order = ++ui.floatSerial;
     setPointer(e, { kind: resize ? 'resize' : 'window', id: f.id, original: { x: f.x, y: f.y, w: f.w, h: f.h } }); e.preventDefault(); return;
   }
   if (draw && draw.dataset.drawId !== 'picture') {
@@ -853,7 +866,7 @@ root.addEventListener('pointermove', e => {
     n.x = Math.round(pointer.original.x + p.x - pointer.origin.x); n.y = Math.round(pointer.original.y + p.y - pointer.origin.y); svg.innerHTML = networkMarkup(activePage());
   } else if (pointer.kind === 'pan') {
     const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(pointer.matrix); activePage().pan = [pointer.original[0] + p.x - pointer.origin.x, pointer.original[1] + p.y - pointer.origin.y];
-    const pg = activePage(); document.getElementById('network').setAttribute('viewBox', `${-35 - pg.pan[0]} ${-5 - pg.pan[1]} ${1140 / pg.zoom} ${510 / pg.zoom}`);
+    const pg = activePage(); document.getElementById('network').setAttribute('viewBox', networkViewBox(pg));
   } else if (pointer.kind === 'draw-port') {
     const svg = document.getElementById('module-drawing'), p = svgPoint(svg, e), port = mod().ports.find(p => p.id === pointer.id);
     port.x = Math.round(clamp(pointer.original.x + (p.x - pointer.origin.x) / 7.2, 5, 95)); port.y = Math.round(clamp(pointer.original.y + (p.y - pointer.origin.y) / 4.3, 10, 85)); svg.innerHTML = drawingSVG(mod());
@@ -919,12 +932,9 @@ function chartHover(e, force = false) {
   const svg = e.target.closest?.('svg[data-chart]'); if (!svg || ui.pinnedChart && !force) return;
   const data = chartRegistry.get(svg.id); if (!data?.rows.length) return;
   const p = svgPoint(svg, e), x = clamp(p.x, data.left, data.right), t = data.minT + (x - data.left) / (data.right - data.left) * (data.maxT - data.minT);
-  let i = data.rows.findIndex(r => r.t >= t); if (i < 0) i = data.rows.length - 1;
-  const a = data.rows[Math.max(0, i - 1)], b = data.rows[i], fraction = b.t === a.t ? 0 : (t - a.t) / (b.t - a.t);
-  const guide = svg.querySelector('[data-chart-guide]'); if (guide) { guide.setAttribute('x1', x); guide.setAttribute('x2', x); guide.setAttribute('opacity', '1'); }
-  for (const marker of svg.querySelectorAll('[data-hover-mark]')) { const k = marker.dataset.hoverMark, value = Number(a[k] || 0) + (Number(b[k] || 0) - Number(a[k] || 0)) * fraction; marker.setAttribute('cx', x); marker.setAttribute('cy', data.y(value)); marker.setAttribute('opacity', '1'); }
-  const readout = document.getElementById(svg.id + '-readout');
-  if (readout) readout.textContent = `${force && ui.pinnedChart ? '已固定 · ' : ''}${clockLabel(t)} · ` + data.keys.filter(k => state.charts.series[k] !== false || svg.id === 'bench-chart').map(k => `${SERIES[k]?.name || k} ${number(Number(a[k] || 0) + (Number(b[k] || 0) - Number(a[k] || 0)) * fraction, 3)} ${SERIES[k]?.unit || ''}`).join(' · ');
+  ui.chartCursor = { id: svg.id, time: t };
+  paintChartCursor(svg.id, t, ui.pinnedChart === svg.id);
+  restoreChartCursor();
 }
 document.addEventListener('keydown', e => {
   const edit = e.target.matches('input,textarea,select,[contenteditable=true]');
@@ -977,7 +987,7 @@ ui.route = routeFromLocation();
 render();
 window.addEventListener('hashchange', () => { ui.route = routeFromLocation(); render(); });
 let resizeTimer;
-window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => { renderFloats(); if (ui.route === 'curves') refreshLive(); }, 120); });
+window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => { renderFloats(); if (['curves', 'workbench'].includes(ui.route)) refreshLive(); }, 120); });
 runInterval = setInterval(() => {
   let active = false, finished = false;
   for (const p of state.projects) if (p.run.status === 'running') { sampleStep(p.run, p); active = true; if (p.run.status === 'completed') finished = true; }

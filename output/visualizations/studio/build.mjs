@@ -10,9 +10,9 @@ const icons = Object.fromEntries(names.map(name => {
   return [name, renderToStaticMarkup(createElement(Lucide[name], { width:18, height:18, strokeWidth:1.65, 'aria-hidden':'true', focusable:'false' }))];
 }));
 const here = new URL('.', import.meta.url);
-const [template, css, data, app, variables, runtime] = await Promise.all(['index.html','styles.css','data.js','app.js','instance-variables.js','runtime.js'].map(name=>readFile(new URL(name,here),'utf8')));
-const script = `(() => {\n'use strict';\nconst ICONS = ${JSON.stringify(icons)};\n${data}\n${app}\n${variables}\n${runtime}\n})();`;
-const html = template.replace('<!-- STUDIO_STYLES -->', `<style>\n${css}\n</style>`).replace('<!-- STUDIO_SCRIPT -->', `<script>\n${script.replace(/<\/script/gi, '<\\/script')}\n</script>`);
+const [template, css, workbenchCss, data, app, variables, workbench, runtime] = await Promise.all(['index.html','styles.css','workbench.css','data.js','app.js','instance-variables.js','workbench.js','runtime.js'].map(name=>readFile(new URL(name,here),'utf8')));
+const script = `(() => {\n'use strict';\nconst ICONS = ${JSON.stringify(icons)};\n${data}\n${app}\n${variables}\n${workbench}\n${runtime}\n})();`;
+const html = template.replace('<!-- STUDIO_STYLES -->', `<style>\n${css}\n${workbenchCss}\n</style>`).replace('<!-- STUDIO_SCRIPT -->', `<script>\n${script.replace(/<\/script/gi, '<\\/script')}\n</script>`);
 const destination = new URL('../fluidnet-studio-prototype.html',here);
 await writeFile(destination,html);
 console.log(JSON.stringify({ file:fileURLToPath(destination), bytes:Buffer.byteLength(html), pages:12 }));

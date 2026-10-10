@@ -1,8 +1,8 @@
 {
-  "checked_at": "2026-10-10T04:21:50.403640+00:00",
+  "checked_at": "2026-10-10T06:03:23.728461+00:00",
   "file": "output/visualizations/fluidnet-studio-prototype.html",
-  "bytes": 321455,
-  "sha256": "664ee8cc3a5cb523f2088e8836781c360b1f866e69b1c92dd3521580cb314d6b",
+  "bytes": 339880,
+  "sha256": "de3ce708548218f2f3af99b10f6742ca879a9370d16651bbc67618e87ac58fe6",
   "pages": 12,
   "module_tabs": 6,
   "device_tabs": 4,
@@ -57,7 +57,7 @@
       "table": {
         "width": 778,
         "scroll": 778,
-        "height": 353
+        "height": 344
       }
     },
     {
@@ -71,7 +71,7 @@
       "table": {
         "width": 656,
         "scroll": 680,
-        "height": 353
+        "height": 344
       }
     },
     {
@@ -85,7 +85,7 @@
       "table": {
         "width": 248,
         "scroll": 635,
-        "height": 190
+        "height": 171
       }
     }
   ],
@@ -273,20 +273,57 @@
     }
   ],
   "last_revision_verification": {
-    "checked_at": "2026-10-10T04:21:50.403640+00:00",
-    "change": "Remove validation bench and data connection pages and their entry points; keep saved data and historical records compatible",
+    "checked_at": "2026-10-10T06:03:23.728461+00:00",
+    "change": "优化工作区：模块库收起、参数停靠、同屏曲线、参数生效与结果状态、双路径入口和适应画布",
     "checks": [
       "pages.mjs",
       "workflow.mjs",
       "details.mjs",
-      "instance-variables.mjs"
+      "instance-variables.mjs",
+      "workbench.mjs"
     ],
     "screenshots": [
-      "home-1366.png",
-      "controls-1366.png",
-      "device-parameters.png",
-      "editor-code-1366.png"
+      "refined-home-1366.png",
+      "refined-workbench-1366.png",
+      "refined-workbench-1024.png",
+      "refined-chart-320.png",
+      "refined-workbench-dark.png"
     ],
     "errors": []
-  }
+  },
+  "workbench_checks": [
+    "Separate entry paths, desktop library collapse and reserved property dock space",
+    "Fit uses actual network bounds; centered zoom, panning and refitting remain consistent",
+    "Save versus apply, result freshness, same-screen branch flows and parameter event markers",
+    "Observation switching and a fixed time cursor survive live sampling without stealing parameter focus",
+    "Dock/float switching, persisted layout, applied parameters and return from the complete curve page",
+    "Desktop, narrow-window, mobile library overlay and dark appearance"
+  ],
+  "workbench_errors": [],
+  "workbench_layouts": [
+    {
+      "width": 1600,
+      "outer": 1600,
+      "page": 1534,
+      "content": 1534
+    },
+    {
+      "width": 1024,
+      "outer": 1024,
+      "page": 958,
+      "content": 958
+    },
+    {
+      "width": 736,
+      "outer": 736,
+      "page": 682,
+      "content": 682
+    },
+    {
+      "width": 320,
+      "outer": 320,
+      "page": 266,
+      "content": 266
+    }
+  ]
 }

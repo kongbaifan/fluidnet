@@ -79,7 +79,7 @@ function applyInstanceBank(n, bank) {
     diffMarkup(differences.map(v => [`${v.label} · ${v.unit}`, instanceVariableValue(n, v), values[v.id]])), () => {
       validateInstanceEdits(n, values); remember(); commitInstanceEdits(n, values);
       n.draftModelId = null; n.draftModelVersion = null;
-      owner.run.events.push({ t: owner.run.time, text: `${n.id} 应用库值 ${bank + 1}：${differences.map(v => `${v.name}=${values[v.id]}`).join('，')}` });
+      owner.run.events.push({ t: owner.run.time, kind: 'parameters', text: `${n.id} 应用库值 ${bank + 1}：${differences.map(v => `${v.name}=${values[v.id]}`).join('，')}` });
       markDirty(owner); render(); msg(`${n.id} 的库值 ${bank + 1} 已应用`);
     }, '确认应用', true);
 }

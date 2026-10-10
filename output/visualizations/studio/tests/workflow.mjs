@@ -72,8 +72,8 @@ try {
   if (box.y + box.height > 740) throw Error('Floating window exceeds the usable viewport');
   await float.locator('[data-action="float-close"]').click();
   await click('run-project', '[data-command="step"]');
-  await expect(page.locator('.canvas-info')).toContainText('已暂停');
-  await expect(page.locator('.canvas-info [data-live-time]')).toContainText('0.1');
+  await expect(page.locator('#statusbar')).toContainText('已暂停');
+  await expect(page.locator('#statusbar [data-live-time]')).toContainText('0.1');
   checks.push('Model to instance, saved draft versus applied value and first project step');
 
   await click('run-project', '[data-command="run"]');
