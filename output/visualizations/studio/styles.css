@@ -512,3 +512,36 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   #fn-studio .toast { left:calc(50% + 27px);max-width:calc(100vw - 76px); }
 }
 @media print { #fn-studio { display:block;height:auto;overflow:visible; } #fn-studio .app-header,#fn-studio .app-rail,#fn-studio .statusbar,#fn-studio .btn,#fn-studio .icon-btn { display:none!important; } #fn-studio #page { overflow:visible; } #fn-studio .page-shell { padding:0; } }
+
+/* 分类有独立入口和空状态，窄屏仍能直接新增分组。 */
+#fn-studio .module-content { min-width:0; }
+#fn-studio .module-group-heading { display:flex;align-items:center;gap:6px;justify-content:space-between;padding:2px 7px 9px;color:var(--muted);font-size:11px; }
+#fn-studio .module-group-heading .btn { width:auto;padding:5px 7px;font-size:11px;min-height:30px;white-space:nowrap; }
+#fn-studio .module-group-heading .btn svg { width:14px;height:14px; }
+#fn-studio .module-group-list { max-height:calc(100dvh - 320px);overflow:auto;min-height:76px; }
+#fn-studio .module-group-list button { min-width:0; }
+#fn-studio .module-group-list button>span { overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+#fn-studio .module-group-list button>small { flex:none; }
+#fn-studio .module-group-context { display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap; }
+#fn-studio .module-group-context h2 { overflow-wrap:anywhere; }
+#fn-studio .module-group-context small { display:block;color:var(--muted);font-size:11px;margin-top:3px; }
+#fn-studio .module-group-chip { display:flex;align-items:center;gap:5px;align-self:flex-start;max-width:100%;padding:4px 7px;background:var(--soft);border:1px solid var(--border);border-radius:4px;color:var(--muted);font-size:11px;text-align:left; }
+#fn-studio .module-group-chip:hover { border-color:var(--accent);color:var(--accent); }
+#fn-studio .module-group-chip>span { overflow:hidden;white-space:nowrap;text-overflow:ellipsis; }
+#fn-studio .module-group-chip>svg { width:13px;height:13px; }
+#fn-studio #module-results>.empty { grid-column:1/-1;border:1px dashed var(--border);border-radius:8px;background:var(--surface);padding:45px 22px; }
+#fn-studio #module-results>.empty .btn svg { width:16px;height:16px;margin:0;opacity:1; }
+@media(max-width:1000px) and (min-width:761px) {
+  #fn-studio .module-group-heading { padding-inline:0;gap:3px; }
+  #fn-studio .module-group-heading .btn { padding-inline:3px; }
+}
+@media(max-width:760px) {
+  #fn-studio .module-group-nav { display:block;min-width:0;overflow:hidden; }
+  #fn-studio .module-group-heading { padding:0 3px 8px; }
+  #fn-studio .module-group-list { display:flex;gap:4px;max-height:none;min-height:0;overflow-x:auto;padding-bottom:4px; }
+  #fn-studio .module-group-list button { flex:none;max-width:230px; }
+  #fn-studio .module-group-list button>small.push { display:block;margin-left:5px; }
+  #fn-studio .module-group-links { display:flex;gap:4px;flex-wrap:wrap; }
+  #fn-studio .module-group-links button { padding:7px;font-size:11px; }
+  #fn-studio .module-group-context .grow { flex-basis:100%; }
+}

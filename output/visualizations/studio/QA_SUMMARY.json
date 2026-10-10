@@ -1,8 +1,8 @@
 {
-  "checked_at": "2026-10-10T06:03:23.728461+00:00",
+  "checked_at": "2026-10-10T06:20:19.710562+00:00",
   "file": "output/visualizations/fluidnet-studio-prototype.html",
-  "bytes": 339880,
-  "sha256": "de3ce708548218f2f3af99b10f6742ca879a9370d16651bbc67618e87ac58fe6",
+  "bytes": 350031,
+  "sha256": "dbbd12aa24cccc0236b63f4d2d8a652d528ec77d591a3fb5152eabcd95c407f1",
   "pages": 12,
   "module_tabs": 6,
   "device_tabs": 4,
@@ -273,9 +273,10 @@
     }
   ],
   "last_revision_verification": {
-    "checked_at": "2026-10-10T06:03:23.728461+00:00",
-    "change": "优化工作区：模块库收起、参数停靠、同屏曲线、参数生效与结果状态、双路径入口和适应画布",
+    "checked_at": "2026-10-10T06:20:19.710562+00:00",
+    "change": "修复模块分类无法新增分组：独立保存空分组、新模块选组、模块归类、重命名与空分组删除、JSON 交换及旧存档兼容",
     "checks": [
+      "module-groups.mjs",
       "pages.mjs",
       "workflow.mjs",
       "details.mjs",
@@ -283,11 +284,12 @@
       "workbench.mjs"
     ],
     "screenshots": [
-      "refined-home-1366.png",
-      "refined-workbench-1366.png",
-      "refined-workbench-1024.png",
-      "refined-chart-320.png",
-      "refined-workbench-dark.png"
+      "module-group-empty.png",
+      "module-groups-1366.png",
+      "module-groups-1024.png",
+      "module-groups-736.png",
+      "module-groups-320.png",
+      "module-groups-dark.png"
     ],
     "errors": []
   },
@@ -306,6 +308,41 @@
       "outer": 1600,
       "page": 1534,
       "content": 1534
+    },
+    {
+      "width": 1024,
+      "outer": 1024,
+      "page": 958,
+      "content": 958
+    },
+    {
+      "width": 736,
+      "outer": 736,
+      "page": 682,
+      "content": 682
+    },
+    {
+      "width": 320,
+      "outer": 320,
+      "page": 266,
+      "content": 266
+    }
+  ],
+  "module_group_checks": [
+    "Add/cancel, duplicate and blank-name validation, empty-group counts and saved reload",
+    "New module inherits selected group; moving and renaming preserve module IDs, model and project references",
+    "Built-in categories protected; occupied group deletion disabled; empty deletion supports cancel/confirm",
+    "Literal special-character names, full prototype and model-library exports preserve populated and empty groups",
+    "Invalid group imports rejected atomically; legacy categories recovered; library merge retains old and new empty groups",
+    "Visible add-group entry, horizontal category scrolling and no page overflow at 1366/1024/736/320 px; narrow creation and dark appearance"
+  ],
+  "module_group_errors": [],
+  "module_group_layouts": [
+    {
+      "width": 1366,
+      "outer": 1366,
+      "page": 1300,
+      "content": 1300
     },
     {
       "width": 1024,

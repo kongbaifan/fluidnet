@@ -23,6 +23,15 @@
 
 项目设备窗口默认显示常用参数，提供“全部变量”、型号、结果、连接和模块定义入口。窗口支持多开、移动、缩放、置顶、收起及恢复；主要操作在常见笔记本尺寸下保持可见。
 
+### 模块分类与自建分组
+
+进入“模块”，点击左侧“模块分类”旁的“新增分组”。分组可以先留空；点击右上角“保存原型”后，空分组和模块归类会在刷新后恢复，也随完整原型 JSON 和型号库 JSON 交换保留。
+
+- 选中分组后点击“新建模块”，默认使用当前分组；创建弹窗中也可选择其他分组。
+- 点击模块卡片上的分组标签，可将已有模块移到其他分组。建模画布的模块库同步显示新的归类。
+- 自建分组支持重命名，组内模块同步更新分类，型号和项目设备仍引用原来的模块。空分组可删除；有模块时先移动模块，再删除分组。
+- 内置分类保留原名称。自建名称最多 32 个字符，不能重名或留空，最多 64 个自建分组。旧存档从模块的分类字段补齐分组。
+
 ### 同屏建模与调参
 
 首页点击“打开示例调参”，进入泵阀并联管网，并打开阀门参数和底部曲线。在宽度至少 1000 px 的窗口中，参数停靠到右侧，画布为它保留空间；较窄窗口使用原有浮窗。入口会沿用已存在的泵阀示例及其编辑内容。
@@ -96,7 +105,7 @@ node output/visualizations/studio/preview.mjs
 
 预览服务只绑定本机 `127.0.0.1`，默认端口 8789；端口占用时会选择 8790–8799。关闭服务后仍可直接打开单文件原型。
 
-源码由 `index.html`、`styles.css`、`workbench.css`、`data.js`、`app.js`、`instance-variables.js`、`workbench.js` 和 `runtime.js` 组成。`instance-variables.js` 管理设备变量、实例库值与表格交互；`workbench.js` / `workbench.css` 管理工作区布局、结果状态及同屏曲线；`build.mjs` 将本地 Lucide 图标和源码打包成单文件页面。正式 `web/src` 与后端没有参与此原型构建。
+源码由 `index.html`、`styles.css`、`workbench.css`、`data.js`、`app.js`、`instance-variables.js`、`workbench.js`、`module-groups.js` 和 `runtime.js` 组成。`instance-variables.js` 管理设备变量、实例库值与表格交互；`workbench.js` / `workbench.css` 管理工作区布局、结果状态及同屏曲线；`module-groups.js` 管理模块分类与分组保存；`build.mjs` 将本地 Lucide 图标和源码打包成单文件页面。正式 `web/src` 与后端没有参与此原型构建。
 
 浏览器检查：
 
@@ -106,8 +115,11 @@ node output/visualizations/studio/tests/workflow.mjs
 node output/visualizations/studio/tests/details.mjs
 node output/visualizations/studio/tests/instance-variables.mjs
 node output/visualizations/studio/tests/workbench.mjs
+node output/visualizations/studio/tests/module-groups.mjs
 ```
 
 检查使用隔离的 Edge 浏览器上下文，结果与截图写入 `.cache/studio-prototype-qa/`。覆盖 12 个页面、6 个模块页签和 5 个设置页面；在 1366×768、1600×1000、1024、736、320 px 宽度检查布局，并验证库值/型号/实例流程、项目任务状态、曲线、窗口、多画布和 JSON 恢复。检查也覆盖已移除页面的旧地址恢复与旧单机任务暂停。代码页另检查三个编辑区、三组设计函数、变量插入方向、光标与滚动、统一保存及旧页签恢复。
 
 工作区专项检查覆盖桌面模块库释放空间、停靠与画布不重叠、保存与应用分离、结果时效、参数事件标记、运行中的固定读数与编辑焦点、布局恢复，以及窄屏和深色显示。
+
+分组专项检查覆盖新增与取消、名称校验、空分组保存恢复、新模块默认分组、已有模块移动、重命名与引用保持、空分组删除、JSON 交换、旧存档兼容，以及 1366 / 1024 / 736 / 320 px 和深色显示。

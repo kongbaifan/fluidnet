@@ -470,7 +470,7 @@ function exportData(format, id) {
   }
   let data, name;
   if (format === 'record' || format === 'report') { data = state.records.find(r => r.id === (id || ui.selectedRecord)) || state.records[0]; if (!data) throw Error('没有可导出的记录。'); name = data.id; }
-  else if (format === 'models') { data = { format: 'fluidnet-prototype-models', schema: 1, modules: state.modules, models: state.models }; name = 'fluidnet-models'; }
+  else if (format === 'models') { data = { format: 'fluidnet-prototype-models', schema: 1, moduleGroups: state.moduleGroups, modules: state.modules, models: state.models }; name = 'fluidnet-models'; }
   else if (format === 'variables') { data = { project: project().id, variables: projectVariables() }; name = 'fluidnet-variables'; }
   else if (format === 'messages') { data = state.messages; name = 'fluidnet-messages'; }
   else { data = clone(state); data.format = 'fluidnet-studio-prototype'; name = 'fluidnet-prototype'; }
@@ -479,6 +479,7 @@ function exportData(format, id) {
 function validateImport(data) {
   const safeId = id => typeof id === 'string' && /^[A-Za-z][A-Za-z0-9_-]{0,80}$/.test(id);
   if (!data || data.schema !== 1 || !Array.isArray(data.modules) || !data.modules.length || !Array.isArray(data.models)) throw Error('不是本版本的原型交换文件。');
+  validateModuleGroups(data);
   if (data.modules.length > 64 || data.models.length > 500) throw Error('导入数据超出原型演示容量。');
   const unique = values => new Set(values).size === values.length;
   if (!unique(data.modules.map(m => m.id)) || !unique(data.models.map(m => m.id))) throw Error('模块或型号标识重复。');
@@ -518,6 +519,8 @@ function importDialog() {
     if (incoming.format === 'fluidnet-prototype-models') {
       const conflicts = incoming.models.filter(m => state.models.some(v => v.id === m.id));
       if (conflicts.length) throw Error(`已有 ${conflicts.length} 个相同标识的型号。为避免覆盖，请使用完整原型恢复或导入不同型号。`);
+      const mergedGroups = collectModuleGroups({ modules: [...state.modules, ...incoming.modules], moduleGroups: [...state.moduleGroups, ...(incoming.moduleGroups || [])] });
+      state.moduleGroups = mergedGroups;
       state.modules.push(...clone(incoming.modules.filter(m => !state.modules.some(v => v.id === m.id)))); state.models.push(...clone(incoming.models));
     } else {
       try { localStorage.setItem(STORAGE_KEY + '-before-import', JSON.stringify(state)); } catch {}
@@ -574,11 +577,17 @@ function handleAction(action, el) {
       }, pg ? '保存名称' : '新增画布'); break;
     }
     case 'canvas-tab': project().activePage = id; ui.selectedNode = ''; ui.selectedEdge = ''; ui.connecting = null; render(); break;
+    case 'new-module-group': moduleGroupDialog(); break;
+    case 'rename-module-group': moduleGroupDialog(d.value); break;
+    case 'delete-module-group': removeModuleGroup(d.value); break;
+    case 'move-module-group': moveModuleGroup(id); break;
     case 'new-module':
-      openDialog('新建算法模块', '使用已有设备定义作为编辑起点，端口与变量随后可修改。', `<div class="fields">${field('name', '模块名称', '自定义调节阀', 'required maxlength="40"')}${field('code', '模块标识', 'CUSTOM_VALVE', 'required pattern="[A-Za-z_][A-Za-z0-9_]*" maxlength="48"')}${selectField('base', '起始定义', MODULE_SPECS.map(s => [s[0], s[1]]), 'valve')}</div>`, data => {
+      openDialog('新建算法模块', '使用已有设备定义作为编辑起点，端口与变量随后可修改。', `<div class="fields">${field('name', '模块名称', '自定义调节阀', 'required maxlength="40"')}${field('code', '模块标识', 'CUSTOM_VALVE', 'required pattern="[A-Za-z_][A-Za-z0-9_]*" maxlength="48"')}${selectField('base', '起始定义', MODULE_SPECS.map(s => [s[0], s[1]]), 'valve')}${selectField('category', '所属分组', moduleGroupNames().map(name => [name, name]), ui.route === 'modules' && ui.category !== '全部模块' ? ui.category : '自定义模块')}</div>`, data => {
         if (!isIdentifier(data.code) || state.modules.some(m => m.code === data.code)) throw Error('模块标识需合法且唯一。');
         if (state.modules.length >= 64) throw Error('已达到原型模块数量上限。');
-        const m = makeModule(MODULE_SPECS.find(s => s[0] === data.base)); m.id = uid('module'); m.name = data.name.trim(); m.code = data.code; m.category = '自定义模块'; m.drawing.label = m.name; m.description = '用户编辑的模块定义'; state.modules.push(m); markDirty(m); openEditor(m.id);
+        if (!moduleGroupNames().includes(data.category)) throw Error('请选择已有分组。');
+        if (!data.name.trim()) throw Error('请输入模块名称。');
+        const m = makeModule(MODULE_SPECS.find(s => s[0] === data.base)); m.id = uid('module'); m.name = data.name.trim(); m.code = data.code; m.category = data.category; m.drawing.label = m.name; m.description = '用户编辑的模块定义'; state.modules.push(m); markDirty(m); openEditor(m.id);
       }, '创建模块'); break;
     case 'edit-module': openEditor(id || state.selectedModule, d.tab || 'drawing'); break;
     case 'insert-module': navigate('workbench'); newInstance(id); break;
@@ -967,6 +976,7 @@ document.addEventListener('keydown', e => {
   }
 });
 function normalizeState() {
+  normalizeModuleGroups();
   state.windowPositions ||= {}; state.charts.extra ||= []; state.serial ||= 30;
   for (const p of state.projects) {
     p.controlConfig ||= { name: '供水温度调节', when: 'accepted', period: 100, input: p.pages.flatMap(pg => pg.nodes).some(n => n.id === 'P1') ? 'P1.OUT_TEMP' : '', output: p.pages.flatMap(pg => pg.nodes).some(n => n.id === 'V1') ? 'V1.OPENING' : '' };
