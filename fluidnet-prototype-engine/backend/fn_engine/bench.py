@@ -8,10 +8,11 @@ from .catalog import catalog_map
 from .compiler import compile_project
 from .models import (
     CommitStepRequest, Connection, Domain, Endpoint, EvaluateRequest, ModuleDefinition,
-    ModuleInstance, ModuleTestRequest, ModuleTestResponse, PortState, Project,
+    ModuleInstance, ModuleTestRequest, ModuleTestResponse, Project,
 )
+from .properties import property_service
 from .runtime import ChannelResult, RuntimeErrorBase, WorkerProcess, module_content_hash
-from .solver import snapshot, solve_hydraulics
+from .solver import snapshot, solve_network
 
 
 def bench_channels(module: ModuleDefinition) -> list:
@@ -61,19 +62,22 @@ def run_module_test(request: ModuleTestRequest) -> ModuleTestResponse:
     runner = WorkerProcess(module, network.parameters['D1'], request.fluid)
     try:
         initial_state = deepcopy(runner.initialize())
-        history = []
+        service = property_service(request.fluid) if project.solver.thermal else None
+        history, previous = [], None
         for index in range(math.ceil(request.duration_s / request.dt_s) + 1):
             time_s = min(index * request.dt_s, request.duration_s)
-            result = solve_hydraulics(network, {'D1':runner}, time_s)
-            frame = snapshot(network, result, time_s)
+            network_result = solve_network(network, {'D1':runner}, time_s, warm=previous, service=service)
+            previous, result = network_result, network_result.hydraulic
+            frame = snapshot(network, network_result, time_s)
             ports = {}
             for port in module.ports:
                 flow = frame.variables.get(f'D1.{port.id}.mass_flow_kg_s')
                 if flow is None:
                     raise RuntimeErrorBase(f'端口 {port.id} 的流量未在独立网络中解析')
-                ports[port.id] = PortState(pressure_pa=float(result.pressures[network.port_nodes[f'D1:{port.id}']]),
-                            temperature_k=request.temperature_k, density_kg_m3=result.density, viscosity_pa_s=result.viscosity,
-                            mass_flow_kg_s=float(flow))
+                update = {'mass_flow_kg_s': float(flow)}
+                if network_result.thermal is None:
+                    update['temperature_k'] = request.temperature_k
+                ports[port.id] = network_result.port_states[f'D1:{port.id}'].model_copy(update=update)
             evaluation = runner.evaluate(EvaluateRequest(run_id='module-test',instance_id='D1',iteration_id=0,
                 time_s=time_s,trial_ports=ports,readonly_state=runner.state))
             if index:

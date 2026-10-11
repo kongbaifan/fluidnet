@@ -41,7 +41,9 @@ def test_kv_analytic_solution_and_flow_sign(drop):
     assert frame.variables['D1.in0.mass_flow_kg_s']==pytest.approx(expected)
     assert frame.variables['D1.out0.mass_flow_kg_s']==pytest.approx(-expected)
     assert frame.variables['B1.out0.mass_flow_kg_s']==pytest.approx(-expected)
-    assert frame.variables['D1.out0.temperature_k'] is None
+    # The throttled stream keeps its enthalpy, so it stays at the 20 °C boundary temperature.
+    assert frame.variables['D1.out0.temperature_k']==pytest.approx(293.15,abs=.05)
+    assert frame.variables['D1.out0.enthalpy_j_kg']==pytest.approx(frame.variables['D1.in0.enthalpy_j_kg'],rel=1e-12)
 
 
 def test_closed_valve_is_exact_no_flow():
@@ -142,7 +144,14 @@ def test_exchanger_sides_have_separate_outputs():
     assert frame.variables['HX1.ch0.mass_flow_kg_s']>0
     assert frame.variables['HX1.ch1.mass_flow_kg_s']>0
     assert 'HX1.mass_flow_kg_s' not in frame.variables
-    assert any(d.code=='THERMAL_NOT_SOLVED' for d in frame.diagnostics)
+    # ch0 carries the 65 °C side, ch1 the 25 °C side: the hot side cools, the cold side warms by the same duty.
+    v=frame.variables
+    assert v['HX1.ch0.outlet_temperature_k']<v['HX1.ch0.inlet_temperature_k']
+    assert v['HX1.ch1.outlet_temperature_k']>v['HX1.ch1.inlet_temperature_k']
+    assert v['HX1.ch0.heat_w']==pytest.approx(-v['HX1.ch1.heat_w'],rel=1e-9)
+    assert not any(d.code=='THERMAL_NOT_SOLVED' for d in frame.diagnostics)
+    p.solver.thermal=False
+    assert any(d.code=='THERMAL_NOT_SOLVED' for d in solve_steady(compile_project(p)).diagnostics)
 
 
 def test_prototype_mutations_are_not_silently_ignored():
@@ -155,11 +164,16 @@ def test_prototype_mutations_are_not_silently_ignored():
     with pytest.raises(ValueError,match='activeProject'):normalize_prototype_export(raw)
 
 def test_catalog_variables_match_reference_frame():
+    from fn_engine.solver import THERMAL_ONLY_SUFFIXES
     p=normalize_prototype_export(prototype())
     frame=solve_steady(compile_project(p))
     modules={m.id:m for m in p.modules}
     declared={f'{i.id}.{v.id}' for i in p.instances for v in modules[i.module_id].variables}
     assert set(frame.variables)==declared
+    # thermal off: exactly the declared variables minus the thermal-only ones (pre-0.3 key set).
+    p.solver.thermal=False
+    frame=solve_steady(compile_project(p))
+    assert set(frame.variables)=={k for k in declared if not k.endswith(THERMAL_ONLY_SUFFIXES)}
 
 
 def test_generated_contracts_are_current():

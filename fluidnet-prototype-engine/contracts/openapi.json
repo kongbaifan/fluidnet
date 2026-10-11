@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "FluidNet Prototype Engine",
-    "version": "0.2.0"
+    "version": "0.3.0"
   },
   "paths": {
     "/api/v1/health": {
@@ -922,7 +922,8 @@
             "enum": [
               "single_phase",
               "liquid",
-              "gas"
+              "gas",
+              "any"
             ],
             "title": "Phase Policy",
             "default": "single_phase"
@@ -2437,6 +2438,46 @@
             "exclusiveMinimum": 0.0,
             "title": "Dynamic Step S",
             "default": 0.1
+          },
+          "thermal": {
+            "type": "boolean",
+            "title": "Thermal",
+            "default": true
+          },
+          "property_coupling": {
+            "type": "string",
+            "enum": [
+              "reference",
+              "node"
+            ],
+            "title": "Property Coupling",
+            "default": "reference"
+          },
+          "thermal_tolerance_k": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Thermal Tolerance K",
+            "default": 1e-06
+          },
+          "max_thermal_iterations": {
+            "type": "integer",
+            "maximum": 500.0,
+            "minimum": 1.0,
+            "title": "Max Thermal Iterations",
+            "default": 50
+          },
+          "max_coupling_iterations": {
+            "type": "integer",
+            "maximum": 200.0,
+            "minimum": 1.0,
+            "title": "Max Coupling Iterations",
+            "default": 20
+          },
+          "coupling_density_rtol": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Coupling Density Rtol",
+            "default": 1e-06
           }
         },
         "additionalProperties": false,

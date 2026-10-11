@@ -61,6 +61,18 @@
       "default": null,
       "title": "Viscosity Pa S"
     },
+    "specific_heat_j_kg_k": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Specific Heat J Kg K"
+    },
     "mass_flow_kg_s": {
       "anyOf": [
         {

@@ -34,7 +34,8 @@
       "enum": [
         "single_phase",
         "liquid",
-        "gas"
+        "gas",
+        "any"
       ],
       "title": "Phase Policy",
       "type": "string"

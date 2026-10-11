@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fluidnet-prototype-engine"
-version = "0.2.0"
+version = "0.3.0"
 description = "Prototype-aligned declarative fluid network engine"
 requires-python = ">=3.11"
 dependencies = [

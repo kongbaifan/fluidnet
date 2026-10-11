@@ -188,7 +188,8 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
     @app.get('/api/v1/health')
     def health():
         return {'status':'ok','version':__version__,'solver':'declarative-fluid-v1','supported_domains':['fluid'],
-                'capabilities':{'steady_hydraulics':True,'quasi_steady_series':True,'thermal':False,'tank_state':False,
+                'capabilities':{'steady_hydraulics':True,'quasi_steady_series':True,'thermal':True,
+                                'property_coupling':['reference','node'],'tank_state':False,
                                 'coolprop_single_phase':True,'user_code':True,'worker_process':True,'async_runs':True,
                                 'module_versions':True,'run_control':True},
                 'max_frames':2001,'run_retention':RUN_RETENTION}

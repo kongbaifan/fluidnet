@@ -201,7 +201,8 @@
           "enum": [
             "single_phase",
             "liquid",
-            "gas"
+            "gas",
+            "any"
           ],
           "title": "Phase Policy",
           "type": "string"
@@ -728,6 +729,46 @@
           "exclusiveMinimum": 0,
           "maximum": 60,
           "title": "Dynamic Step S",
+          "type": "number"
+        },
+        "thermal": {
+          "default": true,
+          "title": "Thermal",
+          "type": "boolean"
+        },
+        "property_coupling": {
+          "default": "reference",
+          "enum": [
+            "reference",
+            "node"
+          ],
+          "title": "Property Coupling",
+          "type": "string"
+        },
+        "thermal_tolerance_k": {
+          "default": 1e-06,
+          "exclusiveMinimum": 0,
+          "title": "Thermal Tolerance K",
+          "type": "number"
+        },
+        "max_thermal_iterations": {
+          "default": 50,
+          "maximum": 500,
+          "minimum": 1,
+          "title": "Max Thermal Iterations",
+          "type": "integer"
+        },
+        "max_coupling_iterations": {
+          "default": 20,
+          "maximum": 200,
+          "minimum": 1,
+          "title": "Max Coupling Iterations",
+          "type": "integer"
+        },
+        "coupling_density_rtol": {
+          "default": 1e-06,
+          "exclusiveMinimum": 0,
+          "title": "Coupling Density Rtol",
           "type": "number"
         }
       },

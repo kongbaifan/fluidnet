@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from .catalog import builtin_catalog
 from .models import Diagnostic, Domain, ModuleDefinition, ModuleInstance, Project
@@ -52,6 +52,9 @@ class CompiledNetwork:
     branches: list[CompiledBranch]
     fixed_pressures: dict[int, float]
     diagnostics: list[Diagnostic]
+    # Boundary temperature per fixed-pressure node and the static hydraulic component of every node.
+    fixed_temperatures: dict[int, float] = field(default_factory=dict)
+    node_component: list[int] = field(default_factory=list)
 
 
 def validated_parameters(instance, definition):
@@ -142,7 +145,7 @@ def compile_project(project: Project) -> CompiledNetwork:
             raise CompilationError('PORTS_MISSING', f'{inst.id} 没有端口', inst.id)
         if definition.solver_model == 'pressure_source' and len(definition.ports) != 1:
             raise CompilationError('BOUNDARY_PORT_COUNT', '压力边界必须只有一个端口', inst.id)
-        if definition.thermal_model:
+        if definition.thermal_model and not project.solver.thermal:
             diagnostics.append(Diagnostic(code='THERMAL_NOT_SOLVED', message=f'{inst.id} 仅计算两侧水力阻力，不计算热量交换和出口温度', severity='warning', instance_id=inst.id))
         for port in definition.ports:
             if port.domain != Domain.fluid:
@@ -168,14 +171,20 @@ def compile_project(project: Project) -> CompiledNetwork:
     roots = sorted({dsu.find(key) for key in port_keys})
     index = {root: n for n, root in enumerate(roots)}
     nodes = {key: index[dsu.find(key)] for key in port_keys}
-    branches, fixed = [], {}
+    branches, fixed, fixed_temperatures = [], {}, {}
     for inst in project.instances:
         definition, params = modules[inst.module_id], parameters[inst.id]
         if definition.solver_model == 'pressure_source':
             node, value = nodes[f'{inst.id}:{definition.ports[0].id}'], params['pressure_pa']
             if node in fixed and not math.isclose(fixed[node], value, rel_tol=0, abs_tol=1e-6):
                 raise CompilationError('BOUNDARY_CONFLICT', f'{inst.id} 与同节点压力边界冲突', inst.id)
+            temperature = float(params.get('temperature_k', 293.15))
+            if (project.solver.thermal and node in fixed_temperatures
+                    and not math.isclose(fixed_temperatures[node], temperature, rel_tol=0, abs_tol=1e-9)):
+                raise CompilationError('BOUNDARY_TEMPERATURE_CONFLICT', f'{inst.id} 与同节点压力边界的温度不同', inst.id,
+                                       'temperature_k')
             fixed[node] = value
+            fixed_temperatures.setdefault(node, temperature)
             continue
         if definition.solver_model == 'junction':
             continue
@@ -203,7 +212,8 @@ def compile_project(project: Project) -> CompiledNetwork:
     for node in range(len(roots)):
         if components.find(node) not in referenced:
             raise CompilationError('PRESSURE_REFERENCE_MISSING', f'子网络 {roots[node]} 缺少压力边界（关闭阀门也可能隔离回路）')
-    return CompiledNetwork(project, modules, instances, parameters, nodes, roots, branches, fixed, diagnostics)
+    return CompiledNetwork(project, modules, instances, parameters, nodes, roots, branches, fixed, diagnostics,
+                           fixed_temperatures, [components.find(n) for n in range(len(roots))])
 
 
 def validate_scenarios(project: Project, modules: dict[str, ModuleDefinition]) -> list[Diagnostic]:

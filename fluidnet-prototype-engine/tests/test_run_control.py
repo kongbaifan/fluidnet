@@ -295,6 +295,8 @@ def test_health_declares_run_control_capability(tmp_path):
         capabilities = client.get("/api/v1/health").json()["capabilities"]
         assert capabilities["run_control"] is True
         assert capabilities["async_runs"] is True
+        assert capabilities["thermal"] is True
+        assert capabilities["property_coupling"] == ["reference", "node"]
 
 
 def test_background_crash_before_record_write_is_terminalized(tmp_path, monkeypatch):

@@ -12,7 +12,8 @@ PARAMETER_BINDINGS = {
     'source': {'pressure':'pressure_pa', 'temperature':'temperature_k'},
     'pump': {'speed':'speed_ratio', 'efficiency':'efficiency_ratio', 'head_curve':'head_curve'},
     'valve': {'opening':'opening_ratio', 'kv':'kv_m3_h'},
-    'pipe': {'length':'length_m', 'diameter':'diameter_m', 'roughness':'roughness_m'},
+    'pipe': {'length':'length_m', 'diameter':'diameter_m', 'roughness':'roughness_m',
+             'heatLoss':'heat_loss_ua_w_k', 'ambient':'ambient_temperature_k'},
     'junction': {'elevation':'elevation_m'},
     'exchanger': {'ua':'ua_w_k', 'loss':'loss_coefficient', 'diameter':'diameter_m'},
     'tank': {'level':'level_m', 'area':'area_m2'},
@@ -125,7 +126,7 @@ def normalize_prototype_export(data: dict[str, Any]) -> Project:
                 raise ValueError(f'原型连接格式无效：{edge}')
             connections.append(Connection(id=edge[0],source=Endpoint(instance_id=edge[1],port_id=edge[2]),target=Endpoint(instance_id=edge[3],port_id=edge[4])))
     solver = raw.get('solver', {})
-    diagnostics.append(Diagnostic(code='HYDRAULIC_SCOPE', severity='info', message='按已应用参数计算定物性液态水水力；Python 模块包在独立 Worker 中执行；控制脚本与热力模型尚未参与求解'))
+    diagnostics.append(Diagnostic(code='HYDRAULIC_SCOPE', severity='info', message='按已应用参数计算液态水水力与端口焓、温度；Python 模块包在独立 Worker 中执行；控制脚本、水箱状态与热惯性尚未参与求解'))
     return Project(id=raw['id'], name=raw.get('name','原型项目'), description=raw.get('description',''),
         modules=list(definitions.values()),instances=instances,connections=connections,import_diagnostics=diagnostics,
         solver=SolverOptions(pressure_tolerance_pa=solver.get('pressureAtol',1.),mass_tolerance_kg_s=solver.get('massAtol',1e-8),
