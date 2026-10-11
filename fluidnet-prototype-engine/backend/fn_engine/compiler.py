@@ -95,8 +95,16 @@ def validated_parameters(instance, definition):
             valid = valid and all(b[0] > a[0] and b[1] < a[1] for a, b in zip(value, value[1:]))
             if not valid:
                 raise CompilationError('CURVE_INVALID', f'{instance.id} 扬程曲线需从零流量开始，流量递增、扬程严格递减且末点扬程为零', instance.id, key)
-    if 'roughness_m' in values and 'diameter_m' in values and values['roughness_m'] / values['diameter_m'] > .05:
-        raise CompilationError('ROUGHNESS_RANGE', '相对粗糙度必须不大于 0.05', instance.id, 'roughness_m')
+    # 相对粗糙度的分母必须严格为正: 未声明最小值的自定义模块可能传入 0 或负值,
+    # 若不拦截会让 ZeroDivisionError 逃出所有处理器并变成 HTTP 500。
+    if 'roughness_m' in values and 'diameter_m' in values:
+        diameter, roughness = values['diameter_m'], values['roughness_m']
+        if isinstance(diameter, bool) or not isinstance(diameter, (int, float)) or not math.isfinite(diameter) or diameter <= 0:
+            raise CompilationError('PARAMETER_RANGE', f'{instance.id}.diameter_m 必须大于零', instance.id, 'diameter_m')
+        if isinstance(roughness, bool) or not isinstance(roughness, (int, float)) or not math.isfinite(roughness) or roughness < 0:
+            raise CompilationError('PARAMETER_RANGE', f'{instance.id}.roughness_m 不能小于零', instance.id, 'roughness_m')
+        if roughness / diameter > .05:
+            raise CompilationError('ROUGHNESS_RANGE', '相对粗糙度必须不大于 0.05', instance.id, 'roughness_m')
     return values
 
 
@@ -198,10 +206,37 @@ def compile_project(project: Project) -> CompiledNetwork:
     return CompiledNetwork(project, modules, instances, parameters, nodes, roots, branches, fixed, diagnostics)
 
 
+def validate_scenarios(project: Project, modules: dict[str, ModuleDefinition]) -> list[Diagnostic]:
+    # 复用运行链路的同一套参数校验(validated_parameters): 运行时会先
+    # apply_scenario 把工况覆盖合并进实例参数,再走 compile_project。校验端
+    # 若只跑 compile_project,工况里写错的实例 id 或越界数值就会被静默放过。
+    diagnostics: list[Diagnostic] = []
+    instances = {i.id: i for i in project.instances}
+    for scenario in project.scenarios:
+        for instance_id, overrides in scenario.overrides.items():
+            instance = instances.get(instance_id)
+            if instance is None:
+                diagnostics.append(Diagnostic(code='SCENARIO_INSTANCE_MISSING', severity='error',
+                                               message=f'工况 {scenario.id} 引用不存在的实例:{instance_id}',
+                                               instance_id=instance_id))
+                continue
+            definition = modules.get(instance.module_id)
+            if definition is None:
+                continue
+            merged = instance.model_copy(update={'parameters': {**instance.parameters, **overrides}})
+            try:
+                validated_parameters(merged, definition)
+            except CompilationError as error:
+                error.diagnostic.message = f'工况 {scenario.id}:{error.diagnostic.message}'
+                diagnostics.append(error.diagnostic)
+    return diagnostics
+
+
 def validate_project(project: Project) -> list[Diagnostic]:
     try:
-        return compile_project(project).diagnostics
+        network = compile_project(project)
     except CompilationError as error:
         return [error.diagnostic]
     except ValueError as error:
         return [Diagnostic(code='PROJECT_INVALID', message=str(error))]
+    return network.diagnostics + validate_scenarios(project, network.modules)

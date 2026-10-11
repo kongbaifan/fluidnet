@@ -17,6 +17,7 @@ from fn_engine.models import (
     ModuleInstance,
     Project,
     PortSpec,
+    Scenario,
     ChannelSpec,
     ParameterSpec,
 )
@@ -246,3 +247,80 @@ def test_missing_python_relation_is_a_runtime_error():
     result=TestClient(create_app()).post('/api/v1/runs',json={'project':project.model_dump(mode='json')}).json()
     assert result['status']=='failed'
     assert result['frame']['diagnostics'][0]['code']=='MODULE_RUNTIME_ERROR'
+
+
+def zero_diameter_project(diameter):
+    """Python module declaring diameter_m/roughness_m without a minimum, so the
+    project contract alone would let a non-positive diameter reach the compiler."""
+    catalog = catalog_map()
+    module = ModuleDefinition(
+        id="mypipe", name="脚本管道", runtime="python", entrypoint="module:Module", solver_model="pipe",
+        ports=[PortSpec(id="in0", label="入口"), PortSpec(id="out0", label="出口")],
+        parameters=[ParameterSpec(id="diameter_m", label="内径", default=.04),
+                    ParameterSpec(id="roughness_m", label="粗糙度", default=.000045)],
+        source={"runtime":'class Module:\n    def evaluate(self, ctx):\n        pass\n'})
+    return Project(
+        id="zero-diameter", name="零内径", modules=[catalog["source"], module],
+        instances=[
+            ModuleInstance(id="B1", module_id="source", name="入口", parameters={"pressure_pa": 250000.0}),
+            ModuleInstance(id="D1", module_id="mypipe", name="设备", parameters={"diameter_m": diameter}),
+            ModuleInstance(id="B2", module_id="source", name="出口", parameters={"pressure_pa": 120000.0})],
+        connections=[
+            Connection(id="e1", source=Endpoint(instance_id="B1", port_id="out0"), target=Endpoint(instance_id="D1", port_id="in0")),
+            Connection(id="e2", source=Endpoint(instance_id="D1", port_id="out0"), target=Endpoint(instance_id="B2", port_id="out0"))])
+
+
+@pytest.mark.parametrize("diameter",[0.0,-0.04])
+def test_non_positive_diameter_is_a_diagnostic_not_a_500(diameter):
+    client = TestClient(create_app())
+    payload = zero_diameter_project(diameter).model_dump(mode="json")
+    response = client.post("/api/v1/projects/validate", json=payload)
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["valid"] is False
+    item = next(d for d in body["diagnostics"] if d["code"] == "PARAMETER_RANGE")
+    assert item["severity"] == "error"
+    assert item["instance_id"] == "D1"
+    assert item["field"] == "diameter_m"
+    solve = client.post("/api/v1/solve", json=payload)
+    assert solve.status_code != 500
+    assert solve.status_code == 422, solve.text
+
+
+def scenario_project(overrides):
+    project = custom_project()
+    project.scenarios = [Scenario(id="case", name="工况", overrides=overrides)]
+    return project
+
+
+def test_scenario_override_with_unknown_instance_fails_validation():
+    payload = scenario_project({"GHOST": {"opening_ratio": 0.3}}).model_dump(mode="json")
+    response = TestClient(create_app()).post("/api/v1/projects/validate", json=payload)
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["valid"] is False
+    item = next(d for d in body["diagnostics"] if d["code"] == "SCENARIO_INSTANCE_MISSING")
+    assert item["severity"] == "error"
+    assert item["instance_id"] == "GHOST"
+    assert "GHOST" in item["message"]
+
+
+def test_scenario_override_out_of_range_fails_validation():
+    payload = scenario_project({"V1": {"opening_ratio": 2.0}}).model_dump(mode="json")
+    response = TestClient(create_app()).post("/api/v1/projects/validate", json=payload)
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["valid"] is False
+    item = next(d for d in body["diagnostics"] if d["code"] == "PARAMETER_RANGE")
+    assert item["severity"] == "error"
+    assert item["instance_id"] == "V1"
+    assert item["field"] == "opening_ratio"
+
+
+def test_valid_scenario_override_still_validates_clean():
+    payload = scenario_project({"V1": {"opening_ratio": 0.3}}).model_dump(mode="json")
+    response = TestClient(create_app()).post("/api/v1/projects/validate", json=payload)
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["valid"] is True, body
+    assert not [d for d in body["diagnostics"] if d["severity"] == "error"]
