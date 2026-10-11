@@ -32,14 +32,15 @@ flowchart LR
 | --- | --- | --- |
 | `models.py` | Pydantic 类型、版本、引用约束、API/Worker 输入输出合同、JSON Schema 来源 | UI 布局、求解器内部数组 |
 | `catalog.py` | 注册模型、参数默认值和范围、单位、变量、通路 | 执行用户代码 |
-| `packages.py` | 读取 `manifest.json + module.py`，校验内容哈希并生成模块定义 | 执行模块 |
+| `packages.py` | 模块发现、不可变版本存储、预期版本冲突检测、试算后原子写入 | 全网求解算法 |
+| `module_validation.py` | Python 语法、Worker 加载及四阶段入口检查 | 在 API 进程执行用户代码 |
 | `runtime.py` | `initialize/evaluate/commit_step/finalize` 生命周期、上下文、Worker RPC | 全网节点求解 |
 | `worker.py` | 独立进程的行式 JSON Worker 协议 | 项目编排和持久化 |
 | `properties.py` | CoolProp 单相物性适配和相态/范围诊断 | 网络残差组装 |
 | `bridge.py` | 选择活动项目；读取真实端口和通路；显示值转规范值 | 自动猜测未知模块算法 |
 | `compiler.py` | 参数校验、端口连接并查集、通路支路、每个子网络的压力参考 | 求解数值方程 |
 | `solver.py` | 支路关系、非线性方程组、模块 evaluate 关系、残差验证、结果采样 | 管理界面草稿 |
-| `bench.py` | 将独立模块接到两个压力边界，复用编译/求解/Worker，返回状态及历史 | 生成演示流量 |
+| `bench.py` | 为每条启用通路各接一组压力边界，复用编译/求解/Worker，返回状态及历史 | 生成演示流量 |
 | `api.py` | 模块/项目契约端点、同步稳态、可选后台动态任务、运行事件和历史 | 永久数据库或集群调度 |
 | `engine-client.js` | 请求、运行/回放、真实变量映射、断线及失败显示 | 生成模拟物理结果 |
 | `studio.js` | 保留原型交互与本地保存 | 计算物理方程 |
@@ -108,4 +109,28 @@ flowchart TD
   J --> K[读数 / 变量表 / 曲线 / 本地保存]
 ```
 
-同一运行内，每个实例的 Worker 在全部试算与成功时间步间复用。失败时通过 finally 回收；Worker 初始化部分失败也会关闭已启动进程。每次新运行使用新的 Worker 和状态。Python 源码草稿参与运行快照与前端过期检测，保存草稿不会修改磁盘模块包。
+同一运行内，每个实例的 Worker 在全部试算与成功时间步间复用。失败时通过 finally 回收；Worker 初始化部分失败也会关闭已启动进程。每次新运行使用新的 Worker 和状态。编辑器草稿只进入独立验证；项目运行使用已绑定的版本快照，过期检查关注项目参数和快照。
+
+## 模块开发、保存与绑定流程
+
+```mermaid
+flowchart TD
+  Editor[代码 / 参数 / 端口 / 输出编辑] --> Draft[浏览器草稿]
+  Draft --> Validate[Pydantic + Python 语法 + Worker 入口]
+  Validate --> Bench[边界试算与四阶段生命周期]
+  Bench --> Outputs[核对声明输出]
+  Outputs --> Save[原子写入新版本与验证凭据]
+  Validate -->|失败| Keep[保留草稿并显示诊断]
+  Bench -->|失败| Keep
+  Outputs -->|缺失| Keep
+  Save --> Catalog[最新目录与历史版本]
+  Catalog --> Insert[拖入项目 / 创建管网算例]
+  Insert --> Pin[项目模块快照 + 版本 + 双哈希]
+  Pin --> Compile[归一化 / 引用校验 / 哈希校验]
+  Compile --> Worker[网络求解与 Worker]
+  Save --> Disk[磁盘版本目录：服务重启后恢复]
+```
+
+保存使用 `expected_latest_version` 检测陈旧草稿，进程内锁覆盖检查与试算，目录重命名处理跨进程同版本竞争。已有版本不被覆盖。版本文件保存在可配置本地目录，没有引入数据库；运行历史仍是原有内存保留机制。
+
+前端区分当前编辑定义、可插入的已保存定义、项目固定快照。同一项目中一个模块 ID 固定一个版本，更新模块库不会替换项目实例；跨版本实例迁移和同项目多版本混用尚未提供。新项目可使用最新或显式载入的历史版本。

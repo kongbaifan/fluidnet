@@ -15,14 +15,16 @@
 | `ChannelSpec` | id, input_port, output_port, relation, solver_model, enabled | 设备内部的一条物理关系；换热器有两条独立通路 |
 | `ParameterSpec` | id, default, unit, minimum, maximum, runtime, writable | 规范值默认参数；runtime 是后续命令能力声明 |
 | `VariableSpec` | id, quantity, unit, source, port_id, parameter_id | 相对于实例的稳定变量路径及来源 |
-| `ModuleInstance` | id, module_id, parameters, draft_parameters, banks, model_id, model_version | 已应用参数、草稿、参数库值及型号引用 |
+| `ModuleInstance` | id, module_id, parameters, draft_parameters, banks, model_id, model_version, package | 参数与型号引用；package 锁定 Python 模块定义 |
 | `Connection` | id, source, target | 两个 Endpoint(instance_id, port_id) 的物理连接 |
 | `Scenario` | id, name, overrides | 按实例 ID 提供规范参数覆盖；本次运行使用副本 |
 | `Project` | modules, instances, connections, scenarios, selected_variables, solver | 一次可独立计算和复现的项目 |
 | `RunRequest` | project, mode, duration_s, dt_s, scenario_id, selected_variables | 创建一次运行；变量选择不影响物理求解 |
 | `RunFrame` | status, valid, time_s, variables, diagnostics, metrics | 一个时刻的结果与质量证据 |
 | `FluidConfig` | backend, fluid, composition, phase_policy | 物性服务选择和单相约束 |
-| `ModulePackageRef` | module_id, version, content_hash | 项目运行锁定的模块版本 |
+| `ModulePackageRef` | module_id, version, content_hash, definition_hash | 模块 ID、N.0.0 版本、源码与规范定义哈希 |
+| `ModuleSaveRequest` | module, expected_latest_version, release_notes, test | 带版本冲突检查的模块保存请求 |
+| `ModuleVersionResponse` | module, package, created_at, release_notes, tested, test_conditions, test_result | 不可变版本及试算凭据 |
 | `PortState` | pressure, temperature, enthalpy, density, viscosity, flow | Worker 试算和收敛后的端口状态 |
 | `ChannelState` | mass_flow_kg_s, pressure_drop_pa | 收敛通路结果，供 commit_step 累计状态 |
 | `NetworkRelation` | relation_id, kind, channel, parameters | 模块向平台注册的设备关系 |
@@ -32,6 +34,12 @@
 `source` 支持 runtime/header 文本和 design 文本数组，作为定义资料保存。`state_model`、`thermal_model` 是扩展标识，不代表对应功能已经实现。内置未知水力模型和水箱状态模型明确拒绝；Python 模块可声明 generic，必须在 evaluate 为每条启用通路返回有效 SDK 关系；当前换热器的热力标识产生未求解警告。
 
 模块包的 `manifest.json` 与源码构成可追踪单元；`content_hash` 不一致时，模块校验和项目编译都会拒绝执行。当前提供的 `modules/programmable_valve` 是首个可执行示例。
+
+已保存版本另外携带 `definition_hash`，覆盖源码、版本和契约字段，排除机器路径与哈希字段本身。ParameterSpec.default 中的 `16` 与 `16.0` 按等值处理；哈希不是数字签名。未绑定的草稿可清空两个哈希用于独立测试，项目快照必须保留保存时的值。实例若携带 `package`，其 ID、版本及双哈希必须与 `Project.modules` 中对应定义一致。
+
+参数默认值在 Pydantic 层检查类型、有限性、上下限及范围顺序；非数值参数不能声明数值单位换算。变量的 `parameter_id` 和 `port_id` 必须引用本模块声明。版本保存还要求试算结果包含所有声明的 derived/state 输出。
+
+`ParameterSpec.value_type` 决定实例参数的形状：`number` 为有限数值并可用 `unit` 做显示换算，`boolean`/`text` 为布尔或字符串，`curve` 为 `[x, y]` 有限数值点对数组。四种类型都可以在设备面板逐实例编辑，草稿经“预览并应用”写入 `ModuleInstance.parameters`；`parameter_map` 只对数值参数做单位换算，其余类型按原值传递。
 
 ## 单位
 

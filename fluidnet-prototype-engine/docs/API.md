@@ -9,8 +9,11 @@
 | GET /api/v1/health | 无 | 版本、能力标志、2001 帧上限、20 次记录保留数 |
 | GET /api/v1/catalog | 无 | 模块参数/通路/变量目录、原型参数名映射 |
 | GET /api/v1/modules | 无 | 可安装模块包和内置模块清单、版本与内容哈希 |
-| POST /api/v1/modules/validate | ModuleDefinition | 模块清单、入口和源码哈希诊断 |
+| POST /api/v1/modules/validate | ModuleDefinition | 契约、Python 语法、Worker 入口与四阶段签名诊断 |
 | POST /api/v1/modules/test | ModuleTestRequest | 独立边界求解，返回 evaluation、committed、frame、history |
+| POST /api/v1/modules/versions | ModuleSaveRequest | **201** ModuleVersionResponse，校验试算通过后保存新版本 |
+| GET /api/v1/modules/{module_id}/versions | 无 | 倒序版本记录，未知模块返回空列表 |
+| GET /api/v1/modules/{module_id}/versions/{version} | 整数版本 | 完整模块、引用和试算凭据；未知版本 404 |
 | POST /api/v1/prototype/normalize | 原型导出对象 | 规范 Project；显示单位转换；不能归一化时 422 |
 | POST /api/v1/projects/validate | Project | valid 和 diagnostics；检查失败时 valid=false |
 | POST /api/v1/solve | Project | 同步稳态 RunFrame；计算失败时 422 |
@@ -30,7 +33,21 @@ manifest.json
 module.py
 ```
 
-`manifest.json` 由 `ModuleDefinition` 校验；`module.py` 的 SHA-256 保存为 `content_hash`。Python 模块入口必须实现 `initialize/evaluate/commit_step/finalize` 生命周期中的 `evaluate`，其他阶段可以为空实现。
+`manifest.json` 由 `ModuleDefinition` 校验；`module.py` 的 SHA-256 保存为 `content_hash`。版本保存要求同步实现 `initialize(ctx)`、`evaluate(ctx)`、`commit_step(ctx, dt_s)`、`finalize(ctx)`，无逻辑的阶段可以使用 `pass`。入口加载和生命周期签名检查均在独立 Worker 中进行。兼容的直接运行接口仍容许省略可选阶段。
+
+## 模块版本写入契约
+
+`ModuleSaveRequest` 包含完整 `module`、`expected_latest_version`、`release_notes` 和可选 `test: ModuleTestConditions`。新 ID 的预期版本为 0，示例模块初始为 1。服务端分配当前版本加一，忽略草稿中的目标版本/哈希/文件路径，不接受覆盖旧版本。内置模型 ID 不可被 Python 模块占用。
+
+`test` 与独立验证台共用参数、工质、边界、时长和步长模型。浏览器保存时使用契约默认参数，以及最近验证台的边界（如选中同一模块），重新执行试算。API 可显式提供测试参数覆盖。试算为每条启用通路各接一组独立压力边界并在一个网络中求解；共用端口、端口未绑定通路或非流体端口返回 422，不会绕过验证写入。
+
+保存依次检查 Pydantic 默认值与引用、Python 语法和入口签名、initialize/evaluate/commit_step/finalize、最终声明输出。成功后将三份文件写入临时目录，原子重命名为版本目录。并发请求使用相同预期版本时只有一个成功；失败请求不留下可发现的半成品版本。
+
+`ModuleVersionResponse` 包含 `module`、`package`（版本、源码哈希、完整定义哈希）、`created_at`、`release_notes`、`tested`、`test_conditions` 和 `test_result`。内置示例没有保存试算凭据，`tested=false`。GET 模块目录只返回每个 ID 的最新版本；历史版本由版本接口读取。
+
+错误：Pydantic 字段错误返回 422/detail 数组；语法、加载、算法或声明输出缺失返回 422/detail `{code: MODULE_SAVE_INVALID, message, diagnostics}`；预期版本过期或同版本并发写入返回 409 `MODULE_VERSION_CONFLICT`；磁盘写入失败返回 500 `MODULE_STORAGE_ERROR`。前端始终保留未成功保存的编辑草稿。
+
+`content_hash` 校验源代码；`definition_hash` 校验整个规范定义（排除两个哈希字段和机器路径，包含版本、参数、端口、输出和代码）。数字整数形式统一，避免浏览器把 `16.0` 序列化成 `16` 导致误报。项目中的 `ModuleInstance.package` 必须与定义快照一致；编译器另行计算哈希，不信任客户端声明。
 
 Worker 消息使用 Pydantic 的 `InitializeRequest`、`EvaluateRequest`、`EvaluateResponse`、`CommitStepRequest` 和 `CommitStepResponse`。`evaluate` 输出 `NetworkRelation`，由网络求解器决定最终压力和流量；模块不能直接返回全网解。
 
@@ -101,11 +118,13 @@ POST /runs 对类型正确但编译或求解失败的请求仍创建可查询的
 
 支持内置模型及其复制模块（kind 指向已注册模型），以及 runtime=python 的完整清单/前端 manifest 快照，保留实例原有 ID。Python 参数使用清单 ID，显示单位通过 UnitSpec 转换，不能丢弃 entrypoint/source/content_hash。端口/通路 ID 必须与注册模型相容，读取真实端口领域、通路端点和 enabled 状态。编辑为非流体端口或禁用必要通路会在检查/求解时报错。
 
+原型项目的 `moduleSnapshots` 以模块 ID 保存已绑定定义，归一化时优先于全局模块库和编辑草稿。实例 `package` 进入规范合同；已有版本快照不随目录更新。原型格式仍由浏览器导出保存，模块发布不替代项目文件持久化。
+
 归一化只投影计算输入和参数库值，完整原型继续通过原始导出保存。归一化本身不执行 Python/控制脚本；项目求解随后通过 Worker 执行 Python 模块包，不把自定义变量的文本当算法，也不将备用草稿自动生效。
 
 ## 独立验证台契约
 
-`ModuleTestRequest` 接收完整 Python `module`、规范单位 `parameters`、入口/出口绝对压力、温度、`duration_s` 和 `dt_s`。当前测试夹具支持两个流体端口和一条启用通路；多通路模块需在项目中配置边界。
+`ModuleTestRequest` 接收完整 Python `module`、规范单位 `parameters`、入口/出口绝对压力、温度、`duration_s` 和 `dt_s`。测试夹具为每条启用通路各建一组入口/出口压力边界，所有入口共用 `inlet_pressure_pa`、所有出口共用 `outlet_pressure_pa`；多通路模块因此一次求解全部通路。
 
 后端使用相同编译器和求解器建立测试网络。先采样 t=0，不提交状态；随后每个收敛时间步提交一次，最后不足整步时使用实际 dt。`ctx.channel(id)` 因此获得真实质量流量与压降。
 
