@@ -9,16 +9,19 @@ window.createEngineClient = function (ui) {
     const data = await response.json();
     if (!response.ok) {
       const detail = data.detail;
-      throw Error(typeof detail === 'string' ? detail : Array.isArray(detail) ? detail.map(x => x.msg).join('；') : detail?.message || JSON.stringify(detail));
+      throw Error(typeof detail === 'string' ? detail : Array.isArray(detail) ? detail.map(x => x.loc.join('.') + '：' + x.msg).join('；') : detail?.message || JSON.stringify(detail));
     }
     return data;
   }
   function payload(owner) {
     const state = ui.state();
-    return {format:'fluidnet-studio-prototype',schema:1,activeProject:owner.id,projects:[owner],modules:state.modules.map(m => m.runtime === 'python' ? manifestPayload(m) : m)};
+    pinProject(owner);
+    const used=new Set(owner.pages.flatMap(p=>p.nodes.map(n=>n.moduleId)));
+    const definitions=[...used].map(id=>owner.moduleSnapshots?.[id] || state.modules.find(m=>m.id===id));
+    return {format:'fluidnet-studio-prototype',schema:1,activeProject:owner.id,projects:[owner],modules:definitions.map(m => m.runtime === 'python' ? manifestPayload(m) : m)};
   }
   function key(owner) {
-    return ui.parameterKey(owner) + JSON.stringify(ui.state().modules.filter(m => owner.pages.some(p => p.nodes.some(n => n.moduleId === m.id))).map(m => [m.id,m.version,m.ports,m.channels,m.source,m.manifest]));
+    return ui.parameterKey(owner) + JSON.stringify(owner.moduleSnapshots || {});
   }
   async function normalize(owner, signal) { return request('/prototype/normalize',payload(owner),signal); }
   function manifestParamDef(spec) {
@@ -34,7 +37,6 @@ window.createEngineClient = function (ui) {
   }
   function moduleFromManifest(manifest) {
     const parameterDefs = (manifest.parameters || []).filter(p => p.value_type === 'number').map(manifestParamDef);
-    ui.parameterDefinitions[manifest.id] = parameterDefs;
     const ports = (manifest.ports || []).map((p, index) => ({
       id:p.id, name:p.id.toUpperCase(), label:p.label || p.id, direction:p.direction === 'bidirectional' ? (index ? 'out' : 'in') : p.direction,
       domain:p.domain || 'fluid', x:p.direction === 'in' ? 20 : 80, y: manifest.ports.length > 2 ? (index % 2 ? 70 : 30) : 50
@@ -61,24 +63,147 @@ window.createEngineClient = function (ui) {
     const m = {id:manifest.id,kind:manifest.id,name:manifest.name,code:manifest.id.toUpperCase(),category:manifest.category || '自定义模块',icon:'Box',description:manifest.description || '',version:manifest.version || 1,
       runtime:manifest.runtime || 'python',entrypoint:manifest.entrypoint || '',contentHash:manifest.content_hash || '',packagePath:manifest.package_path || '',manifest,
       ports,channels:(manifest.channels || []).map(c => ({id:c.id,name:c.name,input:c.input_port,output:c.output_port,kind:c.relation,enabled:c.enabled !== false})),
-      parameters:manifest.parameters || [],variables,customVars:[],quickParam:parameterDefs[0]?.[0] || '',quickType:'number',drawing:{shape:'rectangle',width:32,height:30,label:manifest.name},step:100,precision:4,dirty:false,
+      parameters:manifest.parameters || [],parameterDefs,variables,customVars:[],quickParam:parameterDefs[0]?.[0] || '',quickType:'number',drawing:{shape:'rectangle',width:32,height:30,label:manifest.name},step:100,precision:4,dirty:false,
       source:{runtime:manifest.source?.runtime || '',header:'',design:['','','']},sourceFormat:'python-v1',values,banks:[clone(values),clone(values),clone(values)],bankNames:manifest.bank_names || ['额定工况','部分负荷','调试备份']};
     return m;
   }
   function manifestPayload(m) {
     if (m.manifest) {
       const {package:ref, ...definition} = m.manifest;
+      if (m.frozen) return clone(definition);
+      let contract = {};
+      if (m.contractDraft !== undefined) {
+        contract = JSON.parse(m.contractDraft);
+        if (!contract || Array.isArray(contract) || typeof contract !== 'object') throw Error('模块契约必须是 JSON 对象');
+        const invalid = Object.keys(contract).filter(k => !contractFields.includes(k));
+        if (invalid.length) throw Error('契约中不能编辑字段：' + invalid.join('、'));
+      }
       return {...definition, id:m.id, name:m.name, version:m.version, category:m.category,
+        parameters:m.parameters, description:m.description, bank_names:m.bankNames,
         ports:m.ports.map(p => { const original=m.manifest.ports.find(item => item.id===p.id); return {id:p.id,label:p.label,domain:p.domain,direction:original?.direction === 'bidirectional' ? original.direction : p.direction,required:original?.required ?? true,circuit:original?.circuit || 'fluid'}; }),
         channels:m.channels.map(c => ({id:c.id,name:c.name,input_port:c.input,output_port:c.output,relation:c.kind,solver_model:m.manifest.channels.find(item=>item.id===c.id)?.solver_model || m.manifest.solver_model,enabled:c.enabled})),
-        source:{runtime:m.source.runtime}, runtime:'python', entrypoint:m.entrypoint,
-        content_hash:m.source.runtime === m.manifest.source.runtime ? m.contentHash : null};
+        entrypoint:m.entrypoint, ...contract, source:{runtime:m.source.runtime}, runtime:'python',
+        content_hash:null, definition_hash:null, package_path:null};
     }
     return m;
   }
+  const contractFields = ['name','category','description','entrypoint','solver_model','state_model','thermal_model','ports','channels','parameters','variables','bank_names'];
+  function contractText(m) {
+    if (m.contractDraft !== undefined) return m.contractDraft;
+    const definition=manifestPayload(m);
+    return JSON.stringify(Object.fromEntries(contractFields.filter(k=>definition[k] !== undefined).map(k=>[k,definition[k]])),null,2);
+  }
+  function moduleForInsert(id) {
+    const draft=ui.state().modules.find(m=>m.id===id);
+    if (draft?.runtime !== 'python') return draft;
+    if (!draft.publishedManifest) throw Error('请先校验并保存模块版本，再插入项目。');
+    return {...moduleFromManifest(clone(draft.publishedManifest)),frozen:true};
+  }
+  function bindModule(owner, id, legacy=false) {
+    owner.moduleSnapshots ||= {};
+    if (owner.moduleSnapshots[id]) return owner.moduleSnapshots[id];
+    const m=ui.state().modules.find(item=>item.id===id);
+    if (m?.runtime !== 'python') return m;
+    const source=m.publishedManifest || (legacy ? m.manifest : null);
+    if (!source) throw Error('请先保存模块版本，再用于项目。');
+    const snapshot={...moduleFromManifest(clone(source)),frozen:true};
+    owner.moduleSnapshots[id]=snapshot;
+    return snapshot;
+  }
+  function pinProject(owner, legacy=false) {
+    for (const n of owner.pages.flatMap(p=>p.nodes)) {
+      const m=bindModule(owner,n.moduleId,legacy);
+      if (m?.frozen) n.package={module_id:m.id,version:`${m.version}.0.0`,content_hash:m.manifest.content_hash,definition_hash:m.manifest.definition_hash || null};
+    }
+  }
+  function applyManifest(m, definition) {
+    const keep={publishedManifest:m.publishedManifest,latestVersion:m.latestVersion,versions:m.versions,releaseNotes:m.releaseNotes};
+    Object.assign(m,moduleFromManifest(definition),keep);
+    ui.parameterDefinitions[m.kind]=m.parameterDefs;
+    delete m.contractDraft;
+    m.dirty=true;
+  }
+  async function checkModule(m, apply=false) {
+    try {
+      const definition=manifestPayload(m);
+      const before=JSON.stringify(definition);
+      ui.moduleOutput(m,'正在校验契约、Python 语法和生命周期入口…');
+      const result=await request('/modules/validate',definition);
+      if (before!==JSON.stringify(manifestPayload(m))) { ui.moduleOutput(m,'校验期间草稿已变化，请重新校验当前内容。'); return false; }
+      ui.moduleOutput(m,result.valid ? '✓ Pydantic 契约与默认值通过\n✓ Python 语法通过\n✓ Worker 入口与四阶段方法通过\n下一步：独立验证算法或保存新版本。' : result.diagnostics.map(d=>`${d.field || d.code}：${d.message}`).join('\n'));
+      if (apply && result.valid) { applyManifest(m,definition); ui.dirty(m); ui.render(); }
+      return result.valid;
+    } catch(error) { ui.moduleOutput(m,'校验失败：'+error.message); return false; }
+  }
+  async function versions(m) {
+    try { const result=await request(`/modules/${encodeURIComponent(m.id)}/versions`); m.versions=result.versions; m.latestVersion=result.versions.length ? Number(result.versions[0].package.version.split('.')[0]) : 0; ui.render(); }
+    catch(error) { ui.moduleOutput(m,'读取版本失败：'+error.message); }
+  }
+  async function loadVersion(m,version) {
+    try {
+      const result=await request(`/modules/${encodeURIComponent(m.id)}/versions/${version}`);
+      applyManifest(m,result.module); m.publishedManifest=clone(result.module); m.dirty=false;
+      ui.persist(); ui.render(); ui.message(`已载入 v${version}；现有项目继续使用已绑定快照。`);
+    } catch(error) { ui.moduleOutput(m,'载入失败：'+error.message); }
+  }
+  async function saveModule(m) {
+    if (m.saving) return;
+    m.saving=true; ui.render();
+    try {
+      const definition=manifestPayload(m), before=JSON.stringify(definition);
+      const test={};
+      // Test the declared defaults on every save; prior bench results cannot authorize changed code.
+      const bench=ui.state().bench;
+      if (bench?.moduleId===m.id) Object.assign(test,{inlet_pressure_pa:bench.boundary.inlet*1000,outlet_pressure_pa:bench.boundary.outlet*1000,temperature_k:bench.boundary.temperature+273.15,dt_s:bench.run.step,duration_s:bench.run.step});
+      ui.moduleOutput(m,'正在校验并进行 Worker 试算，通过后写入新版本…');
+      const release=await request('/modules/versions',{module:definition,expected_latest_version:m.latestVersion ?? (m.publishedManifest?.version || 0),release_notes:m.releaseNotes || '',test});
+      let unchanged=false;
+      try { unchanged=before===JSON.stringify(manifestPayload(m)); } catch { /* Keep incomplete JSON edited during the save. */ }
+      m.latestVersion=release.module.version;
+      m.publishedManifest=clone(release.module);
+      if (unchanged) { applyManifest(m,release.module); m.dirty=false; }
+      ui.moduleOutput(m,`✓ v${release.module.version} 已保存到后端\n✓ Worker 试算通过，流量 ${traceFlow(m, release.test_result.frame.variables)} kg/s\n源码 SHA-256：${release.package.content_hash}\n契约 SHA-256：${release.package.definition_hash}`+(unchanged?'':'\n保存期间的新编辑已保留为草稿。'));
+      await versions(m);
+      try { ui.persist(); } catch { ui.message(`后端 v${release.module.version} 已保存，浏览器草稿存储失败，请导出原型。`,true); return; }
+      ui.message(`模块 v${release.module.version} 已保存；已有项目版本保持绑定。`);
+    } catch(error) { ui.moduleOutput(m,'版本未保存：'+error.message); ui.message('版本保存失败，草稿已保留。',true); }
+    finally { m.saving=false; ui.render(); }
+  }
+  function newModule(id,name,category,baseId) {
+    const base=ui.state().modules.find(m=>m.id===baseId && m.manifest);
+    if (!base) throw Error('请等待 Python 模块模板加载完成。');
+    const definition={...clone(manifestPayload(base)),id,name,category,version:1,content_hash:null,definition_hash:null,package_path:null};
+    const m=moduleFromManifest(definition); m.latestVersion=0; m.dirty=true;
+    ui.parameterDefinitions[m.kind]=m.parameterDefs;
+    return m;
+  }
+  function updateContractItem(m,section,oldId,item) {
+    const definition=manifestPayload(m), list=definition[section] || [];
+    if (list.some(v=>v.id!==oldId && v.id===item.id)) throw Error('契约标识重复');
+    const index=list.findIndex(v=>v.id===oldId);
+    if(index<0) list.push(item); else list[index]=item;
+    definition[section]=list; applyManifest(m,definition); ui.dirty(m); ui.render();
+  }
+  // A module may drive several internal channels; the single-instance short form only
+  // exists for one branch, so fall back to summing the per-channel flows.
+  function traceFlow(module, variables) {
+    if (!variables) return null;
+    if (Number.isFinite(variables['D1.mass_flow_kg_s'])) return variables['D1.mass_flow_kg_s'];
+    const channels = (module?.manifest?.channels || module?.channels || []).filter(c => c.enabled !== false);
+    if (!channels.length) return null;
+    return channels.reduce((sum, c) => sum + (Number(variables[`D1.${c.id}.mass_flow_kg_s`]) || 0), 0);
+  }
+  function testParameters(module, values) {
+    return Object.fromEntries(Object.entries(values).map(([key, value]) => {
+      const spec = (module.parameters || []).find(p => p.id === key);
+      if (spec && spec.value_type && spec.value_type !== 'number') return [key, value];
+      const unit = spec?.unit;
+      return [key, unit ? (Number(value) - Number(unit.display_offset || 0)) * Number(unit.display_scale || 1) : Number(value)];
+    }));
+  }
   function rowFromModuleTest(owner, body) {
     const vars = body.evaluation?.variables || {}, state = body.committed?.state || body.state || {};
-    return {t:body.frame.time_s, canonical:body.frame.variables, variables:vars, variableValues:{}, diagnostics:body.frame.diagnostics,metrics:body.frame.metrics,q:body.frame.variables['D1.mass_flow_kg_s'],a:null,b:null,pressure:owner.boundary.outlet,temperature:owner.boundary.temperature,state,relations:body.evaluation?.relations || []};
+    return {t:body.frame.time_s, canonical:body.frame.variables, variables:vars, variableValues:{}, diagnostics:body.frame.diagnostics,metrics:body.frame.metrics,q:traceFlow(owner.module, body.frame.variables),a:null,b:null,pressure:owner.boundary.outlet,temperature:owner.boundary.temperature,state,relations:body.evaluation?.relations || []};
   }
   function diagnostics(items, metrics) {
     ui.diagnostics(items.map(d => ({text:(d.severity === 'warning' ? '提示：' : '') + d.message,node:d.instance_id,
@@ -129,12 +254,10 @@ window.createEngineClient = function (ui) {
       const controller=new AbortController(); pending.set('__bench',controller);
       owner.run.status = 'solving'; owner.run.source = 'engine'; ui.render();
       try {
-        const parameters = Object.fromEntries(Object.entries(owner.params).map(([key,value]) => {
-          const spec = module.parameters.find(p => p.id === key); const unit = spec?.unit; return [key, unit ? (Number(value) - Number(unit.display_offset || 0)) * Number(unit.display_scale || 1) : Number(value)];
-        }));
+        const parameters = testParameters(module, owner.params);
         const body = await request('/modules/test',{module:manifestPayload(module),parameters,inlet_pressure_pa:Number(owner.boundary.inlet) * 1000,outlet_pressure_pa:Number(owner.boundary.outlet) * 1000,temperature_k:Number(owner.boundary.temperature) + 273.15,dt_s:owner.run.step,duration_s:owner.run.step},controller.signal);
         const row = rowFromModuleTest(owner, body);
-        owner.run.history = body.history.map(f => ({...row,t:f.time_s,canonical:f.variables,q:f.variables['D1.mass_flow_kg_s']}));
+        owner.run.history = body.history.map(f => ({...row,t:f.time_s,canonical:f.variables,q:traceFlow(module, f.variables)}));
         owner.run.time = row.t; owner.run.values = {q:row.q,a:null,b:null,pressure:owner.boundary.outlet,temperature:owner.boundary.temperature};
         owner.run.worker = {status:'completed',contentHash:body.content_hash,version:module.version,evaluation:body.evaluation,initialState:body.state,committed:body.committed};
         owner.run.events = [{t:owner.run.time,text:`Worker evaluate 完成，${body.evaluation.relations.length} 条关系已注册。`},{t:owner.run.time,text:`commit_step 完成，状态提交 ${Object.keys(body.committed.state || {}).length} 项。`}]; owner.run.id = body.content_hash; owner.run.status = action === 'step' ? 'paused' : 'completed'; ui.dirty(); ui.render(); ui.message('Python 模块 Worker 测试完成。');
@@ -241,11 +364,21 @@ window.createEngineClient = function (ui) {
       for (const manifest of packages.modules || []) {
         if (manifest.runtime !== 'python') continue;
         const existing=ui.state().modules.find(m => m.id === manifest.id);
-        if (!existing) ui.state().modules.push(moduleFromManifest(manifest));
-        else if (existing.manifest) ui.parameterDefinitions[existing.kind] = existing.manifest.parameters.filter(p => p.value_type === 'number').map(manifestParamDef);
+        if (!existing) {
+          const m=moduleFromManifest(manifest); m.publishedManifest=clone(manifest); m.latestVersion=manifest.version;
+          ui.state().modules.push(m); ui.parameterDefinitions[m.kind]=m.parameterDefs;
+        } else if (existing.manifest) {
+          // Preserve local drafts. Catalog refresh only advances the available release.
+          if (!existing.dirty && existing.contractDraft===undefined && existing.source.runtime===existing.manifest.source.runtime) {
+            applyManifest(existing,manifest); existing.dirty=false;
+          }
+          existing.publishedManifest=clone(manifest); existing.latestVersion=manifest.version; existing.saving=false;
+          ui.parameterDefinitions[existing.kind] = existing.manifest.parameters.filter(p => p.value_type === 'number').map(manifestParamDef);
+        }
       }
       ui.state().bench ||= {moduleId:'valve',params:{},boundary:{inlet:201.325,outlet:120,temperature:20},run:ui.emptyRun('bench')};
       ui.state().modules.forEach(m => { if (m.runtime === 'python' && !m.manifest) { const manifest = (packages.modules || []).find(item => item.id === m.id); if (manifest) Object.assign(m, moduleFromManifest(manifest)); } });
+      for (const owner of ui.state().projects) pinProject(owner,true);
       ui.state().bench.params ||= {};
       const benchModule = ui.state().modules.find(m => m.id === ui.state().bench.moduleId) || ui.state().modules.find(m => m.manifest);
       if (benchModule && !Object.keys(ui.state().bench.params).length) ui.state().bench.params = Object.fromEntries((ui.parameterDefinitions[benchModule.kind] || []).map(f => [f[0], f[6]]));
@@ -268,5 +401,5 @@ window.createEngineClient = function (ui) {
       ui.render();
     } catch (error) { ui.message('计算服务未连接，请通过启动脚本打开此页面。' + error.message,true); }
   }
-  return {command,tick,validate,init,portValue,manifestPayload,get catalog(){return catalog;},get health(){return health;}};
+  return {command,tick,validate,init,portValue,manifestPayload,contractText,checkModule,saveModule,versions,loadVersion,newModule,updateContractItem,bindModule,pinProject,moduleForInsert,get catalog(){return catalog;},get health(){return health;}};
 };
