@@ -20,6 +20,20 @@ GRAVITY = 9.80665
 PRESSURE_SCALE = 100000.0
 
 
+class SolveCancelled(Exception):
+    """Raised when a run is cancelled between timeline frames.
+
+    Deliberately not a `ValueError`: callers must be able to tell a user-requested
+    cancellation apart from an invalid input or a failed solve. `frames` carries
+    the frames completed before the cancellation was observed so the caller can
+    keep them as partial results.
+    """
+
+    def __init__(self, message: str = '运行已取消', frames=None):
+        super().__init__(message)
+        self.frames = list(frames or ())
+
+
 @dataclass
 class HydraulicResult:
     pressures: np.ndarray
@@ -327,7 +341,15 @@ def solve_steady(network):
     return snapshot(network, solve_hydraulics(network))
 
 
-def solve_dynamic(network, duration_s, dt_s):
+def solve_dynamic(network, duration_s, dt_s, should_cancel=None):
+    """Quasi-steady timeline. `should_cancel` is an optional cooperative hook.
+
+    It is polled once per timeline frame, *before* that frame is solved, so the
+    frame already in flight always finishes. It may also block (a pause). When
+    it reports cancellation the frames computed so far are discarded and
+    `SolveCancelled` is raised; the default `None` keeps every existing caller
+    byte-for-byte unchanged.
+    """
     if not math.isfinite(duration_s) or not math.isfinite(dt_s) or dt_s <= 0 or duration_s <= 0:
         raise ValueError('运行时长和步长必须是有限正数')
     if duration_s > 2000 * dt_s:
@@ -338,6 +360,10 @@ def solve_dynamic(network, duration_s, dt_s):
     frames = []
     try:
         for i in range(count + 1):
+            if should_cancel is not None and should_cancel():
+                # Completed frames are handed to the caller instead of dropped,
+                # so a cancelled run can still report its partial timeline.
+                raise SolveCancelled('运行已取消', frames)
             time_s = min(i * dt_s, duration_s)
             result = solve_hydraulics(network, runners, time_s)
             frame = snapshot(network, result, time_s, warning)

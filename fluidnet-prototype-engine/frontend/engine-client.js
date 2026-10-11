@@ -3,13 +3,24 @@ window.createEngineClient = function (ui) {
   const clone = value => JSON.parse(JSON.stringify(value));
   const queues = new Map(), pending = new Map();
   let catalog = null, moduleCatalog = null, health = null;
+  // Polling a backgrounded run is bounded twice on purpose: a backend that never leaves
+  // queued/running must not spin the UI forever, and an iteration cap alone would not hold
+  // if each request itself is slow. Whichever bound trips first fails the run with an
+  // explanation instead of leaving a spinner that can never resolve. The two agree by
+  // construction (3000 polls x 100 ms = 300 s). A legal run cannot be cut off: the backend
+  // caps a dynamic run at 2001 frames (max_frames) and such a worst-case run measured ~8 s
+  // of hydraulics here, plus at most one Worker RPC per frame for Python modules - far
+  // inside 300 s.
+  const RUN_POLL_INTERVAL_MS = 100, RUN_POLL_MAX_ITERATIONS = 3000, RUN_POLL_DEADLINE_MS = 300000;
+  const waitLabel = ms => `${(ms / 1000).toFixed(1)} 秒`;
   async function request(path, body, signal) {
     const response = await fetch('/api/v1' + path, {method: body === undefined ? 'GET' : 'POST',
       headers: {'Content-Type':'application/json'}, body: body === undefined ? undefined : JSON.stringify(body), signal});
     const data = await response.json();
     if (!response.ok) {
       const detail = data.detail;
-      throw Error(typeof detail === 'string' ? detail : Array.isArray(detail) ? detail.map(x => x.loc.join('.') + '：' + x.msg).join('；') : detail?.message || JSON.stringify(detail));
+      const error = Error(typeof detail === 'string' ? detail : Array.isArray(detail) ? detail.map(x => x.loc.join('.') + '：' + x.msg).join('；') : detail?.message || JSON.stringify(detail));
+      error.status = response.status; throw error;
     }
     return data;
   }
@@ -24,6 +35,66 @@ window.createEngineClient = function (ui) {
     return ui.parameterKey(owner) + JSON.stringify(owner.moduleSnapshots || {});
   }
   async function normalize(owner, signal) { return request('/prototype/normalize',payload(owner),signal); }
+  function frameFailure(data) {
+    const diagnostics = data.frame?.diagnostics || [];
+    return diagnostics.map(d => d.message).filter(Boolean).join(';');
+  }
+  // Point every "the server side did not finish" path at the same human-readable reason.
+  function stallReason(data, timedOut, ms, polls) {
+    const detail = frameFailure(data);
+    const bound = timedOut ? `等待超过 ${waitLabel(RUN_POLL_DEADLINE_MS)}` : `轮询超过 ${RUN_POLL_MAX_ITERATIONS} 次`;
+    return `后端运行 ${data.status} 超过 ${waitLabel(ms)}(${bound},共 ${polls} 次查询)仍未结束,已停止等待;`
+      + `最后一次后端状态:${data.status}${data.run_id ? ',run_id ' + data.run_id : ''}。` + (detail ? `后端诊断:${detail}` : '');
+  }
+  // Abort whichever HTTP request is in flight for this scope; the pending key differs
+  // between the bench ('__bench') and a project (its id).
+  function abortPending(key) {
+    const controller = pending.get(key);
+    if (!controller) return false;
+    pending.delete(key);
+    controller.abort();
+    return true;
+  }
+  // The record and its failure frame are separate requests; the frame exists only once the
+  // run has finished, so a failed run without one (or with an empty one) still needs a reason.
+  async function failureDetail(data, signal) {
+    let detail = frameFailure(data);
+    if (!detail) {
+      try { detail = frameFailure(await request('/runs/' + data.run_id, undefined, signal)); } catch { /* Keep the status-only reason. */ }
+    }
+    return detail || '后端未提供失败诊断';
+  }
+  // Newer backends accept POST /runs/{id}/command with a RunCommand body; older ones 404.
+  // Only an explicit 501/404 means "unsupported" - a network error or 5xx must not be
+  // reported as missing backend support, or stop would silently pretend nothing failed.
+  async function runCommand(runId, command) {
+    try {
+      return { record: await request(`/runs/${encodeURIComponent(runId)}/command`, command) };
+    } catch (error) {
+      // A 404/501 on this route means the backend does not implement run control yet. Match on
+      // the status code request() attaches, not on the message text: the message is whatever the
+      // backend chose to say and need not contain the number.
+      const unsupported = error.status === 404 || error.status === 501;
+      return { error, unsupported };
+    }
+  }
+  async function cancelBackend(owner, action) {
+    const runId = owner.run.runId;
+    if (!runId) return { local: true };
+    const result = await runCommand(runId, action === 'pause' ? {action:'pause'} : {action:'stop'});
+    if (result.error) return { error: result.error, unsupported: result.unsupported };
+    return { status: result.record?.status, cancelled: result.record?.status === 'cancelled' };
+  }
+  // One place decides what a pause/stop actually achieved, so the bench and project paths
+  // cannot drift apart in what they claim. 'local' means there was no backend run to cancel
+  // (nothing was in flight), which is a success, not a failure.
+  function cancelText(cancel, action, what) {
+    const verb = action === 'pause' ? '暂停' : '停止';
+    if (cancel.cancelled) return `已${verb}后端${what},并${verb}本地结果回放。`;
+    if (!cancel.error) return `已${verb}本地结果回放(后端无进行中的任务,无需取消)。`;
+    if (cancel.unsupported) return `已${verb}本地结果回放(后端未实现任务${verb},服务端任务未被中断)。`;
+    return `已${verb}本地结果回放(服务端任务未能确认${verb}:${cancel.error.message || '未知原因'})。`;
+  }
   function manifestParamDef(spec) {
     const unit = spec.unit || {};
     const display = unit.display_unit || '';
@@ -249,7 +320,19 @@ window.createEngineClient = function (ui) {
     if (scope === 'bench') {
       const owner = ui.state().bench, module = ui.state().modules.find(m => m.id === owner.moduleId);
       if (!module?.manifest) { ui.message('当前模块没有可执行的版本化 Python 模块包。', true); return; }
-      if (action === 'pause' || action === 'stop') { pending.get('__bench')?.abort(); owner.run.status = action === 'pause' ? 'paused' : 'stopped'; ui.render(); return; }
+      if (action === 'pause' || action === 'stop') {
+        const cancel = await cancelBackend(owner, action);
+        abortPending('__bench');
+        // A stop really did cancel the backend run, so drop its id: keeping it would let a
+        // later pause/stop aim at a run that is already gone. A pause keeps the id, because
+        // 继续 has to be able to resume that same backend run.
+        if (action === 'stop') owner.run.runId = null;
+        owner.run.status = action === 'pause' ? 'paused' : 'stopped';
+        owner.run.events ||= [];
+        owner.run.events.push({t:owner.run.time,text:cancelText(cancel, action, 'Worker 计算')});
+        if (cancel.error && !cancel.unsupported) ui.message('服务端任务未能确认停止,已在本地停止回放。',true);
+        ui.render(); return;
+      }
       if (['running','solving'].includes(owner.run.status)) return;
       const controller=new AbortController(); pending.set('__bench',controller);
       owner.run.status = 'solving'; owner.run.source = 'engine'; ui.render();
@@ -268,10 +351,15 @@ window.createEngineClient = function (ui) {
     const owner = ui.state().projects.find(p => p.id === (projectId || ui.state().activeProject));
     if (!owner) return;
     if (action === 'pause' || action === 'stop') {
-      pending.get(owner.id)?.abort(); pending.delete(owner.id);
+      const cancel = await cancelBackend(owner, action);
+      abortPending(owner.id);
+      // Same as the bench path: a stop releases the backend id, a pause keeps it for 继续.
+      if (action === 'stop') owner.run.runId = null;
       owner.run.status = action === 'pause' ? 'paused' : 'stopped';
       if (action === 'stop') queues.delete(owner.id);
-      owner.run.events.push({t:owner.run.time,text:action === 'pause' ? '已暂停结果回放。' : '已停止结果回放。'});
+      const cancelNote = cancelText(cancel, action, '运行');
+      owner.run.events.push({t:owner.run.time,text:cancelNote});
+      if (cancel.error && !cancel.unsupported) ui.message('服务端任务未能确认停止,已在本地停止回放。',true);
       ui.render(); return;
     }
     if (pending.has(owner.id)) return;
@@ -280,7 +368,12 @@ window.createEngineClient = function (ui) {
       if (action === 'step') {
         const row = existing.rows.shift(); if (row) applyRow(owner,row);
         if (!existing.rows.length) { owner.run.status='completed'; queues.delete(owner.id); }
-      } else { owner.run.status='running'; existing.wall = performance.now(); existing.sim = owner.run.time; }
+      } else {
+        owner.run.status='running'; existing.wall = performance.now(); existing.sim = owner.run.time;
+        // These rows are already held locally, so resuming is a replay of them; tell the
+        // backend to resume too, but never let a missing/failed resume block the local restart.
+        if (owner.run.runId) { const resumed = await runCommand(owner.run.runId, {action:'resume'}); if (resumed.error) owner.run.events.push({t:owner.run.time,text:'本机继续为本地结果回放;服务端恢复失败:' + resumed.error.message + '。'}); }
+      }
       ui.render(); return;
     }
     queues.delete(owner.id);
@@ -293,17 +386,34 @@ window.createEngineClient = function (ui) {
       const project = await normalize(owner,controller.signal);
       const mode = action === 'step' ? 'dynamic' : owner.solver.mode;
       let data = await request('/runs' + (mode === 'dynamic' ? '?background=true' : ''),{project,mode,duration_s:action === 'step' ? owner.solver.dt : owner.solver.duration,dt_s:owner.solver.dt},controller.signal);
+      // Publish the backend id immediately so a stop pressed while this run is still being
+      // polled can cancel the real task instead of only aborting the local request.
+      owner.run.runId = data.run_id;
+      const pollStarted = performance.now();
+      let polls = 0;
       while (['queued','running'].includes(data.status)) {
+        const waited = performance.now() - pollStarted;
+        if (polls >= RUN_POLL_MAX_ITERATIONS || waited >= RUN_POLL_DEADLINE_MS) {
+          throw Error(stallReason(data, waited >= RUN_POLL_DEADLINE_MS, waited, polls));
+        }
         await new Promise((resolve,reject)=>{
           const abort=()=>{clearTimeout(timer);reject(new DOMException('请求已取消','AbortError'));};
-          const timer=setTimeout(()=>{controller.signal.removeEventListener('abort',abort);resolve();},100);
+          const timer=setTimeout(()=>{controller.signal.removeEventListener('abort',abort);resolve();},RUN_POLL_INTERVAL_MS);
           controller.signal.addEventListener('abort',abort,{once:true});
           if(controller.signal.aborted) abort();
         });
+        polls += 1;
         const record=await request('/runs/'+data.run_id,undefined,controller.signal);
         data={...record,run_id:data.run_id};
       }
-      if (data.status === 'failed') { diagnostics(data.frame.diagnostics); throw Error(data.frame.diagnostics.map(d => d.message).join('；')); }
+      if (data.status === 'cancelled') {
+        owner.run.runId = null; owner.run.status='stopped';
+        owner.run.events.push({t:owner.run.time,text:'后端运行已取消,本地回放同步停止。'});
+        ui.render(); return;
+      }
+      // Terminal either way past this point: nothing is left for stop to cancel.
+      owner.run.runId = null;
+      if (data.status === 'failed') throw Error(await failureDetail(data,controller.signal));
       const history = await request(`/runs/${data.run_id}/history`,undefined,controller.signal);
       if (before !== key(owner)) throw Error('计算期间项目已变化，请重新运行当前参数。');
       const rows = history.rows.map(f => rowFromFrame(owner,f));
