@@ -16,12 +16,16 @@ async function step() {
   const run=state.projects.find(p=>p.id===state.activeProject).run;
   expect(run.history.at(-1).canonical['V1.mass_flow_kg_s']).toBe(result.frame.variables['V1.mass_flow_kg_s']);
   expect(run.history.at(-1).variableValues['V1:out0:FLOW']).toBe(result.frame.variables['V1.mass_flow_kg_s']);
-  expect(run.history.at(-1).variableValues['V1:out0:TEMP']).toBeNull();
+  // Thermal layer: 20 °C supply plus a small pump temperature rise.
+  const temperature=run.history.at(-1).variableValues['V1:out0:TEMP'];
+  expect(Number.isFinite(temperature)).toBe(true);
+  expect(temperature).toBeGreaterThanOrEqual(19.9);
+  expect(temperature).toBeLessThanOrEqual(20.5);
   return {result,run};
 }
 try {
   await page.goto('http://127.0.0.1:8798');
-  await expect(page.locator('#app-header')).toContainText('v0.2.0');
+  await expect(page.locator('#app-header')).toContainText(/v\d+\.\d+\.\d+/);
   await page.locator('[data-action="start-modeling"]').click();
   await page.locator('[data-action="save"]').first().click();
   const state = await page.evaluate(()=>JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
@@ -34,7 +38,7 @@ try {
     writeFileSync('tests/fixtures/prototype.json',JSON.stringify(payload,null,2));
   }
   await page.locator('[data-action="validate"]').click();
-  await expect(page.getByRole('dialog')).toContainText('定物性液态水水力');
+  await expect(page.getByRole('dialog')).toContainText('液态水水力与端口焓、温度');
   await page.getByRole('dialog').locator('[data-action="close-dialog"]').first().click();
   const first=await step();
   const opening=page.locator('input[type="number"][data-instance-param="opening"][data-id="V1"]');

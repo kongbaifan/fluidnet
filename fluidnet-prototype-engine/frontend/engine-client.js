@@ -281,11 +281,15 @@ window.createEngineClient = function (ui) {
       page:d.instance_id && ui.project().pages.find(p => p.nodes.some(n => n.id === d.instance_id))?.id})), metrics);
   }
   function portValue(n,v,row) {
-    const suffix = {FLOW:'mass_flow_kg_s',PRE:'pressure_pa',TEMP:'temperature_k'}[v.id.split(':').at(-1)];
+    const suffix = {FLOW:'mass_flow_kg_s',PRE:'pressure_pa',TEMP:'temperature_k',ENTHALPY:'enthalpy_j_kg',
+      VOLUME:'density_kg_m3',Q:'quality'}[v.id.split(':').at(-1)];
     const value = suffix && row?.canonical?.[`${n.id}.${v.port}.${suffix}`];
     if (!Number.isFinite(value)) return null;
     if (suffix === 'pressure_pa') return value / (v.unit === 'MPa' ? 1e6 : v.unit === 'kPa' ? 1000 : 1);
     if (suffix === 'temperature_k') return v.unit === '°C' ? value - 273.15 : value;
+    if (suffix === 'enthalpy_j_kg') return v.unit === 'kJ/kg' ? value / 1000 : value;
+    // Density and quality are state properties: no flow-direction sign.
+    if (suffix === 'density_kg_m3' || suffix === 'quality') return value;
     const port = ui.moduleOf(n).ports.find(p => p.id === v.port);
     return value * (port?.direction === 'out' ? -1 : 1);
   }
@@ -293,7 +297,8 @@ window.createEngineClient = function (ui) {
     const canonical = frame.variables;
     const row = {t:frame.time_s,canonical,variables:{},variableValues:{},diagnostics:frame.diagnostics,metrics:frame.metrics,
       q:canonical['P1.mass_flow_kg_s'] ?? null,a:canonical['V1.mass_flow_kg_s'] ?? null,b:canonical['V2.mass_flow_kg_s'] ?? null,
-      pressure:Number.isFinite(canonical['P1.out0.pressure_pa']) ? canonical['P1.out0.pressure_pa'] / 1000 : null,temperature:null};
+      pressure:Number.isFinite(canonical['P1.out0.pressure_pa']) ? canonical['P1.out0.pressure_pa'] / 1000 : null,
+      temperature:Number.isFinite(canonical['P1.out0.temperature_k']) ? canonical['P1.out0.temperature_k'] - 273.15 : null};
     for (const n of owner.pages.flatMap(p => p.nodes)) {
       const m = ui.moduleOf(n);
       for (const v of m.variables) {
@@ -305,7 +310,8 @@ window.createEngineClient = function (ui) {
       const pressure = canonical[`${n.id}.out0.pressure_pa`];
       row.variables[n.id + '.OUT_FLOW'] = canonical[`${n.id}.mass_flow_kg_s`] ?? null;
       row.variables[n.id + '.OUT_PRE'] = Number.isFinite(pressure) ? pressure / 1000 : null;
-      row.variables[n.id + '.OUT_TEMP'] = null;
+      const temperature = canonical[`${n.id}.out0.temperature_k`];
+      row.variables[n.id + '.OUT_TEMP'] = Number.isFinite(temperature) ? temperature - 273.15 : null;
     }
     return row;
   }

@@ -11,7 +11,7 @@ const save=async()=>{
 };
 try {
   await page.goto('http://127.0.0.1:8798/#modules');
-  await expect(page.locator('#app-header')).toContainText('v0.2.0');
+  await expect(page.locator('#app-header')).toContainText(/v\d+\.\d+\.\d+/);
   const card=page.locator('[data-module-id="programmable_valve"]');
   await expect(card).toContainText('Python · v1');
   await card.locator('[data-action="test-module"]').click();
@@ -40,7 +40,7 @@ try {
   expect(project.run.history.at(-1).canonical['V1.state.commit_count']).toBe(10);
   expect(project.run.history.at(-1).variableValues['V1:runtime:state.throughput_kg']).toBeGreaterThan(0);
   await page.reload();
-  await expect(page.locator('#app-header')).toContainText('v0.2.0');
+  await expect(page.locator('#app-header')).toContainText(/v\d+\.\d+\.\d+/);
   await page.locator('[data-node="V1"]').dblclick();
   await expect(page.locator('[data-instance-param="opening_ratio"][type="number"]')).toHaveValue('0.8');
   await page.screenshot({path:'artifacts/module-project.png',fullPage:true});

@@ -92,7 +92,7 @@ const PARAM_DEFS = {
   source:[['pressure','绝对压力','kPa',110,1000,1,201.325],['temperature','温度','°C',1,90,1,20]],
   pump:[['speed','转速比','倍',.2,1.3,.05,1],['efficiency','泵效率','%',1,100,1,75]],
   valve:[['opening','阀门开度','%',0,100,1,80],['kv','流量系数 Kv','m³/h',.1,200,.5,16]],
-  pipe:[['length','管道长度','m',.1,1000,.5,30],['diameter','管道内径','mm',5,1000,1,40]],
+  pipe:[['length','管道长度','m',.1,1000,.5,30],['diameter','管道内径','mm',5,1000,1,40],['heatLoss','散热能力 UA','W/K',0,10000,1,0],['ambient','环境温度','°C',1,90,1,20]],
   junction:[['elevation','标高','m',-100,1000,.1,0]],
   tank:[['level','初始液位','m',.1,10,.1,2],['area','横截面积','m²',.1,100,.1,2.5]],
   exchanger:[['ua','传热系数 UA','W/K',1,50000,100,2000],['loss','阻力系数','—',0,1000,.1,5]],
@@ -1511,6 +1511,7 @@ function validateImport(data) {
   if (!data || data.schema !== 1 || !Array.isArray(data.modules) || !data.modules.length || !Array.isArray(data.models)) throw Error('不是本版本的原型交换文件。');
   validateModuleGroups(data);
   if (data.modules.length > 64 || data.models.length > 500) throw Error('导入数据超出原型演示容量。');
+  backfillBuiltinParams(data);
   const unique = values => new Set(values).size === values.length;
   if (!unique(data.modules.map(m => m.id)) || !unique(data.models.map(m => m.id))) throw Error('模块或型号标识重复。');
   for (const m of data.modules) {
@@ -2061,9 +2062,32 @@ document.addEventListener('keydown', e => {
     e.preventDefault(); p.x = clamp(p.x + (e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0), 5, 95); p.y = clamp(p.y + (e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0), 10, 85); markDirty(mod()); render();
   }
 });
+// Saves and exports made before a built-in parameter existed (e.g. pipe heat loss / ambient)
+// get its default in module variables/values/banks, models and instances. Idempotent.
+function backfillBuiltinParams(data) {
+  const builtin = (data.modules || []).filter(m => m && m.runtime !== 'python' && PARAM_DEFS[m.kind]);
+  for (const m of builtin) {
+    if (!Array.isArray(m.variables)) continue;
+    for (const v of variablesFor({kind:m.kind, ports:[]}).filter(v => v.origin === 'parameter')) {
+      if (m.variables.some(x => x.id === v.id)) continue;
+      const before = m.variables.findIndex(x => x.origin === 'system');
+      m.variables.splice(before < 0 ? m.variables.length : before, 0, v);
+      if (m.values && !(v.id in m.values)) m.values[v.id] = clone(v.value);
+      (m.banks || []).forEach(bank => { if (bank && !(v.id in bank)) bank[v.id] = clone(v.value); });
+    }
+  }
+  const fill = (params, kind) => { if (params && typeof params === 'object') for (const f of PARAM_DEFS[kind]) if (!(f[0] in params)) params[f[0]] = f[6]; };
+  const kindOf = id => builtin.find(m => m.id === id)?.kind;
+  for (const item of data.models || []) { const kind = kindOf(item?.moduleId); if (kind) { fill(item.params, kind); (item.versions || []).forEach(v => fill(v?.params, kind)); } }
+  for (const p of data.projects || []) for (const pg of p?.pages || []) for (const n of pg?.nodes || []) {
+    const kind = !p.moduleSnapshots?.[n?.moduleId] && kindOf(n?.moduleId);
+    if (kind) { fill(n.params, kind); fill(n.draft, kind); }
+  }
+}
 function normalizeState() {
   normalizeModuleGroups();
   state.modules.forEach(m => { m.saving=false; if (m.manifest) PARAM_DEFS[m.kind] = manifestFields(m.manifest); normalizePythonSource(m); });
+  backfillBuiltinParams(state);
   state.windowPositions ||= {}; state.charts.extra ||= []; state.serial ||= 30;
   const benchModule = state.bench && state.modules.find(m => m.id === state.bench.moduleId);
   if (benchModule?.runtime === 'python') { state.bench.params ||= {}; for (const spec of manifestParamSpecs(benchModule.manifest)) if (!(spec.id in state.bench.params)) state.bench.params[spec.id] = clone(spec.default); }
