@@ -4,7 +4,7 @@
 __pycache__/
 *.pyc
 node_modules/
-web/dist/
+archive/fluidnet-studio-v0.2/web/dist/
 dist/
 build/
 workspace/
