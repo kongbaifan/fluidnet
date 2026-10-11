@@ -38,10 +38,10 @@ flowchart LR
 | `worker.py` | 独立进程的行式 JSON Worker 协议 | 项目编排和持久化 |
 | `properties.py` | CoolProp 单相物性适配和相态/范围诊断 | 网络残差组装 |
 | `bridge.py` | 选择活动项目；读取真实端口和通路；显示值转规范值 | 自动猜测未知模块算法 |
-| `compiler.py` | 参数校验、端口连接并查集、通路支路、每个子网络的压力参考 | 求解数值方程 |
+| `compiler.py` | 参数与工况覆盖校验、端口连接并查集、通路支路、每个子网络的压力参考 | 求解数值方程 |
 | `solver.py` | 支路关系、非线性方程组、模块 evaluate 关系、残差验证、结果采样 | 管理界面草稿 |
 | `bench.py` | 为每条启用通路各接一组压力边界，复用编译/求解/Worker，返回状态及历史 | 生成演示流量 |
-| `api.py` | 模块/项目契约端点、同步稳态、可选后台动态任务、运行事件和历史 | 永久数据库或集群调度 |
+| `api.py` | 模块/项目契约端点、同步稳态、可选后台动态任务、运行控制与协作取消、运行事件和历史 | 永久数据库或集群调度 |
 | `engine-client.js` | 请求、运行/回放、真实变量映射、断线及失败显示 | 生成模拟物理结果 |
 | `studio.js` | 保留原型交互与本地保存 | 计算物理方程 |
 
@@ -86,11 +86,24 @@ sequenceDiagram
 
 1. 热力代数层：有向流向、节点混合、管道热损失、换热器 ε–NTU 与能量残差。
 2. 状态积分层：水箱质量/焓、管道热容、控制器状态；将 `dynamic` 从准稳态序列升级为 DAE 时间推进。
-3. 任务控制层：在已有后台任务上实现取消、暂停、参数命令、事件时刻及推送；保持已有 RunFrame 合同。
+3. 任务控制层:后台运行已支持协作式取消、暂停/继续和 `POST /runs/{id}/command`;参数命令(step/set)、事件时刻和推送仍待实现;保持已有 RunFrame 合同。
 4. 模型扩展层：验证过的声明式算法注册、组合模块展开、算法版本和测试算例。
 5. 用户代码层：已有独立进程、RPC 超时和异常清理；继续补充 OS 资源限制、权限隔离和检查点恢复。独立进程不是操作系统安全沙箱。
 
 这些是扩展设计，当前可运行范围以 README 的能力表和 `/api/v1/health` 为准。
+
+## 运行控制、取消与执行器生命周期
+
+后台运行由 `api.py` 内的 `ThreadPoolExecutor(max_workers=2)` 执行。每次后台 `POST /runs?background=true` 生成一个 `RunControl`(一个 `Event` 取消标志加一个 pause/running 模式锁),与运行记录一起放进内存字典;`run_task` 先写 running 再调用 `compute_run`,并用 `except BaseException` 兜底,保证任何路径都会把记录终止为 completed/failed/cancelled 之一,不再残留 running。
+
+取消与暂停都通过同一个协作钩子传给 `solver.solve_dynamic(..., should_cancel=...)`:
+
+- 钩子在每个时间帧求解之前轮询一次。因此取消与暂停都是帧粒度:正在计算的那一帧照常完成,在下一帧之前才停下,不是抢占式中断。
+- `stop` 先触发取消，再在锁内把记录标为 cancelled(仅当记录仍非终态时写入)，`solve_dynamic` 抛出 `SolveCancelled`(刻意不继承 ValueError)，求解器的 `finally` 照常 `finalize`/`close` 各实例的 Worker 进程，取消不单独 kill Worker(测试确认取消后子进程已退出)。取消前已算出的帧保留在 history，最后算出的那一帧标记为 status=cancelled，valid=false。
+- `pause` 让钩子在帧边界阻塞等待 resume，超过 30 秒自动恢复，避免客户端消失后长期占住求解线程。每次 pause 递增一个暂停序号，停驻的线程醒来后只有序号未变才清除暂停标志，因此在停驻期间再来一次 pause 不会被上一次的清理吞掉，运行保持暂停。
+- `compute_run` 在写记录前再查一次取消标志,把竞争到最后的 stop 反映为 cancelled;`run_task` 的兜底只把未捕获的 `SolveCancelled` 判为 cancelled,其余异常一律判为 failed 并保留诊断——一次 stop 只是请求取消,不证明逃逸的异常就是取消导致的,而且 `stop` 已经先写了一条临时 cancelled,兜底必须用真正的 failed 帧把它盖掉,否则引擎崩溃会被这条临时记录永久掩埋。
+
+FastAPI app 通过 lifespan 在关闭时调用 `executor.shutdown(wait=False, cancel_futures=True)`;teardown 自身吞掉异常,避免与仍在进行的运行竞争。同步 `POST /runs` 不走执行器,也不生成 RunControl,因此无法中途控制;命令端点对其返回 409:终态检查在前,同步运行到达命令端点时已结束,所以报 `RUN_ALREADY_FINISHED`(`RUN_NOT_CONTROLLABLE` 是防御性分支)。
 
 ## 前端模块工作流
 

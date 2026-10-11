@@ -15,14 +15,15 @@
 | GET /api/v1/modules/{module_id}/versions | 无 | 倒序版本记录，未知模块返回空列表 |
 | GET /api/v1/modules/{module_id}/versions/{version} | 整数版本 | 完整模块、引用和试算凭据；未知版本 404 |
 | POST /api/v1/prototype/normalize | 原型导出对象 | 规范 Project；显示单位转换；不能归一化时 422 |
-| POST /api/v1/projects/validate | Project | valid 和 diagnostics；检查失败时 valid=false |
+| POST /api/v1/projects/validate | Project | valid 和 diagnostics；编译校验并追加工况覆盖校验，检查失败时 valid=false |
 | POST /api/v1/solve | Project | 同步稳态 RunFrame；计算失败时 422 |
-| POST /api/v1/runs | RunRequest | **201**；run_id、status、frame、total_rows |
-| GET /api/v1/runs/{run_id} | 无 | 状态、请求快照和最后一帧，不重复携带整段历史 |
+| POST /api/v1/runs | RunRequest | **201**；run_id、status、frame、total_rows。`?background=true` 改返回 **202** 的 `RunStatus`(queued、frame 为 null)，frame 由状态接口补 |
+| GET /api/v1/runs/{run_id} | 无 | 状态、请求快照、最后一帧与事件，不重复携带整段历史(历史由 /history 提供)；记录不存在或已被保留上限淘汰时 404，detail 为固定字符串 |
 | GET /api/v1/runs/{run_id}/history | offset≥0, 1≤limit≤2001 | rows、total_rows、offset |
-| GET /api/v1/runs/{run_id}/events | 无 | queued/running/completed/failed 事件 |
+| GET /api/v1/runs/{run_id}/events | 无 | queued/running/completed/failed/cancelled 事件、每次运行恰好一条终态事件 |
+| POST /api/v1/runs/{run_id}/command | RunCommand | RunStatus;暂停/继续/停止后台运行;step/set 返回 422,非后台或已结束 409 |
 
-`POST /api/v1/runs?background=true` 创建后台运行，返回 HTTP 202 和 `run_id`。默认仍保持兼容的同步模式，返回 HTTP 201。前端稳态使用同步请求，动态与单步使用后台请求并轮询状态。暂停、取消和参数命令仍未开放；前端暂停/停止只控制取回与回放。
+`POST /api/v1/runs?background=true` 创建后台运行,返回 HTTP 202 和 `run_id`。默认仍保持兼容的同步模式,返回 HTTP 201。前端稳态使用同步请求,动态与单步使用后台请求并轮询状态。后台运行可用 `POST /api/v1/runs/{run_id}/command` 暂停、继续或停止(见「运行生命周期与控制」);`step` 与 `set` 尚未实现。同步运行没有控制令牌,不能中途控制。
 
 ## 模块包和 Worker
 
@@ -51,7 +52,7 @@ module.py
 
 Worker 消息使用 Pydantic 的 `InitializeRequest`、`EvaluateRequest`、`EvaluateResponse`、`CommitStepRequest` 和 `CommitStepResponse`。`evaluate` 输出 `NetworkRelation`，由网络求解器决定最终压力和流量；模块不能直接返回全网解。
 
-同步请求返回 201 时，计算已经 completed 或 failed；后台请求返回 202 后通过状态接口查询。没有流式推送或命令端点。进程内保留最近 20 次运行，超出或重启后查询返回 404。项目编辑和永久导出目前由前端浏览器管理，不是服务端数据库。
+同步请求返回 201 时，计算已经 completed 或 failed；后台请求返回 202 后通过状态接口查询。暂停/继续/停止通过 `POST /runs/{run_id}/command` 生效;流式推送(WS /runs/{id}/stream)仍未实现。进程内保留最近 20 次运行，超出或重启后查询返回 404。项目编辑和永久导出目前由前端浏览器管理，不是服务端数据库。
 
 ## 直接运行参考项目
 
@@ -84,6 +85,8 @@ Invoke-RestMethod ('http://127.0.0.1:8798/api/v1/runs/' + $result.run_id + '/his
 
 scenario_id 指向 Project.scenarios。覆盖只修改本次运行的项目副本，参数仍按相同规则校验。未实现随时间变化的参数计划。
 
+`/projects/validate` 现在也校验每个工况的覆盖：引用不存在的实例返回 `SCENARIO_INSTANCE_MISSING`；覆盖未知参数或把数值写到越界、非有限值返回 `UNKNOWN_PARAMETER`、`PARAMETER_RANGE`、`PARAMETER_INVALID`(诊断消息带 `工况 <id>:` 前缀)。因此此前被判为 valid 的项目现在可能 valid=false。
+
 ## RunFrame
 
 ```json
@@ -108,9 +111,33 @@ scenario_id 指向 Project.scenarios。覆盖只修改本次运行的项目副�
 
 该示例省略了其他变量和归一化提示。valid 表示当前声明的水力方程已通过验收，不表示热力或状态算法已执行。
 
-Diagnostic 包含 code、message、severity（info/warning/error）、可选 instance_id 与 field。前端可以定位到实例。结构错误采用 PORT_UNCONNECTED、BOUNDARY_CONFLICT、PRESSURE_REFERENCE_MISSING、MODEL_NOT_SUPPORTED 等代码。
+Diagnostic 包含 code、message、severity（info/warning/error）、可选 instance_id 与 field。前端可以定位到实例。结构错误采用 PORT_UNCONNECTED、BOUNDARY_CONFLICT、PRESSURE_REFERENCE_MISSING、MODEL_NOT_SUPPORTED 等代码;参数与工况错误采用 PARAMETER_RANGE(含 `diameter_m` 不大于零、`roughness_m` 为负)、ROUGHNESS_RANGE、UNKNOWN_PARAMETER、PARAMETER_INVALID、CURVE_INVALID、SCENARIO_INSTANCE_MISSING 等代码。
 
-POST /runs 对类型正确但编译或求解失败的请求仍创建可查询的记录，status=failed、frame.valid=false、history 为空。schema 不合法、帧数超限等请求在创建前返回 422。POST /solve 则将编译/求解错误直接返回 422/detail Diagnostic。
+POST /runs 对类型正确但编译或求解失败的请求仍创建可查询的记录，status=failed、frame.valid=false、history 为空。schema 不合法、帧数超限等请求在创建前返回 422。POST /solve 则将编译/求解错误直接返回 422/detail Diagnostic。被取消的后台运行同样保留记录:status=cancelled,frame.status=cancelled、valid=false,history 保留取消前已算出的帧。
+
+
+## 运行生命周期与控制
+
+`RunStatus` 可达值:queued、running、completed、failed、cancelled。
+
+- 同步 `POST /runs` 在响应返回前已结束,status 只会是 completed 或 failed。
+- 后台 `POST /runs?background=true` 先写 queued,任务线程开始前转 running,求解完成转 completed;编译或求解抛 ValueError 时写 failed,frame.valid=false、history 为空。
+- 后台任务线程在 compute_run 之外抛出的异常会被兜底捕获并把记录终止为 failed,不再停留在 running。此前这类进程错误会让记录一直显示 running。只有 `SolveCancelled` 才判为 cancelled:一次 stop 只是请求取消,不证明逃逸的异常是取消造成的;而且 `stop` 已先写了一条临时 cancelled,若兜底继续判为 cancelled 就会把真正的崩溃永久掩埋(记录会停在无 frame 的 cancelled)。
+- cancelled 只能通过 `stop` 到达。取消是协作式的:`solve_dynamic` 在每个时间帧求解之前轮询一次取消标志,正在求解的那一帧总会算完;取消前已算出的帧保留在 history;最后算出的那一帧标记为 status=cancelled、valid=false,time_s 为取消时刻。取消不单独终止 Worker,子进程由求解器 finally 的 close 路径回收。
+
+`POST /api/v1/runs/{run_id}/command` 请求体为 `RunCommand`(`action`,可选 `instance_id`、`parameter_id`、`value`),响应为 `RunStatus`,并即时更新内存记录:
+
+| action | 行为 |
+| --- | --- |
+| pause | 置暂停标志;求解线程在下一帧前阻塞(最长 30 秒,超时自行恢复)。记录 status 保持 running。重复 pause 仍保持暂停。 |
+| resume | 清除暂停标志,求解继续。记录 status 保持 running。 |
+| stop | 置取消标志并立即把记录标为 cancelled(比较后再写,不覆盖已结束的记录)。取消事件立即写入以便轮询立刻结束，求解线程收尾时只在事件尾部不是终态时才追加最终事件，因此每次运行恰好一条终态事件(重复 stop 也不会追加) |
+| step | 未实现,返回 422 `RUN_COMMAND_UNSUPPORTED`。 |
+| set | 未实现,返回 422 `RUN_COMMAND_UNSUPPORTED`。 |
+
+错误与优先级:未知 run_id 先返回 404;`step`/`set` 在任何状态下都先返回 422 `RUN_COMMAND_UNSUPPORTED`;其余 action 再查终态,已处于 completed/failed/cancelled 返回 409 `RUN_ALREADY_FINISHED`;最后查控制令牌,没有令牌返回 409 `RUN_NOT_CONTROLLABLE`。终态检查在前,且同步运行在响应返回时已是终态,所以 `RUN_NOT_CONTROLLABLE` 目前是防御性分支,HTTP 上不可达。前端还会把该端点的 404/501 当作未实现并降级为仅本地回放；因此上述 409 分支不会作为独立状态出现在界面上。pause/resume 不改变 RunStatus 的 status(仍为 running),只影响求解线程;前端在本地暂停回放的同时用 resume 通知后端。`/api/v1/health` 的 `capabilities` 增加 `run_control: true`。
+
+前端把后台 `run_id` 记在 `owner.run.runId`,暂停/停止时先调用该端点再停止本地回放;端点不存在(404/501)时降级为仅本地回放并在事件中说明。后台轮询有双重上限:3000 次或 300 秒,先到者生效;超时把该次前端运行标为失败并给出原因,不再无限等待。
 
 ## 原型归一化
 
@@ -132,6 +159,6 @@ POST /runs 对类型正确但编译或求解失败的请求仍创建可查询的
 
 Worker RPC 超时默认 10 秒，超时返回 `MODULE_RUNTIME_TIMEOUT` 并终止进程；源码异常或缺失通路返回 `MODULE_RUNTIME_ERROR`。所有完成/失败路径都回收 Worker。通信显式使用 UTF-8，模块 print 不进入 JSON 通道。
 
-## 后续端点（当前不可调用）
+## 尚未实现
 
-拟增加 `POST /runs/{id}/commands`（pause/resume/step/stop/set）及 `WS /runs/{id}/stream`。异步任务、命令生效时刻、revision 冲突处理和取消语义需要一并实现。现在点击前端暂停/停止仅操作结果回放，不能用这些预留路径调用后端。
+`POST /api/v1/runs/{run_id}/command` 的 `step` 与 `set` 仍未实现,返回 422;流式推送 `WS /runs/{id}/stream` 未实现。pause/resume/stop 已可用(见「运行生命周期与控制」)。

@@ -20,6 +20,7 @@
 | `Scenario` | id, name, overrides | 按实例 ID 提供规范参数覆盖；本次运行使用副本 |
 | `Project` | modules, instances, connections, scenarios, selected_variables, solver | 一次可独立计算和复现的项目 |
 | `RunRequest` | project, mode, duration_s, dt_s, scenario_id, selected_variables | 创建一次运行；变量选择不影响物理求解 |
+| `RunCommand` | action, instance_id, parameter_id, value | 后台运行控制请求;仅 pause/resume/stop 生效 |
 | `RunFrame` | status, valid, time_s, variables, diagnostics, metrics | 一个时刻的结果与质量证据 |
 | `FluidConfig` | backend, fluid, composition, phase_policy | 物性服务选择和单相约束 |
 | `ModulePackageRef` | module_id, version, content_hash, definition_hash | 模块 ID、N.0.0 版本、源码与规范定义哈希 |
@@ -38,6 +39,8 @@
 已保存版本另外携带 `definition_hash`，覆盖源码、版本和契约字段，排除机器路径与哈希字段本身。ParameterSpec.default 中的 `16` 与 `16.0` 按等值处理；哈希不是数字签名。未绑定的草稿可清空两个哈希用于独立测试，项目快照必须保留保存时的值。实例若携带 `package`，其 ID、版本及双哈希必须与 `Project.modules` 中对应定义一致。
 
 参数默认值在 Pydantic 层检查类型、有限性、上下限及范围顺序；非数值参数不能声明数值单位换算。变量的 `parameter_id` 和 `port_id` 必须引用本模块声明。版本保存还要求试算结果包含所有声明的 derived/state 输出。
+
+只要参数集合同时含 `diameter_m` 与 `roughness_m`，编译即检查前者严格大于零、后者不小于零(非有限数值或布尔值也拒绝)，违反时抛 `PARAMETER_RANGE`；相对粗糙度上限仍是 `ROUGHNESS_RANGE`。自定义 Python 模块若未声明参数下限，可能传入零或负的内径，这条检查把它转成可定位的诊断而不是 `ZeroDivisionError`。
 
 `ParameterSpec.value_type` 决定实例参数的形状：`number` 为有限数值并可用 `unit` 做显示换算，`boolean`/`text` 为布尔或字符串，`curve` 为 `[x, y]` 有限数值点对数组。四种类型都可以在设备面板逐实例编辑，草稿经“预览并应用”写入 `ModuleInstance.parameters`；`parameter_map` 只对数值参数做单位换算，其余类型按原值传递。
 
@@ -78,7 +81,14 @@ canonical = (display - display_offset) × display_scale
 
 压力参考按连通子网络检查，关闭阀门会把水力网络分开。如果一侧没有压力参考，编译失败，避免给不可确定的压力赋值。节点允许未连接的可选分支端口，不把它们当作向外界排水。
 
-型号与版本是可追溯元数据；实际计算只读取快照参数。`scenarios` 目前由规范 API 提交，原型工况 UI 的进一步接入尚未完成。
+型号与版本是可追溯元数据；实际计算只读取快照参数。`scenarios` 目前由规范 API 提交，原型工况 UI 的进一步接入尚未完成；`/projects/validate` 会逐条校验工况覆盖(见 API 文档)，运行与校验共用同一套参数规则；两者报出的工况诊断同源。
+
+## 运行记录与控制
+
+- `RunStatus`:run_id、status(queued/running/completed/failed/cancelled)、mode、progress、frame、total_rows。`progress` 在 completed 为 1;动态运行仅在有 frame 时按 `frame.time_s / duration_s` 估算(运行中 frame 为 null,故仍为 0;取消记录带 frame,可为非零);其余为 0。
+- `RunCommand`:action(pause/resume/step/stop/set)、可选 instance_id、parameter_id、value,仍按严格模型校验。只有 pause/resume/stop 被实现;step/set 返回 422 `RUN_COMMAND_UNSUPPORTED`。
+- `/api/v1/health` 的 `capabilities` 新增 `run_control: true` 与 `module_versions: true`;`max_frames`(2001)与 `run_retention`(20)保持不变。
+- 取消记录 `frame.status=cancelled`、`valid=false`,`history` 保留取消前已算出的帧;run_id 与请求快照照常保留。stop 会立即写一条 cancelled 事件使轮询立刻结束,求解线程收尾时只在事件尾部不是终态时才追加,因此每次运行恰好一条终态事件;已结束的运行再收到 stop 会被终态检查拒绝(409 RUN_ALREADY_FINISHED)，与首次 stop 并发的第二次也不会追加事件。
 
 ## 状态提交边界
 
@@ -87,4 +97,4 @@ canonical = (display - display_offset) × display_scale
 - t=0 只采样；t>0 的成功步提交一次。非收敛步不提交；失败运行不发布部分有效历史。
 - RunFrame 追加 `实例.ctx.var字段` 与 `实例.state.字段`，后者只展开标量；完整嵌套状态由 CommitStepResponse 返回。
 - 模块不能通过变量输出覆盖求解器的压力或流量。每条启用通路必须恰好返回一个关系。
-- 新建运行会重新 initialize；当前未提供跨 run_id 的状态恢复或服务端 step/resume。
+- 新建运行会重新 initialize；当前未提供跨 run_id 的状态恢复，服务端 `step`/`set` 也未实现(运行控制只有 pause/resume/stop，见 API 文档)。

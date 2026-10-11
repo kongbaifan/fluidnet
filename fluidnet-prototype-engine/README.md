@@ -2,7 +2,7 @@
 
 基于现有 FluidNet Studio 交互原型建立的独立项目。前端继承画布、模块库、型号、设备属性、草稿/应用和曲线工作流；后端重新定义模块合同、网络编译、水力算法和 HTTP 接口，并提供基于 Pydantic 的契约层、CoolProp 单相物性服务、版本化 Python 模块包和独立 Worker 生命周期。
 
-本目录独立于原来的 `fluidnet/` 与 `web/`。原型来源为 `../output/visualizations/fluidnet-studio-prototype.html`。前端原型脚本已拆为 `frontend/studio.js`，新增 `frontend/engine-client.js` 负责真实计算接口。
+本目录独立于原来的 `fluidnet/` 与 `web/`。原型来源为 `../output/visualizations/fluidnet-studio-prototype.html`。前端原型现拆分为 `frontend/index.html`(HTML/CSS 外壳与挂载点)与 `frontend/studio.js`(原内联 JavaScript),新增 `frontend/engine-client.js` 负责真实计算接口;`index.html` 末尾依次加载二者,服务把 `frontend/` 目录以 `StaticFiles(html=True)` 挂载到 `/`,默认入口页即 `frontend/index.html`。
 
 ## 启动
 
@@ -63,7 +63,7 @@ python -m venv .venv
 | 管道 | Darcy–Weisbach、层流关系、Haaland 湍流近似及过渡区插值 |
 | 双侧换热器 | 两侧独立水力支路；明确提示未计算换热 |
 | 动态选项 | 每步求解水力，收敛后调用 Python commit_step；没有水锤/热惯性/内置水箱积分 |
-| 暂停/继续/停止 | 控制已完成计算结果的前端回放；不是后端任务控制 |
+| 暂停/继续/停止 | 控制已完成计算结果的前端回放;后台运行同时调用 `POST /runs/{run_id}/command` 协作式控制;取消在当前时间帧结束后生效,不是抢占式 |
 | 单步 | 新建不可变计算快照；含 Python 模块时每次重新初始化，连续状态演化使用一次完整动态运行 |
 | 水箱、加热器、PID、止回阀、物性扩展 | 保留原型编辑入口；进入当前求解器时明确拒绝 |
 | 控制脚本、原型自定义变量、串口演示 | 保留编辑与预览；不执行控制或真实外部连接 |
@@ -73,9 +73,11 @@ python -m venv .venv
 | Python 模块包 | 模块清单驱动 UI；项目与验证台均在独立 Worker 中执行 `initialize/evaluate/commit_step/finalize` |
 | 模块版本保存 | 后端校验、独立试算、原子写入、并发冲突检测；项目绑定源码与契约双哈希 |
 | CoolProp 单相物性 | Water、Air 的 `state_pt/state_ph` 查询已接通；混合物和两相网络仍未实现 |
-| 后台运行 | `POST /api/v1/runs?background=true` 返回 `run_id`，可查询状态、历史和事件 |
+| 后台运行 | `POST /api/v1/runs?background=true` 返回 `run_id`,可查询状态、历史和事件;`POST /runs/{run_id}/command` 支持 pause/resume/stop(step/set 未实现),health 的 `capabilities.run_control` 为 true |
 
 水力内核采用定密度、定黏度液态水近似，内置模型不计算温度相关物性、汽蚀、相变或水锤；Python SDK 可显式传入物性及通路高差。非零节点标高会被参数校验拒绝。换热器原型没有水力内径输入时使用目录默认 40 mm；建议通过规范合同指定参数。
+
+后台运行的暂停与取消现已接入:`POST /api/v1/runs/{run_id}/command` 接受 `RunCommand`,只有 pause/resume/stop 生效。取消是帧粒度的协作式停止——求解器在下一个时间帧之前退出,已算出的帧保留,Worker 子进程由正常关闭路径回收;"单步"仍指新建一次运行,不是对已有运行的 step 命令。
 
 前端默认总览曲线仍绑定示例变量 `P1`、`V1`、`V2`。自定义实例与换热器第二侧可在“全部变量”中加入观察；未绑定的总览变量显示为空。
 
