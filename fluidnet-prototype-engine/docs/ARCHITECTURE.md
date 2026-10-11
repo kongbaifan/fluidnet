@@ -19,8 +19,12 @@ flowchart LR
   Worker --> Fluid[CoolProp 物性服务]
   Worker --> SDK[平台级 ctx.net SDK]
   SDK --> Network[压力节点与计算支路]
-  Network --> Solve[稳态水力求解器]
-  Solve --> Frame[RunFrame]
+  Network --> Solve[水力求解器]
+  Solve --> Thermal[热力代数层 节点焓输运]
+  Thermal -->|node 模式: 支路 ρ/μ| Solve
+  Solve --> Fluid
+  Thermal --> Fluid
+  Thermal --> Frame[RunFrame]
   Frame --> Run[运行快照与历史帧]
   Run --> Adapter
   Adapter --> View[画布读数与变量曲线]
@@ -36,10 +40,11 @@ flowchart LR
 | `module_validation.py` | Python 语法、Worker 加载及四阶段入口检查 | 在 API 进程执行用户代码 |
 | `runtime.py` | `initialize/evaluate/commit_step/finalize` 生命周期、上下文、Worker RPC | 全网节点求解 |
 | `worker.py` | 独立进程的行式 JSON Worker 协议 | 项目编排和持久化 |
-| `properties.py` | CoolProp 单相物性适配和相态/范围诊断 | 网络残差组装 |
+| `properties.py` | CoolProp AbstractState 物性适配（PT/PH 单次 flash、两相干度）、线程隔离与缓存、相态/范围诊断 | 网络残差组装 |
 | `bridge.py` | 选择活动项目；读取真实端口和通路；显示值转规范值 | 自动猜测未知模块算法 |
-| `compiler.py` | 参数与工况覆盖校验、端口连接并查集、通路支路、每个子网络的压力参考 | 求解数值方程 |
-| `solver.py` | 支路关系、非线性方程组、模块 evaluate 关系、残差验证、结果采样 | 管理界面草稿 |
+| `compiler.py` | 参数与工况覆盖校验、端口连接并查集、通路支路、每个子网络的压力参考、边界温度与冲突检查 | 求解数值方程 |
+| `solver.py` | 支路关系、非线性方程组、模块 evaluate 关系、残差验证；`solve_network` 编排水力与热力及 `node` 耦合、动态热启动、结果采样 | 管理界面草稿 |
+| `thermal.py` | 节点焓稀疏线性方程、支路出口焓关系、ε–NTU、闭合回路与停滞节点回退、相态检查、能量校核、端口热力状态 | 求解压力与流量 |
 | `bench.py` | 为每条启用通路各接一组压力边界，复用编译/求解/Worker，返回状态及历史 | 生成演示流量 |
 | `api.py` | 模块/项目契约端点、同步稳态、可选后台动态任务、运行控制与协作取消、运行事件和历史 | 永久数据库或集群调度 |
 | `engine-client.js` | 请求、运行/回放、真实变量映射、断线及失败显示 | 生成模拟物理结果 |
@@ -84,7 +89,7 @@ sequenceDiagram
 
 ## 扩展顺序
 
-1. 热力代数层：有向流向、节点混合、管道热损失、换热器 ε–NTU 与能量残差。
+1. 热力代数层（v0.3 已完成）：端口压力 + 焓、迎风传焓、节点混合、管道散热、泵轴功、换热器 ε–NTU、能量残差，以及可选的 `node` 物性耦合。
 2. 状态积分层：水箱质量/焓、管道热容、控制器状态；将 `dynamic` 从准稳态序列升级为 DAE 时间推进。
 3. 任务控制层:后台运行已支持协作式取消、暂停/继续和 `POST /runs/{id}/command`;参数命令(step/set)、事件时刻和推送仍待实现;保持已有 RunFrame 合同。
 4. 模型扩展层：验证过的声明式算法注册、组合模块展开、算法版本和测试算例。

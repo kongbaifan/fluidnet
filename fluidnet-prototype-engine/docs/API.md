@@ -6,7 +6,7 @@
 
 | 方法与路径 | 请求 | 返回 |
 | --- | --- | --- |
-| GET /api/v1/health | 无 | 版本、能力标志、2001 帧上限、20 次记录保留数 |
+| GET /api/v1/health | 无 | 版本（0.3.0）、能力标志（含 `thermal: true`、`property_coupling: ["reference","node"]`）、2001 帧上限、20 次记录保留数 |
 | GET /api/v1/catalog | 无 | 模块参数/通路/变量目录、原型参数名映射 |
 | GET /api/v1/modules | 无 | 可安装模块包和内置模块清单、版本与内容哈希 |
 | POST /api/v1/modules/validate | ModuleDefinition | 契约、Python 语法、Worker 入口与四阶段签名诊断 |
@@ -96,22 +96,29 @@ scenario_id 指向 Project.scenarios。覆盖只修改本次运行的项目副�
   "time_s": 0,
   "variables": {
     "V1.mass_flow_kg_s": 3.5826766415095452,
-    "V1.out0.temperature_k": null
+    "V1.out0.temperature_k": 293.18118038705103,
+    "V1.out0.enthalpy_j_kg": 84218.99861178166,
+    "P1.shaft_power_w": 733.8810612788247,
+    "P1.heat_w": 733.8810612788526
   },
   "diagnostics": [],
   "metrics": {
-    "pressure_residual_pa": 5.82e-11,
+    "pressure_residual_pa": 1.02e-10,
     "mass_residual_kg_s": 4.44e-16,
     "iterations": 7,
     "node_count": 5,
-    "branch_count": 5
+    "branch_count": 5,
+    "thermal_iterations": 1,
+    "coupling_iterations": 1,
+    "energy_residual_w": 3.36e-10,
+    "reference_heat_w": 0.0
   }
 }
 ```
 
-该示例省略了其他变量和归一化提示。valid 表示当前声明的水力方程已通过验收，不表示热力或状态算法已执行。
+该示例取自 `contracts/reference-result.json`，省略了其他变量和归一化提示。valid 表示当前声明的水力方程和热力层（`thermal=True` 时）已通过验收，不表示水箱等状态算法已执行。`SolverOptions.thermal=False` 时热力变量为 null，指标中没有热力项。
 
-Diagnostic 包含 code、message、severity（info/warning/error）、可选 instance_id 与 field。前端可以定位到实例。结构错误采用 PORT_UNCONNECTED、BOUNDARY_CONFLICT、PRESSURE_REFERENCE_MISSING、MODEL_NOT_SUPPORTED 等代码;参数与工况错误采用 PARAMETER_RANGE(含 `diameter_m` 不大于零、`roughness_m` 为负)、ROUGHNESS_RANGE、UNKNOWN_PARAMETER、PARAMETER_INVALID、CURVE_INVALID、SCENARIO_INSTANCE_MISSING 等代码。
+Diagnostic 包含 code、message、severity（info/warning/error）、可选 instance_id 与 field。前端可以定位到实例。结构错误采用 PORT_UNCONNECTED、BOUNDARY_CONFLICT、BOUNDARY_TEMPERATURE_CONFLICT、PRESSURE_REFERENCE_MISSING、MODEL_NOT_SUPPORTED 等代码;参数与工况错误采用 PARAMETER_RANGE(含 `diameter_m` 不大于零、`roughness_m` 为负)、ROUGHNESS_RANGE、UNKNOWN_PARAMETER、PARAMETER_INVALID、CURVE_INVALID、SCENARIO_INSTANCE_MISSING 等代码;热力错误采用 PHASE_UNSUPPORTED、NO_FLOW_HEAT、THERMAL_REFERENCE_MISSING、THERMAL_NOT_CONVERGED、COUPLING_NOT_CONVERGED 等代码(完整列表见数据合同文档)。
 
 POST /runs 对类型正确但编译或求解失败的请求仍创建可查询的记录，status=failed、frame.valid=false、history 为空。schema 不合法、帧数超限等请求在创建前返回 422。POST /solve 则将编译/求解错误直接返回 422/detail Diagnostic。被取消的后台运行同样保留记录:status=cancelled,frame.status=cancelled、valid=false,history 保留取消前已算出的帧。
 
