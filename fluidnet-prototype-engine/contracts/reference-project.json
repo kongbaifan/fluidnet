@@ -160,6 +160,7 @@
       "runtime": "builtin",
       "entrypoint": "",
       "content_hash": null,
+      "definition_hash": null,
       "package_path": null,
       "bank_names": [
         "额定工况",
@@ -600,6 +601,7 @@
       "runtime": "builtin",
       "entrypoint": "",
       "content_hash": null,
+      "definition_hash": null,
       "package_path": null,
       "bank_names": [
         "额定工况",
@@ -840,6 +842,7 @@
       "runtime": "builtin",
       "entrypoint": "",
       "content_hash": null,
+      "definition_hash": null,
       "package_path": null,
       "bank_names": [
         "额定工况",
@@ -1235,6 +1238,7 @@
       "runtime": "builtin",
       "entrypoint": "",
       "content_hash": null,
+      "definition_hash": null,
       "package_path": null,
       "bank_names": [
         "额定工况",
@@ -1664,6 +1668,7 @@
       "runtime": "builtin",
       "entrypoint": "",
       "content_hash": null,
+      "definition_hash": null,
       "package_path": null,
       "bank_names": [
         "额定工况",
@@ -1693,7 +1698,8 @@
       },
       "banks": [],
       "model_id": null,
-      "model_version": null
+      "model_version": null,
+      "package": null
     },
     {
       "id": "P1",
@@ -1715,7 +1721,8 @@
       },
       "banks": [],
       "model_id": null,
-      "model_version": null
+      "model_version": null,
+      "package": null
     },
     {
       "id": "N1",
@@ -1735,7 +1742,8 @@
       },
       "banks": [],
       "model_id": null,
-      "model_version": null
+      "model_version": null,
+      "package": null
     },
     {
       "id": "V1",
@@ -1757,7 +1765,8 @@
       },
       "banks": [],
       "model_id": null,
-      "model_version": null
+      "model_version": null,
+      "package": null
     },
     {
       "id": "L1",
@@ -1779,7 +1788,8 @@
       },
       "banks": [],
       "model_id": null,
-      "model_version": null
+      "model_version": null,
+      "package": null
     },
     {
       "id": "V2",
@@ -1801,7 +1811,8 @@
       },
       "banks": [],
       "model_id": null,
-      "model_version": null
+      "model_version": null,
+      "package": null
     },
     {
       "id": "L2",
@@ -1823,7 +1834,8 @@
       },
       "banks": [],
       "model_id": null,
-      "model_version": null
+      "model_version": null,
+      "package": null
     },
     {
       "id": "N2",
@@ -1843,7 +1855,8 @@
       },
       "banks": [],
       "model_id": null,
-      "model_version": null
+      "model_version": null,
+      "package": null
     },
     {
       "id": "B2",
@@ -1865,7 +1878,8 @@
       },
       "banks": [],
       "model_id": null,
-      "model_version": null
+      "model_version": null,
+      "package": null
     }
   ],
   "connections": [

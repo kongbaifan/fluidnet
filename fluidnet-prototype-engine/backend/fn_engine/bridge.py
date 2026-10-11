@@ -53,6 +53,8 @@ def normalize_prototype_export(data: dict[str, Any]) -> Project:
     if len({m['id'] for m in raw_modules}) != len(raw_modules):
         raise ValueError('模块 ID 重复')
     originals = {m['id']:m for m in raw_modules}
+    # Project-owned immutable snapshots take precedence over library drafts/latest releases.
+    originals.update(raw.get('moduleSnapshots', {}))
     used_ids = list(dict.fromkeys(n['moduleId'] for pg in raw.get('pages', []) for n in pg.get('nodes', [])))
     definitions, kinds = {}, {}
     for module_id in used_ids:
@@ -68,7 +70,7 @@ def normalize_prototype_export(data: dict[str, Any]) -> Project:
             from .models import ModuleDefinition
             allowed = set(ModuleDefinition.model_fields)
             manifest = deepcopy(original.get('manifest', original))
-            if original.get('manifest'):
+            if original.get('manifest') and not original.get('frozen'):
                 manifest.update(id=module_id, name=original['name'], version=original['version'], source={'runtime':original['source']['runtime']})
                 manifest['content_hash'] = original.get('contentHash') if manifest['source'] == original['manifest']['source'] else None
                 manifest['ports'] = [{**next((p for p in manifest['ports'] if p['id'] == item['id']), {}),
@@ -116,7 +118,8 @@ def normalize_prototype_export(data: dict[str, Any]) -> Project:
                 position=Position(x=node.get('x',0),y=node.get('y',0)), rotation=node.get('rotation',0),
                 parameters=parameter_map(kind,node.get('params',{}),definition),
                 draft_parameters=parameter_map(kind,node.get('draft',node.get('params',{})),definition), banks=banks,
-                model_id=node.get('modelId'), model_version=node.get('modelVersion')))
+                model_id=node.get('modelId'), model_version=node.get('modelVersion'),
+                package=node.get('package')))
         for edge in pg.get('edges', []):
             if not isinstance(edge,list) or len(edge) != 5:
                 raise ValueError(f'原型连接格式无效：{edge}')

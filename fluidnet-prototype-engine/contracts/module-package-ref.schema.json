@@ -15,6 +15,19 @@
       "pattern": "^[a-fA-F0-9]{64}$",
       "title": "Content Hash",
       "type": "string"
+    },
+    "definition_hash": {
+      "anyOf": [
+        {
+          "pattern": "^[a-fA-F0-9]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Definition Hash"
     }
   },
   "required": [

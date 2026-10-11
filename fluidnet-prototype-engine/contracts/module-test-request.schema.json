@@ -256,6 +256,19 @@
           "default": null,
           "title": "Content Hash"
         },
+        "definition_hash": {
+          "anyOf": [
+            {
+              "pattern": "^[a-fA-F0-9]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Definition Hash"
+        },
         "package_path": {
           "anyOf": [
             {
@@ -520,9 +533,6 @@
   },
   "additionalProperties": false,
   "properties": {
-    "module": {
-      "$ref": "#/$defs/ModuleDefinition"
-    },
     "parameters": {
       "additionalProperties": true,
       "title": "Parameters",
@@ -562,6 +572,9 @@
       "maximum": 60,
       "title": "Dt S",
       "type": "number"
+    },
+    "module": {
+      "$ref": "#/$defs/ModuleDefinition"
     }
   },
   "required": [

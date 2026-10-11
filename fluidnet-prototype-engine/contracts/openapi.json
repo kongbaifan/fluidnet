@@ -95,6 +95,131 @@
         }
       }
     },
+    "/api/v1/modules/{module_id}/versions": {
+      "get": {
+        "summary": "Module Versions",
+        "operationId": "module_versions_api_v1_modules__module_id__versions_get",
+        "parameters": [
+          {
+            "name": "module_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Module Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModuleVersionsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/modules/{module_id}/versions/{version}": {
+      "get": {
+        "summary": "Module Version",
+        "operationId": "module_version_api_v1_modules__module_id__versions__version__get",
+        "parameters": [
+          {
+            "name": "module_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Module Id"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModuleVersionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/modules/versions": {
+      "post": {
+        "summary": "Save Module Version",
+        "operationId": "save_module_version_api_v1_modules_versions_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModuleSaveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModuleVersionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/modules/test": {
       "post": {
         "summary": "Test Module",
@@ -926,6 +1051,18 @@
             ],
             "title": "Content Hash"
           },
+          "definition_hash": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-fA-F0-9]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Definition Hash"
+          },
           "package_path": {
             "anyOf": [
               {
@@ -1113,6 +1250,18 @@
             ],
             "title": "Content Hash"
           },
+          "definition_hash": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-fA-F0-9]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Definition Hash"
+          },
           "package_path": {
             "anyOf": [
               {
@@ -1206,6 +1355,16 @@
               }
             ],
             "title": "Model Version"
+          },
+          "package": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ModulePackageRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,
@@ -1233,6 +1392,18 @@
             "type": "string",
             "pattern": "^[a-fA-F0-9]{64}$",
             "title": "Content Hash"
+          },
+          "definition_hash": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-fA-F0-9]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Definition Hash"
           }
         },
         "additionalProperties": false,
@@ -1244,11 +1415,36 @@
         ],
         "title": "ModulePackageRef"
       },
-      "ModuleTestRequest": {
+      "ModuleSaveRequest": {
         "properties": {
           "module": {
             "$ref": "#/components/schemas/ModuleDefinition"
           },
+          "expected_latest_version": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Expected Latest Version"
+          },
+          "release_notes": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Release Notes",
+            "default": ""
+          },
+          "test": {
+            "$ref": "#/components/schemas/ModuleTestConditions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "module",
+          "expected_latest_version"
+        ],
+        "title": "ModuleSaveRequest"
+      },
+      "ModuleTestConditions": {
+        "properties": {
           "parameters": {
             "additionalProperties": true,
             "type": "object",
@@ -1288,6 +1484,56 @@
             "exclusiveMinimum": 0.0,
             "title": "Dt S",
             "default": 0.1
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ModuleTestConditions"
+      },
+      "ModuleTestRequest": {
+        "properties": {
+          "parameters": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Parameters"
+          },
+          "fluid": {
+            "$ref": "#/components/schemas/FluidConfig"
+          },
+          "inlet_pressure_pa": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Inlet Pressure Pa",
+            "default": 250000.0
+          },
+          "outlet_pressure_pa": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Outlet Pressure Pa",
+            "default": 120000.0
+          },
+          "temperature_k": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Temperature K",
+            "default": 293.15
+          },
+          "duration_s": {
+            "type": "number",
+            "maximum": 60.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Duration S",
+            "default": 0.1
+          },
+          "dt_s": {
+            "type": "number",
+            "maximum": 60.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Dt S",
+            "default": 0.1
+          },
+          "module": {
+            "$ref": "#/components/schemas/ModuleDefinition"
           }
         },
         "additionalProperties": false,
@@ -1339,6 +1585,112 @@
           "frame"
         ],
         "title": "ModuleTestResponse"
+      },
+      "ModuleVersionInfo": {
+        "properties": {
+          "package": {
+            "$ref": "#/components/schemas/ModulePackageRef"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "release_notes": {
+            "type": "string",
+            "title": "Release Notes",
+            "default": ""
+          },
+          "tested": {
+            "type": "boolean",
+            "title": "Tested",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "package"
+        ],
+        "title": "ModuleVersionInfo"
+      },
+      "ModuleVersionResponse": {
+        "properties": {
+          "package": {
+            "$ref": "#/components/schemas/ModulePackageRef"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "release_notes": {
+            "type": "string",
+            "title": "Release Notes",
+            "default": ""
+          },
+          "tested": {
+            "type": "boolean",
+            "title": "Tested",
+            "default": false
+          },
+          "module": {
+            "$ref": "#/components/schemas/ModuleDefinition"
+          },
+          "test_conditions": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ModuleTestConditions"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "test_result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ModuleTestResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "package",
+          "module"
+        ],
+        "title": "ModuleVersionResponse"
+      },
+      "ModuleVersionsResponse": {
+        "properties": {
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/ModuleVersionInfo"
+            },
+            "type": "array",
+            "title": "Versions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ModuleVersionsResponse"
       },
       "NetworkRelation": {
         "properties": {

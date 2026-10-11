@@ -1,0 +1,92 @@
+{
+  "$defs": {
+    "ModulePackageRef": {
+      "additionalProperties": false,
+      "properties": {
+        "module_id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+          "title": "Module Id",
+          "type": "string"
+        },
+        "version": {
+          "pattern": "^\\d+\\.\\d+\\.\\d+(?:[-+][0-9A-Za-z.-]+)?$",
+          "title": "Version",
+          "type": "string"
+        },
+        "content_hash": {
+          "pattern": "^[a-fA-F0-9]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "definition_hash": {
+          "anyOf": [
+            {
+              "pattern": "^[a-fA-F0-9]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Definition Hash"
+        }
+      },
+      "required": [
+        "module_id",
+        "version",
+        "content_hash"
+      ],
+      "title": "ModulePackageRef",
+      "type": "object"
+    },
+    "ModuleVersionInfo": {
+      "additionalProperties": false,
+      "properties": {
+        "package": {
+          "$ref": "#/$defs/ModulePackageRef"
+        },
+        "created_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Created At"
+        },
+        "release_notes": {
+          "default": "",
+          "title": "Release Notes",
+          "type": "string"
+        },
+        "tested": {
+          "default": false,
+          "title": "Tested",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "package"
+      ],
+      "title": "ModuleVersionInfo",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "versions": {
+      "items": {
+        "$ref": "#/$defs/ModuleVersionInfo"
+      },
+      "title": "Versions",
+      "type": "array"
+    }
+  },
+  "title": "ModuleVersionsResponse",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

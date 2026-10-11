@@ -10,6 +10,7 @@ from fn_engine.models import (
     ModuleTestResponse, NetworkRelation, PortState, Project, RunCreateResponse,
     RunEventsResponse, RunFrame, RunHistoryResponse, RunRequest, RunStatus,
     ErrorResponse, ValidationResponse,
+    ModuleSaveRequest, ModuleVersionResponse, ModuleVersionsResponse,
 )
 from fn_engine.compiler import compile_project
 from fn_engine.solver import solve_steady
@@ -27,6 +28,8 @@ models = [
     ('evaluate-request', EvaluateRequest), ('evaluate-response', EvaluateResponse),
     ('commit-step-request', CommitStepRequest), ('commit-step-response', CommitStepResponse),
     ('module-test-request', ModuleTestRequest), ('module-test-response', ModuleTestResponse),
+    ('module-save-request', ModuleSaveRequest), ('module-version-response', ModuleVersionResponse),
+    ('module-versions-response', ModuleVersionsResponse),
     ('run-status', RunStatus), ('run-create-response', RunCreateResponse),
     ('run-history-response', RunHistoryResponse), ('run-events-response', RunEventsResponse),
     ('error-response', ErrorResponse), ('validation-response', ValidationResponse),

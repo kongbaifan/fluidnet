@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+import os
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -31,10 +32,13 @@ from .models import (
     RunEvent,
     RunHistoryResponse,
     ValidationResponse,
+    ModuleSaveRequest,
+    ModuleVersionResponse,
+    ModuleVersionsResponse,
 )
 from .properties import PropertyError
-from .packages import discover_module_packages
-from .runtime import module_content_hash
+from .packages import ModuleStore, ModuleVersionConflict, ModuleSaveInvalid, package_ref
+from .module_validation import validate_module_definition
 from .solver import solve_dynamic, solve_steady
 
 
@@ -61,17 +65,19 @@ def diagnostic(error):
     return Diagnostic(code=getattr(error, 'code', 'SOLVER_ERROR'), message=str(error))
 
 
-def create_app(frontend_root: str | Path | None = None) -> FastAPI:
+def create_app(frontend_root: str | Path | None = None, module_storage_root: str | Path | None = None) -> FastAPI:
     app = FastAPI(title='FluidNet Prototype Engine',version=__version__)
     runs = OrderedDict()
     lock = Lock()
     executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix='fluidnet-run')
+    project_root = Path(__file__).resolve().parents[2]
+    store = ModuleStore(project_root / 'modules', Path(module_storage_root or os.environ.get('FLUIDNET_MODULE_STORE') or project_root / '.runtime' / 'module-packages'))
 
     @app.get('/api/v1/health')
     def health():
         return {'status':'ok','version':__version__,'solver':'declarative-fluid-v1','supported_domains':['fluid'],
                 'capabilities':{'steady_hydraulics':True,'quasi_steady_series':True,'thermal':False,'tank_state':False,
-                                'coolprop_single_phase':True,'user_code':True,'worker_process':True,'async_runs':True},
+                                'coolprop_single_phase':True,'user_code':True,'worker_process':True,'async_runs':True,'module_versions':True},
                 'max_frames':2001,'run_retention':20}
 
     @app.get('/api/v1/catalog', response_model=CatalogResponse)
@@ -81,31 +87,39 @@ def create_app(frontend_root: str | Path | None = None) -> FastAPI:
     @app.get('/api/v1/modules', response_model=ModuleCatalogResponse)
     def modules():
         items = []
-        package_root = Path(__file__).resolve().parents[2] / 'modules'
-        definitions = builtin_catalog() + discover_module_packages(package_root)
+        definitions = builtin_catalog() + store.latest()
         for definition in definitions:
             payload = definition.model_dump(mode='json')
-            payload['package'] = {
-                'module_id': definition.id,
-                'version': f'{definition.version}.0.0' if definition.runtime == 'builtin' else f'{definition.version}.0.0',
-                'content_hash': definition.content_hash,
-            } if definition.runtime == 'python' else None
+            payload['package'] = package_ref(definition) if definition.runtime == 'python' else None
             items.append(payload)
         return {'modules': items}
 
     @app.post('/api/v1/modules/validate', response_model=ValidationResponse)
     def validate_module(module: ModuleDefinition):
-        diagnostics: list[Diagnostic] = []
-        if module.runtime == 'python':
-            try:
-                digest = module_content_hash(module)
-                if module.content_hash and module.content_hash != digest:
-                    diagnostics.append(Diagnostic(code='MODULE_HASH_MISMATCH', message='模块内容哈希与源码不一致'))
-                if not module.entrypoint:
-                    diagnostics.append(Diagnostic(code='MODULE_ENTRYPOINT_MISSING', message='Python 模块必须声明 entrypoint'))
-            except ValueError as error:
-                diagnostics.append(Diagnostic(code='MODULE_SOURCE_MISSING', message=str(error)))
-        return {'valid': not any(item.severity == 'error' for item in diagnostics), 'diagnostics': diagnostics}
+        return validate_module_definition(module)
+
+    @app.get('/api/v1/modules/{module_id}/versions', response_model=ModuleVersionsResponse)
+    def module_versions(module_id: str):
+        return {'versions': store.versions(module_id)}
+
+    @app.get('/api/v1/modules/{module_id}/versions/{version}', response_model=ModuleVersionResponse)
+    def module_version(module_id: str, version: int):
+        try:
+            return store.get(module_id, version)
+        except KeyError as error:
+            raise HTTPException(404, detail='模块版本不存在') from error
+
+    @app.post('/api/v1/modules/versions', response_model=ModuleVersionResponse, status_code=201)
+    def save_module_version(request: ModuleSaveRequest):
+        try:
+            return store.save(request)
+        except ModuleVersionConflict as error:
+            raise HTTPException(409, detail={'code':'MODULE_VERSION_CONFLICT','message':str(error)}) from error
+        except ModuleSaveInvalid as error:
+            raise HTTPException(422, detail={'code':'MODULE_SAVE_INVALID','message':str(error),
+                                           'diagnostics':[d.model_dump(mode='json') for d in error.diagnostics]}) from error
+        except OSError as error:
+            raise HTTPException(500, detail={'code':'MODULE_STORAGE_ERROR','message':'模块版本写入失败，请检查存储目录权限和剩余空间'}) from error
 
     @app.post('/api/v1/modules/test', response_model=ModuleTestResponse)
     def test_module(request: ModuleTestRequest):

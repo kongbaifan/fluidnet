@@ -125,6 +125,10 @@ def compile_project(project: Project) -> CompiledNetwork:
                 digest = hashlib.sha256(source.encode('utf-8')).hexdigest()
                 if digest != definition.content_hash:
                     raise CompilationError('MODULE_HASH_MISMATCH', f'{inst.id} 的模块内容哈希与源码不一致', inst.id)
+            if definition.definition_hash:
+                from .runtime import module_definition_hash
+                if module_definition_hash(definition) != definition.definition_hash:
+                    raise CompilationError('MODULE_DEFINITION_HASH_MISMATCH', f'{inst.id} 的模块契约或源码与保存版本不一致', inst.id)
         parameters[inst.id] = validated_parameters(inst, definition)
         if not definition.ports:
             raise CompilationError('PORTS_MISSING', f'{inst.id} 没有端口', inst.id)

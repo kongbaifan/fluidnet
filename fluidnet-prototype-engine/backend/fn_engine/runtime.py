@@ -122,6 +122,21 @@ def module_content_hash(definition: ModuleDefinition) -> str:
     return hashlib.sha256(module_source(definition).encode("utf-8")).hexdigest()
 
 
+def module_definition_hash(definition: ModuleDefinition) -> str:
+    payload = definition.model_dump(mode="json", exclude={"content_hash", "definition_hash", "package_path"})
+    # JSON/browser roundtrips do not distinguish 16.0 from 16 (ParameterSpec.default is Any).
+    def canonical(value):
+        if isinstance(value, dict):
+            return {key: canonical(item) for key, item in value.items()}
+        if isinstance(value, list):
+            return [canonical(item) for item in value]
+        if isinstance(value, float) and value.is_integer():
+            return int(value)
+        return value
+    payload = canonical(payload)
+    return hashlib.sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")).hexdigest()
+
+
 def _load_module(definition: ModuleDefinition):
     source = module_source(definition)
     name = f"fluidnet_user_{definition.id}_{definition.version}"
@@ -197,6 +212,7 @@ class WorkerProcess:
         self._responses: queue.Queue[str | BaseException] | None = None
         self._reader_thread: threading.Thread | None = None
         self._closed = False
+        self._finalized = False
 
     def _ensure_process(self):
         if self.process is not None:
@@ -262,12 +278,16 @@ class WorkerProcess:
     def initialize(self):
         request = InitializeRequest(run_id="worker", instance_id=self.definition.id,
                                     package={"module_id": self.definition.id, "version": f"{self.definition.version}.0.0",
-                                             "content_hash": self.definition.content_hash or module_content_hash(self.definition)},
+                                             "content_hash": self.definition.content_hash or module_content_hash(self.definition),
+                                             "definition_hash": self.definition.definition_hash},
                                     parameters=self.parameters, fluid=self.fluid, initial_state=self.state)
         response = self._request({"action": "initialize", "definition": self.definition.model_dump(mode="json"),
                                   "request": request.model_dump(mode="json")})
         self.state = dict(response.get("state", {}))
         return self.state
+
+    def validate_entrypoint(self):
+        return self._request({"action": "validate", "definition": self.definition.model_dump(mode="json")})
 
     def evaluate(self, request: EvaluateRequest):
         current = request.model_copy(update={"readonly_state": dict(self.state)})
@@ -281,12 +301,17 @@ class WorkerProcess:
         self.state = dict(response.state)
         return response
 
+    def finalize(self):
+        result = self._request({"action": "finalize"})
+        self._finalized = True
+        return result
+
     def close(self, force: bool = False):
         process = self.process
         if process is None:
             self._closed = True
             return
-        if not force:
+        if not force and not self._finalized:
             try:
                 assert process.stdin
                 process.stdin.write(json.dumps({"action": "finalize"}, ensure_ascii=False) + "\n")

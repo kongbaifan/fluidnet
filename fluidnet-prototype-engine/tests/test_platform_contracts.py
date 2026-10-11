@@ -94,6 +94,7 @@ def test_python_module_relation_is_used_by_network_solver():
 
 def test_module_default_is_not_overwritten_by_registered_builtin():
     module = custom_module().model_copy(update={
+        "definition_hash": None,
         "parameters": [ParameterSpec(id="opening_ratio", label="开度", default=0.25, minimum=0, maximum=1),
                         ParameterSpec(id="kv_m3_h", label="Kv", default=20.0, minimum=.001)]
     })
@@ -143,6 +144,7 @@ def test_worker_is_separate_process_and_cleans_up_after_failure(monkeypatch):
     project = custom_project()
     module = project.modules[-1]
     module.content_hash = None
+    module.definition_hash = None
     module.source['runtime'] = module.source['runtime'].replace('        inlet = ctx.port("in0")',
         '        import os\n        ctx.var("pid", os.getpid())\n        print("中文单位 kg/m³")\n        inlet = ctx.port("in0")')
     frame = solve_steady(compile_project(project))
@@ -157,6 +159,7 @@ def test_worker_is_separate_process_and_cleans_up_after_failure(monkeypatch):
 def test_worker_evaluate_cannot_commit_nested_state_and_timeout_terminates():
     module = custom_module()
     module.content_hash = None
+    module.definition_hash = None
     module.source['runtime'] = '''class Module:
     def initialize(self, ctx):
         ctx.state['nested'] = {'count': 0}
@@ -226,6 +229,7 @@ def test_python_module_can_use_generic_model_and_sdk_flow_constraints(source,exp
     module = project.modules[-1]
     module.solver_model = 'generic'
     module.content_hash = None
+    module.definition_hash = None
     module.parameters = []
     module.channels[0].solver_model = 'generic'
     module.source['runtime'] = 'class Module:\n    def evaluate(self, ctx):\n        '+source+'\n'
@@ -237,6 +241,7 @@ def test_python_module_can_use_generic_model_and_sdk_flow_constraints(source,exp
 def test_missing_python_relation_is_a_runtime_error():
     project=custom_project()
     project.modules[-1].content_hash=None
+    project.modules[-1].definition_hash=None
     project.modules[-1].source['runtime']='class Module:\n    def evaluate(self, ctx):\n        pass\n'
     result=TestClient(create_app()).post('/api/v1/runs',json={'project':project.model_dump(mode='json')}).json()
     assert result['status']=='failed'

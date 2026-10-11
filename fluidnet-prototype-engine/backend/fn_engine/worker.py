@@ -4,9 +4,10 @@ import json
 import sys
 from contextlib import redirect_stdout, redirect_stderr
 import os
+import inspect
 
 from .models import CommitStepRequest, EvaluateRequest, InitializeRequest, ModuleDefinition
-from .runtime import InProcessModuleRunner
+from .runtime import InProcessModuleRunner, _load_module
 
 
 def main():
@@ -17,7 +18,16 @@ def main():
             action = message.get("action")
             # User print calls must never corrupt the JSON RPC stream.
             with open(os.devnull, "w", encoding="utf-8") as output, redirect_stdout(output), redirect_stderr(output):
-                if action == "initialize":
+                if action == "validate":
+                    definition = ModuleDefinition.model_validate(message["definition"])
+                    target = _load_module(definition)
+                    for name, count in (("initialize", 1), ("evaluate", 1), ("commit_step", 2), ("finalize", 1)):
+                        callback = getattr(target, name, None)
+                        if not callable(callback) or inspect.iscoroutinefunction(callback):
+                            raise ValueError(f"入口必须实现同步生命周期方法 {name}")
+                        inspect.signature(callback).bind(*([None] * count))
+                    result = {"ok": True}
+                elif action == "initialize":
                     definition = ModuleDefinition.model_validate(message["definition"])
                     request = InitializeRequest.model_validate(message["request"])
                     runner = InProcessModuleRunner(definition, request.parameters, request.fluid, request.initial_state)

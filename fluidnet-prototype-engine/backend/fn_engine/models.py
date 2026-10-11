@@ -51,6 +51,26 @@ class ParameterSpec(StrictModel):
     runtime: bool = False
     writable: bool = True
 
+    @model_validator(mode="after")
+    def validate_default(self):
+        if self.minimum is not None and self.maximum is not None and self.minimum > self.maximum:
+            raise ValueError("参数最小值不能大于最大值")
+        if self.value_type == "number":
+            if isinstance(self.default, bool) or not isinstance(self.default, (int, float)) or not math.isfinite(self.default):
+                raise ValueError("数值参数默认值必须是有限数值")
+            if self.minimum is not None and self.default < self.minimum or self.maximum is not None and self.default > self.maximum:
+                raise ValueError("参数默认值超出声明范围")
+        elif self.value_type == "boolean" and not isinstance(self.default, bool):
+            raise ValueError("布尔参数默认值必须是布尔值")
+        elif self.value_type == "text" and not isinstance(self.default, str):
+            raise ValueError("文本参数默认值必须是字符串")
+        elif self.value_type == "curve":
+            if not isinstance(self.default, list) or not all(isinstance(row, list) and len(row) == 2 and all(isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v) for v in row) for row in self.default):
+                raise ValueError("曲线默认值必须是有限数值点对数组")
+        if self.value_type != "number" and self.unit is not None:
+            raise ValueError("仅数值参数可以声明单位换算")
+        return self
+
 
 class PortSpec(StrictModel):
     id: Identifier
@@ -107,6 +127,7 @@ class ModulePackageRef(StrictModel):
     module_id: Identifier
     version: str = Field(pattern=r"^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$")
     content_hash: str = Field(pattern=r"^[a-fA-F0-9]{64}$")
+    definition_hash: str | None = Field(default=None, pattern=r"^[a-fA-F0-9]{64}$")
 
 
 class FluidState(StrictModel):
@@ -230,6 +251,7 @@ class ModuleDefinition(StrictModel):
     runtime: Literal["builtin", "python"] = "builtin"
     entrypoint: str = ""
     content_hash: str | None = Field(default=None, pattern=r"^[a-fA-F0-9]{64}$")
+    definition_hash: str | None = Field(default=None, pattern=r"^[a-fA-F0-9]{64}$")
     package_path: str | None = None
     bank_names: list[str] = Field(default_factory=lambda: ["额定工况", "部分负荷", "调试备份"])
 
@@ -255,6 +277,8 @@ class ModuleDefinition(StrictModel):
         for variable in self.variables:
             if variable.port_id and variable.port_id not in ports:
                 raise ValueError("变量引用了不存在的端口")
+            if variable.parameter_id and variable.parameter_id not in parameter_ids:
+                raise ValueError("变量引用了不存在的参数")
         return self
 
 
@@ -280,6 +304,7 @@ class ModuleInstance(StrictModel):
     banks: list[LibraryBank] = Field(default_factory=list)
     model_id: str | None = None
     model_version: int | None = None
+    package: ModulePackageRef | None = None
 
 
 class Endpoint(StrictModel):
@@ -332,6 +357,14 @@ class Project(StrictModel):
             raise ValueError("实例引用了不存在的模块")
         instance_map = {i.id: i for i in self.instances}
         definitions = {m.id: m for m in self.modules}
+        for instance in self.instances:
+            if instance.package:
+                definition = definitions[instance.module_id]
+                ref = instance.package
+                if (definition.runtime != "python" or ref.module_id != definition.id
+                        or ref.version != f"{definition.version}.0.0" or ref.content_hash != definition.content_hash
+                        or ref.definition_hash != definition.definition_hash):
+                    raise ValueError(f"实例 {instance.id} 的模块版本绑定与定义快照不一致")
         connection_ids = [c.id for c in self.connections]
         if len(connection_ids) != len(set(connection_ids)):
             raise ValueError("连接 ID 重复")
@@ -401,8 +434,7 @@ class ModuleManifest(ModuleDefinition):
     runtime: Literal["builtin", "python"] = "python"
 
 
-class ModuleTestRequest(StrictModel):
-    module: ModuleDefinition
+class ModuleTestConditions(StrictModel):
     parameters: dict[str, Any] = Field(default_factory=dict)
     fluid: FluidConfig = Field(default_factory=FluidConfig)
     inlet_pressure_pa: float = Field(default=250000.0, gt=0)
@@ -418,6 +450,10 @@ class ModuleTestRequest(StrictModel):
         return self
 
 
+class ModuleTestRequest(ModuleTestConditions):
+    module: ModuleDefinition
+
+
 class ModuleTestResponse(StrictModel):
     module_id: str
     content_hash: str
@@ -426,6 +462,30 @@ class ModuleTestResponse(StrictModel):
     committed: CommitStepResponse
     frame: RunFrame
     history: list[RunFrame] = Field(default_factory=list)
+
+
+class ModuleSaveRequest(StrictModel):
+    module: ModuleDefinition
+    expected_latest_version: int = Field(ge=0)
+    release_notes: str = Field(default="", max_length=2000)
+    test: ModuleTestConditions = Field(default_factory=ModuleTestConditions)
+
+
+class ModuleVersionInfo(StrictModel):
+    package: ModulePackageRef
+    created_at: str | None = None
+    release_notes: str = ""
+    tested: bool = False
+
+
+class ModuleVersionResponse(ModuleVersionInfo):
+    module: ModuleDefinition
+    test_conditions: ModuleTestConditions | None = None
+    test_result: ModuleTestResponse | None = None
+
+
+class ModuleVersionsResponse(StrictModel):
+    versions: list[ModuleVersionInfo] = Field(default_factory=list)
 
 
 class RunStatus(StrictModel):
