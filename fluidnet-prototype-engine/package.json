@@ -3,6 +3,11 @@
   "version": "0.2.0",
   "private": true,
   "type": "module",
-  "scripts": { "test:browser": "node tests/browser-smoke.mjs", "check": "node --check frontend/studio.js && node --check frontend/engine-client.js" },
-  "devDependencies": { "@playwright/test": "1.64.0" }
+  "scripts": {
+    "test:browser": "node tests/browser-smoke.mjs && node tests/browser-platform.mjs",
+    "check": "node --check frontend/studio.js && node --check frontend/engine-client.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.0"
+  }
 }

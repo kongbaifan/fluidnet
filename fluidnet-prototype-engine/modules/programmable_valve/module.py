@@ -5,8 +5,8 @@ class Module:
 
     def evaluate(self, ctx):
         inlet = ctx.port("in0")
-        rho = 0.0
-        if inlet.pressure_pa and inlet.temperature_k:
+        rho = inlet.density_kg_m3 or 0.0
+        if not rho and inlet.pressure_pa and inlet.temperature_k:
             rho = ctx.fluid.state_pt(inlet.pressure_pa, inlet.temperature_k).density_kg_m3
         ctx.net.valve(
             channel="main",

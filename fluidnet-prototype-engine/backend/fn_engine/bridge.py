@@ -20,12 +20,16 @@ PARAMETER_BINDINGS = {
 
 
 def parameter_map(kind, params, definition):
-    names = PARAMETER_BINDINGS[kind]
+    # Python module packages own their canonical contract IDs. Built-in
+    # prototype modules still use the legacy UI names and bindings below.
+    names = {key: key for key in params} if definition.runtime == 'python' else PARAMETER_BINDINGS[kind]
     unknown = params.keys() - names.keys()
     if unknown:
         raise ValueError(f'{kind} 不支持参数 {sorted(unknown)}')
     specs = {p.id:p for p in definition.parameters}
     for key, value in params.items():
+        if names[key] not in specs:
+            raise ValueError(f'{kind} 未声明参数 {names[key]}')
         if specs[names[key]].value_type == 'number' and (isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value)):
             raise ValueError(f'{kind}.{key} 必须是有限数值')
     return {names[key]: specs[names[key]].unit.to_canonical(value) if specs[names[key]].unit else deepcopy(value)
@@ -56,26 +60,45 @@ def normalize_prototype_export(data: dict[str, Any]) -> Project:
         if original is None:
             raise ValueError(f'缺少模块定义：{module_id}')
         kind = original.get('kind', module_id)
-        if kind not in catalog:
-            raise ValueError(f'项目使用的模块 {module_id} ({kind}) 尚未注册求解算法')
-        definition = catalog[kind].model_copy(deep=True)
-        definition.id, definition.name = module_id, original.get('name', definition.name)
-        definition.version = original.get('version', 1)
-        definition.source = original.get('source', {})
-        definition.bank_names = original.get('bankNames', definition.bank_names)
-        if 'ports' in original:
-            definition.ports = [PortSpec(id=p['id'], label=p.get('label',p['id']), direction=p['direction'], domain=p['domain'], required=kind != 'junction') for p in original['ports']]
-        if 'channels' in original:
-            if kind in {'source','junction','tank'} and original['channels']:
-                raise ValueError(f'{module_id} 当前模型不允许额外通路')
-            model = 'resistance' if kind == 'exchanger' else definition.solver_model
-            definition.channels = [ChannelSpec(id=c['id'], name=c.get('name',c['id']), input_port=c['input'], output_port=c['output'],
-                relation='pump_curve' if model == 'pump_curve' else c.get('kind','resistance'), solver_model=model, enabled=c.get('enabled',True)) for c in original['channels']]
-        # Port/variable IDs must remain compatible with the registered model in this version.
-        if {p.id for p in definition.ports} != {p.id for p in catalog[kind].ports}:
-            raise ValueError(f'{module_id} 的端口 ID 已改变；需要注册对应的声明式模型')
-        if {c.id for c in definition.channels} != {c.id for c in catalog[kind].channels}:
-            raise ValueError(f'{module_id} 的通路 ID 已改变；需要注册对应的声明式模型')
+        runtime = original.get('runtime', 'builtin')
+        if runtime == 'python':
+            # The manifest is the source of truth for a versioned package. It
+            # is still constrained by the registered hydraulic solver model,
+            # but its ports, parameters, channels and source remain intact.
+            from .models import ModuleDefinition
+            allowed = set(ModuleDefinition.model_fields)
+            manifest = deepcopy(original.get('manifest', original))
+            if original.get('manifest'):
+                manifest.update(id=module_id, name=original['name'], version=original['version'], source={'runtime':original['source']['runtime']})
+                manifest['content_hash'] = original.get('contentHash') if manifest['source'] == original['manifest']['source'] else None
+                manifest['ports'] = [{**next((p for p in manifest['ports'] if p['id'] == item['id']), {}),
+                                      **{k:item[k] for k in ('id','label','direction','domain')}} for item in original['ports']]
+                manifest['channels'] = [{**next((c for c in manifest['channels'] if c['id']==item['id']), {}),
+                    'id':item['id'],'name':item['name'],'input_port':item['input'],'output_port':item['output'],
+                    'relation':item['kind'],'enabled':item['enabled']} for item in original['channels']]
+            definition = ModuleDefinition.model_validate({key: value for key, value in manifest.items() if key in allowed})
+            definition.id = module_id
+        else:
+            if kind not in catalog:
+                raise ValueError(f'项目使用的模块 {module_id} ({kind}) 尚未注册求解算法')
+            definition = catalog[kind].model_copy(deep=True)
+            definition.id, definition.name = module_id, original.get('name', definition.name)
+            definition.version = original.get('version', 1)
+            definition.source = original.get('source', {})
+            definition.bank_names = original.get('bankNames', definition.bank_names)
+            if 'ports' in original:
+                definition.ports = [PortSpec(id=p['id'], label=p.get('label',p['id']), direction=p['direction'], domain=p['domain'], required=kind != 'junction') for p in original['ports']]
+            if 'channels' in original:
+                if kind in {'source','junction','tank'} and original['channels']:
+                    raise ValueError(f'{module_id} 当前模型不允许额外通路')
+                model = 'resistance' if kind == 'exchanger' else definition.solver_model
+                definition.channels = [ChannelSpec(id=c['id'], name=c.get('name',c['id']), input_port=c['input'], output_port=c['output'],
+                    relation='pump_curve' if model == 'pump_curve' else c.get('kind','resistance'), solver_model=model, enabled=c.get('enabled',True)) for c in original['channels']]
+            # Port/variable IDs must remain compatible with the registered model in this version.
+            if {p.id for p in definition.ports} != {p.id for p in catalog[kind].ports}:
+                raise ValueError(f'{module_id} 的端口 ID 已改变；需要注册对应的声明式模型')
+            if {c.id for c in definition.channels} != {c.id for c in catalog[kind].channels}:
+                raise ValueError(f'{module_id} 的通路 ID 已改变；需要注册对应的声明式模型')
         definitions[module_id] = type(definition).model_validate(definition.model_dump())
         kinds[module_id] = kind
     instances, connections, diagnostics = [], [], []
@@ -99,7 +122,7 @@ def normalize_prototype_export(data: dict[str, Any]) -> Project:
                 raise ValueError(f'原型连接格式无效：{edge}')
             connections.append(Connection(id=edge[0],source=Endpoint(instance_id=edge[1],port_id=edge[2]),target=Endpoint(instance_id=edge[3],port_id=edge[4])))
     solver = raw.get('solver', {})
-    diagnostics.append(Diagnostic(code='HYDRAULIC_SCOPE', severity='info', message='按已应用参数计算定物性液态水水力；源代码、自定义变量和控制脚本仅保存，不参与求解'))
+    diagnostics.append(Diagnostic(code='HYDRAULIC_SCOPE', severity='info', message='按已应用参数计算定物性液态水水力；Python 模块包在独立 Worker 中执行；控制脚本与热力模型尚未参与求解'))
     return Project(id=raw['id'], name=raw.get('name','原型项目'), description=raw.get('description',''),
         modules=list(definitions.values()),instances=instances,connections=connections,import_diagnostics=diagnostics,
         solver=SolverOptions(pressure_tolerance_pa=solver.get('pressureAtol',1.),mass_tolerance_kg_s=solver.get('massAtol',1e-8),

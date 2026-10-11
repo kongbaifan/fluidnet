@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum
+import math
 from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -138,6 +139,33 @@ class NetworkRelation(StrictModel):
     channel: Identifier
     parameters: dict[str, Any] = Field(default_factory=dict)
 
+    @model_validator(mode='after')
+    def validate_parameters(self):
+        required = {'pipe':['length_m','diameter_m','roughness_m'], 'valve':['kv_m3_h','opening_ratio'],
+                    'pump':['head_curve','speed_ratio'], 'compressor':['forced_mass_flow_kg_s'],
+                    'resistance':['diameter_m','loss_coefficient']}[self.kind]
+        if set(required) - self.parameters.keys():
+            raise ValueError(f'{self.kind} 缺少关系参数 {sorted(set(required)-self.parameters.keys())}')
+        for key,value in self.parameters.items():
+            if key == 'head_curve':
+                continue
+            if isinstance(value,bool) or not isinstance(value,(float,int)) or not math.isfinite(value):
+                raise ValueError(f'{self.kind}.{key} 必须是有限数值')
+            if key in {'diameter_m','length_m','kv_m3_h','speed_ratio'} and value <= 0:
+                raise ValueError(f'{self.kind}.{key} 必须大于零')
+            if key in {'roughness_m','density_kg_m3','viscosity_pa_s','loss_coefficient'} and value < 0:
+                raise ValueError(f'{self.kind}.{key} 不能小于零')
+            if key == 'opening_ratio' and not 0 <= value <= 1:
+                raise ValueError('阀门开度必须在 [0,1] 内')
+        if self.kind == 'pump':
+            curve=self.parameters['head_curve']
+            valid=isinstance(curve,list) and len(curve)>=2
+            valid=valid and all(isinstance(p,list) and len(p)==2 and all(isinstance(v,(float,int)) and not isinstance(v,bool) and math.isfinite(v) and v>=0 for v in p) for p in curve)
+            valid=valid and curve[0][0]==0 and curve[-1][1]==0 and all(b[0]>a[0] and b[1]<a[1] for a,b in zip(curve,curve[1:]))
+            if not valid:
+                raise ValueError('扬程曲线必须流量递增、扬程递减，从零流量到零扬程')
+        return self
+
 
 class InitializeRequest(StrictModel):
     run_id: Identifier
@@ -163,12 +191,18 @@ class EvaluateResponse(StrictModel):
     diagnostics: list["Diagnostic"] = Field(default_factory=list)
 
 
+class ChannelState(StrictModel):
+    mass_flow_kg_s: float = 0.0
+    pressure_drop_pa: float = 0.0
+
+
 class CommitStepRequest(StrictModel):
     run_id: Identifier
     instance_id: Identifier
     time_s: float = Field(ge=0)
     dt_s: float = Field(gt=0)
     converged_ports: dict[Identifier, PortState] = Field(default_factory=dict)
+    converged_channels: dict[Identifier, ChannelState] = Field(default_factory=dict)
 
 
 class CommitStepResponse(StrictModel):
@@ -377,6 +411,12 @@ class ModuleTestRequest(StrictModel):
     duration_s: float = Field(default=0.1, gt=0, le=60)
     dt_s: float = Field(default=0.1, gt=0, le=60)
 
+    @model_validator(mode="after")
+    def limit_frames(self):
+        if self.duration_s > 2000 * self.dt_s:
+            raise ValueError("独立测试最多 2001 帧")
+        return self
+
 
 class ModuleTestResponse(StrictModel):
     module_id: str
@@ -384,6 +424,8 @@ class ModuleTestResponse(StrictModel):
     state: dict[str, Any] = Field(default_factory=dict)
     evaluation: EvaluateResponse
     committed: CommitStepResponse
+    frame: RunFrame
+    history: list[RunFrame] = Field(default_factory=list)
 
 
 class RunStatus(StrictModel):

@@ -15,11 +15,8 @@ from .bridge import PARAMETER_BINDINGS, normalize_prototype_export
 from .catalog import builtin_catalog
 from .compiler import CompilationError, compile_project, validate_project
 from .models import (
-    CommitStepRequest,
     CatalogResponse,
     Diagnostic,
-    EvaluateRequest,
-    FluidConfig,
     ModuleDefinition,
     ModuleTestRequest,
     ModuleTestResponse,
@@ -34,11 +31,10 @@ from .models import (
     RunEvent,
     RunHistoryResponse,
     ValidationResponse,
-    PortState,
 )
-from .properties import PropertyError, property_service
+from .properties import PropertyError
 from .packages import discover_module_packages
-from .runtime import WorkerProcess, module_content_hash
+from .runtime import module_content_hash
 from .solver import solve_dynamic, solve_steady
 
 
@@ -113,31 +109,10 @@ def create_app(frontend_root: str | Path | None = None) -> FastAPI:
 
     @app.post('/api/v1/modules/test', response_model=ModuleTestResponse)
     def test_module(request: ModuleTestRequest):
-        module = request.module
-        if module.runtime != 'python':
-            raise HTTPException(422, detail={'code': 'MODULE_RUNTIME_UNSUPPORTED', 'message': '模块测试端点只执行 Python 模块包'})
+        from .bench import run_module_test
         try:
-            digest = module_content_hash(module)
-            if module.content_hash and module.content_hash != digest:
-                raise ValueError('模块内容哈希与源码不一致')
-            values = {spec.id: spec.default for spec in module.parameters}
-            values.update(request.parameters)
-            runner = WorkerProcess(module, values, request.fluid)
-            try:
-                state = runner.initialize()
-                ports = {
-                    'in0': PortState(pressure_pa=request.inlet_pressure_pa, temperature_k=request.temperature_k),
-                    'out0': PortState(pressure_pa=request.outlet_pressure_pa, temperature_k=request.temperature_k),
-                }
-                evaluation = runner.evaluate(EvaluateRequest(run_id='module-test', instance_id=module.id,
-                    iteration_id=0, time_s=0.0, trial_ports=ports, readonly_state=state))
-                committed = runner.commit_step(CommitStepRequest(run_id='module-test', instance_id=module.id,
-                    time_s=request.dt_s, dt_s=request.dt_s, converged_ports=ports))
-            finally:
-                runner.close()
-            return ModuleTestResponse(module_id=module.id, content_hash=digest, state=state,
-                                       evaluation=evaluation, committed=committed)
-        except Exception as error:
+            return run_module_test(request)
+        except ValueError as error:
             raise HTTPException(422, detail=diagnostic(error).model_dump(mode='json')) from error
 
     @app.post('/api/v1/projects/validate', response_model=ValidationResponse)

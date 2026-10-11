@@ -24,11 +24,12 @@
 | `FluidConfig` | backend, fluid, composition, phase_policy | 物性服务选择和单相约束 |
 | `ModulePackageRef` | module_id, version, content_hash | 项目运行锁定的模块版本 |
 | `PortState` | pressure, temperature, enthalpy, density, viscosity, flow | Worker 试算和收敛后的端口状态 |
+| `ChannelState` | mass_flow_kg_s, pressure_drop_pa | 收敛通路结果，供 commit_step 累计状态 |
 | `NetworkRelation` | relation_id, kind, channel, parameters | 模块向平台注册的设备关系 |
 | `EvaluateRequest/Response` | trial_ports, readonly_state / relations, variables | 无副作用的数值试算协议 |
-| `CommitStepRequest/Response` | converged_ports, dt / state | 收敛时间步的状态提交协议 |
+| `CommitStepRequest/Response` | converged_ports, converged_channels, dt_s / state | 收敛时间步的状态提交协议 |
 
-`source` 支持 runtime/header 文本和 design 文本数组，作为定义资料保存。`state_model`、`thermal_model` 是扩展标识，不代表对应功能已经实现。未知水力模型直接拒绝，水箱状态模型也明确拒绝；当前换热器的热力标识产生未求解警告。
+`source` 支持 runtime/header 文本和 design 文本数组，作为定义资料保存。`state_model`、`thermal_model` 是扩展标识，不代表对应功能已经实现。内置未知水力模型和水箱状态模型明确拒绝；Python 模块可声明 generic，必须在 evaluate 为每条启用通路返回有效 SDK 关系；当前换热器的热力标识产生未求解警告。
 
 模块包的 `manifest.json` 与源码构成可追踪单元；`content_hash` 不一致时，模块校验和项目编译都会拒绝执行。当前提供的 `modules/programmable_valve` 是首个可执行示例。
 
@@ -65,8 +66,17 @@ canonical = (display - display_offset) × display_scale
 
 ## 参数与状态
 
-`parameters` 是物理输入；`draft_parameters` 与 `banks` 不自动生效。模块中的参数下限、上限不能覆盖内核注册模型的安全范围。
+`parameters` 是物理输入；`draft_parameters` 与 `banks` 不自动生效。内置模型的参数上下限不能突破注册约束；Python 模块采用自身 ParameterSpec，返回的 NetworkRelation 另外按关系种类校验物理参数。
 
 压力参考按连通子网络检查，关闭阀门会把水力网络分开。如果一侧没有压力参考，编译失败，避免给不可确定的压力赋值。节点允许未连接的可选分支端口，不把它们当作向外界排水。
 
 型号与版本是可追溯元数据；实际计算只读取快照参数。`scenarios` 目前由规范 API 提交，原型工况 UI 的进一步接入尚未完成。
+
+## 状态提交边界
+
+- evaluate 使用已提交 state 的深拷贝；修改嵌套试算值不会进入提交状态。模块内部 self/全局变量仍由作者负责保持试算无副作用。
+- 每次运行、每个 Python 实例拥有一个 Worker，跨该次动态运行的全部时间步复用，最终 finalize/close。
+- t=0 只采样；t>0 的成功步提交一次。非收敛步不提交；失败运行不发布部分有效历史。
+- RunFrame 追加 `实例.ctx.var字段` 与 `实例.state.字段`，后者只展开标量；完整嵌套状态由 CommitStepResponse 返回。
+- 模块不能通过变量输出覆盖求解器的压力或流量。每条启用通路必须恰好返回一个关系。
+- 新建运行会重新 initialize；当前未提供跨 run_id 的状态恢复或服务端 step/resume。

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 from scipy.optimize import least_squares
@@ -9,7 +9,7 @@ from scipy.optimize import least_squares
 from .compiler import CompiledBranch, CompiledNetwork
 from .models import CommitStepRequest, Diagnostic, EvaluateRequest, PortState, RunFrame, NetworkRelation
 from .properties import PropertyError, property_service
-from .runtime import ChannelResult, InProcessModuleRunner
+from .runtime import ChannelResult, WorkerProcess, RuntimeErrorBase
 
 # Reference values at 250 kPa / 20 °C. They preserve the public helper's
 # backwards-compatible defaults while normal runs use the configured property
@@ -29,6 +29,8 @@ class HydraulicResult:
     mass_residual: float
     density: float = RHO_WATER
     viscosity: float = MU_WATER
+    module_variables: dict = field(default_factory=dict)
+    module_diagnostics: list = field(default_factory=list)
 
 
 def pipe_drop(params, flow, density=RHO_WATER, viscosity=MU_WATER):
@@ -62,14 +64,16 @@ def branch_drop(network: CompiledNetwork, branch: CompiledBranch, flow_kg_s: flo
     params, model = network.parameters[branch.instance_id], branch.solver_model
     relation_params = relation.parameters if relation else {}
     if relation:
-        model = relation.kind if relation.kind != 'resistance' else model
+        model = {'pump':'pump_curve'}.get(relation.kind, relation.kind)
         params = {**params, **relation_params}
+        density = relation_params.get('density_kg_m3') or density
+        viscosity = relation_params.get('viscosity_pa_s') or viscosity
     volume = flow_kg_s / density * 3600
     if model == 'valve':
         kv = params['kv_m3_h'] * params['opening_ratio']
-        return 100000 * (density / 1000) * volume * abs(volume) / kv ** 2
+        return 100000 * (density / 1000) * volume * abs(volume) / kv ** 2 + density * GRAVITY * params.get('height_m', 0)
     if model == 'pipe':
-        return pipe_drop(params, flow_kg_s, density, viscosity)
+        return pipe_drop(params, flow_kg_s, density, viscosity) + density * GRAVITY * params.get('height_m', 0)
     if model == 'pump_curve':
         if params['speed_ratio'] <= 0:
             raise ValueError(f'{branch.instance_id} 停泵阻力模型尚未定义，转速必须大于零')
@@ -82,17 +86,29 @@ def branch_drop(network: CompiledNetwork, branch: CompiledBranch, flow_kg_s: flo
 
 def _python_runners(network: CompiledNetwork):
     runners = {}
-    for instance_id, instance in network.instances.items():
-        definition = network.modules[instance.module_id]
-        if definition.runtime == 'python':
-            runner = InProcessModuleRunner(definition, network.parameters[instance_id], network.project.fluid,
-                                            initial_state={})
-            runner.initialize()
-            runners[instance_id] = runner
+    try:
+        for instance_id, instance in network.instances.items():
+            definition = network.modules[instance.module_id]
+            if definition.runtime == 'python':
+                runner = WorkerProcess(definition, network.parameters[instance_id], network.project.fluid,
+                                       initial_state={})
+                runners[instance_id] = runner
+                runner.initialize()
+    except Exception:
+        _close_runners(runners)
+        raise
     return runners
 
 
-def solve_hydraulics(network: CompiledNetwork, runners=None) -> HydraulicResult:
+def _close_runners(runners):
+    for runner in runners.values():
+        try:
+            runner.close()
+        except Exception:
+            pass
+
+
+def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0.) -> HydraulicResult:
     n_nodes, fixed = len(network.node_keys), network.fixed_pressures
     unknown = [n for n in range(n_nodes) if n not in fixed]
     options = network.project.solver
@@ -114,13 +130,18 @@ def solve_hydraulics(network: CompiledNetwork, runners=None) -> HydraulicResult:
     except PropertyError as error:
         raise ValueError(str(error)) from error
 
-    python_runners = _python_runners(network) if runners is None else runners
+    python_runners = runners
     iteration_id = 0
+    module_variables, module_diagnostics = {}, []
+    final_relations = {}
 
     def evaluate_python_relations(pressures):
         nonlocal iteration_id
         iteration_id += 1
         relations = {}
+        module_variables.clear()
+        module_diagnostics.clear()
+        final_relations.clear()
         for instance_id, runner in python_runners.items():
             instance = network.instances[instance_id]
             definition = network.modules[instance.module_id]
@@ -130,14 +151,24 @@ def solve_hydraulics(network: CompiledNetwork, runners=None) -> HydraulicResult:
                 ports[port.id] = PortState(
                     pressure_pa=float(pressures[node]),
                     temperature_k=float(network.parameters[instance_id].get('temperature_k', 293.15)),
+                    density_kg_m3=density,
+                    viscosity_pa_s=viscosity,
                 )
             response = runner.evaluate(EvaluateRequest(run_id='solve', instance_id=instance_id,
-                iteration_id=iteration_id, time_s=0.0, trial_ports=ports, readonly_state=runner.state))
+                iteration_id=iteration_id, time_s=time_s, trial_ports=ports, readonly_state=runner.state))
+            expected = {c.id for c in definition.channels if c.enabled}
+            actual = [r.channel for r in response.relations]
+            if len(actual) != len(set(actual)) or set(actual) != expected:
+                raise RuntimeErrorBase(f'{instance_id} evaluate 必须为每条启用通路提供且仅提供一条关系：{sorted(expected)}')
             for relation in response.relations:
                 relations[(instance_id, relation.channel)] = relation
             errors = [item for item in response.diagnostics if item.severity == 'error']
             if errors:
-                raise ValueError('; '.join(item.message for item in errors))
+                raise RuntimeErrorBase('; '.join(item.message for item in errors))
+            module_variables.update({f'{instance_id}.{k}': v for k,v in response.variables.items()})
+            module_variables.update({f'{instance_id}.state.{k}': v for k,v in runner.state.items() if isinstance(v,(float,int,str,bool)) or v is None})
+            module_diagnostics.extend(response.diagnostics)
+        final_relations.update(relations)
         return relations
 
     def unpack(vector):
@@ -152,29 +183,55 @@ def solve_hydraulics(network: CompiledNetwork, runners=None) -> HydraulicResult:
         runtime_relations = evaluate_python_relations(pressures) if python_runners else {}
         drops, balance, closed = [], np.zeros(n_nodes), []
         for branch, flow in zip(network.branches, flows):
-            if branch.closed:
+            relation = runtime_relations.get((branch.instance_id, branch.channel_id))
+            runtime_closed = relation is not None and relation.kind == 'valve' and relation.parameters['opening_ratio'] == 0
+            if branch.closed or runtime_closed:
                 drops.append(0.)
                 closed.append(float(flow))
+            elif relation is not None and relation.kind == 'compressor':
+                drops.append(0.)
+                closed.append(float(flow) - relation.parameters['forced_mass_flow_kg_s'])
             else:
                 drops.append(pressures[branch.start_node] - pressures[branch.end_node] - branch_drop(
-                    network, branch, float(flow), density, viscosity, runtime_relations.get((branch.instance_id, branch.channel_id))))
+                    network, branch, float(flow), density, viscosity, relation))
             balance[branch.start_node] -= flow
             balance[branch.end_node] += flow
-        return np.asarray(drops), balance[unknown], closed
+        constraints = {}
+        for idx, branch in enumerate(network.branches):
+            relation = runtime_relations.get((branch.instance_id,branch.channel_id))
+            if branch.closed or (relation and relation.kind == 'valve' and relation.parameters['opening_ratio'] == 0):
+                constraints[idx] = flows[idx]
+            elif relation and relation.kind == 'compressor':
+                constraints[idx] = flows[idx] - relation.parameters['forced_mass_flow_kg_s']
+        return np.asarray(drops), balance[unknown], closed, constraints
 
     def residual(vector):
-        drops, balance, _ = physical_residual(vector)
+        drops, balance, _, constraints = physical_residual(vector)
         _, flows = unpack(vector)
         scaled = drops / PRESSURE_SCALE
-        for idx, branch in enumerate(network.branches):
-            if branch.closed:
-                scaled[idx] = flows[idx]
+        for idx, value in constraints.items():
+            scaled[idx] = value
         return np.concatenate((scaled, balance))
 
     initial = np.concatenate((np.full(len(unknown), np.mean(list(fixed.values())) / PRESSURE_SCALE), np.full(len(network.branches), .1)))
     result = least_squares(residual, initial, max_nfev=options.max_iterations, xtol=1e-12, ftol=1e-12, gtol=1e-12, x_scale='jac')
     pressures, flows = unpack(result.x)
-    drops, balance, closed = physical_residual(result.x)
+    drops, balance, closed, constraints = physical_residual(result.x)
+    # Zero-flow and forced-flow relations do not determine a pressure difference.
+    # Every pressure component left after removing them needs its own reference.
+    reached, pending = set(fixed), list(fixed)
+    adjacency = {node: set() for node in range(n_nodes)}
+    for idx, branch in enumerate(network.branches):
+        if idx not in constraints:
+            adjacency[branch.start_node].add(branch.end_node)
+            adjacency[branch.end_node].add(branch.start_node)
+    while pending:
+        node = pending.pop()
+        for other in adjacency[node] - reached:
+            reached.add(other)
+            pending.append(other)
+    if len(reached) != n_nodes:
+        raise RuntimeErrorBase('模块通路关系产生了缺少压力参考的子网络')
     pressure_error = float(np.max(np.abs(drops), initial=0))
     mass_error = max(float(np.max(np.abs(balance), initial=0)), max(map(abs, closed), default=0.))
     if not result.success or pressure_error > options.pressure_tolerance_pa or mass_error > options.mass_tolerance_kg_s:
@@ -182,18 +239,31 @@ def solve_hydraulics(network: CompiledNetwork, runners=None) -> HydraulicResult:
     if np.any(pressures <= 0) or not np.all(np.isfinite(result.x)):
         raise ValueError('求解产生非正绝对压力或非有限结果')
     for branch, flow in zip(network.branches, flows):
-        if branch.solver_model == 'pump_curve':
-            params = network.parameters[branch.instance_id]
-            q = flow / density * 3600
+        relation = final_relations.get((branch.instance_id,branch.channel_id))
+        if relation and relation.kind == 'pump' or relation is None and branch.solver_model == 'pump_curve':
+            params = relation.parameters if relation else network.parameters[branch.instance_id]
+            q = flow / (params.get('density_kg_m3') or density) * 3600
             if q < -1e-8 or q > params['head_curve'][-1][0] * params['speed_ratio'] + 1e-8:
                 raise ValueError(f'{branch.instance_id} 工作点 {q:.6g} m³/h 超出泵曲线范围；反向流和曲线外工况尚未支持')
-    return HydraulicResult(pressures, flows, int(result.nfev), pressure_error, mass_error, density, viscosity)
+    return HydraulicResult(pressures, flows, int(result.nfev), pressure_error, mass_error, density, viscosity,
+                           module_variables.copy(), module_diagnostics.copy())
+
+
+def solve_hydraulics(network: CompiledNetwork, runners=None, time_s=0.) -> HydraulicResult:
+    """Solve one hydraulic state, isolating every Python module in a Worker by default."""
+    owned = runners is None
+    active = _python_runners(network) if owned else runners
+    try:
+        return _solve_hydraulics(network, active, time_s)
+    finally:
+        if owned:
+            _close_runners(active)
 
 
 def snapshot(network, result, time_s=0., warning=None):
     variables, port_flows = {}, {}
     density = result.density
-    diagnostics = list(network.diagnostics) + ([warning] if warning else [])
+    diagnostics = list(network.diagnostics) + result.module_diagnostics + ([warning] if warning else [])
     for branch, flow in zip(network.branches, result.flows):
         q = float(flow)
         prefix = f'{branch.instance_id}.{branch.channel_id}'
@@ -207,7 +277,7 @@ def snapshot(network, result, time_s=0., warning=None):
         for port, value in ((branch.input_port, q), (branch.output_port, -q)):
             key = f'{branch.instance_id}:{port}'
             port_flows[key] = port_flows.get(key, 0.) + value
-        if branch.solver_model == 'pump_curve':
+        if branch.solver_model == 'pump_curve' and network.modules[network.instances[branch.instance_id].module_id].runtime != 'python':
             variables[f'{branch.instance_id}.shaft_power_w'] = -values['pressure_drop_pa'] * q / density / network.parameters[branch.instance_id]['efficiency_ratio']
     # Boundary and junction port flow follows its directly connected equipment port.
     pairs = [(f'{c.source.instance_id}:{c.source.port_id}', f'{c.target.instance_id}:{c.target.port_id}') for c in network.project.connections]
@@ -244,6 +314,10 @@ def snapshot(network, result, time_s=0., warning=None):
         variables[f'{prefix}.temperature_k'] = network.parameters[inst_id].get('temperature_k')
     for inst, params in network.parameters.items():
         variables.update({f'{inst}.param.{k}': v for k,v in params.items() if isinstance(v, (float,int))})
+    conflicts = variables.keys() & result.module_variables.keys()
+    if conflicts:
+        raise RuntimeErrorBase(f'模块输出不能覆盖网络求解变量：{sorted(conflicts)}')
+    variables.update(result.module_variables)
     return RunFrame(status='converged', valid=True, time_s=time_s, variables=variables, diagnostics=diagnostics,
                     metrics={'pressure_residual_pa': result.pressure_residual, 'mass_residual_kg_s': result.mass_residual,
                              'iterations': result.iterations, 'node_count': len(network.node_keys), 'branch_count': len(network.branches)})
@@ -259,33 +333,45 @@ def solve_dynamic(network, duration_s, dt_s):
     if duration_s > 2000 * dt_s:
         raise ValueError('单次准稳态运行最多 2001 帧')
     count = math.ceil(duration_s / dt_s)
-    warning = Diagnostic(code='DYNAMIC_QUASI_STEADY', message='准稳态时间序列：固定参数下复用同一稳态解；未计算容积、热惯性或控制器状态', severity='warning')
+    warning = Diagnostic(code='DYNAMIC_QUASI_STEADY', message='准稳态时间序列：每步求解水力并提交 Python 模块状态；未计算容积和热惯性', severity='warning')
     runners = _python_runners(network)
     frames = []
-    for i in range(count + 1):
-        time_s = min(i * dt_s, duration_s)
-        result = solve_hydraulics(network, runners)
-        frame = snapshot(network, result, time_s, warning)
-        frames.append(frame)
-        if i == 0:
-            continue
-        for instance_id, runner in runners.items():
-            instance = network.instances[instance_id]
-            definition = network.modules[instance.module_id]
-            ports = {}
-            channels = {}
-            for port in definition.ports:
-                key = f'{instance_id}:{port.id}'
-                node = network.port_nodes[key]
-                ports[port.id] = PortState(
-                    pressure_pa=float(result.pressures[node]),
-                    temperature_k=float(network.parameters[instance_id].get('temperature_k', 293.15)),
-                    mass_flow_kg_s=frame.variables.get(f'{instance_id}.{port.id}.mass_flow_kg_s'),
-                )
-            for branch, flow in zip(network.branches, result.flows):
-                if branch.instance_id == instance_id:
-                    channels[branch.channel_id] = ChannelResult(mass_flow_kg_s=float(flow),
-                                                                 pressure_drop_pa=float(result.pressures[branch.start_node] - result.pressures[branch.end_node]))
-            runner.commit_step(CommitStepRequest(run_id='dynamic', instance_id=instance_id,
-                time_s=time_s, dt_s=dt_s, converged_ports=ports), channels=channels)
-    return frames
+    try:
+        for i in range(count + 1):
+            time_s = min(i * dt_s, duration_s)
+            result = solve_hydraulics(network, runners, time_s)
+            frame = snapshot(network, result, time_s, warning)
+            frames.append(frame)
+            if i == 0:
+                continue
+            for instance_id, runner in runners.items():
+                definition = network.modules[network.instances[instance_id].module_id]
+                ports = {}
+                channels = {}
+                for port in definition.ports:
+                    key = f'{instance_id}:{port.id}'
+                    node = network.port_nodes[key]
+                    ports[port.id] = PortState(
+                        pressure_pa=float(result.pressures[node]),
+                        temperature_k=float(network.parameters[instance_id].get('temperature_k', 293.15)),
+                        density_kg_m3=result.density,
+                        viscosity_pa_s=result.viscosity,
+                        mass_flow_kg_s=frame.variables.get(f'{instance_id}.{port.id}.mass_flow_kg_s'),
+                    )
+                for branch, flow in zip(network.branches, result.flows):
+                    if branch.instance_id == instance_id:
+                        channels[branch.channel_id] = ChannelResult(mass_flow_kg_s=float(flow),
+                                                                     pressure_drop_pa=float(result.pressures[branch.start_node] - result.pressures[branch.end_node]))
+                committed = runner.commit_step(CommitStepRequest(run_id='dynamic', instance_id=instance_id,
+                    time_s=time_s, dt_s=time_s - frames[-2].time_s, converged_ports=ports), channels=channels)
+                if any(d.severity == 'error' for d in committed.diagnostics):
+                    raise RuntimeErrorBase('; '.join(d.message for d in committed.diagnostics))
+                protected = frame.variables.keys() - result.module_variables.keys()
+                if protected & {f'{instance_id}.{k}' for k in committed.variables}:
+                    raise RuntimeErrorBase('commit_step 输出不能覆盖网络求解变量')
+                frame.variables.update({f'{instance_id}.{k}':v for k,v in committed.variables.items()})
+                frame.variables.update({f'{instance_id}.state.{k}':v for k,v in committed.state.items() if isinstance(v,(float,int,str,bool)) or v is None})
+                frame.diagnostics.extend(committed.diagnostics)
+        return frames
+    finally:
+        _close_runners(runners)

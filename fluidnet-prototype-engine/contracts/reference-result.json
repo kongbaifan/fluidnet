@@ -130,7 +130,7 @@
   "diagnostics": [
     {
       "code": "HYDRAULIC_SCOPE",
-      "message": "按已应用参数计算定物性液态水水力；源代码、自定义变量和控制脚本仅保存，不参与求解",
+      "message": "按已应用参数计算定物性液态水水力；Python 模块包在独立 Worker 中执行；控制脚本与热力模型尚未参与求解",
       "severity": "info",
       "instance_id": null,
       "field": null

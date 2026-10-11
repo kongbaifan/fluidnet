@@ -176,6 +176,77 @@
       ],
       "title": "NetworkRelation",
       "type": "object"
+    },
+    "RunFrame": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "string"
+        },
+        "valid": {
+          "title": "Valid",
+          "type": "boolean"
+        },
+        "time_s": {
+          "title": "Time S",
+          "type": "number"
+        },
+        "variables": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Variables",
+          "type": "object"
+        },
+        "diagnostics": {
+          "items": {
+            "$ref": "#/$defs/Diagnostic"
+          },
+          "title": "Diagnostics",
+          "type": "array"
+        },
+        "metrics": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Metrics",
+          "type": "object"
+        }
+      },
+      "required": [
+        "status",
+        "valid",
+        "time_s"
+      ],
+      "title": "RunFrame",
+      "type": "object"
     }
   },
   "additionalProperties": false,
@@ -198,13 +269,24 @@
     },
     "committed": {
       "$ref": "#/$defs/CommitStepResponse"
+    },
+    "frame": {
+      "$ref": "#/$defs/RunFrame"
+    },
+    "history": {
+      "items": {
+        "$ref": "#/$defs/RunFrame"
+      },
+      "title": "History",
+      "type": "array"
     }
   },
   "required": [
     "module_id",
     "content_hash",
     "evaluation",
-    "committed"
+    "committed",
+    "frame"
   ],
   "title": "ModuleTestResponse",
   "type": "object",

@@ -1,5 +1,22 @@
 {
   "$defs": {
+    "ChannelState": {
+      "additionalProperties": false,
+      "properties": {
+        "mass_flow_kg_s": {
+          "default": 0.0,
+          "title": "Mass Flow Kg S",
+          "type": "number"
+        },
+        "pressure_drop_pa": {
+          "default": 0.0,
+          "title": "Pressure Drop Pa",
+          "type": "number"
+        }
+      },
+      "title": "ChannelState",
+      "type": "object"
+    },
     "PortState": {
       "additionalProperties": false,
       "properties": {
@@ -128,6 +145,15 @@
         }
       },
       "title": "Converged Ports",
+      "type": "object"
+    },
+    "converged_channels": {
+      "patternProperties": {
+        "^[A-Za-z][A-Za-z0-9_-]{0,80}$": {
+          "$ref": "#/$defs/ChannelState"
+        }
+      },
+      "title": "Converged Channels",
       "type": "object"
     }
   },

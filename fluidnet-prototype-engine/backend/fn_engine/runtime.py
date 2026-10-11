@@ -4,15 +4,18 @@ import hashlib
 import importlib.util
 import json
 import os
+import queue
 import subprocess
 import sys
-from dataclasses import dataclass, field
+import threading
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
 from .models import (
     CommitStepRequest,
     CommitStepResponse,
+    ChannelState,
     Diagnostic,
     EvaluateRequest,
     EvaluateResponse,
@@ -22,17 +25,32 @@ from .models import (
     NetworkRelation,
     PortState,
 )
-from .properties import property_service
 
 
 class RuntimeErrorBase(ValueError):
-    pass
+    code = "MODULE_RUNTIME_ERROR"
 
 
-@dataclass
-class ChannelResult:
-    mass_flow_kg_s: float = 0.0
-    pressure_drop_pa: float = 0.0
+class ModuleRuntimeTimeout(RuntimeErrorBase):
+    code = "MODULE_RUNTIME_TIMEOUT"
+
+
+ChannelResult = ChannelState
+
+
+class _LazyPropertyService:
+    def __init__(self, config: FluidConfig):
+        self.config = config
+        self._service = None
+
+    def _get(self):
+        if self._service is None:
+            from .properties import property_service
+            self._service = property_service(self.config)
+        return self._service
+
+    def __getattr__(self, name):
+        return getattr(self._get(), name)
 
 
 class NetworkBuilder:
@@ -67,7 +85,7 @@ class ModuleContext:
                  ports: dict[str, PortState] | None = None, state: dict[str, Any] | None = None,
                  channels: dict[str, ChannelResult] | None = None):
         self.parameters = parameters
-        self.fluid = property_service(fluid)
+        self.fluid = _LazyPropertyService(fluid)
         self.ports = ports or {}
         self.state = state if state is not None else {}
         self.channels = channels or {}
@@ -121,7 +139,7 @@ def _load_module(definition: ModuleDefinition):
 
 
 class InProcessModuleRunner:
-    """Reference runner used by tests and by the local Worker process."""
+    """Reference runner used inside the isolated Worker process and by focused tests."""
 
     def __init__(self, definition: ModuleDefinition, parameters: dict[str, Any], fluid: FluidConfig,
                  initial_state: dict[str, Any] | None = None):
@@ -144,14 +162,15 @@ class InProcessModuleRunner:
     def evaluate(self, request: EvaluateRequest) -> EvaluateResponse:
         if not self.initialized:
             self.initialize()
-        ctx = ModuleContext(self.parameters, self.fluid, request.trial_ports, dict(request.readonly_state))
+        ctx = ModuleContext(deepcopy(self.parameters), self.fluid, request.trial_ports, deepcopy(request.readonly_state))
         getattr(self.module, "evaluate")(ctx)
         return EvaluateResponse(relations=ctx.net.relations, variables=ctx.variables, diagnostics=ctx.diagnostics)
 
     def commit_step(self, request: CommitStepRequest, channels: dict[str, ChannelResult] | None = None) -> CommitStepResponse:
         if not self.initialized:
             self.initialize()
-        ctx = ModuleContext(self.parameters, self.fluid, request.converged_ports, self.state, channels=channels)
+        ctx = ModuleContext(deepcopy(self.parameters), self.fluid, request.converged_ports, deepcopy(self.state),
+                            channels=channels or request.converged_channels)
         callback = getattr(self.module, "commit_step", None)
         if callback:
             callback(ctx, request.dt_s)
@@ -165,58 +184,129 @@ class InProcessModuleRunner:
 
 
 class WorkerProcess:
-    """Line-delimited JSON Worker RPC for local module execution."""
+    """Line-delimited JSON RPC runner for user modules in a separate process."""
 
     def __init__(self, definition: ModuleDefinition, parameters: dict[str, Any], fluid: FluidConfig,
-                 initial_state: dict[str, Any] | None = None):
+                 initial_state: dict[str, Any] | None = None, timeout_s: float = 10.0):
         self.definition = definition
         self.parameters = parameters
         self.fluid = fluid
-        self.initial_state = initial_state or {}
+        self.state = dict(initial_state or {})
+        self.timeout_s = timeout_s
         self.process: subprocess.Popen | None = None
+        self._responses: queue.Queue[str | BaseException] | None = None
+        self._reader_thread: threading.Thread | None = None
+        self._closed = False
+
+    def _ensure_process(self):
+        if self.process is not None:
+            if self.process.poll() is not None:
+                returncode = self.process.returncode
+                self.close(force=True)
+                raise RuntimeErrorBase(f"模块 Worker 已退出，退出码 {returncode}")
+            return
+        env = os.environ.copy()
+        package_root = str(Path(__file__).resolve().parents[1])
+        env["PYTHONPATH"] = package_root + os.pathsep + env.get("PYTHONPATH", "")
+        env["PYTHONIOENCODING"] = "utf-8"
+        self.process = subprocess.Popen(
+            [sys.executable, "-m", "fn_engine.worker"],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            text=True, encoding="utf-8", cwd=str(Path(__file__).resolve().parents[2]), env=env,
+        )
+        self._responses = queue.Queue()
+        stream, responses = self.process.stdout, self._responses
+
+        def read_responses():
+            assert stream
+            try:
+                for line in stream:
+                    responses.put(line)
+            except BaseException as error:  # pragma: no cover - defensive thread boundary
+                responses.put(error)
+            finally:
+                responses.put("")
+
+        self._reader_thread = threading.Thread(target=read_responses, daemon=True)
+        self._reader_thread.start()
+
+    def _readline(self) -> str:
+        assert self.process and self._responses
+        try:
+            line = self._responses.get(timeout=self.timeout_s)
+        except queue.Empty as error:
+            raise ModuleRuntimeTimeout(f"模块 Worker 响应超时（>{self.timeout_s:g}s）") from error
+        if isinstance(line, BaseException):
+            raise RuntimeErrorBase(f"读取模块 Worker 失败：{line}")
+        if not line:
+            raise RuntimeErrorBase("模块 Worker 已退出或关闭了输出通道")
+        return line
 
     def _request(self, payload: dict[str, Any]) -> dict[str, Any]:
-        if self.process is None:
-            env = os.environ.copy()
-            package_root = str(Path(__file__).resolve().parents[1])
-            env["PYTHONPATH"] = package_root + os.pathsep + env.get("PYTHONPATH", "")
-            self.process = subprocess.Popen(
-                [sys.executable, "-m", "fn_engine.worker"],
-                stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                text=True, cwd=str(Path(__file__).resolve().parents[2]), env=env,
-            )
-        assert self.process.stdin and self.process.stdout
-        self.process.stdin.write(json.dumps(payload, ensure_ascii=False) + "\n")
-        self.process.stdin.flush()
-        line = self.process.stdout.readline()
-        if not line:
-            stderr = self.process.stderr.read() if self.process.stderr else ""
-            raise RuntimeErrorBase(f"模块 Worker 已退出：{stderr}")
-        response = json.loads(line)
+        self._ensure_process()
+        assert self.process and self.process.stdin
+        try:
+            self.process.stdin.write(json.dumps(payload, ensure_ascii=False) + "\n")
+            self.process.stdin.flush()
+            response = json.loads(self._readline())
+        except ModuleRuntimeTimeout:
+            self.close(force=True)
+            raise
+        except (BrokenPipeError, OSError, json.JSONDecodeError) as error:
+            self.close(force=True)
+            raise RuntimeErrorBase(f"模块 Worker 通信失败：{error}") from error
         if response.get("error"):
             raise RuntimeErrorBase(response["error"])
         return response
 
     def initialize(self):
         request = InitializeRequest(run_id="worker", instance_id=self.definition.id,
-                                    package={"module_id": self.definition.id, "version": f"1.0.0",
+                                    package={"module_id": self.definition.id, "version": f"{self.definition.version}.0.0",
                                              "content_hash": self.definition.content_hash or module_content_hash(self.definition)},
-                                    parameters=self.parameters, fluid=self.fluid, initial_state=self.initial_state)
+                                    parameters=self.parameters, fluid=self.fluid, initial_state=self.state)
         response = self._request({"action": "initialize", "definition": self.definition.model_dump(mode="json"),
                                   "request": request.model_dump(mode="json")})
-        return response.get("state", response)
+        self.state = dict(response.get("state", {}))
+        return self.state
 
     def evaluate(self, request: EvaluateRequest):
-        return EvaluateResponse.model_validate(self._request({"action": "evaluate", "request": request.model_dump(mode="json")}))
+        current = request.model_copy(update={"readonly_state": dict(self.state)})
+        return EvaluateResponse.model_validate(self._request({"action": "evaluate", "request": current.model_dump(mode="json")}))
 
-    def commit_step(self, request: CommitStepRequest):
-        return CommitStepResponse.model_validate(self._request({"action": "commit_step", "request": request.model_dump(mode="json")}))
+    def commit_step(self, request: CommitStepRequest, channels: dict[str, ChannelResult] | None = None):
+        if channels is not None:
+            request = request.model_copy(update={"converged_channels": channels})
+        payload = {"action": "commit_step", "request": request.model_dump(mode="json")}
+        response = CommitStepResponse.model_validate(self._request(payload))
+        self.state = dict(response.state)
+        return response
 
-    def close(self):
-        if self.process:
+    def close(self, force: bool = False):
+        process = self.process
+        if process is None:
+            self._closed = True
+            return
+        if not force:
             try:
-                self._request({"action": "finalize"})
+                assert process.stdin
+                process.stdin.write(json.dumps({"action": "finalize"}, ensure_ascii=False) + "\n")
+                process.stdin.flush()
+                self._readline()
             except Exception:
                 pass
-            self.process.terminate()
-            self.process = None
+        if process.poll() is None:
+            process.terminate()
+            try:
+                process.wait(timeout=1.0)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=1.0)
+        if self._reader_thread:
+            self._reader_thread.join(timeout=1.0)
+        for stream in (process.stdin, process.stdout, process.stderr):
+            if stream:
+                stream.close()
+        self.process = None
+        self._responses = None
+        self._reader_thread = None
+        self._closed = True

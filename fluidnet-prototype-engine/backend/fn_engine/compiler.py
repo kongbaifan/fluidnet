@@ -58,7 +58,7 @@ def validated_parameters(instance, definition):
     # Registered model constraints remain authoritative for safety limits, while
     # the project definition owns defaults. This keeps custom package defaults
     # from being silently replaced by a same-shaped built-in model.
-    registered = next((m for m in builtin_catalog() if m.solver_model == definition.solver_model), None)
+    registered = next((m for m in builtin_catalog() if m.solver_model == definition.solver_model), None) if definition.runtime == 'builtin' else None
     specs = {p.id: p for p in definition.parameters}
     if registered:
         for registered_spec in registered.parameters:
@@ -84,6 +84,10 @@ def validated_parameters(instance, definition):
                 raise CompilationError('PARAMETER_INVALID', f'{instance.id}.{key} 必须是有限数值', instance.id, key)
             if spec.minimum is not None and value < spec.minimum or spec.maximum is not None and value > spec.maximum:
                 raise CompilationError('PARAMETER_RANGE', f'{instance.id}.{key} 超出范围 [{spec.minimum}, {spec.maximum}]', instance.id, key)
+        elif spec.value_type == 'boolean' and not isinstance(value, bool):
+            raise CompilationError('PARAMETER_INVALID', f'{instance.id}.{key} 必须是布尔值', instance.id, key)
+        elif spec.value_type == 'text' and not isinstance(value, str):
+            raise CompilationError('PARAMETER_INVALID', f'{instance.id}.{key} 必须是文本', instance.id, key)
         if key == 'head_curve':
             valid = isinstance(value, list) and len(value) >= 2
             valid = valid and all(isinstance(p, (list, tuple)) and len(p) == 2 and all(isinstance(x, (int, float)) and not isinstance(x, bool) and math.isfinite(x) and x >= 0 for x in p) for p in value)
@@ -91,7 +95,7 @@ def validated_parameters(instance, definition):
             valid = valid and all(b[0] > a[0] and b[1] < a[1] for a, b in zip(value, value[1:]))
             if not valid:
                 raise CompilationError('CURVE_INVALID', f'{instance.id} 扬程曲线需从零流量开始，流量递增、扬程严格递减且末点扬程为零', instance.id, key)
-    if 'roughness_m' in values and values['roughness_m'] / values['diameter_m'] > .05:
+    if 'roughness_m' in values and 'diameter_m' in values and values['roughness_m'] / values['diameter_m'] > .05:
         raise CompilationError('ROUGHNESS_RANGE', '相对粗糙度必须不大于 0.05', instance.id, 'roughness_m')
     return values
 
@@ -106,7 +110,7 @@ def compile_project(project: Project) -> CompiledNetwork:
     supported = {'pressure_source', 'junction', 'valve', 'pipe', 'pump_curve', 'heat_exchanger'}
     for inst in project.instances:
         definition = modules[inst.module_id]
-        if definition.solver_model not in supported or definition.state_model:
+        if definition.runtime != 'python' and (definition.solver_model not in supported or definition.state_model):
             raise CompilationError('MODEL_NOT_SUPPORTED', f'{inst.id} 的模型 {definition.state_model or definition.solver_model} 尚未实现；不能生成替代计算结果', inst.id)
         if definition.runtime == 'python':
             if not definition.entrypoint:
@@ -170,13 +174,13 @@ def compile_project(project: Project) -> CompiledNetwork:
         for ch in channels:
             expected = 'resistance' if definition.solver_model == 'heat_exchanger' else definition.solver_model
             relation = 'pump_curve' if expected == 'pump_curve' else 'resistance'
-            if ch.solver_model != expected or ch.relation != relation:
+            if definition.runtime != 'python' and (ch.solver_model != expected or ch.relation != relation):
                 raise CompilationError('CHANNEL_MODEL_INVALID', f'{inst.id}.{ch.id} 未注册的通路关系 {ch.solver_model}/{ch.relation}', inst.id, ch.id)
             start, end = nodes[f'{inst.id}:{ch.input_port}'], nodes[f'{inst.id}:{ch.output_port}']
             if start == end:
                 raise CompilationError('BRANCH_SHORTED', f'{inst.id}.{ch.id} 的两端被直接短接', inst.id)
             branches.append(CompiledBranch(inst.id, ch.id, ch.solver_model, ch.input_port, ch.output_port, start, end,
-                                            ch.solver_model == 'valve' and params['opening_ratio'] == 0))
+                                            definition.runtime == 'builtin' and ch.solver_model == 'valve' and params['opening_ratio'] == 0))
     if not branches:
         raise CompilationError('NO_BRANCHES', '网络没有可计算支路')
     components = DisjointSet(range(len(roots)))

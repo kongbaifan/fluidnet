@@ -1317,6 +1317,16 @@
           },
           "committed": {
             "$ref": "#/components/schemas/CommitStepResponse"
+          },
+          "frame": {
+            "$ref": "#/components/schemas/RunFrame"
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/RunFrame"
+            },
+            "type": "array",
+            "title": "History"
           }
         },
         "additionalProperties": false,
@@ -1325,7 +1335,8 @@
           "module_id",
           "content_hash",
           "evaluation",
-          "committed"
+          "committed",
+          "frame"
         ],
         "title": "ModuleTestResponse"
       },

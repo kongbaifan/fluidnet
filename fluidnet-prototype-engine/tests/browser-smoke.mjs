@@ -5,9 +5,10 @@ const page = await browser.newPage({viewport:{width:1600,height:1000}});
 const errors=[];page.on('pageerror',e=>errors.push(e.message));
 const runButton=(command)=>page.locator(`[data-action="run-project"][data-command="${command}"]`).first();
 async function step() {
-  const response=page.waitForResponse(r=>r.url().endsWith('/runs') && r.request().method()==='POST');
+  const response=page.waitForResponse(r=>new URL(r.url()).pathname.endsWith('/runs') && r.request().method()==='POST');
   await runButton('step').click();
-  const result=await (await response).json();
+  let result=await (await response).json();
+  while (['queued','running'].includes(result.status)) { await page.waitForTimeout(100); const record=await (await page.request.get('http://127.0.0.1:8798/api/v1/runs/'+result.run_id)).json(); result={...record,run_id:result.run_id}; }
   expect(result.status).toBe('completed');
   await expect(page.locator('[data-result-status]').first()).toContainText('结果已更新');
   await page.locator('[data-action="save"]').first().click();
@@ -20,6 +21,7 @@ async function step() {
 }
 try {
   await page.goto('http://127.0.0.1:8798');
+  await expect(page.locator('#app-header')).toContainText('v0.2.0');
   await page.locator('[data-action="start-modeling"]').click();
   await page.locator('[data-action="save"]').first().click();
   const state = await page.evaluate(()=>JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
@@ -48,9 +50,9 @@ try {
   await expect(page.locator('[data-result-status]').first()).toContainText('结果已更新');
   mkdirSync('artifacts',{recursive:true});
   await page.screenshot({path:'artifacts/workbench.png',fullPage:true});
-  const startResponse=page.waitForResponse(r=>r.url().endsWith('/runs') && r.request().method()==='POST');
+  const startResponse=page.waitForResponse(r=>new URL(r.url()).pathname.endsWith('/runs') && r.request().method()==='POST');
   await runButton('run').click();
-  expect((await (await startResponse).json()).status).toBe('completed');
+  expect((await (await startResponse).json()).status).toBe('queued');
   await expect(page.locator('[data-result-status]').first()).toContainText(/t = 0\.[1-9]/);
   await runButton('pause').click();
   await expect(runButton('pause')).toBeDisabled();

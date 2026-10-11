@@ -10,7 +10,7 @@
 | GET /api/v1/catalog | 无 | 模块参数/通路/变量目录、原型参数名映射 |
 | GET /api/v1/modules | 无 | 可安装模块包和内置模块清单、版本与内容哈希 |
 | POST /api/v1/modules/validate | ModuleDefinition | 模块清单、入口和源码哈希诊断 |
-| POST /api/v1/modules/test | ModuleTestRequest | 在独立 Worker 中执行一次 initialize/evaluate/commit_step |
+| POST /api/v1/modules/test | ModuleTestRequest | 独立边界求解，返回 evaluation、committed、frame、history |
 | POST /api/v1/prototype/normalize | 原型导出对象 | 规范 Project；显示单位转换；不能归一化时 422 |
 | POST /api/v1/projects/validate | Project | valid 和 diagnostics；检查失败时 valid=false |
 | POST /api/v1/solve | Project | 同步稳态 RunFrame；计算失败时 422 |
@@ -19,7 +19,7 @@
 | GET /api/v1/runs/{run_id}/history | offset≥0, 1≤limit≤2001 | rows、total_rows、offset |
 | GET /api/v1/runs/{run_id}/events | 无 | queued/running/completed/failed 事件 |
 
-`POST /api/v1/runs?background=true` 创建后台运行，返回 HTTP 202 和 `run_id`。默认仍保持兼容的同步模式：稳态和现有前端动态回放请求直接在请求期间完成并返回 HTTP 201。后台模式当前用于验证运行编排和查询协议，暂停、取消和参数命令仍未开放。
+`POST /api/v1/runs?background=true` 创建后台运行，返回 HTTP 202 和 `run_id`。默认仍保持兼容的同步模式，返回 HTTP 201。前端稳态使用同步请求，动态与单步使用后台请求并轮询状态。暂停、取消和参数命令仍未开放；前端暂停/停止只控制取回与回放。
 
 ## 模块包和 Worker
 
@@ -34,7 +34,7 @@ module.py
 
 Worker 消息使用 Pydantic 的 `InitializeRequest`、`EvaluateRequest`、`EvaluateResponse`、`CommitStepRequest` 和 `CommitStepResponse`。`evaluate` 输出 `NetworkRelation`，由网络求解器决定最终压力和流量；模块不能直接返回全网解。
 
-运行接口现在是同步计算。返回 201 时，计算已经 completed 或 failed；没有后台排队、流式推送或命令端点。进程内保留最近 20 次运行，超出或重启后查询返回 404。项目编辑和永久导出目前由前端浏览器管理，不是服务端数据库。
+同步请求返回 201 时，计算已经 completed 或 failed；后台请求返回 202 后通过状态接口查询。没有流式推送或命令端点。进程内保留最近 20 次运行，超出或重启后查询返回 404。项目编辑和永久导出目前由前端浏览器管理，不是服务端数据库。
 
 ## 直接运行参考项目
 
@@ -75,7 +75,7 @@ scenario_id 指向 Project.scenarios。覆盖只修改本次运行的项目副�
   "valid": true,
   "time_s": 0,
   "variables": {
-    "V1.mass_flow_kg_s": 3.582426729656114,
+    "V1.mass_flow_kg_s": 3.5826766415095452,
     "V1.out0.temperature_k": null
   },
   "diagnostics": [],
@@ -99,9 +99,19 @@ POST /runs 对类型正确但编译或求解失败的请求仍创建可查询的
 
 需要 format=`fluidnet-studio-prototype`、modules、projects 和可选 activeProject。只处理活动项目使用的模块；库中未使用的 PID、物性等原型模块不会阻塞水力项目。
 
-支持内置模型及其复制模块（kind 指向已注册模型），保留实例原有 ID。端口/通路 ID 必须与注册模型相容，读取真实端口领域、通路端点和 enabled 状态。编辑为非流体端口或禁用必要通路会在检查/求解时报错。
+支持内置模型及其复制模块（kind 指向已注册模型），以及 runtime=python 的完整清单/前端 manifest 快照，保留实例原有 ID。Python 参数使用清单 ID，显示单位通过 UnitSpec 转换，不能丢弃 entrypoint/source/content_hash。端口/通路 ID 必须与注册模型相容，读取真实端口领域、通路端点和 enabled 状态。编辑为非流体端口或禁用必要通路会在检查/求解时报错。
 
-归一化只投影计算输入和参数库值，完整原型继续通过原始导出保存。它不会执行 Python/控制脚本，不把自定义变量的文本当算法，也不将备用草稿自动生效。
+归一化只投影计算输入和参数库值，完整原型继续通过原始导出保存。归一化本身不执行 Python/控制脚本；项目求解随后通过 Worker 执行 Python 模块包，不把自定义变量的文本当算法，也不将备用草稿自动生效。
+
+## 独立验证台契约
+
+`ModuleTestRequest` 接收完整 Python `module`、规范单位 `parameters`、入口/出口绝对压力、温度、`duration_s` 和 `dt_s`。当前测试夹具支持两个流体端口和一条启用通路；多通路模块需在项目中配置边界。
+
+后端使用相同编译器和求解器建立测试网络。先采样 t=0，不提交状态；随后每个收敛时间步提交一次，最后不足整步时使用实际 dt。`ctx.channel(id)` 因此获得真实质量流量与压降。
+
+响应包含初始 `state`、最终 `evaluation`、最终 `committed`、最后 `frame` 和全部 `history`。变量使用 `D1.*` 路径，状态使用 `D1.state.*`。失败返回 422/detail Diagnostic；没有伪造的收敛残差。
+
+Worker RPC 超时默认 10 秒，超时返回 `MODULE_RUNTIME_TIMEOUT` 并终止进程；源码异常或缺失通路返回 `MODULE_RUNTIME_ERROR`。所有完成/失败路径都回收 Worker。通信显式使用 UTF-8，模块 print 不进入 JSON 通道。
 
 ## 后续端点（当前不可调用）
 
