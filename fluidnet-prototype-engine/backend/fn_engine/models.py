@@ -110,7 +110,8 @@ class FluidConfig(StrictModel):
     fluid: str = "Water"
     composition: dict[str, float] = Field(default_factory=dict)
     reference: Literal["mass", "mole"] = "mass"
-    phase_policy: Literal["single_phase", "liquid", "gas"] = "single_phase"
+    # "any" lets module code query two-phase states; network flow still requires single phase.
+    phase_policy: Literal["single_phase", "liquid", "gas", "any"] = "single_phase"
 
     @model_validator(mode="after")
     def validate_composition(self):
@@ -135,7 +136,8 @@ class FluidState(StrictModel):
     temperature_k: float
     enthalpy_j_kg: float
     density_kg_m3: float
-    viscosity_pa_s: float
+    # Transport properties are undefined for a two-phase mixture and stay None there.
+    viscosity_pa_s: float | None = None
     specific_heat_j_kg_k: float | None = None
     thermal_conductivity_w_m_k: float | None = None
     phase: str = "unknown"
@@ -149,6 +151,7 @@ class PortState(StrictModel):
     enthalpy_j_kg: float | None = None
     density_kg_m3: float | None = None
     viscosity_pa_s: float | None = None
+    specific_heat_j_kg_k: float | None = None
     mass_flow_kg_s: float | None = None
     quality: float | None = None
     composition: dict[str, float] = Field(default_factory=dict)
@@ -329,6 +332,15 @@ class SolverOptions(StrictModel):
     mass_tolerance_kg_s: float = Field(default=1e-8, gt=0)
     max_iterations: int = Field(default=80, ge=1, le=500)
     dynamic_step_s: float = Field(default=0.1, gt=0, le=60)
+    # Thermal layer: node enthalpy transport after the hydraulic solve.
+    thermal: bool = True
+    # reference: hydraulics keep the constant reference water properties (one-way);
+    # node: outer iteration feeds node-averaged density/viscosity back into hydraulics.
+    property_coupling: Literal["reference", "node"] = "reference"
+    thermal_tolerance_k: float = Field(default=1e-6, gt=0)
+    max_thermal_iterations: int = Field(default=50, ge=1, le=500)
+    max_coupling_iterations: int = Field(default=20, ge=1, le=200)
+    coupling_density_rtol: float = Field(default=1e-6, gt=0)
 
 
 class Project(StrictModel):

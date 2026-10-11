@@ -60,21 +60,24 @@ class NetworkBuilder:
     def _add(self, kind: str, channel: str, parameters: dict[str, Any]):
         self.relations.append(NetworkRelation(relation_id=channel, kind=kind, channel=channel, parameters=parameters))
 
+    # heat_w is heat added to the fluid in this channel (W, negative = removed);
+    # the thermal layer applies it as outlet enthalpy += heat_w / |mass flow|.
     def pipe(self, *, channel: str, length_m: float, diameter_m: float, roughness_m: float = 0.0,
-             density_kg_m3: float | None = None, viscosity_pa_s: float | None = None, height_m: float = 0.0):
+             density_kg_m3: float | None = None, viscosity_pa_s: float | None = None, height_m: float = 0.0,
+             heat_w: float = 0.0):
         self._add("pipe", channel, {"length_m": length_m, "diameter_m": diameter_m, "roughness_m": roughness_m,
                                      "density_kg_m3": density_kg_m3 or 0.0, "viscosity_pa_s": viscosity_pa_s or 0.0,
-                                     "height_m": height_m})
+                                     "height_m": height_m, "heat_w": heat_w})
 
     def valve(self, *, channel: str, kv: float, opening: float, density_kg_m3: float | None = None,
-              height_m: float = 0.0):
+              height_m: float = 0.0, heat_w: float = 0.0):
         self._add("valve", channel, {"kv_m3_h": kv, "opening_ratio": opening,
-                                      "density_kg_m3": density_kg_m3 or 0.0, "height_m": height_m})
+                                      "density_kg_m3": density_kg_m3 or 0.0, "height_m": height_m, "heat_w": heat_w})
 
     def pump(self, *, channel: str, head_curve: list[list[float]], speed_ratio: float = 1.0,
-             density_kg_m3: float | None = None):
+             density_kg_m3: float | None = None, heat_w: float = 0.0):
         self._add("pump", channel, {"head_curve": head_curve, "speed_ratio": speed_ratio,
-                                     "density_kg_m3": density_kg_m3 or 0.0})
+                                     "density_kg_m3": density_kg_m3 or 0.0, "heat_w": heat_w})
 
     def compressor(self, *, channel: str, forced_mass_flow_kg_s: float):
         self._add("compressor", channel, {"forced_mass_flow_kg_s": forced_mass_flow_kg_s})
