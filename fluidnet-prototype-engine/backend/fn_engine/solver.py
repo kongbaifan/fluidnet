@@ -184,7 +184,7 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
     same units as every other mass balance (a tank pressure unknown would need a 1e-14 Pa tolerance).
     """
     n_nodes = len(network.node_keys)
-    dt_s, tank_old = storage_step if storage_step is not None else (None, {})
+    dt_s, tank_old = storage_step[:2] if storage_step is not None else (None, {})
     tanks = [node for node in sorted(network.storage) if node in tank_old]
     fixed = {node: value for node, value in network.fixed_pressures.items() if node not in tank_old}
     unknown = [n for n in range(n_nodes) if n not in fixed and n not in tank_old]
@@ -663,13 +663,38 @@ def snapshot(network, result, time_s=0., warning=None):
                     metrics=metrics)
 
 
-def _with_tanks(network, frame: RunFrame, result: NetworkResult, tanks: dict[int, TankState], service) -> RunFrame:
-    if not network.storage:
+def cell_variables(network: CompiledNetwork, result: NetworkResult, service):
+    """`<pipe>.state.mean_temperature_k` and `stored_power_w` for pipes with heat capacity."""
+    variables, power = {}, 0.0
+    thermal = result.thermal
+    for j, values in thermal.cell_enthalpies.items():
+        branch = network.branches[j]
+        pressure = float(result.hydraulic.pressures[branch.start_node] + result.hydraulic.pressures[branch.end_node]) / 2
+        try:
+            mean = float(np.mean([service.state_ph(pressure, float(value)).temperature_k for value in values]))
+        except PropertyError as error:
+            raise CompilationError(error.code, f'{branch.instance_id} 管段热容状态物性计算失败：{error}',
+                                   branch.instance_id) from error
+        stored = thermal.cell_power_w[j]
+        variables.update({f'{branch.instance_id}.state.mean_temperature_k': mean,
+                          f'{branch.instance_id}.state.stored_power_w': stored})
+        power += stored
+    return variables, power
+
+
+def _with_states(network, frame: RunFrame, result: NetworkResult, tanks: dict[int, TankState], service) -> RunFrame:
+    """Add tank and pipe-cell state variables and the storage metrics to a frame."""
+    cells = result.thermal is not None and bool(result.thermal.cell_enthalpies)
+    if not network.storage and not cells:
         return frame
-    variables, metrics = tank_variables(network, result, tanks, service)
+    variables, metrics = tank_variables(network, result, tanks, service) if network.storage else ({}, {})
+    if cells:
+        cell_values, cell_power = cell_variables(network, result, service)
+        variables.update(cell_values)
+        metrics['storage_power_w'] = metrics.get('storage_power_w', 0.0) + cell_power
     conflicts = frame.variables.keys() & variables.keys()
     if conflicts:
-        raise RuntimeErrorBase(f'模块输出不能覆盖水箱状态变量：{sorted(conflicts)}')
+        raise RuntimeErrorBase(f'模块输出不能覆盖状态变量：{sorted(conflicts)}')
     frame.variables.update(variables)
     frame.metrics.update(metrics)
     return frame
@@ -684,8 +709,9 @@ def solve_steady(network):
         frame.diagnostics.append(Diagnostic(code='STEADY_TANK_AS_RESERVOIR', severity='info', instance_id=ids[0],
             message=f'稳态计算把水箱（{names}）当作液位不变的大容器：压力取初始液位的静压；'
                     'state.net_inflow_kg_s 是液位变化的趋势，液位随时间的变化请用动态计算'))
+    if network.storage or has_cells(network):
         service = property_service(network.project.fluid)
-        frame = _with_tanks(network, frame, result, tank_states_from(network, result, None, None), service)
+        frame = _with_states(network, frame, result, tank_states_from(network, result, None, None), service)
     return frame
 
 
@@ -700,9 +726,16 @@ def _retryable(error: Exception) -> bool:
     return isinstance(error, CompilationError) and error.diagnostic.code in RETRYABLE_CODES
 
 
+def has_cells(network: CompiledNetwork) -> bool:
+    """Some pipe declares heat capacity (thermal_cells > 0); it only matters with the thermal layer on."""
+    return network.project.solver.thermal and any(
+        b.solver_model == 'pipe' and int(network.parameters[b.instance_id].get('thermal_cells', 0) or 0) > 0
+        for b in network.branches)
+
+
 def has_state(network: CompiledNetwork) -> bool:
     """True when the dynamic run must integrate states instead of chaining quasi-steady frames."""
-    return bool(network.storage)
+    return bool(network.storage) or has_cells(network)
 
 
 def solve_dynamic(network, duration_s, dt_s, should_cancel=None):
@@ -827,19 +860,19 @@ def _tank_event(network: CompiledNetwork, tanks: dict[int, TankState], service):
 
 
 def _integrate(network: CompiledNetwork, duration_s: float, dt_s: float, should_cancel=None):
-    """Implicit-Euler timeline for networks with tanks.
+    """Implicit-Euler timeline for networks with tanks or pipe heat capacity.
 
-    Frame 0 treats every tank as a reservoir at its initial state. Each later frame is reached
-    through one or more substeps; a substep solves hydraulics, thermal layer and the tank balances
-    together at t+h from the accepted state at t. A failed substep is retried with h/2 (at most
+    Frame 0 treats every tank as a reservoir at its initial state and puts pipe cells on their steady
+    profile. Each later frame is reached through one or more substeps; a substep solves hydraulics,
+    thermal layer, tank balances and pipe cells together at t+h from the accepted state at t. A failed substep is retried with h/2 (at most
     SolverOptions.max_step_halvings times) and changes nothing. Python modules commit after every
     accepted substep with that substep's dt. A tank leaving [empty, full] is located by bisection
     on h; the frame at that instant is published and SolveFailed(TANK_EMPTY/TANK_FULL) ends the run.
     First-order accurate; there is no local error control.
     """
     options = network.project.solver
-    text = ('隐式 Euler 时间推进：水箱质量与能量和网络方程同步求解；一阶精度，未做时间误差控制，'
-            '求解失败时步长减半重试' + ('' if options.thermal else '；热力层关闭，水箱温度保持初始值'))
+    text = ('隐式 Euler 时间推进：水箱质量与能量、管道热容和网络方程同步求解；一阶精度，未做时间误差控制，'
+            '求解失败时步长减半重试' + ('' if options.thermal else '；热力层关闭，水箱温度保持初始值，管道热容不计算'))
     warning = Diagnostic(code='DYNAMIC_IMPLICIT_EULER', message=text, severity='info')
     service = property_service(network.project.fluid)
     runners = _python_runners(network)
@@ -847,22 +880,24 @@ def _integrate(network: CompiledNetwork, duration_s: float, dt_s: float, should_
     try:
         tanks = tank_states_from(network, None, None, None)
         result = solve_network(network, runners, 0.0, service=service if options.thermal else None)
-        frames.append(_with_tanks(network, snapshot(network, result, 0.0, warning), result, tanks, service))
+        cells = dict(result.thermal.cell_enthalpies) if result.thermal is not None else {}
+        frames.append(_with_states(network, snapshot(network, result, 0.0, warning), result, tanks, service))
         time_s, count = 0.0, math.ceil(duration_s / dt_s)
 
         def step(h):
-            """Trial step of length h from the accepted (time_s, tanks, result); changes nothing."""
+            """Trial step of length h from the accepted (time_s, tanks, cells, result); changes nothing."""
             view = _step_network(network, tanks, service)
             warm = result
             solution = result.hydraulic.solution
-            if solution is not None and not result.hydraulic.storage_rates:
+            if network.storage and solution is not None and not result.hydraulic.storage_rates:
                 # Frame 0 held the tanks fixed; give the first implicit step a rate entry per tank.
                 n_free = len([n for n in range(len(network.node_keys)) if n not in network.fixed_pressures])
                 padded = np.insert(solution, n_free, np.zeros(len(network.storage)))
                 warm = dataclasses.replace(result, hydraulic=dataclasses.replace(result.hydraulic, solution=padded))
             trial = solve_network(view, runners, time_s + h, warm=warm, service=service if options.thermal else None,
-                                  storage_step=(h, tanks))
-            return view, trial, tank_states_from(network, trial, tanks, h)
+                                  storage_step=(h, tanks, cells))
+            new_cells = dict(trial.thermal.cell_enthalpies) if trial.thermal is not None else {}
+            return view, trial, tank_states_from(network, trial, tanks, h), new_cells
 
         def halving(h):
             for attempt in range(options.max_step_halvings + 1):
@@ -880,16 +915,16 @@ def _integrate(network: CompiledNetwork, duration_s: float, dt_s: float, should_
         view = network
         committed, diagnostics = {}, []
 
-        def accept(h, new_view, trial, new_tanks):
-            nonlocal time_s, view, result, tanks
-            time_s, view, result, tanks = time_s + h, new_view, trial, new_tanks
+        def accept(h, new_view, trial, new_tanks, new_cells):
+            nonlocal time_s, view, result, tanks, cells
+            time_s, view, result, tanks, cells = time_s + h, new_view, trial, new_tanks, new_cells
             variables, more = _commit_modules(network, runners, result, time_s, h)
             committed.update(variables)
             diagnostics.extend(more)
 
         def publish():
             """Frame for the accepted state at time_s, carrying the module commits since the last frame."""
-            frame = _with_tanks(network, snapshot(view, result, time_s, warning), result, tanks, service)
+            frame = _with_states(network, snapshot(view, result, time_s, warning), result, tanks, service)
             protected = frame.variables.keys() - result.hydraulic.module_variables.keys()
             if protected & committed.keys():
                 raise RuntimeErrorBase('commit_step 输出不能覆盖网络求解变量')
@@ -904,10 +939,10 @@ def _integrate(network: CompiledNetwork, duration_s: float, dt_s: float, should_
                 raise SolveCancelled('运行已取消', frames)
             target = min(i * dt_s, duration_s)
             while target - time_s > 1e-12 * max(1.0, target):
-                h, new_view, trial, new_tanks = halving(target - time_s)
+                h, new_view, trial, new_tanks, new_cells = halving(target - time_s)
                 event = _tank_event(network, new_tanks, service)
                 if event is None:
-                    accept(h, new_view, trial, new_tanks)
+                    accept(h, new_view, trial, new_tanks, new_cells)
                     continue
                 # Locate the instant the tank reaches its limit: largest step that stays inside.
                 code, spec = event

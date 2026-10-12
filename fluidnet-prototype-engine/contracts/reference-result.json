@@ -240,6 +240,8 @@
     "L1.param.roughness_m": 4.5e-05,
     "L1.param.heat_loss_ua_w_k": 0.0,
     "L1.param.ambient_temperature_k": 293.15,
+    "L1.param.thermal_cells": 0,
+    "L1.param.wall_heat_capacity_j_k": 0.0,
     "V2.param.opening_ratio": 0.55,
     "V2.param.kv_m3_h": 16.0,
     "L2.param.length_m": 40.0,
@@ -247,6 +249,8 @@
     "L2.param.roughness_m": 4.5e-05,
     "L2.param.heat_loss_ua_w_k": 0.0,
     "L2.param.ambient_temperature_k": 293.15,
+    "L2.param.thermal_cells": 0,
+    "L2.param.wall_heat_capacity_j_k": 0.0,
     "N2.param.elevation_m": 0.0,
     "B2.param.pressure_pa": 120000.0,
     "B2.param.temperature_k": 293.15
@@ -254,7 +258,7 @@
   "diagnostics": [
     {
       "code": "HYDRAULIC_SCOPE",
-      "message": "按已应用参数计算液态水水力与端口焓、温度；水箱在动态计算中按隐式 Euler 积分液位与水温；Python 模块包在独立 Worker 中执行；控制脚本与管道热惯性尚未参与求解",
+      "message": "按已应用参数计算液态水水力与端口焓、温度；水箱与分段管道在动态计算中按隐式 Euler 积分液位、水温和管内温度；Python 模块包在独立 Worker 中执行；控制脚本尚未参与求解",
       "severity": "info",
       "instance_id": null,
       "field": null

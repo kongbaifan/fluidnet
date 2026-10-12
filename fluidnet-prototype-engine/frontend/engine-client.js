@@ -510,8 +510,8 @@ window.createEngineClient = function (ui) {
       }
       ui.dirty(owner); ui.render();
       ui.message(mode === 'steady' ? '真实稳态求解完成。' : stopped ? '运行在事件处停止：' + stopped.message
-        : project.instances.some(i => project.modules.find(m => m.id === i.module_id)?.state_model)
-          ? '动态结果已更新；水箱液位与水温按隐式 Euler 积分。' : '准稳态结果已更新；未包含热惯性和液位变化。');
+        : (history.rows[0]?.diagnostics || []).some(d => d.code === 'DYNAMIC_IMPLICIT_EULER')
+          ? '动态结果已更新；水箱与管道热容按隐式 Euler 积分。' : '准稳态结果已更新；未包含热惯性和液位变化。');
     } catch (error) {
       if (error.name !== 'AbortError') {
         owner.run.status='failed';

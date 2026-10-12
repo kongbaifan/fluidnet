@@ -172,7 +172,9 @@ def test_catalog_variables_match_reference_frame():
     p=normalize_prototype_export(prototype())
     frame=solve_steady(compile_project(p))
     modules={m.id:m for m in p.modules}
-    declared={f'{i.id}.{v.id}' for i in p.instances for v in modules[i.module_id].variables}
+    # Pipe state variables are conditional: they exist only when the pipe has thermal_cells > 0.
+    declared={f'{i.id}.{v.id}' for i in p.instances for v in modules[i.module_id].variables
+              if not (modules[i.module_id].solver_model=='pipe' and v.source=='state' and not i.parameters.get('thermal_cells'))}
     assert set(frame.variables)==declared
     # thermal off: exactly the declared variables minus the thermal-only ones (pre-0.3 key set).
     p.solver.thermal=False

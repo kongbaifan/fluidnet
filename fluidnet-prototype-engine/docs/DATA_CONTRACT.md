@@ -140,6 +140,8 @@ canonical = (display - display_offset) × display_scale
 
 水箱帧变量为 `<实例>.state.level_m`、`mass_kg`、`volume_m3`、`temperature_k`、`net_inflow_kg_s`（稳态与每个动态帧都有）；含水箱的帧指标另含 `storage_mass_rate_kg_s`，热力层开启时还有 `storage_power_w`。
 
+管道热容（v0.4.1）：内置管道参数 `thermal_cells`（整数 0–50，非整数报 `PARAMETER_INVALID`）、`wall_heat_capacity_j_k`（J/K）。`thermal_cells > 0` 且热力层开启时，帧里另有 `<实例>.state.mean_temperature_k` 与 `<实例>.state.stored_power_w`，并计入 `storage_power_w`；其他情况下不输出（目录中这两个变量是条件变量）。`thermal_cells=0` 的项目结果与 0.4.0 相同，只多出这两个参数的 `<实例>.param.*` 键。
+
 ## 参数与状态
 
 `parameters` 是物理输入；`draft_parameters` 与 `banks` 不自动生效。内置模型的参数上下限不能突破注册约束；Python 模块采用自身 ParameterSpec，返回的 NetworkRelation 另外按关系种类校验物理参数。

@@ -44,7 +44,10 @@ def builtin_catalog() -> list[ModuleDefinition]:
                 number('diameter_m', '管道内径', .04, 'length', 'm', 'mm', .001, .001),
                 number('roughness_m', '绝对粗糙度', .000045, 'length', 'm', 'mm', .001, 0.),
                 number('heat_loss_ua_w_k', '散热能力 UA（0 为绝热）', 0., 'conductance', 'W/K', minimum=0.),
-                number('ambient_temperature_k', '环境温度', 293.15, 'temperature', 'K', '°C', minimum=1.0, offset=-273.15)]),
+                number('ambient_temperature_k', '环境温度', 293.15, 'temperature', 'K', '°C', minimum=1.0, offset=-273.15),
+                # 0 keeps the algebraic pipe of 0.3; N > 0 adds N well-mixed cells of fluid + wall capacity.
+                number('thermal_cells', '热容分段数（0 为无热惯性）', 0, 'count', '1', minimum=0, maximum=50),
+                number('wall_heat_capacity_j_k', '管壁热容', 0., 'heat_capacity', 'J/K', 'kJ/K', 1000., 0.)]),
         ModuleDefinition(id='exchanger', name='双侧换热器（水力）', category='热力设备', solver_model='heat_exchanger',
             thermal_model='epsilon_ntu', ports=ports('in0', 'out0', 'in1', 'out1'),
             channels=[channel('ch0', 'resistance'), channel('ch1', 'resistance', 'in1', 'out1')], parameters=[
@@ -100,6 +103,15 @@ def builtin_catalog() -> list[ModuleDefinition]:
             if param.value_type == 'number':
                 definition.variables.append(VariableSpec(id=f'param.{param.id}',label=param.label,quantity=param.unit.quantity,
                     unit=param.unit,source='parameter',parameter_id=param.id))
+        if definition.solver_model == 'pipe':
+            # Present only when thermal_cells > 0 and the thermal layer is on.
+            for suffix, label, quantity, unit, display, offset in [
+                ('mean_temperature_k', '管内平均温度（热容分段）', 'temperature', 'K', '°C', -273.15),
+                ('stored_power_w', '管段储热功率', 'power', 'W', 'W', 0.),
+            ]:
+                definition.variables.append(VariableSpec(id=f'state.{suffix}', label=label, quantity=quantity,
+                    unit=UnitSpec(quantity=quantity, canonical_unit=unit, display_unit=display, display_offset=offset),
+                    source='state'))
         if definition.state_model == 'open_tank':
             for suffix, label, quantity, unit, display, scale, offset in [
                 ('level_m', '液位', 'length', 'm', 'm', 1., 0.),

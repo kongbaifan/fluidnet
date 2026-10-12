@@ -32,4 +32,6 @@ Python 包代码页的检查调用后端 `/modules/validate`，包含完整语�
 
 水箱（v0.4）：`PARAM_DEFS.tank` 增加罐高、初始水温、加热功率、散热 UA 和环境温度，经 `PARAMETER_BINDINGS.tank` 映射到规范参数；`STATE_VARIABLES.tank` 把 `<实例>.state.level_m` 等引擎状态量作为 runtime 变量（`canonicalId`）放进设备变量表，可加入曲线并随 trend 历史保留。旧的本地存档由 `backfillBuiltinParams` 补齐新参数与状态变量。运行以 `TANK_EMPTY`/`TANK_FULL`/`STEP_NOT_CONVERGED` 停止时，前端回放已算出的帧并在事件中给出停止原因。
 
-后续可把剩余 UI 描述完全迁移为目录驱动，再引入管道热容、PID 和异步控制；不需要重写画布与设备编辑器。
+管道热容（v0.4.1）：`PARAM_DEFS.pipe` 增加热容分段数和管壁热容（kJ/K），绑定 `thermal_cells`、`wall_heat_capacity_j_k`；`STATE_VARIABLES.pipe` 提供管内平均温度和储热功率，只有分段数大于 0 时后端才输出，否则曲线显示为空。
+
+后续可把剩余 UI 描述完全迁移为目录驱动，再引入 PID 和异步控制；不需要重写画布与设备编辑器。

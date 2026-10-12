@@ -2240,6 +2240,40 @@
           "maximum": null,
           "runtime": false,
           "writable": true
+        },
+        {
+          "id": "thermal_cells",
+          "label": "热容分段数（0 为无热惯性）",
+          "value_type": "number",
+          "default": 0,
+          "unit": {
+            "quantity": "count",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": 50.0,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "wall_heat_capacity_j_k",
+          "label": "管壁热容",
+          "value_type": "number",
+          "default": 0.0,
+          "unit": {
+            "quantity": "heat_capacity",
+            "canonical_unit": "J/K",
+            "display_unit": "kJ/K",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
         }
       ],
       "variables": [
@@ -2871,6 +2905,74 @@
           "sampleable": true,
           "parameter_id": "ambient_temperature_k",
           "port_id": null
+        },
+        {
+          "id": "param.thermal_cells",
+          "label": "热容分段数（0 为无热惯性）",
+          "quantity": "count",
+          "unit": {
+            "quantity": "count",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "thermal_cells",
+          "port_id": null
+        },
+        {
+          "id": "param.wall_heat_capacity_j_k",
+          "label": "管壁热容",
+          "quantity": "heat_capacity",
+          "unit": {
+            "quantity": "heat_capacity",
+            "canonical_unit": "J/K",
+            "display_unit": "kJ/K",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "wall_heat_capacity_j_k",
+          "port_id": null
+        },
+        {
+          "id": "state.mean_temperature_k",
+          "label": "管内平均温度（热容分段）",
+          "quantity": "temperature",
+          "unit": {
+            "quantity": "temperature",
+            "canonical_unit": "K",
+            "display_unit": "°C",
+            "display_scale": 1.0,
+            "display_offset": -273.15
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.stored_power_w",
+          "label": "管段储热功率",
+          "quantity": "power",
+          "unit": {
+            "quantity": "power",
+            "canonical_unit": "W",
+            "display_unit": "W",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
         }
       ],
       "channels": [
@@ -3212,7 +3314,7 @@
   "import_diagnostics": [
     {
       "code": "HYDRAULIC_SCOPE",
-      "message": "按已应用参数计算液态水水力与端口焓、温度；水箱在动态计算中按隐式 Euler 积分液位与水温；Python 模块包在独立 Worker 中执行；控制脚本与管道热惯性尚未参与求解",
+      "message": "按已应用参数计算液态水水力与端口焓、温度；水箱与分段管道在动态计算中按隐式 Euler 积分液位、水温和管内温度；Python 模块包在独立 Worker 中执行；控制脚本尚未参与求解",
       "severity": "info",
       "instance_id": null,
       "field": null

@@ -275,3 +275,114 @@ def test_prototype_tank_control_runs_dynamically():
     levels = [f.variables['TK1.state.level_m'] for f in frames]
     assert levels[0] == pytest.approx(2.0, rel=1e-12) and levels[-1] != levels[0]
     assert all(f.metrics['energy_residual_w'] == pytest.approx(0., abs=1e-3) for f in frames)
+
+
+# --- M2: pipe heat capacity (thermal_cells) --------------------------------------------------------
+
+PIPE = {'length_m': 30., 'diameter_m': .04, 'roughness_m': 4.5e-5}
+
+
+def cell_line(cells, ua=0., t_in=333.15, ambient=293.15, inlet=250000., outlet=120000., wall=0., **solver_options):
+    params = {**PIPE, 'thermal_cells': cells, 'heat_loss_ua_w_k': ua, 'ambient_temperature_k': ambient,
+              'wall_heat_capacity_j_k': wall}
+    return project([('B1', 'source', {'pressure_pa': inlet, 'temperature_k': t_in}), ('L1', 'pipe', params),
+                    ('B2', 'source', {'pressure_pa': outlet, 'temperature_k': t_in})],
+                   [('B1:out0', 'L1:in0'), ('L1:out0', 'B2:out0')], **solver_options)
+
+
+def series_outlet(w, cells, ua, upstream, h_env):
+    """N well-mixed cells in series: h_out = h_env + (h_in − h_env)·(w/(w + UA/(N·cp)))^N."""
+    ratio = w / (w + ua / (cells * upstream.specific_heat_j_kg_k))
+    return h_env + (upstream.enthalpy_j_kg - h_env) * ratio ** cells
+
+
+def test_steady_cell_profile_follows_the_series_formula_and_tends_to_the_exponential():
+    upstream, h_env = WATER.state_pt(250000., 333.15), WATER.state_pt(120000., 293.15).enthalpy_j_kg
+    outlets = []
+    for cells in (1, 5, 25):
+        frame = solve_steady(compile_project(cell_line(cells, ua=2000.)))
+        w = abs(frame.variables['L1.mass_flow_kg_s'])
+        expected = series_outlet(w, cells, 2000., upstream, h_env)
+        assert frame.variables['L1.out0.enthalpy_j_kg'] == pytest.approx(expected, rel=1e-12)
+        assert frame.variables['L1.state.stored_power_w'] == 0.
+        outlets.append(frame.variables['L1.out0.temperature_k'])
+    exact = solve_steady(compile_project(cell_line(0, ua=2000.))).variables['L1.out0.temperature_k']
+    # First order in 1/N: five times the cells, a fifth of the gap to the exponential (exact) profile.
+    gaps = [abs(t - exact) for t in outlets]
+    assert gaps[0] > gaps[1] > gaps[2] and 4.5 < gaps[1] / gaps[2] < 5.5
+
+
+def test_cells_with_constant_inputs_stay_at_their_steady_profile():
+    frames = solve_dynamic(compile_project(cell_line(8, ua=2000., wall=50000.)), 20., 2.)
+    assert any(d.code == 'DYNAMIC_IMPLICIT_EULER' for d in frames[0].diagnostics)
+    outlet = [f.variables['L1.out0.temperature_k'] for f in frames]
+    assert max(outlet) - min(outlet) < 1e-9
+    assert all(abs(f.variables['L1.state.stored_power_w']) < 1e-4 for f in frames)
+
+
+def test_stagnant_pipe_cools_by_the_implicit_cell_recursion():
+    params = {**PIPE, 'thermal_cells': 4, 'heat_loss_ua_w_k': 40., 'ambient_temperature_k': 293.15,
+              'wall_heat_capacity_j_k': 20000.}
+    p = project([('B1', 'source', {'pressure_pa': 200000., 'temperature_k': 353.15}), ('V1', 'valve', {'opening_ratio': 0.}),
+                 ('L1', 'pipe', params), ('B2', 'source', {'pressure_pa': 200000., 'temperature_k': 353.15})],
+                [('B1:out0', 'V1:in0'), ('V1:out0', 'L1:in0'), ('L1:out0', 'B2:out0')])
+    frames = solve_dynamic(compile_project(p), 1800., 60.)
+    hot, h_env = WATER.state_pt(200000., 353.15), WATER.state_pt(200000., 293.15).enthalpy_j_kg
+    volume = math.pi * .04 ** 2 / 4 * 30. / 4
+    mass = hot.density_kg_m3 * volume + 20000. / 4 / hot.specific_heat_j_kg_k
+    g = 40. / (4 * hot.specific_heat_j_kg_k)
+    h = hot.enthalpy_j_kg
+    for frame in frames[1:]:
+        h_new = (mass / 60. * h + g * h_env) / (mass / 60. + g)
+        assert frame.variables['L1.state.stored_power_w'] == pytest.approx(4 * mass * (h_new - h) / 60., rel=1e-9)
+        h = h_new
+        assert frame.variables['L1.state.mean_temperature_k'] == pytest.approx(
+            WATER.state_ph(200000., h).temperature_k, abs=1e-9)
+    assert 293.15 < frames[-1].variables['L1.state.mean_temperature_k'] < 353.15 - 5
+
+
+def heated_tank_line(cells):
+    pipe = {**PIPE, 'length_m': 60., 'thermal_cells': cells}
+    return project([('B1', 'source', {'pressure_pa': 160000.}), ('V1', 'valve', {'opening_ratio': .3, 'kv_m3_h': 2.}),
+                    ('TK1', 'tank', {'level_m': .5, 'area_m2': .2, 'heat_input_w': 200000.}), ('L1', 'pipe', pipe),
+                    ('B2', 'source', {'pressure_pa': 101325.})],
+                   [('B1:out0', 'V1:in0'), ('V1:out0', 'TK1:in0'), ('TK1:out0', 'L1:in0'), ('L1:out0', 'B2:out0')])
+
+
+def test_pipe_cells_delay_a_rising_inlet_temperature_and_store_its_energy():
+    without = solve_dynamic(compile_project(heated_tank_line(0)), 60., 2.)
+    # Enthalpy, not temperature: the outlet sits at a lower pressure (isenthalpic, ~1e-6 K colder).
+    for frame in without[1:]:
+        assert frame.variables['L1.out0.enthalpy_j_kg'] == pytest.approx(frame.variables['TK1.in0.enthalpy_j_kg'], rel=1e-12)
+    lags = []
+    for frame in solve_dynamic(compile_project(heated_tank_line(10)), 60., 2.)[1:]:
+        tank_h, out_h = frame.variables['TK1.in0.enthalpy_j_kg'], frame.variables['L1.out0.enthalpy_j_kg']
+        assert out_h < tank_h
+        lags.append(frame.variables['TK1.state.temperature_k'] - frame.variables['L1.out0.temperature_k'])
+        # Adiabatic cells: the enthalpy the stream loses is exactly what the cells store.
+        assert frame.variables['L1.heat_w'] == pytest.approx(-frame.variables['L1.state.stored_power_w'], rel=1e-9, abs=1e-6)
+    assert lags[-1] > .05
+
+
+def test_reversed_flow_runs_through_the_cells_backwards():
+    p = cell_line(6, ua=1500., inlet=120000., outlet=250000.)
+    frame = solve_steady(compile_project(p))
+    assert frame.variables['L1.mass_flow_kg_s'] < 0
+    upstream, h_env = WATER.state_pt(250000., 333.15), WATER.state_pt(120000., 293.15).enthalpy_j_kg
+    expected = series_outlet(abs(frame.variables['L1.mass_flow_kg_s']), 6, 1500., upstream, h_env)
+    assert frame.variables['L1.in0.enthalpy_j_kg'] == pytest.approx(expected, rel=1e-12)
+    frames = solve_dynamic(compile_project(p), 6., 2.)
+    assert max(abs(f.variables['L1.in0.temperature_k'] - frames[0].variables['L1.in0.temperature_k']) for f in frames) < 1e-9
+
+
+def test_cells_without_the_thermal_layer_stay_quasi_steady():
+    frames = solve_dynamic(compile_project(cell_line(5, thermal=False)), 1., .5)
+    assert any(d.code == 'DYNAMIC_QUASI_STEADY' for d in frames[0].diagnostics)
+    assert 'L1.state.mean_temperature_k' not in frames[-1].variables
+
+
+@pytest.mark.parametrize('cells, code', [(2.5, 'PARAMETER_INVALID'), (51, 'PARAMETER_RANGE'), (-1, 'PARAMETER_RANGE')])
+def test_invalid_cell_counts_are_compile_errors(cells, code):
+    with pytest.raises(CompilationError) as raised:
+        compile_project(cell_line(cells))
+    assert raised.value.diagnostic.code == code

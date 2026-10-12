@@ -59,6 +59,9 @@ class ThermalResult:
     diagnostics: list[Diagnostic] = field(default_factory=list)
     # Tank node -> power stored there, W: Σin w·h_in − Σout w·h + Q_heater − UA·(T − T_amb).
     storage_power_w: dict[int, float] = field(default_factory=dict)
+    # Pipes with thermal_cells > 0: branch -> cell enthalpies (start→end port order) and stored power, W.
+    cell_enthalpies: dict[int, np.ndarray] = field(default_factory=dict)
+    cell_power_w: dict[int, float] = field(default_factory=dict)
 
 
 def phase_family(state: FluidState) -> str:
@@ -200,7 +203,7 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
 
     # Tanks: finite storage nodes in an implicit step, otherwise held at their boundary state.
     storage = network.storage
-    dt_s, tank_old = storage_step if storage_step is not None else (None, {})
+    dt_s, tank_old = storage_step[:2] if storage_step is not None else (None, {})
     finite = {node: tank_old[node] for node in storage if node in tank_old}
     held_tanks = set(storage) - set(finite)
 
@@ -224,6 +227,9 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
     kinds, heat, gravity = ['isenthalpic'] * m, np.zeros(m), np.zeros(m)
     pipe_ua, ambient_h, ambient_t = np.zeros(m), np.zeros(m), np.zeros(m)
     ambient_family = [''] * m
+    # Pipe heat capacity: number of cells, fluid volume and wall capacity (J/K) per cell.
+    pipe_cells, cell_volume, cell_wall = [0] * m, np.zeros(m), np.zeros(m)
+    cell_old = (storage_step[2] if storage_step is not None and len(storage_step) > 2 else None) or {}
     exchanger_branches: dict[str, list[int]] = {}
     for j, branch in enumerate(branches):
         instance = network.instances[branch.instance_id]
@@ -246,7 +252,13 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
         elif branch.solver_model == 'pipe':
             kinds[j] = 'pipe'
             pipe_ua[j] = float(params.get('heat_loss_ua_w_k', 0.0) or 0.0)
-            if pipe_ua[j] > 0 and weight[j] > flow_eps:
+            pipe_cells[j] = int(params.get('thermal_cells', 0) or 0)
+            if pipe_cells[j] > 0:
+                volume = math.pi * params['diameter_m'] ** 2 / 4 * params['length_m']
+                cell_volume[j] = volume / pipe_cells[j]
+                cell_wall[j] = float(params.get('wall_heat_capacity_j_k', 0.0) or 0.0) / pipe_cells[j]
+            # A pipe with heat capacity exchanges with ambient even when it does not flow.
+            if pipe_ua[j] > 0 and (weight[j] > flow_eps or pipe_cells[j] > 0):
                 ambient_t[j] = float(params.get('ambient_temperature_k', DEFAULT_TEMPERATURE_K))
                 ambient_state = _state_pt(service, pressures[downstream[j]], ambient_t[j], branch.instance_id)
                 ambient_h[j], ambient_family[j] = ambient_state.enthalpy_j_kg, phase_family(ambient_state)
@@ -266,7 +278,8 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
             diagnostics.append(Diagnostic(code='THERMAL_EXCHANGER_NO_FLOW', severity='info', instance_id=instance_id,
                                           message=f'{instance_id} 至少一侧无流量，本次不交换热量'))
     nonlinear = (bool(exchangers) or any(pipe_ua[j] > 0 for j in flowing)
-                 or any(storage[node].heat_loss_ua_w_k > 0 for node in finite))
+                 or any(storage[node].heat_loss_ua_w_k > 0 for node in finite)
+                 or any(pipe_cells[j] > 0 for j in flowing))
 
     # Which nodes does inflow determine? Anything else sits on a closed circulation.
     edges = [(upstream[j], downstream[j]) for j in flowing]
@@ -348,12 +361,54 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
             terms[node] = (diagonal, rhs)
         return terms
 
+    chains: dict[int, tuple[list, float]] = {}  # flowing pipe with cells -> (cell relations, cell mass), last pass
+
+    def environment_h(j, states, h, node):
+        """Enthalpy the pipe wall relaxes to; across a phase boundary only sensible heat (see below)."""
+        if ambient_family[j] == phase_family(states[node]):
+            return ambient_h[j]
+        cp = states[node].specific_heat_j_kg_k
+        return h[node] + cp * (ambient_t[j] - states[node].temperature_k)
+
+    def cell_masses(j, states, node):
+        cp = states[node].specific_heat_j_kg_k
+        return states[node].density_kg_m3 * cell_volume[j] + cell_wall[j] / cp
+
+    def cell_chain(j, states, h):
+        """Cells of a flowing pipe in flow order: h_i·(M/dt + w + G) = M/dt·h_i,old + w·h_(i−1) + G·h_env.
+
+        G = UA/(N·cp). Each cell is linear in h_up, so the outlet stays a·h_up + c. Without a time
+        step (steady, frame 0) M/dt drops out and the cells sit at their steady profile.
+        Returns (a, c, cells as [(slope, offset)] in flow order, cell mass).
+        """
+        up, w, n_cells = upstream[j], weight[j], pipe_cells[j]
+        cp = states[up].specific_heat_j_kg_k
+        g = pipe_ua[j] / (n_cells * cp)
+        h_env = environment_h(j, states, h, up) if pipe_ua[j] > 0 else 0.0
+        mass = cell_masses(j, states, up)
+        storage_rate = mass / dt_s if j in cell_old else 0.0
+        previous = cell_old.get(j)
+        order = range(n_cells) if flows[j] >= 0 else range(n_cells - 1, -1, -1)
+        slope, offset, cells = 1.0, 0.0, []
+        for i in order:
+            denominator = storage_rate + w + g
+            stored = storage_rate * previous[i] if previous is not None else 0.0
+            slope, offset = w * slope / denominator, (w * offset + stored + g * h_env) / denominator
+            cells.append((slope, offset))
+        return slope, offset, cells, mass
+
     def relations_for(states, h):
         weights = [{upstream[j]: 1.0} for j in range(m)]
         consts = np.zeros(m)
+        chains.clear()
         for j in flowing:
             up, w, c = upstream[j], weight[j], gravity[j]
-            if kinds[j] == 'pipe' and pipe_ua[j] > 0:
+            if kinds[j] == 'pipe' and pipe_cells[j] > 0:
+                a, offset, cells, mass = cell_chain(j, states, h)
+                chains[j] = (cells, mass)
+                weights[j] = {up: a}
+                c += offset
+            elif kinds[j] == 'pipe' and pipe_ua[j] > 0:
                 cp = states[up].specific_heat_j_kg_k
                 a = math.exp(-pipe_ua[j] / (w * cp))
                 weights[j] = {up: a}
@@ -462,6 +517,30 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
         outlet_states[j] = checked_state(pressures[downstream[j]], outlet_h[j], branches[j].instance_id, downstream[j])
         heat_w[j] = weight[j] * (outlet_h[j] - h[upstream[j]])
 
+    # Cell enthalpies (start→end port order) and the power each pipe stores in its cells.
+    cell_enthalpies, cell_power = {}, {}
+    for j in range(m):
+        if kinds[j] != 'pipe' or pipe_cells[j] <= 0:
+            continue
+        if j in chains:
+            cells, mass = chains[j]
+            values = np.array([slope * h[upstream[j]] + offset for slope, offset in cells])
+            if flows[j] < 0:
+                values = values[::-1]
+        else:
+            # Stagnant: no transport. Steady/frame 0 takes the start node's state; a step relaxes towards ambient.
+            node = upstream[j]
+            mass = cell_masses(j, states, node)
+            if j in cell_old:
+                cp = states[node].specific_heat_j_kg_k
+                g = pipe_ua[j] / (pipe_cells[j] * cp)
+                h_env = environment_h(j, states, h, node) if pipe_ua[j] > 0 else 0.0
+                values = (mass / dt_s * np.asarray(cell_old[j]) + g * h_env) / (mass / dt_s + g)
+            else:
+                values = np.full(pipe_cells[j], h[node])
+        cell_enthalpies[j] = values
+        cell_power[j] = float(mass * np.sum(values - np.asarray(cell_old[j])) / dt_s) if j in cell_old else 0.0
+
     # Heat the fallback reference injected: residual of the original node balance at pinned rows.
     reference_heat = 0.0
     for node in pins:
@@ -524,4 +603,5 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
                          outlet_enthalpies=outlet_h, outlet_states=outlet_states, heat_w=heat_w,
                          boundary_supply=supply, boundary_states=boundary_states, port_states=port_states,
                          reference_heat_w=float(reference_heat), energy_residual_w=residual, iterations=iterations,
-                         diagnostics=diagnostics, storage_power_w=storage_power)
+                         diagnostics=diagnostics, storage_power_w=storage_power,
+                         cell_enthalpies=cell_enthalpies, cell_power_w=cell_power)

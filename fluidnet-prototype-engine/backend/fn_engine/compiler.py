@@ -142,6 +142,8 @@ def validated_parameters(instance, definition):
             raise CompilationError('PARAMETER_RANGE', f'{instance.id}.roughness_m 不能小于零', instance.id, 'roughness_m')
         if roughness / diameter > .05:
             raise CompilationError('ROUGHNESS_RANGE', '相对粗糙度必须不大于 0.05', instance.id, 'roughness_m')
+    if 'thermal_cells' in values and float(values['thermal_cells']) != int(values['thermal_cells']):
+        raise CompilationError('PARAMETER_INVALID', f'{instance.id}.thermal_cells 必须是整数', instance.id, 'thermal_cells')
     return values
 
 
