@@ -540,6 +540,96 @@
       "title": "ModulePackageRef",
       "type": "object"
     },
+    "PIDController": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "measurement": {
+          "title": "Measurement",
+          "type": "string"
+        },
+        "instance_id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+          "title": "Instance Id",
+          "type": "string"
+        },
+        "parameter_id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+          "title": "Parameter Id",
+          "type": "string"
+        },
+        "setpoint": {
+          "title": "Setpoint",
+          "type": "number"
+        },
+        "kp": {
+          "default": 2.0,
+          "title": "Kp",
+          "type": "number"
+        },
+        "ki": {
+          "default": 0.0,
+          "title": "Ki",
+          "type": "number"
+        },
+        "kd": {
+          "default": 0.0,
+          "title": "Kd",
+          "type": "number"
+        },
+        "sample_s": {
+          "default": 0.1,
+          "exclusiveMinimum": 0,
+          "maximum": 60,
+          "title": "Sample S",
+          "type": "number"
+        },
+        "minimum": {
+          "default": 0.0,
+          "title": "Minimum",
+          "type": "number"
+        },
+        "maximum": {
+          "default": 1.0,
+          "title": "Maximum",
+          "type": "number"
+        },
+        "mode": {
+          "default": "auto",
+          "enum": [
+            "manual",
+            "auto"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "manual_output": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Manual Output"
+        }
+      },
+      "required": [
+        "id",
+        "measurement",
+        "instance_id",
+        "parameter_id",
+        "setpoint"
+      ],
+      "title": "PIDController",
+      "type": "object"
+    },
     "ParameterSpec": {
       "additionalProperties": false,
       "properties": {
@@ -746,6 +836,13 @@
         },
         "solver": {
           "$ref": "#/$defs/SolverOptions"
+        },
+        "controllers": {
+          "items": {
+            "$ref": "#/$defs/PIDController"
+          },
+          "title": "Controllers",
+          "type": "array"
         }
       },
       "required": [
@@ -1072,6 +1169,27 @@
       "maxItems": 256,
       "title": "Trend Variables",
       "type": "array"
+    },
+    "execution_mode": {
+      "default": "fast",
+      "enum": [
+        "fast",
+        "realtime"
+      ],
+      "title": "Execution Mode",
+      "type": "string"
+    },
+    "speed_ratio": {
+      "default": 1.0,
+      "exclusiveMinimum": 0,
+      "maximum": 100,
+      "title": "Speed Ratio",
+      "type": "number"
+    },
+    "start_paused": {
+      "default": false,
+      "title": "Start Paused",
+      "type": "boolean"
     }
   },
   "required": [

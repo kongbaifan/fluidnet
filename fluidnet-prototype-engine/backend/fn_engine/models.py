@@ -353,6 +353,30 @@ class SolverOptions(StrictModel):
     batch_modules: bool = True
 
 
+class PIDController(StrictModel):
+    id: Identifier
+    measurement: str
+    instance_id: Identifier
+    parameter_id: Identifier
+    setpoint: float
+    kp: float = 2.0
+    ki: float = 0.0
+    kd: float = 0.0
+    sample_s: float = Field(default=0.1, gt=0, le=60)
+    minimum: float = 0.0
+    maximum: float = 1.0
+    mode: Literal['manual', 'auto'] = 'auto'
+    manual_output: float | None = None
+
+    @model_validator(mode='after')
+    def check_limits(self):
+        if self.minimum >= self.maximum:
+            raise ValueError('PID 输出下限必须小于上限')
+        if self.manual_output is not None and not self.minimum <= self.manual_output <= self.maximum:
+            raise ValueError('PID 手动输出超出范围')
+        return self
+
+
 class Project(StrictModel):
     schema_version: Literal[1] = 1
     id: str
@@ -366,6 +390,7 @@ class Project(StrictModel):
     selected_variables: list[str] = Field(default_factory=list, max_length=64)
     import_diagnostics: list[Diagnostic] = Field(default_factory=list)
     solver: SolverOptions = Field(default_factory=SolverOptions)
+    controllers: list[PIDController] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def validate_project(self):
@@ -378,6 +403,13 @@ class Project(StrictModel):
         if any(i.module_id not in module_ids for i in self.instances):
             raise ValueError("实例引用了不存在的模块")
         instance_map = {i.id: i for i in self.instances}
+        if len({c.id for c in self.controllers}) != len(self.controllers):
+            raise ValueError('控制器 ID 重复')
+        targets = [(c.instance_id, c.parameter_id) for c in self.controllers]
+        if len(set(targets)) != len(targets):
+            raise ValueError('同一参数只能绑定一个控制器')
+        if any(c.instance_id not in instance_map for c in self.controllers):
+            raise ValueError('控制器目标设备不存在')
         definitions = {m.id: m for m in self.modules}
         for instance in self.instances:
             if instance.package:
@@ -413,6 +445,9 @@ class RunRequest(StrictModel):
     # and only trend_variables plus module state on the others. Dynamic runs only.
     history: Literal["full", "trend"] = "full"
     trend_variables: list[str] = Field(default_factory=list, max_length=256)
+    execution_mode: Literal['fast', 'realtime'] = 'fast'
+    speed_ratio: float = Field(default=1.0, gt=0, le=100)
+    start_paused: bool = False
 
     @model_validator(mode="after")
     def limit_frames(self):
@@ -422,10 +457,12 @@ class RunRequest(StrictModel):
 
 
 class RunCommand(StrictModel):
-    action: Literal["pause", "resume", "step", "stop", "set"]
+    action: Literal["pause", "resume", "step", "stop", "set", "controller"]
     instance_id: str | None = None
     parameter_id: str | None = None
     value: Any = None
+    command_id: str | None = Field(default=None, pattern=r'^[A-Za-z0-9][A-Za-z0-9_-]{0,95}$')
+    controller_id: Identifier | None = None
 
 
 class Diagnostic(StrictModel):
@@ -445,6 +482,8 @@ class RunFrame(StrictModel):
     metrics: dict[str, float | int | None] = Field(default_factory=dict)
     # False on trend-history frames that carry only the trend variables (see RunRequest.history).
     full: bool = True
+    sequence: int = 0
+    parameter_revision: int = 0
 
 
 class RunRecord(StrictModel):
@@ -518,11 +557,16 @@ class ModuleVersionsResponse(StrictModel):
 
 class RunStatus(StrictModel):
     run_id: str
-    status: Literal["queued", "running", "completed", "failed", "cancelled"]
+    status: Literal["queued", "running", "paused", "stopping", "completed", "failed", "cancelled", "interrupted"]
     mode: Literal["steady", "dynamic"]
     progress: float = Field(default=0.0, ge=0, le=1)
     frame: RunFrame | None = None
     total_rows: int = Field(default=0, ge=0)
+    command_id: str | None = None
+    command_status: Literal['accepted', 'applied', 'rejected'] | None = None
+    applied_time_s: float | None = None
+    message: str | None = None
+    lag_s: float = 0.0
 
 
 class ErrorResponse(StrictModel):
@@ -539,7 +583,7 @@ class ValidationResponse(StrictModel):
 
 class RunCreateResponse(StrictModel):
     run_id: str
-    status: Literal["queued", "running", "completed", "failed", "cancelled"]
+    status: str
     frame: RunFrame | None = None
     total_rows: int = Field(default=0, ge=0)
 
@@ -553,6 +597,11 @@ class RunHistoryResponse(StrictModel):
 class RunEvent(StrictModel):
     type: str
     time_s: float = Field(default=0.0, ge=0)
+    command_id: str | None = None
+    command_status: str | None = None
+    message: str | None = None
+    command: RunCommand | None = None
+    parameter_revision: int | None = None
 
 
 class RunEventsResponse(StrictModel):
@@ -584,6 +633,8 @@ class RunRecordResponse(StrictModel):
     request: RunRequest
     frame: RunFrame | None = None
     events: list[RunEvent] = Field(default_factory=list)
+    total_rows: int = 0
+    lag_s: float = 0.0
 
 
 EvaluateResponse.model_rebuild()

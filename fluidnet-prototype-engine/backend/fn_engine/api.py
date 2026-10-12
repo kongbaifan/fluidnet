@@ -16,6 +16,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import __version__
+from .jobs import RunManager
 from .bridge import PARAMETER_BINDINGS, normalize_prototype_export
 from .catalog import builtin_catalog
 from .compiler import CompilationError, compile_project, validate_project
@@ -216,6 +217,7 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
     controls: dict[str, RunControl] = {}
     lock = Lock()
     executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix='fluidnet-run')
+    manager = RunManager(apply_scenario)
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
@@ -226,6 +228,7 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
             yield
         finally:
             try:
+                manager.close()
                 executor.shutdown(wait=False, cancel_futures=True)
             except Exception:  # pragma: no cover - defensive teardown
                 logger.exception('FluidNet run executor shutdown failed')
@@ -241,12 +244,20 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
                                 'property_coupling':['reference','node'],'tank_state':True,
                                 'time_integration':'implicit_euler',
                                 'coolprop_single_phase':True,'user_code':True,'worker_process':True,'async_runs':True,
-                                'module_versions':True,'run_control':True},
+                                'module_versions':True,'run_control':True,'live_runs':True,'pid':True,'runtime_parameters':True,'continuous_step':True},
                 'max_frames':2001,'run_retention':RUN_RETENTION}
 
     @app.get('/api/v1/catalog', response_model=CatalogResponse)
     def catalog():
         return {'modules':builtin_catalog(), 'prototype_parameter_bindings':PARAMETER_BINDINGS}
+
+    @app.get('/api/v1/examples/{name}', response_model=Project)
+    def example(name: str):
+        from .examples import pid_example
+        try:
+            return pid_example(name)
+        except KeyError:
+            raise HTTPException(404, detail='示例不存在')
 
     @app.get('/api/v1/modules', response_model=ModuleCatalogResponse)
     def modules():
@@ -437,13 +448,10 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
     def run(request: RunRequest, background: bool = Query(False)):
         run_id = uuid.uuid4().hex
         if background:
-            control = RunControl()
-            with lock:
-                runs[run_id] = {'id':run_id,'status':'queued','mode':request.mode,
-                                'request':request.model_dump(mode='json'),'frame':None,'history':[],
-                                'events':[{'type':'queued','time_s':0.0}]}
-                controls[run_id] = control
-            executor.submit(run_task, run_id, request, control)
+            try:
+                run_id = manager.submit(request)
+            except ValueError as error:
+                raise HTTPException(422, detail={'code':'RUN_LIMIT', 'message':str(error)}) from error
             return JSONResponse(status_code=202, content=RunStatus(run_id=run_id,status='queued',mode=request.mode).model_dump(mode='json'))
         try:
             record = compute_run(run_id, request)
@@ -455,7 +463,15 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
             raise HTTPException(status, detail=detail) from error
         return {'run_id':run_id,'status':record['status'],'frame':record['frame'],'total_rows':len(record['history'])}
 
-    def get_run(run_id):
+    @app.get('/api/v1/runs')
+    def list_runs():
+        return {'runs': manager.records()}
+
+    def get_run(run_id, history=False):
+        try:
+            return manager.snapshot(run_id, history=history)
+        except KeyError:
+            pass
         with lock:
             record = runs.get(run_id)
         if record is None:
@@ -472,7 +488,8 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
         elif request.get('mode') == 'dynamic' and frame and request.get('duration_s'):
             progress = max(0.0, min(1.0, float(frame.get('time_s') or 0.0) / float(request['duration_s'])))
         return {'run_id':record['id'],'status':record.get('status','queued'),'mode':record.get('mode','steady'),
-                'progress':progress,'frame':frame,'total_rows':len(record.get('history') or [])}
+                'progress':progress,'frame':frame,'total_rows':record.get('total_rows',len(record.get('history') or [])),
+                'lag_s':record.get('lag_s',0.)}
 
     @app.get('/api/v1/runs/{run_id}', response_model=RunRecordResponse)
     def run_status(run_id: str):
@@ -486,44 +503,20 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
 
     @app.get('/api/v1/runs/{run_id}/history', response_model=RunHistoryResponse)
     def run_history(run_id: str, offset: int = Query(0,ge=0), limit: int = Query(2001,ge=1,le=2001)):
-        history = get_run(run_id)['history']
+        history = get_run(run_id, history=True)['history']
         return {'rows':history[offset:offset+limit],'total_rows':len(history),'offset':offset}
 
     @app.post('/api/v1/runs/{run_id}/command', response_model=RunStatus)
     def run_command(run_id: str, command: RunCommand):
-        """Pause/resume/stop a background run. `step` and `set` are not supported yet."""
-        with lock:
-            record = runs.get(run_id)
-            control = controls.get(run_id)
-        if record is None:
-            raise HTTPException(404, detail=RUN_NOT_FOUND)
-        if command.action in {'step', 'set'}:
-            raise HTTPException(422, detail={'code':'RUN_COMMAND_UNSUPPORTED','action':command.action,
-                'message':f'运行控制命令 {command.action} 尚未支持:中途改变参数会使已固定的模块版本失效,单步请新建一次指定步长的运行'})
-        with lock:
-            if record.get('status') in TERMINAL_STATUSES:
-                raise HTTPException(409, detail={'code':'RUN_ALREADY_FINISHED','status':record['status'],
-                    'message':f'运行已结束({record["status"]}),无法再执行 {command.action}'})
-        if control is None:
-            raise HTTPException(409, detail={'code':'RUN_NOT_CONTROLLABLE','status':record.get('status'),
-                'message':'该运行不是后台任务,同步运行无法中途控制'})
-        if command.action == 'stop':
-            control.cancel()
-            # Record the cancellation immediately so pollers observe it without
-            # waiting for the in-flight frame. compute_run appends the matching
-            # terminal event; its dict swap then replaces this provisional one.
-            with lock:
-                current = runs.get(run_id)
-                if current is record and record.get('status') not in TERMINAL_STATUSES:
-                    record['status'] = 'cancelled'
-                    record.setdefault('events', []).append({'type':'cancelled','time_s':0.0})
-        elif command.action == 'pause':
-            control.pause()
-        elif command.action == 'resume':
-            control.resume()
-        with lock:
-            record = runs.get(run_id) or record
-        return status_payload(record)
+        record = get_run(run_id)
+        try:
+            receipt = manager.command(run_id, command)
+        except KeyError:
+            raise HTTPException(409, detail={'code':'RUN_ALREADY_FINISHED', 'message':'同步运行已结束'})
+        except CompilationError as error:
+            raise HTTPException(409 if error.diagnostic.code in {'RUN_ALREADY_FINISHED','COMMAND_ID_CONFLICT'} else 422,
+                                detail={'code':error.diagnostic.code, 'message':str(error)}) from error
+        return status_payload(manager.snapshot(run_id)) | receipt
 
     if frontend_root:
         app.mount('/',StaticFiles(directory=str(Path(frontend_root)),html=True),name='frontend')

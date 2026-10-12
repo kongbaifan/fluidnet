@@ -289,6 +289,10 @@ class WorkerProcess:
         self.state = dict(response.get("state", {}))
         return self.state
 
+    def update_parameters(self, parameters):
+        self._request({'action': 'parameters', 'parameters': parameters})
+        self.parameters = dict(parameters)
+
     def validate_entrypoint(self):
         return self._request({"action": "validate", "definition": self.definition.model_dump(mode="json")})
 

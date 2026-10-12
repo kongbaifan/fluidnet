@@ -154,7 +154,7 @@ def test_background_run_can_be_cancelled(tmp_path):
 
         command = client.post(f"/api/v1/runs/{run_id}/command", json={"action": "stop"})
         assert command.status_code == 200, command.text
-        assert command.json()["status"] == "cancelled"
+        assert command.json()["command_status"] == "accepted"
 
         record = wait_terminal(client, run_id)
         assert record is not None and record["status"] == "cancelled", record
@@ -241,7 +241,7 @@ def test_pause_then_resume_reaches_completed(tmp_path):
         # Give the timeline loop time to reach the pause barrier; it must still
         # be parked there instead of racing to completion.
         time.sleep(0.4)
-        assert client.get(f"/api/v1/runs/{run_id}").json()["status"] == "running"
+        assert client.get(f"/api/v1/runs/{run_id}").json()["status"] == "paused"
 
         resumed = client.post(f"/api/v1/runs/{run_id}/command", json={"action": "resume"})
         assert resumed.status_code == 200, resumed.text
@@ -250,15 +250,21 @@ def test_pause_then_resume_reaches_completed(tmp_path):
 
 
 @pytest.mark.parametrize("action", ["step", "set"])
-def test_step_and_set_are_explicitly_unsupported(tmp_path, action):
+def test_invalid_step_and_set_are_reported_in_command_events(tmp_path, action):
     with TestClient(create_app(module_storage_root=tmp_path)) as client:
         created = client.post("/api/v1/runs?background=true",
                               json=dynamic_request(custom_project(), 1.0, 0.05)).json()
         run_id = created["run_id"]
         assert wait_running(client, run_id)
         response = client.post(f"/api/v1/runs/{run_id}/command", json={"action": action})
-        assert response.status_code == 422, response.text
-        assert response.json()["detail"]["code"] == "RUN_COMMAND_UNSUPPORTED"
+        assert response.status_code == 200, response.text
+        key=response.json()['command_id']
+        for _ in range(POLL_CAP):
+            events=client.get(f'/api/v1/runs/{run_id}/events').json()['events']
+            result=next((e for e in reversed(events) if e.get('command_id')==key),{})
+            if result.get('command_status')=='rejected': break
+            time.sleep(.01)
+        assert result['command_status']=='rejected' 
         assert client.post(f"/api/v1/runs/{run_id}/command", json={"action": "stop"}).status_code == 200
         wait_terminal(client, run_id)
 
@@ -306,7 +312,8 @@ def test_background_crash_before_record_write_is_terminalized(tmp_path, monkeypa
     def explode(*args, **kwargs):
         raise RuntimeError("solver exploded")
 
-    monkeypatch.setattr(api, "solve_dynamic", explode)
+    from fn_engine.simulation import SimulationSession
+    monkeypatch.setattr(SimulationSession, "initialize", explode)
     with TestClient(create_app(module_storage_root=tmp_path)) as client:
         created = client.post("/api/v1/runs?background=true",
                               json=dynamic_request(custom_project(), .2, .1)).json()
@@ -365,19 +372,17 @@ def test_cancel_keeps_partial_frames(tmp_path, monkeypatch):
         assert record["frame"]["time_s"] < 5.0
 
 
-def test_paused_run_auto_resumes_after_budget(tmp_path, monkeypatch):
-    import fn_engine.api as api
-
-    monkeypatch.setattr(api.RunControl, "PAUSE_BUDGET_S", 0.2)
+def test_paused_run_stays_paused(tmp_path):
     with TestClient(create_app(module_storage_root=tmp_path)) as client:
-        created = client.post("/api/v1/runs?background=true",
-                              json=dynamic_request(custom_project(), 1.0, 0.05)).json()
-        run_id = created["run_id"]
-        assert wait_running(client, run_id)
-        assert client.post(f"/api/v1/runs/{run_id}/command", json={"action": "pause"}).status_code == 200
-        # No `resume` is sent: the parked loop releases itself at the budget.
-        record = wait_terminal(client, run_id)
-        assert record is not None and record["status"] == "completed", record
+        created=client.post('/api/v1/runs?background=true',json=dynamic_request(custom_project()) | {'start_paused':True}).json()
+        run_id=created['run_id']
+        for _ in range(POLL_CAP):
+            record=client.get(f'/api/v1/runs/{run_id}').json()
+            if record['status']=='paused':break
+            time.sleep(.01)
+        time.sleep(.3)
+        record=client.get(f'/api/v1/runs/{run_id}').json()
+        assert record['status']=='paused' and record['frame']['time_s']==0
 
 
 def test_stop_then_engine_fault_still_reports_the_fault(tmp_path, monkeypatch):
@@ -393,7 +398,8 @@ def test_stop_then_engine_fault_still_reports_the_fault(tmp_path, monkeypatch):
         time.sleep(0.4)
         raise RuntimeError("engine fault after stop")
 
-    monkeypatch.setattr(api, "solve_dynamic", slow_explode)
+    from fn_engine.simulation import SimulationSession
+    monkeypatch.setattr(SimulationSession, "initialize", slow_explode)
     with TestClient(create_app(module_storage_root=tmp_path)) as client:
         created = client.post("/api/v1/runs?background=true",
                               json=dynamic_request(custom_project(), 1.0, 0.05)).json()
@@ -409,41 +415,16 @@ def test_stop_then_engine_fault_still_reports_the_fault(tmp_path, monkeypatch):
         assert terminal == ["failed"], events
 
 
-def test_a_second_pause_survives_a_stale_waiter(tmp_path):
-    """The parked thread's cleanup must not clear a newer pause.
-
-    `should_cancel` waits on the resume gate and then clears `_paused`. If a
-    second `pause` lands between the wait returning and that clear, an
-    unconditional clear swallows it. The wait is instrumented so the second
-    pause is injected at exactly that instant, instead of hoping to hit a
-    sub-millisecond window.
-    """
-    from fn_engine.api import RunControl
-
-    control = RunControl()
-    control.PAUSE_BUDGET_S = 5.0
-    control.pause()
-
-    parked, result = threading.Event(), {}
-    gate_wait = control._resume.wait
-
-    def probed_wait(timeout=None):
-        parked.set()
-        outcome = gate_wait(timeout)
-        control.pause()          # the second pause, in the racy window
-        return outcome
-
-    control._resume.wait = probed_wait
-
-    def solver_thread():
-        result["cancelled"] = control.should_cancel()
-
-    worker = threading.Thread(target=solver_thread)
-    worker.start()
-    assert parked.wait(2.0), "the solver thread must park on the pause gate"
-    control.resume()
-    worker.join(timeout=5.0)
-
-    assert not worker.is_alive()
-    assert result["cancelled"] is False
-    assert control.paused is True, "the newer pause must survive the stale cleanup"
+def test_queued_pause_resume_pause_preserves_order(tmp_path):
+    with TestClient(create_app(module_storage_root=tmp_path)) as client:
+        run_id=client.post('/api/v1/runs?background=true',json=dynamic_request(custom_project(),3,.1) | {'start_paused':True}).json()['run_id']
+        receipts=[]
+        for action in ('pause','resume','pause'):
+            receipts.append(client.post(f'/api/v1/runs/{run_id}/command',json={'action':action}).json()['command_id'])
+        for _ in range(POLL_CAP):
+            record=client.get(f'/api/v1/runs/{run_id}').json()
+            applied=[e['command_id'] for e in record['events'] if e.get('command_status')=='applied']
+            if len(applied)==3:break
+            time.sleep(.01)
+        assert applied==receipts
+        assert record['status']=='paused'

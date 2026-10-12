@@ -119,6 +119,16 @@
       "default": true,
       "title": "Full",
       "type": "boolean"
+    },
+    "sequence": {
+      "default": 0,
+      "title": "Sequence",
+      "type": "integer"
+    },
+    "parameter_revision": {
+      "default": 0,
+      "title": "Parameter Revision",
+      "type": "integer"
     }
   },
   "required": [

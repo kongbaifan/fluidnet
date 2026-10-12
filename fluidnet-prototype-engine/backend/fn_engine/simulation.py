@@ -1,0 +1,251 @@
+"""Resumable simulation; one owner advances a session, commands run at frame boundaries."""
+from __future__ import annotations
+
+import dataclasses
+import math
+
+import numpy as np
+
+from . import solver as s
+from .compiler import CompilationError, validated_parameters
+from .controllers import PID
+from .models import Diagnostic, PIDController
+from .properties import property_service
+
+
+class SimulationSession:
+    def __init__(self, network, duration_s, dt_s):
+        if not all(math.isfinite(v) and v > 0 for v in (duration_s, dt_s)) or duration_s > 2000 * dt_s:
+            raise ValueError('运行时长和步长必须为有限正数，最多 2001 帧')
+        self.network = network
+        self.duration, self.dt = duration_s, dt_s
+        self.time = 0.0
+        self.index = 0
+        self.revision = 0
+        self.frames = []
+        self.runners = {}
+        self.controllers = {}
+        self.service = property_service(network.project.fluid)
+        self.stateful = s.has_state(network)
+        self.warning = Diagnostic(code='DYNAMIC_IMPLICIT_EULER' if self.stateful else 'DYNAMIC_QUASI_STEADY',
+            severity='info' if self.stateful else 'warning', message='隐式 Euler 时间推进，一阶精度，失败子步减半' if self.stateful
+            else '准稳态时间序列：每步求解水力与热力并提交模块状态；未计算容积和热惯性')
+        self.result = None
+        self.tanks = s.tank_states_from(network, None, None, None)
+        self.cells = {}
+        self.committed = {}
+        self.diagnostics = []
+        self.view = network
+        self.closed = False
+
+    @property
+    def done(self):
+        return bool(self.frames) and self.time >= self.duration - 1e-12
+
+    def initialize(self):
+        try:
+            self.runners = s._python_runners(self.network)
+            self.result = s.solve_network(self.network, self.runners, 0., service=self.service if self.network.project.solver.thermal else None)
+            self.cells = dict(self.result.thermal.cell_enthalpies) if self.result.thermal else {}
+            for config in self.network.project.controllers:
+                spec = self.parameter_spec(config.instance_id, config.parameter_id)
+                if spec.value_type != 'number':
+                    raise CompilationError('PID_TARGET_INVALID', 'PID 目标必须是可调数值参数')
+                if spec.minimum is not None and config.minimum < spec.minimum or spec.maximum is not None and config.maximum > spec.maximum:
+                    raise CompilationError('PID_TARGET_INVALID', 'PID 输出范围超出目标参数范围')
+                current = self.network.parameters[config.instance_id][config.parameter_id]
+                self.controllers[config.id] = PID(config.model_copy(deep=True), min(config.maximum, max(config.minimum, current)))
+            frame = self.snapshot()
+            for pid in self.controllers.values():
+                pid.sample(0., frame.variables)
+            return self.publish()
+        except BaseException:
+            self.close()
+            raise
+
+    def parameter_spec(self, instance_id, parameter_id):
+        instance = self.network.instances.get(instance_id)
+        if instance is None:
+            raise CompilationError('PARAMETER_TARGET_MISSING', '目标设备不存在')
+        definition = self.network.modules[instance.module_id]
+        spec = next((p for p in definition.parameters if p.id == parameter_id), None)
+        if spec is None or not spec.writable or not spec.runtime:
+            raise CompilationError('PARAMETER_NOT_RUNTIME', f'{instance_id}.{parameter_id} 不允许运行时修改')
+        return spec
+
+    def set_parameter(self, instance_id, parameter_id, value, controlled=False):
+        self.parameter_spec(instance_id, parameter_id)
+        if not controlled and any(p.config.mode == 'auto' and (p.config.instance_id, p.config.parameter_id) == (instance_id, parameter_id)
+                                  for p in self.controllers.values()):
+            raise CompilationError('PARAMETER_CONTROLLED', '该参数由 PID 控制，请先切换手动模式')
+        instance = self.network.instances[instance_id]
+        definition = self.network.modules[instance.module_id]
+        candidate = instance.model_copy(update={'parameters': self.network.parameters[instance_id] | {parameter_id: value}})
+        parameters = validated_parameters(candidate, definition)
+        if definition.solver_model == 'pump_curve' and parameters.get('speed_ratio', 1) <= 0:
+            raise CompilationError('PARAMETER_RANGE', '当前泵模型转速必须大于零')
+        if parameters == self.network.parameters[instance_id]:
+            return
+        if instance_id in self.runners:
+            self.runners[instance_id].update_parameters(parameters)
+        self.network.parameters[instance_id] = parameters
+        for branch in self.network.branches:
+            if branch.instance_id == instance_id and definition.runtime == 'builtin' and branch.solver_model == 'valve':
+                branch.closed = parameters['opening_ratio'] == 0
+        for spec in self.network.storage.values():
+            if spec.instance_id == instance_id and parameter_id == 'heat_input_w':
+                spec.heat_input_w = value
+        self.revision += 1
+
+    def update_controller(self, controller_id, field, value):
+        pid = self.controllers.get(controller_id)
+        if pid is None or field not in {'setpoint', 'mode', 'manual_output'}:
+            raise CompilationError('PID_COMMAND_INVALID', '控制器或可调字段不存在')
+        config = PIDController.model_validate(pid.config.model_dump() | {field: value})
+        if config.mode != pid.config.mode:
+            pid.reset = True
+        pid.config = config
+        pid.next_s = self.time
+        self.revision += 1
+
+    def _control(self):
+        variables = self.snapshot().variables
+        for pid in self.controllers.values():
+            if pid.next_s <= self.time + 1e-10:
+                pid.sample(self.time, variables)
+            self.set_parameter(pid.config.instance_id, pid.config.parameter_id, pid.output, controlled=True)
+
+    def _view(self):
+        view = s._step_network(self.network, self.tanks, self.service) if self.stateful else self.network
+        # Reference-free islands created at runtime get one deterministic pressure anchor.
+        adjacency = {i: set() for i in range(len(view.node_keys))}
+        for branch in view.branches:
+            if not branch.closed:
+                adjacency[branch.start_node].add(branch.end_node)
+                adjacency[branch.end_node].add(branch.start_node)
+        unseen = set(adjacency)
+        pressure, temperature = dict(view.fixed_pressures), dict(view.fixed_temperatures)
+        diagnostics = list(view.diagnostics)
+        while unseen:
+            group, pending = set(), [min(unseen)]
+            while pending:
+                node = pending.pop()
+                if node in group:
+                    continue
+                group.add(node)
+                pending.extend(adjacency[node] - group)
+            unseen -= group
+            if group & pressure.keys():
+                continue
+            branches = [b for b in view.branches if not b.closed and b.start_node in group]
+            if any(b.solver_model not in {'pipe', 'valve', 'resistance', 'heat_exchanger'} or
+                   view.modules[view.instances[b.instance_id].module_id].runtime == 'python' for b in branches):
+                raise CompilationError('ISOLATED_ACTIVE_NETWORK', '隔离网络包含主动或自定义设备，不能采用被动管段保压近似')
+            anchor = min(group, key=lambda n: view.node_keys[n])
+            pressure[anchor] = float(self.result.hydraulic.pressures[anchor])
+            temperature[anchor] = self.result.thermal.node_states[anchor].temperature_k if self.result.thermal else 293.15
+            diagnostics.append(Diagnostic(code='ISOLATED_PRESSURE_HELD', severity='info', message='被动隔离管段采用零流量保压近似；不计算热膨胀'))
+        return dataclasses.replace(view, fixed_pressures=pressure, fixed_temperatures=temperature, diagnostics=diagnostics)
+
+    def _trial(self, h):
+        view = self._view()
+        warm = self.result
+        if self.network.storage and warm.hydraulic.solution is not None and not warm.hydraulic.storage_rates:
+            n_free = len([n for n in range(len(self.network.node_keys)) if n not in self.network.fixed_pressures])
+            solution = np.insert(warm.hydraulic.solution, n_free, np.zeros(len(self.network.storage)))
+            warm = dataclasses.replace(warm, hydraulic=dataclasses.replace(warm.hydraulic, solution=solution))
+        result = s.solve_network(view, self.runners, self.time + h, warm=warm,
+            service=self.service if view.project.solver.thermal else None,
+            storage_step=(h, self.tanks, self.cells) if self.stateful else None)
+        tanks = s.tank_states_from(view, result, self.tanks, h) if view.storage else {}
+        cells = dict(result.thermal.cell_enthalpies) if result.thermal else {}
+        return view, result, tanks, cells
+
+    def _accept(self, h, view, result, tanks, cells):
+        values, diagnostics = s._commit_modules(self.network, self.runners, result, self.time + h, h)
+        self.time += h
+        self.view, self.result, self.tanks, self.cells = view, result, tanks, cells
+        self.committed.update(values)
+        self.diagnostics.extend(diagnostics)
+
+    def snapshot(self):
+        frame = s._with_states(self.view, s.snapshot(self.view, self.result, self.time, self.warning), self.result, self.tanks, self.service)
+        protected = frame.variables.keys() - self.result.hydraulic.module_variables.keys()
+        if protected & self.committed.keys():
+            raise CompilationError('MODULE_OUTPUT_CONFLICT', 'commit_step 输出不能覆盖网络求解变量')
+        frame.variables.update(self.committed)
+        frame.diagnostics.extend(self.diagnostics)
+        for pid in self.controllers.values():
+            frame.variables.update(pid.variables())
+        frame.sequence = len(self.frames)
+        frame.parameter_revision = self.revision
+        return frame
+
+    def publish(self):
+        frame = self.snapshot()
+        self.frames.append(frame)
+        self.committed.clear()
+        self.diagnostics.clear()
+        return frame
+
+    def advance(self):
+        if not self.frames:
+            return self.initialize()
+        if self.done:
+            raise StopIteration
+        target = min((self.index + 1) * self.dt, self.duration)
+        while target - self.time > 1e-12 * max(1., target):
+            self._control()
+            h = min([target - self.time] + [p.next_s - self.time for p in self.controllers.values()])
+            for attempt in range(self.network.project.solver.max_step_halvings + 1):
+                try:
+                    trial = self._trial(h)
+                    break
+                except ValueError as error:
+                    if not self.stateful or not s._retryable(error):
+                        raise
+                    if attempt == self.network.project.solver.max_step_halvings:
+                        raise s.SolveFailed('STEP_NOT_CONVERGED', f't={self.time:g} s：缩步后仍未收敛：{error}', frames=self.frames) from error
+                    h /= 2
+            event = s._tank_event(self.network, trial[2], self.service)
+            if event:
+                lo, hi, found = 0., h, None
+                while hi - lo > 1e-6 * self.dt:
+                    mid = (lo + hi) / 2
+                    try:
+                        candidate = self._trial(mid)
+                        if s._tank_event(self.network, candidate[2], self.service):
+                            hi = mid
+                        else:
+                            lo, found = mid, candidate
+                    except ValueError as error:
+                        if not s._retryable(error):
+                            raise
+                        hi = mid
+                if found is not None:
+                    self._accept(lo, *found)
+                if self.time > self.frames[-1].time_s:
+                    self.publish()
+                code, spec = event
+                raise s.SolveFailed(code, f'{spec.instance_id} 在 t={self.time:g} s 达到液位边界，运行停止', spec.instance_id, self.frames)
+            self._accept(h, *trial)
+        self.time = target
+        self.index += 1
+        return self.publish()
+
+    def close(self):
+        if not self.closed:
+            self.closed = True
+            s._close_runners(self.runners)
+
+
+def run_dynamic(network, duration_s, dt_s, should_cancel=None):
+    session = SimulationSession(network, duration_s, dt_s)
+    try:
+        while not session.done:
+            if should_cancel and should_cancel():
+                raise s.SolveCancelled('运行已取消', session.frames)
+            session.advance()
+        return session.frames
+    finally:
+        session.close()

@@ -62,7 +62,7 @@ def builtin_catalog() -> list[ModuleDefinition]:
                 number('height_m', '罐高（满箱液位）', 5., 'length', 'm', minimum=.001),
                 number('surface_pressure_pa', '液面压力', 101325., 'pressure', 'Pa', 'kPa', 1000., 1.),
                 number('temperature_k', '初始温度', 293.15, 'temperature', 'K', '°C', minimum=1.0, offset=-273.15),
-                number('heat_input_w', '加热功率（负值为冷却）', 0., 'power', 'W'),
+                number('heat_input_w', '加热功率（负值为冷却）', 0., 'power', 'W', runtime=True),
                 number('heat_loss_ua_w_k', '散热能力 UA（0 为绝热）', 0., 'conductance', 'W/K', minimum=0.),
                 number('ambient_temperature_k', '环境温度', 293.15, 'temperature', 'K', '°C', minimum=1.0, offset=-273.15)]),
     ]

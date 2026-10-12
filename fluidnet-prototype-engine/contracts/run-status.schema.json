@@ -119,6 +119,16 @@
           "default": true,
           "title": "Full",
           "type": "boolean"
+        },
+        "sequence": {
+          "default": 0,
+          "title": "Sequence",
+          "type": "integer"
+        },
+        "parameter_revision": {
+          "default": 0,
+          "title": "Parameter Revision",
+          "type": "integer"
         }
       },
       "required": [
@@ -140,9 +150,12 @@
       "enum": [
         "queued",
         "running",
+        "paused",
+        "stopping",
         "completed",
         "failed",
-        "cancelled"
+        "cancelled",
+        "interrupted"
       ],
       "title": "Status",
       "type": "string"
@@ -178,6 +191,64 @@
       "minimum": 0,
       "title": "Total Rows",
       "type": "integer"
+    },
+    "command_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Command Id"
+    },
+    "command_status": {
+      "anyOf": [
+        {
+          "enum": [
+            "accepted",
+            "applied",
+            "rejected"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Command Status"
+    },
+    "applied_time_s": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Applied Time S"
+    },
+    "message": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Message"
+    },
+    "lag_s": {
+      "default": 0.0,
+      "title": "Lag S",
+      "type": "number"
     }
   },
   "required": [

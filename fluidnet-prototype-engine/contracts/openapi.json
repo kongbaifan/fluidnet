@@ -39,6 +39,45 @@
         }
       }
     },
+    "/api/v1/examples/{name}": {
+      "get": {
+        "summary": "Example",
+        "operationId": "example_api_v1_examples__name__get",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/modules": {
       "get": {
         "summary": "Modules",
@@ -420,6 +459,20 @@
             }
           }
         }
+      },
+      "get": {
+        "summary": "List Runs",
+        "operationId": "list_runs_api_v1_runs_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/runs/{run_id}": {
@@ -565,7 +618,6 @@
     "/api/v1/runs/{run_id}/command": {
       "post": {
         "summary": "Run Command",
-        "description": "Pause/resume/stop a background run. `step` and `set` are not supported yet.",
         "operationId": "run_command_api_v1_runs__run_id__command_post",
         "parameters": [
           {
@@ -1781,6 +1833,95 @@
         ],
         "title": "NetworkRelation"
       },
+      "PIDController": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+            "title": "Id"
+          },
+          "measurement": {
+            "type": "string",
+            "title": "Measurement"
+          },
+          "instance_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+            "title": "Instance Id"
+          },
+          "parameter_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+            "title": "Parameter Id"
+          },
+          "setpoint": {
+            "type": "number",
+            "title": "Setpoint"
+          },
+          "kp": {
+            "type": "number",
+            "title": "Kp",
+            "default": 2.0
+          },
+          "ki": {
+            "type": "number",
+            "title": "Ki",
+            "default": 0.0
+          },
+          "kd": {
+            "type": "number",
+            "title": "Kd",
+            "default": 0.0
+          },
+          "sample_s": {
+            "type": "number",
+            "maximum": 60.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Sample S",
+            "default": 0.1
+          },
+          "minimum": {
+            "type": "number",
+            "title": "Minimum",
+            "default": 0.0
+          },
+          "maximum": {
+            "type": "number",
+            "title": "Maximum",
+            "default": 1.0
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "auto"
+            ],
+            "title": "Mode",
+            "default": "auto"
+          },
+          "manual_output": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manual Output"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "measurement",
+          "instance_id",
+          "parameter_id",
+          "setpoint"
+        ],
+        "title": "PIDController"
+      },
       "ParameterSpec": {
         "properties": {
           "id": {
@@ -1983,6 +2124,13 @@
           },
           "solver": {
             "$ref": "#/components/schemas/SolverOptions"
+          },
+          "controllers": {
+            "items": {
+              "$ref": "#/components/schemas/PIDController"
+            },
+            "type": "array",
+            "title": "Controllers"
           }
         },
         "additionalProperties": false,
@@ -2002,7 +2150,8 @@
               "resume",
               "step",
               "stop",
-              "set"
+              "set",
+              "controller"
             ],
             "title": "Action"
           },
@@ -2030,6 +2179,30 @@
           },
           "value": {
             "title": "Value"
+          },
+          "command_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,95}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Command Id"
+          },
+          "controller_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Controller Id"
           }
         },
         "additionalProperties": false,
@@ -2047,13 +2220,6 @@
           },
           "status": {
             "type": "string",
-            "enum": [
-              "queued",
-              "running",
-              "completed",
-              "failed",
-              "cancelled"
-            ],
             "title": "Status"
           },
           "frame": {
@@ -2092,6 +2258,60 @@
             "minimum": 0.0,
             "title": "Time S",
             "default": 0.0
+          },
+          "command_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Command Id"
+          },
+          "command_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Command Status"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "command": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunCommand"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "parameter_revision": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parameter Revision"
           }
         },
         "additionalProperties": false,
@@ -2187,6 +2407,16 @@
             "type": "boolean",
             "title": "Full",
             "default": true
+          },
+          "sequence": {
+            "type": "integer",
+            "title": "Sequence",
+            "default": 0
+          },
+          "parameter_revision": {
+            "type": "integer",
+            "title": "Parameter Revision",
+            "default": 0
           }
         },
         "additionalProperties": false,
@@ -2257,6 +2487,16 @@
             },
             "type": "array",
             "title": "Events"
+          },
+          "total_rows": {
+            "type": "integer",
+            "title": "Total Rows",
+            "default": 0
+          },
+          "lag_s": {
+            "type": "number",
+            "title": "Lag S",
+            "default": 0.0
           }
         },
         "additionalProperties": false,
@@ -2339,6 +2579,27 @@
             "type": "array",
             "maxItems": 256,
             "title": "Trend Variables"
+          },
+          "execution_mode": {
+            "type": "string",
+            "enum": [
+              "fast",
+              "realtime"
+            ],
+            "title": "Execution Mode",
+            "default": "fast"
+          },
+          "speed_ratio": {
+            "type": "number",
+            "maximum": 100.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Speed Ratio",
+            "default": 1.0
+          },
+          "start_paused": {
+            "type": "boolean",
+            "title": "Start Paused",
+            "default": false
           }
         },
         "additionalProperties": false,
@@ -2359,9 +2620,12 @@
             "enum": [
               "queued",
               "running",
+              "paused",
+              "stopping",
               "completed",
               "failed",
-              "cancelled"
+              "cancelled",
+              "interrupted"
             ],
             "title": "Status"
           },
@@ -2395,6 +2659,60 @@
             "minimum": 0.0,
             "title": "Total Rows",
             "default": 0
+          },
+          "command_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Command Id"
+          },
+          "command_status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "accepted",
+                  "applied",
+                  "rejected"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Command Status"
+          },
+          "applied_time_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Applied Time S"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "lag_s": {
+            "type": "number",
+            "title": "Lag S",
+            "default": 0.0
           }
         },
         "additionalProperties": false,
