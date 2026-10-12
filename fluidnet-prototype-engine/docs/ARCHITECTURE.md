@@ -43,10 +43,15 @@ flowchart LR
 | `properties.py` | CoolProp AbstractState 物性适配（PT/PH 单次 flash、两相干度）、线程隔离与缓存、相态/范围诊断 | 网络残差组装 |
 | `bridge.py` | 选择活动项目；读取真实端口和通路；显示值转规范值 | 自动猜测未知模块算法 |
 | `compiler.py` | 参数与工况覆盖校验、端口连接并查集、通路支路、每个子网络的压力参考、边界温度与冲突检查 | 求解数值方程 |
-| `solver.py` | 支路关系、非线性方程组、模块 evaluate 关系、残差验证；`solve_network` 编排水力与热力及 `node` 耦合、动态热启动、结果采样 | 管理界面草稿 |
+| `solver.py` | 支路关系、非线性方程组（稠密或稀疏 Jacobian）、模块 evaluate 关系、残差验证；`solve_network` 编排水力与热力及 `node` 耦合、动态热启动、结果采样 | 管理界面草稿 |
+| `simulation.py` | `SimulationSession`：可逐帧推进的动态会话，持有 Worker、水箱/管段状态和 PID；运行时参数写入、隔离管段保压、子步减半与液位事件 | 线程调度、HTTP |
+| `controllers.py` | 采样 PID：零阶保持、测量值微分滤波、条件积分抗饱和、手自动无扰切换 | 写参数（由会话执行） |
+| `jobs.py` | `RunManager`：后台运行调度线程加 2 个计算线程，实时/快速节奏，命令队列与回执，历史发布 | 求解数值方程 |
+| `batch.py` | 多个 Python 实例按分片共用 Worker 进程，每次迭代每个分片一次 evaluate RPC | 实例状态合并（各实例独立） |
+| `examples.py` | 内置 PID 液位/温控示例，前端与验收测试共用 | — |
 | `thermal.py` | 节点焓稀疏线性方程、支路出口焓关系、ε–NTU、闭合回路与停滞节点回退、相态检查、能量校核、端口热力状态 | 求解压力与流量 |
 | `bench.py` | 为每条启用通路各接一组压力边界，复用编译/求解/Worker，返回状态及历史 | 生成演示流量 |
-| `api.py` | 模块/项目契约端点、同步稳态、可选后台动态任务、运行控制与协作取消、运行事件和历史 | 永久数据库或集群调度 |
+| `api.py` | 模块/项目契约端点、同步运行、后台运行与命令端点（转交 `RunManager`）、示例项目、运行事件和历史 | 永久数据库或集群调度 |
 | `engine-client.js` | 请求、运行/回放、真实变量映射、断线及失败显示 | 生成模拟物理结果 |
 | `studio.js` | 保留原型交互与本地保存 | 计算物理方程 |
 
@@ -90,8 +95,8 @@ sequenceDiagram
 ## 扩展顺序
 
 1. 热力代数层（v0.3 已完成）：端口压力 + 焓、迎风传焓、节点混合、管道散热、泵轴功、换热器 ε–NTU、能量残差，以及可选的 `node` 物性耦合。
-2. 状态积分层：开式水箱的质量/焓与隐式 Euler 时间推进（子步减半、液位事件）v0.4.0 已完成；管道热容分段 v0.4.1 已完成；PID 控制器待做。没有状态设备的项目仍走准稳态序列。
-3. 任务控制层:后台运行已支持协作式取消、暂停/继续和 `POST /runs/{id}/command`;参数命令(step/set)、事件时刻和推送仍待实现;保持已有 RunFrame 合同。
+2. 状态积分层：开式水箱的质量/焓与隐式 Euler 时间推进（子步减半、液位事件）v0.4.0 已完成；管道热容分段 v0.4.1 已完成；PID 控制器与关阀隔离段保压 v0.4.2 已完成。没有状态设备的项目仍走准稳态序列。
+3. 任务控制层：v0.4.2 起后台运行是可逐帧推进的会话，支持暂停/继续/单步/停止、运行中改 runtime 参数和 PID 设定、实时节奏和命令回执；推送（WebSocket）、跨重启恢复仍待实现；保持已有 RunFrame 合同（只新增字段）。
 4. 模型扩展层：验证过的声明式算法注册、组合模块展开、算法版本和测试算例。
 5. 用户代码层：已有独立进程、RPC 超时和异常清理；继续补充 OS 资源限制、权限隔离和检查点恢复。独立进程不是操作系统安全沙箱。
 
@@ -99,16 +104,16 @@ sequenceDiagram
 
 ## 运行控制、取消与执行器生命周期
 
-后台运行由 `api.py` 内的 `ThreadPoolExecutor(max_workers=2)` 执行。每次后台 `POST /runs?background=true` 生成一个 `RunControl`(一个 `Event` 取消标志加一个 pause/running 模式锁),与运行记录一起放进内存字典;`run_task` 先写 running 再调用 `compute_run`,并用 `except BaseException` 兜底,保证任何路径都会把记录终止为 completed/failed/cancelled 之一,不再残留 running。
+v0.4.2 起后台运行由 `jobs.RunManager` 管理，同步 `POST /runs` 仍在请求线程里一次算完（`compute_run`，经 `solve_dynamic` → `simulation.run_dynamic`）。
 
-取消与暂停都通过同一个协作钩子传给 `solver.solve_dynamic(..., should_cancel=...)`:
+- 每个后台运行是一个 `SimulationSession`，一次 `advance()` 推进一帧（帧内可有多个子步）。会话在整个运行期间持有 Python Worker、水箱/管段状态和 PID，单步和运行中改参数都不重新 initialize。
+- 一个调度线程挑选到期的任务，交给 2 个计算线程，每个计算线程一次只推进一个会话一帧。暂停的会话不占计算线程，只占内存和 Worker 进程；非终态运行最多 20 个，超出时创建返回 422 `RUN_LIMIT`。
+- 节奏：`execution_mode='fast'` 连续推进；`realtime` 按 `dt_s / speed_ratio` 的墙钟间隔推进，落后时 `lag_s` 报告滞后秒数，不跳帧。
+- 命令先进入任务队列并立即返回 `accepted` 回执，在下一帧开始前由持有会话的计算线程按到达顺序执行，再记为 `applied` 或 `rejected`（带 `applied_time_s` 或原因）。因此命令总在帧边界生效，正在计算的帧照常完成。同一 `command_id` 重复提交返回原回执，内容不同返回 409。
+- 发布：每帧经 `selected_variables` 和 trend 瘦身后写入记录；会话内只有最新一帧保留全部变量（更早的帧换成已发布的瘦身版本以控制内存），结束时末帧写回完整帧。暂停期间不过期，没有自动恢复。
+- 终态：completed、failed、cancelled，服务关闭时仍未结束的运行记为 interrupted。任何路径都会关闭会话、回收 Worker，并把未执行的命令记为 rejected。终态记录保留最近 20 个，活动运行不计入淘汰。
 
-- 钩子在每个时间帧求解之前轮询一次。因此取消与暂停都是帧粒度:正在计算的那一帧照常完成,在下一帧之前才停下,不是抢占式中断。
-- `stop` 先触发取消，再在锁内把记录标为 cancelled(仅当记录仍非终态时写入)，`solve_dynamic` 抛出 `SolveCancelled`(刻意不继承 ValueError)，求解器的 `finally` 照常 `finalize`/`close` 各实例的 Worker 进程，取消不单独 kill Worker(测试确认取消后子进程已退出)。取消前已算出的帧保留在 history，最后算出的那一帧标记为 status=cancelled，valid=false。
-- `pause` 让钩子在帧边界阻塞等待 resume，超过 30 秒自动恢复，避免客户端消失后长期占住求解线程。每次 pause 递增一个暂停序号，停驻的线程醒来后只有序号未变才清除暂停标志，因此在停驻期间再来一次 pause 不会被上一次的清理吞掉，运行保持暂停。
-- `compute_run` 在写记录前再查一次取消标志,把竞争到最后的 stop 反映为 cancelled;`run_task` 的兜底只把未捕获的 `SolveCancelled` 判为 cancelled,其余异常一律判为 failed 并保留诊断——一次 stop 只是请求取消,不证明逃逸的异常就是取消导致的,而且 `stop` 已经先写了一条临时 cancelled,兜底必须用真正的 failed 帧把它盖掉,否则引擎崩溃会被这条临时记录永久掩埋。
-
-FastAPI app 通过 lifespan 在关闭时调用 `executor.shutdown(wait=False, cancel_futures=True)`;teardown 自身吞掉异常,避免与仍在进行的运行竞争。同步 `POST /runs` 不走执行器,也不生成 RunControl,因此无法中途控制;命令端点对其返回 409:终态检查在前,同步运行到达命令端点时已结束,所以报 `RUN_ALREADY_FINISHED`(`RUN_NOT_CONTROLLABLE` 是防御性分支)。
+FastAPI lifespan 关闭时先 `RunManager.close()`（等待计算线程，再终止剩余运行）。同步运行没有会话，命令端点对它返回 409 `RUN_ALREADY_FINISHED`。`api.py` 中旧的 `RunControl`/`run_task` 后台路径已不再被调用。
 
 ## 前端模块工作流
 

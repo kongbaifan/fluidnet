@@ -98,6 +98,8 @@ canonical = (display - display_offset) × display_scale
 | `thermal_tolerance_k` (1e-6)、`max_thermal_iterations` (50) | 热力迭代收敛判据与上限 |
 | `max_coupling_iterations` (20)、`coupling_density_rtol` (1e-6) | `node` 模式外迭代上限与密度判据 |
 | `max_step_halvings` (6，0–20) | 含水箱的动态运行中，子步失败后最多减半重试的次数 |
+| `hydraulic_method` (`dense`) | `sparse`：按网络拓扑给 `least_squares` 稀疏 Jacobian 结构并用 LSMR，结果与 `dense` 在 1e-6 相对误差内一致；大网络明显更快（见 ALGORITHM） |
+| `batch_modules` (true)、`module_parallelism` (1，1–16) | 有 2 个及以上 Python 实例时，实例按轮转分到 `module_parallelism` 个共享 Worker 进程，每次迭代每个 Worker 一次批量 evaluate；实例状态仍各自独立。`batch_modules=false` 恢复每实例一个 Worker |
 
 `FluidConfig.phase_policy` 可取 `single_phase`（默认）、`liquid`、`gas`、`any`；`any` 供模块代码查询两相状态，网络流动仍由热力层按边界相态检查。
 
@@ -142,6 +144,22 @@ canonical = (display - display_offset) × display_scale
 
 管道热容（v0.4.1）：内置管道参数 `thermal_cells`（整数 0–50，非整数报 `PARAMETER_INVALID`）、`wall_heat_capacity_j_k`（J/K）。`thermal_cells > 0` 且热力层开启时，帧里另有 `<实例>.state.mean_temperature_k` 与 `<实例>.state.stored_power_w`，并计入 `storage_power_w`；其他情况下不输出（目录中这两个变量是条件变量）。`thermal_cells=0` 的项目结果与 0.4.0 相同，只多出这两个参数的 `<实例>.param.*` 键。
 
+PID 控制器（v0.4.2）：`Project.controllers` 是 `PIDController` 列表，不是画布模块，没有流体端口。
+
+| 字段 | 含义 |
+| --- | --- |
+| `id` | 控制器 ID，项目内唯一 |
+| `measurement` | 反馈变量的完整路径，如 `T1.state.level_m`；第 0 帧取不到有限数值时运行失败，`PID_MEASUREMENT_INVALID` |
+| `instance_id`、`parameter_id` | 执行参数；必须是 `runtime=true` 的可写数值参数，否则运行开始时报 `PARAMETER_NOT_RUNTIME`；同一参数只能绑定一个控制器 |
+| `setpoint`、`kp`、`ki`（1/s）、`kd`（s） | 并联式 PID，u = kp·e + ∫ki·e dt + kd·d(−y)/dt，e = setpoint − y |
+| `sample_s` (0.1，0–60] | 采样周期 |
+| `minimum`、`maximum` | 输出限幅，必须在目标参数的目录范围内，否则 `PID_TARGET_INVALID` |
+| `mode` (`auto`)、`manual_output` | 手动时输出 `manual_output`（缺省保持当前值），切换无扰 |
+
+帧变量 `controller.<id>.measurement`、`setpoint`、`output`、`integral`、`mode`（字符串）。注意 `/projects/validate` 目前不检查控制器的目标和测量变量，这些错误在运行开始时报出。
+
+运行中被动管段的隔离（v0.4.2）：运行中阀门开度改为 0 后，没有压力参考的子网络如果只含管道、阀门、阻力和换热器，取一个节点保持上一接受步的压力和温度，流量为零，诊断 `ISOLATED_PRESSURE_HELD`（提示）；子网络含泵或 Python 模块（管道、阀门、阻力、换热器以外的支路）时报 `ISOLATED_ACTIVE_NETWORK`。含水箱的子网络由水箱定压，不算隔离。编译期就没有压力参考的子网络仍报 `PRESSURE_REFERENCE_MISSING`。
+
 ## 参数与状态
 
 `parameters` 是物理输入；`draft_parameters` 与 `banks` 不自动生效。内置模型的参数上下限不能突破注册约束；Python 模块采用自身 ParameterSpec，返回的 NetworkRelation 另外按关系种类校验物理参数。
@@ -152,16 +170,19 @@ canonical = (display - display_offset) × display_scale
 
 ## 运行记录与控制
 
-- `RunStatus`:run_id、status(queued/running/completed/failed/cancelled)、mode、progress、frame、total_rows。`progress` 在 completed 为 1;动态运行仅在有 frame 时按 `frame.time_s / duration_s` 估算(运行中 frame 为 null,故仍为 0;取消记录带 frame,可为非零);其余为 0。
-- `RunCommand`:action(pause/resume/step/stop/set)、可选 instance_id、parameter_id、value,仍按严格模型校验。只有 pause/resume/stop 被实现;step/set 返回 422 `RUN_COMMAND_UNSUPPORTED`。
-- `/api/v1/health` 的 `capabilities` 含 `run_control: true`、`module_versions: true`、`thermal: true` 与 `property_coupling: ["reference","node"]`;v0.4 起 `tank_state: true`、`time_integration: "implicit_euler"`;`max_frames`(2001)与 `run_retention`(20)保持不变。
-- 取消记录 `frame.status=cancelled`、`valid=false`,`history` 保留取消前已算出的帧;run_id 与请求快照照常保留。stop 会立即写一条 cancelled 事件使轮询立刻结束,求解线程收尾时只在事件尾部不是终态时才追加,因此每次运行恰好一条终态事件;已结束的运行再收到 stop 会被终态检查拒绝(409 RUN_ALREADY_FINISHED)，与首次 stop 并发的第二次也不会追加事件。
+- `RunRequest` v0.4.2 新增 `execution_mode`（`fast`/`realtime`）、`speed_ratio`（0–100]、`start_paused`。
+- `RunStatus`:run_id、status(queued/running/paused/completed/failed/cancelled/interrupted；`stopping` 未使用)、mode、progress、frame、total_rows、lag_s，命令响应另带 command_id、command_status(accepted/applied/rejected)、applied_time_s、message。`progress` 在 completed 为 1，动态运行按 `frame.time_s / duration_s` 估算。
+- `RunCommand`:action(pause/resume/step/stop/set/controller)、可选 command_id(1–96 位字母数字、`_`、`-`)、instance_id、parameter_id、value、controller_id。`RunEvent` 对命令另带 command_id、command_status、message、command 和 parameter_revision。
+- `RunFrame` v0.4.2 新增 `sequence`（帧序号）与 `parameter_revision`（该帧计算时运行参数和控制器设定已被修改的次数，0 为未改）。
+- `/api/v1/health` 的 `capabilities` 含 `run_control`、`module_versions`、`thermal`、`property_coupling: ["reference","node"]`、`tank_state`、`time_integration: "implicit_euler"`；v0.4.2 起 `live_runs`、`pid`、`runtime_parameters`、`continuous_step` 为 true；`max_frames`(2001)与 `run_retention`(20)不变。
+- 取消记录 `frame.status=cancelled`、`valid=false`,`history` 保留取消前已算出的帧;每次运行恰好一条终态事件；已结束的运行再收到命令返回 409 `RUN_ALREADY_FINISHED`。
+- 运行中的 `set` 只改本次会话的参数，请求快照（`request.project`）保持提交时的值；修改历史以命令事件为准。
 
 ## 状态提交边界
 
 - evaluate 使用已提交 state 的深拷贝；修改嵌套试算值不会进入提交状态。模块内部 self/全局变量仍由作者负责保持试算无副作用。
-- 每次运行、每个 Python 实例拥有一个 Worker，跨该次动态运行的全部时间步复用，最终 finalize/close。
+- 每次运行的 Python 实例在该次运行内复用 Worker（默认 `batch_modules` 时多个实例按分片共用进程，各自的上下文与状态独立），最终 finalize/close。运行中 `set` 修改 Python 参数时，Worker 内该实例的参数同步更新，不重新 initialize。
 - t=0 只采样；t>0 的成功步提交一次。含水箱的运行按被接受的子步提交（一帧可有多次，`dt_s` 为子步长），帧上是该帧最后一次提交的变量。非收敛步不提交；编译或求解失败的运行不发布部分历史，只有 `TANK_EMPTY`、`TANK_FULL`、`STEP_NOT_CONVERGED` 例外：history 保留已接受帧。
 - RunFrame 追加 `实例.ctx.var字段` 与 `实例.state.字段`，后者只展开标量；完整嵌套状态由 CommitStepResponse 返回。
 - 模块不能通过变量输出覆盖求解器的压力或流量。每条启用通路必须恰好返回一个关系。
-- 新建运行会重新 initialize；当前未提供跨 run_id 的状态恢复，服务端 `step`/`set` 也未实现(运行控制只有 pause/resume/stop，见 API 文档)。
+- 新建运行会重新 initialize；同一后台运行内的 step、set、pause/resume 不会。当前未提供跨 run_id 或跨服务重启的状态恢复。

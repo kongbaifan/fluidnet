@@ -6,7 +6,7 @@
 
 1. 启动读取 /health、/catalog 和 /modules；内置目录与版本化 Python 模块包合并到模块库，清单参数和版本/哈希同步到原型控件。
 2. 检查连接提交原型活动项目到 /prototype/normalize，再调用 /projects/validate。
-3. 稳态调用 /runs；动态和单步调用 `/runs?background=true` 并轮询 `/runs/{id}`，再读取 `/runs/{id}/history`。完整动态运行带 `history:'trend'`（历史瘦身，见下）；单步和稳态只有一两帧，保持完整历史。
+3. 稳态调用 /runs。health 报告 `live_runs` 时，动态项目的运行/单步创建一个后台会话（`execution_mode` 默认 realtime，单步时 `start_paused`，`history:'trend'`），之后的运行、单步、暂停、停止和运行中“应用参数”都是对同一 run_id 的命令；前端等待命令的 applied/rejected 事件，并用 `history?offset=` 增量拉取新帧。会话结束（completed/failed/cancelled/interrupted）后清空 `runId`。
 4. 暂停/停止先调用后端 `POST /runs/{run_id}/command`(仅后台运行),再停止本地回放;独立验证台没有后台 `run_id`,只停本地回放;已暂停的项目运行继续时额外调用 `resume` 同步后端。无进行中的后台任务时只停止本地回放。改动已应用参数后重新提交运行。
 5. 每帧保留 canonical 规范变量字典，并映射到原型变量表的显示单位及 sampleKey。
 6. 主系统演示 sampleStep/sampleHistory 已移除。初始演示记录为空，不从公式构造伪造流量或温度。
@@ -24,7 +24,9 @@
 
 独立验证台已对接 `/modules/test`：Python 模块的每条启用通路各接一组真实压力边界并一次求解，返回 Worker 的 evaluate 关系、模块变量、commit_step 状态、源码哈希和历史帧。设备面板与验证台按 `value_type` 渲染数值、布尔、文本和曲线参数，曲线使用 JSON 点对数组。项目中的 Python 模块同样在独立 Worker 中执行；每个实例在一次动态运行内复用同一个 Worker，成功时间步提交一次，异常或超时统一回收。
 
-Python 包代码页的检查调用后端 `/modules/validate`，包含完整语法、Pydantic 和 Worker 入口校验；内置原型代码仍保留轻量预览。控制脚本、PID、串口以及未实现的热力/状态模型不进入当前物理求解。
+Python 包代码页的检查调用后端 `/modules/validate`，包含完整语法、Pydantic 和 Worker 入口校验；内置原型代码仍保留轻量预览。控制脚本、串口以及未实现的热力/状态模型不进入当前物理求解。
+
+PID（v0.4.2）：「控制」页的 PID 面板写入项目的 `controllers`，归一化时原样进入 `Project.controllers`。反馈变量下拉列出目录中可采样的变量，执行参数下拉只列出 `runtime` 可写数值参数。“液位示例”“温控示例”从 `GET /api/v1/examples/{level|temperature}` 生成新项目。运行中只有设定值、手自动和手动输出可改（`controller` 命令），其余字段禁用。
 
 新建模块使用 Python 包模板；变量属性页可编辑数值参数与输出，契约与版本页可修改完整 JSON、保存备注、查看历史并载入版本。`POST /modules/versions` 会重新试算当前提交内容，成功后更新可插入版本。保存期间继续输入会保留为后续草稿。
 
@@ -34,4 +36,4 @@ Python 包代码页的检查调用后端 `/modules/validate`，包含完整语�
 
 管道热容（v0.4.1）：`PARAM_DEFS.pipe` 增加热容分段数和管壁热容（kJ/K），绑定 `thermal_cells`、`wall_heat_capacity_j_k`；`STATE_VARIABLES.pipe` 提供管内平均温度和储热功率，只有分段数大于 0 时后端才输出，否则曲线显示为空。
 
-后续可把剩余 UI 描述完全迁移为目录驱动，再引入 PID 和异步控制；不需要重写画布与设备编辑器。
+后续可把剩余 UI 描述完全迁移为目录驱动；不需要重写画布与设备编辑器。

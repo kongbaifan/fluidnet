@@ -6,7 +6,8 @@
 
 | 方法与路径 | 请求 | 返回 |
 | --- | --- | --- |
-| GET /api/v1/health | 无 | 版本（0.3.1）、能力标志（含 `thermal: true`、`property_coupling: ["reference","node"]`）、2001 帧上限、20 次记录保留数 |
+| GET /api/v1/health | 无 | 版本（0.4.2）、能力标志（含 `thermal`、`property_coupling`、`tank_state`、`live_runs`、`pid`、`runtime_parameters`、`continuous_step`）、2001 帧上限、20 次记录保留数 |
+| GET /api/v1/examples/{name} | `level` 或 `temperature` | 内置 PID 示例 Project；未知名称 404 |
 | GET /api/v1/catalog | 无 | 模块参数/通路/变量目录、原型参数名映射 |
 | GET /api/v1/modules | 无 | 可安装模块包和内置模块清单、版本与内容哈希 |
 | POST /api/v1/modules/validate | ModuleDefinition | 契约、Python 语法、Worker 入口与四阶段签名诊断 |
@@ -20,10 +21,11 @@
 | POST /api/v1/runs | RunRequest | **201**；run_id、status、frame、total_rows。`?background=true` 改返回 **202** 的 `RunStatus`(queued、frame 为 null)，frame 由状态接口补 |
 | GET /api/v1/runs/{run_id} | 无 | 状态、请求快照、最后一帧与事件，不重复携带整段历史(历史由 /history 提供)；记录不存在或已被保留上限淘汰时 404，detail 为固定字符串 |
 | GET /api/v1/runs/{run_id}/history | offset≥0, 1≤limit≤2001 | rows、total_rows、offset |
-| GET /api/v1/runs/{run_id}/events | 无 | queued/running/completed/failed/cancelled 事件、每次运行恰好一条终态事件 |
-| POST /api/v1/runs/{run_id}/command | RunCommand | RunStatus;暂停/继续/停止后台运行;step/set 返回 422,非后台或已结束 409 |
+| GET /api/v1/runs | 无 | 后台运行列表（id、status、mode、项目名、当前 time_s），新的在前 |
+| GET /api/v1/runs/{run_id}/events | 无 | 状态事件与命令事件（accepted/applied/rejected），每次运行恰好一条终态事件 |
+| POST /api/v1/runs/{run_id}/command | RunCommand | RunStatus 加命令回执；见「运行生命周期与控制」 |
 
-`POST /api/v1/runs?background=true` 创建后台运行,返回 HTTP 202 和 `run_id`。默认仍保持兼容的同步模式,返回 HTTP 201。前端稳态使用同步请求,动态与单步使用后台请求并轮询状态。后台运行可用 `POST /api/v1/runs/{run_id}/command` 暂停、继续或停止(见「运行生命周期与控制」);`step` 与 `set` 尚未实现。同步运行没有控制令牌,不能中途控制。
+`POST /api/v1/runs?background=true` 创建后台运行，返回 HTTP 202 和 `run_id`；已有 20 个非终态运行时返回 422 `RUN_LIMIT`。默认仍保持兼容的同步模式，返回 HTTP 201。前端稳态使用同步请求；动态项目在 health 报告 `live_runs` 时使用后台会话（运行、单步、暂停、改参数都对同一个 run_id 发命令）。同步运行不能中途控制。
 
 ## 模块包和 Worker
 
@@ -52,7 +54,7 @@ module.py
 
 Worker 消息使用 Pydantic 的 `InitializeRequest`、`EvaluateRequest`、`EvaluateResponse`、`CommitStepRequest` 和 `CommitStepResponse`。`evaluate` 输出 `NetworkRelation`，由网络求解器决定最终压力和流量；模块不能直接返回全网解。
 
-同步请求返回 201 时，计算已经 completed 或 failed；后台请求返回 202 后通过状态接口查询。暂停/继续/停止通过 `POST /runs/{run_id}/command` 生效;流式推送(WS /runs/{id}/stream)仍未实现。进程内保留最近 20 次运行，超出或重启后查询返回 404。项目编辑和永久导出目前由前端浏览器管理，不是服务端数据库。
+同步请求返回 201 时，计算已经 completed 或 failed；后台请求返回 202 后通过状态接口查询，控制通过 `POST /runs/{run_id}/command`；流式推送（WS /runs/{id}/stream）仍未实现。进程内保留最近 20 次已结束运行（活动运行不淘汰），超出或重启后查询返回 404。项目编辑和永久导出目前由前端浏览器管理，不是服务端数据库。
 
 ## 直接运行参考项目
 
@@ -79,9 +81,14 @@ Invoke-RestMethod ('http://127.0.0.1:8798/api/v1/runs/' + $result.run_id + '/his
   "scenario_id": null,
   "selected_variables": ["P1.mass_flow_kg_s", "V1.mass_flow_kg_s", "V2.mass_flow_kg_s"],
   "history": "full",
-  "trend_variables": []
+  "trend_variables": [],
+  "execution_mode": "fast",
+  "speed_ratio": 1.0,
+  "start_paused": false
 }
 ```
+
+`execution_mode`、`speed_ratio`（0–100]、`start_paused` 只对后台动态运行有意义：`fast` 连续计算，`realtime` 按 `dt_s / speed_ratio` 墙钟间隔推进一帧；`start_paused=true` 时算完 t=0 后停在 paused，等待 step 或 resume。
 
 上例 project 字段是说明占位，实际必须发送对象。mode 可为 steady 或 dynamic。dynamic 对没有状态设备的项目是准稳态序列，对含水箱的项目是隐式 Euler 时间推进（见 ALGORITHM）。selected_variables 为空数组表示全部；null/省略则使用 project.selected_variables，后者也为空则返回全部。未知变量使本次运行失败，不能静默丢弃。
 
@@ -140,26 +147,27 @@ POST /runs 对类型正确但编译或求解失败的请求仍创建可查询的
 
 ## 运行生命周期与控制
 
-`RunStatus` 可达值:queued、running、completed、failed、cancelled。
+`RunStatus.status`：queued、running、paused、completed、failed、cancelled、interrupted（`stopping` 保留在枚举中，当前不会出现）。
 
-- 同步 `POST /runs` 在响应返回前已结束,status 只会是 completed 或 failed。
-- 后台 `POST /runs?background=true` 先写 queued,任务线程开始前转 running,求解完成转 completed;编译或求解抛 ValueError 时写 failed,frame.valid=false、history 为空。
-- 后台任务线程在 compute_run 之外抛出的异常会被兜底捕获并把记录终止为 failed,不再停留在 running。此前这类进程错误会让记录一直显示 running。只有 `SolveCancelled` 才判为 cancelled:一次 stop 只是请求取消,不证明逃逸的异常是取消造成的;而且 `stop` 已先写了一条临时 cancelled,若兜底继续判为 cancelled 就会把真正的崩溃永久掩埋(记录会停在无 frame 的 cancelled)。
-- cancelled 只能通过 `stop` 到达。取消是协作式的:`solve_dynamic` 在每个时间帧求解之前轮询一次取消标志,正在求解的那一帧总会算完;取消前已算出的帧保留在 history;最后算出的那一帧标记为 status=cancelled、valid=false,time_s 为取消时刻。取消不单独终止 Worker,子进程由求解器 finally 的 close 路径回收。
+- 同步 `POST /runs` 在响应返回前已结束，status 只会是 completed 或 failed。
+- 后台运行先写 queued；算完 t=0 后转 running（`start_paused` 时为 paused）；推进到 duration 转 completed；编译或求解失败写 failed，frame.valid=false，失败前已发布的帧保留在 history。
+- cancelled 只能通过 `stop` 到达；服务关闭时未结束的运行记为 interrupted。
+- 运行中 `GET /runs/{id}` 的 frame 是最新发布帧；`lag_s` 是实时运行落后墙钟的秒数（快速运行为 0）。
 
-`POST /api/v1/runs/{run_id}/command` 请求体为 `RunCommand`(`action`,可选 `instance_id`、`parameter_id`、`value`),响应为 `RunStatus`,并即时更新内存记录:
+`POST /api/v1/runs/{run_id}/command` 请求体为 `RunCommand`：`action`，可选 `command_id`、`instance_id`、`parameter_id`、`value`、`controller_id`。响应是当前 `RunStatus` 加回执字段 `command_id`、`command_status`（首次为 `accepted`）、`applied_time_s`、`message`。命令在下一帧开始前执行，结果写入事件：`command_status` 变为 `applied`（带生效时刻）或 `rejected`（带原因）。客户端应轮询 `/events` 确认，而不是假设已生效。
 
 | action | 行为 |
 | --- | --- |
-| pause | 置暂停标志;求解线程在下一帧前阻塞(最长 30 秒,超时自行恢复)。记录 status 保持 running。重复 pause 仍保持暂停。 |
-| resume | 清除暂停标志,求解继续。记录 status 保持 running。 |
-| stop | 置取消标志并立即把记录标为 cancelled(比较后再写,不覆盖已结束的记录)。取消事件立即写入以便轮询立刻结束，求解线程收尾时只在事件尾部不是终态时才追加最终事件，因此每次运行恰好一条终态事件(重复 stop 也不会追加) |
-| step | 未实现,返回 422 `RUN_COMMAND_UNSUPPORTED`。 |
-| set | 未实现,返回 422 `RUN_COMMAND_UNSUPPORTED`。 |
+| pause | 当前帧算完后停在 paused，不占计算线程，不过期。 |
+| resume | 回到 running；实时运行从当前墙钟重新计时。 |
+| step | 只能在 paused 时执行：推进一帧后回到 paused。会话不重新 initialize，Python 状态连续。 |
+| set | 改 `instance_id.parameter_id` 为 `value`（规范单位）。参数必须声明 `runtime=true`（内置：阀门开度、泵转速比、水箱加热功率），按目录范围校验；被自动模式 PID 绑定的参数拒绝。从下一子步生效，请求快照里的项目不变。 |
+| controller | 改 PID `controller_id` 的 `parameter_id`（只允许 `setpoint`、`mode`、`manual_output`），立即在下一子步采样。 |
+| stop | 当前帧算完后结束为 cancelled，history 保留已算帧，Worker 回收。 |
 
-错误与优先级:未知 run_id 先返回 404;`step`/`set` 在任何状态下都先返回 422 `RUN_COMMAND_UNSUPPORTED`;其余 action 再查终态,已处于 completed/failed/cancelled 返回 409 `RUN_ALREADY_FINISHED`;最后查控制令牌,没有令牌返回 409 `RUN_NOT_CONTROLLABLE`。终态检查在前,且同步运行在响应返回时已是终态,所以 `RUN_NOT_CONTROLLABLE` 目前是防御性分支,HTTP 上不可达。前端还会把该端点的 404/501 当作未实现并降级为仅本地回放；因此上述 409 分支不会作为独立状态出现在界面上。pause/resume 不改变 RunStatus 的 status(仍为 running),只影响求解线程;前端在本地暂停回放的同时用 resume 通知后端。`/api/v1/health` 的 `capabilities` 增加 `run_control: true`。
+错误：未知 run_id 404；已结束（含同步运行）409 `RUN_ALREADY_FINISHED`；同一 `command_id` 内容不同 409 `COMMAND_ID_CONFLICT`，内容相同返回原回执。运行时才能判断的错误（非 paused 时 step、参数不可写或越界、参数被 PID 控制、控制器不存在）不返回 HTTP 错误，而是该命令事件为 rejected。
 
-前端把后台 `run_id` 记在 `owner.run.runId`,暂停/停止时先调用该端点再停止本地回放;端点不存在(404/501)时降级为仅本地回放并在事件中说明。后台轮询有双重上限:3000 次或 300 秒,先到者生效;超时把该次前端运行标为失败并给出原因,不再无限等待。
+前端把后台 `run_id` 记在 `owner.run.runId`，用增量 `history?offset=` 轮询新帧；命令带随机 `command_id` 并等待 applied/rejected 事件（最长约 10 秒），超时提示“命令已接收，尚未确认生效”，不自动重发。
 
 ## 原型归一化
 
@@ -183,4 +191,4 @@ Worker RPC 超时默认 10 秒，超时返回 `MODULE_RUNTIME_TIMEOUT` 并终止
 
 ## 尚未实现
 
-`POST /api/v1/runs/{run_id}/command` 的 `step` 与 `set` 仍未实现,返回 422;流式推送 `WS /runs/{id}/stream` 未实现。pause/resume/stop 已可用(见「运行生命周期与控制」)。
+流式推送 `WS /runs/{id}/stream`；运行记录持久化与重启后恢复；随时间变化的参数计划（运行中改参数只能逐条发 `set`）。
