@@ -850,6 +850,13 @@
           "exclusiveMinimum": 0,
           "title": "Coupling Density Rtol",
           "type": "number"
+        },
+        "max_step_halvings": {
+          "default": 6,
+          "maximum": 20,
+          "minimum": 0,
+          "title": "Max Step Halvings",
+          "type": "integer"
         }
       },
       "title": "SolverOptions",

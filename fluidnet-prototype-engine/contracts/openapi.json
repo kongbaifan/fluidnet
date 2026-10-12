@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "FluidNet Prototype Engine",
-    "version": "0.3.1"
+    "version": "0.4.0"
   },
   "paths": {
     "/api/v1/health": {
@@ -2500,6 +2500,13 @@
             "exclusiveMinimum": 0.0,
             "title": "Coupling Density Rtol",
             "default": 1e-06
+          },
+          "max_step_halvings": {
+            "type": "integer",
+            "maximum": 20.0,
+            "minimum": 0.0,
+            "title": "Max Step Halvings",
+            "default": 6
           }
         },
         "additionalProperties": false,

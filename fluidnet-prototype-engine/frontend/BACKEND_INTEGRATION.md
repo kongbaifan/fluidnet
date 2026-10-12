@@ -30,4 +30,6 @@ Python 包代码页的检查调用后端 `/modules/validate`，包含完整语�
 
 模块的 `publishedManifest` 表示可插入的保存版本，正在编辑的 source/contractDraft 不进入项目求解。项目 `moduleSnapshots` 固定完整定义，实例携带 `package` 引用。设备参数、端口和变量面板读取项目快照，避免库中新版参数覆盖旧项目。原型保存/导出包含快照；归一化优先使用快照并由编译器检查双哈希。浏览器草稿保存与磁盘模块版本保存是两个明确动作。
 
-后续可把剩余 UI 描述完全迁移为目录驱动，再引入状态积分和异步控制；不需要重写画布与设备编辑器。
+水箱（v0.4）：`PARAM_DEFS.tank` 增加罐高、初始水温、加热功率、散热 UA 和环境温度，经 `PARAMETER_BINDINGS.tank` 映射到规范参数；`STATE_VARIABLES.tank` 把 `<实例>.state.level_m` 等引擎状态量作为 runtime 变量（`canonicalId`）放进设备变量表，可加入曲线并随 trend 历史保留。旧的本地存档由 `backfillBuiltinParams` 补齐新参数与状态变量。运行以 `TANK_EMPTY`/`TANK_FULL`/`STEP_NOT_CONVERGED` 停止时，前端回放已算出的帧并在事件中给出停止原因。
+
+后续可把剩余 UI 描述完全迁移为目录驱动，再引入管道热容、PID 和异步控制；不需要重写画布与设备编辑器。

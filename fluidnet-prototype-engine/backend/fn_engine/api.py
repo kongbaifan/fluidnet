@@ -44,7 +44,7 @@ from .models import (
 from .properties import PropertyError
 from .packages import ModuleStore, ModuleVersionConflict, ModuleSaveInvalid, package_ref
 from .module_validation import validate_module_definition
-from .solver import SolveCancelled, solve_dynamic, solve_steady
+from .solver import SolveCancelled, SolveFailed, solve_dynamic, solve_steady
 
 logger = logging.getLogger('fn_engine.api')
 
@@ -238,7 +238,8 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
     def health():
         return {'status':'ok','version':__version__,'solver':'declarative-fluid-v1','supported_domains':['fluid'],
                 'capabilities':{'steady_hydraulics':True,'quasi_steady_series':True,'thermal':True,
-                                'property_coupling':['reference','node'],'tank_state':False,
+                                'property_coupling':['reference','node'],'tank_state':True,
+                                'time_integration':'implicit_euler',
                                 'coolprop_single_phase':True,'user_code':True,'worker_process':True,'async_runs':True,
                                 'module_versions':True,'run_control':True},
                 'max_frames':2001,'run_retention':RUN_RETENTION}
@@ -337,6 +338,16 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
                 history = solve_dynamic(network, request.duration_s, request.dt_s, should_cancel=cancel_hook)
             shape_history(history, request, project)
             frame, status = history[-1], 'completed'
+        except SolveFailed as error:
+            # A dynamic run that stopped at a tank limit or an unsolvable step keeps its accepted frames.
+            history = list(error.frames)
+            try:
+                shape_history(history, request, request.project)
+            except ValueError:
+                pass
+            status = 'failed'
+            frame = RunFrame(status='failed', valid=False, time_s=history[-1].time_s if history else 0,
+                             diagnostics=[error.diagnostic])
         except SolveCancelled as error:
             # Keep the frames completed before the cancellation was observed:
             # a cancelled run is partial, not empty.

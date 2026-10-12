@@ -97,6 +97,7 @@ canonical = (display - display_offset) × display_scale
 | `property_coupling` (`reference`) | `reference`：水力用参考常数物性，单向；`node`：节点平均物性回到水力，外迭代 |
 | `thermal_tolerance_k` (1e-6)、`max_thermal_iterations` (50) | 热力迭代收敛判据与上限 |
 | `max_coupling_iterations` (20)、`coupling_density_rtol` (1e-6) | `node` 模式外迭代上限与密度判据 |
+| `max_step_halvings` (6，0–20) | 含水箱的动态运行中，子步失败后最多减半重试的次数 |
 
 `FluidConfig.phase_policy` 可取 `single_phase`（默认）、`liquid`、`gas`、`any`；`any` 供模块代码查询两相状态，网络流动仍由热力层按边界相态检查。
 
@@ -125,6 +126,20 @@ canonical = (display - display_offset) × display_scale
 
 运行帧指标在热力层开启时另含 `thermal_iterations`、`coupling_iterations`、`energy_residual_w`、`reference_heat_w`。
 
+水箱与时间推进诊断（v0.4）：
+
+| 代码 | 级别 | 含义 |
+| --- | --- | --- |
+| `STORAGE_CONFLICT` | 错误（编译） | 水箱与压力边界或另一个水箱在同一节点 |
+| `PARAMETER_RANGE` | 错误（编译） | 水箱初始液位超过罐高，或温度超出工质范围 |
+| `PHASE_UNSUPPORTED` | 错误（编译） | 水箱初始状态不是液相 |
+| `TANK_EMPTY`、`TANK_FULL` | 错误（运行） | 液位到达 0 或罐高；history 保留到事件时刻 |
+| `STEP_NOT_CONVERGED` | 错误（运行） | 子步减半 `max_step_halvings` 次仍未收敛；history 保留已接受帧 |
+| `DYNAMIC_IMPLICIT_EULER` | 提示 | 含水箱的动态运行，一阶隐式 Euler，未做时间误差控制 |
+| `STEADY_TANK_AS_RESERVOIR` | 提示 | 稳态把水箱当作液位不变的大容器 |
+
+水箱帧变量为 `<实例>.state.level_m`、`mass_kg`、`volume_m3`、`temperature_k`、`net_inflow_kg_s`（稳态与每个动态帧都有）；含水箱的帧指标另含 `storage_mass_rate_kg_s`，热力层开启时还有 `storage_power_w`。
+
 ## 参数与状态
 
 `parameters` 是物理输入；`draft_parameters` 与 `banks` 不自动生效。内置模型的参数上下限不能突破注册约束；Python 模块采用自身 ParameterSpec，返回的 NetworkRelation 另外按关系种类校验物理参数。
@@ -137,14 +152,14 @@ canonical = (display - display_offset) × display_scale
 
 - `RunStatus`:run_id、status(queued/running/completed/failed/cancelled)、mode、progress、frame、total_rows。`progress` 在 completed 为 1;动态运行仅在有 frame 时按 `frame.time_s / duration_s` 估算(运行中 frame 为 null,故仍为 0;取消记录带 frame,可为非零);其余为 0。
 - `RunCommand`:action(pause/resume/step/stop/set)、可选 instance_id、parameter_id、value,仍按严格模型校验。只有 pause/resume/stop 被实现;step/set 返回 422 `RUN_COMMAND_UNSUPPORTED`。
-- `/api/v1/health` 的 `capabilities` 含 `run_control: true`、`module_versions: true`、`thermal: true` 与 `property_coupling: ["reference","node"]`;`tank_state` 仍为 false;`max_frames`(2001)与 `run_retention`(20)保持不变。
+- `/api/v1/health` 的 `capabilities` 含 `run_control: true`、`module_versions: true`、`thermal: true` 与 `property_coupling: ["reference","node"]`;v0.4 起 `tank_state: true`、`time_integration: "implicit_euler"`;`max_frames`(2001)与 `run_retention`(20)保持不变。
 - 取消记录 `frame.status=cancelled`、`valid=false`,`history` 保留取消前已算出的帧;run_id 与请求快照照常保留。stop 会立即写一条 cancelled 事件使轮询立刻结束,求解线程收尾时只在事件尾部不是终态时才追加,因此每次运行恰好一条终态事件;已结束的运行再收到 stop 会被终态检查拒绝(409 RUN_ALREADY_FINISHED)，与首次 stop 并发的第二次也不会追加事件。
 
 ## 状态提交边界
 
 - evaluate 使用已提交 state 的深拷贝；修改嵌套试算值不会进入提交状态。模块内部 self/全局变量仍由作者负责保持试算无副作用。
 - 每次运行、每个 Python 实例拥有一个 Worker，跨该次动态运行的全部时间步复用，最终 finalize/close。
-- t=0 只采样；t>0 的成功步提交一次。非收敛步不提交；失败运行不发布部分有效历史。
+- t=0 只采样；t>0 的成功步提交一次。含水箱的运行按被接受的子步提交（一帧可有多次，`dt_s` 为子步长），帧上是该帧最后一次提交的变量。非收敛步不提交；编译或求解失败的运行不发布部分历史，只有 `TANK_EMPTY`、`TANK_FULL`、`STEP_NOT_CONVERGED` 例外：history 保留已接受帧。
 - RunFrame 追加 `实例.ctx.var字段` 与 `实例.state.字段`，后者只展开标量；完整嵌套状态由 CommitStepResponse 返回。
 - 模块不能通过变量输出覆盖求解器的压力或流量。每条启用通路必须恰好返回一个关系。
 - 新建运行会重新 initialize；当前未提供跨 run_id 的状态恢复，服务端 `step`/`set` 也未实现(运行控制只有 pause/resume/stop，见 API 文档)。

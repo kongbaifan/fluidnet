@@ -57,6 +57,8 @@ window.createEngineClient = function (ui) {
   }
   // The record and its failure frame are separate requests; the frame exists only once the
   // run has finished, so a failed run without one (or with an empty one) still needs a reason.
+  // Failed dynamic runs whose history up to the stop is still valid (SolveFailed in the engine).
+  const STOP_CODES = new Set(['TANK_EMPTY','TANK_FULL','STEP_NOT_CONVERGED']);
   async function failureDetail(data, signal) {
     let detail = frameFailure(data);
     if (!detail) {
@@ -479,13 +481,18 @@ window.createEngineClient = function (ui) {
       }
       // Terminal either way past this point: nothing is left for stop to cancel.
       owner.run.runId = null;
-      if (data.status === 'failed') throw Error(await failureDetail(data,controller.signal));
+      // A run that stopped at a tank limit or an unsolvable step keeps the frames before it; play those back.
+      const stopped = data.status === 'failed' ? (data.frame?.diagnostics || []).find(d => STOP_CODES.has(d.code)) : null;
+      if (data.status === 'failed' && !stopped) throw Error(await failureDetail(data,controller.signal));
       const history = await request(`/runs/${data.run_id}/history`,undefined,controller.signal);
       if (before !== key(owner)) throw Error('计算期间项目已变化，请重新运行当前参数。');
+      if (!history.rows.length) throw Error(stopped.message);
       const rows = history.rows.map(f => rowFromFrame(owner,f));
+      const metrics = stopped ? history.rows.at(-1).metrics : data.frame.metrics;
       owner.run.id = data.run_id;
-      owner.run.events = data.frame.diagnostics.map(d => ({t:0,text:d.message}));
-      owner.run.events.push({t:0,text:`后端计算完成；压力残差 ${data.frame.metrics.pressure_residual_pa.toExponential(2)} Pa，质量残差 ${data.frame.metrics.mass_residual_kg_s.toExponential(2)} kg/s。`});
+      owner.run.events = (stopped ? history.rows.at(-1).diagnostics : data.frame.diagnostics).map(d => ({t:0,text:d.message}));
+      owner.run.events.push({t:0,text:`后端计算完成；压力残差 ${metrics.pressure_residual_pa.toExponential(2)} Pa，质量残差 ${metrics.mass_residual_kg_s.toExponential(2)} kg/s。`});
+      if (stopped) owner.run.events.push({t:rows.at(-1).t,text:stopped.message});
       if (action === 'step') {
         // Each step is a new immutable solve; keep the sequence with the parameters that produced each row.
         const stateful = project.modules.some(m=>m.runtime === 'python');
@@ -502,7 +509,9 @@ window.createEngineClient = function (ui) {
         } else owner.run.status='completed';
       }
       ui.dirty(owner); ui.render();
-      ui.message(mode === 'steady' ? '真实稳态求解完成。' : '准稳态结果已更新；未包含热惯性和液位变化。');
+      ui.message(mode === 'steady' ? '真实稳态求解完成。' : stopped ? '运行在事件处停止：' + stopped.message
+        : project.instances.some(i => project.modules.find(m => m.id === i.module_id)?.state_model)
+          ? '动态结果已更新；水箱液位与水温按隐式 Euler 积分。' : '准稳态结果已更新；未包含热惯性和液位变化。');
     } catch (error) {
       if (error.name !== 'AbortError') {
         owner.run.status='failed';
@@ -573,7 +582,7 @@ window.createEngineClient = function (ui) {
           if (spec.maximum !== null) field[4]=display(spec.maximum);
         }
       }
-      ui.message(`计算服务 v${health.version} 已连接：稳态水力与准稳态时间序列可用。`);
+      ui.message(`计算服务 v${health.version} 已连接：稳态水力${health.capabilities?.tank_state ? '、水箱隐式积分' : ''}与准稳态时间序列可用。`);
       ui.render();
     } catch (error) { ui.message('计算服务未连接，请通过启动脚本打开此页面。' + error.message,true); }
   }

@@ -28,7 +28,9 @@ PARAMETER_BINDINGS = {
              'heatLoss':'heat_loss_ua_w_k', 'ambient':'ambient_temperature_k'},
     'junction': {'elevation':'elevation_m'},
     'exchanger': {'ua':'ua_w_k', 'loss':'loss_coefficient', 'diameter':'diameter_m'},
-    'tank': {'level':'level_m', 'area':'area_m2'},
+    'tank': {'level':'level_m', 'area':'area_m2', 'height':'height_m', 'surface':'surface_pressure_pa',
+             'temperature':'temperature_k', 'heater':'heat_input_w', 'heatLoss':'heat_loss_ua_w_k',
+             'ambient':'ambient_temperature_k'},
 }
 
 
@@ -139,7 +141,7 @@ def normalize_prototype_export(data: dict[str, Any]) -> Project:
                 raise ValueError(f'原型连接格式无效：{edge}')
             connections.append(Connection(id=edge[0],source=Endpoint(instance_id=edge[1],port_id=edge[2]),target=Endpoint(instance_id=edge[3],port_id=edge[4])))
     solver = raw.get('solver', {})
-    diagnostics.append(Diagnostic(code='HYDRAULIC_SCOPE', severity='info', message='按已应用参数计算液态水水力与端口焓、温度；Python 模块包在独立 Worker 中执行；控制脚本、水箱状态与热惯性尚未参与求解'))
+    diagnostics.append(Diagnostic(code='HYDRAULIC_SCOPE', severity='info', message='按已应用参数计算液态水水力与端口焓、温度；水箱在动态计算中按隐式 Euler 积分液位与水温；Python 模块包在独立 Worker 中执行；控制脚本与管道热惯性尚未参与求解'))
     return Project(id=raw['id'], name=raw.get('name','原型项目'), description=raw.get('description',''),
         fluid=FluidConfig(fluid=PROTOTYPE_MEDIA[medium]),
         modules=list(definitions.values()),instances=instances,connections=connections,import_diagnostics=diagnostics,

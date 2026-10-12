@@ -51,10 +51,17 @@ def builtin_catalog() -> list[ModuleDefinition]:
                 number('ua_w_k', '传热能力 UA', 2000., 'conductance', 'W/K', minimum=0.),
                 number('loss_coefficient', '局部阻力系数 K', 5., 'ratio', '1', minimum=.001),
                 number('diameter_m', '水力等效内径', .04, 'length', 'm', 'mm', .001, .001)]),
-        ModuleDefinition(id='tank', name='储水罐（状态模型待实现）', category='边界与节点', solver_model='tank',
-            state_model='well_mixed_volume', ports=ports('in0', 'out0'), parameters=[
+        # Open, well-mixed tank: both ports sit on one node at p_surface + g·M/A (see ALGORITHM.md).
+        ModuleDefinition(id='tank', name='开式水箱', category='边界与节点', solver_model='tank', state_model='open_tank',
+            ports=[p.model_copy(update={'required': False}) for p in ports('in0', 'out0')], parameters=[
                 number('level_m', '初始液位', 2., 'length', 'm', minimum=0.),
-                number('area_m2', '横截面积', 2.5, 'area', 'm²', minimum=.001)]),
+                number('area_m2', '横截面积', 2.5, 'area', 'm²', minimum=.001),
+                number('height_m', '罐高（满箱液位）', 5., 'length', 'm', minimum=.001),
+                number('surface_pressure_pa', '液面压力', 101325., 'pressure', 'Pa', 'kPa', 1000., 1.),
+                number('temperature_k', '初始温度', 293.15, 'temperature', 'K', '°C', minimum=1.0, offset=-273.15),
+                number('heat_input_w', '加热功率（负值为冷却）', 0., 'power', 'W'),
+                number('heat_loss_ua_w_k', '散热能力 UA（0 为绝热）', 0., 'conductance', 'W/K', minimum=0.),
+                number('ambient_temperature_k', '环境温度', 293.15, 'temperature', 'K', '°C', minimum=1.0, offset=-273.15)]),
     ]
     for definition in definitions:
         for port in definition.ports:
@@ -93,6 +100,17 @@ def builtin_catalog() -> list[ModuleDefinition]:
             if param.value_type == 'number':
                 definition.variables.append(VariableSpec(id=f'param.{param.id}',label=param.label,quantity=param.unit.quantity,
                     unit=param.unit,source='parameter',parameter_id=param.id))
+        if definition.state_model == 'open_tank':
+            for suffix, label, quantity, unit, display, scale, offset in [
+                ('level_m', '液位', 'length', 'm', 'm', 1., 0.),
+                ('mass_kg', '存水质量', 'mass', 'kg', 'kg', 1., 0.),
+                ('volume_m3', '存水体积', 'volume', 'm³', 'm³', 1., 0.),
+                ('temperature_k', '水温', 'temperature', 'K', '°C', 1., -273.15),
+                ('net_inflow_kg_s', '净流入质量流量', 'mass_flow', 'kg/s', 'kg/s', 1., 0.),
+            ]:
+                definition.variables.append(VariableSpec(id=f'state.{suffix}', label=label, quantity=quantity,
+                    unit=UnitSpec(quantity=quantity, canonical_unit=unit, display_unit=display, display_scale=scale,
+                                  display_offset=offset), source='state'))
         if definition.solver_model == 'pump_curve':
             definition.variables.append(VariableSpec(id='shaft_power_w',label='估算轴功率',quantity='power',
                 unit=UnitSpec(quantity='power',canonical_unit='W',display_unit='W'),source='derived'))

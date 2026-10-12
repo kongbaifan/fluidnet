@@ -3212,7 +3212,7 @@
   "import_diagnostics": [
     {
       "code": "HYDRAULIC_SCOPE",
-      "message": "按已应用参数计算液态水水力与端口焓、温度；Python 模块包在独立 Worker 中执行；控制脚本、水箱状态与热惯性尚未参与求解",
+      "message": "按已应用参数计算液态水水力与端口焓、温度；水箱在动态计算中按隐式 Euler 积分液位与水温；Python 模块包在独立 Worker 中执行；控制脚本与管道热惯性尚未参与求解",
       "severity": "info",
       "instance_id": null,
       "field": null
@@ -3228,6 +3228,7 @@
     "thermal_tolerance_k": 1e-06,
     "max_thermal_iterations": 50,
     "max_coupling_iterations": 20,
-    "coupling_density_rtol": 1e-06
+    "coupling_density_rtol": 1e-06,
+    "max_step_halvings": 6
   }
 }

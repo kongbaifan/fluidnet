@@ -346,6 +346,8 @@ class SolverOptions(StrictModel):
     max_thermal_iterations: int = Field(default=50, ge=1, le=500)
     max_coupling_iterations: int = Field(default=20, ge=1, le=200)
     coupling_density_rtol: float = Field(default=1e-6, gt=0)
+    # Implicit time stepping (networks with tanks): a failed substep is retried with half the step.
+    max_step_halvings: int = Field(default=6, ge=0, le=20)
 
 
 class Project(StrictModel):

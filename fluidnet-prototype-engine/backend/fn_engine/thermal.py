@@ -57,6 +57,8 @@ class ThermalResult:
     energy_residual_w: float
     iterations: int
     diagnostics: list[Diagnostic] = field(default_factory=list)
+    # Tank node -> power stored there, W: Σin w·h_in − Σout w·h + Q_heater − UA·(T − T_amb).
+    storage_power_w: dict[int, float] = field(default_factory=dict)
 
 
 def phase_family(state: FluidState) -> str:
@@ -79,7 +81,10 @@ def _node_labels(network: CompiledNetwork) -> list[str]:
     for key, node in network.port_nodes.items():
         instance_id = key.split(':', 1)[0]
         model = network.modules[network.instances[instance_id].module_id].solver_model
-        if model not in ('pressure_source', 'junction') and node not in preferred:
+        if model == 'tank':
+            labels[node] = instance_id
+            preferred.add(node)
+        elif model not in ('pressure_source', 'junction') and node not in preferred:
             labels[node] = instance_id
             preferred.add(node)
     return labels
@@ -137,8 +142,13 @@ def initial_guess(network: CompiledNetwork, service) -> list[FluidState]:
 
 def solve_thermal(network: CompiledNetwork, service, pressures, flows,
                   relations: dict[tuple[str, str], NetworkRelation] | None = None,
-                  shaft_power_w=None, initial_enthalpies=None) -> ThermalResult:
-    """Solve node enthalpies for fixed pressures and flows."""
+                  shaft_power_w=None, initial_enthalpies=None, storage_step=None) -> ThermalResult:
+    """Solve node enthalpies for fixed pressures and flows.
+
+    Tank nodes (network.storage) are held at their boundary state unless `storage_step` =
+    (dt_s, {node: TankState}) is given; then each tank is an implicit-Euler storage node:
+    h·(M_old/dt + Σin w) = M_old·h_old/dt + Σin w·h_in + Q − UA·(T − T_amb).
+    """
     options = network.project.solver
     relations = relations or {}
     n, branches = len(network.node_keys), network.branches
@@ -188,16 +198,23 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
                                f'当前网络只支持与边界一致的单相{expected}流动', instance)
         return state
 
-    # Boundary exchange follows from the branch flows meeting each fixed-pressure node.
+    # Tanks: finite storage nodes in an implicit step, otherwise held at their boundary state.
+    storage = network.storage
+    dt_s, tank_old = storage_step if storage_step is not None else (None, {})
+    finite = {node: tank_old[node] for node in storage if node in tank_old}
+    held_tanks = set(storage) - set(finite)
+
+    # Boundary exchange follows from the branch flows meeting each fixed-pressure node. A tank
+    # stores what arrives instead, so it is not a boundary exchange.
     net_out = np.zeros(n)
     for j in flowing:
         net_out[upstream[j]] += weight[j]
         net_out[downstream[j]] -= weight[j]
-    supply = {node: float(net_out[node]) for node in fixed if net_out[node] > exchange_eps}
-    absorbed = {node: float(-net_out[node]) for node in fixed if net_out[node] < -exchange_eps}
+    supply = {node: float(net_out[node]) for node in fixed if node not in storage and net_out[node] > exchange_eps}
+    absorbed = {node: float(-net_out[node]) for node in fixed if node not in storage and net_out[node] < -exchange_eps}
 
     touched = {upstream[j] for j in flowing} | {downstream[j] for j in flowing}
-    stagnant = [node not in touched for node in range(n)]
+    stagnant = [node not in touched and node not in storage for node in range(n)]
     temperatures, known = component_temperatures(network)
     h_init = np.array([boundary_states[node].enthalpy_j_kg if node in boundary_states else
                        _state_pt(service, pressures[node], temperatures[node], labels[node]).enthalpy_j_kg
@@ -248,7 +265,8 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
         else:
             diagnostics.append(Diagnostic(code='THERMAL_EXCHANGER_NO_FLOW', severity='info', instance_id=instance_id,
                                           message=f'{instance_id} 至少一侧无流量，本次不交换热量'))
-    nonlinear = bool(exchangers) or any(pipe_ua[j] > 0 for j in flowing)
+    nonlinear = (bool(exchangers) or any(pipe_ua[j] > 0 for j in flowing)
+                 or any(storage[node].heat_loss_ua_w_k > 0 for node in finite))
 
     # Which nodes does inflow determine? Anything else sits on a closed circulation.
     edges = [(upstream[j], downstream[j]) for j in flowing]
@@ -269,7 +287,8 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
         return seen
 
     # A lossy pipe relaxes towards ambient, which also fixes the level of a closed loop it sits in.
-    seeds = set(supply) | {downstream[j] for j in flowing if kinds[j] == 'pipe' and pipe_ua[j] > 0}
+    # Tanks fix their own enthalpy (held state or stored energy), so loops through them are well posed.
+    seeds = set(supply) | set(storage) | {downstream[j] for j in flowing if kinds[j] == 'pipe' and pipe_ua[j] > 0}
     pins: dict[int, float] = {}
     reach = reachable(seeds)
     while True:
@@ -302,7 +321,32 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
         shown = '、'.join(names[:5]) + ('等' if len(names) > 5 else '')
         diagnostics.append(Diagnostic(code='THERMAL_STAGNANT_NODE', severity='info', instance_id=names[0],
                                       message=f'{shown} 处没有流动，温度保持边界或初始值'))
-    fixed_rows = {**{node: float(h_init[node]) for node in held}, **pins}
+    fixed_rows = {**{node: float(h_init[node]) for node in held}, **pins,
+                  **{node: boundary_states[node].enthalpy_j_kg for node in held_tanks}}
+    # An empty tank with nothing arriving has no stored energy to update; keep its last enthalpy.
+    inflow_total = np.zeros(n)
+    for j in flowing:
+        inflow_total[downstream[j]] += weight[j]
+    for node, old in finite.items():
+        if old.mass_kg <= 0 and inflow_total[node] <= flow_eps:
+            fixed_rows[node] = old.enthalpy_j_kg
+
+    def storage_terms(states, h):
+        """Per finite tank: (diagonal, rhs) added to its mixing row; heat loss linearised as T ≈ h/cp + offset."""
+        terms = {}
+        for node, old in finite.items():
+            if node in fixed_rows:
+                continue
+            spec = storage[node]
+            diagonal = old.mass_kg / dt_s
+            rhs = old.mass_kg * old.enthalpy_j_kg / dt_s + spec.heat_input_w
+            if spec.heat_loss_ua_w_k > 0:
+                cp = states[node].specific_heat_j_kg_k
+                offset = states[node].temperature_k - h[node] / cp
+                diagonal += spec.heat_loss_ua_w_k / cp
+                rhs += spec.heat_loss_ua_w_k * (spec.ambient_temperature_k - offset)
+            terms[node] = (diagonal, rhs)
+        return terms
 
     def relations_for(states, h):
         weights = [{upstream[j]: 1.0} for j in range(m)]
@@ -353,12 +397,14 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
             consts[b] += conductance * offset / weight[b]
         return weights, consts
 
-    def solve_linear(weights, consts):
+    def solve_linear(weights, consts, tank_terms):
         # Mixing form: h[n]·(Σ inflow + supply) = Σ inflow·h_out + supply·h_b. Writing the diagonal from the
         # arriving streams keeps a node well posed even when its outflows differ by the mass residual.
         rows, cols, values, rhs = [], [], [], np.zeros(n)
         for node, value in fixed_rows.items():
             rows.append(node); cols.append(node); values.append(1.0); rhs[node] = value
+        for node, (diagonal, value) in tank_terms.items():
+            rows.append(node); cols.append(node); values.append(diagonal); rhs[node] += value
         for j in flowing:
             down, w = downstream[j], weight[j]
             if down not in fixed_rows:
@@ -393,7 +439,8 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
     for iterations in range(1, options.max_thermal_iterations + 1):
         states = node_states(h) if nonlinear else None
         weights, consts = relations_for(states, h)
-        candidate = solve_linear(weights, consts)
+        tank_terms = storage_terms(states, h)
+        candidate = solve_linear(weights, consts, tank_terms)
         if not nonlinear:
             h = candidate
             break
@@ -426,9 +473,33 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
             if downstream[j] == node:
                 balance -= weight[j] * outlet_h[j]
         reference_heat += balance
+    # Tanks: enthalpy stream they keep (Σin w·h_in − Σout w·h) and, in an implicit step, the stored power.
+    stream_net = {node: 0.0 for node in storage}
+    for j in flowing:
+        if downstream[j] in stream_net:
+            stream_net[downstream[j]] += weight[j] * outlet_h[j]
+        if upstream[j] in stream_net:
+            stream_net[upstream[j]] -= weight[j] * h[upstream[j]]
+    storage_power = dict(stream_net)
+    for node, old in finite.items():
+        spec = storage[node]
+        loss = spec.heat_loss_ua_w_k * (states[node].temperature_k - spec.ambient_temperature_k)
+        storage_power[node] = stream_net[node] + spec.heat_input_w - loss
+        if node in fixed_rows:
+            continue
+        # Own balance: (M_old·h − M_old·h_old)/dt + Σin w·h = Σin w·h_in + Q − loss. The loss was
+        # linearised in the last pass, so the remainder is bounded by UA times the thermal tolerance.
+        inflow = sum(weight[j] * outlet_h[j] for j in flowing if downstream[j] == node)
+        tank_residual = old.mass_kg * (h[node] - old.enthalpy_j_kg) / dt_s + inflow_total[node] * h[node] - inflow \
+            - spec.heat_input_w + loss
+        tank_scale = 1.0 + old.mass_kg * abs(h[node]) / dt_s + abs(inflow) + abs(spec.heat_input_w)
+        if abs(tank_residual) > ENERGY_RTOL * tank_scale + 10 * spec.heat_loss_ua_w_k * options.thermal_tolerance_k:
+            raise ThermalError('THERMAL_ENERGY_IMBALANCE', f'{spec.instance_id} 储能方程残差 {tank_residual:.6g} W 超出容差',
+                               spec.instance_id)
+
     boundary_in = sum(amount * boundary_states[node].enthalpy_j_kg for node, amount in supply.items()) \
         - sum(amount * h[node] for node, amount in absorbed.items())
-    residual = float(boundary_in + heat_w.sum() + reference_heat)
+    residual = float(boundary_in + heat_w.sum() + reference_heat - sum(stream_net.values()))
     scale = 1.0 + sum(weight[j] * abs(outlet_h[j]) for j in flowing) \
         + sum(amount * abs(boundary_states[node].enthalpy_j_kg) for node, amount in supply.items())
     if abs(residual) > ENERGY_RTOL * scale:
@@ -453,4 +524,4 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
                          outlet_enthalpies=outlet_h, outlet_states=outlet_states, heat_w=heat_w,
                          boundary_supply=supply, boundary_states=boundary_states, port_states=port_states,
                          reference_heat_w=float(reference_heat), energy_residual_w=residual, iterations=iterations,
-                         diagnostics=diagnostics)
+                         diagnostics=diagnostics, storage_power_w=storage_power)

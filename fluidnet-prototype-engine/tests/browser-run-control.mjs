@@ -124,6 +124,33 @@ try {
   expect(Number.isFinite(lastRow.variableValues['V1:out0:TEMP'])).toBe(true);
   await expect(page.locator('[data-result-status]').first()).not.toContainText('回放：显示最近关键帧');
 
+  // Tank example: the dynamic run integrates the level, and the tank state keys reach the page.
+  await page.locator('.rail-link[data-route="home"]').click();
+  await page.locator('[data-action="open-project"][data-id="tank-control"]').first().click();
+  await page.locator('.rail-link[data-route="settings"]').click();
+  await page.locator('[data-action="settings-tab"][data-value="solver"]').click();
+  await page.locator('input[data-solver-field="duration"]').fill('20');
+  await page.locator('[data-action="save"]').first().click();
+  await page.locator('.rail-link[data-route="workbench"]').click();
+  const tankCreated = await createRun();
+  await expect.poll(async () => (await projectState()).status, { timeout: 30000 }).toMatch(/running|completed/);
+  const tankRecord = await (await page.request.get(`${base}/api/v1/runs/${tankCreated.run_id}`)).json();
+  expect(tankRecord.status).toBe('completed');
+  const tankHistory = await (await page.request.get(`${base}/api/v1/runs/${tankCreated.run_id}/history`)).json();
+  const { duration_s: tankDuration, dt_s: tankDt } = tankRecord.request;
+  expect(tankDuration).toBe(20);
+  expect(tankHistory.total_rows).toBe(Math.ceil(tankDuration / tankDt) + 1);
+  const levels = tankHistory.rows.filter(row => row.full !== false).map(row => row.variables['TK1.state.level_m']);
+  expect(levels[0]).toBeCloseTo(2, 9);
+  expect(levels.at(-1)).not.toBeCloseTo(levels[0], 6);
+  expect(tankHistory.rows[0].diagnostics.map(d => d.code)).toContain('DYNAMIC_IMPLICIT_EULER');
+  const tankRun = await page.evaluate(() => {
+    const s = JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1') || '{}');
+    return (s.projects || []).find(project => project.id === 'tank-control').run;
+  });
+  const shown = tankRun.history.find(row => !row.partial)?.variableValues['TK1:runtime:state.level_m'];
+  expect(shown).toBeCloseTo(2, 6);
+
   mkdirSync('artifacts', { recursive: true });
   await page.screenshot({ path: 'artifacts/run-control.png', fullPage: true });
   expect(errors).toEqual([]);

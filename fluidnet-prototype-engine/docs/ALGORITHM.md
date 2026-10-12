@@ -86,13 +86,47 @@ ch0 与 ch1 分别使用各自的节点和流量，当前共用定义中的 K �
 
 记录 `pressure_residual_pa`、`mass_residual_kg_s`、`iterations`（函数评估次数）、节点数和支路数；热力层另记 `thermal_iterations`、`coupling_iterations`、`energy_residual_w`、`reference_heat_w`。当前使用稠密数值 Jacobian，目标是小型原型网络；尚未完成大规模网络性能验证。后续可增加稀疏 Jacobian 和连通分块。
 
-## 当前准稳态序列
+## 当前准稳态序列（没有状态设备的项目）
 
 POST /runs 的 dynamic 模式产生 `0, dt, 2dt, …, duration` 序列，最后一个时刻准确截到 duration，最多 2001 帧，返回 DYNAMIC_QUASI_STEADY。每一帧都完整求解一次水力与热力，不复用上一帧的结果；从第 2 帧起以上一帧的水力解、节点焓（`node` 模式还有支路物性）作为初值（热启动）。热启动只是初值：上一帧流量接近零的支路改从冷启动值 0.1 kg/s 起算（`q·|q|` 关系在零点斜率为零，否则阀门由关到开的帧会停在 gtol）；热启动仍未收敛时自动再按冷启动求解一次，两次都失败才报未收敛。请求不包含随时间变化的边界和参数，所以只有当 Python 模块的 `evaluate` 读取了 `state` 或 `time_s` 时，帧与帧之间的结果才会不同。
 
 实测（原型示例网络）：热启动把每帧水力函数评估次数从 8 次降到 1 次；2001 帧在 `reference` 与 `node` 模式下都约 2.5–2.8 s。每个端口多出 5 个热力变量后，water-net 2001 帧完整历史序列化为 JSON 约 22.7 MB（每帧 247 个变量）；`thermal=False` 时不输出热力变量，约 11.9 MB（每帧 127 个）。运行记录在内存中保留最近 20 次。v0.3.1 起可用 `RunRequest.history='trend'`：只有约 50 个关键帧保留全部变量，其余帧只存曲线变量和模块状态，同一运行约 1.74 MB（见 API 文档“历史瘦身”）。
 
-每帧温度是该时刻的稳态代数解，不含水箱、管道热容等热惯性。前端运行按钮提交计算，再回放已完成的帧。后台运行的暂停/继续/停止会先调用 `POST /runs/{run_id}/command`(见 API 文档),后端取消是帧粒度的协作式停止,前端回放随之中断;同步运行与纯回放仍只在本机生效。单步会对当前已应用参数重新求解，生成一个新的运行 ID，并在前端保留连续观察的历史。它不代表求解水箱液位、热惯性或流体动量的瞬态方程。
+本节只适用于没有状态设备的项目；含水箱的项目改走下一节的隐式时间推进，帧时刻相同，但诊断为 `DYNAMIC_IMPLICIT_EULER`。v0.4 起没有状态设备的项目结果与 0.3.1 逐键一致。
+
+每帧温度是该时刻的稳态代数解，不含管道热容等热惯性。前端运行按钮提交计算，再回放已完成的帧。后台运行的暂停/继续/停止会先调用 `POST /runs/{run_id}/command`(见 API 文档),后端取消是帧粒度的协作式停止,前端回放随之中断;同步运行与纯回放仍只在本机生效。单步会对当前已应用参数重新求解，生成一个新的运行 ID，并在前端保留连续观察的历史。它不代表求解热惯性或流体动量的瞬态方程。
+
+## 开式水箱与隐式时间推进（v0.4）
+
+内置 `tank`（`solver_model='tank'`，`state_model='open_tank'`）是完全混合的开式水箱。两个端口都可选，与连接节点一样并成一个网络节点。状态是质量 M 和比焓 h：
+
+```text
+p_bottom = p_surface + g·M/A           （与密度无关）
+level    = M / (ρ(p_bottom, h)·A)
+```
+
+参数：`level_m` 初始液位、`area_m2`、`height_m` 罐高（满箱液位）、`surface_pressure_pa`（默认 101325）、`temperature_k` 初始温度、`heat_input_w`、`heat_loss_ua_w_k`、`ambient_temperature_k`。编译期由初始液位求初始质量：`p = p_s + ρ(p, T)·g·level` 是不动点，6 次迭代到机器精度，所以第 0 帧的液位、底部压力和温度与参数一致。初始状态必须是液相（`PHASE_UNSUPPORTED`），`level_m` 不能超过 `height_m`。水箱本身是压力参考，同一节点上不能再有压力边界或第二个水箱（`STORAGE_CONFLICT`）；只由水箱提供压力参考的闭合回路可以求解。
+
+**稳态与第 0 帧**：水箱按初始状态的固定压力、固定温度处理，相当于液位不变的大容器，诊断 `STEADY_TANK_AS_RESERVOIR`（仅稳态）。`state.net_inflow_kg_s` 是液位变化趋势。
+
+**隐式 Euler 步**（从已接受状态 M_old、h_old 推进 h 秒）：
+
+- 水力：水箱节点的未知量改为净流入 r（kg/s），平衡行为 `Σq_in − r = 0`，压力由 `p = p_s + g/A·(M_old + h·r)` 给出。不用压力作未知量，因为同一质量误差换成压力约为 `g·h/A` 倍，验收容差会小到 1e-14 Pa。水箱与网络在同一次 `least_squares` 中强耦合，未知量个数不变。
+- 热力：水箱节点作为储能节点，行方程
+
+  ```text
+  h·(M_old/h_step + Σin w) = M_old·h_old/h_step + Σin w·h_in + Q_heater − UA·(T − T_amb)
+  ```
+
+  散热项按 `T ≈ h/cp + offset` 线性化，进入已有的 Picard 迭代。水箱作为温度种子，经过水箱的闭合回路不再需要 `THERMAL_REFERENCE_FROM_BOUNDARY`；无流动的水箱也照常更新（只有加热和散热）。质量为零且无流入的水箱保持上一焓值。
+- 校核：每个水箱单独检查储能方程残差（相对 1e-6，加上 `10·UA·thermal_tolerance_k` 的线性化余量）；全网能量残差改为 `boundary_in + Σheat_w + reference_heat − Σ水箱净焓流`。帧指标另含 `storage_mass_rate_kg_s` 与 `storage_power_w`（`Σin w·h_in − Σout w·h + Q − UA·(T − T_amb)`）。
+- 接受后 `M = M_old + h·r`，`h` 取热力解；热力层关闭时水箱温度保持初始值，`storage_power_w` 不输出。
+
+**子步与重试**：输出帧仍是 `0, dt, …, duration`。每帧先试一个完整步；水力未收敛、热力/耦合未收敛、相态或物性失败时步长减半重试，最多 `SolverOptions.max_step_halvings`（默认 6）次，仍失败报 `STEP_NOT_CONVERGED`。模块错误、泵曲线越界等不是步长能解决的问题，不重试。失败的试算不改变任何状态；Python 模块在每个被接受的子步后 `commit_step`，`dt_s` 是实际子步长。
+
+**液位事件**：试算步得到 M < 0（`TANK_EMPTY`）或液位 > 罐高（`TANK_FULL`）时，在该子步内二分步长到 `1e-6·dt`，接受仍在范围内的最大步，补发一帧事件时刻（不在 dt 网格上）的结果，然后以 failed 结束运行，保留全部已接受帧。
+
+精度：一阶，未做局部截断误差估计；测试用线性 ODE 验证 dt 减半误差约减半。诊断 `DYNAMIC_IMPLICIT_EULER`（info）写明这一点。
 
 ## 热力层（`SolverOptions.thermal=True`，默认开启）
 
@@ -223,20 +257,10 @@ INCOMP 溶液没有 `phase()`，一律按液相；它没有饱和状态，`state
 
 网络流动的相态另由热力层按边界相态检查（见上文）。默认 `reference` 模式下水力用常数，热力层本身调用 CoolProp。HEOS 与归档 v0.2 使用的 IF97 存在约 1e-4 量级的相对差，只影响两者对照的容差。
 
-## 后续状态算法定义（未实现）
+## 后续状态算法（未实现）
 
-水箱建议以质量 M 和总内能 U 为状态，定密度、完全混合近似下：
+管道热容（M2）：管道按 `thermal_cells` 分段，每段质量加管壁热容，隐式更新 `(C_i/dt + w·cp + UA_i)·T_i = C_i/dt·T_i,old + w·cp·T_(i−1) + UA_i·T_amb`；出口仍是 `a·h_up + c`，直接进入现有节点方程。
 
-```text
-dM/dt = Σm_in - Σm_out
-U ≈ M cp T
-dU/dt = Σ(m_in cp T_in) - Σ(m_out cp T) + Q_heater - UA_loss(T-T_ambient)
-level = M/(ρA)
-p_bottom = p_surface + ρg level
-```
+控制器（M3）：PID 只允许写模块声明为 runtime 的参数，按采样周期在已接受子步之后更新（零阶保持），带限幅和条件积分抗饱和；失败的试算不推进控制器时钟。控制写入从下一子步生效，不篡改已发布的历史帧。
 
-状态推进采用隐式 Euler 或 BDF；每一步用状态给出边界，求水力及热力代数方程，再更新状态，失败时回滚并缩步。液位上下限作为事件处理。
-
-控制器只允许写模块声明的 runtime 参数，建议定义采样周期、设定值、限幅、积分抗饱和及离散更新顺序。控制写入发生在明确时间边界，进入下一次代数求解，不能直接篡改已发布的历史帧。
-
-这些状态方程为下一阶段设计，不在 v0.3 的通过测试能力中。Python 模块已接入独立 Worker；单相物性服务与热力代数层可用，两相水力、完整可压缩气体网络、混合物、相变和水锤仍需另行设计。
+不在计划内：气垫闭式罐、满箱溢流与空箱断流的切换、BDF2 或时间误差控制、Python 模块自定义微分状态、两相水力、完整可压缩气体网络、混合物、相变和水锤。

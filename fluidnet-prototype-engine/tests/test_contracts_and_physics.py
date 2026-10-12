@@ -80,10 +80,13 @@ def test_isolated_loop_rejected_even_if_other_component_has_boundary():
     with pytest.raises(CompilationError,match='缺少压力边界'):compile_project(p)
 
 
-def test_unknown_algorithm_and_tank_are_rejected():
+def test_unknown_algorithm_and_state_model_are_rejected():
     p=simple();p.modules[-1].channels[0].solver_model='unknown'
     with pytest.raises(CompilationError,match='未注册'):compile_project(p)
-    with pytest.raises(CompilationError,match='尚未实现'):compile_project(simple('tank'))
+    p=simple('tank');p.modules[-1].state_model='closed_gas_cushion'
+    with pytest.raises(CompilationError,match='尚未实现'):compile_project(p)
+    p=simple('valve');p.modules[-1].state_model='well_mixed_volume'
+    with pytest.raises(CompilationError,match='尚未实现'):compile_project(p)
 
 
 def test_iteration_exhaustion_is_not_valid_result():

@@ -83,7 +83,7 @@ Invoke-RestMethod ('http://127.0.0.1:8798/api/v1/runs/' + $result.run_id + '/his
 }
 ```
 
-上例 project 字段是说明占位，实际必须发送对象。mode 可为 steady 或 dynamic。dynamic 当前明确表示准稳态序列。selected_variables 为空数组表示全部；null/省略则使用 project.selected_variables，后者也为空则返回全部。未知变量使本次运行失败，不能静默丢弃。
+上例 project 字段是说明占位，实际必须发送对象。mode 可为 steady 或 dynamic。dynamic 对没有状态设备的项目是准稳态序列，对含水箱的项目是隐式 Euler 时间推进（见 ALGORITHM）。selected_variables 为空数组表示全部；null/省略则使用 project.selected_variables，后者也为空则返回全部。未知变量使本次运行失败，不能静默丢弃。
 
 ### 历史瘦身（v0.3.1）
 
@@ -131,11 +131,11 @@ scenario_id 指向 Project.scenarios。覆盖只修改本次运行的项目副�
 }
 ```
 
-该示例取自 `contracts/reference-result.json`，省略了其他变量和归一化提示。valid 表示当前声明的水力方程和热力层（`thermal=True` 时）已通过验收，不表示水箱等状态算法已执行。`SolverOptions.thermal=False` 时热力变量为 null，指标中没有热力项。
+该示例取自 `contracts/reference-result.json`，省略了其他变量和归一化提示。valid 表示当前声明的水力方程和热力层（`thermal=True` 时）已通过验收；含水箱的动态帧还表示水箱储能方程已通过验收。`SolverOptions.thermal=False` 时热力变量为 null，指标中没有热力项。
 
 Diagnostic 包含 code、message、severity（info/warning/error）、可选 instance_id 与 field。前端可以定位到实例。结构错误采用 PORT_UNCONNECTED、BOUNDARY_CONFLICT、BOUNDARY_TEMPERATURE_CONFLICT、PRESSURE_REFERENCE_MISSING、MODEL_NOT_SUPPORTED 等代码;参数与工况错误采用 PARAMETER_RANGE(含 `diameter_m` 不大于零、`roughness_m` 为负)、ROUGHNESS_RANGE、UNKNOWN_PARAMETER、PARAMETER_INVALID、CURVE_INVALID、SCENARIO_INSTANCE_MISSING 等代码;热力错误采用 PHASE_UNSUPPORTED、NO_FLOW_HEAT、THERMAL_REFERENCE_MISSING、THERMAL_NOT_CONVERGED、COUPLING_NOT_CONVERGED 等代码(完整列表见数据合同文档)。
 
-POST /runs 对类型正确但编译或求解失败的请求仍创建可查询的记录，status=failed、frame.valid=false、history 为空。schema 不合法、帧数超限等请求在创建前返回 422。POST /solve 则将编译/求解错误直接返回 422/detail Diagnostic。被取消的后台运行同样保留记录:status=cancelled,frame.status=cancelled、valid=false,history 保留取消前已算出的帧。
+POST /runs 对类型正确但编译或求解失败的请求仍创建可查询的记录，status=failed、frame.valid=false、history 为空。例外：动态运行在水箱事件（`TANK_EMPTY`、`TANK_FULL`）或 `STEP_NOT_CONVERGED` 处停止时，history 保留已接受的帧，`frame.time_s` 为最后一帧时刻，`frame.diagnostics` 给出停止原因。schema 不合法、帧数超限等请求在创建前返回 422。POST /solve 则将编译/求解错误直接返回 422/detail Diagnostic。被取消的后台运行同样保留记录:status=cancelled,frame.status=cancelled、valid=false,history 保留取消前已算出的帧。
 
 
 ## 运行生命周期与控制

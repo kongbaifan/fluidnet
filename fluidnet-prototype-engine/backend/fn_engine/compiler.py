@@ -41,6 +41,37 @@ class CompiledBranch:
     closed: bool = False
 
 
+GRAVITY = 9.80665
+
+
+@dataclass
+class StorageSpec:
+    """An open tank: one well-mixed node whose bottom pressure is p_surface + g·M/A."""
+    instance_id: str
+    node: int
+    area_m2: float
+    height_m: float
+    surface_pressure_pa: float
+    heat_input_w: float
+    heat_loss_ua_w_k: float
+    ambient_temperature_k: float
+    # Initial state, consistent with the property service: level = M/(ρ(p_bottom, T)·A).
+    initial_mass_kg: float
+    initial_pressure_pa: float
+    initial_temperature_k: float
+    initial_enthalpy_j_kg: float
+
+    def pressure(self, mass_kg: float) -> float:
+        return self.surface_pressure_pa + GRAVITY * mass_kg / self.area_m2
+
+
+@dataclass
+class TankState:
+    """Accepted tank state at the start of an implicit step."""
+    mass_kg: float
+    enthalpy_j_kg: float
+
+
 @dataclass
 class CompiledNetwork:
     project: Project
@@ -55,6 +86,9 @@ class CompiledNetwork:
     # Boundary temperature per fixed-pressure node and the static hydraulic component of every node.
     fixed_temperatures: dict[int, float] = field(default_factory=dict)
     node_component: list[int] = field(default_factory=list)
+    # Tank nodes. They also appear in fixed_pressures/fixed_temperatures with their initial state,
+    # which is how steady runs and the first dynamic frame treat them (a large reservoir).
+    storage: dict[int, StorageSpec] = field(default_factory=dict)
 
 
 def validated_parameters(instance, definition):
@@ -132,8 +166,8 @@ def check_fluid_conditions(instance_id: str, params: dict, solver_model: str, se
     from .properties import PropertyError, is_pure_water
     limits, name = service.limits(), service.fluid
     span = f'{limits["t_min_k"] - 273.15:.2f}…{limits["t_max_k"] - 273.15:.2f} °C'
-    checks = [('temperature_k', params.get('temperature_k'))] if solver_model == 'pressure_source' else []
-    if solver_model == 'pipe':
+    checks = [('temperature_k', params.get('temperature_k'))] if solver_model in ('pressure_source', 'tank') else []
+    if solver_model in ('pipe', 'tank'):
         checks.append(('ambient_temperature_k', params.get('ambient_temperature_k')))
     for key, temperature in checks:
         if not isinstance(temperature, (int, float)) or isinstance(temperature, bool):
@@ -159,6 +193,36 @@ def check_fluid_conditions(instance_id: str, params: dict, solver_model: str, se
                                f' {state.phase}；水按液态参考物性计算，边界必须是液相', instance_id, 'temperature_k')
 
 
+def tank_initial_state(instance_id: str, params: dict, node: int, service) -> StorageSpec:
+    """Initial mass and bottom pressure of an open tank from its level, area and temperature.
+
+    p_bottom = p_surface + ρ(p_bottom, T)·g·level is a fixed point; liquid density hardly depends
+    on pressure, so a few passes reach machine precision. The tank must hold a liquid.
+    """
+    from .properties import PropertyError
+    level, area, height = params['level_m'], params['area_m2'], params['height_m']
+    surface, temperature = params['surface_pressure_pa'], params['temperature_k']
+    if level > height:
+        raise CompilationError('PARAMETER_RANGE', f'{instance_id}.level_m = {level:g} m 超过罐高 {height:g} m', instance_id, 'level_m')
+    pressure = surface
+    try:
+        for _ in range(6):
+            state = service.state_pt(pressure, temperature)
+            pressure = surface + state.density_kg_m3 * GRAVITY * level
+        state = service.state_pt(pressure, temperature)
+    except PropertyError as error:
+        raise CompilationError(error.code, f'{instance_id} 的初始状态（{temperature - 273.15:.2f} °C）：{error}',
+                               instance_id, 'temperature_k') from error
+    if 'liquid' not in state.phase:
+        raise CompilationError('PHASE_UNSUPPORTED', f'{instance_id} 在 {pressure:g} Pa、{temperature - 273.15:.2f} °C 下 '
+                               f'{service.fluid} 为 {state.phase}；开式水箱只能储存液体', instance_id, 'temperature_k')
+    mass = state.density_kg_m3 * area * level
+    pressure = surface + GRAVITY * mass / area
+    enthalpy = service.state_pt(pressure, temperature).enthalpy_j_kg
+    return StorageSpec(instance_id, node, area, height, surface, params['heat_input_w'], params['heat_loss_ua_w_k'],
+                       params['ambient_temperature_k'], mass, pressure, temperature, enthalpy)
+
+
 def compile_project(project: Project) -> CompiledNetwork:
     modules = {m.id: m for m in project.modules}
     instances = {i.id: i for i in project.instances}
@@ -166,11 +230,15 @@ def compile_project(project: Project) -> CompiledNetwork:
         raise CompilationError('EMPTY_NETWORK', '项目没有设备')
     diagnostics = list(project.import_diagnostics)
     parameters, port_keys = {}, []
-    supported = {'pressure_source', 'junction', 'valve', 'pipe', 'pump_curve', 'heat_exchanger'}
+    supported = {'pressure_source', 'junction', 'valve', 'pipe', 'pump_curve', 'heat_exchanger', 'tank'}
+    # Built-in state models and the solver model each one belongs to.
+    state_models = {'open_tank': 'tank'}
     service = fluid_service(project)
     for inst in project.instances:
         definition = modules[inst.module_id]
-        if definition.runtime != 'python' and (definition.solver_model not in supported or definition.state_model):
+        state_ok = state_models.get(definition.state_model) == definition.solver_model if definition.state_model else \
+            definition.solver_model != 'tank'
+        if definition.runtime != 'python' and (definition.solver_model not in supported or not state_ok):
             raise CompilationError('MODEL_NOT_SUPPORTED', f'{inst.id} 的模型 {definition.state_model or definition.solver_model} 尚未实现；不能生成替代计算结果', inst.id)
         if definition.runtime == 'python':
             if not definition.entrypoint:
@@ -213,7 +281,7 @@ def compile_project(project: Project) -> CompiledNetwork:
         dsu.union(source, target)
     for inst in project.instances:
         definition = modules[inst.module_id]
-        if definition.solver_model == 'junction':
+        if definition.solver_model in ('junction', 'tank'):
             for p in definition.ports[1:]:
                 dsu.union(f'{inst.id}:{definition.ports[0].id}', f'{inst.id}:{p.id}')
         for port in definition.ports:
@@ -222,11 +290,14 @@ def compile_project(project: Project) -> CompiledNetwork:
     roots = sorted({dsu.find(key) for key in port_keys})
     index = {root: n for n, root in enumerate(roots)}
     nodes = {key: index[dsu.find(key)] for key in port_keys}
-    branches, fixed, fixed_temperatures = [], {}, {}
+    branches, fixed, fixed_temperatures, storage = [], {}, {}, {}
     for inst in project.instances:
         definition, params = modules[inst.module_id], parameters[inst.id]
         if definition.solver_model == 'pressure_source':
             node, value = nodes[f'{inst.id}:{definition.ports[0].id}'], params['pressure_pa']
+            if node in storage:
+                raise CompilationError('STORAGE_CONFLICT', f'{inst.id} 与水箱 {storage[node].instance_id} 接在同一节点；'
+                                       '水箱本身就是压力参考，不能再接压力边界', inst.id)
             if node in fixed and not math.isclose(fixed[node], value, rel_tol=0, abs_tol=1e-6):
                 raise CompilationError('BOUNDARY_CONFLICT', f'{inst.id} 与同节点压力边界冲突', inst.id)
             temperature = float(params.get('temperature_k', 293.15))
@@ -236,6 +307,18 @@ def compile_project(project: Project) -> CompiledNetwork:
                                        'temperature_k')
             fixed[node] = value
             fixed_temperatures.setdefault(node, temperature)
+            continue
+        if definition.solver_model == 'tank':
+            node = nodes[f'{inst.id}:{definition.ports[0].id}']
+            if node in storage:
+                raise CompilationError('STORAGE_CONFLICT', f'{inst.id} 与水箱 {storage[node].instance_id} 直接相连；'
+                                       '两个水箱之间需要阀门或管道', inst.id)
+            if node in fixed:
+                raise CompilationError('STORAGE_CONFLICT', f'{inst.id} 与压力边界接在同一节点；水箱本身就是压力参考，'
+                                       '不能再接压力边界', inst.id)
+            spec = tank_initial_state(inst.id, params, node, service)
+            storage[node] = spec
+            fixed[node], fixed_temperatures[node] = spec.initial_pressure_pa, spec.initial_temperature_k
             continue
         if definition.solver_model == 'junction':
             continue
@@ -264,7 +347,7 @@ def compile_project(project: Project) -> CompiledNetwork:
         if components.find(node) not in referenced:
             raise CompilationError('PRESSURE_REFERENCE_MISSING', f'子网络 {roots[node]} 缺少压力边界（关闭阀门也可能隔离回路）')
     return CompiledNetwork(project, modules, instances, parameters, nodes, roots, branches, fixed, diagnostics,
-                           fixed_temperatures, [components.find(n) for n in range(len(roots))])
+                           fixed_temperatures, [components.find(n) for n in range(len(roots))], storage)
 
 
 def validate_scenarios(project: Project, modules: dict[str, ModuleDefinition]) -> list[Diagnostic]:
