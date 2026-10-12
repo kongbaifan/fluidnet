@@ -238,6 +238,11 @@
           },
           "title": "Metrics",
           "type": "object"
+        },
+        "full": {
+          "default": true,
+          "title": "Full",
+          "type": "boolean"
         }
       },
       "required": [

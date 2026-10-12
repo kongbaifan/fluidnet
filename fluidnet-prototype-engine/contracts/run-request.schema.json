@@ -1027,6 +1027,23 @@
       ],
       "default": null,
       "title": "Scenario Id"
+    },
+    "history": {
+      "default": "full",
+      "enum": [
+        "full",
+        "trend"
+      ],
+      "title": "History",
+      "type": "string"
+    },
+    "trend_variables": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 256,
+      "title": "Trend Variables",
+      "type": "array"
     }
   },
   "required": [

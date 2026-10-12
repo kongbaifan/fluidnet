@@ -158,7 +158,8 @@ def test_prototype_mutations_are_not_silently_ignored():
     raw=prototype()
     next(m for m in raw['modules'] if m['id']=='valve')['channels'][0]['enabled']=False
     with pytest.raises(CompilationError,match='通路'):compile_project(normalize_prototype_export(raw))
-    raw=prototype();raw['projects'][0]['medium']='air'
+    # Known media (water, air, ammonia, ...) map to a CoolProp fluid since v0.3.1; unknown ones still fail.
+    raw=prototype();raw['projects'][0]['medium']='steam-table-x'
     with pytest.raises(ValueError,match='介质'):normalize_prototype_export(raw)
     raw=prototype();raw['activeProject']='missing'
     with pytest.raises(ValueError,match='activeProject'):normalize_prototype_export(raw)

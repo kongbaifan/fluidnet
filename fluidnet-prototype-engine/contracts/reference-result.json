@@ -270,5 +270,6 @@
     "coupling_iterations": 1,
     "energy_residual_w": 3.361719791428186e-10,
     "reference_heat_w": 0.0
-  }
+  },
+  "full": true
 }

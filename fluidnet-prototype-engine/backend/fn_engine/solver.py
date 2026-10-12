@@ -8,7 +8,7 @@ from scipy.optimize import least_squares
 
 from .compiler import CompiledBranch, CompiledNetwork
 from .models import CommitStepRequest, Diagnostic, EvaluateRequest, FluidState, PortState, RunFrame, NetworkRelation
-from .properties import PropertyError, property_service
+from .properties import PropertyError, is_pure_water, property_service
 from .runtime import ChannelResult, WorkerProcess, RuntimeErrorBase
 from .thermal import ThermalError, ThermalResult, initial_guess, solve_thermal
 
@@ -140,9 +140,9 @@ def _close_runners(runners):
 def reference_properties(network: CompiledNetwork) -> tuple[float, float]:
     """Constant density/viscosity used by the hydraulics unless property coupling is 'node'."""
     try:
-        # Keep the historical incompressible-water regression deterministic.
-        # Other configured fluids obtain transport properties from CoolProp.
-        if network.project.fluid.fluid.lower() in {'water', 'if97::water'}:
+        # Keep the historical incompressible-water regression deterministic for every
+        # spelling of pure water. Other configured fluids obtain properties from CoolProp.
+        if is_pure_water(network.project.fluid):
             return RHO_WATER, MU_WATER
         fixed = network.fixed_pressures
         reference_pressure = float(np.mean(list(fixed.values()))) if fixed else 250000.0
@@ -423,6 +423,25 @@ def _branch_properties(network: CompiledNetwork, thermal: ThermalResult) -> tupl
     return rho, np.array(mu)
 
 
+REFERENCE_DENSITY_RTOL = 0.02
+
+
+def _warn_reference_density(network: CompiledNetwork, thermal: ThermalResult, reference: float) -> None:
+    """reference mode keeps one constant density in the hydraulics; say so when the fluid has moved away from it."""
+    worst, where = 0.0, None
+    for node, state in enumerate(thermal.node_states):
+        deviation = abs(state.density_kg_m3 - reference) / reference
+        if deviation > worst:
+            worst, where = deviation, node
+    if worst > REFERENCE_DENSITY_RTOL:
+        state = thermal.node_states[where]
+        instance = network.node_keys[where].split(':', 1)[0]
+        thermal.diagnostics.append(Diagnostic(code='REFERENCE_DENSITY_DEVIATION', severity='warning', instance_id=instance,
+            message=f'{instance} 处密度 {state.density_kg_m3:.1f} kg/m³（{state.temperature_k - 273.15:.1f} °C）与水力参考密度 '
+                    f'{reference:.1f} kg/m³ 相差 {worst:.1%}；reference 模式的流量未计入这一差别，'
+                    "需要时把 property_coupling 设为 'node'"))
+
+
 def solve_network(network: CompiledNetwork, runners=None, time_s=0., warm: NetworkResult | None = None,
                   service=None) -> NetworkResult:
     """Hydraulics, then (if enabled) the thermal layer, coupled according to SolverOptions.property_coupling.
@@ -456,6 +475,7 @@ def _solve_network(network, runners, time_s, warm, service) -> NetworkResult:
         hydraulic = _solve_hydraulics(network, runners, time_s, port_base=port_base, initial=start)
         thermal = solve_thermal(network, service, hydraulic.pressures, hydraulic.flows, hydraulic.relations,
                                 shaft_power(network, hydraulic), h_start)
+        _warn_reference_density(network, thermal, reference_properties(network)[0])
         return NetworkResult(hydraulic, thermal, 1, build_port_states(network, hydraulic, thermal))
 
     # node coupling: properties frozen during each hydraulic solve, updated between passes.

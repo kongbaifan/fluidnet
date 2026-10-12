@@ -23,7 +23,8 @@ def builtin_catalog() -> list[ModuleDefinition]:
         ModuleDefinition(id='source', name='压力边界', category='边界与节点', solver_model='pressure_source',
             ports=ports('out0'), parameters=[
                 number('pressure_pa', '绝对压力', 201325.0, 'pressure', 'Pa', 'kPa', 1000.0, 1.0),
-                number('temperature_k', '边界温度', 293.15, 'temperature', 'K', '°C', minimum=274.15, maximum=363.15, offset=-273.15)]),
+                # The usable range depends on the fluid; the compiler checks it against the property service.
+                number('temperature_k', '边界温度', 293.15, 'temperature', 'K', '°C', minimum=1.0, offset=-273.15)]),
         ModuleDefinition(id='junction', name='连接节点', category='边界与节点', solver_model='junction',
             ports=[p.model_copy(update={'required': False}) for p in ports('in0', 'out0', 'out1')],
             parameters=[number('elevation_m', '标高（当前仅支持零标高）', 0.0, 'length', 'm', minimum=0, maximum=0)]),
@@ -43,7 +44,7 @@ def builtin_catalog() -> list[ModuleDefinition]:
                 number('diameter_m', '管道内径', .04, 'length', 'm', 'mm', .001, .001),
                 number('roughness_m', '绝对粗糙度', .000045, 'length', 'm', 'mm', .001, 0.),
                 number('heat_loss_ua_w_k', '散热能力 UA（0 为绝热）', 0., 'conductance', 'W/K', minimum=0.),
-                number('ambient_temperature_k', '环境温度', 293.15, 'temperature', 'K', '°C', minimum=274.15, maximum=363.15, offset=-273.15)]),
+                number('ambient_temperature_k', '环境温度', 293.15, 'temperature', 'K', '°C', minimum=1.0, offset=-273.15)]),
         ModuleDefinition(id='exchanger', name='双侧换热器（水力）', category='热力设备', solver_model='heat_exchanger',
             thermal_model='epsilon_ntu', ports=ports('in0', 'out0', 'in1', 'out1'),
             channels=[channel('ch0', 'resistance'), channel('ch1', 'resistance', 'in1', 'out1')], parameters=[

@@ -20,7 +20,7 @@ window.createEngineClient = function (ui) {
     if (!response.ok) {
       const detail = data.detail;
       const error = Error(typeof detail === 'string' ? detail : Array.isArray(detail) ? detail.map(x => x.loc.join('.') + '：' + x.msg).join('；') : detail?.message || JSON.stringify(detail));
-      error.status = response.status; throw error;
+      error.status = response.status; error.code = detail?.code; throw error;
     }
     return data;
   }
@@ -280,10 +280,52 @@ window.createEngineClient = function (ui) {
     ui.diagnostics(items.map(d => ({text:(d.severity === 'warning' ? '提示：' : '') + d.message,node:d.instance_id,
       page:d.instance_id && ui.project().pages.find(p => p.nodes.some(n => n.id === d.instance_id))?.id})), metrics);
   }
+  // Prototype port-variable slot -> canonical port variable suffix (X/composition has no engine value).
+  const PORT_SUFFIX = {FLOW:'mass_flow_kg_s',PRE:'pressure_pa',TEMP:'temperature_k',ENTHALPY:'enthalpy_j_kg',
+    VOLUME:'density_kg_m3',Q:'quality'};
+  // Canonical frame key behind a prototype variable; shared by rowFromFrame and the trend request.
+  // Parameters/custom/system variables have no engine key: their values come from the prototype itself.
+  function canonicalKeyOf(n, v) {
+    if (v.origin === 'port') { const suffix = PORT_SUFFIX[v.id.split(':').at(-1)]; return suffix ? `${n.id}.${v.port}.${suffix}` : null; }
+    if (v.origin === 'runtime' && v.canonicalId) return `${n.id}.${v.canonicalId}`;
+    return null;
+  }
+  // Canonical keys a trend-history run must keep on every frame: the overview series and the
+  // project's extra chart variables. Only keys the frame will contain are sent; the backend fails
+  // the run (TREND_VARIABLE_UNKNOWN) on anything else, and the run is then retried with full history.
+  const TREND_LIMIT = 256;
+  function trendVariables(owner) {
+    const nodes = new Map(owner.pages.flatMap(p => p.nodes).map(n => [n.id, n]));
+    const keys = new Set();
+    const flowKey = id => {
+      // `<id>.mass_flow_kg_s` is the unprefixed alias that only single-channel devices get.
+      const n = nodes.get(id), m = n && ui.moduleOf(n);
+      if (m && (m.channels || []).filter(c => c.enabled !== false).length === 1) keys.add(`${id}.mass_flow_kg_s`);
+    };
+    const portKey = (id, port, suffix) => {
+      const n = nodes.get(id), m = n && ui.moduleOf(n);
+      if (m?.ports?.some(p => p.id === port && (p.domain || 'fluid') === 'fluid')) keys.add(`${id}.${port}.${suffix}`);
+    };
+    ['P1','V1','V2'].forEach(flowKey);
+    portKey('P1','out0','pressure_pa'); portKey('P1','out0','temperature_k');
+    for (const binding of ui.state().charts?.extra || []) {
+      if (binding.projectId !== owner.id) continue;
+      const n = nodes.get(binding.nodeId);
+      if (n && binding.variableId) {
+        const v = ui.moduleOf(n)?.variables?.find(x => x.id === binding.variableId);
+        const key = v && canonicalKeyOf(n, v);
+        if (key) keys.add(key);
+        continue;
+      }
+      // Legacy overview bindings such as `V1.OUT_FLOW` (no nodeId/variableId).
+      const legacy = /^([^.]+)\.OUT_(FLOW|PRE|TEMP)$/.exec(binding.id || '');
+      if (legacy) legacy[2] === 'FLOW' ? flowKey(legacy[1]) : portKey(legacy[1], 'out0', legacy[2] === 'PRE' ? 'pressure_pa' : 'temperature_k');
+    }
+    return [...keys].slice(0, TREND_LIMIT);
+  }
   function portValue(n,v,row) {
-    const suffix = {FLOW:'mass_flow_kg_s',PRE:'pressure_pa',TEMP:'temperature_k',ENTHALPY:'enthalpy_j_kg',
-      VOLUME:'density_kg_m3',Q:'quality'}[v.id.split(':').at(-1)];
-    const value = suffix && row?.canonical?.[`${n.id}.${v.port}.${suffix}`];
+    const suffix = PORT_SUFFIX[v.id.split(':').at(-1)];
+    const value = suffix && row?.canonical?.[canonicalKeyOf(n,v)];
     if (!Number.isFinite(value)) return null;
     if (suffix === 'pressure_pa') return value / (v.unit === 'MPa' ? 1e6 : v.unit === 'kPa' ? 1000 : 1);
     if (suffix === 'temperature_k') return v.unit === '°C' ? value - 273.15 : value;
@@ -295,14 +337,16 @@ window.createEngineClient = function (ui) {
   }
   function rowFromFrame(owner,frame) {
     const canonical = frame.variables;
-    const row = {t:frame.time_s,canonical,variables:{},variableValues:{},diagnostics:frame.diagnostics,metrics:frame.metrics,
+    // partial: a trend-history frame (RunFrame.full=false) that only carries the trend variables.
+    // Curves and the overview read it as usual; device panels use the latest full row (studio panelRow).
+    const row = {t:frame.time_s,canonical,partial:frame.full === false,variables:{},variableValues:{},diagnostics:frame.diagnostics,metrics:frame.metrics,
       q:canonical['P1.mass_flow_kg_s'] ?? null,a:canonical['V1.mass_flow_kg_s'] ?? null,b:canonical['V2.mass_flow_kg_s'] ?? null,
       pressure:Number.isFinite(canonical['P1.out0.pressure_pa']) ? canonical['P1.out0.pressure_pa'] / 1000 : null,
       temperature:Number.isFinite(canonical['P1.out0.temperature_k']) ? canonical['P1.out0.temperature_k'] - 273.15 : null};
     for (const n of owner.pages.flatMap(p => p.nodes)) {
       const m = ui.moduleOf(n);
       for (const v of m.variables) {
-        const raw = v.canonicalId ? canonical[`${n.id}.${v.canonicalId}`] : null;
+        const raw = v.origin === 'runtime' ? canonical[canonicalKeyOf(n,v)] : null;
         const value = v.origin === 'port' ? portValue(n,v,row) : v.origin === 'parameter' ? n.params[v.param] : raw === null || raw === undefined ? null : v.unitSpec ? raw / v.unitSpec.display_scale + v.unitSpec.display_offset : raw;
         row.variableValues[n.id + ':' + v.id] = value;
       }
@@ -391,26 +435,42 @@ window.createEngineClient = function (ui) {
     try {
       const project = await normalize(owner,controller.signal);
       const mode = action === 'step' ? 'dynamic' : owner.solver.mode;
-      let data = await request('/runs' + (mode === 'dynamic' ? '?background=true' : ''),{project,mode,duration_s:action === 'step' ? owner.solver.dt : owner.solver.duration,dt_s:owner.solver.dt},controller.signal);
-      // Publish the backend id immediately so a stop pressed while this run is still being
-      // polled can cancel the real task instead of only aborting the local request.
-      owner.run.runId = data.run_id;
-      const pollStarted = performance.now();
-      let polls = 0;
-      while (['queued','running'].includes(data.status)) {
-        const waited = performance.now() - pollStarted;
-        if (polls >= RUN_POLL_MAX_ITERATIONS || waited >= RUN_POLL_DEADLINE_MS) {
-          throw Error(stallReason(data, waited >= RUN_POLL_DEADLINE_MS, waited, polls));
+      const body = {project,mode,duration_s:action === 'step' ? owner.solver.dt : owner.solver.duration,dt_s:owner.solver.dt};
+      // A full dynamic run keeps all variables only on key frames (history slimming); single
+      // steps are two frames and steady runs one, so they stay full.
+      if (mode === 'dynamic' && action !== 'step') Object.assign(body,{history:'trend',trend_variables:trendVariables(owner)});
+      const submit = async payload => {
+        let data = await request('/runs' + (mode === 'dynamic' ? '?background=true' : ''),payload,controller.signal);
+        // Publish the backend id immediately so a stop pressed while this run is still being
+        // polled can cancel the real task instead of only aborting the local request.
+        owner.run.runId = data.run_id;
+        const pollStarted = performance.now();
+        let polls = 0;
+        while (['queued','running'].includes(data.status)) {
+          const waited = performance.now() - pollStarted;
+          if (polls >= RUN_POLL_MAX_ITERATIONS || waited >= RUN_POLL_DEADLINE_MS) {
+            throw Error(stallReason(data, waited >= RUN_POLL_DEADLINE_MS, waited, polls));
+          }
+          await new Promise((resolve,reject)=>{
+            const abort=()=>{clearTimeout(timer);reject(new DOMException('请求已取消','AbortError'));};
+            const timer=setTimeout(()=>{controller.signal.removeEventListener('abort',abort);resolve();},RUN_POLL_INTERVAL_MS);
+            controller.signal.addEventListener('abort',abort,{once:true});
+            if(controller.signal.aborted) abort();
+          });
+          polls += 1;
+          const record=await request('/runs/'+data.run_id,undefined,controller.signal);
+          data={...record,run_id:data.run_id};
         }
-        await new Promise((resolve,reject)=>{
-          const abort=()=>{clearTimeout(timer);reject(new DOMException('请求已取消','AbortError'));};
-          const timer=setTimeout(()=>{controller.signal.removeEventListener('abort',abort);resolve();},RUN_POLL_INTERVAL_MS);
-          controller.signal.addEventListener('abort',abort,{once:true});
-          if(controller.signal.aborted) abort();
-        });
-        polls += 1;
-        const record=await request('/runs/'+data.run_id,undefined,controller.signal);
-        data={...record,run_id:data.run_id};
+        return data;
+      };
+      const trendRejected = error => error?.code === 'TREND_VARIABLE_UNKNOWN';
+      let data;
+      try { data = await submit(body); }
+      catch (error) { if (body.history !== 'trend' || !trendRejected(error)) throw error; data = null; }
+      if (body.history === 'trend' && (!data || data.status === 'failed' && (data.frame?.diagnostics || []).some(trendRejected))) {
+        // A chart variable the frame does not contain: keep the run, just without history slimming.
+        delete body.history; delete body.trend_variables;
+        data = await submit(body);
       }
       if (data.status === 'cancelled') {
         owner.run.runId = null; owner.run.status='stopped';

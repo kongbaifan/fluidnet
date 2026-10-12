@@ -205,7 +205,8 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
 
     # Static branch classification.
     kinds, heat, gravity = ['isenthalpic'] * m, np.zeros(m), np.zeros(m)
-    pipe_ua, ambient_h = np.zeros(m), np.zeros(m)
+    pipe_ua, ambient_h, ambient_t = np.zeros(m), np.zeros(m), np.zeros(m)
+    ambient_family = [''] * m
     exchanger_branches: dict[str, list[int]] = {}
     for j, branch in enumerate(branches):
         instance = network.instances[branch.instance_id]
@@ -229,9 +230,9 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
             kinds[j] = 'pipe'
             pipe_ua[j] = float(params.get('heat_loss_ua_w_k', 0.0) or 0.0)
             if pipe_ua[j] > 0 and weight[j] > flow_eps:
-                ambient_h[j] = _state_pt(service, pressures[downstream[j]],
-                                         params.get('ambient_temperature_k', DEFAULT_TEMPERATURE_K),
-                                         branch.instance_id).enthalpy_j_kg
+                ambient_t[j] = float(params.get('ambient_temperature_k', DEFAULT_TEMPERATURE_K))
+                ambient_state = _state_pt(service, pressures[downstream[j]], ambient_t[j], branch.instance_id)
+                ambient_h[j], ambient_family[j] = ambient_state.enthalpy_j_kg, phase_family(ambient_state)
         elif branch.solver_model == 'pump_curve':
             kinds[j] = 'pump'
 
@@ -309,9 +310,17 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
         for j in flowing:
             up, w, c = upstream[j], weight[j], gravity[j]
             if kinds[j] == 'pipe' and pipe_ua[j] > 0:
-                a = math.exp(-pipe_ua[j] / (w * states[up].specific_heat_j_kg_k))
+                cp = states[up].specific_heat_j_kg_k
+                a = math.exp(-pipe_ua[j] / (w * cp))
                 weights[j] = {up: a}
-                c += (1.0 - a) * ambient_h[j]
+                if ambient_family[j] == phase_family(states[up]):
+                    c += (1.0 - a) * ambient_h[j]
+                else:
+                    # Ambient lies across the phase boundary (e.g. 110 °C air around a 1.2 bar water
+                    # line): only sensible heat crosses the wall, h_env ≈ h_up + cp·(T_amb − T_up).
+                    # Using h(p, T_amb) there would count latent heat as transferable.
+                    offset = states[up].temperature_k - h[up] / cp
+                    c += (1.0 - a) * cp * (ambient_t[j] - offset)
             elif kinds[j] == 'pump':
                 c += shaft[j] / w
             elif kinds[j] == 'module':

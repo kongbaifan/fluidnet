@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import math
 import uuid
 import os
 from collections import OrderedDict
@@ -136,6 +137,54 @@ def apply_scenario(project, scenario_id):
             raise CompilationError('SCENARIO_INSTANCE_MISSING', f'工况引用不存在的实例:{id}', instance_id=id)
         instances[id].parameters.update(overrides)
     return project
+
+
+TREND_KEY_FRAMES = 50
+
+
+def trend_history(history: list[RunFrame], variables: list[str]) -> None:
+    """Slim a dynamic history in place: key frames keep everything, the rest only the trend.
+
+    Key frames are the first, the last and every K-th frame (K = ceil(n / 50), so at most ~51).
+    Other frames keep `variables` plus every module state key (`<instance>.state.*`) and all
+    metrics, and are marked `full=False`. Curve values are untouched on every frame. Slim frames
+    drop diagnostics identical to the preceding key frame's (the same warnings repeat every frame);
+    any frame-specific diagnostic is kept.
+    """
+    if len(history) <= 2:
+        return
+    known = history[0].variables.keys() | history[-1].variables.keys()
+    unknown = sorted(set(variables) - known)
+    if unknown:
+        raise CompilationError('TREND_VARIABLE_UNKNOWN', f'未知曲线变量:{unknown}')
+    wanted = set(variables)
+    every = math.ceil(len(history) / TREND_KEY_FRAMES)
+    last = len(history) - 1
+    reference = history[0].diagnostics
+    for index, frame in enumerate(history):
+        if index in (0, last) or index % every == 0:
+            reference = frame.diagnostics
+            continue
+        frame.variables = {key: value for key, value in frame.variables.items()
+                           if key in wanted or key.split('.', 2)[1:2] == ['state']}
+        if frame.diagnostics == reference:
+            frame.diagnostics = []
+        frame.full = False
+
+
+def shape_history(history: list[RunFrame], request: RunRequest, project: Project) -> None:
+    """Apply `selected_variables` (every frame), then the dynamic `history='trend'` slimming."""
+    if not history:
+        return
+    selected = request.selected_variables if request.selected_variables is not None else project.selected_variables
+    if selected:
+        missing = set(selected) - history[0].variables.keys()
+        if missing:
+            raise ValueError(f'未知观察变量:{sorted(missing)}')
+        for frame in history:
+            frame.variables = {key:frame.variables[key] for key in selected}
+    if request.mode == 'dynamic' and request.history == 'trend':
+        trend_history(history, request.trend_variables)
 
 
 def diagnostic(error):
@@ -286,18 +335,16 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
                 history = [solve_steady(network)]
             else:
                 history = solve_dynamic(network, request.duration_s, request.dt_s, should_cancel=cancel_hook)
-            selected = request.selected_variables if request.selected_variables is not None else project.selected_variables
-            if selected:
-                missing = set(selected) - history[0].variables.keys()
-                if missing:
-                    raise ValueError(f'未知观察变量:{sorted(missing)}')
-                for frame in history:
-                    frame.variables = {key:frame.variables[key] for key in selected}
+            shape_history(history, request, project)
             frame, status = history[-1], 'completed'
         except SolveCancelled as error:
             # Keep the frames completed before the cancellation was observed:
             # a cancelled run is partial, not empty.
             history = list(getattr(error, 'frames', None) or ())
+            try:
+                shape_history(history, request, request.project)
+            except ValueError:
+                pass  # a cancelled run keeps its frames even if the requested shaping is invalid
             status = 'cancelled'
             frame = history[-1] if history else RunFrame(status='cancelled', valid=False, time_s=0)
         except ValueError as error:

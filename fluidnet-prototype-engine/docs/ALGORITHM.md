@@ -90,7 +90,7 @@ ch0 与 ch1 分别使用各自的节点和流量，当前共用定义中的 K �
 
 POST /runs 的 dynamic 模式产生 `0, dt, 2dt, …, duration` 序列，最后一个时刻准确截到 duration，最多 2001 帧，返回 DYNAMIC_QUASI_STEADY。每一帧都完整求解一次水力与热力，不复用上一帧的结果；从第 2 帧起以上一帧的水力解、节点焓（`node` 模式还有支路物性）作为初值（热启动）。热启动只是初值：上一帧流量接近零的支路改从冷启动值 0.1 kg/s 起算（`q·|q|` 关系在零点斜率为零，否则阀门由关到开的帧会停在 gtol）；热启动仍未收敛时自动再按冷启动求解一次，两次都失败才报未收敛。请求不包含随时间变化的边界和参数，所以只有当 Python 模块的 `evaluate` 读取了 `state` 或 `time_s` 时，帧与帧之间的结果才会不同。
 
-实测（原型示例网络）：热启动把每帧水力函数评估次数从 8 次降到 1 次；2001 帧在 `reference` 与 `node` 模式下都约 2.5–2.8 s。每个端口多出 5 个热力变量后，water-net 2001 帧完整历史序列化为 JSON 约 22.7 MB（每帧 247 个变量）；`thermal=False` 时不输出热力变量，约 11.9 MB（每帧 127 个）。运行记录在内存中保留最近 20 次。
+实测（原型示例网络）：热启动把每帧水力函数评估次数从 8 次降到 1 次；2001 帧在 `reference` 与 `node` 模式下都约 2.5–2.8 s。每个端口多出 5 个热力变量后，water-net 2001 帧完整历史序列化为 JSON 约 22.7 MB（每帧 247 个变量）；`thermal=False` 时不输出热力变量，约 11.9 MB（每帧 127 个）。运行记录在内存中保留最近 20 次。v0.3.1 起可用 `RunRequest.history='trend'`：只有约 50 个关键帧保留全部变量，其余帧只存曲线变量和模块状态，同一运行约 1.74 MB（见 API 文档“历史瘦身”）。
 
 每帧温度是该时刻的稳态代数解，不含水箱、管道热容等热惯性。前端运行按钮提交计算，再回放已完成的帧。后台运行的暂停/继续/停止会先调用 `POST /runs/{run_id}/command`(见 API 文档),后端取消是帧粒度的协作式停止,前端回放随之中断;同步运行与纯回放仍只在本机生效。单步会对当前已应用参数重新求解，生成一个新的运行 ID，并在前端保留连续观察的历史。它不代表求解水箱液位、热惯性或流体动量的瞬态方程。
 
@@ -182,9 +182,35 @@ Python 模块的 `evaluate` 试算端口：
 
 ## 物性服务
 
-`properties.py` 使用 CoolProp `AbstractState("HEOS", fluid)`，一次 flash 读取 h、ρ、μ、cp、k、相态和干度，不再每项物性调用一次 `PropsSI`。AbstractState 带内部状态，后台运行有 2 个线程，因此每个线程各持一份。服务实例按 `(backend, fluid, phase_policy)` 缓存；查询结果按工质和输入缓存（同一工质的不同相态策略共用），返回副本，调用方修改不影响后续结果。
+`properties.py` 使用 CoolProp `AbstractState`，一次 flash 读取 h、ρ、μ、cp、k、s、u、cv、声速、相态和干度，不再每项物性调用一次 `PropsSI`。AbstractState 带内部状态，后台运行有 2 个线程，因此每个线程各持一份。服务实例按 `(backend, 解析后的工质, phase_policy)` 缓存；查询结果按解析后的工质和输入缓存（同一工质的不同相态策略共用，`Water` 与 `HEOS::Water` 视为同一工质），返回副本，调用方修改不影响后续结果。
 
-实测单次查询（水）：`state_pt` 未命中缓存约 37 µs、命中约 2.5 µs，`state_ph` 未命中约 115 µs（压力—焓 flash 需要迭代）；原先每项一次 `PropsSI` 的 `state_pt` 约 564 µs。
+工质字符串（v0.3.1）：
+
+| 写法 | 含义 |
+| --- | --- |
+| `Water`、`Ammonia`、`R134a` | 默认 HEOS 后端（CoolProp 纯工质） |
+| `HEOS::R134a`、`IF97::Water` | 显式后端；IF97 只支持水 |
+| `INCOMP::MEG[0.3]` | 不可压溶液，方括号为质量分数（此例为 30 % 乙二醇水溶液） |
+| `REFPROP::…` | 报 `PROPERTY_BACKEND_UNSUPPORTED`（需用户自备 NIST 许可库，尚未接入） |
+| `A&B`、`HEOS::Water[0.5]` | 报 `COMPOSITION_UNSUPPORTED`（HEOS 混合物尚未接入） |
+
+INCOMP 溶液没有 `phase()`，一律按液相；它没有饱和状态，`state_pq/state_tq/saturation_*` 报 `PROPERTY_FAILURE`；声速为 `None`。
+
+查询方法：`state_pt(p,T)`、`state_ph(p,h)`、`state_ps(p,s)`（等熵压缩等）、`state_pq(p,Q)`、`state_tq(T,Q)`、`saturation_t(p)`、`saturation_p(T)`、`limits()` 与湿空气 `humid_air(T,p,rh)`（含湿量、露点、湿球、单位干空气焓；只给模块用，不进网络）。Python 模块通过 `ctx.fluid` 直接调用。饱和查询是显式的两相请求，不受 `phase_policy` 约束。两相区内部（0 < Q < 1）黏度、导热、cp、cv、声速为 `None`；饱和线上（Q = 0 或 1）这些量按 CoolProp 给出。
+
+`limits()` 返回 `t_min_k`、`t_max_k`、`p_max_pa`（未知为 `None`）。水为 273.16–2000 K，液氨 195.5–725 K；INCOMP 的下限取凝固点（CoolProp 不直接提供，按 1 atm 二分求得，MEG30 约 −14.58 °C），没有压力上限。
+
+编译期按项目工质检查范围，取代旧的固定 1–90 °C：
+
+- 工质字符串无效：`FLUID_UNKNOWN`（未知名称）或上表对应码，`field='fluid'`。查询时遇到未知工质仍报 `PROPERTY_FAILURE`。
+- 压力边界温度、管道环境温度超出 `limits()`，或边界压力超过 `p_max_pa`：`PARAMETER_RANGE`，消息写明工质和允许范围。
+- 压力边界状态违反 `phase_policy`：沿用 `PHASE_UNSUPPORTED`。
+- 水边界必须是液相（`reference` 模式水力按液态水常数计算）：例如 2.5 bar、150 °C 报 `PHASE_UNSUPPORTED`（与热力层相态检查同码）；95 °C 在该压力下为液相，可以计算。这一检查只在 `thermal=True` 时进行，`thermal=False` 保持 0.3.0 的行为。
+- 所有纯水写法（`Water`、`water`、`HEOS::Water`、`IF97::Water`）在 `reference` 模式下都用同一组参考常数，水力结果完全相同。
+- `reference` 模式只用一个参考密度：任一节点密度与参考值相差超过 2% 时给 `REFERENCE_DENSITY_DEVIATION` 警告（例如 95 °C 热水 961.9 kg/m³，偏离 3.6%），提示需要时改用 `property_coupling='node'`。
+- 管道环境温度与流体不在同一相态时（例如 1.2 bar 水管外 150 °C 环境），散热只按显热计算：`h_env ≈ h_up + cp·(T_amb − T_up)`，不把汽化潜热算作可传递热量。
+
+实测单次查询（水）：`state_pt` 未命中缓存约 37 µs（v0.3.1 每次多读 s、u、cv、声速后约 49 µs）、命中约 2.5 µs，`state_ph` 未命中约 115 µs（压力—焓 flash 需要迭代）；原先每项一次 `PropsSI` 的 `state_pt` 约 564 µs。
 
 `state_ph` 直接用压力和焓求解（`HmassP_INPUTS`），不再先反算温度再按压力和温度查询。两相时 `phase='twophase'`、`quality ∈ [0,1]`；单相时 CoolProp 给出 Q=-1，映射为 `None`。两相状态下 CoolProp 的黏度、导热系数和定压比热只是单侧值，三者都置为 `None`。压力不大于零或输入非有限报 `PROPERTY_RANGE`。
 

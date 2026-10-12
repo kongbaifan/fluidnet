@@ -5,7 +5,19 @@ import math
 from typing import Any
 
 from .catalog import catalog_map
-from .models import ChannelSpec, Connection, Diagnostic, Endpoint, LibraryBank, ModuleInstance, PortSpec, Position, Project, SolverOptions
+from .models import (ChannelSpec, Connection, Diagnostic, Endpoint, FluidConfig, LibraryBank, ModuleInstance, PortSpec,
+                     Position, Project, SolverOptions)
+
+# Prototype project `medium` -> CoolProp fluid string for the single project fluid. Range checks
+# (temperature/pressure per fluid) are done by the engine; one fluid per project until phase B.
+PROTOTYPE_MEDIA = {
+    'water': 'Water',
+    'air': 'Air',
+    'ammonia': 'Ammonia',
+    'co2': 'CarbonDioxide',
+    'r134a': 'R134a',
+    'meg30': 'INCOMP::MEG[0.3]',
+}
 
 # Prototype parameter names -> canonical contract names. Conversion comes from UnitSpec.
 PARAMETER_BINDINGS = {
@@ -47,8 +59,9 @@ def normalize_prototype_export(data: dict[str, Any]) -> Project:
     raw = next((p for p in projects if p.get('id') == active_id), None)
     if raw is None:
         raise ValueError('activeProject 引用了不存在的项目')
-    if raw.get('medium', 'water') != 'water':
-        raise ValueError('当前仅支持定密度液态水，不支持该介质或混合物')
+    medium = raw.get('medium', 'water')
+    if medium not in PROTOTYPE_MEDIA:
+        raise ValueError(f'不支持的介质 {medium}；可选：{"、".join(PROTOTYPE_MEDIA)}')
     catalog = catalog_map()
     raw_modules = data.get('modules', [])
     if len({m['id'] for m in raw_modules}) != len(raw_modules):
@@ -128,6 +141,7 @@ def normalize_prototype_export(data: dict[str, Any]) -> Project:
     solver = raw.get('solver', {})
     diagnostics.append(Diagnostic(code='HYDRAULIC_SCOPE', severity='info', message='按已应用参数计算液态水水力与端口焓、温度；Python 模块包在独立 Worker 中执行；控制脚本、水箱状态与热惯性尚未参与求解'))
     return Project(id=raw['id'], name=raw.get('name','原型项目'), description=raw.get('description',''),
+        fluid=FluidConfig(fluid=PROTOTYPE_MEDIA[medium]),
         modules=list(definitions.values()),instances=instances,connections=connections,import_diagnostics=diagnostics,
         solver=SolverOptions(pressure_tolerance_pa=solver.get('pressureAtol',1.),mass_tolerance_kg_s=solver.get('massAtol',1e-8),
                              max_iterations=solver.get('maxIter',80),dynamic_step_s=solver.get('dt',.1)))

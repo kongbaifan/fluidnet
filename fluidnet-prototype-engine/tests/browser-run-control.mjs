@@ -91,11 +91,45 @@ try {
   expect(later.rows).toBe(rowsAtStop);
   expect(later.time).toBe(afterStop.time);
 
+  // History slimming: a complete dynamic run asks for trend history. Curves still get a point
+  // for every frame, and the device panel reads a full key frame.
+  await page.locator('.rail-link[data-route="settings"]').click();
+  await page.locator('[data-action="settings-tab"][data-value="solver"]').click();
+  await page.locator('input[data-solver-field="duration"]').fill('3');
+  await page.locator('[data-action="save"]').first().click();
+  await page.locator('.rail-link[data-route="workbench"]').click();
+  const [trendResponse] = await Promise.all([
+    page.waitForResponse(r => new URL(r.url()).pathname.endsWith('/runs') && r.request().method() === 'POST', { timeout: 30000 }),
+    page.locator('[data-action="run-project"][data-command="run"]').first().click(),
+  ]);
+  const trendRequest = trendResponse.request().postDataJSON();
+  expect(trendRequest.history).toBe('trend');
+  expect(trendRequest.trend_variables).toEqual(expect.arrayContaining(['P1.mass_flow_kg_s', 'V1.mass_flow_kg_s', 'V2.mass_flow_kg_s']));
+  const trendRunId = (await trendResponse.json()).run_id;
+  await expect.poll(async () => (await projectState()).status, { timeout: 20000 }).toBe('completed');
+  const trendHistory = await (await page.request.get(`${base}/api/v1/runs/${trendRunId}/history`)).json();
+  expect(trendHistory.rows.some(row => row.full === false)).toBe(true);
+  expect(trendHistory.rows.at(-1).full).not.toBe(false);
+  const trendRun = await page.evaluate(() => {
+    const s = JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1') || '{}');
+    return (s.projects || []).find(project => project.id === s.activeProject).run;
+  });
+  // One curve point per backend frame, and the overview flow is present on every one of them.
+  expect(trendRun.history).toHaveLength(trendHistory.total_rows);
+  expect(trendRun.history.every(row => Number.isFinite(row.canonical['P1.mass_flow_kg_s']))).toBe(true);
+  // The last frame is a full key frame: the device panel has port values.
+  const lastRow = trendRun.history.at(-1);
+  expect(lastRow.partial).toBe(false);
+  expect(Number.isFinite(lastRow.variableValues['V1:out0:FLOW'])).toBe(true);
+  expect(Number.isFinite(lastRow.variableValues['V1:out0:TEMP'])).toBe(true);
+  await expect(page.locator('[data-result-status]').first()).not.toContainText('回放：显示最近关键帧');
+
   mkdirSync('artifacts', { recursive: true });
   await page.screenshot({ path: 'artifacts/run-control.png', fullPage: true });
   expect(errors).toEqual([]);
   console.log(JSON.stringify({ runId, finalStatus: final.status, timeS: final.frame.time_s, rows: history.total_rows,
-    rowsAfterStop: rowsAtStop, timeAfterStop: afterStop.time, events: afterStop.events, errors }, null, 2));
+    rowsAfterStop: rowsAtStop, timeAfterStop: afterStop.time, events: afterStop.events,
+    trendRows: trendHistory.total_rows, partialRows: trendHistory.rows.filter(row => row.full === false).length, errors }, null, 2));
 } catch (error) {
   mkdirSync('artifacts', { recursive: true }); await page.screenshot({ path: 'artifacts/run-control-failure.png', fullPage: true });
   console.error('Browser errors:', errors, 'Server:', serverLog.slice(-2500)); throw error;

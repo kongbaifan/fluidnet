@@ -76,7 +76,8 @@ python -m venv .venv
 | Pydantic 契约 | API、项目、模块包和 Worker 消息使用严格模型；自动生成 JSON Schema/OpenAPI |
 | Python 模块包 | 模块清单驱动 UI；项目与验证台均在独立 Worker 中执行 `initialize/evaluate/commit_step/finalize` |
 | 模块版本保存 | 后端校验、独立试算、原子写入、并发冲突检测；项目绑定源码与契约双哈希 |
-| CoolProp 物性 | AbstractState 单次 flash 的 `state_pt/state_ph`；压力—焓查询在两相区返回干度；网络流动只支持与边界一致的单相，进入两相报 `PHASE_UNSUPPORTED`；混合物仍未实现 |
+| CoolProp 物性 | AbstractState 单次 flash；`state_pt/ph/ps/pq/tq`、饱和温度/压力、熵/内能/cv/声速、湿空气；工质可写 `Ammonia`、`HEOS::R134a`、`INCOMP::MEG[0.3]`（乙二醇溶液）；边界温度按工质适用范围检查（不再固定 1–90 °C）；网络流动只支持与边界一致的单相，进入两相报 `PHASE_UNSUPPORTED`；混合物、REFPROP 与一个项目多种流体仍未实现 |
+| 历史瘦身 | 动态运行 `history='trend'` 时只有约 50 个关键帧保留全部变量，其余帧只存曲线变量与模块状态；water-net 2001 帧 22.7 MB → 1.74 MB |
 | 后台运行 | `POST /api/v1/runs?background=true` 返回 `run_id`,可查询状态、历史和事件;`POST /runs/{run_id}/command` 支持 pause/resume/stop(step/set 未实现),health 的 `capabilities.run_control` 为 true |
 
 默认 `reference` 模式下水力采用定密度、定黏度液态水近似，温度相关物性只在热力层和 `node` 耦合模式中使用；内置模型不计算汽蚀、相变或水锤；Python SDK 可显式传入物性及通路高差。非零节点标高会被参数校验拒绝。换热器原型没有水力内径输入时使用目录默认 40 mm；建议通过规范合同指定参数。
@@ -118,4 +119,4 @@ npm run test:browser
 
 Windows 测试使用本机 Edge 的无头模式。验证真实页面加载、连接检查、求解、修改开度、应用、曲线值、保存和刷新。`browser-authoring.mjs` 另外启动临时端口和隔离存储，覆盖新建模块、参数/输出编辑、校验失败、版本保存、旧项目隔离与服务重启复现，不向用户模块目录写入测试版本。截图写入忽略提交的 `artifacts/`，包括 `module-authoring.png`。仅在明确更新原型基线时执行 `node tests/browser-smoke.mjs --refresh-fixture`。
 
-当前测试包含单位双向转换、Kv 解析解、管道层流压降、粗糙度影响、节点流量守恒、关阀、反向流、未收敛、断开子网络、冲突压力边界、不支持模型、双侧换热器、API 错误响应、工况覆盖和采样上限。热力测试（`test_thermal.py`）覆盖节点混合、等焓、管道散热解析解、泵温升、ε–NTU（含 C_r=1）、单侧无流量、反向流、停滞节点、闭合回路参考热量、全网能量平衡、reference 模式水力基准、thermal 关闭、node 耦合、Python 模块 heat_w 与相态拒绝、动态热启动、边界温度冲突，以及与归档 v0.2 内核的换热器对照；物性测试（`test_properties.py`）覆盖 PT/PH 往返、两相干度、相态策略与多线程查询。平台契约测试另外覆盖 CoolProp 水/空气状态、版本化可编程阀门 Worker、`evaluate` 关系进入网络求解器、模块默认值、后台运行事件、独立进程 ID、嵌套状态隔离、超时终止、失败清理、末步 dt、真实累计质量、通路缺失诊断及前端保存/刷新/拖放。
+当前测试包含单位双向转换、Kv 解析解、管道层流压降、粗糙度影响、节点流量守恒、关阀、反向流、未收敛、断开子网络、冲突压力边界、不支持模型、双侧换热器、API 错误响应、工况覆盖和采样上限。热力测试（`test_thermal.py`）覆盖节点混合、等焓、管道散热解析解、泵温升、ε–NTU（含 C_r=1）、单侧无流量、反向流、停滞节点、闭合回路参考热量、全网能量平衡、reference 模式水力基准、thermal 关闭、node 耦合、Python 模块 heat_w 与相态拒绝、动态热启动、边界温度冲突，以及与归档 v0.2 内核的换热器对照；物性测试（`test_properties.py`）覆盖 PT/PH 往返、两相干度、相态策略与多线程查询；介质测试（`test_media.py`）覆盖乙二醇溶液 −10 °C 回路、液氨 −30 °C 边界、按工质的温度/相态范围、等熵与饱和查询、模块内 `state_ps`、工质字符串错误码与湿空气；历史测试（`test_history.py`）覆盖 2001 帧瘦身体积、关键帧、与完整历史逐帧一致、模块状态保留和取消后的部分帧。平台契约测试另外覆盖 CoolProp 水/空气状态、版本化可编程阀门 Worker、`evaluate` 关系进入网络求解器、模块默认值、后台运行事件、独立进程 ID、嵌套状态隔离、超时终止、失败清理、末步 dt、真实累计质量、通路缺失诊断及前端保存/刷新/拖放。

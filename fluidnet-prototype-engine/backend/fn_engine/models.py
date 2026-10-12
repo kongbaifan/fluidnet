@@ -140,6 +140,11 @@ class FluidState(StrictModel):
     viscosity_pa_s: float | None = None
     specific_heat_j_kg_k: float | None = None
     thermal_conductivity_w_m_k: float | None = None
+    # Caloric extras for module code (isentropic compression etc.); speed of sound is None in two-phase.
+    entropy_j_kg_k: float | None = None
+    internal_energy_j_kg: float | None = None
+    cv_j_kg_k: float | None = None
+    speed_of_sound_m_s: float | None = None
     phase: str = "unknown"
     quality: float | None = None
     composition: dict[str, float] = Field(default_factory=dict)
@@ -399,6 +404,10 @@ class RunRequest(StrictModel):
     dt_s: float = Field(default=0.1, gt=0, le=60)
     selected_variables: list[str] | None = Field(default=None, max_length=64)
     scenario_id: str | None = None
+    # 'trend' keeps every variable only on key frames (first, last, every K-th; ≤ ~51 in total)
+    # and only trend_variables plus module state on the others. Dynamic runs only.
+    history: Literal["full", "trend"] = "full"
+    trend_variables: list[str] = Field(default_factory=list, max_length=256)
 
     @model_validator(mode="after")
     def limit_frames(self):
@@ -429,6 +438,8 @@ class RunFrame(StrictModel):
     variables: dict[str, float | int | str | bool | None] = Field(default_factory=dict)
     diagnostics: list[Diagnostic] = Field(default_factory=list)
     metrics: dict[str, float | int | None] = Field(default_factory=dict)
+    # False on trend-history frames that carry only the trend variables (see RunRequest.history).
+    full: bool = True
 
 
 class RunRecord(StrictModel):

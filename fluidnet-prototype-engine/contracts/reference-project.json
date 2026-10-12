@@ -58,8 +58,8 @@
             "display_scale": 1.0,
             "display_offset": -273.15
           },
-          "minimum": 274.15,
-          "maximum": 363.15,
+          "minimum": 1.0,
+          "maximum": null,
           "runtime": false,
           "writable": true
         }
@@ -2236,8 +2236,8 @@
             "display_scale": 1.0,
             "display_offset": -273.15
           },
-          "minimum": 274.15,
-          "maximum": 363.15,
+          "minimum": 1.0,
+          "maximum": null,
           "runtime": false,
           "writable": true
         }

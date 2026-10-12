@@ -19,15 +19,15 @@
 | `Connection` | id, source, target | 两个 Endpoint(instance_id, port_id) 的物理连接 |
 | `Scenario` | id, name, overrides | 按实例 ID 提供规范参数覆盖；本次运行使用副本 |
 | `Project` | modules, instances, connections, scenarios, selected_variables, solver | 一次可独立计算和复现的项目 |
-| `RunRequest` | project, mode, duration_s, dt_s, scenario_id, selected_variables | 创建一次运行；变量选择不影响物理求解 |
+| `RunRequest` | project, mode, duration_s, dt_s, scenario_id, selected_variables, history, trend_variables | 创建一次运行；变量选择与历史瘦身（`history='trend'`）不影响物理求解 |
 | `RunCommand` | action, instance_id, parameter_id, value | 后台运行控制请求;仅 pause/resume/stop 生效 |
-| `RunFrame` | status, valid, time_s, variables, diagnostics, metrics | 一个时刻的结果与质量证据 |
-| `FluidConfig` | backend, fluid, composition, phase_policy | 物性服务选择和单相约束 |
+| `RunFrame` | status, valid, time_s, variables, diagnostics, metrics, full | 一个时刻的结果与质量证据；`full=false` 表示瘦身历史中只含曲线变量的帧 |
+| `FluidConfig` | backend, fluid, composition, phase_policy | 物性服务选择和单相约束；`fluid` 可带后端前缀与质量分数，如 `INCOMP::MEG[0.3]` |
 | `ModulePackageRef` | module_id, version, content_hash, definition_hash | 模块 ID、N.0.0 版本、源码与规范定义哈希 |
 | `ModuleSaveRequest` | module, expected_latest_version, release_notes, test | 带版本冲突检查的模块保存请求 |
 | `ModuleVersionResponse` | module, package, created_at, release_notes, tested, test_conditions, test_result | 不可变版本及试算凭据 |
 | `PortState` | pressure, temperature, enthalpy, density, viscosity, specific_heat, flow, quality | Worker 试算和收敛后的端口状态，全部可空 |
-| `FluidState` | pressure, temperature, enthalpy, density, viscosity?, specific_heat?, conductivity?, phase, quality? | 物性服务返回值；两相时黏度、比热、导热为空 |
+| `FluidState` | pressure, temperature, enthalpy, density, viscosity?, specific_heat?, conductivity?, entropy?, internal_energy?, cv?, speed_of_sound?, phase, quality? | 物性服务返回值；两相区内黏度、比热、导热、cv、声速为空；INCOMP 无声速 |
 | `SolverOptions` | 容差、迭代上限、动态步长、热力层与耦合选项 | 见下文「求解选项与热力诊断」 |
 | `ChannelState` | mass_flow_kg_s, pressure_drop_pa | 收敛通路结果，供 commit_step 累计状态 |
 | `NetworkRelation` | relation_id, kind, channel, parameters | 模块向平台注册的设备关系 |
@@ -100,7 +100,7 @@ canonical = (display - display_offset) × display_scale
 
 `FluidConfig.phase_policy` 可取 `single_phase`（默认）、`liquid`、`gas`、`any`；`any` 供模块代码查询两相状态，网络流动仍由热力层按边界相态检查。
 
-内置管道新增参数 `heat_loss_ua_w_k`（W/K，默认 0，即绝热）和 `ambient_temperature_k`（默认 293.15 K，274.15–363.15 K）；换热器 `ua_w_k` 已参与计算。
+内置管道新增参数 `heat_loss_ua_w_k`（W/K，默认 0，即绝热）和 `ambient_temperature_k`（默认 293.15 K）。v0.3.1 起压力边界 `temperature_k` 与管道 `ambient_temperature_k` 不再写死 274.15–363.15 K，目录只要求不小于 1 K，编译期按项目工质的 `limits()` 检查（见 ALGORITHM“物性服务”）；换热器 `ua_w_k` 已参与计算。
 
 热力诊断：
 
@@ -108,6 +108,11 @@ canonical = (display - display_offset) × display_scale
 | --- | --- | --- |
 | `BOUNDARY_TEMPERATURE_CONFLICT` | 错误（编译） | 同一节点的压力边界温度不同 |
 | `NO_FLOW_HEAT` | 错误 | Python 通路零流量却声明 `heat_w` |
+| `FLUID_UNKNOWN` | 错误 | 编译期项目工质名称无法识别（`field='fluid'`） |
+| `PARAMETER_RANGE` | 错误 | 边界/环境温度、边界压力超出工质 `limits()`；INCOMP 质量分数超出关联式范围 |
+| `PHASE_UNSUPPORTED` | 错误 | （编译期，`thermal=True`）水边界不是液相 |
+| `REFERENCE_DENSITY_DEVIATION` | 警告 | `reference` 模式下节点密度偏离参考密度超过 2% |
+| `TREND_VARIABLE_UNKNOWN` | 错误 | `history='trend'` 时 `trend_variables` 含不存在的变量键 |
 | `PHASE_UNSUPPORTED` | 错误 | 节点或出口流进入两相，或进入与边界不同的单相 |
 | `THERMAL_REFERENCE_MISSING` | 错误 | 闭合回路没有补给也没有可用温度参考，或焓方程奇异 |
 | `THERMAL_NOT_CONVERGED`、`THERMAL_NOT_FINITE` | 错误 | 热力迭代不收敛或解非有限 |

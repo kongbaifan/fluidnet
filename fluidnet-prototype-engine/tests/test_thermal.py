@@ -425,12 +425,19 @@ def test_phase_check_is_per_hydraulic_component():
     p = heater_line({'heat_w': 4.0e6})
     if not any(m.id == 'valve' for m in p.modules):
         p.modules.append(catalog_map()['valve'])
-    p.instances += [ModuleInstance(id='G1', module_id='source', name='G1', parameters={'pressure_pa': 30000., 'temperature_k': 363.}),
+    p.instances += [ModuleInstance(id='G1', module_id='source', name='G1', parameters={'pressure_pa': 30000., 'temperature_k': 330.}),
                     ModuleInstance(id='GV', module_id='valve', name='GV', parameters={}),
-                    ModuleInstance(id='G2', module_id='source', name='G2', parameters={'pressure_pa': 20000., 'temperature_k': 363.})]
+                    ModuleInstance(id='G2', module_id='source', name='G2', parameters={'pressure_pa': 20000., 'temperature_k': 330.})]
     p.connections += [link('g1', 'G1:out0', 'GV:in0'), link('g2', 'GV:out0', 'G2:out0')]
+    network = compile_project(p)
+    # Since v0.3.1 the compiler rejects a steam boundary for water outright (its hydraulics use the
+    # liquid reference density), so the vapour line is injected after compiling to exercise the
+    # thermal layer's per-component phase check on its own.
+    for instance_id in ('G1', 'G2'):
+        network.parameters[instance_id]['temperature_k'] = 363.
+        network.fixed_temperatures[network.port_nodes[f'{instance_id}:out0']] = 363.
     with pytest.raises(ThermalError) as error:
-        solve_steady(compile_project(p))
+        solve_steady(network)
     assert error.value.diagnostic.code == 'PHASE_UNSUPPORTED'
     assert error.value.diagnostic.instance_id == 'H1'
 

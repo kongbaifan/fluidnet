@@ -111,6 +111,54 @@ def validated_parameters(instance, definition):
     return values
 
 
+def fluid_service(project: Project):
+    """The project's property service; an unusable fluid string is a compile error, not a solve failure."""
+    from .properties import PropertyError, property_service
+    try:
+        service = property_service(project.fluid)
+        service.limits()  # loads the fluid: unknown names fail here with FLUID_UNKNOWN
+    except PropertyError as error:
+        raise CompilationError(error.code, f'项目工质 {project.fluid.fluid}：{error}', field='fluid') from error
+    return service
+
+
+def check_fluid_conditions(instance_id: str, params: dict, solver_model: str, service, thermal: bool = True) -> None:
+    """Boundary/ambient conditions must lie inside the fluid's valid range.
+
+    Replaces the old fixed 1–90 °C bounds: liquid ammonia at −30 °C is fine, water below its
+    triple point is not. A water boundary must also be liquid, because the reference
+    hydraulics use the constant liquid-water density for it.
+    """
+    from .properties import PropertyError, is_pure_water
+    limits, name = service.limits(), service.fluid
+    span = f'{limits["t_min_k"] - 273.15:.2f}…{limits["t_max_k"] - 273.15:.2f} °C'
+    checks = [('temperature_k', params.get('temperature_k'))] if solver_model == 'pressure_source' else []
+    if solver_model == 'pipe':
+        checks.append(('ambient_temperature_k', params.get('ambient_temperature_k')))
+    for key, temperature in checks:
+        if not isinstance(temperature, (int, float)) or isinstance(temperature, bool):
+            continue
+        if not limits['t_min_k'] <= temperature <= limits['t_max_k']:
+            raise CompilationError('PARAMETER_RANGE', f'{instance_id}.{key} = {temperature - 273.15:.2f} °C 超出 {name} 的适用范围 {span}',
+                                   instance_id, key)
+    if solver_model != 'pressure_source':
+        return
+    pressure, temperature = params.get('pressure_pa'), params.get('temperature_k')
+    if limits['p_max_pa'] is not None and pressure > limits['p_max_pa']:
+        raise CompilationError('PARAMETER_RANGE', f'{instance_id}.pressure_pa = {pressure:g} Pa 超出 {name} 的最高压力 '
+                               f'{limits["p_max_pa"]:g} Pa', instance_id, 'pressure_pa')
+    try:
+        state = service.state_pt(pressure, temperature)
+    except PropertyError as error:
+        raise CompilationError(error.code, f'{instance_id} 的边界状态（{pressure:g} Pa，{temperature - 273.15:.2f} °C）：{error}',
+                               instance_id, 'temperature_k') from error
+    # Only with the thermal layer on: thermal=False must keep accepting what 0.3.0 accepted.
+    # Same code as the thermal layer's own phase check.
+    if thermal and is_pure_water(service.config) and 'liquid' not in state.phase:
+        raise CompilationError('PHASE_UNSUPPORTED', f'{instance_id} 的边界在 {pressure:g} Pa、{temperature - 273.15:.2f} °C 下 Water 为'
+                               f' {state.phase}；水按液态参考物性计算，边界必须是液相', instance_id, 'temperature_k')
+
+
 def compile_project(project: Project) -> CompiledNetwork:
     modules = {m.id: m for m in project.modules}
     instances = {i.id: i for i in project.instances}
@@ -119,6 +167,7 @@ def compile_project(project: Project) -> CompiledNetwork:
     diagnostics = list(project.import_diagnostics)
     parameters, port_keys = {}, []
     supported = {'pressure_source', 'junction', 'valve', 'pipe', 'pump_curve', 'heat_exchanger'}
+    service = fluid_service(project)
     for inst in project.instances:
         definition = modules[inst.module_id]
         if definition.runtime != 'python' and (definition.solver_model not in supported or definition.state_model):
@@ -141,6 +190,8 @@ def compile_project(project: Project) -> CompiledNetwork:
                 if module_definition_hash(definition) != definition.definition_hash:
                     raise CompilationError('MODULE_DEFINITION_HASH_MISMATCH', f'{inst.id} 的模块契约或源码与保存版本不一致', inst.id)
         parameters[inst.id] = validated_parameters(inst, definition)
+        if definition.runtime == 'builtin':
+            check_fluid_conditions(inst.id, parameters[inst.id], definition.solver_model, service, project.solver.thermal)
         if not definition.ports:
             raise CompilationError('PORTS_MISSING', f'{inst.id} 没有端口', inst.id)
         if definition.solver_model == 'pressure_source' and len(definition.ports) != 1:

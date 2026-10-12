@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "FluidNet Prototype Engine",
-    "version": "0.3.0"
+    "version": "0.3.1"
   },
   "paths": {
     "/api/v1/health": {
@@ -2182,6 +2182,11 @@
             },
             "type": "object",
             "title": "Metrics"
+          },
+          "full": {
+            "type": "boolean",
+            "title": "Full",
+            "default": true
           }
         },
         "additionalProperties": false,
@@ -2317,6 +2322,23 @@
               }
             ],
             "title": "Scenario Id"
+          },
+          "history": {
+            "type": "string",
+            "enum": [
+              "full",
+              "trend"
+            ],
+            "title": "History",
+            "default": "full"
+          },
+          "trend_variables": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 256,
+            "title": "Trend Variables"
           }
         },
         "additionalProperties": false,

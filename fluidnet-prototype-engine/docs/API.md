@@ -6,7 +6,7 @@
 
 | 方法与路径 | 请求 | 返回 |
 | --- | --- | --- |
-| GET /api/v1/health | 无 | 版本（0.3.0）、能力标志（含 `thermal: true`、`property_coupling: ["reference","node"]`）、2001 帧上限、20 次记录保留数 |
+| GET /api/v1/health | 无 | 版本（0.3.1）、能力标志（含 `thermal: true`、`property_coupling: ["reference","node"]`）、2001 帧上限、20 次记录保留数 |
 | GET /api/v1/catalog | 无 | 模块参数/通路/变量目录、原型参数名映射 |
 | GET /api/v1/modules | 无 | 可安装模块包和内置模块清单、版本与内容哈希 |
 | POST /api/v1/modules/validate | ModuleDefinition | 契约、Python 语法、Worker 入口与四阶段签名诊断 |
@@ -77,11 +77,26 @@ Invoke-RestMethod ('http://127.0.0.1:8798/api/v1/runs/' + $result.run_id + '/his
   "duration_s": 30,
   "dt_s": 0.1,
   "scenario_id": null,
-  "selected_variables": ["P1.mass_flow_kg_s", "V1.mass_flow_kg_s", "V2.mass_flow_kg_s"]
+  "selected_variables": ["P1.mass_flow_kg_s", "V1.mass_flow_kg_s", "V2.mass_flow_kg_s"],
+  "history": "full",
+  "trend_variables": []
 }
 ```
 
 上例 project 字段是说明占位，实际必须发送对象。mode 可为 steady 或 dynamic。dynamic 当前明确表示准稳态序列。selected_variables 为空数组表示全部；null/省略则使用 project.selected_variables，后者也为空则返回全部。未知变量使本次运行失败，不能静默丢弃。
+
+### 历史瘦身（v0.3.1）
+
+`history` 可取 `full`（默认，每帧保留全部变量）或 `trend`，只对 dynamic 生效（steady 只有一帧，忽略）。`trend` 时：
+
+- 关键帧：首帧、末帧和每隔 K 帧（K = ceil(帧数/50)，最多约 51 帧）保留全部变量，`full=true`。
+- 其余帧只保留 `trend_variables`（规范变量键，最多 256 个）和所有 `<实例>.state.*` 模块状态，`full=false`；`metrics` 每帧都保留；与上一关键帧相同的诊断从这些帧中省略，帧特有的诊断保留。
+- 先按 selected_variables 过滤，再做瘦身。`trend_variables` 中任何一个键不在首帧或末帧中，运行失败，诊断码 `TREND_VARIABLE_UNKNOWN`（与未知 selected_variables 同一失败路径）。
+- 取消的运行保留的部分帧同样瘦身；末帧始终完整。
+
+实测 water-net 2001 帧：`full` 约 22.7 MB，`trend`（5 条曲线）约 1.74 MB（减少约 92%），关键帧 50 帧；曲线值与 `full` 逐帧完全相同。前端应只发送当前项目中存在的变量键，并在非关键帧沿用最近一个关键帧的设备读数。
+
+兼容性：0.3.1 起每个 RunFrame 都带 `full` 字段（默认 `true`）。按 0.3.0 的 `run-frame.schema.json`（`additionalProperties: false`）严格校验响应的客户端需要更新 schema；只读取已有字段的客户端不受影响。
 
 scenario_id 指向 Project.scenarios。覆盖只修改本次运行的项目副本，参数仍按相同规则校验。未实现随时间变化的参数计划。
 
