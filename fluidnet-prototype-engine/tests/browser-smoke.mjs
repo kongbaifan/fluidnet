@@ -1,15 +1,19 @@
 import { chromium, expect } from '@playwright/test';
 import { writeFileSync, mkdirSync } from 'node:fs';
+const base=process.env.FLUIDNET_TEST_URL || 'http://127.0.0.1:8798';
 const browser = await chromium.launch({channel:'msedge',headless:true});
 const page = await browser.newPage({viewport:{width:1600,height:1000}});
 const errors=[];page.on('pageerror',e=>errors.push(e.message));
 const runButton=(command)=>page.locator(`[data-action="run-project"][data-command="${command}"]`).first();
 async function step() {
-  const response=page.waitForResponse(r=>new URL(r.url()).pathname.endsWith('/runs') && r.request().method()==='POST');
+  await page.locator('[data-action="save"]').first().click();
+  const old=await page.evaluate(()=>{const s=JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1'));return s.projects.find(p=>p.id===s.activeProject).run;});
+  const response=page.waitForResponse(r=>r.request().method()==='POST' && (new URL(r.url()).pathname.endsWith('/runs') || new URL(r.url()).pathname.endsWith('/command')));
   await runButton('step').click();
-  let result=await (await response).json();
-  while (['queued','running'].includes(result.status)) { await page.waitForTimeout(100); const record=await (await page.request.get('http://127.0.0.1:8798/api/v1/runs/'+result.run_id)).json(); result={...record,run_id:result.run_id}; }
-  expect(result.status).toBe('completed');
+  const accepted=await (await response).json(),runId=accepted.run_id || old.runId;
+  let result;
+  await expect.poll(async()=>{result=await (await page.request.get(base+'/api/v1/runs/'+runId)).json();return result.status==='paused' && result.frame.time_s>old.time;},{timeout:15000}).toBe(true);
+  await expect(page.locator('[data-result-status]').first()).toContainText('t = '+result.frame.time_s.toFixed(1)+' s');
   await expect(page.locator('[data-result-status]').first()).toContainText('结果已更新');
   await page.locator('[data-action="save"]').first().click();
   const state=await page.evaluate(()=>JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
@@ -24,7 +28,7 @@ async function step() {
   return {result,run};
 }
 try {
-  await page.goto('http://127.0.0.1:8798');
+  await page.goto(base);
   await expect(page.locator('#app-header')).toContainText(/v\d+\.\d+\.\d+/);
   await page.locator('[data-action="start-modeling"]').click();
   await page.locator('[data-action="save"]').first().click();
@@ -45,6 +49,7 @@ try {
   await opening.fill('40'); await opening.blur();
   await page.locator('[data-action="apply-instance"][data-id="V1"]').click();
   await page.getByRole('dialog').locator('button[type="submit"]').click();
+  await expect.poll(async()=>{await page.locator('[data-action="save"]').first().click();return page.evaluate(()=>{const s=JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1'));return s.projects.find(p=>p.id===s.activeProject).pages[0].nodes.find(n=>n.id==='V1').params.opening;});}).toBe(40);
   const second=await step();
   expect(second.result.frame.variables['V1.mass_flow_kg_s']).toBeLessThan(first.result.frame.variables['V1.mass_flow_kg_s']);
   expect(second.result.frame.variables['V2.mass_flow_kg_s']).toBeGreaterThan(first.result.frame.variables['V2.mass_flow_kg_s']);
@@ -54,9 +59,9 @@ try {
   await expect(page.locator('[data-result-status]').first()).toContainText('结果已更新');
   mkdirSync('artifacts',{recursive:true});
   await page.screenshot({path:'artifacts/workbench.png',fullPage:true});
-  const startResponse=page.waitForResponse(r=>new URL(r.url()).pathname.endsWith('/runs') && r.request().method()==='POST');
+  const startResponse=page.waitForResponse(r=>new URL(r.url()).pathname.endsWith('/command') && r.request().method()==='POST');
   await runButton('run').click();
-  expect((await (await startResponse).json()).status).toBe('queued');
+  expect((await (await startResponse).json()).command_status).toBe('accepted');
   await expect(page.locator('[data-result-status]').first()).toContainText(/t = 0\.[1-9]/);
   await runButton('pause').click();
   await expect(runButton('pause')).toBeDisabled();

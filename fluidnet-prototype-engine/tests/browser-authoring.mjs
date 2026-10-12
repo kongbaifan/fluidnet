@@ -181,5 +181,6 @@ try {
   console.log(JSON.stringify({versions:[v1.module.version,v2.module.version],oldFlow,newFlow:updated.run.history.at(-1).canonical['V1.mass_flow_kg_s'],restartReproduced:true,errors},null,2));
 } catch(error) {
   mkdirSync('artifacts',{recursive:true});await page.screenshot({path:'artifacts/authoring-failure.png',fullPage:true});
+  console.error('Module cards:',await page.locator('[data-module-id]').evaluateAll(items=>items.map(x=>x.dataset.moduleId)));
   console.error('Browser errors:',errors,'Server:',serverLog.slice(-2500));throw error;
 } finally {await browser.close();await stopServer();}

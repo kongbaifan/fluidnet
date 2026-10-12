@@ -10,7 +10,7 @@ const save=async()=>{
   return page.evaluate(()=>JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
 };
 try {
-  await page.goto('http://127.0.0.1:8798/#modules');
+  await page.goto((process.env.FLUIDNET_TEST_URL || 'http://127.0.0.1:8798')+'/#modules');
   await expect(page.locator('#app-header')).toContainText(/v\d+\.\d+\.\d+/);
   const card=page.locator('[data-module-id="programmable_valve"]');
   await expect(card).toContainText('Python · v1');

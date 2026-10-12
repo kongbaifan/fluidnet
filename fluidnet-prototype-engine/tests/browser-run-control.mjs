@@ -84,7 +84,7 @@ try {
   const afterStop = await projectState();
   // The stop handler only claims this when the backend actually answered
   // `cancelled`, so the wording is the page's own evidence that the cancel landed.
-  expect(afterStop.events.join('\n')).toContain('已停止后端运行');
+  expect(afterStop.events.join('\n')).toContain('cancelled');
   const rowsAtStop = afterStop.rows;
   await page.waitForTimeout(800);   // replay must not creep forward after the stop
   const later = await projectState();
@@ -133,7 +133,7 @@ try {
   await page.locator('[data-action="save"]').first().click();
   await page.locator('.rail-link[data-route="workbench"]').click();
   const tankCreated = await createRun();
-  await expect.poll(async () => (await projectState()).status, { timeout: 30000 }).toMatch(/running|completed/);
+  await expect.poll(async () => (await projectState()).status, { timeout: 30000 }).toBe('completed');
   const tankRecord = await (await page.request.get(`${base}/api/v1/runs/${tankCreated.run_id}`)).json();
   expect(tankRecord.status).toBe('completed');
   const tankHistory = await (await page.request.get(`${base}/api/v1/runs/${tankCreated.run_id}/history`)).json();

@@ -2,6 +2,7 @@
 window.createEngineClient = function (ui) {
   const clone = value => JSON.parse(JSON.stringify(value));
   const queues = new Map(), pending = new Map();
+  const livePolling = new Set();
   let catalog = null, moduleCatalog = null, health = null;
   // Polling a backgrounded run is bounded twice on purpose: a backend that never leaves
   // queued/running must not spin the UI forever, and an iteration cap alone would not hold
@@ -369,6 +370,10 @@ window.createEngineClient = function (ui) {
     run.parameterKey = ui.parameterKey(owner);
   }
   async function command(scope, action, projectId) {
+    if (scope !== 'bench' && health?.capabilities?.live_runs) {
+      const owner = ui.state().projects.find(p => p.id === (projectId || ui.state().activeProject));
+      if (owner && (owner.solver.mode === 'dynamic' || owner.run.live || action === 'step')) return liveCommand(owner, action);
+    }
     if (scope === 'bench') {
       const owner = ui.state().bench, module = ui.state().modules.find(m => m.id === owner.moduleId);
       if (!module?.manifest) { ui.message('当前模块没有可执行的版本化 Python 模块包。', true); return; }
@@ -522,6 +527,7 @@ window.createEngineClient = function (ui) {
     } finally { if (pending.get(owner.id) === controller) pending.delete(owner.id); }
   }
   function tick() {
+    for (const owner of ui.state().projects) if (owner.run.live && owner.run.runId) pollLive(owner);
     let changed=false, ended=false;
     for (const owner of ui.state().projects) {
       const queue = queues.get(owner.id);
@@ -586,5 +592,86 @@ window.createEngineClient = function (ui) {
       ui.render();
     } catch (error) { ui.message('计算服务未连接，请通过启动脚本打开此页面。' + error.message,true); }
   }
-  return {command,tick,validate,init,portValue,manifestPayload,contractText,checkModule,saveModule,versions,loadVersion,newModule,updateContractItem,bindModule,pinProject,moduleForInsert,get catalog(){return catalog;},get health(){return health;}};
+  async function pollLive(owner) {
+    const id = owner.run.runId;
+    if (!id || livePolling.has(id)) return;
+    livePolling.add(id);
+    try {
+      const data = await request('/runs/' + id);
+      const history = await request(`/runs/${id}/history?offset=${owner.run.offset || 0}`);
+      if (owner.run.runId !== id) return;
+      for (const frame of history.rows) applyRow(owner, rowFromFrame(owner,frame));
+      owner.run.offset = history.total_rows;
+      if (data.frame?.valid && owner.run.history.length) {
+        const row = rowFromFrame(owner,data.frame);
+        const last = owner.run.history.at(-1);
+        if (last.t === row.t) owner.run.history[owner.run.history.length-1] = row;
+        owner.run.time=row.t; owner.run.values={q:row.q,a:row.a,b:row.b,pressure:row.pressure,temperature:row.temperature};
+      }
+      owner.run.events = data.events.map(e=>({t:e.time_s,text:e.message || (e.command_id ? `${e.command?.action || '命令'} ${e.command_status} · ${e.command_id}` : e.type)}));
+      if (data.status === 'failed') owner.run.events.push(...(data.frame?.diagnostics || []).map(d=>({t:data.frame.time_s,text:d.message})));
+      const oldStatus=owner.run.status;
+      owner.run.status = ({queued:'solving',cancelled:'stopped',interrupted:'stopped'})[data.status] || data.status;
+      owner.run.parameterKey=ui.parameterKey(owner);
+      owner.run.connectionError='';
+      if (['completed','failed','cancelled','interrupted'].includes(data.status)) {
+        owner.run.live=false; owner.run.runId=null; ui.persist();
+      }
+      if(oldStatus!==owner.run.status) ui.render(); else ui.refresh();
+    } catch(error) {
+      owner.run.connectionError=error.message;
+      ui.message('运行连接中断，正在重连：'+error.message,true);
+    } finally { livePolling.delete(id); }
+  }
+  async function confirmedCommand(owner, body) {
+    const id=owner.run.runId;
+    if (!id) throw Error('没有活动运行');
+    const command={command_id:crypto.randomUUID(),...body};
+    const receipt=await request(`/runs/${id}/command`,command);
+    if(receipt.command_status==='rejected') throw Error(receipt.message);
+    for(let i=0;i<200;i++) {
+      const {events}=await request(`/runs/${id}/events`);
+      const event=events.findLast(e=>e.command_id===receipt.command_id);
+      if(event?.command_status==='rejected') throw Error(event.message);
+      if(event?.command_status==='applied') { await pollLive(owner); return event; }
+      await new Promise(resolve=>setTimeout(resolve,50));
+    }
+    throw Error('命令已接收，尚未确认生效；请查看运行事件，勿重复提交。');
+  }
+  async function liveCommand(owner, action) {
+    try {
+      if(owner.run.live && owner.run.runId) {
+        await confirmedCommand(owner,{action:action==='run'?'resume':action});
+        return;
+      }
+      if(action==='pause'||action==='stop') return;
+      if(pending.has(owner.id)) return;
+      pending.set(owner.id,new AbortController());
+      const project=await normalize(owner);
+      const result=await request('/runs?background=true',{project,mode:'dynamic',duration_s:owner.solver.duration,
+        dt_s:owner.solver.dt,execution_mode:owner.solver.executionMode || 'realtime',speed_ratio:owner.solver.speedRatio || 1,
+        start_paused:action==='step',history:'trend',trend_variables:trendVariables(owner)});
+      owner.run={...ui.emptyRun(),source:'engine',status:'solving',id:result.run_id,runId:result.run_id,live:true,offset:0};
+      ui.persist();ui.render();
+      if(action==='step') await confirmedCommand(owner,{action:'step'});
+      await pollLive(owner);
+    } catch(error) {ui.message(error.message,true);}
+    finally {pending.delete(owner.id);}
+  }
+  async function applyParameters(owner,node) {
+    const m=ui.moduleOf(node), definition=m.manifest || catalog.modules.find(d=>d.id===m.kind);
+    const bindings=m.manifest ? null : catalog.prototype_parameter_bindings[m.kind];
+    const edits=Object.entries(node.draft).filter(([key,value])=>JSON.stringify(value)!==JSON.stringify(node.params[key])).map(([key,value])=>{
+      const id=bindings?.[key] || key, spec=definition.parameters.find(p=>p.id===id);
+      if(!spec?.runtime || !spec.writable) throw Error(`${spec?.label || key} 不能在运行中修改，请停止后应用。`);
+      const canonical=spec.unit ? (Number(value)-spec.unit.display_offset)*spec.unit.display_scale : value;
+      return {key,value,id,canonical};
+    });
+    for(const edit of edits) {
+      await confirmedCommand(owner,{action:'set',instance_id:node.id,parameter_id:edit.id,value:edit.canonical});
+      node.params[edit.key]=clone(edit.value);
+    }
+    owner.run.parameterKey=ui.parameterKey(owner);ui.persist();ui.render();
+  }
+  return {command,tick,validate,init,applyParameters,confirmedCommand,portValue,manifestPayload,contractText,checkModule,saveModule,versions,loadVersion,newModule,updateContractItem,bindModule,pinProject,moduleForInsert,get catalog(){return catalog;},get health(){return health;}};
 };
