@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 from scipy.optimize import least_squares
+from scipy.sparse import lil_matrix
 
 from .compiler import CompilationError, CompiledBranch, CompiledNetwork, TankState
 from .models import CommitStepRequest, Diagnostic, EvaluateRequest, FluidState, PortState, RunFrame, NetworkRelation
@@ -130,6 +131,10 @@ def branch_drop(network: CompiledNetwork, branch: CompiledBranch, flow_kg_s: flo
 
 
 def _python_runners(network: CompiledNetwork):
+    python_instances = [i for i in network.instances.values() if network.modules[i.module_id].runtime == 'python']
+    if network.project.solver.batch_modules and len(python_instances) > 1:
+        from .batch import BatchRunners
+        return BatchRunners(network, python_instances)
     runners = {}
     try:
         for instance_id, instance in network.instances.items():
@@ -146,6 +151,9 @@ def _python_runners(network: CompiledNetwork):
 
 
 def _close_runners(runners):
+    if hasattr(runners, 'close'):
+        runners.close()
+        return
     for runner in runners.values():
         try:
             runner.close()
@@ -214,6 +222,7 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
         module_variables.clear()
         module_diagnostics.clear()
         final_relations.clear()
+        requests = {}
         for instance_id, runner in python_runners.items():
             instance = network.instances[instance_id]
             definition = network.modules[instance.module_id]
@@ -221,8 +230,14 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
             for port in definition.ports:
                 node = network.port_nodes[f'{instance_id}:{port.id}']
                 ports[port.id] = trial_port(instance_id, port.id, float(pressures[node]))
-            response = runner.evaluate(EvaluateRequest(run_id='solve', instance_id=instance_id,
-                iteration_id=iteration_id, time_s=time_s, trial_ports=ports, readonly_state=runner.state))
+            requests[instance_id] = EvaluateRequest(run_id='solve', instance_id=instance_id,
+                iteration_id=iteration_id, time_s=time_s, trial_ports=ports, readonly_state=runner.state)
+        responses = python_runners.evaluate(requests) if hasattr(python_runners, 'evaluate') else {
+            key: python_runners[key].evaluate(request) for key, request in requests.items()}
+        for instance_id, runner in python_runners.items():
+            instance = network.instances[instance_id]
+            definition = network.modules[instance.module_id]
+            response = responses[instance_id]
             expected = {c.id for c in definition.channels if c.enabled}
             actual = [r.channel for r in response.relations]
             if len(actual) != len(set(actual)) or set(actual) != expected:
@@ -304,7 +319,27 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
         start = cold
 
     def attempt(vector):
-        result = least_squares(residual, vector, max_nfev=options.max_iterations, xtol=1e-12, ftol=1e-12, gtol=1e-12, x_scale='jac')
+        sparse_options = {}
+        if options.hydraulic_method == 'sparse':
+            node_columns = {node: column for column, node in enumerate(unknown + tanks)}
+            pattern = lil_matrix((size, size), dtype=int)
+            for idx, branch in enumerate(network.branches):
+                dependencies = {branch.start_node, branch.end_node}
+                if branch.instance_id in python_runners:
+                    definition = network.modules[network.instances[branch.instance_id].module_id]
+                    dependencies.update(network.port_nodes[f'{branch.instance_id}:{p.id}'] for p in definition.ports)
+                for node in dependencies:
+                    if node in node_columns:
+                        pattern[idx, node_columns[node]] = 1
+                pattern[idx, len(node_columns) + idx] = 1
+                for node in (branch.start_node, branch.end_node):
+                    if node in node_columns:
+                        pattern[m + node_columns[node], len(node_columns) + idx] = 1
+            for node in tanks:
+                pattern[m + node_columns[node], node_columns[node]] = 1
+            sparse_options = {'jac_sparsity': pattern.tocsr(), 'tr_solver': 'lsmr',
+                              'tr_options': {'atol': 1e-13, 'btol': 1e-13, 'maxiter': max(100, size*4)}}
+        result = least_squares(residual, vector, max_nfev=options.max_iterations, xtol=1e-12, ftol=1e-12, gtol=1e-12, x_scale='jac', **sparse_options)
         drops, balance, closed, constraints = physical_residual(result.x)
         pressure_error = float(np.max(np.abs(drops), initial=0))
         mass_error = max(float(np.max(np.abs(balance), initial=0)), max(map(abs, closed), default=0.))

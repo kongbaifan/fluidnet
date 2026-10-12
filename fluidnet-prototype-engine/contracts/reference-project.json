@@ -3331,6 +3331,9 @@
     "max_thermal_iterations": 50,
     "max_coupling_iterations": 20,
     "coupling_density_rtol": 1e-06,
-    "max_step_halvings": 6
+    "max_step_halvings": 6,
+    "hydraulic_method": "dense",
+    "module_parallelism": 1,
+    "batch_modules": true
   }
 }

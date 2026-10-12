@@ -11,47 +11,57 @@ from .runtime import InProcessModuleRunner, _load_module
 
 
 def main():
-    runner = None
+    runners = {}
+
+    def dispatch(message):
+        action=message.get('action')
+        key=message.get('instance_id','default')
+        runner=runners.get(key)
+        if action=='batch':
+            return {key:dispatch(item) for key,item in message['items'].items()}
+        if action=='validate':
+            definition=ModuleDefinition.model_validate(message['definition'])
+            target=_load_module(definition)
+            for name,count in (('initialize',1),('evaluate',1),('commit_step',2),('finalize',1)):
+                callback=getattr(target,name,None)
+                if not callable(callback) or inspect.iscoroutinefunction(callback):
+                    raise ValueError(f'入口必须实现同步生命周期方法 {name}')
+                inspect.signature(callback).bind(*([None]*count))
+            return {'ok':True}
+        if action=='initialize':
+            definition=ModuleDefinition.model_validate(message['definition'])
+            request=InitializeRequest.model_validate(message['request'])
+            runner=InProcessModuleRunner(definition,request.parameters,request.fluid,request.initial_state)
+            runners[key]=runner
+            return {'state':runner.initialize()}
+        if action=='finalize':
+            errors=[]
+            for runner in runners.values():
+                try: runner.finalize()
+                except Exception as error: errors.append(str(error))
+            if errors: raise ValueError('; '.join(errors))
+            return {'ok':True}
+        if runner is None:
+            raise ValueError('Worker 尚未初始化')
+        if action=='parameters':
+            runner.parameters=dict(message['parameters'])
+            return {'ok':True}
+        if action=='evaluate':
+            return runner.evaluate(EvaluateRequest.model_validate(message['request'])).model_dump(mode='json')
+        if action=='commit_step':
+            return runner.commit_step(CommitStepRequest.model_validate(message['request'])).model_dump(mode='json')
+        raise ValueError(f'未知 Worker 操作：{action}')
+
     for line in sys.stdin:
         try:
-            message = json.loads(line)
-            action = message.get("action")
-            # User print calls must never corrupt the JSON RPC stream.
-            with open(os.devnull, "w", encoding="utf-8") as output, redirect_stdout(output), redirect_stderr(output):
-                if action == "validate":
-                    definition = ModuleDefinition.model_validate(message["definition"])
-                    target = _load_module(definition)
-                    for name, count in (("initialize", 1), ("evaluate", 1), ("commit_step", 2), ("finalize", 1)):
-                        callback = getattr(target, name, None)
-                        if not callable(callback) or inspect.iscoroutinefunction(callback):
-                            raise ValueError(f"入口必须实现同步生命周期方法 {name}")
-                        inspect.signature(callback).bind(*([None] * count))
-                    result = {"ok": True}
-                elif action == "initialize":
-                    definition = ModuleDefinition.model_validate(message["definition"])
-                    request = InitializeRequest.model_validate(message["request"])
-                    runner = InProcessModuleRunner(definition, request.parameters, request.fluid, request.initial_state)
-                    result = {"state": runner.initialize()}
-                elif action == "evaluate":
-                    if runner is None:
-                        raise ValueError("Worker 尚未初始化")
-                    result = runner.evaluate(EvaluateRequest.model_validate(message["request"])).model_dump(mode="json")
-                elif action == "commit_step":
-                    if runner is None:
-                        raise ValueError("Worker 尚未初始化")
-                    result = runner.commit_step(CommitStepRequest.model_validate(message["request"])).model_dump(mode="json")
-                elif action == "finalize":
-                    if runner is not None:
-                        runner.finalize()
-                    result = {"ok": True}
-                else:
-                    raise ValueError(f"未知 Worker 操作：{action}")
-            sys.stdout.write(json.dumps(result, ensure_ascii=False) + "\n")
+            message=json.loads(line)
+            with open(os.devnull,'w',encoding='utf-8') as output, redirect_stdout(output), redirect_stderr(output):
+                result=dispatch(message)
+            sys.stdout.write(json.dumps(result,ensure_ascii=False)+'\n')
             sys.stdout.flush()
-            if action == "finalize":
-                break
-        except Exception as exc:
-            sys.stdout.write(json.dumps({"error": str(exc)}, ensure_ascii=False) + "\n")
+            if message.get('action')=='finalize':break
+        except Exception as error:
+            sys.stdout.write(json.dumps({'error':str(error)},ensure_ascii=False)+'\n')
             sys.stdout.flush()
 
 

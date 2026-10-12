@@ -348,6 +348,9 @@ class SolverOptions(StrictModel):
     coupling_density_rtol: float = Field(default=1e-6, gt=0)
     # Implicit time stepping (networks with tanks): a failed substep is retried with half the step.
     max_step_halvings: int = Field(default=6, ge=0, le=20)
+    hydraulic_method: Literal['dense', 'sparse'] = 'dense'
+    module_parallelism: int = Field(default=1, ge=1, le=16)
+    batch_modules: bool = True
 
 
 class Project(StrictModel):

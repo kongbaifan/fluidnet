@@ -857,6 +857,27 @@
           "minimum": 0,
           "title": "Max Step Halvings",
           "type": "integer"
+        },
+        "hydraulic_method": {
+          "default": "dense",
+          "enum": [
+            "dense",
+            "sparse"
+          ],
+          "title": "Hydraulic Method",
+          "type": "string"
+        },
+        "module_parallelism": {
+          "default": 1,
+          "maximum": 16,
+          "minimum": 1,
+          "title": "Module Parallelism",
+          "type": "integer"
+        },
+        "batch_modules": {
+          "default": true,
+          "title": "Batch Modules",
+          "type": "boolean"
         }
       },
       "title": "SolverOptions",
