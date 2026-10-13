@@ -101,6 +101,8 @@ canonical = (display - display_offset) × display_scale
 | `hydraulic_method` (`dense`) | `sparse`：按网络拓扑给 `least_squares` 稀疏 Jacobian 结构并用 LSMR，结果与 `dense` 在 1e-6 相对误差内一致；大网络明显更快（见 ALGORITHM） |
 | `batch_modules` (true)、`module_parallelism` (1，1–16) | 有 2 个及以上 Python 实例时，实例按轮转分到 `module_parallelism` 个共享 Worker 进程，每次迭代每个 Worker 一次批量 evaluate；实例状态仍各自独立。`batch_modules=false` 恢复每实例一个 Worker |
 
+多工质（v0.4.5）：`Project.circuit_fluids` 是 `CircuitFluid` 列表（`id`、`anchor: Endpoint`、`fluid: FluidConfig`）。回路是经连接、节点/水箱和启用的内部通路连通的端口集合；拓扑决定，不看阀门开关，所以关阀不分隔回路，换热器两侧是两个回路。锚点所在回路用该工质，其余回路用 `Project.fluid`。诊断：`CIRCUIT_ANCHOR_UNKNOWN`（锚点端口不存在）、`FLUID_CONFLICT`（同一回路指定了不同工质；指定相同工质不算冲突）、`MULTIPLE_FLUIDS`（提示，项目确有多种工质）。所有回路工质相同时（如 `Water` 与 `HEOS::Water`）按单工质计算，结果与不设 `circuit_fluids` 逐键一致。`/projects/validate` 的响应新增 `circuits`（`id`、`fluid`、`source`=回路工质 id 或 `project`、`ports`）。原型项目的 `circuitFluids`（`id`、`anchor`、`medium` 或 `fluid`、`fluidReference`）映射到这里。Worker 初始化请求新增 `port_fluids`：跨两个回路的 Python 模块里，`ctx.fluid` 是第一个端口所在回路的工质，`ctx.fluid_at(端口)` 给每个端口自己的工质。
+
 `FluidConfig.fluid` 可写 `REFPROP::` 前缀（v0.4.4，见 ALGORITHM“物性服务”）；`FluidConfig.reference`（`mass` 默认 / `mole`）决定 `A[x]&B[y]` 中比例的含义，FluidState.composition 按同一基准返回组分。原型项目的 `fluid`（非空时替代 `medium`）与 `fluidReference` 映射到这两个字段。`/api/v1/health` 的 `capabilities.refprop.installed` 只检查文件是否存在，不加载 DLL。
 
 `FluidConfig.phase_policy` 可取 `single_phase`（默认）、`liquid`、`gas`、`any`；`any` 供模块代码查询两相状态，网络流动仍由热力层按边界相态检查。

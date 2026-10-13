@@ -6,7 +6,7 @@
 
 | 方法与路径 | 请求 | 返回 |
 | --- | --- | --- |
-| GET /api/v1/health | 无 | 版本（0.4.4）、能力标志（含 `thermal`、`property_coupling`、`tank_state`、`live_runs`、`pid`、`runtime_parameters`、`continuous_step`、`continuous_runs`、`refprop.installed`）、同步运行 2001 帧上限、`history_window_max`、`overview_points`、20 次记录保留数 |
+| GET /api/v1/health | 无 | 版本（0.4.5）、能力标志（含 `thermal`、`property_coupling`、`tank_state`、`live_runs`、`pid`、`runtime_parameters`、`continuous_step`、`continuous_runs`、`refprop.installed`）、同步运行 2001 帧上限、`history_window_max`、`overview_points`、20 次记录保留数 |
 | GET /api/v1/examples/{name} | `level` 或 `temperature` | 内置 PID 示例 Project；未知名称 404 |
 | GET /api/v1/catalog | 无 | 模块参数/通路/变量目录、原型参数名映射 |
 | GET /api/v1/modules | 无 | 可安装模块包和内置模块清单、版本与内容哈希 |
@@ -16,7 +16,7 @@
 | GET /api/v1/modules/{module_id}/versions | 无 | 倒序版本记录，未知模块返回空列表 |
 | GET /api/v1/modules/{module_id}/versions/{version} | 整数版本 | 完整模块、引用和试算凭据；未知版本 404 |
 | POST /api/v1/prototype/normalize | 原型导出对象 | 规范 Project；显示单位转换；不能归一化时 422 |
-| POST /api/v1/projects/validate | Project | valid 和 diagnostics；编译校验并追加工况覆盖校验，检查失败时 valid=false |
+| POST /api/v1/projects/validate | Project | valid、diagnostics 和 circuits（各回路的工质、来源、端口）；编译校验并追加工况覆盖校验，检查失败时 valid=false、circuits 为空 |
 | POST /api/v1/solve | Project | 同步稳态 RunFrame；计算失败时 422 |
 | POST /api/v1/runs | RunRequest | **201**；run_id、status、frame、total_rows。`?background=true` 改返回 **202** 的 `RunStatus`(queued、frame 为 null)，frame 由状态接口补 |
 | GET /api/v1/runs/{run_id} | 无 | 状态、请求快照、最后一帧与事件，不重复携带整段历史(历史由 /history 提供)；记录不存在或已被保留上限淘汰时 404，detail 为固定字符串 |

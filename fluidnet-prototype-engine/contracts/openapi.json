@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "FluidNet Prototype Engine",
-    "version": "0.4.4"
+    "version": "0.4.5"
   },
   "paths": {
     "/api/v1/health": {
@@ -781,6 +781,61 @@
           "solver_model"
         ],
         "title": "ChannelSpec"
+      },
+      "CircuitFluid": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+            "title": "Id"
+          },
+          "anchor": {
+            "$ref": "#/components/schemas/Endpoint"
+          },
+          "fluid": {
+            "$ref": "#/components/schemas/FluidConfig"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "anchor",
+          "fluid"
+        ],
+        "title": "CircuitFluid",
+        "description": "Fluid of one circuit: every port connected to `anchor` through connections and enabled\nchannels (closed valves included). Circuits without an entry use Project.fluid."
+      },
+      "CircuitInfo": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "fluid": {
+            "$ref": "#/components/schemas/FluidConfig"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "ports": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Ports"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "fluid",
+          "source"
+        ],
+        "title": "CircuitInfo",
+        "description": "One fluid circuit of a compiled project: its fluid and the ports it contains."
       },
       "CommitStepResponse": {
         "properties": {
@@ -2170,6 +2225,14 @@
             },
             "type": "array",
             "title": "Controllers"
+          },
+          "circuit_fluids": {
+            "items": {
+              "$ref": "#/components/schemas/CircuitFluid"
+            },
+            "type": "array",
+            "maxItems": 64,
+            "title": "Circuit Fluids"
           }
         },
         "additionalProperties": false,
@@ -3030,6 +3093,13 @@
             },
             "type": "array",
             "title": "Diagnostics"
+          },
+          "circuits": {
+            "items": {
+              "$ref": "#/components/schemas/CircuitInfo"
+            },
+            "type": "array",
+            "title": "Circuits"
           }
         },
         "additionalProperties": false,

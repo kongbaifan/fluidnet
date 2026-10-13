@@ -1,5 +1,36 @@
 {
   "$defs": {
+    "CircuitInfo": {
+      "additionalProperties": false,
+      "description": "One fluid circuit of a compiled project: its fluid and the ports it contains.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "integer"
+        },
+        "fluid": {
+          "$ref": "#/$defs/FluidConfig"
+        },
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "ports": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Ports",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "fluid",
+        "source"
+      ],
+      "title": "CircuitInfo",
+      "type": "object"
+    },
     "Diagnostic": {
       "additionalProperties": false,
       "properties": {
@@ -52,6 +83,52 @@
       ],
       "title": "Diagnostic",
       "type": "object"
+    },
+    "FluidConfig": {
+      "additionalProperties": false,
+      "description": "Serializable fluid selection passed to the property service.",
+      "properties": {
+        "backend": {
+          "const": "coolprop",
+          "default": "coolprop",
+          "title": "Backend",
+          "type": "string"
+        },
+        "fluid": {
+          "default": "Water",
+          "title": "Fluid",
+          "type": "string"
+        },
+        "composition": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Composition",
+          "type": "object"
+        },
+        "reference": {
+          "default": "mass",
+          "enum": [
+            "mass",
+            "mole"
+          ],
+          "title": "Reference",
+          "type": "string"
+        },
+        "phase_policy": {
+          "default": "single_phase",
+          "enum": [
+            "single_phase",
+            "liquid",
+            "gas",
+            "any"
+          ],
+          "title": "Phase Policy",
+          "type": "string"
+        }
+      },
+      "title": "FluidConfig",
+      "type": "object"
     }
   },
   "additionalProperties": false,
@@ -65,6 +142,13 @@
         "$ref": "#/$defs/Diagnostic"
       },
       "title": "Diagnostics",
+      "type": "array"
+    },
+    "circuits": {
+      "items": {
+        "$ref": "#/$defs/CircuitInfo"
+      },
+      "title": "Circuits",
       "type": "array"
     }
   },

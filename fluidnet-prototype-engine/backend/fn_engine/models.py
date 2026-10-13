@@ -202,6 +202,8 @@ class InitializeRequest(StrictModel):
     package: ModulePackageRef
     parameters: dict[str, Any] = Field(default_factory=dict)
     fluid: FluidConfig = Field(default_factory=FluidConfig)
+    # Fluid per port where it differs from `fluid` (a module spanning two circuits); ctx.fluid_at(port).
+    port_fluids: dict[str, FluidConfig] = Field(default_factory=dict)
     initial_state: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -377,6 +379,14 @@ class PIDController(StrictModel):
         return self
 
 
+class CircuitFluid(StrictModel):
+    """Fluid of one circuit: every port connected to `anchor` through connections and enabled
+    channels (closed valves included). Circuits without an entry use Project.fluid."""
+    id: Identifier
+    anchor: Endpoint
+    fluid: FluidConfig
+
+
 class Project(StrictModel):
     schema_version: Literal[1] = 1
     id: str
@@ -391,6 +401,7 @@ class Project(StrictModel):
     import_diagnostics: list[Diagnostic] = Field(default_factory=list)
     solver: SolverOptions = Field(default_factory=SolverOptions)
     controllers: list[PIDController] = Field(default_factory=list)
+    circuit_fluids: list[CircuitFluid] = Field(default_factory=list, max_length=64)
 
     @model_validator(mode="after")
     def validate_project(self):
@@ -410,6 +421,8 @@ class Project(StrictModel):
             raise ValueError('同一参数只能绑定一个控制器')
         if any(c.instance_id not in instance_map for c in self.controllers):
             raise ValueError('控制器目标设备不存在')
+        if len({c.id for c in self.circuit_fluids}) != len(self.circuit_fluids):
+            raise ValueError('回路工质 ID 重复')
         definitions = {m.id: m for m in self.modules}
         for instance in self.instances:
             if instance.package:
@@ -586,9 +599,18 @@ class ErrorResponse(StrictModel):
     request_id: str | None = None
 
 
+class CircuitInfo(StrictModel):
+    """One fluid circuit of a compiled project: its fluid and the ports it contains."""
+    id: int
+    fluid: FluidConfig
+    source: str  # CircuitFluid.id that set the fluid, or "project"
+    ports: list[str] = Field(default_factory=list)
+
+
 class ValidationResponse(StrictModel):
     valid: bool
     diagnostics: list[Diagnostic] = Field(default_factory=list)
+    circuits: list[CircuitInfo] = Field(default_factory=list)
 
 
 class RunCreateResponse(StrictModel):

@@ -52,6 +52,30 @@
       "title": "ChannelSpec",
       "type": "object"
     },
+    "CircuitFluid": {
+      "additionalProperties": false,
+      "description": "Fluid of one circuit: every port connected to `anchor` through connections and enabled\nchannels (closed valves included). Circuits without an entry use Project.fluid.",
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "anchor": {
+          "$ref": "#/$defs/Endpoint"
+        },
+        "fluid": {
+          "$ref": "#/$defs/FluidConfig"
+        }
+      },
+      "required": [
+        "id",
+        "anchor",
+        "fluid"
+      ],
+      "title": "CircuitFluid",
+      "type": "object"
+    },
     "Connection": {
       "additionalProperties": false,
       "properties": {
@@ -1086,6 +1110,14 @@
         "$ref": "#/$defs/PIDController"
       },
       "title": "Controllers",
+      "type": "array"
+    },
+    "circuit_fluids": {
+      "items": {
+        "$ref": "#/$defs/CircuitFluid"
+      },
+      "maxItems": 64,
+      "title": "Circuit Fluids",
       "type": "array"
     }
   },

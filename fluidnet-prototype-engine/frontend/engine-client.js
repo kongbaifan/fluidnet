@@ -3,6 +3,7 @@ window.createEngineClient = function (ui) {
   const clone = value => JSON.parse(JSON.stringify(value));
   const queues = new Map(), pending = new Map();
   const livePolling = new Set();
+  const circuitsByProject = new Map();  // project id -> circuits of the last successful check
   // A browser keeps at most this many live rows (the server window); older rows come from /overview.
   const LIVE_ROWS = 2001;
   const overviews = new Map();  // run id -> {rows, stride, total, at}
@@ -546,7 +547,12 @@ window.createEngineClient = function (ui) {
     if (ended) ui.render(); else if (changed) ui.refresh();
   }
   async function validate() {
-    try { const project = await normalize(ui.project()); const result = await request('/projects/validate',project); diagnostics(result.diagnostics); }
+    try {
+      const owner = ui.project(), project = await normalize(owner), result = await request('/projects/validate',project);
+      circuitsByProject.set(owner.id, result.circuits || []);
+      diagnostics(result.diagnostics);
+      ui.render();
+    }
     catch (error) { diagnostics([{message:error.message,severity:'error'}]); }
   }
   async function init() {
@@ -694,5 +700,5 @@ window.createEngineClient = function (ui) {
     }
     owner.run.parameterKey=ui.parameterKey(owner);ui.persist();ui.render();
   }
-  return {command,tick,validate,init,applyParameters,loadOverview,overview:id=>overviews.get(id),confirmedCommand,portValue,manifestPayload,contractText,checkModule,saveModule,versions,loadVersion,newModule,updateContractItem,bindModule,pinProject,moduleForInsert,get catalog(){return catalog;},get health(){return health;}};
+  return {command,tick,validate,init,applyParameters,loadOverview,overview:id=>overviews.get(id),circuits:id=>circuitsByProject.get(id)||[],confirmedCommand,portValue,manifestPayload,contractText,checkModule,saveModule,versions,loadVersion,newModule,updateContractItem,bindModule,pinProject,moduleForInsert,get catalog(){return catalog;},get health(){return health;}};
 };

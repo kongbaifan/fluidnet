@@ -8,7 +8,7 @@ import numpy as np
 from scipy.optimize import least_squares
 from scipy.sparse import lil_matrix
 
-from .compiler import CompilationError, CompiledBranch, CompiledNetwork, TankState
+from .compiler import CompilationError, CompiledBranch, CompiledNetwork, TankState, instance_fluids, service_at
 from .models import CommitStepRequest, Diagnostic, EvaluateRequest, FluidState, PortState, RunFrame, NetworkRelation
 from .properties import PropertyError, is_pure_water, property_service
 from .runtime import ChannelResult, WorkerProcess, RuntimeErrorBase
@@ -140,8 +140,9 @@ def _python_runners(network: CompiledNetwork):
         for instance_id, instance in network.instances.items():
             definition = network.modules[instance.module_id]
             if definition.runtime == 'python':
-                runner = WorkerProcess(definition, network.parameters[instance_id], network.project.fluid,
-                                       initial_state={})
+                fluid, port_fluids = instance_fluids(network, instance_id)
+                runner = WorkerProcess(definition, network.parameters[instance_id], fluid,
+                                       initial_state={}, port_fluids=port_fluids)
                 runners[instance_id] = runner
                 runner.initialize()
     except Exception:
@@ -161,28 +162,52 @@ def _close_runners(runners):
             pass
 
 
-def reference_properties(network: CompiledNetwork) -> tuple[float, float]:
-    """Constant density/viscosity used by the hydraulics unless property coupling is 'node'."""
+def reference_properties(network: CompiledNetwork, circuit: int | None = None) -> tuple[float, float]:
+    """Constant density/viscosity used by the hydraulics unless property coupling is 'node'.
+
+    One pair for the whole network, or for one circuit of a multi-fluid network (pressure and
+    temperature then come from that circuit's boundaries and devices only); circuit 0 by default.
+    """
+    if network.mixed and circuit is None:
+        circuit = 0
+    fluid = network.circuit_fluids[circuit] if network.mixed else network.project.fluid
+    inside = (lambda node: network.node_circuit[node] == circuit) if network.mixed else (lambda node: True)
     try:
         # Keep the historical incompressible-water regression deterministic for every
         # spelling of pure water. Other configured fluids obtain properties from CoolProp.
-        if is_pure_water(network.project.fluid):
+        if is_pure_water(fluid):
             return RHO_WATER, MU_WATER
         # Tank pressures move during a run; the reference must not, so they enter with their initial value.
         fixed = {**network.fixed_pressures, **{node: spec.initial_pressure_pa for node, spec in network.storage.items()}}
+        fixed = {node: value for node, value in fixed.items() if inside(node)}
         reference_pressure = float(np.mean(list(fixed.values()))) if fixed else 250000.0
         reference_temperature = 293.15
-        for params in network.parameters.values():
+        for instance_id, params in network.parameters.items():
+            ports = network.modules[network.instances[instance_id].module_id].ports
+            if ports and not inside(network.port_nodes[f'{instance_id}:{ports[0].id}']):
+                continue
             if isinstance(params.get('temperature_k'), (int, float)):
                 reference_temperature = float(params['temperature_k'])
                 break
-        state = property_service(network.project.fluid).state_pt(reference_pressure, reference_temperature)
+        state = property_service(fluid).state_pt(reference_pressure, reference_temperature)
         if state.viscosity_pa_s is None:
-            raise PropertyError('PROPERTY_FAILURE', f'{network.project.fluid.fluid} 在参考状态下没有黏度（REFPROP 对部分工质和混合物'
+            raise PropertyError('PROPERTY_FAILURE', f'{fluid.fluid} 在参考状态下没有黏度（REFPROP 对部分工质和混合物'
                                 '没有输运方程），不能用于管网水力计算')
         return state.density_kg_m3, state.viscosity_pa_s
     except PropertyError as error:
         raise ValueError(str(error)) from error
+
+
+def reference_arrays(network: CompiledNetwork) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Reference density/viscosity per node and per branch (a branch lies inside one circuit)."""
+    n, m = len(network.node_keys), len(network.branches)
+    if not network.mixed:
+        density, viscosity = reference_properties(network)
+        return np.full(n, density), np.full(n, viscosity), np.full(m, density), np.full(m, viscosity)
+    pairs = [reference_properties(network, c) for c in range(len(network.circuit_fluids))]
+    rho_n = np.array([pairs[network.node_circuit[node]][0] for node in range(n)])
+    mu_n = np.array([pairs[network.node_circuit[node]][1] for node in range(n)])
+    return rho_n, mu_n, rho_n[[b.start_node for b in network.branches]], mu_n[[b.start_node for b in network.branches]]
 
 
 def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_density=None, branch_viscosity=None,
@@ -202,8 +227,9 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
     options = network.project.solver
     m = len(network.branches)
     density, viscosity = reference_properties(network)
-    rho_b = np.full(m, density) if branch_density is None else np.asarray(branch_density, dtype=float)
-    mu_b = np.full(m, viscosity) if branch_viscosity is None else np.asarray(branch_viscosity, dtype=float)
+    rho_n, mu_n, rho_ref, mu_ref = reference_arrays(network)
+    rho_b = rho_ref if branch_density is None else np.asarray(branch_density, dtype=float)
+    mu_b = mu_ref if branch_viscosity is None else np.asarray(branch_viscosity, dtype=float)
 
     python_runners = runners
     iteration_id = 0
@@ -214,9 +240,10 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
         key = f'{instance_id}:{port_id}'
         if port_base is not None and key in port_base:
             return port_base[key].model_copy(update={'pressure_pa': pressure, 'mass_flow_kg_s': None})
+        node = network.port_nodes[key]
         return PortState(pressure_pa=pressure,
                          temperature_k=float(network.parameters[instance_id].get('temperature_k', 293.15)),
-                         density_kg_m3=density, viscosity_pa_s=viscosity)
+                         density_kg_m3=float(rho_n[node]), viscosity_pa_s=float(mu_n[node]))
 
     def evaluate_python_relations(pressures):
         nonlocal iteration_id
@@ -478,9 +505,11 @@ def build_port_states(network: CompiledNetwork, hydraulic: HydraulicResult,
             states[key] = _fluid_port(thermal.port_states[key], pressure, flows.get(key))
         else:
             instance_id = key.split(':', 1)[0]
+            density, viscosity = (reference_properties(network, network.node_circuit[node]) if network.mixed
+                                  else (hydraulic.density, hydraulic.viscosity))
             states[key] = PortState(pressure_pa=pressure,
                                     temperature_k=float(network.parameters[instance_id].get('temperature_k', 293.15)),
-                                    density_kg_m3=hydraulic.density, viscosity_pa_s=hydraulic.viscosity,
+                                    density_kg_m3=density, viscosity_pa_s=viscosity,
                                     mass_flow_kg_s=flows.get(key))
     return states
 
@@ -506,15 +535,19 @@ def _branch_properties(network: CompiledNetwork, thermal: ThermalResult) -> tupl
 REFERENCE_DENSITY_RTOL = 0.02
 
 
-def _warn_reference_density(network: CompiledNetwork, thermal: ThermalResult, reference: float) -> None:
-    """reference mode keeps one constant density in the hydraulics; say so when the fluid has moved away from it."""
+def _warn_reference_density(network: CompiledNetwork, thermal: ThermalResult, reference) -> None:
+    """reference mode keeps one constant density in the hydraulics; say so when the fluid has moved away from it.
+
+    `reference` is one density, or one per node for a multi-fluid network."""
     worst, where = 0.0, None
     for node, state in enumerate(thermal.node_states):
-        deviation = abs(state.density_kg_m3 - reference) / reference
+        ref = float(reference[node]) if np.ndim(reference) else reference
+        deviation = abs(state.density_kg_m3 - ref) / ref
         if deviation > worst:
             worst, where = deviation, node
     if worst > REFERENCE_DENSITY_RTOL:
         state = thermal.node_states[where]
+        reference = float(reference[where]) if np.ndim(reference) else reference
         instance = network.node_keys[where].split(':', 1)[0]
         thermal.diagnostics.append(Diagnostic(code='REFERENCE_DENSITY_DEVIATION', severity='warning', instance_id=instance,
             message=f'{instance} 处密度 {state.density_kg_m3:.1f} kg/m³（{state.temperature_k - 273.15:.1f} °C）与水力参考密度 '
@@ -550,14 +583,15 @@ def _solve_network(network, runners, time_s, warm, service, storage_step=None) -
     if options.property_coupling == 'reference':
         port_base = None
         if runners:
-            density, viscosity = reference_properties(network)
-            port_base = {key: state.model_copy(update={'density_kg_m3': density, 'viscosity_pa_s': viscosity})
+            rho_n, mu_n, _, _ = reference_arrays(network)
+            port_base = {key: state.model_copy(update={'density_kg_m3': float(rho_n[network.port_nodes[key]]),
+                                                       'viscosity_pa_s': float(mu_n[network.port_nodes[key]])})
                          for key, state in _node_ports(network, initial_guess(network, service)).items()}
         hydraulic = _solve_hydraulics(network, runners, time_s, port_base=port_base, initial=start,
                                       storage_step=storage_step)
         thermal = solve_thermal(network, service, hydraulic.pressures, hydraulic.flows, hydraulic.relations,
                                 shaft_power(network, hydraulic), h_start, storage_step)
-        _warn_reference_density(network, thermal, reference_properties(network)[0])
+        _warn_reference_density(network, thermal, reference_arrays(network)[0] if network.mixed else reference_properties(network)[0])
         return NetworkResult(hydraulic, thermal, 1, build_port_states(network, hydraulic, thermal))
 
     # node coupling: properties frozen during each hydraulic solve, updated between passes.
@@ -565,8 +599,7 @@ def _solve_network(network, runners, time_s, warm, service, storage_step=None) -
         rho_b, mu_b = warm.hydraulic.branch_density, warm.hydraulic.branch_viscosity
         node_states, previous_t = warm.thermal.node_states, np.array([s.temperature_k for s in warm.thermal.node_states])
     else:
-        density, viscosity = reference_properties(network)
-        rho_b, mu_b = np.full(len(network.branches), density), np.full(len(network.branches), viscosity)
+        _, _, rho_b, mu_b = reference_arrays(network)
         node_states, previous_t = initial_guess(network, service), None
     for iteration in range(1, options.max_coupling_iterations + 1):
         hydraulic = _solve_hydraulics(network, runners, time_s, branch_density=rho_b, branch_viscosity=mu_b,
@@ -629,7 +662,7 @@ def tank_variables(network: CompiledNetwork, result: NetworkResult, tanks: dict[
             state = thermal.node_states[node]
         else:
             # Without the thermal layer the tank keeps its initial temperature.
-            state = service.state_pt(pressure, spec.initial_temperature_k)
+            state = service_at(network, node, service).state_pt(pressure, spec.initial_temperature_k)
         level = tank.mass_kg / (state.density_kg_m3 * spec.area_m2)
         variables.update({f'{spec.instance_id}.state.mass_kg': tank.mass_kg,
                           f'{spec.instance_id}.state.level_m': level,
@@ -709,7 +742,8 @@ def cell_variables(network: CompiledNetwork, result: NetworkResult, service):
         branch = network.branches[j]
         pressure = float(result.hydraulic.pressures[branch.start_node] + result.hydraulic.pressures[branch.end_node]) / 2
         try:
-            mean = float(np.mean([service.state_ph(pressure, float(value)).temperature_k for value in values]))
+            mean = float(np.mean([service_at(network, branch.start_node, service).state_ph(pressure, float(value)).temperature_k
+                                  for value in values]))
         except PropertyError as error:
             raise CompilationError(error.code, f'{branch.instance_id} 管段热容状态物性计算失败：{error}',
                                    branch.instance_id) from error
@@ -792,7 +826,7 @@ def _step_network(network: CompiledNetwork, tanks: dict[int, TankState], service
         pressures[node] = spec.pressure(tanks[node].mass_kg)
         if network.project.solver.thermal:
             try:
-                temperatures[node] = service.state_ph(pressures[node], tanks[node].enthalpy_j_kg).temperature_k
+                temperatures[node] = service_at(network, node, service).state_ph(pressures[node], tanks[node].enthalpy_j_kg).temperature_k
             except PropertyError as error:
                 raise CompilationError(error.code, f'{spec.instance_id} 水箱状态物性计算失败：{error}',
                                        spec.instance_id) from error
@@ -830,8 +864,9 @@ def _tank_event(network: CompiledNetwork, tanks: dict[int, TankState], service):
             return 'TANK_EMPTY', spec
         pressure = spec.pressure(mass)
         try:
-            density = (service.state_ph(pressure, tanks[node].enthalpy_j_kg) if network.project.solver.thermal
-                       else service.state_pt(pressure, spec.initial_temperature_k)).density_kg_m3
+            local = service_at(network, node, service)
+            density = (local.state_ph(pressure, tanks[node].enthalpy_j_kg) if network.project.solver.thermal
+                       else local.state_pt(pressure, spec.initial_temperature_k)).density_kg_m3
         except PropertyError:
             continue
         if mass / (density * spec.area_m2) > spec.height_m:

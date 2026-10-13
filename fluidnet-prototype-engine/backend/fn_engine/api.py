@@ -17,7 +17,7 @@ from . import __version__
 from .jobs import OVERVIEW_POINTS, RunManager
 from .bridge import PARAMETER_BINDINGS, normalize_prototype_export
 from .catalog import builtin_catalog
-from .compiler import CompilationError, compile_project, validate_project
+from .compiler import CompilationError, compile_project, validate_project_details
 from .models import (
     CatalogResponse,
     Diagnostic,
@@ -240,8 +240,8 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
 
     @app.post('/api/v1/projects/validate', response_model=ValidationResponse)
     def validate(project: Project):
-        items = validate_project(project)
-        return {'valid':not any(d.severity == 'error' for d in items),'diagnostics':items}
+        items, circuits = validate_project_details(project)
+        return {'valid':not any(d.severity == 'error' for d in items),'diagnostics':items,'circuits':circuits}
 
     @app.post('/api/v1/prototype/normalize')
     def normalize(payload: dict):

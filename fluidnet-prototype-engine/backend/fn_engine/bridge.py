@@ -147,10 +147,14 @@ def normalize_prototype_export(data: dict[str, Any]) -> Project:
                 raise ValueError(f'原型连接格式无效：{edge}')
             connections.append(Connection(id=edge[0],source=Endpoint(instance_id=edge[1],port_id=edge[2]),target=Endpoint(instance_id=edge[3],port_id=edge[4])))
     solver = raw.get('solver', {})
-    diagnostics.append(Diagnostic(code='HYDRAULIC_SCOPE', severity='info', message='按已应用参数计算液态水水力与端口焓、温度；水箱与分段管道在动态计算中按隐式 Euler 积分液位、水温和管内温度；Python 模块包在独立 Worker 中执行；PID 控制器参与动态计算，控制脚本尚未参与求解'))
+    diagnostics.append(Diagnostic(code='HYDRAULIC_SCOPE', severity='info', message='按已应用参数计算各回路工质的水力与端口焓、温度；水箱与分段管道在动态计算中按隐式 Euler 积分液位、水温和管内温度；Python 模块包在独立 Worker 中执行；PID 控制器参与动态计算，控制脚本尚未参与求解'))
     return Project(id=raw['id'], name=raw.get('name','原型项目'), description=raw.get('description',''),
         fluid=FluidConfig(fluid=fluid_text or PROTOTYPE_MEDIA[medium], reference=reference),
         modules=list(definitions.values()),instances=instances,connections=connections,import_diagnostics=diagnostics,
         controllers=raw.get('controllers', []),
+        circuit_fluids=[{'id': c['id'], 'anchor': c['anchor'],
+                         'fluid': {'fluid': (c.get('fluid') or '').strip() or PROTOTYPE_MEDIA[c.get('medium', 'water')],
+                                   'reference': c.get('fluidReference', 'mass')}}
+                        for c in raw.get('circuitFluids', [])],
         solver=SolverOptions(pressure_tolerance_pa=solver.get('pressureAtol',1.),mass_tolerance_kg_s=solver.get('massAtol',1e-8),
                              max_iterations=solver.get('maxIter',80),dynamic_step_s=solver.get('dt',.1)))

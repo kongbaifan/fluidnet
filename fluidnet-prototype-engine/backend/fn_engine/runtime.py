@@ -86,15 +86,20 @@ class NetworkBuilder:
 class ModuleContext:
     def __init__(self, parameters: dict[str, Any], fluid: FluidConfig,
                  ports: dict[str, PortState] | None = None, state: dict[str, Any] | None = None,
-                 channels: dict[str, ChannelResult] | None = None):
+                 channels: dict[str, ChannelResult] | None = None, port_fluids: dict[str, FluidConfig] | None = None):
         self.parameters = parameters
         self.fluid = _LazyPropertyService(fluid)
+        self._port_fluids = {port: _LazyPropertyService(config) for port, config in (port_fluids or {}).items()}
         self.ports = ports or {}
         self.state = state if state is not None else {}
         self.channels = channels or {}
         self.net = NetworkBuilder()
         self.variables: dict[str, Any] = {}
         self.diagnostics: list[Diagnostic] = []
+
+    def fluid_at(self, port_id: str):
+        """Property service of the circuit a port belongs to (differs from ctx.fluid across an exchanger)."""
+        return self._port_fluids.get(port_id, self.fluid)
 
     def parameter(self, name: str, default: Any = None):
         return self.parameters.get(name, default)
@@ -160,16 +165,17 @@ class InProcessModuleRunner:
     """Reference runner used inside the isolated Worker process and by focused tests."""
 
     def __init__(self, definition: ModuleDefinition, parameters: dict[str, Any], fluid: FluidConfig,
-                 initial_state: dict[str, Any] | None = None):
+                 initial_state: dict[str, Any] | None = None, port_fluids: dict[str, FluidConfig] | None = None):
         self.definition = definition
         self.parameters = parameters
         self.fluid = fluid
+        self.port_fluids = dict(port_fluids or {})
         self.state = dict(initial_state or {})
         self.module = _load_module(definition)
         self.initialized = False
 
     def initialize(self):
-        ctx = ModuleContext(self.parameters, self.fluid, state=self.state)
+        ctx = ModuleContext(self.parameters, self.fluid, state=self.state, port_fluids=self.port_fluids)
         callback = getattr(self.module, "initialize", None)
         if callback:
             callback(ctx)
@@ -180,7 +186,8 @@ class InProcessModuleRunner:
     def evaluate(self, request: EvaluateRequest) -> EvaluateResponse:
         if not self.initialized:
             self.initialize()
-        ctx = ModuleContext(deepcopy(self.parameters), self.fluid, request.trial_ports, deepcopy(request.readonly_state))
+        ctx = ModuleContext(deepcopy(self.parameters), self.fluid, request.trial_ports, deepcopy(request.readonly_state),
+                            port_fluids=self.port_fluids)
         getattr(self.module, "evaluate")(ctx)
         return EvaluateResponse(relations=ctx.net.relations, variables=ctx.variables, diagnostics=ctx.diagnostics)
 
@@ -188,7 +195,7 @@ class InProcessModuleRunner:
         if not self.initialized:
             self.initialize()
         ctx = ModuleContext(deepcopy(self.parameters), self.fluid, request.converged_ports, deepcopy(self.state),
-                            channels=channels or request.converged_channels)
+                            channels=channels or request.converged_channels, port_fluids=self.port_fluids)
         callback = getattr(self.module, "commit_step", None)
         if callback:
             callback(ctx, request.dt_s)
@@ -198,17 +205,19 @@ class InProcessModuleRunner:
     def finalize(self):
         callback = getattr(self.module, "finalize", None)
         if callback:
-            callback(ModuleContext(self.parameters, self.fluid, state=self.state))
+            callback(ModuleContext(self.parameters, self.fluid, state=self.state, port_fluids=self.port_fluids))
 
 
 class WorkerProcess:
     """Line-delimited JSON RPC runner for user modules in a separate process."""
 
     def __init__(self, definition: ModuleDefinition, parameters: dict[str, Any], fluid: FluidConfig,
-                 initial_state: dict[str, Any] | None = None, timeout_s: float = 10.0):
+                 initial_state: dict[str, Any] | None = None, timeout_s: float = 10.0,
+                 port_fluids: dict[str, FluidConfig] | None = None):
         self.definition = definition
         self.parameters = parameters
         self.fluid = fluid
+        self.port_fluids = dict(port_fluids or {})
         self.state = dict(initial_state or {})
         self.timeout_s = timeout_s
         self.process: subprocess.Popen | None = None
@@ -283,7 +292,8 @@ class WorkerProcess:
                                     package={"module_id": self.definition.id, "version": f"{self.definition.version}.0.0",
                                              "content_hash": self.definition.content_hash or module_content_hash(self.definition),
                                              "definition_hash": self.definition.definition_hash},
-                                    parameters=self.parameters, fluid=self.fluid, initial_state=self.state)
+                                    parameters=self.parameters, fluid=self.fluid, port_fluids=self.port_fluids,
+                                    initial_state=self.state)
         response = self._request({"action": "initialize", "definition": self.definition.model_dump(mode="json"),
                                   "request": request.model_dump(mode="json")})
         self.state = dict(response.get("state", {}))

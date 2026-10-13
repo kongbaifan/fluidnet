@@ -23,7 +23,7 @@ from scipy.sparse import coo_matrix, csr_matrix
 from scipy.sparse.csgraph import connected_components
 from scipy.sparse.linalg import MatrixRankWarning, spsolve
 
-from .compiler import CompilationError, CompiledNetwork
+from .compiler import CompilationError, CompiledNetwork, service_at
 from .models import Diagnostic, FluidState, NetworkRelation
 from .properties import PropertyError
 
@@ -139,7 +139,7 @@ def initial_guess(network: CompiledNetwork, service) -> list[FluidState]:
     states = []
     for node in range(n):
         pressure = network.fixed_pressures.get(node, reference_pressure.get(component[node], 101325.0))
-        states.append(_state_pt(service, pressure, temperatures[node], labels[node]))
+        states.append(_state_pt(service_at(network, node, service), pressure, temperatures[node], labels[node]))
     return states
 
 
@@ -175,7 +175,8 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
     downstream = [b.end_node if q >= 0 else b.start_node for b, q in zip(branches, flows)]
 
     fixed = network.fixed_pressures
-    boundary_states = {node: _state_pt(service, fixed[node], network.fixed_temperatures.get(node, DEFAULT_TEMPERATURE_K),
+    svc = (lambda node: service_at(network, node, service)) if network.mixed else (lambda node: service)
+    boundary_states = {node: _state_pt(svc(node), fixed[node], network.fixed_temperatures.get(node, DEFAULT_TEMPERATURE_K),
                                        labels[node]) for node in fixed}
     # Allowed single phase per hydraulic component: a vapour line elsewhere must not let a liquid
     # stream silently turn into steam (its hydraulics still assume the liquid density).
@@ -188,7 +189,7 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
 
     def checked_state(pressure: float, enthalpy: float, instance: str, node: int) -> FluidState:
         try:
-            state = service.state_ph(float(pressure), float(enthalpy))
+            state = svc(node).state_ph(float(pressure), float(enthalpy))
         except PropertyError as error:
             raise _wrap_property_error(error, instance) from error
         family = phase_family(state)
@@ -220,7 +221,7 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
     stagnant = [node not in touched and node not in storage for node in range(n)]
     temperatures, known = component_temperatures(network)
     h_init = np.array([boundary_states[node].enthalpy_j_kg if node in boundary_states else
-                       _state_pt(service, pressures[node], temperatures[node], labels[node]).enthalpy_j_kg
+                       _state_pt(svc(node), pressures[node], temperatures[node], labels[node]).enthalpy_j_kg
                        for node in range(n)])
 
     # Static branch classification.
@@ -260,7 +261,7 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
             # A pipe with heat capacity exchanges with ambient even when it does not flow.
             if pipe_ua[j] > 0 and (weight[j] > flow_eps or pipe_cells[j] > 0):
                 ambient_t[j] = float(params.get('ambient_temperature_k', DEFAULT_TEMPERATURE_K))
-                ambient_state = _state_pt(service, pressures[downstream[j]], ambient_t[j], branch.instance_id)
+                ambient_state = _state_pt(svc(downstream[j]), pressures[downstream[j]], ambient_t[j], branch.instance_id)
                 ambient_h[j], ambient_family[j] = ambient_state.enthalpy_j_kg, phase_family(ambient_state)
         elif branch.solver_model == 'pump_curve':
             kinds[j] = 'pump'
@@ -321,7 +322,7 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
                 raise ThermalError('THERMAL_REFERENCE_MISSING', f'{labels[node]} 所在回路没有补水流入，也没有可作温度参考的压力边界',
                                    labels[node])
             pins[node] = (boundary_states[node].enthalpy_j_kg if node in boundary_states else
-                          _state_pt(service, pressures[node], temperatures[node], labels[node]).enthalpy_j_kg)
+                          _state_pt(svc(node), pressures[node], temperatures[node], labels[node]).enthalpy_j_kg)
         reach = reachable(seeds | set(pins))
     if pins:
         names = sorted({labels[node] for node in pins})

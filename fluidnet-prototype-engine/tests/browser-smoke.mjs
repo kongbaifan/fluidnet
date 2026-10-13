@@ -42,7 +42,7 @@ try {
     writeFileSync('tests/fixtures/prototype.json',JSON.stringify(payload,null,2));
   }
   await page.locator('[data-action="validate"]').click();
-  await expect(page.getByRole('dialog')).toContainText('液态水水力与端口焓、温度');
+  await expect(page.getByRole('dialog')).toContainText('各回路工质的水力与端口焓、温度');
   await page.getByRole('dialog').locator('[data-action="close-dialog"]').first().click();
   const first=await step();
   const opening=page.locator('input[type="number"][data-instance-param="opening"][data-id="V1"]');

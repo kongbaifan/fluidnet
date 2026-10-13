@@ -35,7 +35,7 @@ def main():
         if action=='initialize':
             definition=ModuleDefinition.model_validate(message['definition'])
             request=InitializeRequest.model_validate(message['request'])
-            runner=InProcessModuleRunner(definition,request.parameters,request.fluid,request.initial_state)
+            runner=InProcessModuleRunner(definition,request.parameters,request.fluid,request.initial_state,request.port_fluids)
             runners[key]=runner
             return {'state':runner.initialize()}
         if action=='finalize':

@@ -4,7 +4,7 @@ import math
 from dataclasses import dataclass, field
 
 from .catalog import builtin_catalog
-from .models import Diagnostic, Domain, ModuleDefinition, ModuleInstance, Project
+from .models import Diagnostic, Domain, FluidConfig, ModuleDefinition, ModuleInstance, Project
 
 
 class CompilationError(ValueError):
@@ -89,6 +89,34 @@ class CompiledNetwork:
     # Tank nodes. They also appear in fixed_pressures/fixed_temperatures with their initial state,
     # which is how steady runs and the first dynamic frame treat them (a large reservoir).
     storage: dict[int, StorageSpec] = field(default_factory=dict)
+    # Fluid circuits: nodes joined by connections and enabled channels, closed valves included.
+    # node_circuit[node] indexes circuit_fluids; `mixed` is False when every circuit uses the same
+    # fluid, and then every caller keeps using the single project fluid exactly as before.
+    node_circuit: list[int] = field(default_factory=list)
+    circuit_fluids: list[FluidConfig] = field(default_factory=list)
+    circuit_sources: list[str] = field(default_factory=list)
+    mixed: bool = False
+
+    def fluid_at(self, node: int) -> FluidConfig:
+        return self.circuit_fluids[self.node_circuit[node]] if self.mixed else self.project.fluid
+
+
+def service_at(network: CompiledNetwork, node: int, default=None):
+    """Property service for the fluid at `node`; `default` (the project service) when not mixed."""
+    if not network.mixed and default is not None:
+        return default
+    from .properties import property_service
+    return property_service(network.fluid_at(node))
+
+
+def instance_fluids(network: CompiledNetwork, instance_id: str) -> tuple[FluidConfig, dict[str, FluidConfig]]:
+    """A module's fluid (its first port's circuit) and the ports whose circuit uses another fluid."""
+    definition = network.modules[network.instances[instance_id].module_id]
+    nodes = {port.id: network.port_nodes[f'{instance_id}:{port.id}'] for port in definition.ports}
+    if not network.mixed or not nodes:
+        return network.project.fluid, {}
+    main = network.fluid_at(next(iter(nodes.values())))
+    return main, {port: network.fluid_at(node) for port, node in nodes.items() if network.fluid_at(node) != main}
 
 
 def validated_parameters(instance, definition):
@@ -147,15 +175,55 @@ def validated_parameters(instance, definition):
     return values
 
 
-def fluid_service(project: Project):
-    """The project's property service; an unusable fluid string is a compile error, not a solve failure."""
+def fluid_service(project: Project, config: FluidConfig | None = None, label: str = '项目工质'):
+    """The property service of a fluid; an unusable fluid string is a compile error, not a solve failure."""
     from .properties import PropertyError, property_service
+    config = config or project.fluid
     try:
-        service = property_service(project.fluid)
+        service = property_service(config)
         service.limits()  # loads the fluid: unknown names fail here with FLUID_UNKNOWN
     except PropertyError as error:
-        raise CompilationError(error.code, f'项目工质 {project.fluid.fluid}：{error}', field='fluid') from error
+        raise CompilationError(error.code, f'{label} {config.fluid}：{error}', field='fluid') from error
     return service
+
+
+def _fluid_identity(config: FluidConfig):
+    """Two configs name the same fluid ('Water' and 'HEOS::Water', same basis and phase policy)."""
+    from .properties import _parse_fluid
+    return _parse_fluid(config), config.phase_policy
+
+
+def assign_circuits(project, modules, nodes, node_count):
+    """Circuit index per node, fluid per circuit and the CircuitFluid id that set it."""
+    circuits = DisjointSet(range(node_count))
+    for inst in project.instances:
+        definition = modules[inst.module_id]
+        if definition.solver_model in ('pressure_source', 'junction', 'tank'):
+            continue
+        for ch in definition.channels:
+            if ch.enabled:
+                circuits.union(nodes[f'{inst.id}:{ch.input_port}'], nodes[f'{inst.id}:{ch.output_port}'])
+    first = {}
+    for n in range(node_count):
+        first.setdefault(circuits.find(n), n)
+    index = {root: i for i, root in enumerate(sorted(first, key=first.get))}
+    node_circuit = [index[circuits.find(n)] for n in range(node_count)]
+    fluids, sources = [project.fluid] * len(index), ['project'] * len(index)
+    instances = {i.id: i for i in project.instances}
+    for entry in project.circuit_fluids:
+        key = f'{entry.anchor.instance_id}:{entry.anchor.port_id}'
+        if key not in nodes:
+            raise CompilationError('CIRCUIT_ANCHOR_UNKNOWN', f'回路工质 {entry.id} 的锚点端口 {key} 不存在',
+                                   entry.anchor.instance_id if entry.anchor.instance_id in instances else None, 'circuit_fluids')
+        fluid_service(project, entry.fluid, f'回路工质 {entry.id}')
+        circuit = node_circuit[nodes[key]]
+        if sources[circuit] != 'project' and _fluid_identity(fluids[circuit]) != _fluid_identity(entry.fluid):
+            raise CompilationError('FLUID_CONFLICT', f'回路工质 {entry.id}（{entry.fluid.fluid}）与 {sources[circuit]}'
+                                   f'（{fluids[circuit].fluid}）指定在同一个回路；同一回路只能有一种工质',
+                                   entry.anchor.instance_id, 'circuit_fluids')
+        fluids[circuit], sources[circuit] = entry.fluid, entry.id
+    mixed = len({_fluid_identity(f) for f in fluids}) > 1
+    return node_circuit, fluids, sources, mixed
 
 
 def check_fluid_conditions(instance_id: str, params: dict, solver_model: str, service, thermal: bool = True) -> None:
@@ -260,8 +328,6 @@ def compile_project(project: Project) -> CompiledNetwork:
                 if module_definition_hash(definition) != definition.definition_hash:
                     raise CompilationError('MODULE_DEFINITION_HASH_MISMATCH', f'{inst.id} 的模块契约或源码与保存版本不一致', inst.id)
         parameters[inst.id] = validated_parameters(inst, definition)
-        if definition.runtime == 'builtin':
-            check_fluid_conditions(inst.id, parameters[inst.id], definition.solver_model, service, project.solver.thermal)
         if not definition.ports:
             raise CompilationError('PORTS_MISSING', f'{inst.id} 没有端口', inst.id)
         if definition.solver_model == 'pressure_source' and len(definition.ports) != 1:
@@ -292,6 +358,19 @@ def compile_project(project: Project) -> CompiledNetwork:
     roots = sorted({dsu.find(key) for key in port_keys})
     index = {root: n for n, root in enumerate(roots)}
     nodes = {key: index[dsu.find(key)] for key in port_keys}
+    node_circuit, circuit_fluids, circuit_sources, mixed = assign_circuits(project, modules, nodes, len(roots))
+
+    def service_of(instance_id):
+        """Service of the circuit an instance's first port belongs to (a built-in's ports share one, exchangers aside)."""
+        if not mixed:
+            return service
+        first = modules[instances[instance_id].module_id].ports[0].id
+        return fluid_service(project, circuit_fluids[node_circuit[nodes[f'{instance_id}:{first}']]])
+
+    for inst in project.instances:
+        if modules[inst.module_id].runtime == 'builtin':
+            check_fluid_conditions(inst.id, parameters[inst.id], modules[inst.module_id].solver_model, service_of(inst.id),
+                                   project.solver.thermal)
     branches, fixed, fixed_temperatures, storage = [], {}, {}, {}
     for inst in project.instances:
         definition, params = modules[inst.module_id], parameters[inst.id]
@@ -318,7 +397,7 @@ def compile_project(project: Project) -> CompiledNetwork:
             if node in fixed:
                 raise CompilationError('STORAGE_CONFLICT', f'{inst.id} 与压力边界接在同一节点；水箱本身就是压力参考，'
                                        '不能再接压力边界', inst.id)
-            spec = tank_initial_state(inst.id, params, node, service)
+            spec = tank_initial_state(inst.id, params, node, service_of(inst.id))
             storage[node] = spec
             fixed[node], fixed_temperatures[node] = spec.initial_pressure_pa, spec.initial_temperature_k
             continue
@@ -349,8 +428,13 @@ def compile_project(project: Project) -> CompiledNetwork:
         if components.find(node) not in referenced:
             raise CompilationError('PRESSURE_REFERENCE_MISSING', f'子网络 {roots[node]} 缺少压力边界（关闭阀门也可能隔离回路）')
     validate_controllers(project, modules, instances)
+    if mixed:
+        names = '、'.join(dict.fromkeys(f.fluid for f in circuit_fluids))
+        diagnostics.append(Diagnostic(code='MULTIPLE_FLUIDS', severity='info',
+                                      message=f'项目包含 {len(circuit_fluids)} 个回路、多种工质（{names}）；各回路物性独立计算'))
     return CompiledNetwork(project, modules, instances, parameters, nodes, roots, branches, fixed, diagnostics,
-                           fixed_temperatures, [components.find(n) for n in range(len(roots))], storage)
+                           fixed_temperatures, [components.find(n) for n in range(len(roots))], storage,
+                           node_circuit, circuit_fluids, circuit_sources, mixed)
 
 
 def runtime_parameter(instance, definition, parameter_id):
@@ -407,10 +491,26 @@ def validate_scenarios(project: Project, modules: dict[str, ModuleDefinition]) -
 
 
 def validate_project(project: Project) -> list[Diagnostic]:
+    return validate_project_details(project)[0]
+
+
+def circuit_info(network: CompiledNetwork) -> list[dict]:
+    """Fluid circuits of a compiled network (one entry for a single-fluid project)."""
+    count = len(network.circuit_fluids) or 1
+    ports = [[] for _ in range(count)]
+    for key, node in network.port_nodes.items():
+        ports[network.node_circuit[node] if network.node_circuit else 0].append(key)
+    return [{'id': i, 'fluid': network.circuit_fluids[i] if network.circuit_fluids else network.project.fluid,
+             'source': network.circuit_sources[i] if network.circuit_sources else 'project', 'ports': sorted(ports[i])}
+            for i in range(count)]
+
+
+def validate_project_details(project: Project) -> tuple[list[Diagnostic], list[dict]]:
+    """Diagnostics plus the fluid circuits (empty when the project does not compile)."""
     try:
         network = compile_project(project)
     except CompilationError as error:
-        return [error.diagnostic]
+        return [error.diagnostic], []
     except ValueError as error:
-        return [Diagnostic(code='PROJECT_INVALID', message=str(error))]
-    return network.diagnostics + validate_scenarios(project, network.modules)
+        return [Diagnostic(code='PROJECT_INVALID', message=str(error))], []
+    return network.diagnostics + validate_scenarios(project, network.modules), circuit_info(network)

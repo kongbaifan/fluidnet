@@ -2,17 +2,18 @@
 from concurrent.futures import ThreadPoolExecutor
 
 from .models import InitializeRequest, EvaluateResponse, CommitStepResponse
+from .compiler import instance_fluids
 from .runtime import WorkerProcess, module_content_hash, module_definition_hash
 
 
 class Handle:
-    def __init__(self, worker, instance, definition, parameters, fluid):
+    def __init__(self, worker, instance, definition, parameters, fluid, port_fluids=None):
         self.worker, self.id = worker, instance.id
         self.state = {}
         request = InitializeRequest(run_id='worker',instance_id=self.id,
             package={'module_id':definition.id,'version':f'{definition.version}.0.0',
                      'content_hash':module_content_hash(definition),'definition_hash':module_definition_hash(definition)},
-            parameters=parameters,fluid=fluid)
+            parameters=parameters,fluid=fluid,port_fluids=port_fluids or {})
         self.state = worker._request({'action':'initialize','instance_id':self.id,
             'definition':definition.model_dump(mode='json'),'request':request.model_dump(mode='json')})['state']
 
@@ -37,10 +38,11 @@ class BatchRunners(dict):
         try:
             for i in range(count):
                 instance=instances[i]
-                self.workers.append(WorkerProcess(network.modules[instance.module_id],{},network.project.fluid))
+                self.workers.append(WorkerProcess(network.modules[instance.module_id],{},instance_fluids(network,instance.id)[0]))
             for i,instance in enumerate(instances):
+                fluid,port_fluids=instance_fluids(network,instance.id)
                 self[instance.id]=Handle(self.workers[i%count],instance,network.modules[instance.module_id],
-                                         network.parameters[instance.id],network.project.fluid)
+                                         network.parameters[instance.id],fluid,port_fluids)
         except BaseException:
             self.close()
             raise

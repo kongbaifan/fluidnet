@@ -42,7 +42,7 @@ flowchart LR
 | `worker.py` | 独立进程的行式 JSON Worker 协议 | 项目编排和持久化 |
 | `properties.py` | CoolProp AbstractState 物性适配（PT/PH 单次 flash、两相干度）、线程隔离与缓存、相态/范围诊断 | 网络残差组装 |
 | `bridge.py` | 选择活动项目；读取真实端口和通路；显示值转规范值 | 自动猜测未知模块算法 |
-| `compiler.py` | 参数与工况覆盖校验、端口连接并查集、通路支路、每个子网络的压力参考、边界温度与冲突检查 | 求解数值方程 |
+| `compiler.py` | 参数与工况覆盖校验、端口连接并查集、通路支路、每个子网络的压力参考、按回路分配工质、边界温度与冲突检查 | 求解数值方程 |
 | `solver.py` | 支路关系、非线性方程组（稠密或稀疏 Jacobian）、模块 evaluate 关系、残差验证；`solve_network` 编排水力与热力及 `node` 耦合、动态热启动、结果采样 | 管理界面草稿 |
 | `simulation.py` | `SimulationSession`：可逐帧推进的动态会话，持有 Worker、水箱/管段状态和 PID；运行时参数写入、隔离管段保压、子步减半与液位事件 | 线程调度、HTTP |
 | `controllers.py` | 采样 PID：零阶保持、测量值微分滤波、条件积分抗饱和、手自动无扰切换 | 写参数（由会话执行） |
