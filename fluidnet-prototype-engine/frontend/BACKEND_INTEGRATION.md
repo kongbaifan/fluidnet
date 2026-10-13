@@ -41,3 +41,5 @@ PID（v0.4.2）：「控制」页的 PID 面板写入项目的 `controllers`，�
 工质（v0.4.4）：项目设置 → 介质配置新增“物性字符串”和“组分比例基准”，保存为原型项目的 `fluid`、`fluidReference`；非空时替代下拉的默认介质，归一化后进入 `FluidConfig.fluid/reference`。提示文字根据 health 的 `capabilities.refprop.installed` 显示是否检测到 REFPROP。
 
 多工质（v0.4.5）：介质配置新增“回路工质”列表，每行选一个代表回路的端口、预设介质或物性字符串、比例基准，保存为原型项目的 `circuitFluids`。“检查连接”的响应带 `circuits`，前端按项目缓存（不持久化）：画布连线按回路着色并在悬停提示中写出工质，画布标签显示“多工质 · N 个回路”，介质配置页列出各回路。
+
+接口与令牌（v0.4.6）：`engine-client.js` 的 `request()` 在 sessionStorage 有令牌时加 `Authorization` 头；health 报告 `auth.required` 且没有令牌，或任何请求返回 401 时，弹出“输入访问令牌”对话框，确认后重新加载页面。新增「对接」页（原有的数据与外部对接页面此前没有接入路由）：接口调用页签按当前运行生成读取、批量写入、订阅和状态的调用示例（curl 或 ws 地址，开启认证时带令牌头），读取类请求可以直接发送并显示响应；写入只展示请求不发送。

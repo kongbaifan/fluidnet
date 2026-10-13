@@ -71,19 +71,29 @@ class SimulationSession:
             raise CompilationError('PARAMETER_TARGET_MISSING', '目标设备不存在')
         return runtime_parameter(instance, self.network.modules[instance.module_id], parameter_id)
 
-    def set_parameter(self, instance_id, parameter_id, value, controlled=False):
-        self.parameter_spec(instance_id, parameter_id)
-        if not controlled and any(p.config.mode == 'auto' and (p.config.instance_id, p.config.parameter_id) == (instance_id, parameter_id)
-                                  for p in self.controllers.values()):
-            raise CompilationError('PARAMETER_CONTROLLED', '该参数由 PID 控制，请先切换手动模式')
+    def _candidate_parameters(self, instance_id, values, controlled=False):
+        """Validated parameters of an instance after `values`; nothing is changed yet."""
+        for parameter_id in values:
+            self.parameter_spec(instance_id, parameter_id)
+            # Even in manual mode the PID writes its manual_output every substep, so an outside
+            # write would be overwritten; the controller's own fields are the way in.
+            owner = next((p.config.id for p in self.controllers.values()
+                          if (p.config.instance_id, p.config.parameter_id) == (instance_id, parameter_id)), None)
+            if owner and not controlled:
+                raise CompilationError('PARAMETER_CONTROLLED', f'{instance_id}.{parameter_id} 由 PID {owner} 控制；'
+                                       '请改该控制器的 setpoint，或切到手动后改 manual_output')
         instance = self.network.instances[instance_id]
         definition = self.network.modules[instance.module_id]
-        candidate = instance.model_copy(update={'parameters': self.network.parameters[instance_id] | {parameter_id: value}})
+        candidate = instance.model_copy(update={'parameters': self.network.parameters[instance_id] | values})
         parameters = validated_parameters(candidate, definition)
         if definition.solver_model == 'pump_curve' and parameters.get('speed_ratio', 1) <= 0:
             raise CompilationError('PARAMETER_RANGE', '当前泵模型转速必须大于零')
+        return parameters
+
+    def _apply_parameters(self, instance_id, parameters):
         if parameters == self.network.parameters[instance_id]:
-            return
+            return False
+        definition = self.network.modules[self.network.instances[instance_id].module_id]
         if instance_id in self.runners:
             self.runners[instance_id].update_parameters(parameters)
         self.network.parameters[instance_id] = parameters
@@ -91,20 +101,62 @@ class SimulationSession:
             if branch.instance_id == instance_id and definition.runtime == 'builtin' and branch.solver_model == 'valve':
                 branch.closed = parameters['opening_ratio'] == 0
         for spec in self.network.storage.values():
-            if spec.instance_id == instance_id and parameter_id == 'heat_input_w':
-                spec.heat_input_w = value
-        self.revision += 1
+            if spec.instance_id == instance_id:
+                spec.heat_input_w = parameters.get('heat_input_w', spec.heat_input_w)
+        return True
 
-    def update_controller(self, controller_id, field, value):
+    def set_parameter(self, instance_id, parameter_id, value, controlled=False):
+        if self._apply_parameters(instance_id, self._candidate_parameters(instance_id, {parameter_id: value}, controlled)):
+            self.revision += 1
+
+    def _candidate_controller(self, controller_id, values):
         pid = self.controllers.get(controller_id)
-        if pid is None or field not in {'setpoint', 'mode', 'manual_output'}:
-            raise CompilationError('PID_COMMAND_INVALID', '控制器或可调字段不存在')
-        config = PIDController.model_validate(pid.config.model_dump() | {field: value})
+        if pid is None or not set(values) <= {'setpoint', 'mode', 'manual_output'}:
+            raise CompilationError('PID_COMMAND_INVALID', f'控制器 {controller_id} 或可调字段 {sorted(values)} 不存在'
+                                   '（可调：setpoint、mode、manual_output）')
+        return PIDController.model_validate(pid.config.model_dump() | values)
+
+    def _apply_controller(self, controller_id, config):
+        pid = self.controllers[controller_id]
         if config.mode != pid.config.mode:
             pid.reset = True
         pid.config = config
         pid.next_s = self.time
+
+    def update_controller(self, controller_id, field, value):
+        self._apply_controller(controller_id, self._candidate_controller(controller_id, {field: value}))
         self.revision += 1
+
+    def write_variables(self, values):
+        """Write several variables at one frame boundary: all of them or none.
+
+        Keys follow the frame: `<instance>.param.<parameter>` for runtime parameters and
+        `controller.<id>.<setpoint|mode|manual_output>` for PID settings.
+        """
+        if not values:
+            raise CompilationError('VARIABLE_WRITE_EMPTY', '没有要写入的变量')
+        parameters, controllers = {}, {}
+        for key, value in values.items():
+            parts = key.split('.')
+            if len(parts) == 3 and parts[0] == 'controller' and parts[1] in self.controllers:
+                controllers.setdefault(parts[1], {})[parts[2]] = value
+            elif len(parts) == 3 and parts[1] == 'param':
+                if parts[0] not in self.network.instances:
+                    raise CompilationError('PARAMETER_TARGET_MISSING', f'{key}：设备 {parts[0]} 不存在')
+                parameters.setdefault(parts[0], {})[parts[2]] = value
+            else:
+                raise CompilationError('VARIABLE_NOT_WRITABLE', f'{key} 不能写入；可写的是 <设备>.param.<运行参数> 和 '
+                                       'controller.<控制器>.setpoint|mode|manual_output')
+        configs = {cid: self._candidate_controller(cid, fields) for cid, fields in controllers.items()}
+        candidates = {iid: self._candidate_parameters(iid, fields) for iid, fields in parameters.items()}
+        changed = False
+        for cid, config in configs.items():
+            self._apply_controller(cid, config)
+            changed = True
+        for iid, params in candidates.items():
+            changed = self._apply_parameters(iid, params) or changed
+        if changed:
+            self.revision += 1
 
     def _control(self):
         variables = self.snapshot().variables

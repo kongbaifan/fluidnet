@@ -99,6 +99,29 @@ class RunManager:
                 rows.append(history[-1])
             return {'rows': deepcopy(rows), 'stride': job.stride, 'total_rows': job.published}
 
+    def wait_receipt(self, run_id, key, timeout_s):
+        """The receipt of command `key` once applied or rejected, or as it stands after `timeout_s`."""
+        deadline = time.monotonic() + timeout_s
+        with self.wake:
+            while True:
+                receipt = self.jobs[run_id].receipts[key][0]
+                remaining = deadline - time.monotonic()
+                if receipt['command_status'] != 'accepted' or remaining <= 0:
+                    return deepcopy(receipt)
+                self.wake.wait(timeout=remaining)
+
+    def latest(self, run_id, keys=None):
+        """Latest published frame values (all, or `keys`) without copying the whole record."""
+        with self.lock:
+            job = self.jobs[run_id]
+            frame = job.record.get('frame') or {}
+            variables = frame.get('variables') or {}
+            if keys is not None:
+                variables = {key: variables[key] for key in keys if key in variables}
+            return {'run_id': run_id, 'status': job.record['status'], 'time_s': frame.get('time_s'),
+                    'sequence': frame.get('sequence'), 'parameter_revision': frame.get('parameter_revision'),
+                    'values': dict(variables), 'known': set(frame.get('variables') or ())}
+
     def records(self):
         with self.lock:
             return [dict(id=j.record['id'], status=j.record['status'], mode=j.record['mode'],
@@ -246,6 +269,8 @@ class RunManager:
                     job.session.set_parameter(command.instance_id, command.parameter_id, command.value)
                 elif action == 'controller':
                     job.session.update_controller(command.controller_id, command.parameter_id, command.value)
+                elif action == 'write':
+                    job.session.write_variables(command.values or {})
                 elif action == 'stop':
                     receipt.update(command_status='applied', applied_time_s=job.session.time)
                     self._event(job, 'command', key, 'applied')

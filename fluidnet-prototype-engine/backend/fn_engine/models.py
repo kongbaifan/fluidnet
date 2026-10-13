@@ -480,10 +480,12 @@ class RunRequest(StrictModel):
 
 
 class RunCommand(StrictModel):
-    action: Literal["pause", "resume", "step", "stop", "set", "controller"]
+    action: Literal["pause", "resume", "step", "stop", "set", "controller", "write"]
     instance_id: str | None = None
     parameter_id: str | None = None
     value: Any = None
+    # action="write": frame keys -> values, applied together at one frame boundary (see VariableWrite).
+    values: dict[str, Any] | None = Field(default=None, max_length=256)
     command_id: str | None = Field(default=None, pattern=r'^[A-Za-z0-9][A-Za-z0-9_-]{0,95}$')
     controller_id: Identifier | None = None
 
@@ -636,6 +638,23 @@ class RunOverviewResponse(StrictModel):
     rows: list[RunFrame] = Field(default_factory=list)
     stride: int = Field(default=1, ge=1)
     total_rows: int = Field(default=0, ge=0)
+
+
+class VariableWrite(StrictModel):
+    """POST /runs/{id}/variables: values by frame key, all applied at one frame boundary or none."""
+    values: dict[str, float | int | str | bool] = Field(min_length=1, max_length=256)
+    command_id: str | None = Field(default=None, pattern=r'^[A-Za-z0-9][A-Za-z0-9_-]{0,95}$')
+    # Wait up to this long for the write to be applied or rejected (0 = return the accepted receipt).
+    wait_s: float = Field(default=0., ge=0, le=10)
+
+
+class VariableValues(StrictModel):
+    run_id: str
+    status: str
+    time_s: float | None = None
+    sequence: int | None = None
+    parameter_revision: int | None = None
+    values: dict[str, float | int | str | bool | None] = Field(default_factory=dict)
 
 
 class RunEvent(StrictModel):

@@ -6,7 +6,7 @@
 
 | 方法与路径 | 请求 | 返回 |
 | --- | --- | --- |
-| GET /api/v1/health | 无 | 版本（0.4.5）、能力标志（含 `thermal`、`property_coupling`、`tank_state`、`live_runs`、`pid`、`runtime_parameters`、`continuous_step`、`continuous_runs`、`refprop.installed`）、同步运行 2001 帧上限、`history_window_max`、`overview_points`、20 次记录保留数 |
+| GET /api/v1/health | 无 | 版本（0.4.6）、能力标志（含 `thermal`、`property_coupling`、`tank_state`、`live_runs`、`pid`、`runtime_parameters`、`continuous_step`、`continuous_runs`、`variables_api`、`run_stream`、`refprop.installed`）、`auth.required`、同步运行 2001 帧上限、`history_window_max`、`overview_points`、20 次记录保留数 |
 | GET /api/v1/examples/{name} | `level` 或 `temperature` | 内置 PID 示例 Project；未知名称 404 |
 | GET /api/v1/catalog | 无 | 模块参数/通路/变量目录、原型参数名映射 |
 | GET /api/v1/modules | 无 | 可安装模块包和内置模块清单、版本与内容哈希 |
@@ -25,6 +25,9 @@
 | GET /api/v1/runs | 无 | 后台运行列表（id、status、mode、项目名、当前 time_s），新的在前 |
 | GET /api/v1/runs/{run_id}/events | 无 | 状态事件与命令事件（accepted/applied/rejected），每次运行恰好一条终态事件 |
 | POST /api/v1/runs/{run_id}/command | RunCommand | RunStatus 加命令回执；见「运行生命周期与控制」 |
+| GET /api/v1/runs/{run_id}/variables | `keys`（逗号分隔的帧变量键，省略为全部） | VariableValues：status、time_s、sequence、parameter_revision、values；未知键 422 `VARIABLE_UNKNOWN`（附 keys），还没有帧 409 `NO_FRAME` |
+| POST /api/v1/runs/{run_id}/variables | VariableWrite | RunStatus 加命令回执；见「变量接口」 |
+| WS /api/v1/runs/{run_id}/stream | `keys`、`interval_ms`（10–5000，默认 50） | 推送 `{"type":"frame",…}`，结束时 `{"type":"end","status":…}`；见「变量接口」 |
 
 `POST /api/v1/runs?background=true` 创建后台运行，返回 HTTP 202 和 `run_id`；已有 20 个非终态运行时返回 422 `RUN_LIMIT`。默认仍保持兼容的同步模式，返回 HTTP 201。前端稳态使用同步请求；动态项目在 health 报告 `live_runs` 时使用后台会话（运行、单步、暂停、改参数都对同一个 run_id 发命令）。同步运行不能中途控制。
 
@@ -192,6 +195,22 @@ POST /runs 对类型正确但编译或求解失败的请求仍创建可查询的
 
 Worker RPC 超时默认 10 秒，超时返回 `MODULE_RUNTIME_TIMEOUT` 并终止进程；源码异常或缺失通路返回 `MODULE_RUNTIME_ERROR`。所有完成/失败路径都回收 Worker。通信显式使用 UTF-8，模块 print 不进入 JSON 通道。
 
+## 变量接口（v0.4.6）
+
+面向三维界面、数字孪生、网关等外部程序，按帧变量键读写一个正在运行的后台会话，键名与 RunFrame.variables 相同。
+
+- 读：`GET /runs/{id}/variables?keys=T1.state.level_m,V1.mass_flow_kg_s` 只返回最新发布帧的这些值，不复制整条记录。运行指定了 `selected_variables` 时只能读这些变量。同步运行也可读（读其最终帧）。
+- 写：`POST /runs/{id}/variables`，请求体 `{"values": {"V1.param.opening_ratio": 0.6, "controller.level.setpoint": 1.2}, "command_id": "可选", "wait_s": 2}`。
+  - 可写的键：`<设备>.param.<运行参数>`（`runtime=true` 的参数，同 `set`），`controller.<id>.setpoint|mode|manual_output`。
+  - 所有值在同一个帧边界一起生效，`parameter_revision` 只加 1；任何一项不合法（不可写、越界、被 PID 绑定、键格式不对）整批拒绝，什么都不改。
+  - 被 PID 绑定的参数一律拒绝直接写入，手动模式也一样（手动时 PID 每个子步写 manual_output，外部写入会被覆盖）；请改控制器字段。
+  - `wait_s` > 0 时等到命令 applied 或 rejected 再返回（最多 10 秒），否则立即返回 `accepted` 回执，与 `/command` 相同；暂停的会话也会处理写入。底层是新的 RunCommand `action="write"`、`values`。
+- 推送：`WS /runs/{id}/stream?keys=…` 在每个新发布的帧推送一条 `{"type":"frame","status","time_s","sequence","parameter_revision","values"}`。客户端慢时跳过中间帧而不排队，`sequence` 体现跳过的帧；运行结束发 `{"type":"end","status":…}` 并关闭。未知运行关闭码 4404，未知变量 4422，令牌无效 4401。只有后台运行可以订阅。
+
+## 访问控制（v0.4.6）
+
+服务以 `--auth required`，或 `--auth auto` 监听本机以外地址启动时，除 `GET /api/v1/health` 外所有 `/api/` 请求都要 `Authorization: Bearer <令牌>`：没有或无效返回 401 `AUTH_REQUIRED`，只读令牌发 POST 返回 403 `AUTH_SCOPE`。只读令牌可调用 GET 接口和订阅推送；控制令牌还可以调用全部 POST（校验、求解、运行、命令、写变量、模块保存）。WebSocket 可在请求头带令牌，或用子协议 `fluidnet.bearer.<令牌>`（服务端回应同一子协议）。静态前端页面、`/docs` 和 `/openapi.json` 不受令牌限制，它们不含运行数据。`/api/v1/health` 返回 `auth.required`，供前端决定是否要求输入令牌。跨域来源由 `--cors-origin` 显式列出，默认不允许跨域。
+
 ## 尚未实现
 
-流式推送 `WS /runs/{id}/stream`；运行记录持久化与重启后恢复（窗口外的完整帧不保存，只有抽稀曲线）；随时间变化的参数计划（运行中改参数只能逐条发 `set`）。
+串口桥接与外部变量别名映射（「对接」页的串口、变量绑定仍是演示）；HTTPS（请用反向代理）；运行记录持久化与重启后恢复（窗口外的完整帧不保存，只有抽稀曲线）；随时间变化的参数计划（运行中改参数只能逐条发 `set`）。

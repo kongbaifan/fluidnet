@@ -10,7 +10,8 @@
             "step",
             "stop",
             "set",
-            "controller"
+            "controller",
+            "write"
           ],
           "title": "Action",
           "type": "string"
@@ -42,6 +43,20 @@
         "value": {
           "default": null,
           "title": "Value"
+        },
+        "values": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "maxProperties": 256,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Values"
         },
         "command_id": {
           "anyOf": [

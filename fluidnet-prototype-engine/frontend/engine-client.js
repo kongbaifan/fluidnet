@@ -18,10 +18,20 @@ window.createEngineClient = function (ui) {
   // inside 300 s.
   const RUN_POLL_INTERVAL_MS = 100, RUN_POLL_MAX_ITERATIONS = 3000, RUN_POLL_DEADLINE_MS = 300000;
   const waitLabel = ms => `${(ms / 1000).toFixed(1)} 秒`;
+  // Access token for a server started with authentication; kept for this browser tab only.
+  const TOKEN_KEY = 'fluidnet-access-token';
+  const authHeaders = () => { const token = sessionStorage.getItem(TOKEN_KEY); return token ? {Authorization: 'Bearer ' + token} : {}; };
+  let askingToken = false;
+  function askToken(reason) {
+    if (askingToken) return;
+    askingToken = true;
+    ui.askToken(reason, token => { sessionStorage.setItem(TOKEN_KEY, token.trim()); location.reload(); });
+  }
   async function request(path, body, signal) {
     const response = await fetch('/api/v1' + path, {method: body === undefined ? 'GET' : 'POST',
-      headers: {'Content-Type':'application/json'}, body: body === undefined ? undefined : JSON.stringify(body), signal});
+      headers: {'Content-Type':'application/json', ...authHeaders()}, body: body === undefined ? undefined : JSON.stringify(body), signal});
     const data = await response.json();
+    if (response.status === 401) { sessionStorage.removeItem(TOKEN_KEY); askToken('令牌无效或已撤销，请重新输入。'); }
     if (!response.ok) {
       const detail = data.detail;
       const error = Error(typeof detail === 'string' ? detail : Array.isArray(detail) ? detail.map(x => x.loc.join('.') + '：' + x.msg).join('；') : detail?.message || JSON.stringify(detail));
@@ -557,6 +567,8 @@ window.createEngineClient = function (ui) {
   }
   async function init() {
     try {
+      const probe = await request('/health');
+      if (probe.auth?.required && !sessionStorage.getItem(TOKEN_KEY)) { health = probe; askToken('此计算服务要求访问令牌。'); return; }
       const [service,data,packages] = await Promise.all([request('/health'),request('/catalog'),request('/modules')]);
       health = service;
       catalog=data;
@@ -700,5 +712,5 @@ window.createEngineClient = function (ui) {
     }
     owner.run.parameterKey=ui.parameterKey(owner);ui.persist();ui.render();
   }
-  return {command,tick,validate,init,applyParameters,loadOverview,overview:id=>overviews.get(id),circuits:id=>circuitsByProject.get(id)||[],confirmedCommand,portValue,manifestPayload,contractText,checkModule,saveModule,versions,loadVersion,newModule,updateContractItem,bindModule,pinProject,moduleForInsert,get catalog(){return catalog;},get health(){return health;}};
+  return {command,tick,validate,init,applyParameters,loadOverview,authHeaders,signOut:()=>{sessionStorage.removeItem(TOKEN_KEY);location.reload();},overview:id=>overviews.get(id),circuits:id=>circuitsByProject.get(id)||[],confirmedCommand,portValue,manifestPayload,contractText,checkModule,saveModule,versions,loadVersion,newModule,updateContractItem,bindModule,pinProject,moduleForInsert,get catalog(){return catalog;},get health(){return health;}};
 };

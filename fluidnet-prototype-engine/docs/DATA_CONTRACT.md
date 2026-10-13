@@ -174,6 +174,7 @@ PID 控制器（v0.4.2）：`Project.controllers` 是 `PIDController` 列表，�
 
 ## 运行记录与控制
 
+- v0.4.6：`RunCommand.action` 新增 `write`，配 `values`（帧变量键 → 值，最多 256 个）；新增 `VariableWrite`（values、command_id、wait_s 0–10）与 `VariableValues`（run_id、status、time_s、sequence、parameter_revision、values）；新诊断 `VARIABLE_NOT_WRITABLE`、`VARIABLE_WRITE_EMPTY`、`VARIABLE_UNKNOWN`、`NO_FRAME`、`AUTH_REQUIRED`、`AUTH_SCOPE`。`PARAMETER_CONTROLLED` 改为：被 PID 绑定的参数在手动模式下也不能直接写（`set` 的行为不变，仍只在自动模式下拒绝）。
 - `RunRequest` v0.4.2 新增 `execution_mode`（`fast`/`realtime`）、`speed_ratio`（0–100]、`start_paused`；v0.4.3 起 `duration_s` 可为 null（后台持续运行，steady 不允许），新增 `history_window`（10–20001，默认 2001）。`RunFrame.sequence` 是绝对帧序号，与 history 的 offset 一致。
 - `RunHistoryResponse` v0.4.3 新增 `first_offset`、`truncated`；新增 `RunOverviewResponse`（rows、stride、total_rows）。
 - `RunStatus`:run_id、status(queued/running/paused/completed/failed/cancelled/interrupted；`stopping` 未使用)、mode、progress、frame、total_rows、lag_s，命令响应另带 command_id、command_status(accepted/applied/rejected)、applied_time_s、message。`progress` 在 completed 为 1，动态运行按 `frame.time_s / duration_s` 估算。

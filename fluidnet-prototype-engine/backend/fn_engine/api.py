@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import math
 import uuid
@@ -9,12 +10,14 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from threading import Lock
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import __version__
-from .jobs import OVERVIEW_POINTS, RunManager
+from .auth import AuthConfig, allowed, bearer, websocket_secret
+from .jobs import OVERVIEW_POINTS, TERMINAL, RunManager
 from .bridge import PARAMETER_BINDINGS, normalize_prototype_export
 from .catalog import builtin_catalog
 from .compiler import CompilationError, compile_project, validate_project_details
@@ -36,6 +39,8 @@ from .models import (
     RunEvent,
     RunHistoryResponse,
     RunOverviewResponse,
+    VariableValues,
+    VariableWrite,
     ValidationResponse,
     ModuleSaveRequest,
     ModuleVersionResponse,
@@ -141,7 +146,10 @@ def _unexpected_failure(error: BaseException) -> tuple[int, dict]:
     return 500, {'code': 'INTERNAL_ERROR', 'message': str(error)}
 
 
-def create_app(frontend_root: str | Path | None = None, module_storage_root: str | Path | None = None) -> FastAPI:
+def create_app(frontend_root: str | Path | None = None, module_storage_root: str | Path | None = None,
+               auth: AuthConfig | None = None, cors_origins: list[str] | tuple[str, ...] = ()) -> FastAPI:
+    """`auth.required` puts every /api/ call except /api/v1/health behind a bearer token (see auth.py)."""
+    auth = auth or AuthConfig()
     runs = OrderedDict()
     lock = Lock()
     manager = RunManager(apply_scenario)
@@ -163,6 +171,24 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
     project_root = Path(__file__).resolve().parents[2]
     store = ModuleStore(project_root / 'modules', Path(module_storage_root or os.environ.get('FLUIDNET_MODULE_STORE') or project_root / '.runtime' / 'module-packages'))
 
+    @app.middleware('http')
+    async def require_token(request: Request, call_next):
+        path = request.url.path
+        if (auth.required and path.startswith('/api/') and path != '/api/v1/health'
+                and request.method != 'OPTIONS'):
+            record = auth.store.verify(bearer(request.headers.get('authorization')))
+            if record is None:
+                return JSONResponse(status_code=401, headers={'WWW-Authenticate': 'Bearer'},
+                                    content={'detail': {'code': 'AUTH_REQUIRED', 'message': '需要有效的访问令牌（Authorization: Bearer …）'}})
+            if not allowed(record, request.method):
+                return JSONResponse(status_code=403, content={'detail': {'code': 'AUTH_SCOPE',
+                                    'message': f'令牌 {record["name"]} 只有 {record["scope"]} 权限，不能执行 {request.method}'}})
+        return await call_next(request)
+
+    if cors_origins:
+        app.add_middleware(CORSMiddleware, allow_origins=list(cors_origins), allow_methods=['GET', 'POST'],
+                           allow_headers=['Authorization', 'Content-Type'])
+
     @app.get('/api/v1/health')
     def health():
         return {'status':'ok','version':__version__,'solver':'declarative-fluid-v1','supported_domains':['fluid'],
@@ -171,10 +197,11 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
                                 'time_integration':'implicit_euler',
                                 'coolprop_single_phase':True,'user_code':True,'worker_process':True,'async_runs':True,
                                 'module_versions':True,'run_control':True,'live_runs':True,'pid':True,'runtime_parameters':True,'continuous_step':True,
-                                'continuous_runs':True,
+                                'continuous_runs':True,'variables_api':True,'run_stream':True,
                                 # Whether a REFPROP installation is present; the DLL is not loaded for this check.
                                 'refprop':{'installed':refprop_root() is not None}},
-                'max_frames':2001,'run_retention':RUN_RETENTION,'history_window_max':20001,'overview_points':OVERVIEW_POINTS}
+                'max_frames':2001,'run_retention':RUN_RETENTION,'history_window_max':20001,'overview_points':OVERVIEW_POINTS,
+                'auth':{'required':auth.required}}
 
     @app.get('/api/v1/catalog', response_model=CatalogResponse)
     def catalog():
@@ -401,6 +428,97 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
             raise HTTPException(409 if error.diagnostic.code in {'RUN_ALREADY_FINISHED','COMMAND_ID_CONFLICT'} else 422,
                                 detail={'code':error.diagnostic.code, 'message':str(error)}) from error
         return status_payload(manager.snapshot(run_id)) | receipt
+
+    def frame_values(run_id, wanted):
+        """Latest values of a run (background or synchronous) with the known keys of its frame."""
+        try:
+            return manager.latest(run_id, wanted)
+        except KeyError:
+            record = get_run(run_id)
+        frame = record.get('frame') or {}
+        variables = frame.get('variables') or {}
+        return {'run_id': run_id, 'status': record.get('status'), 'time_s': frame.get('time_s'), 'sequence': frame.get('sequence'),
+                'parameter_revision': frame.get('parameter_revision'), 'known': set(variables),
+                'values': {k: variables[k] for k in wanted if k in variables} if wanted is not None else dict(variables)}
+
+    def split_keys(keys):
+        return [key.strip() for key in keys.split(',') if key.strip()] if keys else None
+
+    def check_keys(data, wanted):
+        if wanted and not data['known']:
+            raise HTTPException(409, detail={'code': 'NO_FRAME', 'message': f'运行 {data["status"]}，还没有可读的帧'})
+        unknown = sorted(set(wanted or ()) - data['known'])
+        if unknown:
+            raise HTTPException(422, detail={'code': 'VARIABLE_UNKNOWN', 'message': f'帧中没有这些变量：{unknown}',
+                                             'keys': unknown})
+
+    @app.get('/api/v1/runs/{run_id}/variables', response_model=VariableValues)
+    def run_variables(run_id: str, keys: str | None = Query(None, max_length=16384)):
+        """Latest frame values; `keys` is a comma-separated list of frame keys (default: all)."""
+        wanted = split_keys(keys)
+        data = frame_values(run_id, wanted)
+        check_keys(data, wanted)
+        return {key: data[key] for key in ('run_id', 'status', 'time_s', 'sequence', 'parameter_revision', 'values')}
+
+    @app.post('/api/v1/runs/{run_id}/variables', response_model=RunStatus)
+    def write_run_variables(run_id: str, body: VariableWrite):
+        """Write runtime parameters / PID settings by frame key, together at the next frame boundary."""
+        get_run(run_id)
+        command = RunCommand(action='write', values=body.values, command_id=body.command_id)
+        try:
+            receipt = manager.command(run_id, command)
+        except KeyError:
+            raise HTTPException(409, detail={'code':'RUN_ALREADY_FINISHED', 'message':'同步运行已结束'})
+        except CompilationError as error:
+            raise HTTPException(409, detail={'code':error.diagnostic.code, 'message':str(error)}) from error
+        if body.wait_s:
+            try:
+                receipt = manager.wait_receipt(run_id, receipt['command_id'], body.wait_s)
+            except KeyError:
+                pass
+        return status_payload(manager.snapshot(run_id)) | receipt
+
+    @app.websocket('/api/v1/runs/{run_id}/stream')
+    async def run_stream(websocket: WebSocket, run_id: str, keys: str | None = None, interval_ms: int = 50):
+        """Push the latest frame (selected `keys`) whenever a new one is published, then an `end` message.
+
+        A slow client skips frames instead of queueing them; `sequence` shows the gaps.
+        """
+        subprotocol = None
+        if auth.required:
+            secret, subprotocol = websocket_secret(websocket.headers)
+            if not allowed(auth.store.verify(secret), 'GET'):
+                await websocket.accept(subprotocol=subprotocol)
+                await websocket.close(code=4401, reason='AUTH_REQUIRED')
+                return
+        wanted = split_keys(keys)
+        interval = min(max(interval_ms, 10), 5000) / 1000
+        await websocket.accept(subprotocol=subprotocol)
+        last = None
+        try:
+            while True:
+                try:
+                    data = manager.latest(run_id, wanted)
+                except KeyError:
+                    await websocket.send_json({'type': 'error', 'code': 'RUN_NOT_FOUND', 'message': RUN_NOT_FOUND + '；只有后台运行可以订阅'})
+                    await websocket.close(code=4404)
+                    return
+                unknown = sorted(set(wanted or ()) - data['known']) if data['known'] else []
+                if unknown:
+                    await websocket.send_json({'type': 'error', 'code': 'VARIABLE_UNKNOWN', 'keys': unknown})
+                    await websocket.close(code=4422)
+                    return
+                terminal = data['status'] in TERMINAL
+                if data['known'] and data['sequence'] != last and not (terminal and data['status'] == 'failed'):
+                    last = data['sequence']
+                    await websocket.send_json({'type': 'frame', **{k: data[k] for k in ('status', 'time_s', 'sequence', 'parameter_revision', 'values')}})
+                if terminal:
+                    await websocket.send_json({'type': 'end', 'status': data['status']})
+                    await websocket.close()
+                    return
+                await asyncio.sleep(interval)
+        except (WebSocketDisconnect, RuntimeError):
+            return
 
     if frontend_root:
         app.mount('/',StaticFiles(directory=str(Path(frontend_root)),html=True),name='frontend')
