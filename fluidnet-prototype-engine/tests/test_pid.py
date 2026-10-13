@@ -3,7 +3,7 @@ import math
 import pytest
 from scipy.optimize import brentq
 
-from fn_engine.compiler import CompilationError, compile_project
+from fn_engine.compiler import CompilationError, compile_project, validate_project
 from fn_engine.controllers import PID
 from fn_engine.examples import pid_example
 from fn_engine.models import PIDController
@@ -73,6 +73,25 @@ def test_limits_must_fit_the_target_range():
     with pytest.raises(CompilationError) as error:
         solve_dynamic(compile_project(model), 1., .5)
     assert error.value.diagnostic.code == 'PID_TARGET_INVALID'
+
+
+@pytest.mark.parametrize('change, code', [
+    ({'parameter_id': 'kv_m3_h'}, 'PARAMETER_NOT_RUNTIME'),
+    ({'maximum': 2.}, 'PID_TARGET_INVALID'),
+    ({'measurement': 'T1.state.no_such_value'}, 'PID_MEASUREMENT_UNKNOWN'),
+    ({'measurement': 'X9.state.level_m'}, 'PID_MEASUREMENT_UNKNOWN'),
+    ({'measurement': 'T1.param.level_m'}, 'PID_MEASUREMENT_UNKNOWN'),
+])
+def test_project_validation_reports_controller_errors(change, code):
+    model = pid_example('level')
+    model.controllers[0] = model.controllers[0].model_copy(update=change)
+    diagnostics = validate_project(model)
+    assert [d.code for d in diagnostics if d.severity == 'error'] == [code]
+
+
+def test_valid_controllers_pass_project_validation():
+    for kind in ('level', 'temperature'):
+        assert not [d for d in validate_project(pid_example(kind)) if d.severity == 'error']
 
 
 def test_controlled_parameter_rejects_manual_writes_until_manual_mode():

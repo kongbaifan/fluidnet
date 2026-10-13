@@ -113,7 +113,7 @@ v0.4.2 起后台运行由 `jobs.RunManager` 管理，同步 `POST /runs` 仍在�
 - 发布：每帧经 `selected_variables` 和 trend 瘦身后写入记录；会话内只有最新一帧保留全部变量（更早的帧换成已发布的瘦身版本以控制内存），结束时末帧写回完整帧。暂停期间不过期，没有自动恢复。
 - 终态：completed、failed、cancelled，服务关闭时仍未结束的运行记为 interrupted。任何路径都会关闭会话、回收 Worker，并把未执行的命令记为 rejected。终态记录保留最近 20 个，活动运行不计入淘汰。
 
-FastAPI lifespan 关闭时先 `RunManager.close()`（等待计算线程，再终止剩余运行）。同步运行没有会话，命令端点对它返回 409 `RUN_ALREADY_FINISHED`。`api.py` 中旧的 `RunControl`/`run_task` 后台路径已不再被调用。
+FastAPI lifespan 关闭时先 `RunManager.close()`（等待计算线程，再终止剩余运行）。同步运行没有会话，命令端点对它返回 409 `RUN_ALREADY_FINISHED`。
 
 ## 前端模块工作流
 

@@ -149,14 +149,14 @@ PID 控制器（v0.4.2）：`Project.controllers` 是 `PIDController` 列表，�
 | 字段 | 含义 |
 | --- | --- |
 | `id` | 控制器 ID，项目内唯一 |
-| `measurement` | 反馈变量的完整路径，如 `T1.state.level_m`；第 0 帧取不到有限数值时运行失败，`PID_MEASUREMENT_INVALID` |
-| `instance_id`、`parameter_id` | 执行参数；必须是 `runtime=true` 的可写数值参数，否则运行开始时报 `PARAMETER_NOT_RUNTIME`；同一参数只能绑定一个控制器 |
+| `measurement` | 反馈变量的完整路径，如 `T1.state.level_m`；必须是该设备模块声明的可采样变量（不能是 `param.*`），否则编译报 `PID_MEASUREMENT_UNKNOWN`；条件变量（如 `thermal_cells=0` 的管道状态）在第 0 帧取不到有限数值时运行失败，`PID_MEASUREMENT_INVALID` |
+| `instance_id`、`parameter_id` | 执行参数；必须是 `runtime=true` 的可写数值参数，否则编译报 `PARAMETER_NOT_RUNTIME`；同一参数只能绑定一个控制器 |
 | `setpoint`、`kp`、`ki`（1/s）、`kd`（s） | 并联式 PID，u = kp·e + ∫ki·e dt + kd·d(−y)/dt，e = setpoint − y |
 | `sample_s` (0.1，0–60] | 采样周期 |
 | `minimum`、`maximum` | 输出限幅，必须在目标参数的目录范围内，否则 `PID_TARGET_INVALID` |
 | `mode` (`auto`)、`manual_output` | 手动时输出 `manual_output`（缺省保持当前值），切换无扰 |
 
-帧变量 `controller.<id>.measurement`、`setpoint`、`output`、`integral`、`mode`（字符串）。注意 `/projects/validate` 目前不检查控制器的目标和测量变量，这些错误在运行开始时报出。
+帧变量 `controller.<id>.measurement`、`setpoint`、`output`、`integral`、`mode`（字符串）。控制器的目标、限幅和反馈变量在编译期检查，`/projects/validate` 与运行报出同一诊断。
 
 运行中被动管段的隔离（v0.4.2）：运行中阀门开度改为 0 后，没有压力参考的子网络如果只含管道、阀门、阻力和换热器，取一个节点保持上一接受步的压力和温度，流量为零，诊断 `ISOLATED_PRESSURE_HELD`（提示）；子网络含泵或 Python 模块（管道、阀门、阻力、换热器以外的支路）时报 `ISOLATED_ACTIVE_NETWORK`。含水箱的子网络由水箱定压，不算隔离。编译期就没有压力参考的子网络仍报 `PRESSURE_REFERENCE_MISSING`。
 

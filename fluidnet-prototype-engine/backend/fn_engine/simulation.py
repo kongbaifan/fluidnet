@@ -7,7 +7,7 @@ import math
 import numpy as np
 
 from . import solver as s
-from .compiler import CompilationError, validated_parameters
+from .compiler import CompilationError, runtime_parameter, validated_parameters
 from .controllers import PID
 from .models import Diagnostic, PIDController
 from .properties import property_service
@@ -47,12 +47,8 @@ class SimulationSession:
             self.runners = s._python_runners(self.network)
             self.result = s.solve_network(self.network, self.runners, 0., service=self.service if self.network.project.solver.thermal else None)
             self.cells = dict(self.result.thermal.cell_enthalpies) if self.result.thermal else {}
+            # Targets and limits were checked by compile_project (validate_controllers).
             for config in self.network.project.controllers:
-                spec = self.parameter_spec(config.instance_id, config.parameter_id)
-                if spec.value_type != 'number':
-                    raise CompilationError('PID_TARGET_INVALID', 'PID 目标必须是可调数值参数')
-                if spec.minimum is not None and config.minimum < spec.minimum or spec.maximum is not None and config.maximum > spec.maximum:
-                    raise CompilationError('PID_TARGET_INVALID', 'PID 输出范围超出目标参数范围')
                 current = self.network.parameters[config.instance_id][config.parameter_id]
                 self.controllers[config.id] = PID(config.model_copy(deep=True), min(config.maximum, max(config.minimum, current)))
             frame = self.snapshot()
@@ -67,11 +63,7 @@ class SimulationSession:
         instance = self.network.instances.get(instance_id)
         if instance is None:
             raise CompilationError('PARAMETER_TARGET_MISSING', '目标设备不存在')
-        definition = self.network.modules[instance.module_id]
-        spec = next((p for p in definition.parameters if p.id == parameter_id), None)
-        if spec is None or not spec.writable or not spec.runtime:
-            raise CompilationError('PARAMETER_NOT_RUNTIME', f'{instance_id}.{parameter_id} 不允许运行时修改')
-        return spec
+        return runtime_parameter(instance, self.network.modules[instance.module_id], parameter_id)
 
     def set_parameter(self, instance_id, parameter_id, value, controlled=False):
         self.parameter_spec(instance_id, parameter_id)

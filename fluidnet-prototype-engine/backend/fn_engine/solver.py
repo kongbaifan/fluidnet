@@ -835,6 +835,3 @@ def _tank_event(network: CompiledNetwork, tanks: dict[int, TankState], service):
             return 'TANK_FULL', spec
     return None
 
-
-def _integrate(network, duration_s, dt_s, should_cancel=None):
-    return solve_dynamic(network, duration_s, dt_s, should_cancel)

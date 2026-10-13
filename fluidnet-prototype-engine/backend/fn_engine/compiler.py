@@ -348,8 +348,36 @@ def compile_project(project: Project) -> CompiledNetwork:
     for node in range(len(roots)):
         if components.find(node) not in referenced:
             raise CompilationError('PRESSURE_REFERENCE_MISSING', f'子网络 {roots[node]} 缺少压力边界（关闭阀门也可能隔离回路）')
+    validate_controllers(project, modules, instances)
     return CompiledNetwork(project, modules, instances, parameters, nodes, roots, branches, fixed, diagnostics,
                            fixed_temperatures, [components.find(n) for n in range(len(roots))], storage)
+
+
+def runtime_parameter(instance, definition, parameter_id):
+    """The ParameterSpec a run may write; shared by PID binding and the `set` command."""
+    spec = next((p for p in definition.parameters if p.id == parameter_id), None)
+    if spec is None or not spec.writable or not spec.runtime:
+        raise CompilationError('PARAMETER_NOT_RUNTIME', f'{instance.id}.{parameter_id} 不允许运行时修改', instance.id, parameter_id)
+    return spec
+
+
+def validate_controllers(project: Project, modules, instances) -> None:
+    """Static PID checks; a declared measurement that is absent at t=0 still fails the run."""
+    for c in project.controllers:
+        target = instances[c.instance_id]
+        spec = runtime_parameter(target, modules[target.module_id], c.parameter_id)
+        if spec.value_type != 'number':
+            raise CompilationError('PID_TARGET_INVALID', f'PID {c.id} 的目标 {c.instance_id}.{c.parameter_id} 不是数值参数',
+                                   c.instance_id, c.parameter_id)
+        if spec.minimum is not None and c.minimum < spec.minimum or spec.maximum is not None and c.maximum > spec.maximum:
+            raise CompilationError('PID_TARGET_INVALID', f'PID {c.id} 的输出范围 [{c.minimum:g}, {c.maximum:g}] 超出目标参数范围 '
+                                   f'[{spec.minimum}, {spec.maximum}]', c.instance_id, c.parameter_id)
+        instance_id, _, variable_id = c.measurement.partition('.')
+        source = instances.get(instance_id)
+        variable = source and next((v for v in modules[source.module_id].variables if v.id == variable_id), None)
+        if not variable or not variable.sampleable or variable.source == 'parameter':
+            raise CompilationError('PID_MEASUREMENT_UNKNOWN', f'PID {c.id} 的反馈变量 {c.measurement} 不是可采样的设备变量',
+                                   instance_id if source else None, 'measurement')
 
 
 def validate_scenarios(project: Project, modules: dict[str, ModuleDefinition]) -> list[Diagnostic]:

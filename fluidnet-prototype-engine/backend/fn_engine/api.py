@@ -5,11 +5,9 @@ import math
 import uuid
 import os
 from collections import OrderedDict
-from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from pathlib import Path
-from threading import Event, Lock
-from typing import Callable
+from threading import Lock
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import JSONResponse
@@ -50,77 +48,7 @@ from .solver import SolveCancelled, SolveFailed, solve_dynamic, solve_steady
 logger = logging.getLogger('fn_engine.api')
 
 RUN_RETENTION = 20
-TERMINAL_STATUSES = frozenset({'completed', 'failed', 'cancelled'})
 RUN_NOT_FOUND = '运行记录不存在或已过期;仅在内存保留最近 20 次运行'
-
-
-class RunControl:
-    """Cooperative cancellation/pause flags shared between the API and the solving thread.
-
-    Cancellation is *cooperative*: `solve_dynamic` polls `should_cancel` between
-    timeline frames, so the frame currently in flight always finishes before the
-    run stops. `pause` reuses the very same hook - while paused the poll call
-    blocks until `resume`, `cancel`, or the internal pause budget expires.
-    """
-
-    # A paused run gives up waiting after this many seconds and resumes on its
-    # own, so a client that disappears cannot pin a solver thread forever.
-    PAUSE_BUDGET_S = 30.0
-
-    def __init__(self) -> None:
-        self._cancel = Event()
-        # Open gate: "not paused". `pause` gates it while `resume`/`cancel` open
-        # it, so a parked solver thread wakes immediately instead of waiting out
-        # the budget.
-        self._resume = Event()
-        self._resume.set()
-        self._lock = Lock()
-        self._paused = False
-        # Bumped by every `pause`. A parked solver thread remembers the value it
-        # parked on and clears the flag only if nothing newer arrived, so a
-        # second pause landing while the first is parked can never be swallowed.
-        self._pause_seq = 0
-
-    # -- solver-thread side ------------------------------------------------
-    def should_cancel(self) -> bool:
-        if self._cancel.is_set():
-            return True
-        with self._lock:
-            paused = self._paused
-            seq = self._pause_seq
-        if paused:
-            self._resume.wait(timeout=self.PAUSE_BUDGET_S)
-            with self._lock:
-                if self._pause_seq == seq:
-                    self._paused = False
-        return self._cancel.is_set()
-
-    # -- API-thread side ---------------------------------------------------
-    def cancel(self) -> None:
-        with self._lock:
-            self._paused = False
-            self._resume.set()
-        self._cancel.set()
-
-    @property
-    def cancelled(self) -> bool:
-        return self._cancel.is_set()
-
-    @property
-    def paused(self) -> bool:
-        with self._lock:
-            return self._paused
-
-    def pause(self) -> None:
-        with self._lock:
-            self._paused = True
-            self._pause_seq += 1
-            self._resume.clear()
-
-    def resume(self) -> None:
-        with self._lock:
-            self._paused = False
-            self._resume.set()
 
 
 def apply_scenario(project, scenario_id):
@@ -214,24 +142,21 @@ def _unexpected_failure(error: BaseException) -> tuple[int, dict]:
 
 def create_app(frontend_root: str | Path | None = None, module_storage_root: str | Path | None = None) -> FastAPI:
     runs = OrderedDict()
-    controls: dict[str, RunControl] = {}
     lock = Lock()
-    executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix='fluidnet-run')
     manager = RunManager(apply_scenario)
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
-        # The executor is owned by this app; tests build one app per case, so
-        # shutting it down stops live thread pools from accumulating. Teardown
-        # must never raise: a run may still be mid-flight while the app closes.
+        # The run manager is owned by this app; tests build one app per case, so
+        # closing it stops live thread pools from accumulating. Teardown must
+        # never raise: a run may still be mid-flight while the app closes.
         try:
             yield
         finally:
             try:
                 manager.close()
-                executor.shutdown(wait=False, cancel_futures=True)
             except Exception:  # pragma: no cover - defensive teardown
-                logger.exception('FluidNet run executor shutdown failed')
+                logger.exception('FluidNet run manager shutdown failed')
 
     app = FastAPI(title='FluidNet Prototype Engine', version=__version__, lifespan=lifespan)
     project_root = Path(__file__).resolve().parents[2]
@@ -331,14 +256,8 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
             status, detail = _unexpected_failure(error)
             raise HTTPException(status, detail=detail) from error
 
-    def compute_run(run_id: str, request: RunRequest, control: RunControl | None = None) -> dict:
-        """Solve a run and always write a terminal record.
-
-        `control` is the cancellation/pause token for background runs; it is
-        consulted once more at record-write time so a `stop` that lands after
-        the last frame still reports `cancelled` instead of losing the race.
-        """
-        cancel_hook: Callable[[], bool] | None = control.should_cancel if control is not None else None
+    def compute_run(run_id: str, request: RunRequest) -> dict:
+        """Solve a synchronous run and always write a terminal record (background runs use RunManager)."""
         history: list[RunFrame] = []
         try:
             project = apply_scenario(request.project, request.scenario_id)
@@ -346,7 +265,7 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
             if request.mode == 'steady':
                 history = [solve_steady(network)]
             else:
-                history = solve_dynamic(network, request.duration_s, request.dt_s, should_cancel=cancel_hook)
+                history = solve_dynamic(network, request.duration_s, request.dt_s)
             shape_history(history, request, project)
             frame, status = history[-1], 'completed'
         except SolveFailed as error:
@@ -372,20 +291,9 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
         except ValueError as error:
             history, status = [], 'failed'
             frame = RunFrame(status='failed',valid=False,time_s=0,diagnostics=[diagnostic(error)])
-        # A cancel that arrives while the final frame is being written must not
-        # be lost. Only a completed run is flipped: a real failure stays failed.
-        if status == 'completed' and control is not None and control.cancelled:
-            status = 'cancelled'
         if status == 'cancelled':
             frame = frame.model_copy(update={'status':'cancelled','valid':False})
-        with lock:
-            previous = runs.get(run_id, {})
-        events = list(previous.get('events', []))
-        # `stop` publishes `cancelled` (and its event) the moment it lands so a
-        # poller exits without waiting for the in-flight frame. If that event is
-        # already the tail, appending here would duplicate it.
-        if not (events and events[-1].get('type') in TERMINAL_STATUSES):
-            events.append({'type':status, 'time_s':float(frame.time_s)})
+        events = [{'type':status, 'time_s':float(frame.time_s)}]
         record = {'id':run_id,'status':status,'mode':request.mode,'request':request.model_dump(mode='json'),
                   'frame':frame.model_dump(mode='json'),'history':[f.model_dump(mode='json') for f in history],
                   'events':events}
@@ -393,56 +301,7 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
             runs[run_id] = record
             while len(runs) > RUN_RETENTION:
                 runs.popitem(last=False)
-            controls.pop(run_id, None)
         return record
-
-    def run_task(run_id: str, request: RunRequest, control: RunControl) -> None:
-        """Background entry point: the record is terminal no matter what happens."""
-        with lock:
-            record = runs.get(run_id)
-            if record is not None and record.get('status') not in TERMINAL_STATUSES:
-                record['status'] = 'running'
-                record.setdefault('events', []).append({'type':'running','time_s':0.0})
-        try:
-            compute_run(run_id, request, control)
-        except BaseException as error:
-            # compute_run handles every exception it can name; this is the last
-            # line of defence so a phantom `running` entry can never survive.
-            logger.exception('Background run %s crashed before it could terminalize', run_id)
-            # Only `SolveCancelled` proves the cancellation *caused* the exit;
-            # a stop being requested is not evidence that an escaped fault was
-            # one. Labelling a crash as `cancelled` would hide it - compute_run
-            # already reports every genuine cancellation from its own handler.
-            status = 'cancelled' if isinstance(error, SolveCancelled) else 'failed'
-            detail = diagnostic(error) if isinstance(error, Exception) else None
-            try:
-                with lock:
-                    record = runs.get(run_id)
-                    if record is None:
-                        return
-                    # Only a *finalized* terminal record is untouchable. A `stop`
-                    # may have written a provisional `cancelled` (no frame) a
-                    # moment before this fault landed; treating that as final
-                    # would hide the real failure and strand the record frameless.
-                    if record.get('status') in TERMINAL_STATUSES and record.get('frame') is not None:
-                        return
-                    record['status'] = status
-                    events = record.setdefault('events', [])
-                    terminal = {'type':status,'time_s':0.0}
-                    # Supersede a provisional terminal event rather than appending
-                    # a second one, so the record still ends with exactly one.
-                    if events and events[-1].get('type') in TERMINAL_STATUSES:
-                        events[-1] = terminal
-                    else:
-                        events.append(terminal)
-                    if record.get('frame') is None and detail is not None:
-                        record['frame'] = RunFrame(status=status, valid=False, time_s=0,
-                                                   diagnostics=[detail]).model_dump(mode='json')
-            except Exception:  # pragma: no cover - defensive terminalization
-                logger.exception('Failed to terminalize run %s', run_id)
-            finally:
-                with lock:
-                    controls.pop(run_id, None)
 
     @app.post('/api/v1/runs',status_code=201, response_model=RunCreateResponse)
     def run(request: RunRequest, background: bool = Query(False)):
