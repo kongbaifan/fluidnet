@@ -177,6 +177,9 @@ def reference_properties(network: CompiledNetwork) -> tuple[float, float]:
                 reference_temperature = float(params['temperature_k'])
                 break
         state = property_service(network.project.fluid).state_pt(reference_pressure, reference_temperature)
+        if state.viscosity_pa_s is None:
+            raise PropertyError('PROPERTY_FAILURE', f'{network.project.fluid.fluid} 在参考状态下没有黏度（REFPROP 对部分工质和混合物'
+                                '没有输运方程），不能用于管网水力计算')
         return state.density_kg_m3, state.viscosity_pa_s
     except PropertyError as error:
         raise ValueError(str(error)) from error

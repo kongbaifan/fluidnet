@@ -241,15 +241,26 @@ Python 模块的 `evaluate` 试算端口：
 
 `properties.py` 使用 CoolProp `AbstractState`，一次 flash 读取 h、ρ、μ、cp、k、s、u、cv、声速、相态和干度，不再每项物性调用一次 `PropsSI`。AbstractState 带内部状态，后台运行有 2 个线程，因此每个线程各持一份。服务实例按 `(backend, 解析后的工质, phase_policy)` 缓存；查询结果按解析后的工质和输入缓存（同一工质的不同相态策略共用，`Water` 与 `HEOS::Water` 视为同一工质），返回副本，调用方修改不影响后续结果。
 
-工质字符串（v0.3.1）：
+工质字符串（v0.3.1，v0.4.4 增加 REFPROP）：
 
 | 写法 | 含义 |
 | --- | --- |
 | `Water`、`Ammonia`、`R134a` | 默认 HEOS 后端（CoolProp 纯工质） |
 | `HEOS::R134a`、`IF97::Water` | 显式后端；IF97 只支持水 |
 | `INCOMP::MEG[0.3]` | 不可压溶液，方括号为质量分数（此例为 30 % 乙二醇水溶液） |
-| `REFPROP::…` | 报 `PROPERTY_BACKEND_UNSUPPORTED`（需用户自备 NIST 许可库，尚未接入） |
-| `A&B`、`HEOS::Water[0.5]` | 报 `COMPOSITION_UNSUPPORTED`（HEOS 混合物尚未接入） |
+| `REFPROP::WATER`、`REFPROP::R134A` | REFPROP 纯质（v0.4.4，名称用 REFPROP 的工质文件名） |
+| `REFPROP::R407C.MIX` | REFPROP 预定义混合物 |
+| `REFPROP::R32[0.5]&R125[0.5]` | REFPROP 按组分混合；比例按 `FluidConfig.reference` 解释（`mass` 默认，`mole` 摩尔分数），和必须为 1 |
+| `A&B`、`HEOS::Water[0.5]` | 报 `COMPOSITION_UNSUPPORTED`（HEOS 混合物尚未接入；混合物请用 REFPROP） |
+
+REFPROP（v0.4.4）：用户自备 NIST 许可的 REFPROP，`REFPRP64.DLL` 和同版本的 `fluids/`、`mixtures/` 放在默认安装目录 `C:\Program Files (x86)\REFPROP` 或环境变量 `FLUIDNET_REFPROP_PATH` 指定的目录；软件不附带也不提交这些文件。经 CoolProp 的 REFPROP 后端调用（本机验证 9.1），与其他后端同一接口，Python 模块的 `ctx.fluid` 照常可用。
+
+- 版本保护：DLL 读到其他版本的工质文件会在 Fortran 内直接终止进程（实测 9.1 DLL + 10 工质文件 `forrtl severe 59`）。因此每种 REFPROP 工质第一次使用前，先在一个临时子进程里加载一次；子进程失败只报 `PROPERTY_FAILURE`，服务继续运行。Worker 进程在 API 进程编译之后启动，不再重复探测。
+- 线程：DLL 只有一份全局工质设置，所有 REFPROP 调用经同一把锁串行；不同工质交替查询结果不串。
+- 混合物相态：REFPROP 后端对混合物没有 `phase()`，按干度判断：Q < 0 液相，0 ≤ Q ≤ 1 两相（含饱和线），Q > 1 气相；温度、压力都超过临界值为超临界。非共沸混合物的泡点与露点不同（R407C 在 1 MPa 下温度滑移约 5.6 K），`saturation_t/p` 给泡点，露点用 `state_pq(p, 1)`。
+- 输运性质：REFPROP 对部分工质和混合物没有黏度、导热方程（如氨水），这时这两项为 `None`，不算失败；但管网水力需要黏度，参考状态没有黏度的工质在求解时报 `PROPERTY_FAILURE`。
+- 纯质与 CoolProp HEOS 基本一致：水、CO₂、R134a 的密度相对差 < 1e-12，氨约 2e-5（方程版本不同）。`REFPROP::WATER` 不算“纯水”的固定参考物性，水力参考物性按 REFPROP 计算，所以和 `Water` 的结果有 1e-5 量级的差别。
+- 单次 PT flash 约 36 µs（加锁后）；每种工质首次使用多约 1 s（探测子进程）。
 
 INCOMP 溶液没有 `phase()`，一律按液相；它没有饱和状态，`state_pq/state_tq/saturation_*` 报 `PROPERTY_FAILURE`；声速为 `None`。
 

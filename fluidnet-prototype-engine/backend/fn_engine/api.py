@@ -41,7 +41,7 @@ from .models import (
     ModuleVersionResponse,
     ModuleVersionsResponse,
 )
-from .properties import PropertyError
+from .properties import PropertyError, refprop_root
 from .packages import ModuleStore, ModuleVersionConflict, ModuleSaveInvalid, package_ref
 from .module_validation import validate_module_definition
 from .solver import SolveCancelled, SolveFailed, solve_dynamic, solve_steady
@@ -170,9 +170,11 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
                                 'property_coupling':['reference','node'],'tank_state':True,
                                 'time_integration':'implicit_euler',
                                 'coolprop_single_phase':True,'user_code':True,'worker_process':True,'async_runs':True,
-                                'module_versions':True,'run_control':True,'live_runs':True,'pid':True,'runtime_parameters':True,'continuous_step':True},
-                'max_frames':2001,'run_retention':RUN_RETENTION,
-                'continuous_runs':True,'history_window_max':20001,'overview_points':OVERVIEW_POINTS}
+                                'module_versions':True,'run_control':True,'live_runs':True,'pid':True,'runtime_parameters':True,'continuous_step':True,
+                                'continuous_runs':True,
+                                # Whether a REFPROP installation is present; the DLL is not loaded for this check.
+                                'refprop':{'installed':refprop_root() is not None}},
+                'max_frames':2001,'run_retention':RUN_RETENTION,'history_window_max':20001,'overview_points':OVERVIEW_POINTS}
 
     @app.get('/api/v1/catalog', response_model=CatalogResponse)
     def catalog():

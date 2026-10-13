@@ -1,6 +1,11 @@
 from __future__ import annotations
 
+from contextlib import nullcontext
 import math
+import os
+from pathlib import Path
+import subprocess
+import sys
 import threading
 from functools import lru_cache
 
@@ -21,21 +26,95 @@ class PropertyError(ValueError):
 _PHASE_NAMES = {getattr(CP, name): name[len("iphase_"):] for name in dir(CP) if name.startswith("iphase_")}
 _TWO_PHASE = "twophase"
 
-# Fluid strings: "Water" (HEOS), "HEOS::R134a", "IF97::Water", "INCOMP::MEG[0.3]" (mass fraction).
-_BACKENDS = ("HEOS", "INCOMP", "IF97")
-_LICENSED = {"REFPROP": "REFPROP 需要用户自备 NIST 许可的动态库，当前版本未接入"}
+# Fluid strings: "Water" (HEOS), "HEOS::R134a", "IF97::Water", "INCOMP::MEG[0.3]" (mass fraction),
+# "REFPROP::WATER", "REFPROP::R407C.MIX", "REFPROP::AMMONIA[0.3]&WATER[0.7]" (FluidConfig.reference).
+_BACKENDS = ("HEOS", "INCOMP", "IF97", "REFPROP")
+
+# NIST REFPROP is licensed per user and never shipped. FLUIDNET_REFPROP_PATH (or the default
+# Windows install) must hold REFPRP64.DLL together with fluids/ and mixtures/ of the same version:
+# a DLL reading fluid files of another version aborts the whole process inside Fortran.
+REFPROP_DEFAULT = Path(r"C:\Program Files (x86)\REFPROP")
+REFPROP_LIBRARY = "REFPRP64.DLL"
+# The DLL keeps one global fluid setup: every REFPROP call is serialized.
+_refprop_lock = threading.RLock()
+# Fluids already loaded once in a throw-away process (see _probe_refprop). Worker processes are
+# started only after the API process compiled the project, so they skip the probe.
+PROBE_REFPROP = True
+_probed: dict[tuple, str | None] = {}
+_configured: list[Path] = []
 
 # AbstractState holds the last flash internally, so each thread keeps its own
 # instance per fluid; the solver runs on a 2-thread executor.
 _thread_states = threading.local()
 
-FluidKey = tuple[str, str, tuple[float, ...]]  # (backend, fluid name, mass fractions)
+FluidKey = tuple[str, str, tuple[float, ...], str]  # (backend, fluid name(s), fractions, "mass" | "mole")
 
 
 def _label(key: FluidKey) -> str:
-    backend, name, fractions = key
-    suffix = f"[{','.join(f'{x:g}' for x in fractions)}]" if fractions else ""
-    return f"{name}{suffix}" if backend == "HEOS" else f"{backend}::{name}{suffix}"
+    backend, name, fractions, _ = key
+    if "&" in name:
+        text = "&".join(f"{part}[{x:g}]" for part, x in zip(name.split("&"), fractions))
+    else:
+        text = f"{name}[{','.join(f'{x:g}' for x in fractions)}]" if fractions else name
+    return text if backend == "HEOS" else f"{backend}::{text}"
+
+
+def refprop_root() -> Path | None:
+    """The REFPROP directory if it holds the DLL plus fluid files; None when REFPROP is not installed."""
+    root = Path(os.environ.get("FLUIDNET_REFPROP_PATH") or REFPROP_DEFAULT)
+    if (root / REFPROP_LIBRARY).is_file() and any((root / name).is_dir() for name in ("fluids", "FLUIDS")):
+        return root
+    return None
+
+
+def _configure_refprop() -> Path:
+    root = refprop_root()
+    if root is None:
+        raise PropertyError("PROPERTY_BACKEND_UNSUPPORTED", "未找到 REFPROP：需要用户自备 NIST 许可的 REFPRP64.DLL 及同版本 fluids、"
+                            f"mixtures 目录，放在 {REFPROP_DEFAULT} 或用环境变量 FLUIDNET_REFPROP_PATH 指定")
+    if _configured and _configured[0] != root:
+        raise PropertyError("PROPERTY_BACKEND_UNSUPPORTED", f"REFPROP 已从 {_configured[0]} 加载，同一进程不能切换目录")
+    if not _configured:
+        CP.set_config_string(CP.ALTERNATIVE_REFPROP_PATH, str(root) + os.sep)
+        CP.set_config_string(CP.ALTERNATIVE_REFPROP_LIBRARY_PATH, str(root / REFPROP_LIBRARY))
+        _configured.append(root)
+    return root
+
+
+_PROBE = r"""
+import sys, CoolProp.CoolProp as CP
+root, name, basis, fractions = sys.argv[1], sys.argv[2], sys.argv[3], [float(x) for x in sys.argv[4:]]
+CP.set_config_string(CP.ALTERNATIVE_REFPROP_PATH, root)
+CP.set_config_string(CP.ALTERNATIVE_REFPROP_LIBRARY_PATH, root + 'REFPRP64.DLL')
+state = CP.AbstractState('REFPROP', name)
+if fractions:
+    (state.set_mass_fractions if basis == 'mass' else state.set_mole_fractions)(fractions)
+print(CP.get_global_param_string('REFPROP_version'))
+"""
+
+
+def _probe_refprop(key: FluidKey) -> None:
+    """Load the fluid once in a child process first; a version mismatch kills that process, not ours."""
+    if not PROBE_REFPROP or key in _probed:
+        return
+    root = _configure_refprop()
+    _, name, fractions, basis = key
+    try:
+        done = subprocess.run([sys.executable, "-c", _PROBE, str(root) + os.sep, name, basis, *map(repr, fractions)],
+                              capture_output=True, text=True, timeout=60, env=os.environ.copy())
+    except subprocess.TimeoutExpired as exc:
+        raise PropertyError("PROPERTY_FAILURE", f"REFPROP 加载 {_label(key)} 超时") from exc
+    if done.returncode != 0:
+        tail = (done.stderr or done.stdout).strip().splitlines()
+        reason = next((line for line in tail if "forrtl" in line or "rror" in line), tail[-1] if tail else "")
+        if "Could not load these fluids" in reason or "not found" in reason or "file" in reason.lower() and "open" in reason.lower():
+            raise PropertyError("FLUID_UNKNOWN", f"REFPROP 找不到工质 {_label(key)}：{reason}")
+        raise PropertyError("PROPERTY_FAILURE", f"REFPROP 无法加载 {_label(key)}（DLL 与 fluids 目录版本不一致时会这样）：{reason}")
+    _probed[key] = done.stdout.strip() or None
+
+
+def _lock(key: FluidKey):
+    return _refprop_lock if key[0] == "REFPROP" else nullcontext()
 
 
 def _abstract_state(key: FluidKey) -> AbstractState:
@@ -44,15 +123,19 @@ def _abstract_state(key: FluidKey) -> AbstractState:
         states = _thread_states.states = {}
     state = states.get(key)
     if state is None:
-        backend, name, fractions = key
+        backend, name, fractions, basis = key
+        if backend == "REFPROP":
+            _probe_refprop(key)
+            _configure_refprop()
         try:
-            state = AbstractState(backend, name)
+            with _lock(key):
+                state = AbstractState(backend, name)
+                if fractions:
+                    (state.set_mole_fractions if basis == "mole" else state.set_mass_fractions)(list(fractions))
         except Exception as exc:
-            if "not found" in str(exc):
+            if "not found" in str(exc) or "could not be found" in str(exc) or "unable to open" in str(exc).lower():
                 raise PropertyError("FLUID_UNKNOWN", f"未知工质 {_label(key)}：{exc}") from exc
             raise PropertyError("PROPERTY_FAILURE", f"CoolProp 无法加载工质 {_label(key)}：{exc}") from exc
-        if fractions:
-            state.set_mass_fractions(list(fractions))
         states[key] = state
     return state
 
@@ -61,7 +144,20 @@ def _phase_of(key: FluidKey, state: AbstractState) -> str:
     # INCOMP solutions do not implement calc_phase; they are liquids by construction.
     if key[0] == "INCOMP":
         return "liquid"
+    if key[0] == "REFPROP" and _is_mixture(key):
+        # The REFPROP backend has no calc_phase for mixtures; its quality is < 0 (subcooled),
+        # within [0, 1] (two-phase or saturated) or > 1 (superheated) and decides the phase.
+        quality = float(state.Q())
+        if state.T() > state.T_critical() and state.p() > state.p_critical():
+            return "supercritical"
+        if 0.0 <= quality <= 1.0:
+            return _TWO_PHASE
+        return "liquid" if quality < 0 else "gas"
     return _PHASE_NAMES.get(state.phase(), "unknown")
+
+
+def _is_mixture(key: FluidKey) -> bool:
+    return "&" in key[1] or key[1].upper().endswith(".MIX")
 
 
 def _optional(read):
@@ -90,6 +186,11 @@ def _flash(key: FluidKey, inputs: str, first: float, second: float) -> FluidStat
     if key[0] == "INCOMP" and inputs in ("PQ", "TQ"):
         raise PropertyError("PROPERTY_FAILURE", f"{_label(key)} 是不可压溶液，没有饱和（汽液）状态")
     pair, order = _INPUTS[inputs]
+    with _lock(key):
+        return _flash_locked(key, inputs, pair, order, first, second)
+
+
+def _flash_locked(key: FluidKey, inputs: str, pair, order, first: float, second: float) -> FluidState:
     try:
         state = _abstract_state(key)
         state.update(pair, *order(first, second))
@@ -104,7 +205,9 @@ def _flash(key: FluidKey, inputs: str, first: float, second: float) -> FluidStat
         def transport(read):
             if inside_dome:
                 return None
-            return _optional(read) if on_line else float(read())
+            # REFPROP has no transport equations for some fluids and mixtures (e.g. ammonia–water):
+            # missing, not a failed state. Hydraulics reject a fluid without viscosity separately.
+            return _optional(read) if on_line or key[0] == "REFPROP" else float(read())
 
         values = {
             "pressure_pa": first if inputs != "TQ" else float(state.p()),
@@ -139,41 +242,66 @@ def _check_phase(policy: str, state: FluidState) -> None:
         raise PropertyError("PHASE_UNSUPPORTED", f"状态为 {phase}，不满足单相约束")
 
 
+def _fractions(text: str, raw: str, what: str) -> tuple[float, ...]:
+    try:
+        values = tuple(float(part) for part in raw.split(","))
+    except ValueError as exc:
+        raise PropertyError("PROPERTY_RANGE", f"工质 {text} 的{what}不是数值") from exc
+    if not all(math.isfinite(x) and 0.0 < x < 1.0 for x in values):
+        raise PropertyError("PROPERTY_RANGE", f"工质 {text} 的{what}必须在 (0, 1) 内")
+    return values
+
+
 def _parse_fluid(config: FluidConfig) -> FluidKey:
-    """'Water' / 'HEOS::R134a' / 'IF97::Water' / 'INCOMP::MEG[0.3]' -> (backend, name, mass fractions)."""
+    """'Water' / 'HEOS::R134a' / 'IF97::Water' / 'INCOMP::MEG[0.3]' (mass fraction) /
+    'REFPROP::R407C.MIX' / 'REFPROP::AMMONIA[0.3]&WATER[0.7]' (fractions on `config.reference`)
+    -> (backend, name, fractions, basis)."""
     if config.composition:
         # Arbitrary component fractions need a mixture setup (mole fractions, fragile
         # two-phase flashes). Keep this explicit instead of silently ignoring them.
-        raise PropertyError("COMPOSITION_UNSUPPORTED", "首版 CoolProp 适配器仅接受单一工质名称；组分混合物接口已预留")
+        raise PropertyError("COMPOSITION_UNSUPPORTED", "组分请写在工质字符串里，如 REFPROP::AMMONIA[0.3]&WATER[0.7]；composition 字段尚未使用")
     text = config.fluid.strip()
     backend, name = ("HEOS", text)
     if "::" in text:
         prefix, name = text.split("::", 1)
         backend = prefix.strip().upper()
-        if backend in _LICENSED:
-            raise PropertyError("PROPERTY_BACKEND_UNSUPPORTED", _LICENSED[backend])
         if backend not in _BACKENDS:
             raise PropertyError("PROPERTY_BACKEND_UNSUPPORTED", f"物性后端 {prefix} 尚未启用；可用 {'、'.join(_BACKENDS)}")
     name = name.strip()
+    if backend == "REFPROP":
+        if refprop_root() is None:
+            _configure_refprop()  # raises PROPERTY_BACKEND_UNSUPPORTED with the install hint
+        if "&" in name:
+            parts, fractions = [], []
+            for part in name.split("&"):
+                part = part.strip()
+                if not part.endswith("]") or part.count("[") != 1:
+                    raise PropertyError("PROPERTY_RANGE", f"工质 {text} 的混合物写法应为 A[0.3]&B[0.7]")
+                component, raw = part[:-1].split("[", 1)
+                parts.append(component.strip())
+                fractions.extend(_fractions(text, raw, "组分比例"))
+            if len(fractions) != len(parts) or not all(parts) or abs(sum(fractions) - 1.0) > 1e-6:
+                raise PropertyError("PROPERTY_RANGE", f"工质 {text} 的组分比例之和必须为 1")
+            return backend, "&".join(parts), tuple(fractions), config.reference
+        if "[" in name:
+            raise PropertyError("COMPOSITION_UNSUPPORTED", f"{text}：REFPROP 纯质不写比例；混合物写 A[0.3]&B[0.7] 或预定义的 名称.MIX")
+        if not name:
+            raise PropertyError("FLUID_UNKNOWN", "工质名称为空")
+        return backend, name, (), "mass"
     if "&" in name:
-        raise PropertyError("COMPOSITION_UNSUPPORTED", f"{text}：HEOS 混合物尚未接入；只有 INCOMP 溶液可以写质量分数")
+        raise PropertyError("COMPOSITION_UNSUPPORTED", f"{text}：HEOS 混合物尚未接入；混合物请用 REFPROP::A[0.3]&B[0.7]，INCOMP 溶液可写质量分数")
     fractions: tuple[float, ...] = ()
     if "[" in name:
         if not name.endswith("]") or name.count("[") != 1:
             raise PropertyError("PROPERTY_RANGE", f"工质 {text} 的质量分数写法应为 名称[0.3]")
         name, raw = name[:-1].split("[", 1)
         name = name.strip()
-        try:
-            fractions = tuple(float(part) for part in raw.split(","))
-        except ValueError as exc:
-            raise PropertyError("PROPERTY_RANGE", f"工质 {text} 的质量分数不是数值") from exc
-        if not all(math.isfinite(x) and 0.0 < x < 1.0 for x in fractions):
-            raise PropertyError("PROPERTY_RANGE", f"工质 {text} 的质量分数必须在 (0, 1) 内")
+        fractions = _fractions(text, raw, "质量分数")
     if fractions and backend != "INCOMP":
         raise PropertyError("COMPOSITION_UNSUPPORTED", f"{text}：只有 INCOMP 溶液可以写质量分数；HEOS 混合物尚未接入")
     if not name:
         raise PropertyError("FLUID_UNKNOWN", "工质名称为空")
-    return backend, name, fractions
+    return backend, name, fractions, "mass"
 
 
 def _freezing_point(key: FluidKey, state: AbstractState, t_min: float, t_max: float) -> float:
@@ -205,6 +333,11 @@ def _freezing_point(key: FluidKey, state: AbstractState, t_min: float, t_max: fl
 
 @lru_cache(maxsize=256)
 def _limits(key: FluidKey) -> tuple[float, float, float | None]:
+    with _lock(key):
+        return _limits_locked(key)
+
+
+def _limits_locked(key: FluidKey) -> tuple[float, float, float | None]:
     state = _abstract_state(key)
     try:
         t_min, t_max = float(state.Tmin()), float(state.Tmax())
@@ -261,13 +394,16 @@ class CoolPropPropertyService:
         self.config = config
         self.key = _parse_fluid(config)
         self.fluid = config.fluid
+        backend, name, fractions, _ = self.key
+        # Components on the configured basis; a predefined REFPROP .MIX file reports itself.
+        self.composition = dict(zip(name.split("&"), fractions)) if "&" in name else {self.fluid: 1.0}
         self.phase_policy = config.phase_policy
 
     def _result(self, state: FluidState, check_phase: bool = True) -> FluidState:
         if check_phase:
             _check_phase(self.phase_policy, state)
         # The flash cache is shared; hand out a copy so callers cannot alter it.
-        return state.model_copy(update={"composition": {self.fluid: 1.0}})
+        return state.model_copy(update={"composition": dict(self.composition)})
 
     def state_pt(self, pressure: float, temperature: float) -> FluidState:
         pressure, temperature = float(pressure), float(temperature)
@@ -307,11 +443,12 @@ class CoolPropPropertyService:
         return self._result(_flash(self.key, "TQ", temperature, quality), check_phase=False)
 
     def saturation_t(self, pressure: float) -> float:
-        """Saturation temperature (K) at the given pressure (pure fluids)."""
+        """Saturation temperature (K) at the given pressure; the bubble point for a mixture
+        (zeotropic mixtures glide: state_pq(p, 1).temperature_k is the dew point)."""
         return self.state_pq(pressure, 0.0).temperature_k
 
     def saturation_p(self, temperature: float) -> float:
-        """Saturation pressure (Pa) at the given temperature (pure fluids)."""
+        """Saturation pressure (Pa) at the given temperature; the bubble pressure for a mixture."""
         return self.state_tq(temperature, 0.0).pressure_pa
 
     def limits(self) -> dict[str, float | None]:
@@ -334,7 +471,7 @@ def is_pure_water(config: FluidConfig) -> bool:
     give identical results. An unparseable fluid string is simply "not water" here.
     """
     try:
-        backend, name, fractions = _parse_fluid(config)
+        backend, name, fractions, _ = _parse_fluid(config)
     except PropertyError:
         return False
     return backend in ("HEOS", "IF97") and name.lower() == "water" and not fractions

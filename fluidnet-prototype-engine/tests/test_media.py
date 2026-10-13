@@ -173,7 +173,6 @@ def test_python_module_uses_state_ps_in_commit_step():
 
 
 @pytest.mark.parametrize('fluid,code', [('NotAFluid', 'FLUID_UNKNOWN'), ('INCOMP::NotASolution', 'FLUID_UNKNOWN'),
-                                        ('REFPROP::Water', 'PROPERTY_BACKEND_UNSUPPORTED'),
                                         ('Methane&Ethane', 'COMPOSITION_UNSUPPORTED'),
                                         ('HEOS::Water[0.5]', 'COMPOSITION_UNSUPPORTED'),
                                         ('INCOMP::MEG[1.5]', 'PROPERTY_RANGE'),
@@ -187,7 +186,7 @@ def test_bad_fluid_strings_fail_at_compile_time(fluid, code):
 
 
 def test_whitespace_inside_fraction_syntax_is_ignored():
-    assert property_service(FluidConfig(fluid=' INCOMP :: MEG [0.3] ')).key == ('INCOMP', 'MEG', (0.3,))
+    assert property_service(FluidConfig(fluid=' INCOMP :: MEG [0.3] ')).key == ('INCOMP', 'MEG', (0.3,), 'mass')
 
 
 def test_unknown_fluid_query_keeps_property_failure():
@@ -198,7 +197,7 @@ def test_unknown_fluid_query_keeps_property_failure():
 
 def test_prefixed_and_bare_names_share_one_fluid():
     bare, prefixed = property_service(FluidConfig(fluid='Water')), property_service(FluidConfig(fluid='HEOS::Water'))
-    assert bare.key == prefixed.key == ('HEOS', 'Water', ())
+    assert bare.key == prefixed.key == ('HEOS', 'Water', (), 'mass')
     assert bare.state_pt(3e5, 293.15).density_kg_m3 == prefixed.state_pt(3e5, 293.15).density_kg_m3
 
 

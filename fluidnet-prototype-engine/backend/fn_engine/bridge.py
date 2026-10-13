@@ -63,8 +63,13 @@ def normalize_prototype_export(data: dict[str, Any]) -> Project:
     if raw is None:
         raise ValueError('activeProject 引用了不存在的项目')
     medium = raw.get('medium', 'water')
-    if medium not in PROTOTYPE_MEDIA:
+    # An explicit fluid string (e.g. REFPROP::R407C.MIX) overrides the preset medium.
+    fluid_text = str(raw.get('fluid') or '').strip()
+    if not fluid_text and medium not in PROTOTYPE_MEDIA:
         raise ValueError(f'不支持的介质 {medium}；可选：{"、".join(PROTOTYPE_MEDIA)}')
+    reference = raw.get('fluidReference', 'mass')
+    if reference not in ('mass', 'mole'):
+        raise ValueError('fluidReference 只能是 mass 或 mole')
     catalog = catalog_map()
     raw_modules = data.get('modules', [])
     if len({m['id'] for m in raw_modules}) != len(raw_modules):
@@ -144,7 +149,7 @@ def normalize_prototype_export(data: dict[str, Any]) -> Project:
     solver = raw.get('solver', {})
     diagnostics.append(Diagnostic(code='HYDRAULIC_SCOPE', severity='info', message='按已应用参数计算液态水水力与端口焓、温度；水箱与分段管道在动态计算中按隐式 Euler 积分液位、水温和管内温度；Python 模块包在独立 Worker 中执行；PID 控制器参与动态计算，控制脚本尚未参与求解'))
     return Project(id=raw['id'], name=raw.get('name','原型项目'), description=raw.get('description',''),
-        fluid=FluidConfig(fluid=PROTOTYPE_MEDIA[medium]),
+        fluid=FluidConfig(fluid=fluid_text or PROTOTYPE_MEDIA[medium], reference=reference),
         modules=list(definitions.values()),instances=instances,connections=connections,import_diagnostics=diagnostics,
         controllers=raw.get('controllers', []),
         solver=SolverOptions(pressure_tolerance_pa=solver.get('pressureAtol',1.),mass_tolerance_kg_s=solver.get('massAtol',1e-8),

@@ -8,6 +8,10 @@ import inspect
 
 from .models import CommitStepRequest, EvaluateRequest, InitializeRequest, ModuleDefinition
 from .runtime import InProcessModuleRunner, _load_module
+from . import properties
+
+# The API process loaded every REFPROP fluid of this project in a probe process before starting us.
+properties.PROBE_REFPROP = False
 
 
 def main():

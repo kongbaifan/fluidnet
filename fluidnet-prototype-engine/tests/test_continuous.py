@@ -97,6 +97,14 @@ def test_trend_history_in_a_continuous_run_has_key_frames_per_window():
     assert all(set(row['variables']) == {'V1.mass_flow_kg_s'} for row in rows if not row['full'])
 
 
+def test_health_reports_continuous_runs_and_refprop_as_capabilities():
+    with TestClient(create_app()) as client:
+        health = client.get('/api/v1/health').json()
+    assert health['capabilities']['continuous_runs'] is True
+    assert set(health['capabilities']['refprop']) == {'installed'}
+    assert health['history_window_max'] == 20001 and health['overview_points'] == 2000
+
+
 def test_session_holds_only_recent_frames_and_does_not_drift():
     session = SimulationSession(compile_project(valve_line()), None, .1, keep=8)
     try:

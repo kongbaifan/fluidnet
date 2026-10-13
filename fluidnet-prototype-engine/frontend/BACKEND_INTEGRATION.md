@@ -37,3 +37,5 @@ PID（v0.4.2）：「控制」页的 PID 面板写入项目的 `controllers`，�
 管道热容（v0.4.1）：`PARAM_DEFS.pipe` 增加热容分段数和管壁热容（kJ/K），绑定 `thermal_cells`、`wall_heat_capacity_j_k`；`STATE_VARIABLES.pipe` 提供管内平均温度和储热功率，只有分段数大于 0 时后端才输出，否则曲线显示为空。
 
 后续可把剩余 UI 描述完全迁移为目录驱动；不需要重写画布与设备编辑器。
+
+工质（v0.4.4）：项目设置 → 介质配置新增“物性字符串”和“组分比例基准”，保存为原型项目的 `fluid`、`fluidReference`；非空时替代下拉的默认介质，归一化后进入 `FluidConfig.fluid/reference`。提示文字根据 health 的 `capabilities.refprop.installed` 显示是否检测到 REFPROP。

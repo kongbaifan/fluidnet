@@ -101,6 +101,8 @@ canonical = (display - display_offset) × display_scale
 | `hydraulic_method` (`dense`) | `sparse`：按网络拓扑给 `least_squares` 稀疏 Jacobian 结构并用 LSMR，结果与 `dense` 在 1e-6 相对误差内一致；大网络明显更快（见 ALGORITHM） |
 | `batch_modules` (true)、`module_parallelism` (1，1–16) | 有 2 个及以上 Python 实例时，实例按轮转分到 `module_parallelism` 个共享 Worker 进程，每次迭代每个 Worker 一次批量 evaluate；实例状态仍各自独立。`batch_modules=false` 恢复每实例一个 Worker |
 
+`FluidConfig.fluid` 可写 `REFPROP::` 前缀（v0.4.4，见 ALGORITHM“物性服务”）；`FluidConfig.reference`（`mass` 默认 / `mole`）决定 `A[x]&B[y]` 中比例的含义，FluidState.composition 按同一基准返回组分。原型项目的 `fluid`（非空时替代 `medium`）与 `fluidReference` 映射到这两个字段。`/api/v1/health` 的 `capabilities.refprop.installed` 只检查文件是否存在，不加载 DLL。
+
 `FluidConfig.phase_policy` 可取 `single_phase`（默认）、`liquid`、`gas`、`any`；`any` 供模块代码查询两相状态，网络流动仍由热力层按边界相态检查。
 
 内置管道新增参数 `heat_loss_ua_w_k`（W/K，默认 0，即绝热）和 `ambient_temperature_k`（默认 293.15 K）。v0.3.1 起压力边界 `temperature_k` 与管道 `ambient_temperature_k` 不再写死 274.15–363.15 K，目录只要求不小于 1 K，编译期按项目工质的 `limits()` 检查（见 ALGORITHM“物性服务”）；换热器 `ua_w_k` 已参与计算。

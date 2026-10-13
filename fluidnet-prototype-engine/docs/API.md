@@ -6,7 +6,7 @@
 
 | 方法与路径 | 请求 | 返回 |
 | --- | --- | --- |
-| GET /api/v1/health | 无 | 版本（0.4.3）、能力标志（含 `thermal`、`property_coupling`、`tank_state`、`live_runs`、`pid`、`runtime_parameters`、`continuous_step`、`continuous_runs`）、同步运行 2001 帧上限、`history_window_max`、`overview_points`、20 次记录保留数 |
+| GET /api/v1/health | 无 | 版本（0.4.4）、能力标志（含 `thermal`、`property_coupling`、`tank_state`、`live_runs`、`pid`、`runtime_parameters`、`continuous_step`、`continuous_runs`、`refprop.installed`）、同步运行 2001 帧上限、`history_window_max`、`overview_points`、20 次记录保留数 |
 | GET /api/v1/examples/{name} | `level` 或 `temperature` | 内置 PID 示例 Project；未知名称 404 |
 | GET /api/v1/catalog | 无 | 模块参数/通路/变量目录、原型参数名映射 |
 | GET /api/v1/modules | 无 | 可安装模块包和内置模块清单、版本与内容哈希 |
