@@ -5,9 +5,9 @@ from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
 import fn_engine.jobs as jobs
-from fn_engine.api import create_app
+from fn_engine.api import apply_scenario, create_app
 from fn_engine.compiler import compile_project
-from fn_engine.models import RunRequest
+from fn_engine.models import RunCommand, RunRequest
 from fn_engine.simulation import SimulationSession
 from test_thermal import project
 
@@ -95,6 +95,34 @@ def test_trend_history_in_a_continuous_run_has_key_frames_per_window():
     every = 4  # ceil(200 / 50)
     assert [row['full'] for row in rows] == [row['sequence'] % every == 0 for row in rows]
     assert all(set(row['variables']) == {'V1.mass_flow_kg_s'} for row in rows if not row['full'])
+
+
+@pytest.mark.parametrize('changes, code', [({'selected_variables': ['nope']}, 'TREND_VARIABLE_UNKNOWN'),
+                                           ({'history': 'trend', 'trend_variables': ['nope']}, 'TREND_VARIABLE_UNKNOWN')])
+def test_a_background_run_rejecting_its_first_frame_reports_why(changes, code):
+    with TestClient(create_app()) as client:
+        run_id = client.post('/api/v1/runs?background=true', json=request(duration_s=1., **changes)).json()['run_id']
+        record = wait(client, run_id, lambda r: r['status'] == 'failed')
+    assert [d['code'] for d in record['frame']['diagnostics']] == [code]
+    assert record['events'][-1]['type'] == 'failed'
+
+
+def test_events_and_receipts_stay_bounded_on_a_long_run(monkeypatch):
+    monkeypatch.setattr(jobs, 'EVENT_LIMIT', 10)
+    monkeypatch.setattr(jobs, 'RECEIPT_LIMIT', 5)
+    manager = jobs.RunManager(apply_scenario)
+    try:
+        run_id = manager.submit(RunRequest.model_validate(request(start_paused=True)))
+        for n in range(12):
+            command = RunCommand(action='write', values={'V1.param.opening_ratio': .5 + n / 100})
+            key = manager.command(run_id, command)['command_id']
+            assert manager.wait_receipt(run_id, key, 10.)['command_status'] == 'applied'
+        job = manager.jobs[run_id]
+        events = manager.snapshot(run_id)['events']
+        assert len(events) == 10 and events[-1]['command_status'] == 'applied'
+        assert len(job.receipts) == 5 and key in job.receipts
+    finally:
+        manager.close()
 
 
 def test_health_reports_continuous_runs_and_refprop_as_capabilities():

@@ -23,7 +23,7 @@
 | GET /api/v1/runs/{run_id}/history | offset≥0, 1≤limit≤2001（绝对帧序号） | rows、total_rows（已发布帧数）、offset（实际起点）、first_offset（窗口内最早帧）、truncated（请求的 offset 已移出窗口） |
 | GET /api/v1/runs/{run_id}/overview | 无 | 全程抽稀：rows（每 stride 帧一行加最新帧，只含曲线变量和状态，无诊断）、stride、total_rows |
 | GET /api/v1/runs | 无 | 后台运行列表（id、status、mode、项目名、当前 time_s），新的在前 |
-| GET /api/v1/runs/{run_id}/events | 无 | 状态事件与命令事件（accepted/applied/rejected），每次运行恰好一条终态事件 |
+| GET /api/v1/runs/{run_id}/events | 无 | 状态事件与命令事件（accepted/applied/rejected），每次运行恰好一条终态事件；后台运行只保留最近 1000 条事件，已处理的命令回执也只保留最近 1000 个（更早的 `command_id` 重发会当作新命令） |
 | POST /api/v1/runs/{run_id}/command | RunCommand | RunStatus 加命令回执；见「运行生命周期与控制」 |
 | GET /api/v1/runs/{run_id}/variables | `keys`（逗号分隔的帧变量键，省略为全部） | VariableValues：status、time_s、sequence、parameter_revision、values；未知键 422 `VARIABLE_UNKNOWN`（附 keys），还没有帧 409 `NO_FRAME` |
 | POST /api/v1/runs/{run_id}/variables | VariableWrite | RunStatus 加命令回执；见「变量接口」 |

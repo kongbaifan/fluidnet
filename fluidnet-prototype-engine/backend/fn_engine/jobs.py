@@ -20,6 +20,9 @@ TERMINAL = {'completed', 'failed', 'cancelled', 'interrupted'}
 OVERVIEW_POINTS = 2000
 # Frames a background session holds itself; history and overview live on the record.
 SESSION_FRAMES = 8
+# A long run with frequent writes keeps only the most recent events and settled receipts.
+EVENT_LIMIT = 1000
+RECEIPT_LIMIT = 1000
 
 
 @dataclass
@@ -135,6 +138,11 @@ class RunManager:
             if key in job.receipts:
                 receipt, previous = job.receipts[key]
                 if previous != command.model_dump(exclude={'command_id'}):
+            if len(job.receipts) > RECEIPT_LIMIT:
+                # Oldest settled receipts go first; a retried id older than that runs as a new command.
+                settled = [k for k, (r, _) in job.receipts.items() if r['command_status'] != 'accepted']
+                for old in settled[:len(job.receipts) - RECEIPT_LIMIT]:
+                    del job.receipts[old]
                     raise CompilationError('COMMAND_ID_CONFLICT', '命令 ID 已用于不同内容')
                 return deepcopy(receipt)
             if job.record['status'] in TERMINAL:
@@ -154,7 +162,10 @@ class RunManager:
             event['command'] = command
         if job.session:
             event['parameter_revision'] = job.session.revision
-        job.record['events'].append(event)
+        events = job.record['events']
+        events.append(event)
+        if len(events) > EVENT_LIMIT:
+            del events[:len(events) - EVENT_LIMIT]
 
     def _schedule(self):
         while True:
@@ -172,6 +183,8 @@ class RunManager:
                             self.active += 1
                             self.pool.submit(self._tick, job)
                     elif job.record['status'] == 'running':
+        # Marked first: a frame rejected below must not be published again by _finish.
+        job.last_sequence = frame.sequence
                         due.append(job.due)
                 self.wake.wait(timeout=max(.001, min(due) - now) if due and self.active < 2 else .05)
 
@@ -186,7 +199,6 @@ class RunManager:
                 raise CompilationError('TREND_VARIABLE_UNKNOWN', f'未知观察变量：{sorted(missing)}')
             row['variables'] = {key: row['variables'][key] for key in selected}
         job.record['frame'] = deepcopy(row)
-        job.last_sequence = frame.sequence
         history = job.record['history']
         if history and history[-1]['time_s'] == row['time_s']:
             return

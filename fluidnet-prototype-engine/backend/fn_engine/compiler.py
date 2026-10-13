@@ -222,7 +222,9 @@ def assign_circuits(project, modules, nodes, node_count):
                                    f'（{fluids[circuit].fluid}）指定在同一个回路；同一回路只能有一种工质',
                                    entry.anchor.instance_id, 'circuit_fluids')
         fluids[circuit], sources[circuit] = entry.fluid, entry.id
-    mixed = len({_fluid_identity(f) for f in fluids}) > 1
+    # Compared with the project fluid, not only among circuits: a single circuit given another
+    # fluid must not fall back to Project.fluid.
+    mixed = len({_fluid_identity(f) for f in fluids} | {_fluid_identity(project.fluid)}) > 1
     return node_circuit, fluids, sources, mixed
 
 
@@ -431,7 +433,8 @@ def compile_project(project: Project) -> CompiledNetwork:
     if mixed:
         names = '、'.join(dict.fromkeys(f.fluid for f in circuit_fluids))
         diagnostics.append(Diagnostic(code='MULTIPLE_FLUIDS', severity='info',
-                                      message=f'项目包含 {len(circuit_fluids)} 个回路、多种工质（{names}）；各回路物性独立计算'))
+                                      message=f'项目包含 {len(circuit_fluids)} 个回路，回路工质：{names}（项目工质 '
+                                      f'{project.fluid.fluid}）；各回路物性独立计算'))
     return CompiledNetwork(project, modules, instances, parameters, nodes, roots, branches, fixed, diagnostics,
                            fixed_temperatures, [components.find(n) for n in range(len(roots))], storage,
                            node_circuit, circuit_fluids, circuit_sources, mixed)

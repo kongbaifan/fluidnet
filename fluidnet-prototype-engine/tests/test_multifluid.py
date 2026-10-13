@@ -94,6 +94,18 @@ def test_tank_in_a_brine_circuit_stores_brine():
     assert frames[-1].variables['T1.state.mass_kg'] > first['T1.state.mass_kg']
 
 
+def test_a_single_circuit_with_another_fluid_does_not_fall_back_to_the_project_fluid():
+    p = project([('B1', 'source', {'pressure_pa': 250000., 'temperature_k': 263.15}), ('L1', 'pipe', {}),
+                 ('B2', 'source', {'pressure_pa': 120000., 'temperature_k': 263.15})],
+                [('B1:out0', 'L1:in0'), ('L1:out0', 'B2:out0')])
+    p.circuit_fluids = [circuit('only', 'B1', 'out0', MEG30)]
+    network = compile_project(p)  # −10 °C is fine for the glycol, not for the project water
+    assert network.mixed and network.fluid_at(0).fluid == MEG30
+    v = solve_steady(network).variables
+    meg = property_service(FluidConfig(fluid=MEG30)).state_pt(v['L1.in0.pressure_pa'], 263.15)
+    assert v['L1.in0.density_kg_m3'] == pytest.approx(meg.density_kg_m3, rel=1e-12)
+
+
 def test_conflicting_fluids_in_one_circuit_are_rejected():
     p = hx()
     p.circuit_fluids.append(circuit('again', 'SC', 'out0', MEG30))
