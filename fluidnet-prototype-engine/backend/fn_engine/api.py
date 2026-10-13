@@ -49,7 +49,7 @@ from .models import (
 from .properties import PropertyError, refprop_root
 from .packages import ModuleStore, ModuleVersionConflict, ModuleSaveInvalid, package_ref
 from .module_validation import validate_module_definition
-from .solver import SolveCancelled, SolveFailed, solve_dynamic, solve_steady
+from .solver import SolveFailed, solve_dynamic, solve_steady
 
 logger = logging.getLogger('fn_engine.api')
 
@@ -309,21 +309,9 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
             status = 'failed'
             frame = RunFrame(status='failed', valid=False, time_s=history[-1].time_s if history else 0,
                              diagnostics=[error.diagnostic])
-        except SolveCancelled as error:
-            # Keep the frames completed before the cancellation was observed:
-            # a cancelled run is partial, not empty.
-            history = list(getattr(error, 'frames', None) or ())
-            try:
-                shape_history(history, request, request.project)
-            except ValueError:
-                pass  # a cancelled run keeps its frames even if the requested shaping is invalid
-            status = 'cancelled'
-            frame = history[-1] if history else RunFrame(status='cancelled', valid=False, time_s=0)
         except ValueError as error:
             history, status = [], 'failed'
             frame = RunFrame(status='failed',valid=False,time_s=0,diagnostics=[diagnostic(error)])
-        if status == 'cancelled':
-            frame = frame.model_copy(update={'status':'cancelled','valid':False})
         events = [{'type':status, 'time_s':float(frame.time_s)}]
         record = {'id':run_id,'status':status,'mode':request.mode,'request':request.model_dump(mode='json'),
                   'frame':frame.model_dump(mode='json'),'history':[f.model_dump(mode='json') for f in history],

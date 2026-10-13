@@ -23,20 +23,6 @@ GRAVITY = 9.80665
 PRESSURE_SCALE = 100000.0
 
 
-class SolveCancelled(Exception):
-    """Raised when a run is cancelled between timeline frames.
-
-    Deliberately not a `ValueError`: callers must be able to tell a user-requested
-    cancellation apart from an invalid input or a failed solve. `frames` carries
-    the frames completed before the cancellation was observed so the caller can
-    keep them as partial results.
-    """
-
-    def __init__(self, message: str = '运行已取消', frames=None):
-        super().__init__(message)
-        self.frames = list(frames or ())
-
-
 class HydraulicNotConverged(ValueError):
     """The hydraulic iteration did not meet its tolerances (a smaller time step may help)."""
     code = 'HYDRAULIC_NOT_CONVERGED'
@@ -810,9 +796,9 @@ def has_state(network: CompiledNetwork) -> bool:
     return bool(network.storage) or has_cells(network)
 
 
-def solve_dynamic(network, duration_s, dt_s, should_cancel=None):
+def solve_dynamic(network, duration_s, dt_s):
     from .simulation import run_dynamic
-    return run_dynamic(network, duration_s, dt_s, should_cancel)
+    return run_dynamic(network, duration_s, dt_s)
 
 
 def _step_network(network: CompiledNetwork, tanks: dict[int, TankState], service) -> CompiledNetwork:

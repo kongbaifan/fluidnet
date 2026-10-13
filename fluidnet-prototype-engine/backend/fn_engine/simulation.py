@@ -291,12 +291,10 @@ class SimulationSession:
             s._close_runners(self.runners)
 
 
-def run_dynamic(network, duration_s, dt_s, should_cancel=None):
+def run_dynamic(network, duration_s, dt_s):
     session = SimulationSession(network, duration_s, dt_s)
     try:
         while not session.done:
-            if should_cancel and should_cancel():
-                raise s.SolveCancelled('运行已取消', list(session.frames))
             session.advance()
         return session.frames
     finally:

@@ -5,9 +5,7 @@ import math
 import pytest
 from fastapi.testclient import TestClient
 
-import fn_engine.api as api
 from fn_engine.api import create_app
-from fn_engine.solver import SolveCancelled, solve_dynamic
 from test_run_control import custom_project
 from test_thermal import prototype
 
@@ -83,16 +81,3 @@ def test_module_state_survives_on_slim_frames(tmp_path):
     assert counts == list(range(1, len(rows)))
 
 
-def test_cancelled_partial_frames_are_slimmed_too(monkeypatch):
-    def cancel_midway(network, duration_s, dt_s, should_cancel=None):
-        frames = solve_dynamic(network, duration_s, dt_s)
-        raise SolveCancelled('运行已取消', frames[:180])
-
-    monkeypatch.setattr(api, 'solve_dynamic', cancel_midway)
-    with TestClient(create_app()) as client:
-        record, rows = run(client, prototype('water-net'), 30., .1, 'trend', TREND)
-    assert record['status'] == 'cancelled' and len(rows) == 180
-    keys = key_indices(rows)
-    assert keys[0] == 0 and keys[-1] == 179 and len(keys) <= 51
-    assert any(not row['full'] for row in rows)
-    assert all(set(row['variables']) == set(TREND) for row in rows if not row['full'])

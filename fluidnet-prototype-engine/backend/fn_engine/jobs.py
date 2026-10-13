@@ -42,9 +42,8 @@ class Job:
 
 
 class RunManager:
-    def __init__(self, project_factory, storage=None):
+    def __init__(self, project_factory):
         self.project_factory = project_factory
-        self.storage = storage
         self.lock = RLock()
         self.wake = Condition(self.lock)
         self.jobs = OrderedDict()
@@ -52,9 +51,6 @@ class RunManager:
         self.thread = None
         self.closed = False
         self.active = 0
-        if storage:
-            for record in storage.load_runs():
-                self.jobs[record['id']] = Job(None, record, published=len(record['history']))
 
     def submit(self, request):
         with self.wake:
@@ -66,8 +62,6 @@ class RunManager:
             record = {'id': run_id, 'status': 'queued', 'mode': request.mode,
                 'request': request.model_dump(mode='json'), 'frame': None, 'history': [], 'events': [{'type': 'queued', 'time_s': 0.}]}
             self.jobs[run_id] = Job(request.model_copy(deep=True), record)
-            if self.storage:
-                self.storage.save_run(record)
             if self.thread is None:
                 self.thread = Thread(target=self._schedule, name='fluidnet-scheduler', daemon=True)
                 self.thread.start()
@@ -138,17 +132,17 @@ class RunManager:
             if key in job.receipts:
                 receipt, previous = job.receipts[key]
                 if previous != command.model_dump(exclude={'command_id'}):
-            if len(job.receipts) > RECEIPT_LIMIT:
-                # Oldest settled receipts go first; a retried id older than that runs as a new command.
-                settled = [k for k, (r, _) in job.receipts.items() if r['command_status'] != 'accepted']
-                for old in settled[:len(job.receipts) - RECEIPT_LIMIT]:
-                    del job.receipts[old]
                     raise CompilationError('COMMAND_ID_CONFLICT', '命令 ID 已用于不同内容')
                 return deepcopy(receipt)
             if job.record['status'] in TERMINAL:
                 raise CompilationError('RUN_ALREADY_FINISHED', '运行已结束')
             receipt = {'command_id': key, 'command_status': 'accepted', 'applied_time_s': None, 'message': None}
             job.receipts[key] = receipt, command.model_dump(exclude={'command_id'})
+            if len(job.receipts) > RECEIPT_LIMIT:
+                # Oldest settled receipts go first; a retried id older than that runs as a new command.
+                settled = [k for k, (r, _) in job.receipts.items() if r['command_status'] != 'accepted']
+                for old in settled[:len(job.receipts) - RECEIPT_LIMIT]:
+                    del job.receipts[old]
             job.pending.append((key, command.model_copy(deep=True)))
             self._event(job, 'command', key, 'accepted', command=command.model_copy(update={'command_id': key}).model_dump(mode='json'))
             self.wake.notify_all()
@@ -183,14 +177,14 @@ class RunManager:
                             self.active += 1
                             self.pool.submit(self._tick, job)
                     elif job.record['status'] == 'running':
-        # Marked first: a frame rejected below must not be published again by _finish.
-        job.last_sequence = frame.sequence
                         due.append(job.due)
                 self.wake.wait(timeout=max(.001, min(due) - now) if due and self.active < 2 else .05)
 
     def _publish(self, job, frame):
         # Frame objects are never exposed to clients; history is shaped before publication.
         request = job.request
+        # Marked first: a frame rejected below must not be published again by _finish.
+        job.last_sequence = frame.sequence
         row = frame.model_dump(mode='json')
         selected = request.selected_variables or request.project.selected_variables
         if selected:
@@ -227,8 +221,6 @@ class RunManager:
             if len(job.overview) > OVERVIEW_POINTS:
                 job.stride *= 2
                 job.overview = [item for item in job.overview if item[0] % job.stride == 0]
-        if self.storage:
-            self.storage.save_run(job.record)
 
     def _finish(self, job, status, error=None):
         session = job.session
@@ -255,8 +247,6 @@ class RunManager:
             receipt.update(command_status='rejected', message='运行已结束')
             self._event(job, 'command', key, 'rejected', '运行已结束')
         self._event(job, status)
-        if self.storage:
-            self.storage.save_run(job.record)
         # Keep every active job; only completed records count toward retention.
         ended = [key for key, value in self.jobs.items() if value.record['status'] in TERMINAL]
         for key in ended[:-20]:
