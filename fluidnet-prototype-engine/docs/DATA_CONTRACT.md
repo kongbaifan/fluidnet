@@ -170,11 +170,12 @@ PID 控制器（v0.4.2）：`Project.controllers` 是 `PIDController` 列表，�
 
 ## 运行记录与控制
 
-- `RunRequest` v0.4.2 新增 `execution_mode`（`fast`/`realtime`）、`speed_ratio`（0–100]、`start_paused`。
+- `RunRequest` v0.4.2 新增 `execution_mode`（`fast`/`realtime`）、`speed_ratio`（0–100]、`start_paused`；v0.4.3 起 `duration_s` 可为 null（后台持续运行，steady 不允许），新增 `history_window`（10–20001，默认 2001）。`RunFrame.sequence` 是绝对帧序号，与 history 的 offset 一致。
+- `RunHistoryResponse` v0.4.3 新增 `first_offset`、`truncated`；新增 `RunOverviewResponse`（rows、stride、total_rows）。
 - `RunStatus`:run_id、status(queued/running/paused/completed/failed/cancelled/interrupted；`stopping` 未使用)、mode、progress、frame、total_rows、lag_s，命令响应另带 command_id、command_status(accepted/applied/rejected)、applied_time_s、message。`progress` 在 completed 为 1，动态运行按 `frame.time_s / duration_s` 估算。
 - `RunCommand`:action(pause/resume/step/stop/set/controller)、可选 command_id(1–96 位字母数字、`_`、`-`)、instance_id、parameter_id、value、controller_id。`RunEvent` 对命令另带 command_id、command_status、message、command 和 parameter_revision。
 - `RunFrame` v0.4.2 新增 `sequence`（帧序号）与 `parameter_revision`（该帧计算时运行参数和控制器设定已被修改的次数，0 为未改）。
-- `/api/v1/health` 的 `capabilities` 含 `run_control`、`module_versions`、`thermal`、`property_coupling: ["reference","node"]`、`tank_state`、`time_integration: "implicit_euler"`；v0.4.2 起 `live_runs`、`pid`、`runtime_parameters`、`continuous_step` 为 true；`max_frames`(2001)与 `run_retention`(20)不变。
+- `/api/v1/health` 的 `capabilities` 含 `run_control`、`module_versions`、`thermal`、`property_coupling: ["reference","node"]`、`tank_state`、`time_integration: "implicit_euler"`；v0.4.2 起 `live_runs`、`pid`、`runtime_parameters`、`continuous_step` 为 true；v0.4.3 起 `continuous_runs` 为 true，另报 `history_window_max`(20001)、`overview_points`(2000)；`max_frames`(2001，指同步运行)与 `run_retention`(20)不变。
 - 取消记录 `frame.status=cancelled`、`valid=false`,`history` 保留取消前已算出的帧;每次运行恰好一条终态事件；已结束的运行再收到命令返回 409 `RUN_ALREADY_FINISHED`。
 - 运行中的 `set` 只改本次会话的参数，请求快照（`request.project`）保持提交时的值；修改历史以命令事件为准。
 

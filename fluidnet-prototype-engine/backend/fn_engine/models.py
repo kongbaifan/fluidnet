@@ -437,7 +437,8 @@ class Project(StrictModel):
 class RunRequest(StrictModel):
     project: Project
     mode: Literal["steady", "dynamic"] = "steady"
-    duration_s: float = Field(default=60, gt=0, le=604800)
+    # None runs a background dynamic session until it is stopped.
+    duration_s: float | None = Field(default=60, gt=0, le=604800)
     dt_s: float = Field(default=0.1, gt=0, le=60)
     selected_variables: list[str] | None = Field(default=None, max_length=64)
     scenario_id: str | None = None
@@ -448,12 +449,21 @@ class RunRequest(StrictModel):
     execution_mode: Literal['fast', 'realtime'] = 'fast'
     speed_ratio: float = Field(default=1.0, gt=0, le=100)
     start_paused: bool = False
+    # Background runs keep only the most recent `history_window` frames plus a decimated
+    # overview of the whole run; synchronous runs return everything (at most 2001 frames).
+    history_window: int = Field(default=2001, ge=10, le=20001)
 
     @model_validator(mode="after")
-    def limit_frames(self):
-        if self.mode == "dynamic" and self.duration_s > 2000 * self.dt_s:
-            raise ValueError("单次准稳态运行最多 2001 帧，请增大步长或缩短时长")
+    def check_duration(self):
+        if self.duration_s is None and self.mode != "dynamic":
+            raise ValueError("只有动态运行可以不设时长（持续运行）")
         return self
+
+    def frame_count(self) -> int | None:
+        """Frames of a finite dynamic run, t=0 included; None for steady or continuous runs."""
+        if self.mode != "dynamic" or self.duration_s is None:
+            return None
+        return math.ceil(self.duration_s / self.dt_s - 1e-9) + 1
 
 
 class RunCommand(StrictModel):
@@ -590,8 +600,20 @@ class RunCreateResponse(StrictModel):
 
 class RunHistoryResponse(StrictModel):
     rows: list[RunFrame] = Field(default_factory=list)
+    # total_rows counts every frame published so far; offsets are absolute frame indices.
     total_rows: int = Field(default=0, ge=0)
     offset: int = Field(default=0, ge=0)
+    # Oldest frame still held (older frames left the history window); `truncated` when the
+    # requested offset was older than that and the rows start at first_offset instead.
+    first_offset: int = Field(default=0, ge=0)
+    truncated: bool = False
+
+
+class RunOverviewResponse(StrictModel):
+    """Every `stride`-th frame of the whole run (≤ ~2000 rows) plus the latest frame."""
+    rows: list[RunFrame] = Field(default_factory=list)
+    stride: int = Field(default=1, ge=1)
+    total_rows: int = Field(default=0, ge=0)
 
 
 class RunEvent(StrictModel):

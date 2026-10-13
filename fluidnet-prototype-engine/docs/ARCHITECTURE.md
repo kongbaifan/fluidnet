@@ -110,7 +110,8 @@ v0.4.2 起后台运行由 `jobs.RunManager` 管理，同步 `POST /runs` 仍在�
 - 一个调度线程挑选到期的任务，交给 2 个计算线程，每个计算线程一次只推进一个会话一帧。暂停的会话不占计算线程，只占内存和 Worker 进程；非终态运行最多 20 个，超出时创建返回 422 `RUN_LIMIT`。
 - 节奏：`execution_mode='fast'` 连续推进；`realtime` 按 `dt_s / speed_ratio` 的墙钟间隔推进，落后时 `lag_s` 报告滞后秒数，不跳帧。
 - 命令先进入任务队列并立即返回 `accepted` 回执，在下一帧开始前由持有会话的计算线程按到达顺序执行，再记为 `applied` 或 `rejected`（带 `applied_time_s` 或原因）。因此命令总在帧边界生效，正在计算的帧照常完成。同一 `command_id` 重复提交返回原回执，内容不同返回 409。
-- 发布：每帧经 `selected_variables` 和 trend 瘦身后写入记录；会话内只有最新一帧保留全部变量（更早的帧换成已发布的瘦身版本以控制内存），结束时末帧写回完整帧。暂停期间不过期，没有自动恢复。
+- 发布：每帧经 `selected_variables` 和 trend 瘦身后写入记录。会话自身只留最近 8 帧（`SESSION_FRAMES`），按 `sequence` 判断哪些帧还没发布；记录里的 history 只保留最近 `history_window` 帧，另有一条全程抽稀曲线（`OVERVIEW_POINTS`=2000，超出时步距翻倍）。因此持续运行的内存有上限：约 `history_window` 帧加 2000 行精简帧。结束时末帧写回完整帧。暂停期间不过期，没有自动恢复。
+- 持续运行（`duration_s=None`）的帧时刻是 `index·dt`，不累加误差；它只能由 stop 或失败结束，占一个活动运行名额。
 - 终态：completed、failed、cancelled，服务关闭时仍未结束的运行记为 interrupted。任何路径都会关闭会话、回收 Worker，并把未执行的命令记为 rejected。终态记录保留最近 20 个，活动运行不计入淘汰。
 
 FastAPI lifespan 关闭时先 `RunManager.close()`（等待计算线程，再终止剩余运行）。同步运行没有会话，命令端点对它返回 409 `RUN_ALREADY_FINISHED`。

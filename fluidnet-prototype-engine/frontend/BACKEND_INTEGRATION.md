@@ -6,7 +6,7 @@
 
 1. 启动读取 /health、/catalog 和 /modules；内置目录与版本化 Python 模块包合并到模块库，清单参数和版本/哈希同步到原型控件。
 2. 检查连接提交原型活动项目到 /prototype/normalize，再调用 /projects/validate。
-3. 稳态调用 /runs。health 报告 `live_runs` 时，动态项目的运行/单步创建一个后台会话（`execution_mode` 默认 realtime，单步时 `start_paused`，`history:'trend'`），之后的运行、单步、暂停、停止和运行中“应用参数”都是对同一 run_id 的命令；前端等待命令的 applied/rejected 事件，并用 `history?offset=` 增量拉取新帧。会话结束（completed/failed/cancelled/interrupted）后清空 `runId`。
+3. 稳态调用 /runs。health 报告 `live_runs` 时，动态项目的运行/单步创建一个后台会话（`execution_mode` 默认 realtime，单步时 `start_paused`，`history:'trend'`），之后的运行、单步、暂停、停止和运行中“应用参数”都是对同一 run_id 的命令；前端等待命令的 applied/rejected 事件，并用 `history?offset=` 增量拉取新帧。会话结束（completed/failed/cancelled/interrupted）后清空 `runId`。勾选“持续运行”时 `duration_s=null`；浏览器只保留最近 2001 行（`LIVE_ROWS`），曲线页“全程（抽稀）”读 `/runs/{id}/overview`，运行中每 2 秒刷新一次，抽稀数据不写入 localStorage。
 4. 暂停/停止先调用后端 `POST /runs/{run_id}/command`(仅后台运行),再停止本地回放;独立验证台没有后台 `run_id`,只停本地回放;已暂停的项目运行继续时额外调用 `resume` 同步后端。无进行中的后台任务时只停止本地回放。改动已应用参数后重新提交运行。
 5. 每帧保留 canonical 规范变量字典，并映射到原型变量表的显示单位及 sampleKey。
 6. 主系统演示 sampleStep/sampleHistory 已移除。初始演示记录为空，不从公式构造伪造流量或温度。

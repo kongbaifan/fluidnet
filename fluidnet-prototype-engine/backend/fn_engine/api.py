@@ -14,7 +14,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import __version__
-from .jobs import RunManager
+from .jobs import OVERVIEW_POINTS, RunManager
 from .bridge import PARAMETER_BINDINGS, normalize_prototype_export
 from .catalog import builtin_catalog
 from .compiler import CompilationError, compile_project, validate_project
@@ -35,6 +35,7 @@ from .models import (
     RunEventsResponse,
     RunEvent,
     RunHistoryResponse,
+    RunOverviewResponse,
     ValidationResponse,
     ModuleSaveRequest,
     ModuleVersionResponse,
@@ -170,7 +171,8 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
                                 'time_integration':'implicit_euler',
                                 'coolprop_single_phase':True,'user_code':True,'worker_process':True,'async_runs':True,
                                 'module_versions':True,'run_control':True,'live_runs':True,'pid':True,'runtime_parameters':True,'continuous_step':True},
-                'max_frames':2001,'run_retention':RUN_RETENTION}
+                'max_frames':2001,'run_retention':RUN_RETENTION,
+                'continuous_runs':True,'history_window_max':20001,'overview_points':OVERVIEW_POINTS}
 
     @app.get('/api/v1/catalog', response_model=CatalogResponse)
     def catalog():
@@ -312,6 +314,10 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
             except ValueError as error:
                 raise HTTPException(422, detail={'code':'RUN_LIMIT', 'message':str(error)}) from error
             return JSONResponse(status_code=202, content=RunStatus(run_id=run_id,status='queued',mode=request.mode).model_dump(mode='json'))
+        frames = request.frame_count()
+        if request.mode == 'dynamic' and (frames is None or frames > 2001):
+            raise HTTPException(422, detail={'code':'RUN_TOO_LONG', 'message':'同步运行一次返回全部帧，最多 2001 帧且必须设定时长；'
+                                             '更长或持续的运行请用 background=true'})
         try:
             record = compute_run(run_id, request)
         except Exception as error:
@@ -362,8 +368,25 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
 
     @app.get('/api/v1/runs/{run_id}/history', response_model=RunHistoryResponse)
     def run_history(run_id: str, offset: int = Query(0,ge=0), limit: int = Query(2001,ge=1,le=2001)):
-        history = get_run(run_id, history=True)['history']
+        try:
+            return manager.history(run_id, offset, limit)
+        except KeyError:
+            history = get_run(run_id)['history']
         return {'rows':history[offset:offset+limit],'total_rows':len(history),'offset':offset}
+
+    @app.get('/api/v1/runs/{run_id}/overview', response_model=RunOverviewResponse)
+    def run_overview(run_id: str):
+        try:
+            return manager.overview(run_id)
+        except KeyError:
+            history = get_run(run_id)['history']
+        stride = 1
+        while math.ceil(len(history) / stride) > OVERVIEW_POINTS:
+            stride *= 2
+        rows = history[::stride]
+        if history and (len(history) - 1) % stride:
+            rows = rows + [history[-1]]
+        return {'rows':rows,'stride':stride,'total_rows':len(history)}
 
     @app.post('/api/v1/runs/{run_id}/command', response_model=RunStatus)
     def run_command(run_id: str, command: RunCommand):

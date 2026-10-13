@@ -12,3 +12,6 @@ tmp/
 test-results/
 playwright-report/
 *.egg-info/
+# NIST REFPROP is licensed per user; never commit its fluid files, sources or DLL.
+AddIns/
+NISTRefprop9.1/

@@ -6,7 +6,7 @@
 
 | 方法与路径 | 请求 | 返回 |
 | --- | --- | --- |
-| GET /api/v1/health | 无 | 版本（0.4.2）、能力标志（含 `thermal`、`property_coupling`、`tank_state`、`live_runs`、`pid`、`runtime_parameters`、`continuous_step`）、2001 帧上限、20 次记录保留数 |
+| GET /api/v1/health | 无 | 版本（0.4.3）、能力标志（含 `thermal`、`property_coupling`、`tank_state`、`live_runs`、`pid`、`runtime_parameters`、`continuous_step`、`continuous_runs`）、同步运行 2001 帧上限、`history_window_max`、`overview_points`、20 次记录保留数 |
 | GET /api/v1/examples/{name} | `level` 或 `temperature` | 内置 PID 示例 Project；未知名称 404 |
 | GET /api/v1/catalog | 无 | 模块参数/通路/变量目录、原型参数名映射 |
 | GET /api/v1/modules | 无 | 可安装模块包和内置模块清单、版本与内容哈希 |
@@ -20,7 +20,8 @@
 | POST /api/v1/solve | Project | 同步稳态 RunFrame；计算失败时 422 |
 | POST /api/v1/runs | RunRequest | **201**；run_id、status、frame、total_rows。`?background=true` 改返回 **202** 的 `RunStatus`(queued、frame 为 null)，frame 由状态接口补 |
 | GET /api/v1/runs/{run_id} | 无 | 状态、请求快照、最后一帧与事件，不重复携带整段历史(历史由 /history 提供)；记录不存在或已被保留上限淘汰时 404，detail 为固定字符串 |
-| GET /api/v1/runs/{run_id}/history | offset≥0, 1≤limit≤2001 | rows、total_rows、offset |
+| GET /api/v1/runs/{run_id}/history | offset≥0, 1≤limit≤2001（绝对帧序号） | rows、total_rows（已发布帧数）、offset（实际起点）、first_offset（窗口内最早帧）、truncated（请求的 offset 已移出窗口） |
+| GET /api/v1/runs/{run_id}/overview | 无 | 全程抽稀：rows（每 stride 帧一行加最新帧，只含曲线变量和状态，无诊断）、stride、total_rows |
 | GET /api/v1/runs | 无 | 后台运行列表（id、status、mode、项目名、当前 time_s），新的在前 |
 | GET /api/v1/runs/{run_id}/events | 无 | 状态事件与命令事件（accepted/applied/rejected），每次运行恰好一条终态事件 |
 | POST /api/v1/runs/{run_id}/command | RunCommand | RunStatus 加命令回执；见「运行生命周期与控制」 |
@@ -87,6 +88,8 @@ Invoke-RestMethod ('http://127.0.0.1:8798/api/v1/runs/' + $result.run_id + '/his
   "start_paused": false
 }
 ```
+
+持续运行（v0.4.3）：`duration_s` 可为 `null`，只允许后台动态运行，一直推进到 `stop`。同步 `POST /runs` 一次返回全部帧，仍限 2001 帧且必须有时长，否则 422 `RUN_TOO_LONG`；更长的有限运行也走后台。后台运行只在内存保留最近 `history_window`（默认 2001，10–20001）帧，另存一条全程抽稀曲线：每 `stride` 帧一行，超过 2000 行时 `stride` 翻倍并丢掉不对齐的行。`history='trend'` 的关键帧间隔按 `min(总帧数, history_window) / 50` 计算，持续运行按窗口计算。
 
 `execution_mode`、`speed_ratio`（0–100]、`start_paused` 只对后台动态运行有意义：`fast` 连续计算，`realtime` 按 `dt_s / speed_ratio` 墙钟间隔推进一帧；`start_paused=true` 时算完 t=0 后停在 paused，等待 step 或 resume。
 
@@ -191,4 +194,4 @@ Worker RPC 超时默认 10 秒，超时返回 `MODULE_RUNTIME_TIMEOUT` 并终止
 
 ## 尚未实现
 
-流式推送 `WS /runs/{id}/stream`；运行记录持久化与重启后恢复；随时间变化的参数计划（运行中改参数只能逐条发 `set`）。
+流式推送 `WS /runs/{id}/stream`；运行记录持久化与重启后恢复（窗口外的完整帧不保存，只有抽稀曲线）；随时间变化的参数计划（运行中改参数只能逐条发 `set`）。

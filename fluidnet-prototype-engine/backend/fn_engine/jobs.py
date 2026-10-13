@@ -16,6 +16,10 @@ from .simulation import SimulationSession
 from .solver import SolveFailed, solve_steady
 
 TERMINAL = {'completed', 'failed', 'cancelled', 'interrupted'}
+# Overview of a whole run: every `stride`-th frame, the stride doubling whenever this is exceeded.
+OVERVIEW_POINTS = 2000
+# Frames a background session holds itself; history and overview live on the record.
+SESSION_FRAMES = 8
 
 
 @dataclass
@@ -28,6 +32,10 @@ class Job:
     busy: bool = False
     due: float = 0.0
     stepping: bool = False
+    published: int = 0          # frames published so far (absolute index of the next one)
+    last_sequence: int = -1     # RunFrame.sequence of the last published session frame
+    overview: list = field(default_factory=list)   # (absolute index, slim row)
+    stride: int = 1
 
 
 class RunManager:
@@ -43,7 +51,7 @@ class RunManager:
         self.active = 0
         if storage:
             for record in storage.load_runs():
-                self.jobs[record['id']] = Job(None, record)
+                self.jobs[record['id']] = Job(None, record, published=len(record['history']))
 
     def submit(self, request):
         with self.wake:
@@ -68,9 +76,28 @@ class RunManager:
             job = self.jobs[run_id]
             record = job.record
             result = deepcopy(record if history else {k:v for k,v in record.items() if k!='history'})
-            result['total_rows'] = len(record['history'])
+            result['total_rows'] = job.published
             result['lag_s'] = max(0., time.monotonic()-job.due) if record['status']=='running' and job.request.execution_mode=='realtime' else 0.
             return result
+
+    def history(self, run_id, offset, limit):
+        """Rows at absolute frame indices [offset, offset+limit) that are still in the window."""
+        with self.lock:
+            job = self.jobs[run_id]
+            rows = job.record['history']
+            first = job.published - len(rows)
+            start = max(offset, first)
+            return {'rows': deepcopy(rows[start - first:start - first + limit]), 'total_rows': job.published,
+                    'offset': start, 'first_offset': first, 'truncated': offset < first}
+
+    def overview(self, run_id):
+        with self.lock:
+            job = self.jobs[run_id]
+            rows = [row for _, row in job.overview]
+            history = job.record['history']
+            if history and (not job.overview or job.overview[-1][0] != job.published - 1):
+                rows.append(history[-1])
+            return {'rows': deepcopy(rows), 'stride': job.stride, 'total_rows': job.published}
 
     def records(self):
         with self.lock:
@@ -127,29 +154,44 @@ class RunManager:
 
     def _publish(self, job, frame):
         # Frame objects are never exposed to clients; history is shaped before publication.
+        request = job.request
         row = frame.model_dump(mode='json')
-        selected = job.request.selected_variables or job.request.project.selected_variables
+        selected = request.selected_variables or request.project.selected_variables
         if selected:
             missing = set(selected) - row['variables'].keys()
             if missing:
                 raise CompilationError('TREND_VARIABLE_UNKNOWN', f'未知观察变量：{sorted(missing)}')
             row['variables'] = {key: row['variables'][key] for key in selected}
         job.record['frame'] = deepcopy(row)
+        job.last_sequence = frame.sequence
         history = job.record['history']
         if history and history[-1]['time_s'] == row['time_s']:
             return
-        if job.request.history == 'trend':
-            missing = set(job.request.trend_variables) - frame.variables.keys()
+        index = job.published
+        trend = {k for k in row['variables'] if k in request.trend_variables or '.state.' in k or k.startswith('controller.')}
+        if request.history == 'trend':
+            missing = set(request.trend_variables) - frame.variables.keys()
             if missing:
                 raise CompilationError('TREND_VARIABLE_UNKNOWN', f'未知曲线变量：{sorted(missing)}')
-            every = max(1, math.ceil((math.ceil(job.request.duration_s / job.request.dt_s) + 1) / 50))
-            if len(history) % every and frame.time_s < job.request.duration_s and job.record['status'] != 'paused':
-                row['variables'] = {k: v for k, v in row['variables'].items() if k in job.request.trend_variables
-                                    or '.state.' in k or k.startswith('controller.')}
+            # ~50 key frames per run, or per history window when the run is longer (or endless).
+            every = max(1, math.ceil(min(request.frame_count() or request.history_window, request.history_window) / 50))
+            if index % every and not job.session.done and job.record['status'] != 'paused':
+                row['variables'] = {k: v for k, v in row['variables'].items() if k in trend}
                 row['full'] = False
         history.append(row)
-        if job.session and len(job.session.frames)>1 and len(history)>1:
-            job.session.frames[-2] = RunFrame.model_validate(history[-2])
+        job.published += 1
+        if len(history) > request.history_window:
+            del history[:len(history) - request.history_window]
+        if index % job.stride == 0:
+            # The overview keeps only curve variables (all when none are declared), no diagnostics.
+            slim = dict(row, diagnostics=[])
+            if request.trend_variables:
+                slim['variables'] = {k: row['variables'][k] for k in trend if k in row['variables']}
+                slim['full'] = slim['variables'] == row['variables'] and row['full']
+            job.overview.append((index, slim))
+            if len(job.overview) > OVERVIEW_POINTS:
+                job.stride *= 2
+                job.overview = [item for item in job.overview if item[0] % job.stride == 0]
         if self.storage:
             self.storage.save_run(job.record)
 
@@ -157,7 +199,7 @@ class RunManager:
         session = job.session
         if session:
             # Event-boundary frames may have been accepted just before SolveFailed.
-            for frame in session.frames[len(job.record['history']):]:
+            for frame in [f for f in session.frames if f.sequence > job.last_sequence]:
                 self._publish(job, frame)
             session.close()
         job.record['status'] = status
@@ -168,9 +210,10 @@ class RunManager:
         elif job.record.get('frame'):
             job.record['frame']['status'] = status
             job.record['frame']['valid'] = status == 'completed'
-        if job.record['history'] and session and session.frames:
+        history = job.record['history']
+        if history and session and session.frames and history[-1].get('sequence') == session.frames[-1].sequence:
             # Preserve a full final accepted frame for inspecting any variable.
-            job.record['history'][-1] = session.frames[-1].model_dump(mode='json')
+            history[-1] = session.frames[-1].model_dump(mode='json')
         while job.pending:
             key, command = job.pending.popleft()
             receipt = job.receipts[key][0]
@@ -225,7 +268,7 @@ class RunManager:
                         self._publish(job, frame)
                         self._finish(job, 'completed')
                     return
-                job.session = SimulationSession(network, job.request.duration_s, job.request.dt_s)
+                job.session = SimulationSession(network, job.request.duration_s, job.request.dt_s, keep=SESSION_FRAMES)
                 frame = job.session.initialize()
                 with self.wake:
                     job.record['status'] = 'paused' if job.request.start_paused else 'running'

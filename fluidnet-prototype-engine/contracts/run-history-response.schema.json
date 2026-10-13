@@ -160,6 +160,17 @@
       "minimum": 0,
       "title": "Offset",
       "type": "integer"
+    },
+    "first_offset": {
+      "default": 0,
+      "minimum": 0,
+      "title": "First Offset",
+      "type": "integer"
+    },
+    "truncated": {
+      "default": false,
+      "title": "Truncated",
+      "type": "boolean"
     }
   },
   "title": "RunHistoryResponse",

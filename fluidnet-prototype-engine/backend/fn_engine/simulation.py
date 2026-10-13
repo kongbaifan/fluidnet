@@ -1,6 +1,7 @@
 """Resumable simulation; one owner advances a session, commands run at frame boundaries."""
 from __future__ import annotations
 
+from collections import deque
 import dataclasses
 import math
 
@@ -14,15 +15,20 @@ from .properties import property_service
 
 
 class SimulationSession:
-    def __init__(self, network, duration_s, dt_s):
-        if not all(math.isfinite(v) and v > 0 for v in (duration_s, dt_s)) or duration_s > 2000 * dt_s:
-            raise ValueError('运行时长和步长必须为有限正数，最多 2001 帧')
+    def __init__(self, network, duration_s, dt_s, keep=None):
+        """`duration_s=None` runs until stopped. `keep` bounds the frames held here (the caller
+        publishes them); without it every frame is kept and the run is limited to 2001 frames."""
+        if not (math.isfinite(dt_s) and dt_s > 0) or duration_s is not None and not (math.isfinite(duration_s) and duration_s > 0):
+            raise ValueError('运行时长和步长必须为有限正数')
+        if keep is None and (duration_s is None or duration_s > 2000 * dt_s):
+            raise ValueError('一次返回全部帧的运行最多 2001 帧，且必须设定时长')
         self.network = network
         self.duration, self.dt = duration_s, dt_s
         self.time = 0.0
         self.index = 0
         self.revision = 0
-        self.frames = []
+        self.frames = deque(maxlen=keep) if keep else []
+        self.sequence = 0  # frames published so far; the next frame's RunFrame.sequence
         self.runners = {}
         self.controllers = {}
         self.service = property_service(network.project.fluid)
@@ -40,7 +46,7 @@ class SimulationSession:
 
     @property
     def done(self):
-        return bool(self.frames) and self.time >= self.duration - 1e-12
+        return self.duration is not None and bool(self.frames) and self.time >= self.duration - 1e-12
 
     def initialize(self):
         try:
@@ -169,13 +175,14 @@ class SimulationSession:
         frame.diagnostics.extend(self.diagnostics)
         for pid in self.controllers.values():
             frame.variables.update(pid.variables())
-        frame.sequence = len(self.frames)
+        frame.sequence = self.sequence
         frame.parameter_revision = self.revision
         return frame
 
     def publish(self):
         frame = self.snapshot()
         self.frames.append(frame)
+        self.sequence += 1
         self.committed.clear()
         self.diagnostics.clear()
         return frame
@@ -185,7 +192,8 @@ class SimulationSession:
             return self.initialize()
         if self.done:
             raise StopIteration
-        target = min((self.index + 1) * self.dt, self.duration)
+        # Frame times are index·dt (no accumulated rounding), so a continuous run never drifts.
+        target = (self.index + 1) * self.dt if self.duration is None else min((self.index + 1) * self.dt, self.duration)
         while target - self.time > 1e-12 * max(1., target):
             self._control()
             h = min([target - self.time] + [p.next_s - self.time for p in self.controllers.values()])
@@ -197,7 +205,7 @@ class SimulationSession:
                     if not self.stateful or not s._retryable(error):
                         raise
                     if attempt == self.network.project.solver.max_step_halvings:
-                        raise s.SolveFailed('STEP_NOT_CONVERGED', f't={self.time:g} s：缩步后仍未收敛：{error}', frames=self.frames) from error
+                        raise s.SolveFailed('STEP_NOT_CONVERGED', f't={self.time:g} s：缩步后仍未收敛：{error}', frames=list(self.frames)) from error
                     h /= 2
             event = s._tank_event(self.network, trial[2], self.service)
             if event:
@@ -219,7 +227,7 @@ class SimulationSession:
                 if self.time > self.frames[-1].time_s:
                     self.publish()
                 code, spec = event
-                raise s.SolveFailed(code, f'{spec.instance_id} 在 t={self.time:g} s 达到液位边界，运行停止', spec.instance_id, self.frames)
+                raise s.SolveFailed(code, f'{spec.instance_id} 在 t={self.time:g} s 达到液位边界，运行停止', spec.instance_id, list(self.frames))
             self._accept(h, *trial)
         self.time = target
         self.index += 1
@@ -236,7 +244,7 @@ def run_dynamic(network, duration_s, dt_s, should_cancel=None):
     try:
         while not session.done:
             if should_cancel and should_cancel():
-                raise s.SolveCancelled('运行已取消', session.frames)
+                raise s.SolveCancelled('运行已取消', list(session.frames))
             session.advance()
         return session.frames
     finally:

@@ -1112,11 +1112,18 @@
       "type": "string"
     },
     "duration_s": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0,
+          "maximum": 604800,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
       "default": 60,
-      "exclusiveMinimum": 0,
-      "maximum": 604800,
-      "title": "Duration S",
-      "type": "number"
+      "title": "Duration S"
     },
     "dt_s": {
       "default": 0.1,
@@ -1190,6 +1197,13 @@
       "default": false,
       "title": "Start Paused",
       "type": "boolean"
+    },
+    "history_window": {
+      "default": 2001,
+      "maximum": 20001,
+      "minimum": 10,
+      "title": "History Window",
+      "type": "integer"
     }
   },
   "required": [

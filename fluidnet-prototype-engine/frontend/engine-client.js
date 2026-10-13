@@ -3,6 +3,9 @@ window.createEngineClient = function (ui) {
   const clone = value => JSON.parse(JSON.stringify(value));
   const queues = new Map(), pending = new Map();
   const livePolling = new Set();
+  // A browser keeps at most this many live rows (the server window); older rows come from /overview.
+  const LIVE_ROWS = 2001;
+  const overviews = new Map();  // run id -> {rows, stride, total, at}
   let catalog = null, moduleCatalog = null, health = null;
   // Polling a backgrounded run is bounded twice on purpose: a backend that never leaves
   // queued/running must not spin the UI forever, and an iteration cap alone would not hold
@@ -600,8 +603,11 @@ window.createEngineClient = function (ui) {
       const data = await request('/runs/' + id);
       const history = await request(`/runs/${id}/history?offset=${owner.run.offset || 0}`);
       if (owner.run.runId !== id) return;
+      // `truncated`: frames older than the server window were skipped; the curve shows a gap.
       for (const frame of history.rows) applyRow(owner, rowFromFrame(owner,frame));
+      if (owner.run.history.length > LIVE_ROWS) owner.run.history.splice(0, owner.run.history.length - LIVE_ROWS);
       owner.run.offset = history.total_rows;
+      if (ui.state().charts.range === 'all' && Date.now() - (overviews.get(id)?.at || 0) > 2000) loadOverview(owner);
       if (data.frame?.valid && owner.run.history.length) {
         const row = rowFromFrame(owner,data.frame);
         const last = owner.run.history.at(-1);
@@ -648,7 +654,7 @@ window.createEngineClient = function (ui) {
       if(pending.has(owner.id)) return;
       pending.set(owner.id,new AbortController());
       const project=await normalize(owner);
-      const result=await request('/runs?background=true',{project,mode:'dynamic',duration_s:owner.solver.duration,
+      const result=await request('/runs?background=true',{project,mode:'dynamic',duration_s:owner.solver.continuous ? null : owner.solver.duration,
         dt_s:owner.solver.dt,execution_mode:owner.solver.executionMode || 'realtime',speed_ratio:owner.solver.speedRatio || 1,
         start_paused:action==='step',history:'trend',trend_variables:trendVariables(owner)});
       owner.run={...ui.emptyRun(),source:'engine',status:'solving',id:result.run_id,runId:result.run_id,live:true,offset:0};
@@ -657,6 +663,21 @@ window.createEngineClient = function (ui) {
       await pollLive(owner);
     } catch(error) {ui.message(error.message,true);}
     finally {pending.delete(owner.id);}
+  }
+  async function loadOverview(owner) {
+    const id = owner.run.id;
+    if (!id || owner.run.source !== 'engine') return null;
+    try {
+      const data = await request(`/runs/${id}/overview`);
+      const entry = {rows: data.rows.map(frame => rowFromFrame(owner, frame)), stride: data.stride, total: data.total_rows, at: Date.now()};
+      overviews.set(id, entry);
+      ui.refresh();
+      return entry;
+    } catch (error) {
+      // The run is gone from the server (restart or retention); the window rows remain.
+      overviews.set(id, {rows: null, error: error.message, at: Date.now()});
+      return null;
+    }
   }
   async function applyParameters(owner,node) {
     const m=ui.moduleOf(node), definition=m.manifest || catalog.modules.find(d=>d.id===m.kind);
@@ -673,5 +694,5 @@ window.createEngineClient = function (ui) {
     }
     owner.run.parameterKey=ui.parameterKey(owner);ui.persist();ui.render();
   }
-  return {command,tick,validate,init,applyParameters,confirmedCommand,portValue,manifestPayload,contractText,checkModule,saveModule,versions,loadVersion,newModule,updateContractItem,bindModule,pinProject,moduleForInsert,get catalog(){return catalog;},get health(){return health;}};
+  return {command,tick,validate,init,applyParameters,loadOverview,overview:id=>overviews.get(id),confirmedCommand,portValue,manifestPayload,contractText,checkModule,saveModule,versions,loadVersion,newModule,updateContractItem,bindModule,pinProject,moduleForInsert,get catalog(){return catalog;},get health(){return health;}};
 };

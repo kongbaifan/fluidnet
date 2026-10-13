@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "FluidNet Prototype Engine",
-    "version": "0.4.2"
+    "version": "0.4.3"
   },
   "paths": {
     "/api/v1/health": {
@@ -598,6 +598,45 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RunHistoryResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/runs/{run_id}/overview": {
+      "get": {
+        "summary": "Run Overview",
+        "operationId": "run_overview_api_v1_runs__run_id__overview_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunOverviewResponse"
                 }
               }
             }
@@ -2448,11 +2487,49 @@
             "minimum": 0.0,
             "title": "Offset",
             "default": 0
+          },
+          "first_offset": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "First Offset",
+            "default": 0
+          },
+          "truncated": {
+            "type": "boolean",
+            "title": "Truncated",
+            "default": false
           }
         },
         "additionalProperties": false,
         "type": "object",
         "title": "RunHistoryResponse"
+      },
+      "RunOverviewResponse": {
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/RunFrame"
+            },
+            "type": "array",
+            "title": "Rows"
+          },
+          "stride": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Stride",
+            "default": 1
+          },
+          "total_rows": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total Rows",
+            "default": 0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "RunOverviewResponse",
+        "description": "Every `stride`-th frame of the whole run (≤ ~2000 rows) plus the latest frame."
       },
       "RunRecordResponse": {
         "properties": {
@@ -2524,9 +2601,16 @@
             "default": "steady"
           },
           "duration_s": {
-            "type": "number",
-            "maximum": 604800.0,
-            "exclusiveMinimum": 0.0,
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 604800.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Duration S",
             "default": 60
           },
@@ -2600,6 +2684,13 @@
             "type": "boolean",
             "title": "Start Paused",
             "default": false
+          },
+          "history_window": {
+            "type": "integer",
+            "maximum": 20001.0,
+            "minimum": 10.0,
+            "title": "History Window",
+            "default": 2001
           }
         },
         "additionalProperties": false,
