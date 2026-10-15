@@ -16,9 +16,19 @@ properties.PROBE_REFPROP = False
 
 def main():
     runners = {}
+    control = None
 
     def dispatch(message):
+        nonlocal control
         action=message.get('action')
+        if action in ('control_initialize', 'control_validate'):
+            from .control import ControlRunner
+            control = ControlRunner(message['definition'])
+            return control.call('initialize', message) if action == 'control_initialize' else {'ok': True}
+        if action in ('control_step', 'control_finalize'):
+            if control is None:
+                raise ValueError('控制 Worker 尚未初始化')
+            return control.call('step' if action == 'control_step' else 'finalize', message)
         key=message.get('instance_id','default')
         runner=runners.get(key)
         if action=='batch':

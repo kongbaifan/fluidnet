@@ -1,6 +1,8 @@
+import { testServer } from './browser-server.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 
+const fixture=await testServer();
 const browser = await chromium.launch({channel:'msedge',headless:true});
 const page = await browser.newPage({viewport:{width:1600,height:1000}});
 const errors=[];
@@ -10,7 +12,7 @@ const save=async()=>{
   return page.evaluate(()=>JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
 };
 try {
-  await page.goto((process.env.FLUIDNET_TEST_URL || 'http://127.0.0.1:8798')+'/#modules');
+  await page.goto(fixture.base+'/#modules');
   await expect(page.locator('#app-header')).toContainText(/v\d+\.\d+\.\d+/);
   const card=page.locator('[data-module-id="programmable_valve"]');
   await expect(card).toContainText('Python · v1');
@@ -60,4 +62,4 @@ try {
   await page.screenshot({path:'artifacts/platform-failure.png',fullPage:true});
   console.error('Browser errors:',errors);
   throw error;
-} finally { await browser.close(); }
+} finally { await browser.close(); await fixture.close(); }

@@ -3337,5 +3337,6 @@
     "batch_modules": true
   },
   "controllers": [],
+  "control_scripts": [],
   "circuit_fluids": []
 }

@@ -2,7 +2,7 @@
 
 基于现有 FluidNet Studio 交互原型建立的独立项目。前端继承画布、模块库、型号、设备属性、草稿/应用和曲线工作流；后端重新定义模块合同、网络编译、水力算法和 HTTP 接口，并提供基于 Pydantic 的契约层、CoolProp 单相物性服务、版本化 Python 模块包和独立 Worker 生命周期。
 
-本目录独立于原来的 `fluidnet/` 与 `web/`。原型来源为 `../output/visualizations/fluidnet-studio-prototype.html`。前端原型现拆分为 `frontend/index.html`(HTML/CSS 外壳与挂载点)与 `frontend/studio.js`(原内联 JavaScript),新增 `frontend/engine-client.js` 负责真实计算接口;`index.html` 末尾依次加载二者,服务把 `frontend/` 目录以 `StaticFiles(html=True)` 挂载到 `/`,默认入口页即 `frontend/index.html`。
+本目录独立于原来的 `fluidnet/` 与 `web/`。原型来源为 `../output/visualizations/fluidnet-studio-prototype.html`。前端原型现拆分为 `frontend/index.html`(HTML/CSS 外壳与挂载点)与 `frontend/studio.js`(原内联 JavaScript),新增 `frontend/engine-client.js` 负责真实计算接口;新增 `frontend/project-services.js` 管理控制与工作区接口；`index.html` 按服务层、适配器、界面的顺序加载脚本,服务把 `frontend/` 目录以 `StaticFiles(html=True)` 挂载到 `/`,默认入口页即 `frontend/index.html`。
 
 ## 启动
 
@@ -43,11 +43,25 @@ python -m fn_engine serve --host 0.0.0.0 --port 8798 --cors-origin http://twin.l
 2. 点击“运行”或“单步”。原型项目经归一化转换成新合同，后端返回真实水力与热力结果。
 3. 修改 V1 的开度，点击“预览并应用”，再单步。草稿值不进入计算，已应用值进入下一次求解。
 4. 画布、设备变量表和曲线读取同一运行帧。端口的温度、比焓、密度和干度来自热力层；设备“全部变量”另有黏度、比热和通路吸热量。
-5. 保存项目后可刷新继续查看已有结果；后端运行记录在服务重启后清空，浏览器中保存的结果不依赖内存记录。
+5. 点击“保存原型”将全部项目与编辑草稿事务写入本地 SQLite，服务端确认后显示已保存；跨标签页修改会检测修订冲突。服务重启后可恢复项目，并在“运行记录 → 服务端档案”查看历史与曲线。
 
 初始算例的 A 路质量流量约为 **3.582677 kg/s**。A 路开度从 80% 改为 40% 后，A 路约为 **2.346313 kg/s**。这是内置参数下的回归算例，示例泵曲线不是厂家标定数据。默认 `property_coupling='reference'` 下热力层不改变水力结果，这两个值与接入热力层之前完全一致。
 
 “双侧换热机组”示例（UA = 2000 W/K）中，热侧 65.002 → 62.741 °C，冷侧 25.002 → 27.307 °C，换热量约 75.4 kW。
+
+## Python 项目控制与可靠保存
+
+在“控制”页编辑 `initialize(ctx)`、`step(ctx, dt_s)`、`finalize(ctx)`，声明输入/输出后点击“预览一个周期”。预览使用独立 Worker 真实执行，并返回拟写入值；启用脚本后新建动态运行，输出才会进入后续子步。内置示例将 V1 开度设为 0.65（65%）。旧 Lua 文本原样保留，手动迁移或载入 Python 示例后才能启用。
+
+`ctx.read(key)` / `ctx.write(key,value)` 使用引擎单位（Pa、K、kg/s、开度 0–1），`ctx.state` 为受管理的 JSON 状态。脚本按仿真时间采样；失败子步重试复用提案，接受后提交状态。每个参数只允许一个控制者；脚本可以调整 PID 设定值，不能覆盖 PID 已绑定的设备参数。语法、异常、超时或非法写入会停止运行并保留已接受历史。
+
+`serve` 默认启用 SQLite 工作区：本目录 `.runtime/workspace/`；可用 `--data-dir <目录>` 或 `FLUIDNET_DATA_DIR` 指定。兼容仅配置 `FLUIDNET_MODULE_STORE` 的启动方式时，工作区默认在其 `.workspace/` 子目录。一个目录同时只允许一个服务进程。
+
+保存涵盖画布、草稿、型号、库值、曲线绑定、脚本文本和项目固定模块快照；最近 5 个工作区修订保存在数据库。浏览器继续保留草稿备份；保存失败显示原因并保持未保存状态。陈旧页面返回 409，先导出当前草稿，再点击“载入服务器”。载入前另外备份到浏览器键 `fluidnet-prototype-engine-v1-before-workspace`。
+
+运行归档保留最近 20 次结束运行、最近 `history_window` 帧和约 2000 点的全程抽稀曲线；请求、脚本哈希、最新变量、事件及诊断一起保存，每次发布帧完成事务后更新最后落盘时间。重启时未结束的运行标为 `interrupted`，未确认命令标为拒绝；查看历史后需要新建运行继续计算。运行档案支持查看、导出和删除。
+
+备份时先关闭服务，再复制工作区目录与模块目录（若迁移认证，再复制令牌文件）；恢复到另一目录后通过同一配置启动。不要只在运行中复制 `workspace.sqlite3`：未检查点的提交可能在 WAL 文件中。跨重启继续原仿真和在线备份工具留待后续。
 
 ## 可编程模块验收入口
 
@@ -66,7 +80,7 @@ python -m fn_engine serve --host 0.0.0.0 --port 8798 --cors-origin http://twin.l
 5. 版本按模块 ID 从 v1 递增；内置示例 v1 的下一版本为 v2。「刷新版本」查看备注、哈希和验证状态，「载入为草稿」可以基于历史版本继续开发。
 6. 拖入项目或创建管网算例时保存完整版本快照和引用。同一项目中同一模块 ID 使用同一版本；发布后新项目可以使用新版，已有项目继续使用原版。暂未提供项目内的版本升级/迁移操作。
 
-模块版本默认保存在本项目 `.runtime/module-packages/module-<id>/v<N>/`，包含 `manifest.json`、`module.py`、`release.json`（备注、时间、试算条件与结果）。可用环境变量 `FLUIDNET_MODULE_STORE` 指定持久目录。服务重启不会丢失这些文件；该目录属于本地用户数据，Git 忽略它，备份时需另外复制。`modules/` 中的示例包不被修改。浏览器「保存原型」只保存项目和编辑草稿，与后端版本保存分开。
+模块版本默认保存在本项目 `.runtime/module-packages/module-<id>/v<N>/`，包含 `manifest.json`、`module.py`、`release.json`（备注、时间、试算条件与结果）。可用环境变量 `FLUIDNET_MODULE_STORE` 指定持久目录。服务重启不会丢失这些文件；该目录属于本地用户数据，Git 忽略它，备份时需另外复制。`modules/` 中的示例包不被修改。「保存原型」保存整个工作区及编辑草稿到服务端，与模块「保存新版本」分开。
 
 保存前试算会为每条启用通路各接一组独立压力边界，多通路模块（如两侧独立的换热结构）在同一个网络中一次求解；通路共用端口、端口未绑定通路或非流体端口会被拒绝，并在诊断中说明。数值、布尔、文本和曲线参数都可以在设备面板和验证台按类型编辑；数值参数显示单位换算，曲线参数使用 JSON 点对数组。设备面板的草稿仍通过“预览并应用”生效。
 
@@ -103,6 +117,8 @@ python -m fn_engine serve --host 0.0.0.0 --port 8798 --cors-origin http://twin.l
 | 历史瘦身 | 动态运行 `history='trend'` 时只有约 50 个关键帧保留全部变量，其余帧只存曲线变量与模块状态；water-net 2001 帧 22.7 MB → 1.74 MB |
 | 后台运行 | `POST /api/v1/runs?background=true` 返回 `run_id`；`POST /runs/{run_id}/command` 支持 pause/resume/step/set/controller/stop/write，带命令回执与生效时刻；最多 20 个活动运行 |
 | 变量接口 | `GET /runs/{id}/variables?keys=…` 读最新帧的指定变量；`POST /runs/{id}/variables` 批量写运行参数与 PID 设定，同一帧边界全部生效或全部拒绝，可等待回执；`WS /runs/{id}/stream` 每个新帧推送所选变量；「对接」页给出当前运行的调用示例并可直接发送读取请求 |
+| Python 项目控制 | 独立 Worker、仿真周期采样、声明读写、受管理状态、真实预览与错误诊断 |
+| 可靠保存 | SQLite 工作区修订和运行归档；重启后读取历史，原运行标为中断 |
 | 访问控制 | 令牌分只读/控制两级；监听本机以外地址时强制开启；可配置跨域来源（见“对外开放与访问令牌”） |
 | 大网络 | `hydraulic_method='sparse'` 稀疏 Jacobian（1000 实例串联管网本机约 2.3 s，稠密约 104 s）；多个 Python 实例默认共用 Worker 批量求值 |
 
@@ -136,7 +152,7 @@ python -m pytest -q
 python scripts/generate_contracts.py
 ```
 
-浏览器验证使用 Node 和 Playwright，`browser-smoke.mjs` 需要先在 8798 端口启动服务（其余脚本自带临时端口）：
+浏览器验证使用 Node 和 Playwright；各脚本使用临时端口与隔离的模块/工作区目录，无需预先启动服务：
 
 ```powershell
 npm install
@@ -146,3 +162,5 @@ npm run test:browser
 Windows 测试使用本机 Edge 的无头模式。验证真实页面加载、连接检查、求解、修改开度、应用、曲线值、保存和刷新。`browser-authoring.mjs` 另外启动临时端口和隔离存储，覆盖新建模块、参数/输出编辑、校验失败、版本保存、旧项目隔离与服务重启复现，不向用户模块目录写入测试版本。截图写入忽略提交的 `artifacts/`，包括 `module-authoring.png`。仅在明确更新原型基线时执行 `node tests/browser-smoke.mjs --refresh-fixture`。
 
 当前测试包含单位双向转换、Kv 解析解、管道层流压降、粗糙度影响、节点流量守恒、关阀、反向流、未收敛、断开子网络、冲突压力边界、不支持模型、双侧换热器、API 错误响应、工况覆盖和采样上限。热力测试（`test_thermal.py`）覆盖节点混合、等焓、管道散热解析解、泵温升、ε–NTU（含 C_r=1）、单侧无流量、反向流、停滞节点、闭合回路参考热量、全网能量平衡、reference 模式水力基准、thermal 关闭、node 耦合、Python 模块 heat_w 与相态拒绝、动态热启动、边界温度冲突，以及与归档 v0.2 内核的换热器对照；物性测试（`test_properties.py`）覆盖 PT/PH 往返、两相干度、相态策略与多线程查询；介质测试（`test_media.py`）覆盖乙二醇溶液 −10 °C 回路、液氨 −30 °C 边界、按工质的温度/相态范围、等熵与饱和查询、模块内 `state_ps`、工质字符串错误码与湿空气；历史测试（`test_history.py`）覆盖 2001 帧瘦身体积、关键帧、与完整历史逐帧一致、模块状态保留和取消后的部分帧；状态测试（`test_states.py`）覆盖水箱初始状态一致性、线性 ODE 的隐式 Euler 递推与一阶收敛、质量与能量账本、进水混合、加热与散热、只靠水箱定压的闭合回路、排空与满箱事件、子步减半不留痕迹、热力层关闭和编译期拒绝，以及管道热容的 N 段串联稳态解与一阶收敛、输入不变时保持稳态、停流管段的冷却递推、进水升温的延迟与储热账本、反向流和非法分段数。PID 测试（`test_pid.py`）覆盖抗饱和、纯比例静差的解析平衡点、PI 无静差、非 runtime 目标与越界限幅、受控参数拒绝手工写入与手动切换、失败子步不推进控制器；持续运行测试（`test_continuous.py`）覆盖同步运行帧数限制、长后台运行的窗口与全程抽稀、持续运行直到停止、窗口内 trend 关键帧、会话帧数有界且时刻不漂移；会话测试（`test_live.py`）覆盖暂停会话释放计算线程、单步保持 Worker 状态、`set` 幂等与冲突、实时节奏与暂停不过期、温控 PID、隔离管段保压与重连；接口与认证测试（`test_access.py`）覆盖变量读取、批量写入的全有或全无与单一修订号、推送与结束消息、未知运行和变量、令牌分级与撤销、WebSocket 的请求头和子协议令牌、CORS 预检、令牌文件只存哈希、不安全启动配置被拒绝和令牌命令行；多工质测试（`test_multifluid.py`）覆盖换热器两侧各用各的物性并与 ε–NTU 对照、按回路检查边界范围、两种耦合模式下的分回路水力、与项目工质相同时结果不变、盐水回路中的水箱、同回路冲突与关阀不分回路、锚点和工质错误、跨两回路的 Python 模块（含批量 Worker）、检查接口返回回路和原型归一化；REFPROP 测试（`test_refprop.py`，未安装时跳过）覆盖未安装提示、纯质与 HEOS 对照、非共沸混合物滑移与相态、质量/摩尔基准、无输运方程的混合物、错误写法、R134a 管网对照、多线程交替查询和版本不匹配不崩溃；规模测试（`test_scaling.py`）覆盖稀疏与稠密一致、批量 Worker 下实例状态独立。浏览器 `browser-pid.mjs` 覆盖 PID 示例运行与控制面板，`browser-continuous.mjs` 覆盖持续运行开关、全程曲线和停止，`browser-multifluid.mjs` 覆盖给换热机组二次侧设乙二醇、按回路着色和两侧密度，`browser-auth.mjs` 覆盖带令牌启动的服务、令牌输入与错误重输、「对接」页带令牌读取当前运行。平台契约测试另外覆盖 CoolProp 水/空气状态、版本化可编程阀门 Worker、`evaluate` 关系进入网络求解器、模块默认值、后台运行事件、独立进程 ID、嵌套状态隔离、超时终止、失败清理、末步 dt、真实累计质量、通路缺失诊断及前端保存/刷新/拖放。
+
+本轮专项测试 `test_controls_storage.py` 覆盖采样/失败重试、PID 设定值、整批写入校验、Worker 超时、工作区修订冲突、事务失败、归档恢复/保留和停服备份迁移；`browser-workspace.mjs` 覆盖真实控制预览、跨标签页冲突、保存重试、强制重启后在全新浏览器恢复项目及自定义曲线、旧脚本保留。

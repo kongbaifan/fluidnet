@@ -8,6 +8,12 @@
 | --- | --- | --- |
 | GET /api/v1/health | 无 | 版本（0.4.6）、能力标志（含 `thermal`、`property_coupling`、`tank_state`、`live_runs`、`pid`、`runtime_parameters`、`continuous_step`、`continuous_runs`、`variables_api`、`run_stream`、`refprop.installed`）、`auth.required`、同步运行 2001 帧上限、`history_window_max`、`overview_points`、20 次记录保留数 |
 | GET /api/v1/examples/{name} | `level` 或 `temperature` | 内置 PID 示例 Project；未知名称 404 |
+| GET /api/v1/workspace | 可选 revision | 完整原型工作区、revision、saved_at；未保存时 data=null |
+| POST /api/v1/workspace | data、expected_revision | 已落盘修订与时间；陈旧修订 409，存储故障 507 |
+| GET /api/v1/workspace/revisions | 无 | 最近 5 个修订元数据 |
+| POST /api/v1/controls/preview | project、script | state、writes、diagnostics、content_hash、applied=false |
+| GET /api/v1/runs | 无 | 活动运行与归档列表 |
+| POST /api/v1/runs/{run_id}/delete | 空对象 | 删除终态记录；活动运行返回 409 |
 | GET /api/v1/catalog | 无 | 模块参数/通路/变量目录、原型参数名映射 |
 | GET /api/v1/modules | 无 | 可安装模块包和内置模块清单、版本与内容哈希 |
 | POST /api/v1/modules/validate | ModuleDefinition | 契约、Python 语法、Worker 入口与四阶段签名诊断 |
@@ -214,3 +220,13 @@ Worker RPC 超时默认 10 秒，超时返回 `MODULE_RUNTIME_TIMEOUT` 并终止
 ## 尚未实现
 
 串口桥接与外部变量别名映射（「对接」页的串口、变量绑定仍是演示）；HTTPS（请用反向代理）；运行记录持久化与重启后恢复（窗口外的完整帧不保存，只有抽稀曲线）；随时间变化的参数计划（运行中改参数只能逐条发 `set`）。
+
+## Python 控制与持久工作区
+
+`Project.control_scripts` 为 `ControlScript[]`，原型归一化从 `controlScripts` 读取。脚本包含 id、language=`python`、source、enabled（默认 false）、sample_s（0.001–60，默认 0.1）、inputs/outputs（各最多 256）、timeout_s（0.1–30，默认 5）和源码 SHA-256 `content_hash`。哈希由服务端生成；携带不匹配哈希会返回 422。最多 16 个脚本，只有启用的脚本参与校验/执行。启用脚本要求动态运行，稳态返回 `CONTROL_DYNAMIC_REQUIRED`。
+
+`POST /controls/preview` 将目标脚本放入独立临时会话，在 t=0 完成 initialize 和一次 step，校验并返回拟写入值；不修改原型项目，不产生运行档案。生命周期均为同步 Python 函数，`step(ctx,dt_s)` 第一次 dt_s=0，之后为实际仿真采样间隔。ctx.time_s、ctx.read、ctx.write、ctx.state、ctx.log 可用；state 必须为有限值 JSON 字典且不超过 64 KiB。读写只能使用声明键，写入先整批校验，再交给运行参数/PID 接口；PID 目标和不同脚本的直接写目标不能重叠。运行帧增加 `script.<id>.samples/last_time_s/content_hash/state.<标量键>`。
+
+`serve` 启用本地持久化（`--data-dir` / `FLUIDNET_DATA_DIR`），`create_app` 嵌入调用则通过 `data_root` 显式启用。health.capabilities 中 `python_controls` 为 true，`persistent_workspace` 表示本实例是否启用存储。未启用时 workspace 接口返回 503。保存的 data 是 schema=1 的完整原型工作区，含 projects/modules/models 和 activeProject，最大 64 MiB；不等同于规范计算 Project。expected_revision=0 表示首次保存；修订冲突不会覆盖现有数据。
+
+归档 RunRecordResponse 增加 `persisted_at`（最近成功落盘时间）与 `persisted_rows`（累计落盘帧数）。每帧元数据、窗口行与必要的 overview 在一个 SQLite 事务中写入；最后 20 次终态运行保留在磁盘。`history_window` 默认 2001、最大 20001；更早逐帧历史被淘汰，全程保留抽稀曲线。history=full 仅控制窗口帧内容，不保证无限保留全帧。重启恢复将未结束运行变为 interrupted，并拒绝尚无生效确认的命令。已结束档案可读变量/历史/overview，不能 resume。

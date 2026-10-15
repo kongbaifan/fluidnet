@@ -759,6 +759,8 @@ def _with_states(network, frame: RunFrame, result: NetworkResult, tanks: dict[in
 
 
 def solve_steady(network):
+    if any(script.enabled for script in network.project.control_scripts):
+        raise CompilationError('CONTROL_DYNAMIC_REQUIRED', 'Python 控制脚本需要动态运行；请切换运行模式或停用脚本')
     result = solve_network(network)
     frame = snapshot(network, result)
     if network.storage:

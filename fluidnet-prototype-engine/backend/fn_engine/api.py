@@ -50,11 +50,13 @@ from .properties import PropertyError, refprop_root
 from .packages import ModuleStore, ModuleVersionConflict, ModuleSaveInvalid, package_ref
 from .module_validation import validate_module_definition
 from .solver import SolveFailed, solve_dynamic, solve_steady
+from .models import ControlPreviewRequest, WorkspaceSaveRequest
+from .storage import WorkspaceStore, WorkspaceConflict, StorageError
 
 logger = logging.getLogger('fn_engine.api')
 
 RUN_RETENTION = 20
-RUN_NOT_FOUND = '运行记录不存在或已过期;仅在内存保留最近 20 次运行'
+RUN_NOT_FOUND = '运行记录不存在或已过期；保留最近 20 次已结束运行'
 
 
 def apply_scenario(project, scenario_id):
@@ -101,7 +103,7 @@ def trend_history(history: list[RunFrame], variables: list[str]) -> None:
             reference = frame.diagnostics
             continue
         frame.variables = {key: value for key, value in frame.variables.items()
-                           if key in wanted or key.split('.', 2)[1:2] == ['state']}
+                           if key in wanted or key.split('.', 2)[1:2] == ['state'] or key.startswith('script.')}
         if frame.diagnostics == reference:
             frame.diagnostics = []
         frame.full = False
@@ -119,7 +121,9 @@ def shape_history(history: list[RunFrame], request: RunRequest, project: Project
         for frame in history:
             frame.variables = {key:frame.variables[key] for key in selected}
     if request.mode == 'dynamic' and request.history == 'trend':
-        trend_history(history, request.trend_variables)
+        outputs = {key for script in project.control_scripts if script.enabled for key in script.outputs}
+        outputs &= history[0].variables.keys() | history[-1].variables.keys()
+        trend_history(history, list(set(request.trend_variables) | outputs))
 
 
 def diagnostic(error):
@@ -147,12 +151,14 @@ def _unexpected_failure(error: BaseException) -> tuple[int, dict]:
 
 
 def create_app(frontend_root: str | Path | None = None, module_storage_root: str | Path | None = None,
-               auth: AuthConfig | None = None, cors_origins: list[str] | tuple[str, ...] = ()) -> FastAPI:
+               auth: AuthConfig | None = None, cors_origins: list[str] | tuple[str, ...] = (),
+               data_root: str | Path | None = None) -> FastAPI:
     """`auth.required` puts every /api/ call except /api/v1/health behind a bearer token (see auth.py)."""
     auth = auth or AuthConfig()
     runs = OrderedDict()
     lock = Lock()
-    manager = RunManager(apply_scenario)
+    archive = WorkspaceStore(data_root) if data_root is not None else None
+    manager = RunManager(apply_scenario, archive)
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
@@ -166,8 +172,14 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
                 manager.close()
             except Exception:  # pragma: no cover - defensive teardown
                 logger.exception('FluidNet run manager shutdown failed')
+            finally:
+                if archive:
+                    archive.close()
 
     app = FastAPI(title='FluidNet Prototype Engine', version=__version__, lifespan=lifespan)
+    @app.exception_handler(StorageError)
+    async def storage_error(_request, error):
+        return JSONResponse(status_code=507, content={'detail': {'code': 'STORAGE_FAILED', 'message': str(error)}})
     project_root = Path(__file__).resolve().parents[2]
     store = ModuleStore(project_root / 'modules', Path(module_storage_root or os.environ.get('FLUIDNET_MODULE_STORE') or project_root / '.runtime' / 'module-packages'))
 
@@ -198,10 +210,52 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
                                 'coolprop_single_phase':True,'user_code':True,'worker_process':True,'async_runs':True,
                                 'module_versions':True,'run_control':True,'live_runs':True,'pid':True,'runtime_parameters':True,'continuous_step':True,
                                 'continuous_runs':True,'variables_api':True,'run_stream':True,
+                                'python_controls':True,'persistent_workspace':archive is not None,
                                 # Whether a REFPROP installation is present; the DLL is not loaded for this check.
                                 'refprop':{'installed':refprop_root() is not None}},
                 'max_frames':2001,'run_retention':RUN_RETENTION,'history_window_max':20001,'overview_points':OVERVIEW_POINTS,
                 'auth':{'required':auth.required}}
+
+    def require_archive():
+        if archive is None:
+            raise HTTPException(503, detail='持久存储未启用，请使用 serve 启动服务或为 create_app 配置 data_root')
+        return archive
+
+    @app.get('/api/v1/workspace')
+    def read_workspace(revision: int | None = Query(None, ge=1)):
+        try:
+            return require_archive().workspace(revision)
+        except KeyError:
+            raise HTTPException(404, detail='工作区备份修订不存在')
+
+    @app.get('/api/v1/workspace/revisions')
+    def workspace_revisions():
+        return {'revisions': require_archive().revisions()}
+
+    @app.post('/api/v1/workspace')
+    def save_workspace(request: WorkspaceSaveRequest):
+        try:
+            return require_archive().save_workspace(request.data, request.expected_revision)
+        except WorkspaceConflict as error:
+            raise HTTPException(409, detail={'code': 'WORKSPACE_CONFLICT', 'message': str(error)}) from error
+
+    @app.post('/api/v1/controls/preview')
+    def preview_control(request: ControlPreviewRequest):
+        from .simulation import SimulationSession
+        script = request.script.model_copy(update={'enabled': True})
+        project = request.project.model_copy(deep=True, update={'control_scripts': [script]})
+        session = None
+        try:
+            session = SimulationSession(compile_project(project), script.sample_s, script.sample_s)
+            session.initialize()
+            session._control()
+            result = session.scripts[script.id].pending[0]
+            return {**result, 'content_hash': script.content_hash, 'time_s': 0., 'applied': False}
+        except ValueError as error:
+            raise HTTPException(422, detail=diagnostic(error).model_dump(mode='json')) from error
+        finally:
+            if session:
+                session.close()
 
     @app.get('/api/v1/catalog', response_model=CatalogResponse)
     def catalog():
@@ -315,7 +369,11 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
         events = [{'type':status, 'time_s':float(frame.time_s)}]
         record = {'id':run_id,'status':status,'mode':request.mode,'request':request.model_dump(mode='json'),
                   'frame':frame.model_dump(mode='json'),'history':[f.model_dump(mode='json') for f in history],
-                  'events':events}
+                  'events':events, 'total_rows':len(history)}
+        if archive:
+            stride = 1 if len(record['history']) <= OVERVIEW_POINTS else 2
+            archive.save_run(record, list(enumerate(record['history'])), len(record['history']), 2001,
+                             {'rows': record['history'][::stride], 'stride': stride})
         with lock:
             runs[run_id] = record
             while len(runs) > RUN_RETENTION:
@@ -347,7 +405,12 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
 
     @app.get('/api/v1/runs')
     def list_runs():
-        return {'runs': manager.records()}
+        records = {r['id']: r for r in archive.records()} if archive else {}
+        with lock:
+            records.update({r['id']: {'id': r['id'], 'status': r['status'], 'mode': r['mode'],
+                'name': r['request']['project']['name'], 'time_s': r['frame']['time_s']} for r in reversed(runs.values())})
+        records.update({r['id']: r for r in manager.records()})
+        return {'runs': list(records.values())}
 
     def get_run(run_id, history=False):
         try:
@@ -356,6 +419,11 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
             pass
         with lock:
             record = runs.get(run_id)
+        if record is None and archive:
+            try:
+                record = archive.record(run_id)
+            except KeyError:
+                pass
         if record is None:
             raise HTTPException(404,detail=RUN_NOT_FOUND)
         return record
@@ -379,6 +447,23 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
         # `history` is served by /runs/{id}/history; `events` stays visible here.
         return {key:value for key,value in record.items() if key != 'history'}
 
+    @app.post('/api/v1/runs/{run_id}/delete')
+    def delete_run(run_id: str):
+        record = get_run(run_id)
+        if record['status'] not in TERMINAL:
+            raise HTTPException(409, detail='请先停止活动运行，再删除档案')
+        # Disk deletion must succeed before dropping the in-memory copy.
+        if archive:
+            try:
+                archive.delete_run(run_id)
+            except KeyError:
+                pass
+        with manager.lock:
+            manager.jobs.pop(run_id, None)
+        with lock:
+            runs.pop(run_id, None)
+        return {'deleted': run_id}
+
     @app.get('/api/v1/runs/{run_id}/events', response_model=RunEventsResponse)
     def run_events(run_id: str):
         return {'run_id': run_id, 'events': [RunEvent.model_validate(event) for event in get_run(run_id).get('events', [])]}
@@ -388,7 +473,10 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
         try:
             return manager.history(run_id, offset, limit)
         except KeyError:
-            history = get_run(run_id)['history']
+            record = get_run(run_id)
+            if 'history' not in record and archive:
+                return archive.history(run_id, offset, limit)
+            history = record['history']
         return {'rows':history[offset:offset+limit],'total_rows':len(history),'offset':offset}
 
     @app.get('/api/v1/runs/{run_id}/overview', response_model=RunOverviewResponse)
@@ -396,7 +484,10 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
         try:
             return manager.overview(run_id)
         except KeyError:
-            history = get_run(run_id)['history']
+            record = get_run(run_id)
+            if 'history' not in record and archive:
+                return archive.overview(run_id)
+            history = record['history']
         stride = 1
         while math.ceil(len(history) / stride) > OVERVIEW_POINTS:
             stride *= 2

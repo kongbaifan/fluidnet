@@ -24,7 +24,7 @@
 
 独立验证台已对接 `/modules/test`：Python 模块的每条启用通路各接一组真实压力边界并一次求解，返回 Worker 的 evaluate 关系、模块变量、commit_step 状态、源码哈希和历史帧。设备面板与验证台按 `value_type` 渲染数值、布尔、文本和曲线参数，曲线使用 JSON 点对数组。项目中的 Python 模块同样在独立 Worker 中执行；每个实例在一次动态运行内复用同一个 Worker，成功时间步提交一次，异常或超时统一回收。
 
-Python 包代码页的检查调用后端 `/modules/validate`，包含完整语法、Pydantic 和 Worker 入口校验；内置原型代码仍保留轻量预览。控制脚本、串口以及未实现的热力/状态模型不进入当前物理求解。
+Python 包代码页的检查调用后端 `/modules/validate`，包含完整语法、Pydantic 和 Worker 入口校验；内置原型代码仍保留轻量预览。Python 控制脚本已通过 project-services.js 接入真实采样执行；串口与未实现的设备模型仍不进入物理求解。
 
 PID（v0.4.2）：「控制」页的 PID 面板写入项目的 `controllers`，归一化时原样进入 `Project.controllers`。反馈变量下拉列出目录中可采样的变量，执行参数下拉只列出 `runtime` 可写数值参数。“液位示例”“温控示例”从 `GET /api/v1/examples/{level|temperature}` 生成新项目。运行中只有设定值、手自动和手动输出可改（`controller` 命令），其余字段禁用。
 
@@ -43,3 +43,6 @@ PID（v0.4.2）：「控制」页的 PID 面板写入项目的 `controllers`，�
 多工质（v0.4.5）：介质配置新增“回路工质”列表，每行选一个代表回路的端口、预设介质或物性字符串、比例基准，保存为原型项目的 `circuitFluids`。“检查连接”的响应带 `circuits`，前端按项目缓存（不持久化）：画布连线按回路着色并在悬停提示中写出工质，画布标签显示“多工质 · N 个回路”，介质配置页列出各回路。
 
 接口与令牌（v0.4.6）：`engine-client.js` 的 `request()` 在 sessionStorage 有令牌时加 `Authorization` 头；health 报告 `auth.required` 且没有令牌，或任何请求返回 401 时，弹出“输入访问令牌”对话框，确认后重新加载页面。新增「对接」页（原有的数据与外部对接页面此前没有接入路由）：接口调用页签按当前运行生成读取、批量写入、订阅和状态的调用示例（curl 或 ws 地址，开启认证时带令牌头），读取类请求可以直接发送并显示响应；写入只展示请求不发送。
+
+
+项目控制与可靠保存：index.html 依次加载 project-services.js、engine-client.js、studio.js。控制页声明规范变量键、预览真实 Worker 返回值，勾选后只对新运行生效。保存原型先保留浏览器草稿，再发送工作区与本页面基于的 expected_revision；其他标签页保存不会推进本页基线。服务端确认后才清除对应编辑版本的 dirty 标记。修改发生在保存等待期间时仍保留为未保存；507/409 显示失败并支持重试/重新载入。载入服务端工作区前保留本地原始备份。运行记录页读取 /runs 与 /overview，原始请求和最终诊断随导出保存。

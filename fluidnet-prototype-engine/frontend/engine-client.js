@@ -40,6 +40,7 @@ window.createEngineClient = function (ui) {
     return data;
   }
   function payload(owner) {
+    services.prepare(owner);
     const state = ui.state();
     pinProject(owner);
     const used=new Set(owner.pages.flatMap(p=>p.nodes.map(n=>n.moduleId)));
@@ -301,11 +302,32 @@ window.createEngineClient = function (ui) {
   const PORT_SUFFIX = {FLOW:'mass_flow_kg_s',PRE:'pressure_pa',TEMP:'temperature_k',ENTHALPY:'enthalpy_j_kg',
     VOLUME:'density_kg_m3',Q:'quality'};
   // Canonical frame key behind a prototype variable; shared by rowFromFrame and the trend request.
-  // Parameters/custom/system variables have no engine key: their values come from the prototype itself.
+  // Custom/system variables remain local; parameters use their actual runtime values.
   function canonicalKeyOf(n, v) {
     if (v.origin === 'port') { const suffix = PORT_SUFFIX[v.id.split(':').at(-1)]; return suffix ? `${n.id}.${v.port}.${suffix}` : null; }
     if (v.origin === 'runtime' && v.canonicalId) return `${n.id}.${v.canonicalId}`;
+    if (v.origin === 'parameter') {
+      const m=ui.moduleOf(n), id=m.manifest ? v.param : catalog?.prototype_parameter_bindings[m.kind]?.[v.param];
+      return id ? `${n.id}.param.${id}` : null;
+    }
     return null;
+  }
+  function observation(n,v) {
+    const canonicalKey=canonicalKeyOf(n,v);
+    if (!canonicalKey) return {};
+    let scale=1,offset=0;
+    if (v.origin==='port') {
+      const suffix=PORT_SUFFIX[v.id.split(':').at(-1)];
+      if(suffix==='pressure_pa')scale=v.unit==='MPa'?1e6:v.unit==='kPa'?1000:1;
+      if(suffix==='temperature_k' && v.unit==='°C')offset=-273.15;
+      if(suffix==='enthalpy_j_kg' && v.unit==='kJ/kg')scale=1000;
+      if(suffix==='mass_flow_kg_s' && ui.moduleOf(n).ports.find(p=>p.id===v.port)?.direction==='out')scale=-1;
+    } else {
+      const m=ui.moduleOf(n), spec=v.origin==='parameter' ? (m.manifest || catalog?.modules.find(d=>d.id===m.kind))?.parameters.find(p=>p.id===canonicalKey.split('.').at(-1)) : null;
+      const unit=spec?.unit || v.unitSpec;
+      if(unit){scale=unit.display_scale;offset=unit.display_offset;}
+    }
+    return {canonicalKey,canonicalScale:scale,canonicalOffset:offset};
   }
   // Canonical keys a trend-history run must keep on every frame: the overview series and the
   // project's extra chart variables. Only keys the frame will contain are sent; the backend fails
@@ -363,8 +385,8 @@ window.createEngineClient = function (ui) {
     for (const n of owner.pages.flatMap(p => p.nodes)) {
       const m = ui.moduleOf(n);
       for (const v of m.variables) {
-        const raw = v.origin === 'runtime' ? canonical[canonicalKeyOf(n,v)] : null;
-        const value = v.origin === 'port' ? portValue(n,v,row) : v.origin === 'parameter' ? n.params[v.param] : raw === null || raw === undefined ? null : v.unitSpec ? raw / v.unitSpec.display_scale + v.unitSpec.display_offset : raw;
+        const sample=observation(n,v), raw=canonical[sample.canonicalKey];
+        const value=raw===undefined || raw===null ? v.origin==='parameter'?n.params[v.param]:null : typeof raw==='number'?raw/sample.canonicalScale+sample.canonicalOffset:raw;
         row.variableValues[n.id + ':' + v.id] = value;
       }
       for (const [k,v] of Object.entries(n.params)) row.variables[n.id + '.' + k.toUpperCase()] = v;
@@ -565,12 +587,13 @@ window.createEngineClient = function (ui) {
     }
     catch (error) { diagnostics([{message:error.message,severity:'error'}]); }
   }
-  async function init() {
+  async function init(forceWorkspace=false) {
     try {
       const probe = await request('/health');
       if (probe.auth?.required && !sessionStorage.getItem(TOKEN_KEY)) { health = probe; askToken('此计算服务要求访问令牌。'); return; }
       const [service,data,packages] = await Promise.all([request('/health'),request('/catalog'),request('/modules')]);
       health = service;
+      await services.loadWorkspace(forceWorkspace);
       catalog=data;
       moduleCatalog=packages;
       for (const manifest of packages.modules || []) {
@@ -611,6 +634,7 @@ window.createEngineClient = function (ui) {
       }
       ui.message(`计算服务 v${health.version} 已连接：稳态水力${health.capabilities?.tank_state ? '、水箱隐式积分' : ''}与准稳态时间序列可用。`);
       ui.render();
+      await services.refreshArchives();
     } catch (error) { ui.message('计算服务未连接，请通过启动脚本打开此页面。' + error.message,true); }
   }
   async function pollLive(owner) {
@@ -712,5 +736,6 @@ window.createEngineClient = function (ui) {
     }
     owner.run.parameterKey=ui.parameterKey(owner);ui.persist();ui.render();
   }
-  return {command,tick,validate,init,applyParameters,loadOverview,authHeaders,signOut:()=>{sessionStorage.removeItem(TOKEN_KEY);location.reload();},overview:id=>overviews.get(id),circuits:id=>circuitsByProject.get(id)||[],confirmedCommand,portValue,manifestPayload,contractText,checkModule,saveModule,versions,loadVersion,newModule,updateContractItem,bindModule,pinProject,moduleForInsert,get catalog(){return catalog;},get health(){return health;}};
+  const services=window.createProjectServices({request,ui,normalize,health:()=>health});
+  return {...services,command,tick,validate,init,applyParameters,loadOverview,authHeaders,signOut:()=>{sessionStorage.removeItem(TOKEN_KEY);location.reload();},overview:id=>overviews.get(id),circuits:id=>circuitsByProject.get(id)||[],confirmedCommand,portValue,observation,manifestPayload,contractText,checkModule,saveModule,versions,loadVersion,newModule,updateContractItem,bindModule,pinProject,moduleForInsert,get catalog(){return catalog;},get health(){return health;}};
 };

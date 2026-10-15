@@ -430,6 +430,8 @@ def compile_project(project: Project) -> CompiledNetwork:
         if components.find(node) not in referenced:
             raise CompilationError('PRESSURE_REFERENCE_MISSING', f'子网络 {roots[node]} 缺少压力边界（关闭阀门也可能隔离回路）')
     validate_controllers(project, modules, instances)
+    from .control import validate_scripts
+    validate_scripts(project, modules, instances)
     if mixed:
         names = '、'.join(dict.fromkeys(f.fluid for f in circuit_fluids))
         diagnostics.append(Diagnostic(code='MULTIPLE_FLUIDS', severity='info',

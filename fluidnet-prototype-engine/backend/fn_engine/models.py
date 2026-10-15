@@ -379,6 +379,29 @@ class PIDController(StrictModel):
         return self
 
 
+class ControlScript(StrictModel):
+    id: Identifier = 'control'
+    language: Literal['python'] = 'python'
+    enabled: bool = False
+    source: str = Field(min_length=1, max_length=100000)
+    sample_s: float = Field(default=0.1, ge=0.001, le=60)
+    inputs: list[str] = Field(default_factory=list, max_length=256)
+    outputs: list[str] = Field(default_factory=list, max_length=256)
+    timeout_s: float = Field(default=5, ge=0.1, le=30)
+    content_hash: str | None = None
+
+    @model_validator(mode='after')
+    def check_script(self):
+        import hashlib
+        digest = hashlib.sha256(self.source.encode('utf-8')).hexdigest()
+        if self.content_hash and self.content_hash != digest:
+            raise ValueError('控制脚本源码与哈希不一致')
+        self.content_hash = digest
+        if len(set(self.inputs)) != len(self.inputs) or len(set(self.outputs)) != len(self.outputs):
+            raise ValueError('控制脚本的输入或输出重复')
+        return self
+
+
 class CircuitFluid(StrictModel):
     """Fluid of one circuit: every port connected to `anchor` through connections and enabled
     channels (closed valves included). Circuits without an entry use Project.fluid."""
@@ -401,6 +424,7 @@ class Project(StrictModel):
     import_diagnostics: list[Diagnostic] = Field(default_factory=list)
     solver: SolverOptions = Field(default_factory=SolverOptions)
     controllers: list[PIDController] = Field(default_factory=list)
+    control_scripts: list[ControlScript] = Field(default_factory=list, max_length=16)
     circuit_fluids: list[CircuitFluid] = Field(default_factory=list, max_length=64)
 
     @model_validator(mode="after")
@@ -416,6 +440,8 @@ class Project(StrictModel):
         instance_map = {i.id: i for i in self.instances}
         if len({c.id for c in self.controllers}) != len(self.controllers):
             raise ValueError('控制器 ID 重复')
+        if len({c.id for c in self.control_scripts}) != len(self.control_scripts):
+            raise ValueError('控制脚本 ID 重复')
         targets = [(c.instance_id, c.parameter_id) for c in self.controllers]
         if len(set(targets)) != len(targets):
             raise ValueError('同一参数只能绑定一个控制器')
@@ -444,6 +470,34 @@ class Project(StrictModel):
                 definition = definitions[instance_map[endpoint.instance_id].module_id]
                 if endpoint.port_id not in {p.id for p in definition.ports}:
                     raise ValueError(f"连接 {c.id} 引用了不存在的端口")
+        return self
+
+
+class ControlPreviewRequest(StrictModel):
+    project: Project
+    script: ControlScript
+
+
+class WorkspaceSaveRequest(StrictModel):
+    expected_revision: int = Field(ge=0)
+    data: dict[str, Any]
+
+    @model_validator(mode='after')
+    def check_workspace(self):
+        import json
+        if self.data.get('schema') != 1:
+            raise ValueError('工作区 schema 必须为 1')
+        for field in ('projects', 'modules', 'models'):
+            items = self.data.get(field)
+            if not isinstance(items, list) or (field != 'models' and not items):
+                raise ValueError(f'工作区缺少 {field}')
+            ids = [item.get('id') for item in items if isinstance(item, dict)]
+            if len(ids) != len(items) or any(not isinstance(i, str) or not i for i in ids) or len(set(ids)) != len(ids):
+                raise ValueError(f'{field} 的 ID 必须是唯一的非空字符串')
+        if self.data.get('activeProject') not in {p['id'] for p in self.data['projects']}:
+            raise ValueError('活动项目不存在')
+        if len(json.dumps(self.data, ensure_ascii=False, allow_nan=False).encode('utf-8')) > 64 * 1024 * 1024:
+            raise ValueError('工作区超过 64 MiB，请导出并清理不需要的浏览器历史')
         return self
 
 
@@ -698,6 +752,8 @@ class RunRecordResponse(StrictModel):
     events: list[RunEvent] = Field(default_factory=list)
     total_rows: int = 0
     lag_s: float = 0.0
+    persisted_at: str | None = None
+    persisted_rows: int = 0
 
 
 EvaluateResponse.model_rebuild()

@@ -21,6 +21,137 @@
         }
       }
     },
+    "/api/v1/workspace": {
+      "get": {
+        "summary": "Read Workspace",
+        "operationId": "read_workspace_api_v1_workspace_get",
+        "parameters": [
+          {
+            "name": "revision",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Revision"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Save Workspace",
+        "operationId": "save_workspace_api_v1_workspace_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkspaceSaveRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workspace/revisions": {
+      "get": {
+        "summary": "Workspace Revisions",
+        "operationId": "workspace_revisions_api_v1_workspace_revisions_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/controls/preview": {
+      "post": {
+        "summary": "Preview Control",
+        "operationId": "preview_control_api_v1_controls_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ControlPreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/catalog": {
       "get": {
         "summary": "Catalog",
@@ -498,6 +629,43 @@
                 "schema": {
                   "$ref": "#/components/schemas/RunRecordResponse"
                 }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/runs/{run_id}/delete": {
+      "post": {
+        "summary": "Delete Run",
+        "operationId": "delete_run_api_v1_runs__run_id__delete_post",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             }
           },
@@ -1005,6 +1173,97 @@
           "target"
         ],
         "title": "Connection"
+      },
+      "ControlPreviewRequest": {
+        "properties": {
+          "project": {
+            "$ref": "#/components/schemas/Project"
+          },
+          "script": {
+            "$ref": "#/components/schemas/ControlScript"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "project",
+          "script"
+        ],
+        "title": "ControlPreviewRequest"
+      },
+      "ControlScript": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+            "title": "Id",
+            "default": "control"
+          },
+          "language": {
+            "type": "string",
+            "const": "python",
+            "title": "Language",
+            "default": "python"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": false
+          },
+          "source": {
+            "type": "string",
+            "maxLength": 100000,
+            "minLength": 1,
+            "title": "Source"
+          },
+          "sample_s": {
+            "type": "number",
+            "maximum": 60.0,
+            "minimum": 0.001,
+            "title": "Sample S",
+            "default": 0.1
+          },
+          "inputs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 256,
+            "title": "Inputs"
+          },
+          "outputs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 256,
+            "title": "Outputs"
+          },
+          "timeout_s": {
+            "type": "number",
+            "maximum": 30.0,
+            "minimum": 0.1,
+            "title": "Timeout S",
+            "default": 5
+          },
+          "content_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Hash"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source"
+        ],
+        "title": "ControlScript"
       },
       "Diagnostic": {
         "properties": {
@@ -2331,6 +2590,14 @@
             "type": "array",
             "title": "Controllers"
           },
+          "control_scripts": {
+            "items": {
+              "$ref": "#/components/schemas/ControlScript"
+            },
+            "type": "array",
+            "maxItems": 16,
+            "title": "Control Scripts"
+          },
           "circuit_fluids": {
             "items": {
               "$ref": "#/components/schemas/CircuitFluid"
@@ -2756,6 +3023,22 @@
             "type": "number",
             "title": "Lag S",
             "default": 0.0
+          },
+          "persisted_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Persisted At"
+          },
+          "persisted_rows": {
+            "type": "integer",
+            "title": "Persisted Rows",
+            "default": 0
           }
         },
         "additionalProperties": false,
@@ -3432,6 +3715,27 @@
         ],
         "title": "VariableWrite",
         "description": "POST /runs/{id}/variables: values by frame key, all applied at one frame boundary or none."
+      },
+      "WorkspaceSaveRequest": {
+        "properties": {
+          "expected_revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Expected Revision"
+          },
+          "data": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Data"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_revision",
+          "data"
+        ],
+        "title": "WorkspaceSaveRequest"
       }
     }
   }

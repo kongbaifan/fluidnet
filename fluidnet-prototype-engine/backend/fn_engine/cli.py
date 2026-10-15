@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -12,6 +13,7 @@ def main(argv=None):
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", type=int, default=8798)
     serve.add_argument("--open", action="store_true")
+    serve.add_argument('--data-dir', help='工作区目录（默认 FLUIDNET_DATA_DIR 或项目 .runtime/workspace）')
     serve.add_argument("--auth", choices=("auto", "required", "off"), default="auto",
                        help="auto：只在监听本机以外地址时要求令牌；反向代理后面请用 required")
     serve.add_argument("--cors-origin", action="append", default=[], help="允许跨域调用的来源，可重复")
@@ -49,7 +51,9 @@ def main(argv=None):
             parser.exit(2, f"{error}\n")
         if args.open:
             threading.Timer(1.0, lambda: webbrowser.open(f"http://{args.host}:{args.port}")).start()
-        uvicorn.run(create_app(root / "frontend", auth=auth, cors_origins=args.cors_origin), host=args.host, port=args.port,
+        data_root = args.data_dir or os.environ.get('FLUIDNET_DATA_DIR') or (
+            Path(os.environ['FLUIDNET_MODULE_STORE']) / '.workspace' if os.environ.get('FLUIDNET_MODULE_STORE') else root / '.runtime' / 'workspace')
+        uvicorn.run(create_app(root / "frontend", auth=auth, cors_origins=args.cors_origin, data_root=data_root), host=args.host, port=args.port,
                     log_level="info")
 
 

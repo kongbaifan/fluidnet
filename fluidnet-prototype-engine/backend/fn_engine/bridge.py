@@ -152,6 +152,7 @@ def normalize_prototype_export(data: dict[str, Any]) -> Project:
         fluid=FluidConfig(fluid=fluid_text or PROTOTYPE_MEDIA[medium], reference=reference),
         modules=list(definitions.values()),instances=instances,connections=connections,import_diagnostics=diagnostics,
         controllers=raw.get('controllers', []),
+        control_scripts=raw.get('controlScripts', []),
         circuit_fluids=[{'id': c['id'], 'anchor': c['anchor'],
                          'fluid': {'fluid': (c.get('fluid') or '').strip() or PROTOTYPE_MEDIA[c.get('medium', 'water')],
                                    'reference': c.get('fluidReference', 'mass')}}

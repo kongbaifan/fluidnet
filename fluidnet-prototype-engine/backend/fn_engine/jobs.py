@@ -42,8 +42,9 @@ class Job:
 
 
 class RunManager:
-    def __init__(self, project_factory):
+    def __init__(self, project_factory, storage=None):
         self.project_factory = project_factory
+        self.storage = storage
         self.lock = RLock()
         self.wake = Condition(self.lock)
         self.jobs = OrderedDict()
@@ -62,6 +63,11 @@ class RunManager:
             record = {'id': run_id, 'status': 'queued', 'mode': request.mode,
                 'request': request.model_dump(mode='json'), 'frame': None, 'history': [], 'events': [{'type': 'queued', 'time_s': 0.}]}
             self.jobs[run_id] = Job(request.model_copy(deep=True), record)
+            try:
+                self._persist(self.jobs[run_id])
+            except Exception:
+                del self.jobs[run_id]
+                raise
             if self.thread is None:
                 self.thread = Thread(target=self._schedule, name='fluidnet-scheduler', daemon=True)
                 self.thread.start()
@@ -145,8 +151,23 @@ class RunManager:
                     del job.receipts[old]
             job.pending.append((key, command.model_copy(deep=True)))
             self._event(job, 'command', key, 'accepted', command=command.model_copy(update={'command_id': key}).model_dump(mode='json'))
+            try:
+                self._persist(job)
+            except Exception:
+                # An unacknowledged command must not execute after a failed disk write.
+                job.pending.pop()
+                del job.receipts[key]
+                job.record['events'].pop()
+                raise
             self.wake.notify_all()
             return deepcopy(receipt)
+
+    def _persist(self, job, row=False, overview=False):
+        if self.storage is None:
+            return
+        rows = [(job.published - 1, job.record['history'][-1])] if row and job.record['history'] else []
+        summary = {'rows': [value for _, value in job.overview], 'stride': job.stride} if overview else None
+        self.storage.save_run(job.record, rows, job.published, job.request.history_window, summary)
 
     def _event(self, job, kind, key=None, status=None, message=None, command=None):
         event = {'type': kind, 'time_s': job.session.time if job.session else 0.}
@@ -197,7 +218,9 @@ class RunManager:
         if history and history[-1]['time_s'] == row['time_s']:
             return
         index = job.published
-        trend = {k for k in row['variables'] if k in request.trend_variables or '.state.' in k or k.startswith('controller.')}
+        script_outputs = {key for script in request.project.control_scripts if script.enabled for key in script.outputs}
+        trend = {k for k in row['variables'] if k in request.trend_variables or k in script_outputs
+                 or '.state.' in k or k.startswith(('controller.', 'script.'))}
         if request.history == 'trend':
             missing = set(request.trend_variables) - frame.variables.keys()
             if missing:
@@ -211,7 +234,8 @@ class RunManager:
         job.published += 1
         if len(history) > request.history_window:
             del history[:len(history) - request.history_window]
-        if index % job.stride == 0:
+        update_overview = index % job.stride == 0
+        if update_overview:
             # The overview keeps only curve variables (all when none are declared), no diagnostics.
             slim = dict(row, diagnostics=[])
             if request.trend_variables:
@@ -221,6 +245,7 @@ class RunManager:
             if len(job.overview) > OVERVIEW_POINTS:
                 job.stride *= 2
                 job.overview = [item for item in job.overview if item[0] % job.stride == 0]
+        self._persist(job, row=True, overview=update_overview)
 
     def _finish(self, job, status, error=None):
         session = job.session
@@ -247,6 +272,7 @@ class RunManager:
             receipt.update(command_status='rejected', message='运行已结束')
             self._event(job, 'command', key, 'rejected', '运行已结束')
         self._event(job, status)
+        self._persist(job, row=True, overview=True)
         # Keep every active job; only completed records count toward retention.
         ended = [key for key, value in self.jobs.items() if value.record['status'] in TERMINAL]
         for key in ended[:-20]:
@@ -283,6 +309,7 @@ class RunManager:
             except ValueError as error:
                 receipt.update(command_status='rejected', message=str(error))
                 self._event(job, 'command', key, 'rejected', str(error))
+            self._persist(job)
 
     def _tick(self, job):
         try:
@@ -301,6 +328,7 @@ class RunManager:
                     job.record['status'] = 'paused' if job.request.start_paused else 'running'
                     self._publish(job, frame)
                     self._event(job, job.record['status'])
+                    self._persist(job)
                     job.due = time.monotonic() + (job.request.dt_s / job.request.speed_ratio if job.request.execution_mode == 'realtime' else 0.)
                 return
             with self.wake:
@@ -318,6 +346,7 @@ class RunManager:
                     job.stepping = False
                     job.record['status'] = 'paused'
                     self._event(job, 'paused')
+                    self._persist(job)
                 elif job.request.execution_mode == 'realtime':
                     job.due += job.request.dt_s / job.request.speed_ratio
         except BaseException as error:
@@ -326,6 +355,9 @@ class RunManager:
                     self._finish(job, 'failed', error)
                 except BaseException:
                     job.record['status'] = 'failed'
+                    job.record['frame'] = RunFrame(status='failed', valid=False,
+                        time_s=job.session.time if job.session else 0.,
+                        diagnostics=[getattr(error, 'diagnostic', DiagnosticError(error))]).model_dump(mode='json')
                     if job.session:
                         job.session.close()
         finally:

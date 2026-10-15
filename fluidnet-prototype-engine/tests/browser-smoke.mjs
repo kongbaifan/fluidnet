@@ -1,6 +1,7 @@
+import { testServer } from './browser-server.mjs';
 import { chromium, expect } from '@playwright/test';
 import { writeFileSync, mkdirSync } from 'node:fs';
-const base=process.env.FLUIDNET_TEST_URL || 'http://127.0.0.1:8798';
+const fixture=await testServer(), base=fixture.base;
 const browser = await chromium.launch({channel:'msedge',headless:true});
 const page = await browser.newPage({viewport:{width:1600,height:1000}});
 const errors=[];page.on('pageerror',e=>errors.push(e.message));
@@ -76,4 +77,4 @@ try {
 } catch(error) {
   console.error('Browser errors:',errors);
   throw error;
-} finally { await browser.close(); }
+} finally { await browser.close(); await fixture.close(); }

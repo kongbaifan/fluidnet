@@ -98,6 +98,81 @@
       "title": "Connection",
       "type": "object"
     },
+    "ControlScript": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "default": "control",
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "language": {
+          "const": "python",
+          "default": "python",
+          "title": "Language",
+          "type": "string"
+        },
+        "enabled": {
+          "default": false,
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "source": {
+          "maxLength": 100000,
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+        },
+        "sample_s": {
+          "default": 0.1,
+          "maximum": 60,
+          "minimum": 0.001,
+          "title": "Sample S",
+          "type": "number"
+        },
+        "inputs": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 256,
+          "title": "Inputs",
+          "type": "array"
+        },
+        "outputs": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 256,
+          "title": "Outputs",
+          "type": "array"
+        },
+        "timeout_s": {
+          "default": 5,
+          "maximum": 30,
+          "minimum": 0.1,
+          "title": "Timeout S",
+          "type": "number"
+        },
+        "content_hash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Content Hash"
+        }
+      },
+      "required": [
+        "source"
+      ],
+      "title": "ControlScript",
+      "type": "object"
+    },
     "Diagnostic": {
       "additionalProperties": false,
       "properties": {
@@ -1110,6 +1185,14 @@
         "$ref": "#/$defs/PIDController"
       },
       "title": "Controllers",
+      "type": "array"
+    },
+    "control_scripts": {
+      "items": {
+        "$ref": "#/$defs/ControlScript"
+      },
+      "maxItems": 16,
+      "title": "Control Scripts",
       "type": "array"
     },
     "circuit_fluids": {

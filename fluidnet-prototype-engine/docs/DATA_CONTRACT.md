@@ -192,3 +192,11 @@ PID 控制器（v0.4.2）：`Project.controllers` 是 `PIDController` 列表，�
 - RunFrame 追加 `实例.ctx.var字段` 与 `实例.state.字段`，后者只展开标量；完整嵌套状态由 CommitStepResponse 返回。
 - 模块不能通过变量输出覆盖求解器的压力或流量。每条启用通路必须恰好返回一个关系。
 - 新建运行会重新 initialize；同一后台运行内的 step、set、pause/resume 不会。当前未提供跨 run_id 或跨服务重启的状态恢复。
+
+## Python 控制与工作区归档补充
+
+`Project.control_scripts` 保存 Python 脚本快照（id、language、source、content_hash、enabled、sample_s、inputs、outputs、timeout_s），与设备模块和 PID 分开；原型字段为 control/controlLanguage/controlEnabled/controlInputs/controlOutputs/controlConfig，适配器形成 controlScripts 后归一化。旧版文本标为 legacy 且禁用。
+
+控制输出使用运行变量的规范键：设备 `<id>.param.<parameter>` 或 `controller.<id>.setpoint|mode|manual_output`。输入必须存在于初始接受帧且已声明；不做显示单位换算。首次 step 的 dt_s=0，其后按仿真时间；采样输出对下一子步生效，接受后提交 ctx.state，数值重试不重复采样。脚本状态与计数由 `script.<id>.*` 帧变量暴露，运行快照固定源码哈希。受管理 state 是最多 64 KiB 的有限 JSON 字典；全局 Python 变量和外部副作用不属于事务状态。
+
+工作区以完整 schema=1 原型文档存储，独立于规范 Project；保存修订号覆盖全部项目、模块草稿、型号、关联快照等。SQLite 事务成功才确认 revision/saved_at，最近 5 个修订可读。RunRecordResponse 的 persisted_at/persisted_rows 标明最后确认的归档边界；重启保留项目与历史，并将未结束运行标为 interrupted，不恢复内存会话继续推进。窗口、全程抽稀与终态保留数见 API 文档。

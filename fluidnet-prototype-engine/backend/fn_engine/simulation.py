@@ -12,6 +12,7 @@ from .compiler import CompilationError, runtime_parameter, validated_parameters
 from .controllers import PID
 from .models import Diagnostic, PIDController
 from .properties import property_service
+from .control import ScriptControl
 
 
 class SimulationSession:
@@ -31,6 +32,8 @@ class SimulationSession:
         self.sequence = 0  # frames published so far; the next frame's RunFrame.sequence
         self.runners = {}
         self.controllers = {}
+        self.scripts = {}
+        self.script_owners = {key: script.id for script in network.project.control_scripts if script.enabled for key in script.outputs}
         self.service = property_service(network.project.fluid)
         self.stateful = s.has_state(network)
         self.warning = Diagnostic(code='DYNAMIC_IMPLICIT_EULER' if self.stateful else 'DYNAMIC_QUASI_STEADY',
@@ -60,6 +63,16 @@ class SimulationSession:
             frame = self.snapshot()
             for pid in self.controllers.values():
                 pid.sample(0., frame.variables)
+            for script in self.network.project.control_scripts:
+                if not script.enabled:
+                    continue
+                runner = ScriptControl(script)
+                self.scripts[script.id] = runner
+                values = self.snapshot().variables
+                missing = set(script.inputs) - values.keys()
+                if missing:
+                    raise CompilationError('CONTROL_INPUT_UNKNOWN', f'{script.id} 输入不存在：{sorted(missing)}')
+                self.diagnostics.extend(Diagnostic.model_validate(d) for d in runner.start(values))
             return self.publish()
         except BaseException:
             self.close()
@@ -71,9 +84,10 @@ class SimulationSession:
             raise CompilationError('PARAMETER_TARGET_MISSING', '目标设备不存在')
         return runtime_parameter(instance, self.network.modules[instance.module_id], parameter_id)
 
-    def _candidate_parameters(self, instance_id, values, controlled=False):
+    def _candidate_parameters(self, instance_id, values, controlled=False, script_id=None):
         """Validated parameters of an instance after `values`; nothing is changed yet."""
         for parameter_id in values:
+            self._check_script_owner(f'{instance_id}.param.{parameter_id}', script_id)
             self.parameter_spec(instance_id, parameter_id)
             # Even in manual mode the PID writes its manual_output every substep, so an outside
             # write would be overwritten; the controller's own fields are the way in.
@@ -124,10 +138,16 @@ class SimulationSession:
         pid.next_s = self.time
 
     def update_controller(self, controller_id, field, value):
+        self._check_script_owner(f'controller.{controller_id}.{field}')
         self._apply_controller(controller_id, self._candidate_controller(controller_id, {field: value}))
         self.revision += 1
 
-    def write_variables(self, values):
+    def _check_script_owner(self, key, script_id=None):
+        owner = self.script_owners.get(key)
+        if owner and owner != script_id:
+            raise CompilationError('PARAMETER_CONTROLLED', f'{key} 由 Python 脚本 {owner} 控制')
+
+    def write_variables(self, values, script_id=None):
         """Write several variables at one frame boundary: all of them or none.
 
         Keys follow the frame: `<instance>.param.<parameter>` for runtime parameters and
@@ -137,6 +157,7 @@ class SimulationSession:
             raise CompilationError('VARIABLE_WRITE_EMPTY', '没有要写入的变量')
         parameters, controllers = {}, {}
         for key, value in values.items():
+            self._check_script_owner(key, script_id)
             parts = key.split('.')
             if len(parts) == 3 and parts[0] == 'controller' and parts[1] in self.controllers:
                 controllers.setdefault(parts[1], {})[parts[2]] = value
@@ -148,7 +169,7 @@ class SimulationSession:
                 raise CompilationError('VARIABLE_NOT_WRITABLE', f'{key} 不能写入；可写的是 <设备>.param.<运行参数> 和 '
                                        'controller.<控制器>.setpoint|mode|manual_output')
         configs = {cid: self._candidate_controller(cid, fields) for cid, fields in controllers.items()}
-        candidates = {iid: self._candidate_parameters(iid, fields) for iid, fields in parameters.items()}
+        candidates = {iid: self._candidate_parameters(iid, fields, script_id=script_id) for iid, fields in parameters.items()}
         changed = False
         for cid, config in configs.items():
             self._apply_controller(cid, config)
@@ -159,6 +180,15 @@ class SimulationSession:
             self.revision += 1
 
     def _control(self):
+        variables = self.snapshot().variables
+        for runner in self.scripts.values():
+            if runner.next_s <= self.time + 1e-10:
+                response = runner.prepare(self.time, variables)
+                try:
+                    if response['writes']:
+                        self.write_variables(response['writes'], script_id=runner.script.id)
+                except ValueError as error:
+                    raise CompilationError('CONTROL_WRITE_REJECTED', f'{runner.script.id} t={self.time:g}s：{error}') from error
         variables = self.snapshot().variables
         for pid in self.controllers.values():
             if pid.next_s <= self.time + 1e-10:
@@ -213,6 +243,10 @@ class SimulationSession:
 
     def _accept(self, h, view, result, tanks, cells):
         values, diagnostics = s._commit_modules(self.network, self.runners, result, self.time + h, h)
+        for runner in self.scripts.values():
+            if runner.pending:
+                self.diagnostics.extend(Diagnostic.model_validate(d) for d in runner.pending[0].get('diagnostics', []))
+                runner.accept()
         self.time += h
         self.view, self.result, self.tanks, self.cells = view, result, tanks, cells
         self.committed.update(values)
@@ -227,6 +261,8 @@ class SimulationSession:
         frame.diagnostics.extend(self.diagnostics)
         for pid in self.controllers.values():
             frame.variables.update(pid.variables())
+        for runner in self.scripts.values():
+            frame.variables.update(runner.variables())
         frame.sequence = self.sequence
         frame.parameter_revision = self.revision
         return frame
@@ -248,7 +284,8 @@ class SimulationSession:
         target = (self.index + 1) * self.dt if self.duration is None else min((self.index + 1) * self.dt, self.duration)
         while target - self.time > 1e-12 * max(1., target):
             self._control()
-            h = min([target - self.time] + [p.next_s - self.time for p in self.controllers.values()])
+            h = min([target - self.time] + [p.next_s - self.time for p in self.controllers.values()]
+                    + [script.next_s - self.time for script in self.scripts.values()])
             for attempt in range(self.network.project.solver.max_step_halvings + 1):
                 try:
                     trial = self._trial(h)
@@ -289,6 +326,7 @@ class SimulationSession:
         if not self.closed:
             self.closed = True
             s._close_runners(self.runners)
+            s._close_runners(self.scripts)
 
 
 def run_dynamic(network, duration_s, dt_s):
@@ -297,5 +335,9 @@ def run_dynamic(network, duration_s, dt_s):
         while not session.done:
             session.advance()
         return session.frames
+    except CompilationError as error:
+        if session.frames and error.diagnostic.code.startswith('CONTROL_'):
+            raise s.SolveFailed(error.diagnostic.code, str(error), frames=list(session.frames)) from error
+        raise
     finally:
         session.close()
