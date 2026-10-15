@@ -116,6 +116,68 @@
         }
       }
     },
+    "/api/v1/workspace/storage": {
+      "get": {
+        "summary": "Workspace Storage",
+        "operationId": "workspace_storage_api_v1_workspace_storage_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workspace/backup": {
+      "post": {
+        "summary": "Workspace Backup",
+        "operationId": "workspace_backup_api_v1_workspace_backup_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/zip": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workspace/restore": {
+      "post": {
+        "summary": "Workspace Restore",
+        "operationId": "workspace_restore_api_v1_workspace_restore_post",
+        "requestBody": {
+          "content": {
+            "application/zip": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/controls/preview": {
       "post": {
         "summary": "Preview Control",

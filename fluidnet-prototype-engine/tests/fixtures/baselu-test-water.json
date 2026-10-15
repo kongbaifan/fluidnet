@@ -1,0 +1,1079 @@
+{
+  "source": "https://www.baselu.cn/article?id=moqzqg5v43ju; Baselu V6.29 / AlgProject/TEST/TEST_DB.PJTDB + Csv/TEST.json",
+  "snapshot_slot": 0,
+  "topology": {
+    "DeviceInfo": [
+      {
+        "InstanceID": "MOD0",
+        "DeviceName": "容积型源头",
+        "BaseModuleID": 24032321240014592,
+        "PositionX": 2.2,
+        "PositionZ": 5.4,
+        "RoomID": 0,
+        "ModelID": ""
+      },
+      {
+        "InstanceID": "MOD1",
+        "DeviceName": "管道通用",
+        "BaseModuleID": 24032022192805856,
+        "PositionX": 3.8,
+        "PositionZ": 5.6,
+        "RoomID": 0,
+        "ModelID": ""
+      },
+      {
+        "InstanceID": "MOD2",
+        "DeviceName": "泵曲线法",
+        "BaseModuleID": 24032321240011392,
+        "PositionX": 5.4,
+        "PositionZ": 5.2,
+        "RoomID": 0,
+        "ModelID": ""
+      },
+      {
+        "InstanceID": "MOD3",
+        "DeviceName": "截止阀",
+        "BaseModuleID": 24030917322826102,
+        "PositionX": 7.2,
+        "PositionZ": 5.0,
+        "RoomID": 0,
+        "ModelID": ""
+      },
+      {
+        "InstanceID": "MOD4",
+        "DeviceName": "管道通用",
+        "BaseModuleID": 24032022192805856,
+        "PositionX": 13.2,
+        "PositionZ": 3.2,
+        "RoomID": 0,
+        "ModelID": ""
+      },
+      {
+        "InstanceID": "MOD5",
+        "DeviceName": "管道通用",
+        "BaseModuleID": 24032022192805856,
+        "PositionX": 13.6,
+        "PositionZ": 5.8,
+        "RoomID": 0,
+        "ModelID": ""
+      },
+      {
+        "InstanceID": "MOD6",
+        "DeviceName": "管道通用",
+        "BaseModuleID": 24032022192805856,
+        "PositionX": 13.2,
+        "PositionZ": 8.2,
+        "RoomID": 0,
+        "ModelID": ""
+      },
+      {
+        "InstanceID": "MOD7",
+        "DeviceName": "截止阀",
+        "BaseModuleID": 24030917322826102,
+        "PositionX": 10.8,
+        "PositionZ": 2.4,
+        "RoomID": 0,
+        "ModelID": ""
+      },
+      {
+        "InstanceID": "MOD8",
+        "DeviceName": "截止阀",
+        "BaseModuleID": 24030917322826102,
+        "PositionX": 10.8,
+        "PositionZ": 5.2,
+        "RoomID": 0,
+        "ModelID": ""
+      },
+      {
+        "InstanceID": "MOD9",
+        "DeviceName": "截止阀",
+        "BaseModuleID": 24030917322826102,
+        "PositionX": 10.8,
+        "PositionZ": 7.8,
+        "RoomID": 0,
+        "ModelID": ""
+      },
+      {
+        "InstanceID": "MOD10",
+        "DeviceName": "蓄水池不限高",
+        "BaseModuleID": 25052114525635477,
+        "PositionX": 16.6,
+        "PositionZ": 1.2,
+        "RoomID": 0,
+        "ModelID": ""
+      },
+      {
+        "InstanceID": "MOD11",
+        "DeviceName": "蓄水池不限高",
+        "BaseModuleID": 25052114525635477,
+        "PositionX": 16.6,
+        "PositionZ": 5.4,
+        "RoomID": 0,
+        "ModelID": ""
+      },
+      {
+        "InstanceID": "MOD12",
+        "DeviceName": "蓄水池不限高",
+        "BaseModuleID": 25052114525635477,
+        "PositionX": 16.8,
+        "PositionZ": 9.2,
+        "RoomID": 0,
+        "ModelID": ""
+      },
+      {
+        "InstanceID": "MOD13",
+        "DeviceName": "管道通用",
+        "BaseModuleID": 24032022192805856,
+        "PositionX": 19.4,
+        "PositionZ": 3.0,
+        "RoomID": 0,
+        "ModelID": ""
+      },
+      {
+        "InstanceID": "MOD14",
+        "DeviceName": "管道通用",
+        "BaseModuleID": 24032022192805856,
+        "PositionX": 19.2,
+        "PositionZ": 6.2,
+        "RoomID": 0,
+        "ModelID": ""
+      },
+      {
+        "InstanceID": "MOD15",
+        "DeviceName": "管道通用",
+        "BaseModuleID": 24032022192805856,
+        "PositionX": 19.4,
+        "PositionZ": 9.6,
+        "RoomID": 0,
+        "ModelID": ""
+      },
+      {
+        "InstanceID": "MOD16",
+        "DeviceName": "管道通用",
+        "BaseModuleID": 24032022192805856,
+        "PositionX": 15.8,
+        "PositionZ": 3.6,
+        "RoomID": 0,
+        "ModelID": ""
+      },
+      {
+        "InstanceID": "MOD17",
+        "DeviceName": "截止阀",
+        "BaseModuleID": 24030917322826102,
+        "PositionX": 17.2,
+        "PositionZ": 3.2,
+        "RoomID": 0,
+        "ModelID": ""
+      },
+      {
+        "InstanceID": "MOD18",
+        "DeviceName": "管道通用",
+        "BaseModuleID": 24032022192805856,
+        "PositionX": 15.8,
+        "PositionZ": 7.6,
+        "RoomID": 0,
+        "ModelID": ""
+      },
+      {
+        "InstanceID": "MOD19",
+        "DeviceName": "截止阀",
+        "BaseModuleID": 24030917322826102,
+        "PositionX": 17.4,
+        "PositionZ": 7.2,
+        "RoomID": 0,
+        "ModelID": ""
+      },
+      {
+        "InstanceID": "MOD20",
+        "DeviceName": "截止阀",
+        "BaseModuleID": 24030917322826102,
+        "PositionX": 21.6,
+        "PositionZ": 2.6,
+        "RoomID": 0,
+        "ModelID": ""
+      },
+      {
+        "InstanceID": "MOD21",
+        "DeviceName": "截止阀",
+        "BaseModuleID": 24030917322826102,
+        "PositionX": 21.8,
+        "PositionZ": 5.6,
+        "RoomID": 0,
+        "ModelID": ""
+      },
+      {
+        "InstanceID": "MOD22",
+        "DeviceName": "截止阀",
+        "BaseModuleID": 24030917322826102,
+        "PositionX": 21.6,
+        "PositionZ": 8.8,
+        "RoomID": 0,
+        "ModelID": ""
+      },
+      {
+        "InstanceID": "MOD23",
+        "DeviceName": "管道通用",
+        "BaseModuleID": 24032022192805856,
+        "PositionX": 28.4,
+        "PositionZ": 5.4,
+        "RoomID": 0,
+        "ModelID": ""
+      },
+      {
+        "InstanceID": "MOD24",
+        "DeviceName": "容积型源头",
+        "BaseModuleID": 24032321240014592,
+        "PositionX": 30.8,
+        "PositionZ": 5.6,
+        "RoomID": 0,
+        "ModelID": ""
+      }
+    ],
+    "NodeInfo": [
+      {
+        "InstanceID": "NOD0",
+        "NodeName": "FLUID",
+        "BaseModuleID": 3000,
+        "PositionX": 9.4,
+        "PositionZ": 5.4,
+        "RoomID": 0,
+        "ModelID": ""
+      },
+      {
+        "InstanceID": "NOD1",
+        "NodeName": "FLUID",
+        "BaseModuleID": 3000,
+        "PositionX": 23.4,
+        "PositionZ": 5.8,
+        "RoomID": 0,
+        "ModelID": ""
+      }
+    ],
+    "ConnectionInfo": [
+      {
+        "InstanceID": "LNK0",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "MOD0",
+        "F_PortNb": 5,
+        "S_InstanceID": "MOD1",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK1",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "MOD1",
+        "F_PortNb": 1,
+        "S_InstanceID": "MOD2",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK2",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "MOD2",
+        "F_PortNb": 1,
+        "S_InstanceID": "MOD3",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK3",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "MOD3",
+        "F_PortNb": 1,
+        "S_InstanceID": "NOD0",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK4",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "NOD0",
+        "F_PortNb": 8,
+        "S_InstanceID": "MOD8",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK5",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "NOD0",
+        "F_PortNb": 9,
+        "S_InstanceID": "MOD7",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK6",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "NOD0",
+        "F_PortNb": 10,
+        "S_InstanceID": "MOD9",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK7",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "MOD7",
+        "F_PortNb": 1,
+        "S_InstanceID": "MOD4",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK8",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "MOD8",
+        "F_PortNb": 1,
+        "S_InstanceID": "MOD5",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK9",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "MOD9",
+        "F_PortNb": 1,
+        "S_InstanceID": "MOD6",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK10",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "MOD4",
+        "F_PortNb": 1,
+        "S_InstanceID": "MOD10",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK11",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "MOD5",
+        "F_PortNb": 1,
+        "S_InstanceID": "MOD11",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK12",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "MOD6",
+        "F_PortNb": 1,
+        "S_InstanceID": "MOD12",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK13",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "MOD10",
+        "F_PortNb": 3,
+        "S_InstanceID": "MOD16",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK14",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "MOD16",
+        "F_PortNb": 1,
+        "S_InstanceID": "MOD17",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK15",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "MOD17",
+        "F_PortNb": 1,
+        "S_InstanceID": "MOD11",
+        "S_PortNb": 2
+      },
+      {
+        "InstanceID": "LNK16",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "MOD11",
+        "F_PortNb": 3,
+        "S_InstanceID": "MOD18",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK17",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "MOD18",
+        "F_PortNb": 1,
+        "S_InstanceID": "MOD19",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK18",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "MOD19",
+        "F_PortNb": 1,
+        "S_InstanceID": "MOD12",
+        "S_PortNb": 2
+      },
+      {
+        "InstanceID": "LNK19",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "MOD10",
+        "F_PortNb": 1,
+        "S_InstanceID": "MOD13",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK20",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "MOD11",
+        "F_PortNb": 1,
+        "S_InstanceID": "MOD14",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK21",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "MOD12",
+        "F_PortNb": 1,
+        "S_InstanceID": "MOD15",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK22",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "MOD15",
+        "F_PortNb": 1,
+        "S_InstanceID": "MOD22",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK23",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "MOD14",
+        "F_PortNb": 1,
+        "S_InstanceID": "MOD21",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK24",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "MOD13",
+        "F_PortNb": 1,
+        "S_InstanceID": "MOD20",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK25",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "MOD20",
+        "F_PortNb": 1,
+        "S_InstanceID": "NOD1",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK26",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "MOD21",
+        "F_PortNb": 1,
+        "S_InstanceID": "NOD1",
+        "S_PortNb": 1
+      },
+      {
+        "InstanceID": "LNK27",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "MOD22",
+        "F_PortNb": 1,
+        "S_InstanceID": "NOD1",
+        "S_PortNb": 2
+      },
+      {
+        "InstanceID": "LNK28",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "NOD1",
+        "F_PortNb": 8,
+        "S_InstanceID": "MOD23",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK29",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "MOD25",
+        "F_PortNb": 6,
+        "S_InstanceID": "MOD26",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK30",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "MOD23",
+        "F_PortNb": 1,
+        "S_InstanceID": "MOD24",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK31",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "MOD26",
+        "F_PortNb": 1,
+        "S_InstanceID": "MOD27",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK32",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "MOD27",
+        "F_PortNb": 1,
+        "S_InstanceID": "MOD28",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK33",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "MOD28",
+        "F_PortNb": 1,
+        "S_InstanceID": "NOD2",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK34",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "NOD2",
+        "F_PortNb": 8,
+        "S_InstanceID": "MOD29",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK35",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "NOD2",
+        "F_PortNb": 9,
+        "S_InstanceID": "MOD31",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK36",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "MOD29",
+        "F_PortNb": 1,
+        "S_InstanceID": "MOD30",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK37",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "MOD31",
+        "F_PortNb": 1,
+        "S_InstanceID": "MOD32",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK38",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "MOD30",
+        "F_PortNb": 1,
+        "S_InstanceID": "NOD4",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK39",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "MOD32",
+        "F_PortNb": 1,
+        "S_InstanceID": "NOD3",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK40",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "NOD3",
+        "F_PortNb": 8,
+        "S_InstanceID": "MOD35",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK41",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "MOD35",
+        "F_PortNb": 1,
+        "S_InstanceID": "MOD36",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK42",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "MOD36",
+        "F_PortNb": 1,
+        "S_InstanceID": "MOD33",
+        "S_PortNb": 1
+      },
+      {
+        "InstanceID": "LNK43",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "NOD3",
+        "F_PortNb": 9,
+        "S_InstanceID": "MOD34",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK44",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "MOD34",
+        "F_PortNb": 1,
+        "S_InstanceID": "NOD5",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK45",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "NOD4",
+        "F_PortNb": 8,
+        "S_InstanceID": "MOD37",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK46",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "MOD37",
+        "F_PortNb": 1,
+        "S_InstanceID": "MOD33",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK47",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "NOD4",
+        "F_PortNb": 9,
+        "S_InstanceID": "MOD38",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK48",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "MOD38",
+        "F_PortNb": 1,
+        "S_InstanceID": "MOD33",
+        "S_PortNb": 2
+      },
+      {
+        "InstanceID": "LNK49",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "NOD3",
+        "F_PortNb": 10,
+        "S_InstanceID": "MOD39",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK50",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "MOD39",
+        "F_PortNb": 1,
+        "S_InstanceID": "NOD4",
+        "S_PortNb": 1
+      },
+      {
+        "InstanceID": "LNK51",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "NOD5",
+        "F_PortNb": 8,
+        "S_InstanceID": "MOD43",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK52",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "NOD5",
+        "F_PortNb": 9,
+        "S_InstanceID": "MOD41",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK53",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "MOD43",
+        "F_PortNb": 1,
+        "S_InstanceID": "MOD42",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK54",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "MOD41",
+        "F_PortNb": 1,
+        "S_InstanceID": "NOD6",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK55",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "NOD6",
+        "F_PortNb": 8,
+        "S_InstanceID": "MOD40",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK56",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "NOD6",
+        "F_PortNb": 9,
+        "S_InstanceID": "MOD45",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK57",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "MOD40",
+        "F_PortNb": 1,
+        "S_InstanceID": "NOD7",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK58",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "MOD45",
+        "F_PortNb": 1,
+        "S_InstanceID": "MOD42",
+        "S_PortNb": 3
+      },
+      {
+        "InstanceID": "LNK59",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "NOD7",
+        "F_PortNb": 8,
+        "S_InstanceID": "MOD44",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK60",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "MOD44",
+        "F_PortNb": 1,
+        "S_InstanceID": "MOD42",
+        "S_PortNb": 1
+      },
+      {
+        "InstanceID": "LNK61",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "NOD7",
+        "F_PortNb": 9,
+        "S_InstanceID": "MOD46",
+        "S_PortNb": 0
+      },
+      {
+        "InstanceID": "LNK62",
+        "Type": 0,
+        "PageNb": 0,
+        "F_InstanceID": "MOD46",
+        "F_PortNb": 1,
+        "S_InstanceID": "MOD42",
+        "S_PortNb": 2
+      }
+    ]
+  },
+  "values": {
+    "MOD0": {
+      "IM0_FLOW": 0.0,
+      "IM0_PRE": 0.101325,
+      "EX0_FLOW": 0.0,
+      "EX0_PRE": 0.101325,
+      "BKT_PRE": 0.101325,
+      "BKT_TEMP": 23.82337932639149
+    },
+    "MOD1": {
+      "IM0_FLOW": 8.04861275062681,
+      "IM0_PRE": 0.101325,
+      "EX0_FLOW": 8.04861275062681,
+      "EX0_PRE": 0.10125934890919389,
+      "PL": 20.0,
+      "CV": 31.454140950146304,
+      "DENSITY": 997.3428099996938,
+      "DN": 200
+    },
+    "MOD2": {
+      "IM0_FLOW": 8.04861275062681,
+      "IM0_PRE": 0.10125934890919389,
+      "EX0_FLOW": 8.04861275062681,
+      "EX0_PRE": 0.1364791816996414,
+      "DPRE": 0.035219825388763906,
+      "DENSITY": 997.3517232419472,
+      "CV": 5.224677807263194,
+      "C": -0.001,
+      "B": 0.0,
+      "A": 0.1
+    },
+    "MOD3": {
+      "IM0_FLOW": 8.04861275062681,
+      "IM0_PRE": 0.1364791816996414,
+      "EX0_FLOW": 8.04861275062681,
+      "EX0_PRE": 0.12651683305168612,
+      "VSPACT": 1.0,
+      "DENSITY": 997.3581272547985,
+      "CV": 2.5791666470344983,
+      "DN": 80
+    },
+    "MOD4": {
+      "IM0_FLOW": 2.6828709168740414,
+      "IM0_PRE": 0.1252410397148786,
+      "EX0_FLOW": 2.6828709168740414,
+      "EX0_PRE": 0.10164945902450671,
+      "PL": 20.0,
+      "CV": 0.5530923924305073,
+      "DENSITY": 997.3489728072576,
+      "DN": 40
+    },
+    "MOD5": {
+      "IM0_FLOW": 2.68287091687873,
+      "IM0_PRE": 0.12524103971487377,
+      "EX0_FLOW": 2.68287091687873,
+      "EX0_PRE": 0.10164945902441552,
+      "PL": 20.0,
+      "CV": 0.5530923924304535,
+      "DENSITY": 997.348972807288,
+      "DN": 40
+    },
+    "MOD6": {
+      "IM0_FLOW": 2.6828709168740414,
+      "IM0_PRE": 0.1252410397148786,
+      "EX0_FLOW": 2.6828709168740414,
+      "EX0_PRE": 0.10164945902450671,
+      "PL": 20.0,
+      "CV": 0.5530923924305073,
+      "DENSITY": 997.3489728072576,
+      "DN": 40
+    },
+    "MOD7": {
+      "IM0_FLOW": 2.6828709168740414,
+      "IM0_PRE": 0.12651683305168612,
+      "EX0_FLOW": 2.6828709168740414,
+      "EX0_PRE": 0.1252410397148786,
+      "VSPACT": 1.0,
+      "DENSITY": 997.3552779128916,
+      "CV": 2.4024229783616993,
+      "DN": 80
+    },
+    "MOD8": {
+      "IM0_FLOW": 2.68287091687873,
+      "IM0_PRE": 0.12651683305168612,
+      "EX0_FLOW": 2.68287091687873,
+      "EX0_PRE": 0.12524103971487377,
+      "VSPACT": 1.0,
+      "DENSITY": 997.355277912916,
+      "CV": 2.4024229783612947,
+      "DN": 80
+    },
+    "MOD9": {
+      "IM0_FLOW": 2.6828709168740414,
+      "IM0_PRE": 0.12651683305168612,
+      "EX0_FLOW": 2.6828709168740414,
+      "EX0_PRE": 0.1252410397148786,
+      "VSPACT": 1.0,
+      "DENSITY": 997.3552779128916,
+      "CV": 2.4024229783616993,
+      "DN": 80
+    },
+    "MOD10": {
+      "IM0_FLOW": 2.6828709168740414,
+      "IM0_PRE": 0.10164945902450671,
+      "EX0_FLOW": 1.2466414322848556,
+      "EX0_PRE": 0.10164945902450671,
+      "BKT_SR": 2.0,
+      "BKT_TEMP": 26.05043548233624,
+      "BKT_M": 416.04819199736687,
+      "BKT_PRE": 0.101325,
+      "BKT_LEVEL": 0.033215251151395925
+    },
+    "MOD11": {
+      "IM0_FLOW": 2.68287091687873,
+      "IM0_PRE": 0.10164945902441552,
+      "EX0_FLOW": 1.2466414320979713,
+      "EX0_PRE": 0.10164945902441552,
+      "BKT_SR": 2.0,
+      "BKT_TEMP": 26.05043548133,
+      "BKT_M": 416.04819188041256,
+      "BKT_PRE": 0.101325,
+      "BKT_LEVEL": 0.03321525114205035
+    },
+    "MOD12": {
+      "IM0_FLOW": 2.6828709168740414,
+      "IM0_PRE": 0.10164945902450671,
+      "EX0_FLOW": 1.2466414322822452,
+      "EX0_PRE": 0.10164945902450671,
+      "BKT_SR": 2.0,
+      "BKT_TEMP": 26.050435481313688,
+      "BKT_M": 416.0481919973709,
+      "BKT_PRE": 0.101325,
+      "BKT_LEVEL": 0.03321525115138809
+    },
+    "MOD13": {
+      "IM0_FLOW": 1.2466414322848556,
+      "IM0_PRE": 0.10164945902450671,
+      "EX0_FLOW": 1.2466414322848556,
+      "EX0_PRE": 0.10164708698950828,
+      "PL": 20.0,
+      "CV": 25.637925424111675,
+      "DENSITY": 996.7729891325356,
+      "DN": 200
+    },
+    "MOD14": {
+      "IM0_FLOW": 1.2466414320979713,
+      "IM0_PRE": 0.10164945902441552,
+      "EX0_FLOW": 1.2466414320979713,
+      "EX0_PRE": 0.10164708698941788,
+      "PL": 20.0,
+      "CV": 25.63792542453237,
+      "DENSITY": 996.7729891327002,
+      "DN": 200
+    },
+    "MOD15": {
+      "IM0_FLOW": 1.2466414322822452,
+      "IM0_PRE": 0.10164945902450671,
+      "EX0_FLOW": 1.2466414322822452,
+      "EX0_PRE": 0.10164708698950828,
+      "PL": 20.0,
+      "CV": 25.637925424029287,
+      "DENSITY": 996.7729891327488,
+      "DN": 200
+    },
+    "MOD16": {
+      "IM0_FLOW": 7.796893568682809e-06,
+      "IM0_PRE": 0.10164945902450671,
+      "EX0_FLOW": 7.796893568682809e-06,
+      "EX0_PRE": 0.10164945902442749,
+      "PL": 20.0,
+      "CV": 0.8772374879663809,
+      "DENSITY": 996.728734414262,
+      "DN": 200
+    },
+    "MOD17": {
+      "IM0_FLOW": 7.796893568682809e-06,
+      "IM0_PRE": 0.10164945902442749,
+      "EX0_FLOW": 7.796893568682809e-06,
+      "EX0_PRE": 0.10164945902441552,
+      "VSPACT": 1.0,
+      "DENSITY": 996.7286500212374,
+      "CV": 2.28209894041574,
+      "DN": 80
+    },
+    "MOD18": {
+      "IM0_FLOW": -7.796895577078285e-06,
+      "IM0_PRE": 0.10164945902441552,
+      "EX0_FLOW": -7.796895577078285e-06,
+      "EX0_PRE": 0.10164945902449478,
+      "PL": 20.0,
+      "CV": 0.8772377829366945,
+      "DENSITY": 996.728655021773,
+      "DN": 200
+    },
+    "MOD19": {
+      "IM0_FLOW": -7.796895577078285e-06,
+      "IM0_PRE": 0.10164945902449478,
+      "EX0_FLOW": -7.796895577078285e-06,
+      "EX0_PRE": 0.10164945902450671,
+      "VSPACT": 1.0,
+      "DENSITY": 996.7286499880148,
+      "CV": 2.282098940477905,
+      "DN": 80
+    },
+    "MOD20": {
+      "IM0_FLOW": 1.2466414322848556,
+      "IM0_PRE": 0.10164708698950828,
+      "EX0_FLOW": 1.2466414322848556,
+      "EX0_PRE": 0.10134141391712292,
+      "VSPACT": 1.0,
+      "DENSITY": 996.7729550297474,
+      "CV": 2.281285541380608,
+      "DN": 80
+    },
+    "MOD21": {
+      "IM0_FLOW": 1.2466414320979713,
+      "IM0_PRE": 0.10164708698941788,
+      "EX0_FLOW": 1.2466414320979713,
+      "EX0_PRE": 0.10134141391712292,
+      "VSPACT": 1.0,
+      "DENSITY": 996.7729550299856,
+      "CV": 2.281285541375739,
+      "DN": 80
+    },
+    "MOD22": {
+      "IM0_FLOW": 1.2466414322822452,
+      "IM0_PRE": 0.10164708698950828,
+      "EX0_FLOW": 1.2466414322822452,
+      "EX0_PRE": 0.10134141391712292,
+      "VSPACT": 1.0,
+      "DENSITY": 996.772955030006,
+      "CV": 2.281285541375554,
+      "DN": 80
+    },
+    "MOD23": {
+      "IM0_FLOW": 3.739924296665543,
+      "IM0_PRE": 0.10134141391712292,
+      "EX0_FLOW": 3.739924296665543,
+      "EX0_PRE": 0.101325,
+      "PL": 20.0,
+      "CV": 29.23873616140421,
+      "DENSITY": 996.7728348352156,
+      "DN": 200
+    },
+    "MOD24": {
+      "IM0_FLOW": 3.739924296665543,
+      "IM0_PRE": 0.101325,
+      "EX0_FLOW": 0.0,
+      "EX0_PRE": 0.101325,
+      "BKT_PRE": 0.101325,
+      "BKT_TEMP": 23.82337932639149
+    }
+  },
+  "file_hashes": {
+    "AlgProject\\TEST\\TEST_DB.PJTDB": "1cf97e1e1477b556ff55cec1677453efbbc4a0e7fbabc9fdf19de0fd8025f515",
+    "Csv\\TEST.json": "678996adabc60db89edd9f0a1fde62a2582474afec8f4c4e087ac789f1de5b7b"
+  }
+}

@@ -5,6 +5,7 @@ import logging
 import math
 import uuid
 import os
+import tempfile
 from collections import OrderedDict
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -12,7 +13,9 @@ from threading import Lock
 
 from fastapi import FastAPI, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from starlette.background import BackgroundTask
+from starlette.concurrency import run_in_threadpool
 from fastapi.staticfiles import StaticFiles
 
 from . import __version__
@@ -181,7 +184,10 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
     async def storage_error(_request, error):
         return JSONResponse(status_code=507, content={'detail': {'code': 'STORAGE_FAILED', 'message': str(error)}})
     project_root = Path(__file__).resolve().parents[2]
-    store = ModuleStore(project_root / 'modules', Path(module_storage_root or os.environ.get('FLUIDNET_MODULE_STORE') or project_root / '.runtime' / 'module-packages'))
+    restored_modules = Path(data_root) / 'module-packages' if data_root is not None else None
+    store = ModuleStore(project_root / 'modules', Path(module_storage_root or (
+        restored_modules if restored_modules is not None and restored_modules.is_dir() else None)
+        or os.environ.get('FLUIDNET_MODULE_STORE') or project_root / '.runtime' / 'module-packages'))
 
     @app.middleware('http')
     async def require_token(request: Request, call_next):
@@ -231,6 +237,48 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
     @app.get('/api/v1/workspace/revisions')
     def workspace_revisions():
         return {'revisions': require_archive().revisions()}
+
+    @app.get('/api/v1/workspace/storage')
+    def workspace_storage():
+        return require_archive().usage()
+
+    @app.post('/api/v1/workspace/backup', response_class=FileResponse,
+              responses={200: {'content': {'application/zip': {'schema': {'type': 'string', 'format': 'binary'}}}}})
+    def workspace_backup():
+        from .backup import backup_workspace
+        storage = require_archive()
+        temporary = tempfile.TemporaryDirectory(prefix='.download-', dir=storage.root.parent)
+        path = Path(temporary.name) / 'fluidnet-backup.zip'
+        try:
+            backup_workspace(storage, store, path)
+            return FileResponse(path, media_type='application/zip', filename='fluidnet-backup.zip',
+                                background=BackgroundTask(temporary.cleanup))
+        except BaseException:
+            temporary.cleanup()
+            raise
+
+    @app.post('/api/v1/workspace/restore', openapi_extra={
+        'requestBody': {'required': True, 'content': {'application/zip': {'schema': {'type': 'string', 'format': 'binary'}}}}})
+    async def workspace_restore(request: Request):
+        from .backup import restore_workspace
+        storage = require_archive()
+        target = storage.root.parent / ('restored-' + uuid.uuid4().hex[:12])
+        with tempfile.TemporaryDirectory(prefix='.upload-', dir=storage.root.parent) as temporary:
+            source = Path(temporary) / 'backup.zip'
+            size = 0
+            with source.open('wb') as incoming:
+                async for chunk in request.stream():
+                    size += len(chunk)
+                    if size > 256 * 1024**2:
+                        raise HTTPException(413, detail='上传备份超过 256 MiB，请使用 workspace restore 命令恢复')
+                    incoming.write(chunk)
+            try:
+                manifest = await run_in_threadpool(restore_workspace, source, target)
+            except ValueError as error:
+                raise HTTPException(422, detail=str(error)) from error
+        return {'directory': str(target.resolve()), 'revision': manifest['revision'],
+                'command': f'python -m fn_engine serve --data-dir "{target.resolve()}"',
+                'message': '已恢复到独立目录。关闭当前服务后使用下方命令打开；原工作区保留。'}
 
     @app.post('/api/v1/workspace')
     def save_workspace(request: WorkspaceSaveRequest):

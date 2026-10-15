@@ -1,5 +1,5 @@
 /* Project controls and durable workspace operations; all values use engine units. */
-window.createProjectServices = function ({request, ui, normalize, health}) {
+window.createProjectServices = function ({request, ui, normalize, health, authHeaders}) {
   // Each page owns its base revision. A different tab saving must never advance it.
   let revision = Number(ui.state().workspaceRevision || 0), ready = false;
   let saves = Promise.resolve();
@@ -57,5 +57,30 @@ window.createProjectServices = function ({request, ui, normalize, health}) {
     await request('/runs/'+encodeURIComponent(id)+'/delete',{});
     await refreshArchives();
   }
-  return {prepare,previewControl,loadWorkspace,saveWorkspace,refreshArchives,openArchive,deleteArchive};
+  async function backupRequest(path,body) {
+    const response=await fetch('/api/v1/workspace/'+path,{method:'POST',headers:authHeaders(),body});
+    if(!response.ok){const data=await response.json();throw Error(typeof data.detail==='string'?data.detail:data.detail?.message||'工作区操作失败');}
+    return response;
+  }
+  async function downloadBackup() {
+    const response=await backupRequest('backup');
+    if(response.status!==200 || response.headers.get('Content-Type')?.split(';')[0]!=='application/zip')throw Error('备份下载未返回 ZIP 文件，请重试。');
+    const blob=await response.blob();
+    const signature=new Uint8Array(await blob.slice(0,4).arrayBuffer());
+    if(signature.length!==4 || ![0x50,0x4b,0x03,0x04].every((value,index)=>signature[index]===value))throw Error('备份文件为空或格式不正确，请重试。');
+    return blob;
+  }
+  async function restoreRevision(number) {
+    const remote=await request('/workspace?revision='+number);
+    ui.validateWorkspace(remote.data);
+    const receipt=await saveWorkspace(remote.data);
+    ui.restoreWorkspace(remote.data);
+    ui.state().workspaceRevision=receipt.revision;ui.state().savedAt=receipt.saved_at;
+    ui.persist();ui.render();
+    return receipt;
+  }
+  return {prepare,previewControl,loadWorkspace,saveWorkspace,refreshArchives,openArchive,deleteArchive,
+    workspaceInfo:()=>Promise.all([request('/workspace/storage'),request('/workspace/revisions')]),
+    downloadBackup,
+    restoreBackup:async file=> (await backupRequest('restore',file)).json(),restoreRevision};
 };

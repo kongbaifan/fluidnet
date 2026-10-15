@@ -287,6 +287,23 @@ function restoreWorkspace(data){
   ui.floats=[];ui.selectedNode='';undoStack=[];redoStack=[];
   editRevision++;savePhase='';saveError='';render();
 }
+async function workspaceTools(){
+  const [usage,history]=await engine.workspaceInfo();
+  openDialog('工作区备份与恢复','备份包含已保存的项目、运行历史和模块版本；当前未保存草稿请先保存或导出。',`
+    <div class="stack"><div class="row">${btn('download-backup','下载完整备份','Download','','primary')}${btn('choose-backup','恢复备份到新目录','FolderOpen')}${btn('export-old-draft','导出载入前草稿','FileJson')}</div>
+    <input id="workspace-backup-file" type="file" accept=".zip,application/zip" data-workspace-backup hidden>
+    <div class="notice">恢复前校验全部文件、数据库与模块哈希；恢复到独立目录后，按提示重启服务。当前工作区保留。</div>
+    <p>数据库 ${number(usage.database_bytes/1024**2,2)} MiB · 可复用 ${number(usage.reusable_bytes/1024**2,2)} MiB · WAL ${number(usage.wal_bytes/1024**2,2)} MiB · 磁盘可用 ${number(usage.free_disk_bytes/1024**3,1)} GiB</p>
+    <p>运行 ${usage.runs} 条 · 窗口帧 ${usage.frames} 条 · 保留 ${usage.run_retention} 次终态运行与 ${usage.revision_retention} 个工作区修订</p>
+    <h3>恢复已保存的工作区修订</h3>${history.revisions.map(r=>`<div class="row spread"><span>修订 ${r.revision} · ${esc(r.saved_at)}</span>${btn('restore-workspace-revision','恢复此修订','History',`data-revision="${r.revision}"`)}</div>`).join('')||'<p>暂无已保存修订。</p>'}</div>`,null,'',true);
+}
+root.addEventListener('change',async event=>{
+  if(!('workspaceBackup' in event.target.dataset))return;
+  const file=event.target.files[0];if(!file)return;
+  try{msg('正在校验并恢复备份…');const result=await engine.restoreBackup(file);
+    openDialog('备份已恢复',result.message,`<div class="stack"><p>修订 ${result.revision}</p><p class="mono">${esc(result.directory)}</p><pre class="code-preview">${esc(result.command)}</pre></div>`,null,'',true);
+  }catch(error){msg(error.message,true);}
+});
 function receiveArchives(runs){
   ui.archivedRuns=runs;
   for(const p of state.projects)if(p.run.live && !runs.some(r=>r.id===p.run.runId)){
@@ -315,7 +332,7 @@ function navigate(route,options={}){if(!PAGE_META[route])route='home';if(ui.rout
 function openProject(id){if(!state.projects.some(p=>p.id===id))return;state.activeProject=id;ui.pinnedChart=null;ui.chartCursor=null;ui.selectedNode='';ui.floats=[];undoStack=[];redoStack=[];navigate('workbench');}
 function openEditor(id,tab='drawing',origin=null){ui.editorOrigin=origin;state.selectedModule=id;ui.editorPort='';ui.moduleTab=['design','header'].includes(tab)?'code':tab;if(['design','header'].includes(tab))ui.codeKind=tab;ui.arrayVar='system:form';navigate('editor');}
 function heading(title,subtitle,actions='',eyebrow=''){return `<div class="page-heading"><div>${eyebrow?`<div class="eyebrow">${eyebrow}</div>`:''}<h1>${title}</h1><p>${subtitle}</p></div><div class="row wrap">${actions}</div></div>`;}
-function renderHeader(){document.getElementById('app-header').innerHTML=`<button class="brand" data-action="nav" data-route="home" aria-label="FluidNet Studio 首页"><span class="brand-mark">${icon('Network')}</span>FluidNet <span class="brand-sub">Studio</span></button><span class="header-rule"></span><button class="project-picker" data-action="project-picker">${icon('FolderOpen')}<span>${esc(project().name)}</span>${icon('ChevronDown')}</button>${badge(engine?.health ? '模块平台 · v' + engine.health.version : '连接计算服务…',engine?.health ? 'good' : 'warn')}<button class="header-search" data-action="page-map" aria-label="页面导航与快捷入口">${icon('Search')}<span>页面与操作</span><kbd>Ctrl K</kbd></button><span class="save-indicator" data-save-status></span>${btn('reload-workspace','载入服务器','FolderOpen','title="载入服务器工作区，当前草稿会先备份到浏览器"')+btn('save','<span>保存原型</span>','Save','title="保存全部项目、模块、型号和界面状态；待应用参数仍需单独应用"','header-save')}${ibtn('theme',ui.theme==='dark'?'切换浅色':'切换深色',ui.theme==='dark'?'Sun':'Moon')}${ibtn('nav','使用指南','CircleHelp','data-route="help"')}`;}
+function renderHeader(){document.getElementById('app-header').innerHTML=`<button class="brand" data-action="nav" data-route="home" aria-label="FluidNet Studio 首页"><span class="brand-mark">${icon('Network')}</span>FluidNet <span class="brand-sub">Studio</span></button><span class="header-rule"></span><button class="project-picker" data-action="project-picker">${icon('FolderOpen')}<span>${esc(project().name)}</span>${icon('ChevronDown')}</button>${badge(engine?.health ? '模块平台 · v' + engine.health.version : '连接计算服务…',engine?.health ? 'good' : 'warn')}<button class="header-search" data-action="page-map" aria-label="页面导航与快捷入口">${icon('Search')}<span>页面与操作</span><kbd>Ctrl K</kbd></button><span class="save-indicator" data-save-status></span>${btn('workspace-tools','备份与恢复','Database')+btn('reload-workspace','载入服务器','FolderOpen','title="载入服务器工作区，当前草稿会先备份到浏览器"')+btn('save','<span>保存原型</span>','Save','title="保存全部项目、模块、型号和界面状态；待应用参数仍需单独应用"','header-save')}${ibtn('theme',ui.theme==='dark'?'切换浅色':'切换深色',ui.theme==='dark'?'Sun':'Moon')}${ibtn('nav','使用指南','CircleHelp','data-route="help"')}`;}
 function renderRail(){const ids=['home','projects','workbench','modules','bench','models','curves','runs','controls','connections'];document.getElementById('app-rail').innerHTML=ids.map(id=>`${id==='modules'||id==='controls'?'<div class="rail-divider"></div>':''}<button type="button" class="rail-link${ui.route===id||ui.route==='editor'&&id==='modules'||ui.route==='nodes'&&id==='modules'?' active':''}" data-action="nav" data-route="${id}" title="${PAGE_META[id][2]}"${ui.route===id?' aria-current="page"':''}>${icon(PAGE_META[id][1])}<span>${PAGE_META[id][0]}</span></button>`).join('')+`<div class="rail-bottom"><div class="rail-divider"></div><button class="rail-link${ui.route==='settings'?' active':''}" data-action="nav" data-route="settings">${icon('Settings2')}<span>设置</span></button></div>`;}
 function syncChrome(){
   const save=root.querySelector('[data-save-status]');if(save){save.title=saveError;save.classList.toggle('dirty',state.dirty);save.innerHTML=`<span class="dot"></span>${savePhase==='saving'?'正在保存…':savePhase==='error'?'保存失败 · 可重试':state.dirty?'有未保存修改':state.savedAt?'工作区已保存':'示例已就绪'}`;}
@@ -1720,7 +1737,7 @@ function extraChartsMarkup() {
 }
 function updateExtraCharts() { const e = document.getElementById('extra-charts'); if (e) e.innerHTML = extraChartsMarkup(); }
 function downloadFile(name, text, type = 'application/json') {
-  const blob = new Blob([text], { type: type + ';charset=utf-8' }), url = URL.createObjectURL(blob), link = document.createElement('a');
+  const blob = text instanceof Blob ? text : new Blob([text], { type: type + ';charset=utf-8' }), url = URL.createObjectURL(blob), link = document.createElement('a');
   link.href = url; link.download = name; link.click(); setTimeout(() => URL.revokeObjectURL(url), 3000); msg('已生成导出文件。');
 }
 function exportData(format, id) {
@@ -1814,6 +1831,12 @@ function handleAction(action, el) {
     case 'project-picker': openDialog('切换项目', '任务在后台保留，设备窗口跟随当前项目。', `<div class="stack">${state.projects.map(p => btn('open-project', esc(p.name), 'FolderOpen', `data-id="${p.id}"`)).join('')}</div>`); break;
     case 'close-dialog': closeDialog(); break;
     case 'save': saveAll(); break;
+    case 'workspace-tools': workspaceTools().catch(error=>msg(error.message,true));break;
+    case 'download-backup': engine.downloadBackup().then(blob=>{downloadFile('fluidnet-backup.zip',blob,'application/zip');msg('备份已生成。');}).catch(error=>msg(error.message,true));break;
+    case 'choose-backup': document.getElementById('workspace-backup-file').click();break;
+    case 'export-old-draft': {const original=localStorage.getItem(STORAGE_KEY+'-before-workspace');if(!original)throw Error('没有载入前的浏览器草稿备份。');downloadFile('fluidnet-browser-draft.json',original);break;}
+    case 'restore-workspace-revision': {const revision=Number(d.revision);confirmChange('恢复工作区修订 '+revision,'当前草稿先备份到浏览器；恢复后生成一个新修订，已有运行档案保留。',()=>engine.restoreRevision(revision).then(receipt=>msg('已恢复为修订 '+receipt.revision)).catch(error=>msg(error.message,true)));break;}
+
     case 'reload-workspace':
       if(savePhase==='saving')throw Error('请等待当前保存结束。');
       confirmChange('载入服务器工作区','当前草稿将先备份到浏览器；可先导出原型保留独立文件。',()=>engine.init(true));break;
@@ -2356,7 +2379,7 @@ function normalizeState() {
 const chartRegistry = new Map();
 engine = window.createEngineClient({state:()=>state, project, parameterKey:projectParameterKey, moduleOf,
   persist:()=>{try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state));}catch{}},
-  restoreWorkspace,archives:receiveArchives,showArchive,
+  restoreWorkspace,validateWorkspace:validateImport,archives:receiveArchives,showArchive,
   moduleOutput:(m,text)=>{m.authoringOutput=text;if(m.id===state.selectedModule){const el=document.getElementById('module-output') || document.getElementById('code-output');if(el)el.textContent=text;}},
   parameterDefinitions:PARAM_DEFS, emptyRun, render:()=>retainFocus(), refresh:refreshLive,
   message:msg, diagnostics:showDiagnostics, dirty:markDirty,

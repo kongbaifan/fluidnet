@@ -1,5 +1,5 @@
 import { chromium, expect } from '@playwright/test';
-import { mkdirSync, mkdtempSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawn } from 'node:child_process';
@@ -13,7 +13,8 @@ const base=`http://127.0.0.1:${port}`, key='fluidnet-prototype-engine-v1';
 let server, log='', runId;
 async function start(){
   server=spawn('python',['-m','fn_engine','serve','--port',String(port),'--data-dir',join(dir,'data')],{
-    cwd:resolve('.'),windowsHide:true,env:{...process.env,FLUIDNET_MODULE_STORE:join(dir,'modules')},stdio:['ignore','ignore','pipe']});
+    cwd:resolve('.'),windowsHide:true,env:{...process.env,FLUIDNET_MODULE_STORE:join(dir,'modules')},stdio:['ignore','pipe','pipe']});
+  server.stdout.on('data',chunk=>log+=chunk);
   server.stderr.on('data',chunk=>log+=chunk);
   await expect.poll(async()=>{try{return (await fetch(base+'/api/v1/health')).ok;}catch{return false;}},{timeout:20000}).toBe(true);
 }
@@ -100,6 +101,31 @@ try{
   await expect(page.locator('#main-chart svg')).toBeVisible();
   await expect(page.locator('#extra-charts svg path.chart-line')).toHaveCount(2);
   for(const curve of await page.locator('#extra-charts svg path.chart-line').all())await expect(curve).toHaveAttribute('d',/L/);
+
+  // Download a consistent backup through the UI and restore it to a new directory.
+  await page.locator('[data-action="workspace-tools"]').click();
+  await page.route('**/api/v1/workspace/backup',route=>route.fulfill({status:204}));
+  await page.locator('[data-action="download-backup"]').click();
+  await expect(page.locator('#toast')).toContainText('备份下载未返回 ZIP 文件');
+  await page.unroute('**/api/v1/workspace/backup');
+  const download=page.waitForEvent('download');
+  const zipResponse=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/v1/workspace/backup' && r.request().method()==='POST');
+  await page.locator('[data-action="download-backup"]').click();
+  const file=await download,backupPath=join(dir,'downloaded-backup.zip');await file.saveAs(backupPath);
+  const zipReply=await zipResponse;
+  expect(zipReply.status()).toBe(200);
+  expect(readFileSync(backupPath).subarray(0,4)).toEqual(Buffer.from([0x50,0x4b,0x03,0x04]));
+  const restoredResponse=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/v1/workspace/restore');
+  await page.locator('#workspace-backup-file').setInputFiles(backupPath);
+  const restoredReply=await restoredResponse;expect(restoredReply.status()).toBe(200);
+  await expect(page.getByRole('dialog')).toContainText('备份已恢复');
+  await expect(page.getByRole('dialog')).toContainText('serve --data-dir');
+  await page.getByRole('dialog').locator('[data-action="close-dialog"]').first().click();
+  await page.locator('[data-action="workspace-tools"]').click();
+  await page.locator('[data-action="restore-workspace-revision"][data-revision="1"]').click();
+  await page.getByRole('dialog').locator('button[type="submit"]').click();
+  await expect.poll(async()=> (await workspace()).revision).toBe(5);
+  expect((await workspace()).data.projects[0].controlConfig.name).toBe(first.data.projects[0].controlConfig.name);
 
   // A pre-existing Lua draft is preserved and cannot be enabled accidentally.
   await page.evaluate(k=>{const data=JSON.parse(localStorage.getItem(k));data.projects[0].control='-- preserved legacy script';delete data.projects[0].controlLanguage;data.dirty=true;localStorage.setItem(k,JSON.stringify(data));},key);

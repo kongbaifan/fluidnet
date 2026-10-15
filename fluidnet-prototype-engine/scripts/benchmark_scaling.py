@@ -70,8 +70,9 @@ def measure(model):
              patch.object(WorkerProcess,'_request',timed('worker_rpc_s',WorkerProcess._request)):
             start=time.perf_counter();frame=solver.solve_steady(network);solve_s=time.perf_counter()-start
         start=time.perf_counter();data=frame.model_dump_json();serialize_s=time.perf_counter()-start
+        flow = next(value for key,value in frame.variables.items() if len(key.split('.')) == 2 and key.endswith('.mass_flow_kg_s'))
         return {'compile_s':compile_s,'solve_s':solve_s,'serialize_s':serialize_s,**totals,'peak_rss_mb':memory[0]/1024**2,
-                'result_bytes':len(data.encode()),'flow':frame.variables['N0.mass_flow_kg_s'],**frame.metrics}
+                'result_bytes':len(data.encode()),'flow':flow,**frame.metrics}
     finally:stop.set();thread.join()
 
 

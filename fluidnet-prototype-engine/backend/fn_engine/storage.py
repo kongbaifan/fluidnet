@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import sqlite3
+import shutil
 from threading import RLock
 import time
 import zlib
@@ -29,7 +30,7 @@ def unpack(value):
 
 
 class WorkspaceStore:
-    def __init__(self, root):
+    def __init__(self, root, recover=True):
         self.root = Path(root)
         self.root.mkdir(parents=True, exist_ok=True)
         self.lock = RLock()
@@ -60,7 +61,8 @@ class WorkspaceStore:
                 CREATE TABLE IF NOT EXISTS frames(run_id TEXT REFERENCES runs(id) ON DELETE CASCADE, idx INTEGER, data BLOB NOT NULL, PRIMARY KEY(run_id,idx));
                 PRAGMA user_version=1;
             ''')
-            self._recover()
+            if recover:
+                self._recover()
         except Exception as error:
             self.close()
             raise StorageError(f'无法打开工作区（请确认目录可写且未被另一服务占用）：{error}') from error
@@ -86,6 +88,19 @@ class WorkspaceStore:
     def revisions(self):
         with self.transaction() as db:
             return [{'revision': r, 'saved_at': t} for r, t in db.execute('SELECT revision,saved_at FROM workspace ORDER BY revision DESC')]
+
+    def usage(self):
+        with self.transaction() as db:
+            page_size = db.execute('PRAGMA page_size').fetchone()[0]
+            pages = db.execute('PRAGMA page_count').fetchone()[0]
+            free = db.execute('PRAGMA freelist_count').fetchone()[0]
+            frames = db.execute('SELECT count(*) FROM frames').fetchone()[0]
+            runs = db.execute('SELECT count(*) FROM runs').fetchone()[0]
+            wal = self.root / 'workspace.sqlite3-wal'
+            return {'database_bytes': pages * page_size, 'reusable_bytes': free * page_size,
+                    'wal_bytes': wal.stat().st_size if wal.exists() else 0, 'free_disk_bytes': shutil.disk_usage(self.root).free,
+                    'runs': runs, 'frames': frames, 'revision_retention': 5, 'run_retention': 20,
+                    'history_window_max': 20001, 'overview_points': 2000}
 
     def save_workspace(self, data, expected_revision):
         payload = pack(data)

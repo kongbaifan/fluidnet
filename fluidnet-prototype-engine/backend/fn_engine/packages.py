@@ -72,11 +72,12 @@ class ModuleStore:
         self.lock = Lock()
 
     def definitions(self) -> list[ModuleDefinition]:
-        definitions = discover_module_packages(self.seed_root)
+        definitions = {(m.id, m.version): m for m in discover_module_packages(self.seed_root)}
         if self.root.exists():
             for manifest in sorted(self.root.glob("module-*/v*/manifest.json")):
-                definitions.append(load_module_package(manifest.parent))
-        return definitions
+                module = load_module_package(manifest.parent)
+                definitions[(module.id, module.version)] = module
+        return list(definitions.values())
 
     def latest(self) -> list[ModuleDefinition]:
         latest = {}

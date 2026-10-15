@@ -736,6 +736,6 @@ window.createEngineClient = function (ui) {
     }
     owner.run.parameterKey=ui.parameterKey(owner);ui.persist();ui.render();
   }
-  const services=window.createProjectServices({request,ui,normalize,health:()=>health});
+  const services=window.createProjectServices({request,ui,normalize,health:()=>health,authHeaders});
   return {...services,command,tick,validate,init,applyParameters,loadOverview,authHeaders,signOut:()=>{sessionStorage.removeItem(TOKEN_KEY);location.reload();},overview:id=>overviews.get(id),circuits:id=>circuitsByProject.get(id)||[],confirmedCommand,portValue,observation,manifestPayload,contractText,checkModule,saveModule,versions,loadVersion,newModule,updateContractItem,bindModule,pinProject,moduleForInsert,get catalog(){return catalog;},get health(){return health;}};
 };

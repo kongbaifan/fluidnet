@@ -11,6 +11,9 @@
 | GET /api/v1/workspace | 可选 revision | 完整原型工作区、revision、saved_at；未保存时 data=null |
 | POST /api/v1/workspace | data、expected_revision | 已落盘修订与时间；陈旧修订 409，存储故障 507 |
 | GET /api/v1/workspace/revisions | 无 | 最近 5 个修订元数据 |
+| GET /api/v1/workspace/storage | 无 | 数据库、可复用页、WAL、剩余磁盘字节数，运行/帧数量和保留上限 |
+| POST /api/v1/workspace/backup | 无 | application/zip；SQLite 一致快照、模块包与 SHA-256 清单 |
+| POST /api/v1/workspace/restore | ZIP 原始字节，最多 256 MiB | 新目录、revision、启动 command 和 message；非法备份 422，上传超限 413 |
 | POST /api/v1/controls/preview | project、script | state、writes、diagnostics、content_hash、applied=false |
 | GET /api/v1/runs | 无 | 活动运行与归档列表 |
 | POST /api/v1/runs/{run_id}/delete | 空对象 | 删除终态记录；活动运行返回 409 |
@@ -64,7 +67,7 @@ module.py
 
 Worker 消息使用 Pydantic 的 `InitializeRequest`、`EvaluateRequest`、`EvaluateResponse`、`CommitStepRequest` 和 `CommitStepResponse`。`evaluate` 输出 `NetworkRelation`，由网络求解器决定最终压力和流量；模块不能直接返回全网解。
 
-同步请求返回 201 时，计算已经 completed 或 failed；后台请求返回 202 后通过状态接口查询，控制通过 `POST /runs/{run_id}/command`；流式推送（WS /runs/{id}/stream）仍未实现。进程内保留最近 20 次已结束运行（活动运行不淘汰），超出或重启后查询返回 404。项目编辑和永久导出目前由前端浏览器管理，不是服务端数据库。
+同步请求返回 201 时，计算已经 completed 或 failed；后台请求返回 202 后通过状态接口查询，控制通过 `POST /runs/{run_id}/command`，变量推送使用 `WS /runs/{id}/stream`。保留最近 20 次已结束运行（活动运行不淘汰）；启用持久工作区时，项目与已落盘历史在重启后仍可读取，淘汰的运行返回 404。原型草稿由浏览器保留，点击保存后进入服务端 SQLite 工作区。
 
 ## 直接运行参考项目
 
@@ -219,7 +222,7 @@ Worker RPC 超时默认 10 秒，超时返回 `MODULE_RUNTIME_TIMEOUT` 并终止
 
 ## 尚未实现
 
-串口桥接与外部变量别名映射（「对接」页的串口、变量绑定仍是演示）；HTTPS（请用反向代理）；运行记录持久化与重启后恢复（窗口外的完整帧不保存，只有抽稀曲线）；随时间变化的参数计划（运行中改参数只能逐条发 `set`）。
+串口桥接与外部变量别名映射（「对接」页的串口、变量绑定仍是演示）；HTTPS（请用反向代理）；原仿真跨重启续算；窗口外完整逐帧归档；声明式参数计划（现有变量接口支持整批写入，Python 控制脚本可按采样时间写入）。
 
 ## Python 控制与持久工作区
 
@@ -230,3 +233,5 @@ Worker RPC 超时默认 10 秒，超时返回 `MODULE_RUNTIME_TIMEOUT` 并终止
 `serve` 启用本地持久化（`--data-dir` / `FLUIDNET_DATA_DIR`），`create_app` 嵌入调用则通过 `data_root` 显式启用。health.capabilities 中 `python_controls` 为 true，`persistent_workspace` 表示本实例是否启用存储。未启用时 workspace 接口返回 503。保存的 data 是 schema=1 的完整原型工作区，含 projects/modules/models 和 activeProject，最大 64 MiB；不等同于规范计算 Project。expected_revision=0 表示首次保存；修订冲突不会覆盖现有数据。
 
 归档 RunRecordResponse 增加 `persisted_at`（最近成功落盘时间）与 `persisted_rows`（累计落盘帧数）。每帧元数据、窗口行与必要的 overview 在一个 SQLite 事务中写入；最后 20 次终态运行保留在磁盘。`history_window` 默认 2001、最大 20001；更早逐帧历史被淘汰，全程保留抽稀曲线。history=full 仅控制窗口帧内容，不保证无限保留全帧。重启恢复将未结束运行变为 interrupted，并拒绝尚无生效确认的命令。已结束档案可读变量/历史/overview，不能 resume。
+
+完整备份使用 SQLite online backup API，并在复制模块包时持有模块发布锁。恢复在临时目录内校验清单、文件大小与哈希、数据库完整性/版本/引用/修订号及模块双哈希，全部通过后发布为独立目录；不会覆盖现有目录。备份格式 v1、数据库版本 1，最多 10000 个 ZIP 条目、2 GiB 解压体积；当前只支持相同存储版本的目录迁移。未启用持久化时返回 503；认证规则与其他接口一致，两个 POST 需要 control 权限。CLI 与目录优先级见 [备份说明](WORKSPACE_BACKUP.md)。
