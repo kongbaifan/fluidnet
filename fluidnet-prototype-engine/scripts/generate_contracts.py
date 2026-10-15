@@ -11,6 +11,7 @@ from fn_engine.models import (
     RunEventsResponse, RunFrame, RunHistoryResponse, RunRequest, RunStatus,
     ErrorResponse, ValidationResponse,
     ModuleSaveRequest, ModuleVersionResponse, ModuleVersionsResponse,
+    ProjectDocument, ProjectSaveRequest, ProjectRevisionRequest, ProjectDeleteRequest, ProjectUpgradeRequest,
 )
 from fn_engine.compiler import compile_project
 from fn_engine.solver import solve_steady
@@ -30,6 +31,9 @@ models = [
     ('module-test-request', ModuleTestRequest), ('module-test-response', ModuleTestResponse),
     ('module-save-request', ModuleSaveRequest), ('module-version-response', ModuleVersionResponse),
     ('module-versions-response', ModuleVersionsResponse),
+    ('project-document', ProjectDocument), ('project-save-request', ProjectSaveRequest),
+    ('project-revision-request', ProjectRevisionRequest), ('project-delete-request', ProjectDeleteRequest),
+    ('project-upgrade-request', ProjectUpgradeRequest),
     ('run-status', RunStatus), ('run-create-response', RunCreateResponse),
     ('run-history-response', RunHistoryResponse), ('run-events-response', RunEventsResponse),
     ('error-response', ErrorResponse), ('validation-response', ValidationResponse),

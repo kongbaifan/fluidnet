@@ -1275,6 +1275,19 @@
       "default": null,
       "title": "Scenario Id"
     },
+    "project_revision": {
+      "anyOf": [
+        {
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Project Revision"
+    },
     "history": {
       "default": "full",
       "enum": [

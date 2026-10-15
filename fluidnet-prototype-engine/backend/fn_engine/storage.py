@@ -53,14 +53,20 @@ class WorkspaceStore:
             self.db.execute('PRAGMA synchronous=FULL')
             self.db.execute('PRAGMA foreign_keys=ON')
             version = self.db.execute('PRAGMA user_version').fetchone()[0]
-            if version not in (0, 1):
+            if version not in (0, 1, 2):
                 raise StorageError(f'工作区版本 {version} 不受当前程序支持')
             self.db.executescript('''
                 CREATE TABLE IF NOT EXISTS workspace(revision INTEGER PRIMARY KEY, saved_at TEXT NOT NULL, data BLOB NOT NULL);
                 CREATE TABLE IF NOT EXISTS runs(id TEXT PRIMARY KEY, updated REAL NOT NULL, record BLOB NOT NULL, overview BLOB);
                 CREATE TABLE IF NOT EXISTS frames(run_id TEXT REFERENCES runs(id) ON DELETE CASCADE, idx INTEGER, data BLOB NOT NULL, PRIMARY KEY(run_id,idx));
-                PRAGMA user_version=1;
+                CREATE TABLE IF NOT EXISTS project_history(id TEXT, revision INTEGER, saved_at TEXT NOT NULL, data BLOB, PRIMARY KEY(id,revision));
             ''')
+            if version < 2:
+                with self.transaction() as db:
+                    row = db.execute('SELECT saved_at,data FROM workspace ORDER BY revision DESC LIMIT 1').fetchone()
+                    if row:
+                        self._sync_projects(db, unpack(row[1]), row[0])
+                    db.execute('PRAGMA user_version=2')
             if recover:
                 self._recover()
         except Exception as error:
@@ -79,11 +85,12 @@ class WorkspaceStore:
         with self.transaction() as db:
             row = db.execute('SELECT revision,saved_at,data FROM workspace ORDER BY revision DESC LIMIT 1').fetchone() if revision is None else \
                 db.execute('SELECT revision,saved_at,data FROM workspace WHERE revision=?', (revision,)).fetchone()
-        if row is None:
-            if revision is not None:
-                raise KeyError(revision)
-            return {'revision': 0, 'saved_at': None, 'data': None}
-        return {'revision': row[0], 'saved_at': row[1], 'data': unpack(row[2])}
+            if row is None:
+                if revision is not None:
+                    raise KeyError(revision)
+                return {'revision': 0, 'saved_at': None, 'data': None}
+            return {'revision': row[0], 'saved_at': row[1], 'data': unpack(row[2]),
+                    'project_revisions': self.project_revisions() if revision is None else {}}
 
     def revisions(self):
         with self.transaction() as db:
@@ -103,16 +110,93 @@ class WorkspaceStore:
                     'history_window_max': 20001, 'overview_points': 2000}
 
     def save_workspace(self, data, expected_revision):
-        payload = pack(data)
         saved_at = datetime.now(timezone.utc).isoformat()
         with self.transaction() as db:
-            current = db.execute('SELECT COALESCE(MAX(revision),0) FROM workspace').fetchone()[0]
+            revision = self._write_workspace(db, data, expected_revision, saved_at)
+            return {'revision': revision, 'saved_at': saved_at, 'project_revisions': self.project_revisions()}
+
+    def _write_workspace(self, db, data, expected_revision, saved_at):
+        current = db.execute('SELECT COALESCE(MAX(revision),0) FROM workspace').fetchone()[0]
+        if current != expected_revision:
+            raise WorkspaceConflict(f'服务器已有修订 {current}，当前页面基于 {expected_revision}；请先导出本地草稿，再重新载入服务器工作区')
+        revision = current + 1
+        db.execute('INSERT INTO workspace VALUES(?,?,?)', (revision, saved_at, pack(data)))
+        self._sync_projects(db, data, saved_at)
+        db.execute('DELETE FROM workspace WHERE revision<=?', (revision - 5,))
+        return revision
+
+    def _sync_projects(self, db, data, saved_at):
+        from .projects import project_document
+        latest = {pid: (rev, blob) for pid, rev, blob in db.execute(
+            'SELECT h.id,h.revision,h.data FROM project_history h JOIN (SELECT id,max(revision) revision FROM project_history GROUP BY id) x USING(id,revision)')}
+        documents = {p['id']: project_document(data, p['id']) for p in data['projects']}
+        for pid in latest.keys() | documents.keys():
+            rev, previous = latest.get(pid, (0, None))
+            document = documents.get(pid)
+            if (unpack(previous) if previous else None) == document:
+                continue
+            db.execute('INSERT INTO project_history VALUES(?,?,?,?)', (pid, rev + 1, saved_at, pack(document) if document else None))
+            db.execute('DELETE FROM project_history WHERE id=? AND revision<=?', (pid, rev + 1 - 5))
+
+    def project_revisions(self):
+        with self.transaction() as db:
+            return dict(db.execute('SELECT id,max(revision) FROM project_history GROUP BY id'))
+
+    def project_history(self, project_id):
+        with self.transaction() as db:
+            return [{'revision': r, 'saved_at': t, 'deleted': data is None} for r, t, data in db.execute(
+                'SELECT revision,saved_at,data FROM project_history WHERE id=? ORDER BY revision DESC', (project_id,))]
+
+    def project(self, project_id, revision=None):
+        with self.transaction() as db:
+            if revision is None:
+                row = db.execute('SELECT revision,saved_at,data FROM project_history WHERE id=? ORDER BY revision DESC LIMIT 1', (project_id,)).fetchone()
+            else:
+                row = db.execute('SELECT revision,saved_at,data FROM project_history WHERE id=? AND revision=?', (project_id, revision)).fetchone()
+            if not row or row[2] is None:
+                raise KeyError(project_id)
+            return {'revision': row[0], 'saved_at': row[1], 'document': unpack(row[2])}
+
+    def projects(self):
+        result = []
+        for pid in self.project_revisions():
+            try:
+                item = self.project(pid)
+            except KeyError:
+                continue
+            p = item['document']['project']
+            result.append({'id': pid, 'name': p.get('name', pid), 'revision': item['revision'], 'saved_at': item['saved_at'],
+                           'instances': sum(len(pg.get('nodes', [])) for pg in p.get('pages', []))})
+        return result
+
+    def save_project(self, document, expected_revision, delete=False):
+        from .projects import merge_project
+        from .models import WorkspaceSaveRequest
+        pid = document['project']['id']
+        with self.transaction() as db:
+            current = self.project_revisions().get(pid, 0)
             if current != expected_revision:
-                raise WorkspaceConflict(f'服务器已有修订 {current}，当前页面基于 {expected_revision}；请先导出本地草稿，再重新载入服务器工作区')
-            revision = current + 1
-            db.execute('INSERT INTO workspace VALUES(?,?,?)', (revision, saved_at, payload))
-            db.execute('DELETE FROM workspace WHERE revision<=?', (revision - 5,))
-        return {'revision': revision, 'saved_at': saved_at}
+                raise WorkspaceConflict(f'项目 {pid} 已有修订 {current}，当前页面基于 {expected_revision}')
+            workspace = self.workspace()
+            if workspace['data'] is None:
+                raise ValueError('请先保存初始工作区')
+            if delete:
+                data = workspace['data']
+                if not any(p['id'] == pid for p in data['projects']):
+                    raise ValueError('项目不存在')
+                data['projects'] = [p for p in data['projects'] if p['id'] != pid]
+                if not data['projects']:
+                    raise ValueError('至少保留一个项目')
+                if data['activeProject'] == pid:
+                    data['activeProject'] = data['projects'][0]['id']
+                data.get('charts', {}).setdefault('extra', [])[:] = [c for c in data.get('charts', {}).get('extra', []) if not isinstance(c, dict) or c.get('projectId') != pid]
+            else:
+                data = merge_project(workspace['data'], document)
+            WorkspaceSaveRequest(expected_revision=workspace['revision'], data=data)
+            saved_at = datetime.now(timezone.utc).isoformat()
+            new_workspace = self._write_workspace(db, data, workspace['revision'], saved_at)
+            return {'revision': self.project_revisions()[pid], 'saved_at': saved_at,
+                    'workspace_revision': new_workspace, 'previous_workspace_revision': workspace['revision']}
 
     def save_run(self, record, rows=(), total_rows=0, window=2001, overview=None):
         metadata = {k: v for k, v in record.items() if k != 'history'}

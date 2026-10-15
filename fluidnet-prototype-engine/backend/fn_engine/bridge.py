@@ -147,12 +147,23 @@ def normalize_prototype_export(data: dict[str, Any]) -> Project:
                 raise ValueError(f'原型连接格式无效：{edge}')
             connections.append(Connection(id=edge[0],source=Endpoint(instance_id=edge[1],port_id=edge[2]),target=Endpoint(instance_id=edge[3],port_id=edge[4])))
     solver = raw.get('solver', {})
-    diagnostics.append(Diagnostic(code='HYDRAULIC_SCOPE', severity='info', message='按已应用参数计算各回路工质的水力与端口焓、温度；水箱与分段管道在动态计算中按隐式 Euler 积分液位、水温和管内温度；Python 模块包在独立 Worker 中执行；PID 控制器参与动态计算，控制脚本尚未参与求解'))
+    nodes = {n.id: n for n in instances}
+    scenarios = []
+    for scenario in raw.get('scenarios', []):
+        overrides = {}
+        for instance_id, values in scenario.get('overrides', {}).items():
+            node = nodes.get(instance_id)
+            if node is None:
+                raise ValueError(f'工况 {scenario["id"]} 引用了不存在的设备 {instance_id}')
+            overrides[instance_id] = parameter_map(kinds[node.module_id], values, definitions[node.module_id])
+        scenarios.append({'id': scenario['id'], 'name': scenario['name'], 'overrides': overrides})
+    diagnostics.append(Diagnostic(code='HYDRAULIC_SCOPE', severity='info', message='按已应用参数与所选工况计算各回路工质的水力与端口焓、温度；动态状态按隐式 Euler 积分，Python 模块及项目控制在独立 Worker 执行'))
     return Project(id=raw['id'], name=raw.get('name','原型项目'), description=raw.get('description',''),
         fluid=FluidConfig(fluid=fluid_text or PROTOTYPE_MEDIA[medium], reference=reference),
         modules=list(definitions.values()),instances=instances,connections=connections,import_diagnostics=diagnostics,
         controllers=raw.get('controllers', []),
         control_scripts=raw.get('controlScripts', []),
+        scenarios=scenarios,
         circuit_fluids=[{'id': c['id'], 'anchor': c['anchor'],
                          'fluid': {'fluid': (c.get('fluid') or '').strip() or PROTOTYPE_MEDIA[c.get('medium', 'water')],
                                    'reference': c.get('fluidReference', 'mass')}}

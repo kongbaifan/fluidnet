@@ -234,4 +234,22 @@ Worker RPC 超时默认 10 秒，超时返回 `MODULE_RUNTIME_TIMEOUT` 并终止
 
 归档 RunRecordResponse 增加 `persisted_at`（最近成功落盘时间）与 `persisted_rows`（累计落盘帧数）。每帧元数据、窗口行与必要的 overview 在一个 SQLite 事务中写入；最后 20 次终态运行保留在磁盘。`history_window` 默认 2001、最大 20001；更早逐帧历史被淘汰，全程保留抽稀曲线。history=full 仅控制窗口帧内容，不保证无限保留全帧。重启恢复将未结束运行变为 interrupted，并拒绝尚无生效确认的命令。已结束档案可读变量/历史/overview，不能 resume。
 
-完整备份使用 SQLite online backup API，并在复制模块包时持有模块发布锁。恢复在临时目录内校验清单、文件大小与哈希、数据库完整性/版本/引用/修订号及模块双哈希，全部通过后发布为独立目录；不会覆盖现有目录。备份格式 v1、数据库版本 1，最多 10000 个 ZIP 条目、2 GiB 解压体积；当前只支持相同存储版本的目录迁移。未启用持久化时返回 503；认证规则与其他接口一致，两个 POST 需要 control 权限。CLI 与目录优先级见 [备份说明](WORKSPACE_BACKUP.md)。
+完整备份使用 SQLite online backup API，并在复制模块包时持有模块发布锁。恢复在临时目录内校验清单、文件大小与哈希、数据库完整性/版本/引用/修订号及模块双哈希，全部通过后发布为独立目录；不会覆盖现有目录。备份格式 v1、当前数据库版本 2，恢复接受版本 1 和 2；版本 1 的数据库首次打开时迁移并建立项目修订。最多 10000 个 ZIP 条目、2 GiB 解压体积。未启用持久化时返回 503；认证规则与其他接口一致，两个 POST 需要 control 权限。CLI 与目录优先级见 [备份说明](WORKSPACE_BACKUP.md)。
+
+## 单项目修订与模块升级
+
+以下路径均以 `/api/v1` 为前缀。单项目存储接口需要先保存初始工作区。
+
+| 接口 | 请求与结果 |
+| --- | --- |
+| GET /projects | 已保存项目的 ID、名称、修订、保存时间和实例数 |
+| GET /projects/{id}?revision=N | 当前或指定项目修订，返回 revision、saved_at 和 document；不存在或已删除返回 404 |
+| GET /projects/{id}/revisions | 最近 5 个项目修订，含 deleted 标记 |
+| POST /projects/{id} | ProjectSaveRequest：expected_revision 和 document，保存成功返回项目 revision、workspace_revision 和 previous_workspace_revision |
+| POST /projects/{id}/restore | ProjectRevisionRequest：expected_revision 和目标 revision；恢复生成新修订，并返回恢复的 document |
+| POST /projects/{id}/delete | ProjectDeleteRequest：expected_revision；保留其他项目和运行档案，删除最后一个项目返回 422 |
+| POST /project-upgrades/preview | ProjectUpgradeRequest：规范 project、module_id、target_version；返回前后双哈希、源码、定义差异、兼容性及原因，兼容时另含升级后的 project |
+
+`document` 是格式为 `fluidnet-project`、schema=1 的单项目交换文档，含原型 project、固定模块快照 modules、关联 models 和 charts。路径 ID 必须与文档一致。expected_revision 使用各项目独立修订号，冲突返回 409 `PROJECT_CONFLICT`，成功保存会在同一事务中更新项目历史和完整工作区。项目保存、恢复、删除和模块升级预览在项目有活动运行时返回 409。
+
+升级预览不写入项目。前端应用时先保存原修订，再保存升级文档；已归档运行继续使用原快照。`RunRequest.project_revision` 为可选正整数元数据，前端仅在当前模型与已保存状态一致时填写。原型工况 overrides 经归一化转换为规范参数和单位，所选工况通过 `scenario_id` 提交。

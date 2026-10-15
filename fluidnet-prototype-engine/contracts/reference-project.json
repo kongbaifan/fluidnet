@@ -3314,7 +3314,7 @@
   "import_diagnostics": [
     {
       "code": "HYDRAULIC_SCOPE",
-      "message": "按已应用参数计算各回路工质的水力与端口焓、温度；水箱与分段管道在动态计算中按隐式 Euler 积分液位、水温和管内温度；Python 模块包在独立 Worker 中执行；PID 控制器参与动态计算，控制脚本尚未参与求解",
+      "message": "按已应用参数与所选工况计算各回路工质的水力与端口焓、温度；动态状态按隐式 Euler 积分，Python 模块及项目控制在独立 Worker 执行",
       "severity": "info",
       "instance_id": null,
       "field": null

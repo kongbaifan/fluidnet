@@ -501,6 +501,48 @@ class WorkspaceSaveRequest(StrictModel):
         return self
 
 
+class ProjectDocument(StrictModel):
+    format: Literal['fluidnet-project'] = 'fluidnet-project'
+    schema_version: Literal[1] = Field(default=1, alias='schema')
+    project: dict[str, Any]
+    modules: list[dict[str, Any]]
+    models: list[dict[str, Any]] = Field(default_factory=list)
+    charts: list[dict[str, Any]] = Field(default_factory=list)
+
+    @model_validator(mode='after')
+    def validate_document(self):
+        import json
+        if not isinstance(self.project.get('id'), str) or not self.project['id']:
+            raise ValueError('项目 ID 必须是非空字符串')
+        for items in (self.modules, self.models):
+            ids = [item.get('id') for item in items]
+            if any(not isinstance(i, str) or not i for i in ids) or len(set(ids)) != len(ids):
+                raise ValueError('模块和型号 ID 必须唯一且非空')
+        if len(json.dumps(self.model_dump(), ensure_ascii=False, allow_nan=False).encode('utf-8')) > 64 * 1024**2:
+            raise ValueError('单项目文档超过 64 MiB')
+        return self
+
+
+class ProjectSaveRequest(StrictModel):
+    expected_revision: int = Field(ge=0)
+    document: ProjectDocument
+
+
+class ProjectRevisionRequest(StrictModel):
+    expected_revision: int = Field(ge=0)
+    revision: int = Field(ge=1)
+
+
+class ProjectDeleteRequest(StrictModel):
+    expected_revision: int = Field(ge=0)
+
+
+class ProjectUpgradeRequest(StrictModel):
+    project: Project
+    module_id: Identifier
+    target_version: int = Field(ge=1)
+
+
 class RunRequest(StrictModel):
     project: Project
     mode: Literal["steady", "dynamic"] = "steady"
@@ -509,6 +551,7 @@ class RunRequest(StrictModel):
     dt_s: float = Field(default=0.1, gt=0, le=60)
     selected_variables: list[str] | None = Field(default=None, max_length=64)
     scenario_id: str | None = None
+    project_revision: int | None = Field(default=None, ge=1)
     # 'trend' keeps every variable only on key frames (first, last, every K-th; ≤ ~51 in total)
     # and only trend_variables plus module state on the others. Dynamic runs only.
     history: Literal["full", "trend"] = "full"

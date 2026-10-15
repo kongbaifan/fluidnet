@@ -120,11 +120,14 @@ def restore_workspace(source, destination):
             try:
                 if connection.execute('PRAGMA integrity_check').fetchone()[0] != 'ok':
                     raise ValueError('数据库完整性检查未通过')
-                if connection.execute('PRAGMA user_version').fetchone()[0] != 1:
+                database_version = connection.execute('PRAGMA user_version').fetchone()[0]
+                if database_version not in (1, 2):
                     raise ValueError('不支持的数据库版本')
                 for table, columns in (('workspace', 'revision,saved_at,data'),
                                        ('runs', 'id,updated,record,overview'), ('frames', 'run_id,idx,data')):
                     connection.execute(f'SELECT {columns} FROM {table} LIMIT 1')
+                if database_version == 2:
+                    connection.execute('SELECT id,revision,saved_at,data FROM project_history LIMIT 1')
                 if connection.execute('PRAGMA foreign_key_check').fetchone():
                     raise ValueError('数据库包含失效的运行历史引用')
                 revision = connection.execute('SELECT coalesce(max(revision),0) FROM workspace').fetchone()[0]

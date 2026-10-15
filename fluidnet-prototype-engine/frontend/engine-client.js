@@ -478,7 +478,7 @@ window.createEngineClient = function (ui) {
     try {
       const project = await normalize(owner,controller.signal);
       const mode = action === 'step' ? 'dynamic' : owner.solver.mode;
-      const body = {project,mode,duration_s:action === 'step' ? owner.solver.dt : owner.solver.duration,dt_s:owner.solver.dt};
+      const body = {project,mode,duration_s:action === 'step' ? owner.solver.dt : owner.solver.duration,dt_s:owner.solver.dt,...services.runMetadata(owner)};
       // A full dynamic run keeps all variables only on key frames (history slimming); single
       // steps are two frames and steady runs one, so they stay full.
       if (mode === 'dynamic' && action !== 'step') Object.assign(body,{history:'trend',trend_variables:trendVariables(owner)});
@@ -696,7 +696,7 @@ window.createEngineClient = function (ui) {
       if(pending.has(owner.id)) return;
       pending.set(owner.id,new AbortController());
       const project=await normalize(owner);
-      const result=await request('/runs?background=true',{project,mode:'dynamic',duration_s:owner.solver.continuous ? null : owner.solver.duration,
+      const result=await request('/runs?background=true',{project,mode:'dynamic',...services.runMetadata(owner),duration_s:owner.solver.continuous ? null : owner.solver.duration,
         dt_s:owner.solver.dt,execution_mode:owner.solver.executionMode || 'realtime',speed_ratio:owner.solver.speedRatio || 1,
         start_paused:action==='step',history:'trend',trend_variables:trendVariables(owner)});
       owner.run={...ui.emptyRun(),source:'engine',status:'solving',id:result.run_id,runId:result.run_id,live:true,offset:0};
@@ -736,6 +736,6 @@ window.createEngineClient = function (ui) {
     }
     owner.run.parameterKey=ui.parameterKey(owner);ui.persist();ui.render();
   }
-  const services=window.createProjectServices({request,ui,normalize,health:()=>health,authHeaders});
+  const services=window.createProjectServices({request,ui,normalize,health:()=>health,authHeaders,pinProject,moduleFromManifest});
   return {...services,command,tick,validate,init,applyParameters,loadOverview,authHeaders,signOut:()=>{sessionStorage.removeItem(TOKEN_KEY);location.reload();},overview:id=>overviews.get(id),circuits:id=>circuitsByProject.get(id)||[],confirmedCommand,portValue,observation,manifestPayload,contractText,checkModule,saveModule,versions,loadVersion,newModule,updateContractItem,bindModule,pinProject,moduleForInsert,get catalog(){return catalog;},get health(){return health;}};
 };

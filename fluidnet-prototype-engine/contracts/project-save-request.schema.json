@@ -1,0 +1,74 @@
+{
+  "$defs": {
+    "ProjectDocument": {
+      "additionalProperties": false,
+      "properties": {
+        "format": {
+          "const": "fluidnet-project",
+          "default": "fluidnet-project",
+          "title": "Format",
+          "type": "string"
+        },
+        "schema": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema",
+          "type": "integer"
+        },
+        "project": {
+          "additionalProperties": true,
+          "title": "Project",
+          "type": "object"
+        },
+        "modules": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Modules",
+          "type": "array"
+        },
+        "models": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Models",
+          "type": "array"
+        },
+        "charts": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Charts",
+          "type": "array"
+        }
+      },
+      "required": [
+        "project",
+        "modules"
+      ],
+      "title": "ProjectDocument",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "expected_revision": {
+      "minimum": 0,
+      "title": "Expected Revision",
+      "type": "integer"
+    },
+    "document": {
+      "$ref": "#/$defs/ProjectDocument"
+    }
+  },
+  "required": [
+    "expected_revision",
+    "document"
+  ],
+  "title": "ProjectSaveRequest",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

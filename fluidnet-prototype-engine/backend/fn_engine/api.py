@@ -53,7 +53,8 @@ from .properties import PropertyError, refprop_root
 from .packages import ModuleStore, ModuleVersionConflict, ModuleSaveInvalid, package_ref
 from .module_validation import validate_module_definition
 from .solver import SolveFailed, solve_dynamic, solve_steady
-from .models import ControlPreviewRequest, WorkspaceSaveRequest
+from .models import (ControlPreviewRequest, WorkspaceSaveRequest, ProjectSaveRequest,
+                     ProjectRevisionRequest, ProjectDeleteRequest, ProjectUpgradeRequest)
 from .storage import WorkspaceStore, WorkspaceConflict, StorageError
 
 logger = logging.getLogger('fn_engine.api')
@@ -183,6 +184,9 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
     @app.exception_handler(StorageError)
     async def storage_error(_request, error):
         return JSONResponse(status_code=507, content={'detail': {'code': 'STORAGE_FAILED', 'message': str(error)}})
+    @app.exception_handler(WorkspaceConflict)
+    async def project_conflict(_request, error):
+        return JSONResponse(status_code=409, content={'detail': {'code': 'PROJECT_CONFLICT', 'message': str(error)}})
     project_root = Path(__file__).resolve().parents[2]
     restored_modules = Path(data_root) / 'module-packages' if data_root is not None else None
     store = ModuleStore(project_root / 'modules', Path(module_storage_root or (
@@ -305,6 +309,76 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
             if session:
                 session.close()
 
+    @app.post('/api/v1/projects/validate', response_model=ValidationResponse)
+    def validate(project: Project):
+        items, circuits = validate_project_details(project)
+        return {'valid':not any(d.severity == 'error' for d in items),'diagnostics':items,'circuits':circuits}
+
+    def project_idle(project_id):
+        with manager.lock:
+            if any(j.request.project.id == project_id and j.record['status'] not in TERMINAL for j in manager.jobs.values()):
+                raise HTTPException(409, detail='请先停止该项目的活动运行，再更改项目版本或删除项目')
+
+    @app.get('/api/v1/projects')
+    def list_projects():
+        return {'projects': require_archive().projects()}
+
+    @app.get('/api/v1/projects/{project_id}')
+    def read_project(project_id: str, revision: int | None = Query(None, ge=1)):
+        try:
+            return require_archive().project(project_id, revision)
+        except KeyError:
+            raise HTTPException(404, detail='项目或修订不存在')
+
+    @app.get('/api/v1/projects/{project_id}/revisions')
+    def project_revisions(project_id: str):
+        return {'revisions': require_archive().project_history(project_id)}
+
+    @app.post('/api/v1/projects/{project_id}')
+    def save_project(project_id: str, request: ProjectSaveRequest):
+        project_idle(project_id)
+        if request.document.project['id'] != project_id:
+            raise HTTPException(422, detail='路径与文档项目 ID 不一致')
+        try:
+            return require_archive().save_project(request.document.model_dump(mode='json', by_alias=True), request.expected_revision)
+        except ValueError as error:
+            if isinstance(error, WorkspaceConflict):
+                raise
+            raise HTTPException(422, detail=str(error)) from error
+
+    @app.post('/api/v1/projects/{project_id}/restore')
+    def restore_project_revision(project_id: str, request: ProjectRevisionRequest):
+        project_idle(project_id)
+        storage = require_archive()
+        try:
+            document = storage.project(project_id, request.revision)['document']
+            receipt = storage.save_project(document, request.expected_revision)
+            return {**receipt, 'document': document}
+        except KeyError:
+            raise HTTPException(404, detail='项目修订不存在')
+
+    @app.post('/api/v1/projects/{project_id}/delete')
+    def delete_project(project_id: str, request: ProjectDeleteRequest):
+        project_idle(project_id)
+        try:
+            return require_archive().save_project({'project': {'id': project_id}}, request.expected_revision, delete=True)
+        except ValueError as error:
+            if isinstance(error, WorkspaceConflict):
+                raise
+            raise HTTPException(422, detail=str(error)) from error
+
+    @app.post('/api/v1/project-upgrades/preview')
+    def preview_project_upgrade(request: ProjectUpgradeRequest):
+        from .projects import upgrade_project
+        project_idle(request.project.id)
+        try:
+            target = store.get(request.module_id, request.target_version).module
+            return upgrade_project(request.project, target)
+        except KeyError:
+            raise HTTPException(404, detail='模块版本不存在')
+        except ValueError as error:
+            raise HTTPException(422, detail=str(error)) from error
+
     @app.get('/api/v1/catalog', response_model=CatalogResponse)
     def catalog():
         return {'modules':builtin_catalog(), 'prototype_parameter_bindings':PARAMETER_BINDINGS}
@@ -366,11 +440,6 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
             # the caller gets an actionable status plus the original message.
             status, detail = _unexpected_failure(error)
             raise HTTPException(status, detail=detail) from error
-
-    @app.post('/api/v1/projects/validate', response_model=ValidationResponse)
-    def validate(project: Project):
-        items, circuits = validate_project_details(project)
-        return {'valid':not any(d.severity == 'error' for d in items),'diagnostics':items,'circuits':circuits}
 
     @app.post('/api/v1/prototype/normalize')
     def normalize(payload: dict):

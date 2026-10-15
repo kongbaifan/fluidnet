@@ -170,7 +170,7 @@ PID 控制器（v0.4.2）：`Project.controllers` 是 `PIDController` 列表，�
 
 压力参考按连通子网络检查，关闭阀门会把水力网络分开。如果一侧没有压力参考，编译失败，避免给不可确定的压力赋值。节点允许未连接的可选分支端口，不把它们当作向外界排水。
 
-型号与版本是可追溯元数据；实际计算只读取快照参数。`scenarios` 目前由规范 API 提交，原型工况 UI 的进一步接入尚未完成；`/projects/validate` 会逐条校验工况覆盖(见 API 文档)，运行与校验共用同一套参数规则；两者报出的工况诊断同源。
+型号与版本是可追溯元数据；实际计算只读取快照参数。原型工况 UI 已接通新建、复制、编辑、选择与保存；原型 `scenarios[].overrides` 使用显示单位，归一化时转换成规范参数，`activeScenarioId` 形成运行请求的 `scenario_id`。`/projects/validate` 会逐条校验工况覆盖(见 API 文档)，运行与校验共用同一套参数规则；两者报出的工况诊断同源。
 
 ## 运行记录与控制
 
@@ -200,3 +200,5 @@ PID 控制器（v0.4.2）：`Project.controllers` 是 `PIDController` 列表，�
 控制输出使用运行变量的规范键：设备 `<id>.param.<parameter>` 或 `controller.<id>.setpoint|mode|manual_output`。输入必须存在于初始接受帧且已声明；不做显示单位换算。首次 step 的 dt_s=0，其后按仿真时间；采样输出对下一子步生效，接受后提交 ctx.state，数值重试不重复采样。脚本状态与计数由 `script.<id>.*` 帧变量暴露，运行快照固定源码哈希。受管理 state 是最多 64 KiB 的有限 JSON 字典；全局 Python 变量和外部副作用不属于事务状态。
 
 工作区以完整 schema=1 原型文档存储，独立于规范 Project；保存修订号覆盖全部项目、模块草稿、型号、关联快照等。SQLite 事务成功才确认 revision/saved_at，最近 5 个修订可读。RunRecordResponse 的 persisted_at/persisted_rows 标明最后确认的归档边界；重启保留项目与历史，并将未结束运行标为 interrupted，不恢复内存会话继续推进。窗口、全程抽稀与终态保留数见 API 文档。
+
+数据库版本 2 增加独立项目历史，每个项目保留最近 5 个修订；版本 1 自动从最新工作区建立项目初始修订。单项目交换格式为 `fluidnet-project`、schema=1，包含原型 project、modules、models 和 charts。项目保存按该项目的 expected_revision 检测冲突，并与完整工作区修订在同一事务中提交。工作区响应新增 `project_revisions`；运行请求新增可选 `project_revision`，用于标记当时已保存的项目修订。
