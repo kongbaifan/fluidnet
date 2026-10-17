@@ -1,7 +1,10 @@
 import math
 from copy import deepcopy
 from pathlib import Path
+import importlib.util
 import json
+import subprocess
+import sys
 
 import pytest
 from fastapi.testclient import TestClient
@@ -182,16 +185,87 @@ def test_catalog_variables_match_reference_frame():
     assert set(frame.variables)=={k for k in declared if not k.endswith(THERMAL_ONLY_SUFFIXES)}
 
 
+ROOT=Path(__file__).parents[1]
+CONTRACTS=ROOT/'contracts'
+
+
+def contract_generator():
+    """按路径加载生成脚本，避免依赖 scripts/ 是包，也避免导入即写文件。"""
+    spec=importlib.util.spec_from_file_location('fn_generate_contracts',ROOT/'scripts'/'generate_contracts.py')
+    module=importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def assert_semantic_match(expected,actual,path='$'):
+    """双向语义比较：键集双向一致、长度一致、值是同一 JSON 语义（浮点按 1e-9 相对误差）。"""
+    if isinstance(expected,dict) and isinstance(actual,dict):
+        assert set(expected)==set(actual),f'{path} 键集不一致：缺 {sorted(set(expected)-set(actual))}，多 {sorted(set(actual)-set(expected))}'
+        for key in expected:assert_semantic_match(expected[key],actual[key],f'{path}.{key}')
+    elif isinstance(expected,list) and isinstance(actual,list):
+        assert len(expected)==len(actual),f'{path} 长度不一致：{len(expected)} != {len(actual)}'
+        for index,(left,right) in enumerate(zip(expected,actual)):assert_semantic_match(left,right,f'{path}[{index}]')
+    elif isinstance(expected,bool) or isinstance(actual,bool):
+        assert expected is actual,f'{path}: {expected!r} != {actual!r}'
+    elif isinstance(expected,(int,float)) and isinstance(actual,(int,float)):
+        assert expected==pytest.approx(actual,rel=1e-9,abs=1e-12),f'{path}: {expected!r} != {actual!r}'
+    else:assert type(expected) is type(actual) and expected==actual,f'{path}: {expected!r} != {actual!r}'
+
+
 def test_generated_contracts_are_current():
-    from fn_engine.models import ModuleDefinition,RunFrame
-    root=Path(__file__).parents[1]/'contracts'
-    for name,model in [('module',ModuleDefinition),('project',Project),('run-request',RunRequest),('run-frame',RunFrame)]:
-        saved=json.loads((root/(name+'.schema.json')).read_text(encoding='utf-8'))
-        saved.pop('$schema')
-        assert saved==model.model_json_schema()
-    assert json.loads((root/'openapi.json').read_text(encoding='utf-8'))==create_app().openapi()
-    p=Project.model_validate_json((root/'reference-project.json').read_text(encoding='utf-8'))
-    result=solve_steady(compile_project(p))
-    expected=json.loads((root/'reference-result.json').read_text(encoding='utf-8'))
-    for key,value in result.variables.items():
-        assert value==pytest.approx(expected['variables'][key]) if value is not None else expected['variables'][key] is None
+    generator=contract_generator()
+    expected=generator.contract_files()
+    # 名单来自生成脚本本身：全部 schema（含 4 个历史遗漏的）与 openapi、两个参考文件都要覆盖。
+    assert {name+'.schema.json' for name,_ in generator.models}<=set(expected)
+    assert {'openapi.json','reference-project.json','reference-result.json'}<=set(expected)
+    assert len(expected)==len(generator.models)+3
+    on_disk={path.name for path in CONTRACTS.glob('*.json')}
+    assert on_disk==set(expected),f'契约文件集合漂移：缺 {sorted(set(expected)-on_disk)}，多 {sorted(on_disk-set(expected))}'
+    for name,data in expected.items():
+        saved=json.loads((CONTRACTS/name).read_text(encoding='utf-8'))
+        assert_semantic_match(data,saved,f'{name}:')
+        # 门禁脚本自己的比较逻辑也必须判定一致，避免检查实现与测试口径脱节。
+        assert generator.diff_contract(data,saved)==[],name
+
+
+def test_contract_check_detects_drift(tmp_path,monkeypatch,capsys):
+    generator=contract_generator()
+    expected=generator.contract_files()
+    monkeypatch.setattr(generator,'output',tmp_path)
+    # 目录为空时全部文件缺失，必须判定漂移。
+    assert generator.check(expected)==1
+    report=capsys.readouterr().out
+    assert 'contracts out of date' in report and 'module.schema.json' in report
+    # 正确写入后必须通过，并报告准确文件数。
+    generator.write(expected)
+    assert generator.check(expected)==0
+    assert f'contracts up to date: {len(expected)} files' in capsys.readouterr().out
+    # 值漂移：篡改单个 schema 字段时必须退出 1，并定位到文件与字段路径。
+    drifted=deepcopy(expected);drifted['module.schema.json']['title']='DriftedTitle'
+    assert generator.check(drifted)==1
+    report=capsys.readouterr().out
+    assert 'module.schema.json' in report and '$.title' in report
+    # 键集漂移：源码多出一个键时同样必须被发现（双向比较，不能只看已有键）。
+    drifted=deepcopy(expected);drifted['module.schema.json']['unexpected_field']=1
+    assert generator.check(drifted)==1
+    assert 'unexpected_field' in capsys.readouterr().out
+    # 生成清单之外的多余 JSON 文件也算漂移。
+    stale=tmp_path/'stale.schema.json';stale.write_text('{}',encoding='utf-8')
+    assert generator.check(expected)==1
+    assert 'stale.schema.json' in capsys.readouterr().out
+    stale.unlink()
+    # --check 必须只读：文件内容与修改时间都不能变化。
+    before={path.name:(path.read_bytes(),path.stat().st_mtime_ns) for path in tmp_path.glob('*')}
+    assert generator.check(expected)==0
+    capsys.readouterr()
+    after={path.name:(path.read_bytes(),path.stat().st_mtime_ns) for path in tmp_path.glob('*')}
+    assert before==after
+
+
+def test_contract_check_cli_passes_without_writing():
+    before={path.name:(path.read_bytes(),path.stat().st_mtime_ns) for path in CONTRACTS.glob('*')}
+    result=subprocess.run([sys.executable,'scripts/generate_contracts.py','--check'],cwd=ROOT,capture_output=True,text=True,timeout=180)
+    assert result.returncode==0,result.stdout+result.stderr
+    assert 'contracts up to date:' in result.stdout
+    after={path.name:(path.read_bytes(),path.stat().st_mtime_ns) for path in CONTRACTS.glob('*')}
+    assert before==after
