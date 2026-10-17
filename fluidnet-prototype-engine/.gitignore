@@ -7,3 +7,5 @@ node_modules/
 artifacts/
 dist/
 build/
+# 本地/发行用 REFPROP 捆绑目录，NIST 许可文件不入库
+vendor/
