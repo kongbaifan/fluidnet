@@ -32,7 +32,7 @@ python scripts/build_trial_candidate.py --acceptance artifacts/trial-acceptance-
 
 | 检查 | 结果 |
 | --- | --- |
-| Python 全部回归 | 335 passed，无跳过（2026-10-17 全量复核） |
+| Python 全部回归 | 363 passed，无跳过（2026-10-17 全量复核） |
 | 浏览器全部验收 | 10 个脚本通过，包含独立项目保存、并发保护、修订恢复、工况对照、单项目导入导出和 v1→v2→v1 模块版本流程，无页面异常 |
 | 前端语法与改动格式 | npm run check、git diff --check 通过 |
 | 样例验证 | 5 项全部通过，输入、请求、结果与逐项误差记录完整 |
