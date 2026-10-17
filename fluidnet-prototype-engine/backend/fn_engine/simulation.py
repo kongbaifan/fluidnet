@@ -325,8 +325,12 @@ class SimulationSession:
     def close(self):
         if not self.closed:
             self.closed = True
-            s._close_runners(self.runners)
-            s._close_runners(self.scripts)
+            # Both groups must be attempted: a failing runner close must not leak the
+            # control-script Workers (they hold real subprocesses).
+            try:
+                s._close_runners(self.runners)
+            finally:
+                s._close_runners(self.scripts)
 
 
 def run_dynamic(network, duration_s, dt_s):

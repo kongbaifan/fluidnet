@@ -192,6 +192,62 @@ def test_worker_evaluate_cannot_commit_nested_state_and_timeout_terminates():
     assert runner.process is None
 
 
+def test_worker_drains_large_stderr_writes_without_blocking():
+    """A module flooding fd 2 must not fill the pipe and stall the RPC."""
+    module = custom_module()
+    module.content_hash = None
+    module.definition_hash = None
+    noise = 512 * 1024
+    module.source["runtime"] = (
+        "import os\n"
+        "class Module:\n"
+        "    def initialize(self, ctx):\n"
+        f'        os.write(2, b"initialize-noise" + b"x" * {noise} + b"\\n")\n'
+        "    def evaluate(self, ctx):\n"
+        f'        os.write(2, b"evaluate-noise" + b"y" * {noise} + b"\\n")\n'
+        '        ctx.net.valve(channel="main", kv=10, opening=1)\n'
+    )
+    runner = WorkerProcess(module, {}, FluidConfig(), timeout_s=8)
+    try:
+        started = time.monotonic()
+        runner.initialize()
+        request = EvaluateRequest(run_id="stderr-flood", instance_id="D1", iteration_id=0, time_s=0)
+        response = runner.evaluate(request)
+        elapsed = time.monotonic() - started
+        assert response.relations[0].kind == "valve"
+        # Both RPCs survived the ~0.5 MiB stderr writes each, well under the RPC timeout.
+        assert elapsed < 8, f"stderr 写入阻塞了 RPC：{elapsed:.2f}s"
+        # The drain is bounded: only a short tail is kept.
+        tail = list(runner._stderr_lines)
+        assert tail and len(tail) <= WorkerProcess.STDERR_TAIL_LINES
+        assert any(line.startswith(("initialize-noise", "evaluate-noise")) for line in tail)
+    finally:
+        runner.close()
+    assert runner._stderr_thread is None
+
+
+def test_worker_fault_reports_stderr_tail_and_reaps_the_process():
+    """A Worker that dies mid-RPC surfaces its stderr tail and is not left running."""
+    module = custom_module()
+    module.content_hash = None
+    module.definition_hash = None
+    module.source["runtime"] = (
+        "import os\n"
+        "class Module:\n"
+        "    def evaluate(self, ctx):\n"
+        '        os.write(2, b"worker-panicked-before-exit\\n")\n'
+        "        os._exit(7)\n"
+    )
+    runner = WorkerProcess(module, {}, FluidConfig(), timeout_s=8)
+    request = EvaluateRequest(run_id="stderr-exit", instance_id="D1", iteration_id=0, time_s=0)
+    runner.initialize()
+    with pytest.raises(RuntimeErrorBase) as caught:
+        runner.evaluate(request)
+    assert "worker-panicked-before-exit" in str(caught.value), caught.value
+    assert "响应超时" not in str(caught.value), caught.value
+    assert runner.process is None
+
+
 def test_module_bench_solves_flow_before_committing_and_rejects_bad_parameters():
     client = TestClient(create_app())
     payload = {'module':custom_module().model_dump(mode='json'), 'duration_s':.25,'dt_s':.1}

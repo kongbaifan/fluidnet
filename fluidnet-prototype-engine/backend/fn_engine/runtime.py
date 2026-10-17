@@ -8,6 +8,7 @@ import queue
 import subprocess
 import sys
 import threading
+from collections import deque
 from copy import deepcopy
 from pathlib import Path
 from typing import Any
@@ -219,6 +220,13 @@ class InProcessModuleRunner:
 class WorkerProcess:
     """Line-delimited JSON RPC runner for user modules in a separate process."""
 
+    # The child's stderr is drained into a bounded tail: a chatty module must neither
+    # fill the pipe (which would block its own write and look like a timeout) nor grow
+    # memory. The tail is appended to worker faults so the cause is visible in the run.
+    STDERR_TAIL_LINES = 40
+    STDERR_LINE_CHARS = 500
+    STDERR_MESSAGE_CHARS = 2000
+
     def __init__(self, definition: ModuleDefinition, parameters: dict[str, Any], fluid: FluidConfig,
                  initial_state: dict[str, Any] | None = None, timeout_s: float = 10.0,
                  port_fluids: dict[str, FluidConfig] | None = None):
@@ -231,6 +239,8 @@ class WorkerProcess:
         self.process: subprocess.Popen | None = None
         self._responses: queue.Queue[str | BaseException] | None = None
         self._reader_thread: threading.Thread | None = None
+        self._stderr_lines: deque[str] = deque(maxlen=self.STDERR_TAIL_LINES)
+        self._stderr_thread: threading.Thread | None = None
         self._closed = False
         self._finalized = False
 
@@ -238,20 +248,22 @@ class WorkerProcess:
         if self.process is not None:
             if self.process.poll() is not None:
                 returncode = self.process.returncode
+                tail = self._stderr_tail()
                 self.close(force=True)
-                raise RuntimeErrorBase(f"模块 Worker 已退出，退出码 {returncode}")
+                raise RuntimeErrorBase(f"模块 Worker 已退出，退出码 {returncode}{tail}")
             return
         env = os.environ.copy()
         package_root = str(Path(__file__).resolve().parents[1])
         env["PYTHONPATH"] = package_root + os.pathsep + env.get("PYTHONPATH", "")
         env["PYTHONIOENCODING"] = "utf-8"
+        self._stderr_lines.clear()
         self.process = subprocess.Popen(
             [sys.executable, "-m", "fn_engine.worker"],
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-            text=True, encoding="utf-8", cwd=str(Path(__file__).resolve().parents[2]), env=env,
+            text=True, encoding="utf-8", errors="replace", cwd=str(Path(__file__).resolve().parents[2]), env=env,
         )
         self._responses = queue.Queue()
-        stream, responses = self.process.stdout, self._responses
+        stream, stderr, responses = self.process.stdout, self.process.stderr, self._responses
 
         def read_responses():
             assert stream
@@ -265,17 +277,48 @@ class WorkerProcess:
 
         self._reader_thread = threading.Thread(target=read_responses, daemon=True)
         self._reader_thread.start()
+        self._stderr_thread = threading.Thread(target=self._read_stderr, args=(stderr,), daemon=True)
+        self._stderr_thread.start()
+
+    def _read_stderr(self, stream):
+        """Drain fd 2 into the bounded tail; closing the stream is a normal shutdown."""
+        if stream is None:  # pragma: no cover - Popen(stderr=PIPE) always provides it
+            return
+        try:
+            for line in stream:
+                text = line.rstrip('\r\n')
+                if text:
+                    self._stderr_lines.append(text[:self.STDERR_LINE_CHARS])
+        except (ValueError, OSError):  # stream closed while close() is joining us
+            return
+        except BaseException:  # pragma: no cover - defensive thread boundary
+            return
+
+    def _stderr_tail(self, wait: float = 0.2) -> str:
+        """Tail of the child's stderr for an error message, waiting briefly for the drain."""
+        thread = self._stderr_thread
+        if wait and thread is not None and thread.is_alive():
+            thread.join(timeout=wait)
+        lines = list(self._stderr_lines)
+        if not lines:
+            return ''
+        text = '\n'.join(lines)
+        if len(text) > self.STDERR_MESSAGE_CHARS:
+            text = text[-self.STDERR_MESSAGE_CHARS:]
+        return f'；stderr 尾部：{text}'
 
     def _readline(self) -> str:
         assert self.process and self._responses
         try:
             line = self._responses.get(timeout=self.timeout_s)
         except queue.Empty as error:
-            raise ModuleRuntimeTimeout(f"模块 Worker 响应超时（>{self.timeout_s:g}s）") from error
+            raise ModuleRuntimeTimeout(f"模块 Worker 响应超时（>{self.timeout_s:g}s）{self._stderr_tail()}") from error
         if isinstance(line, BaseException):
-            raise RuntimeErrorBase(f"读取模块 Worker 失败：{line}")
+            raise RuntimeErrorBase(f"读取模块 Worker 失败：{line}{self._stderr_tail()}")
         if not line:
-            raise RuntimeErrorBase("模块 Worker 已退出或关闭了输出通道")
+            returncode = self.process.poll() if self.process else None
+            exit_text = f"（退出码 {returncode}）" if returncode is not None else ''
+            raise RuntimeErrorBase(f"模块 Worker 已退出或关闭了输出通道{exit_text}{self._stderr_tail()}")
         return line
 
     def _request(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -284,13 +327,21 @@ class WorkerProcess:
         try:
             self.process.stdin.write(json.dumps(payload, ensure_ascii=False) + "\n")
             self.process.stdin.flush()
-            response = json.loads(self._readline())
-        except ModuleRuntimeTimeout:
+        except (BrokenPipeError, OSError) as error:
+            self.close(force=True)
+            raise RuntimeErrorBase(f"模块 Worker 通信失败：{error}{self._stderr_tail()}") from error
+        try:
+            line = self._readline()
+        except RuntimeErrorBase:
+            # Timeout/EOF/read fault: the worker is not usable, so terminate it here
+            # instead of leaving the subprocess (and its pipe handles) behind.
             self.close(force=True)
             raise
-        except (BrokenPipeError, OSError, json.JSONDecodeError) as error:
+        try:
+            response = json.loads(line)
+        except json.JSONDecodeError as error:
             self.close(force=True)
-            raise RuntimeErrorBase(f"模块 Worker 通信失败：{error}") from error
+            raise RuntimeErrorBase(f"模块 Worker 通信失败：{error}{self._stderr_tail()}") from error
         if response.get("error"):
             raise RuntimeErrorBase(response["error"])
         return response
@@ -344,19 +395,28 @@ class WorkerProcess:
                 self._readline()
             except Exception:
                 pass
-        if process.poll() is None:
-            process.terminate()
-            try:
-                process.wait(timeout=1.0)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait(timeout=1.0)
-        if self._reader_thread:
-            self._reader_thread.join(timeout=1.0)
-        for stream in (process.stdin, process.stdout, process.stderr):
-            if stream:
-                stream.close()
-        self.process = None
-        self._responses = None
-        self._reader_thread = None
-        self._closed = True
+        try:
+            if process.poll() is None:
+                process.terminate()
+                try:
+                    process.wait(timeout=1.0)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait(timeout=1.0)
+        finally:
+            # Both readers must see EOF before their streams are closed; closing a stream
+            # that a reader still owns raises, and teardown must not turn into a failure.
+            for thread in (self._reader_thread, self._stderr_thread):
+                if thread is not None:
+                    thread.join(timeout=1.0)
+            for stream in (process.stdin, process.stdout, process.stderr):
+                if stream:
+                    try:
+                        stream.close()
+                    except Exception:
+                        pass
+            self.process = None
+            self._responses = None
+            self._reader_thread = None
+            self._stderr_thread = None
+            self._closed = True

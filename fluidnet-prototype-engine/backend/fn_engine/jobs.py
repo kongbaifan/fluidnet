@@ -251,9 +251,13 @@ class RunManager:
         session = job.session
         if session:
             # Event-boundary frames may have been accepted just before SolveFailed.
-            for frame in [f for f in session.frames if f.sequence > job.last_sequence]:
-                self._publish(job, frame)
-            session.close()
+            # The session owns the Worker subprocesses, so it is closed even when
+            # publishing a pending frame fails.
+            try:
+                for frame in [f for f in session.frames if f.sequence > job.last_sequence]:
+                    self._publish(job, frame)
+            finally:
+                session.close()
         job.record['status'] = status
         if error:
             diagnostic = getattr(error, 'diagnostic', DiagnosticError(error))
@@ -370,6 +374,11 @@ class RunManager:
         with self.wake:
             self.closed = True
             self.wake.notify_all()
+        # Let the scheduler observe `closed` and exit before the pool shuts down, so a
+        # late `submit` cannot race the shutdown or keep the daemon thread alive.
+        thread = self.thread
+        if thread is not None:
+            thread.join(timeout=2.0)
         self.pool.shutdown(wait=True, cancel_futures=True)
         with self.lock:
             for job in list(self.jobs.values()):

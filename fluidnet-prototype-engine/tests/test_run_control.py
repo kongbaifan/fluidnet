@@ -7,6 +7,7 @@ import threading
 import time
 from pathlib import Path
 
+import psutil
 import pytest
 from fastapi.testclient import TestClient
 
@@ -143,6 +144,50 @@ def wait_running(client: TestClient, run_id: str) -> bool:
             return True
         time.sleep(0.01)
     return False
+
+
+def worker_probe_module(probe: Path, delay_s: float = 0.02) -> ModuleDefinition:
+    """Slow programmable valve that records committed frames to `probe`.
+
+    The per-evaluate delay widens the cancel window and the probe proves the Worker
+    really ran before the stop, so a "no leftover Worker" assertion cannot pass
+    trivially (before any subprocess was spawned).
+    """
+    module = probed_module(probe)
+    module.source["runtime"] = module.source["runtime"].replace(
+        "    def evaluate(self, ctx):\n",
+        f"    def evaluate(self, ctx):\n        import time\n        time.sleep({delay_s!r})\n",
+    )
+    return module
+
+
+def live_engine_workers() -> dict[int, str]:
+    """Live `fn_engine.worker` subprocesses of this test process, keyed by PID."""
+    workers = {}
+    try:
+        children = psutil.Process().children(recursive=True)
+    except psutil.Error:  # pragma: no cover - the test process itself is gone
+        return workers
+    for child in children:
+        try:
+            if not child.is_running():
+                continue
+            command = " ".join(child.cmdline())
+        except (psutil.Error, OSError):
+            continue
+        if "fn_engine.worker" in command:
+            workers[child.pid] = command
+    return workers
+
+
+def wait_workers_exit(pids, timeout_s: float = 30.0) -> set[int]:
+    """Poll until none of `pids` is a live Worker anymore; return what is left."""
+    deadline = time.monotonic() + timeout_s
+    remaining = set(pids) & live_engine_workers().keys()
+    while remaining and time.monotonic() < deadline:
+        time.sleep(0.05)
+        remaining = set(pids) & live_engine_workers().keys()
+    return remaining
 
 
 def test_background_run_can_be_cancelled(tmp_path):
@@ -348,6 +393,54 @@ def test_cancel_closes_the_worker_subprocess(tmp_path, monkeypatch):
     live = [process for process in processes if process is not None]
     assert live, "cancellation must run the Worker cleanup path"
     assert all(process.poll() is not None for process in live)
+
+
+def test_stop_leaves_no_live_engine_worker(tmp_path, monkeypatch):
+    """Regression for the 24 h soak failure: stop must reap the module Worker."""
+    probe = tmp_path / "stop-frames.log"
+    monkeypatch.setenv("FLUIDNET_TEST_PROBE", str(probe))
+    module = worker_probe_module(probe)
+    with TestClient(create_app(module_storage_root=tmp_path)) as client:
+        created = client.post("/api/v1/runs?background=true",
+                              json=dynamic_request(custom_project(module), 5.0, 0.05)).json()
+        run_id = created["run_id"]
+        assert wait_running(client, run_id)
+        # Only stop once the Python module has really committed frames, so the
+        # assertion below is guaranteed to observe a live Worker before the stop.
+        assert wait_for_probe(probe, 2) >= 2, "后台运行没有真正执行 Python 模块"
+        before_stop = live_engine_workers()
+        assert before_stop, "运行期间应存在存活的 fn_engine.worker 子进程"
+
+        assert client.post(f"/api/v1/runs/{run_id}/command", json={"action": "stop"}).status_code == 200
+        assert wait_finalized(client, run_id)["status"] == "cancelled"
+
+        remaining = wait_workers_exit(before_stop.keys())
+        assert not remaining, f"停止后仍残留 fn_engine.worker 子进程：{remaining}"
+        assert not live_engine_workers(), f"停止后仍有存活的 fn_engine.worker：{live_engine_workers()}"
+
+
+def test_app_shutdown_interrupts_run_and_reaps_workers(tmp_path, monkeypatch):
+    """Closing the app with a live run must terminalize it and reap its Worker."""
+    probe = tmp_path / "shutdown-frames.log"
+    monkeypatch.setenv("FLUIDNET_TEST_PROBE", str(probe))
+    module = worker_probe_module(probe)
+    with TestClient(create_app(module_storage_root=tmp_path, data_root=tmp_path / "workspace")) as client:
+        created = client.post("/api/v1/runs?background=true",
+                              json=dynamic_request(custom_project(module), 5.0, 0.05)).json()
+        run_id = created["run_id"]
+        assert wait_running(client, run_id)
+        assert wait_for_probe(probe, 2) >= 2, "后台运行没有真正执行 Python 模块"
+        before_stop = live_engine_workers()
+        assert before_stop, "运行期间应存在存活的 fn_engine.worker 子进程"
+        # No explicit stop: the lifespan teardown owns the cleanup here.
+
+    remaining = wait_workers_exit(before_stop.keys())
+    assert not remaining, f"应用关闭后仍残留 fn_engine.worker 子进程：{remaining}"
+    assert not live_engine_workers(), f"应用关闭后仍有存活的 fn_engine.worker：{live_engine_workers()}"
+    with TestClient(create_app(module_storage_root=tmp_path, data_root=tmp_path / "workspace")) as client:
+        # The interrupted record must still be readable from the archive.
+        record = client.get(f"/api/v1/runs/{run_id}").json()
+    assert record["status"] in {"interrupted", "cancelled"}, record
 
 
 def test_cancel_keeps_partial_frames(tmp_path, monkeypatch):
