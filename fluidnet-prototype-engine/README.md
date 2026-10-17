@@ -119,7 +119,7 @@ python -m fn_engine serve --host 0.0.0.0 --port 8798 --cors-origin http://twin.l
 | 模块版本保存 | 后端校验、独立试算、原子写入、并发冲突检测；项目绑定源码与契约双哈希 |
 | CoolProp 物性 | AbstractState 单次 flash；`state_pt/ph/ps/pq/tq`、饱和温度/压力、熵/内能/cv/声速、湿空气；工质可写 `Ammonia`、`HEOS::R134a`、`INCOMP::MEG[0.3]`（乙二醇溶液）；边界温度按工质适用范围检查（不再固定 1–90 °C）；网络流动只支持与边界一致的单相，进入两相报 `PHASE_UNSUPPORTED` |
 | 多工质项目 | 每个回路一种工质（端口经连接和设备内部通路连成回路，关闭的阀门不分隔，换热器两侧是两个回路）；项目设置 → 介质配置的“回路工质”选一个端口代表回路并指定工质，其余回路用默认介质；“检查连接”后画布按回路着色；水力参考物性、热力、水箱、边界范围检查和 Python 模块（`ctx.fluid` / `ctx.fluid_at(端口)`）都按回路取物性 |
-| REFPROP | 自备 NIST 许可的 REFPROP（默认安装目录或 `FLUIDNET_REFPROP_PATH`）后，项目设置 → 介质配置的“物性字符串”可写 `REFPROP::R134A`、`REFPROP::R407C.MIX`、`REFPROP::R32[0.5]&R125[0.5]`（质量或摩尔分数）；混合物可查泡点和露点；版本不匹配的工质文件只报错，不会让服务崩溃；本机验证 9.1 |
+| REFPROP | 默认优先使用内置 `vendor/refprop9.1`（无需单独安装 REFPROP），`FLUIDNET_REFPROP_PATH` 可显式覆盖它，都没有时使用 Windows 默认安装目录；项目设置 → 介质配置的“物性字符串”可写 `REFPROP::R134A`、`REFPROP::R407C.MIX`、`REFPROP::R32[0.5]&R125[0.5]`（质量或摩尔分数）；混合物可查泡点和露点；版本不匹配的工质文件只报错，不会让服务崩溃；本机验证 9.1；捆绑目录、生成/校验命令与 NIST 许可要求见 [内置 REFPROP 9.1](docs/REFPROP_BUNDLE.md) |
 | 历史瘦身 | 动态运行 `history='trend'` 时只有约 50 个关键帧保留全部变量，其余帧只存曲线变量与模块状态；water-net 2001 帧 22.7 MB → 1.74 MB |
 | 后台运行 | `POST /api/v1/runs?background=true` 返回 `run_id`；`POST /runs/{run_id}/command` 支持 pause/resume/step/set/controller/stop/write，带命令回执与生效时刻；最多 20 个活动运行 |
 | 变量接口 | `GET /runs/{id}/variables?keys=…` 读最新帧的指定变量；`POST /runs/{id}/variables` 批量写运行参数与 PID 设定，同一帧边界全部生效或全部拒绝，可等待回执；`WS /runs/{id}/stream` 每个新帧推送所选变量；「对接」页给出当前运行的调用示例并可直接发送读取请求 |
@@ -127,6 +127,8 @@ python -m fn_engine serve --host 0.0.0.0 --port 8798 --cors-origin http://twin.l
 | 可靠保存 | SQLite 工作区修订和运行归档；重启后读取历史，原运行标为中断 |
 | 访问控制 | 令牌分只读/控制两级；监听本机以外地址时强制开启；可配置跨域来源（见“对外开放与访问令牌”） |
 | 大网络 | `hydraulic_method='sparse'` 稀疏 Jacobian（1000 实例串联管网本机约 2.3 s，稠密约 104 s）；多个 Python 实例默认共用 Worker 批量求值 |
+
+内置 REFPROP：把 REFPROP 9.1 的 `REFPRP64.DLL`、`fluids/`、`mixtures/` 放到 `vendor/refprop9.1/` 并生成 `refprop-manifest.json`（`python scripts/bundle_refprop.py`）后，服务默认自动发现内置副本（`FLUIDNET_REFPROP_PATH` 作为显式覆盖优先于内置副本，两者都没有时使用 Windows 默认安装目录）；可用 `python scripts/bundle_refprop.py --check` 校验完整性，构建源码候选包时用 `python scripts/build_trial_candidate.py --refprop vendor/refprop9.1`。NIST REFPROP 按用户许可，仓库不提交 DLL 与工质文件，随包分发前须确认接收方许可；`GET /api/v1/health` 的 `capabilities.refprop` 显示当前生效的 `source`/`path`/`version`。
 
 默认 `reference` 模式下水力采用定密度、定黏度液态水近似，温度相关物性只在热力层和 `node` 耦合模式中使用；内置模型不计算汽蚀、相变或水锤；Python SDK 可显式传入物性及通路高差。非零节点标高会被参数校验拒绝。换热器原型没有水力内径输入时使用目录默认 40 mm；建议通过规范合同指定参数。
 

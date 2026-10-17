@@ -6,7 +6,7 @@
 
 | 方法与路径 | 请求 | 返回 |
 | --- | --- | --- |
-| GET /api/v1/health | 无 | 版本（0.4.8）、能力标志（含 `thermal`、`property_coupling`、`tank_state`、`live_runs`、`pid`、`runtime_parameters`、`continuous_step`、`continuous_runs`、`variables_api`、`run_stream`、`python_controls`、`persistent_workspace`、`refprop.installed`）、`auth.required`、同步运行 2001 帧上限、`history_window_max`、`overview_points`、20 次记录保留数 |
+| GET /api/v1/health | 无 | 版本（0.4.9）、能力标志（含 `thermal`、`property_coupling`、`tank_state`、`live_runs`、`pid`、`runtime_parameters`、`continuous_step`、`continuous_runs`、`variables_api`、`run_stream`、`python_controls`、`persistent_workspace`，以及 `refprop: {installed,source,path,version}`）、`auth.required`、同步运行 2001 帧上限、`history_window_max`、`overview_points`、20 次记录保留数 |
 | GET /api/v1/examples/{name} | `level` 或 `temperature` | 内置 PID 示例 Project；未知名称 404 |
 | GET /api/v1/workspace | 可选 revision | 完整原型工作区、revision、saved_at；未保存时 data=null |
 | POST /api/v1/workspace | data、expected_revision | 已落盘修订与时间；陈旧修订 409，存储故障 507 |
@@ -39,6 +39,8 @@
 | WS /api/v1/runs/{run_id}/stream | `keys`、`interval_ms`（10–5000，默认 50） | 推送 `{"type":"frame",…}`，结束时 `{"type":"end","status":…}`；见「变量接口」 |
 
 `POST /api/v1/runs?background=true` 创建后台运行，返回 HTTP 202 和 `run_id`；已有 20 个非终态运行时返回 422 `RUN_LIMIT`。默认仍保持兼容的同步模式，返回 HTTP 201。前端稳态使用同步请求；动态项目在 health 报告 `live_runs` 时使用后台会话（运行、单步、暂停、改参数都对同一个 run_id 发命令）。同步运行不能中途控制。
+
+`GET /api/v1/health` 的 `capabilities.refprop` 为 `{"installed": bool, "source": "env" | "bundled" | "system" | null, "path": str | null, "version": str | null}`，向后兼容原来的 `installed` 布尔。`source` 表示 REFPROP 目录的发现方式：`env` 为环境变量 `FLUIDNET_REFPROP_PATH`，`bundled` 为捆绑候选（项目根、仓库根、当前工作目录或 `sys.executable` 所在目录下的 `vendor/refprop9.1`、`refprop9.1`、`refprop`、`NISTRefprop9.1`），`system` 为 Windows 默认安装目录 `C:\Program Files (x86)\REFPROP`；`path` 为实际生效目录，未检测到时两者为 `null`。`version` 优先取该目录 `refprop-manifest.json` 的 `version`，清单缺失或损坏时为 `null`，不影响 `installed`。详见 [内置 REFPROP 9.1](REFPROP_BUNDLE.md)。
 
 ## 模块包和 Worker
 
