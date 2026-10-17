@@ -72,6 +72,9 @@ const STORAGE_KEY = 'fluidnet-prototype-engine-v1';
 let engine = null;
 let workflows = null;
 const UI_KEY = STORAGE_KEY + '-ui';
+// 本地草稿写入 localStorage 的降级阶梯：配额不足时只在“用于存储的副本”上裁剪运行历史，
+// 每级为 [每次运行保留的最近帧数, 保留的运行快照条数]；内存中的 state 不裁剪，用户仍可导出原型。
+const LOCAL_DRAFT_STEPS = [[200, null], [200, 5], [200, 1], [50, 0]];
 const PAGE_META = {
   home:['首页','Home','项目、模块与任务概览'],
   projects:['项目','FolderOpen','项目管理与示例'],
@@ -237,7 +240,7 @@ const badge=(label,type='')=>`<span class="badge ${type}">${label}</span>`;
 const empty=(title,description,action='')=>`<div class="empty">${icon('FolderOpen')}<h3>${title}</h3><p>${description}</p>${action}</div>`;
 const option=(value,label,current)=>`<option value="${esc(value)}"${String(value)===String(current)?' selected':''}>${esc(label)}</option>`;
 const clockLabel=t=>`t = ${number(t,1)} s`;
-let recovery='', editRevision=0, savePhase='', saveError='';
+let recovery='', editRevision=0, savePhase='', saveError='', localSaveError='', localSaveTrimmed=false;
 let state=initialState();
 try { const saved=JSON.parse(localStorage.getItem(STORAGE_KEY)||'null');if(saved&&saved.schema===1&&Array.isArray(saved.projects)&&saved.projects.length&&Array.isArray(saved.modules)&&saved.modules.length&&Array.isArray(saved.models)){state=saved;state.projects.forEach(p=>{if(p.run.status==='running')p.run.status='paused';});if(state.bench.run.status==='running')state.bench.run.status='paused';} } catch { recovery='上次原型记录无法读取，已打开内置示例。'; }
 const ui={route:'home',theme:matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light',moduleTab:'drawing',selectedNode:'',selectedEdge:'',editorPort:'',category:'全部模块',moduleSearch:'',moduleView:'cards',projectSearch:'',projectFilter:'all',projectView:'grid',bank:0,allBanks:false,variableSearch:'',onlyCommon:false,valueSearch:'',arrayVar:'system:form',codeKind:'runtime',designIndex:0,modelSearch:'',modelFilter:'all',modelTab:'parameters',benchTab:'results',settingsTab:'project',connectionTab:'variables',selectedConnector:'serial1',nodeDomain:'fluid',nodeTab:'definition',selectedRecord:'DEMO-003',runFilter:'all',pageGrid:false,placing:null,connecting:null,canvasMode:'select',floats:[],frontId:'',floatSerial:0,taskDrawer:false,selectedChart:'q',clipboard:null,showLibrary:innerWidth>500,showChart:false,workbenchChart:'flow',compileOutput:'尚未检查。可检查 Python 括号与字符串，或预览模块调用流程。',controlOutput:'控制脚本尚未预览。',connectionSearch:'',guideStep:0};
@@ -258,7 +261,78 @@ const pendingCount=n=>deviceParamIds(n).filter(id=>!sameValue(n.draft[id],n.para
 const anyPending=()=>state.projects.reduce((sum,p)=>sum+p.pages.flatMap(p=>p.nodes).reduce((s,n)=>s+pendingCount(n),0),0);
 const statusText=run=>({ready:'就绪',running:'运行中',paused:'已暂停',stopped:'已停止',completed:'已完成',failed:'失败',solving:'求解中'}[run.status]||'就绪');
 function msg(text,error=false){const toast=document.getElementById('toast');toast.className='toast'+(error?' error':'');toast.innerHTML=icon(error?'Info':'CheckCircle2')+`<span>${esc(text)}</span>`;toast.hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>toast.hidden=true,3500);document.getElementById('announcement').textContent=text;}
-function saveUI(){try{localStorage.setItem(UI_KEY,JSON.stringify({theme:ui.theme,moduleTab:ui.moduleTab,settingsTab:ui.settingsTab,connectionTab:ui.connectionTab,bank:ui.bank,pageGrid:ui.pageGrid,codeKind:ui.codeKind,designIndex:ui.designIndex,showLibrary:ui.showLibrary,showChart:ui.showChart,workbenchChart:ui.workbenchChart,moduleView:ui.moduleView}));}catch{}}
+function saveUI(){try{localStorage.setItem(UI_KEY,JSON.stringify({theme:ui.theme,moduleTab:ui.moduleTab,settingsTab:ui.settingsTab,connectionTab:ui.connectionTab,bank:ui.bank,pageGrid:ui.pageGrid,codeKind:ui.codeKind,designIndex:ui.designIndex,showLibrary:ui.showLibrary,showChart:ui.showChart,workbenchChart:ui.workbenchChart,moduleView:ui.moduleView}));}catch{/* 界面偏好体积很小；失败只影响主题/页签记忆，草稿失败由 persistLocal 提示。 */}}
+// 配额类存储异常：Chrome/Edge 的 QuotaExceededError、Firefox 的 NS_ERROR_DOM_QUOTA_REACHED，
+// 旧浏览器报 code 22（QUOTA_EXCEEDED_ERR）或 1014，另外按 name/message 兜底。
+function isQuotaError(error){
+  if(!error)return false;
+  const name=String(error.name||''), message=String(error.message||'');
+  return /quota/i.test(name)||name==='NS_ERROR_DOM_QUOTA_REACHED'||error.code===22||error.code===1014
+    ||/quota|exceeded the quota|storage space|存储空间/i.test(message);
+}
+// 在“仅用于存储”的副本上裁剪运行历史：每次运行保留最近 frames 帧，运行快照保留最近 records 条
+// （null 表示不裁剪快照）。只改副本；返回是否真的裁掉了内容。
+function trimDraft(draft,frames,records){
+  let trimmed=false;
+  const trim=run=>{if(!run||!Array.isArray(run.history)||run.history.length<=frames)return;run.history=run.history.slice(-frames);trimmed=true;};
+  for(const p of draft.projects||[])trim(p.run);
+  trim(draft.bench?.run);
+  if(Array.isArray(draft.records)){
+    if(records!==null&&draft.records.length>records){draft.records=draft.records.slice(0,records);trimmed=true;}
+    for(const record of draft.records)trim(record);
+  }
+  return trimmed;
+}
+function failLocalSave(text){
+  const repeat=localSaveError===text;
+  localSaveError=text;localSaveTrimmed=false;syncChrome();
+  if(!repeat)msg(text,true);
+  return false;
+}
+// 依次产出可写入的草稿文本：第一项为原样 state，之后为逐级裁剪运行历史的副本（懒生成，
+// 前一项写入成功就不再序列化后面的副本）。内存中的 state 不会被修改。
+function* draftTexts(){
+  let last='', draft=null;
+  for(const step of [null,...LOCAL_DRAFT_STEPS]){
+    let text;
+    if(step===null)text=JSON.stringify(state);
+    else{
+      draft||=clone(state);
+      if(!trimDraft(draft,step[0],step[1]))continue;
+      text=JSON.stringify(draft);
+    }
+    if(text===last)continue;
+    last=text;
+    yield {frames:step?step[0]:null,text};
+  }
+}
+// 统一的本地草稿写入（“保存原型”与引擎/流程里的 ui.persist 共用）：
+// 先原样写；配额不足时按 LOCAL_DRAFT_STEPS 逐级裁剪副本重试；全部失败则保留内存数据并显示可见错误。
+function persistLocal(){
+  try{
+    for(const {frames,text} of draftTexts()){
+      try{localStorage.setItem(STORAGE_KEY,text);}
+      catch(error){if(isQuotaError(error))continue;return failLocalSave('本地草稿保存失败：'+(error.message||'浏览器拒绝写入')+'；内存数据仍在，请导出原型。');}
+      if(frames===null){if(localSaveError||localSaveTrimmed){localSaveError='';localSaveTrimmed=false;syncChrome();}return true;}
+      const first=!localSaveTrimmed;
+      localSaveError='';localSaveTrimmed=true;syncChrome();
+      if(first)msg(`浏览器草稿已保存；存储空间不足，运行历史已裁剪为最近 ${frames} 帧，完整曲线仍在内存，请导出原型。`);
+      return true;
+    }
+    return failLocalSave('本地草稿保存失败：存储空间不足，已保留内存数据，请导出原型后清理浏览器存储。');
+  }catch(error){return failLocalSave('本地草稿保存失败：'+(error.message||'未知错误')+'；内存数据仍在，请导出原型。');}
+}
+// 载入服务器工作区、导入或恢复示例前备份当前草稿；配额不足时同样裁剪副本，
+// 仍放不下就抛出可见原因，避免静默丢掉旧草稿。
+function backupLocalDraft(key){
+  try{
+    for(const {text} of draftTexts()){
+      try{localStorage.setItem(key,text);return true;}
+      catch(error){if(isQuotaError(error))continue;throw Error('本地草稿备份失败：'+(error.message||'浏览器拒绝写入'));}
+    }
+  }catch(error){if(!/^本地草稿备份失败/.test(error.message||''))throw Error('本地草稿备份失败：'+(error.message||'未知错误')+'，请先导出原型再继续。');throw error;}
+  throw Error('本地草稿备份失败：存储空间不足，请先导出原型再继续。');
+}
 function markDirty(target){editRevision++;if(savePhase==='saved')savePhase='';state.dirty=true;if(target)target.dirty=true;root.querySelectorAll("[data-float-save]").forEach(el=>el.textContent="草稿未保存");syncChrome();}
 async function saveAll(){
   if(savePhase==='saving')return;
@@ -266,23 +340,24 @@ async function saveAll(){
   payload.dirty=false;payload.savedAt=new Date().toISOString();payload.projects.forEach(p=>p.dirty=false);
   payload.modules.forEach(m=>{if(m.runtime!=='python')m.dirty=false;});
   savePhase='saving';saveError='';syncChrome();
-  // Keep a recoverable draft even when the network or disk save fails.
-  try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state));}catch{}
+  // 本地草稿先落盘：失败不再静默——persistLocal 会按策略裁剪副本重试，仍失败则显示可见错误，
+  // 内存中的 state 保持完整，用户仍可导出原型。
+  persistLocal();
   try{
     const receipt=await engine.saveWorkspace(payload);
     if(state===owner){
       state.workspaceRevision=receipt.revision;state.savedAt=receipt.saved_at;
       if(editRevision===version){state.dirty=false;state.projects.forEach(p=>p.dirty=false);state.modules.forEach(m=>{if(m.runtime!=='python')m.dirty=false;});}
-      try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state));}catch{}
+      persistLocal();
     }
     savePhase='saved';syncChrome();updateFloatBodies();
     msg(`工作区已保存 · 修订 ${receipt.revision}${state.dirty?' · 仍有后续修改未保存':''}${anyPending()?` · ${anyPending()} 项参数待应用`:''}`);
-  }catch(error){savePhase='error';saveError=error.message;state.dirty=true;try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state));}catch{}syncChrome();msg('保存失败：'+error.message,true);}
+  }catch(error){savePhase='error';saveError=error.message;state.dirty=true;persistLocal();syncChrome();msg('保存失败：'+error.message,true);}
 }
 function restoreWorkspace(data){
   const incoming=clone(data);
   validateImport(incoming);
-  localStorage.setItem(STORAGE_KEY+'-before-workspace',JSON.stringify(state));
+  backupLocalDraft(STORAGE_KEY+'-before-workspace');
   const previous=state;
   try{state=incoming;normalizeState();}catch(error){state=previous;throw error;}
   ui.floats=[];ui.selectedNode='';undoStack=[];redoStack=[];
@@ -336,7 +411,7 @@ function heading(title,subtitle,actions='',eyebrow=''){return `<div class="page-
 function renderHeader(){document.getElementById('app-header').innerHTML=`<button class="brand" data-action="nav" data-route="home" aria-label="FluidNet Studio 首页"><span class="brand-mark">${icon('Network')}</span>FluidNet <span class="brand-sub">Studio</span></button><span class="header-rule"></span><button class="project-picker" data-action="project-picker">${icon('FolderOpen')}<span>${esc(project().name)}</span>${icon('ChevronDown')}</button>${badge(engine?.health ? '模块平台 · v' + engine.health.version : '连接计算服务…',engine?.health ? 'good' : 'warn')}<button class="header-search" data-action="page-map" aria-label="页面导航与快捷入口">${icon('Search')}<span>页面与操作</span><kbd>Ctrl K</kbd></button><span class="save-indicator" data-save-status></span>${btn('workspace-tools','备份与恢复','Database')+btn('reload-workspace','载入服务器','FolderOpen','title="载入服务器工作区，当前草稿会先备份到浏览器"')+btn('save','<span>保存原型</span>','Save','title="保存全部项目、模块、型号和界面状态；待应用参数仍需单独应用"','header-save')}${ibtn('theme',ui.theme==='dark'?'切换浅色':'切换深色',ui.theme==='dark'?'Sun':'Moon')}${ibtn('nav','使用指南','CircleHelp','data-route="help"')}`;}
 function renderRail(){const ids=['home','projects','workbench','modules','bench','models','curves','runs','controls','connections'];document.getElementById('app-rail').innerHTML=ids.map(id=>`${id==='modules'||id==='controls'?'<div class="rail-divider"></div>':''}<button type="button" class="rail-link${ui.route===id||ui.route==='editor'&&id==='modules'||ui.route==='nodes'&&id==='modules'?' active':''}" data-action="nav" data-route="${id}" title="${PAGE_META[id][2]}"${ui.route===id?' aria-current="page"':''}>${icon(PAGE_META[id][1])}<span>${PAGE_META[id][0]}</span></button>`).join('')+`<div class="rail-bottom"><div class="rail-divider"></div><button class="rail-link${ui.route==='settings'?' active':''}" data-action="nav" data-route="settings">${icon('Settings2')}<span>设置</span></button></div>`;}
 function syncChrome(){
-  const save=root.querySelector('[data-save-status]');if(save){save.title=saveError;save.classList.toggle('dirty',state.dirty);save.innerHTML=`<span class="dot"></span>${savePhase==='saving'?'正在保存…':savePhase==='error'?'保存失败 · 可重试':state.dirty?'有未保存修改':state.savedAt?'工作区已保存':'示例已就绪'}`;}
+  const save=root.querySelector('[data-save-status]');if(save){save.title=localSaveError||saveError||'';save.classList.toggle('dirty',state.dirty||!!localSaveError);save.innerHTML=`<span class="dot"></span>${localSaveError?'本地草稿保存失败 · 请导出原型':savePhase==='saving'?'正在保存…':savePhase==='error'?'保存失败 · 可重试':state.dirty?'有未保存修改':localSaveTrimmed?'草稿已裁剪保存':state.savedAt?'工作区已保存':'示例已就绪'}`;}
   const run=project().run;const active=state.projects.filter(p=>p.run.status==='running'||p.run.status==='paused');
   document.getElementById('statusbar').innerHTML=`<span class="row gap-6"><span class="dot" style="color:var(--${run.status==='running'?'green':'muted'})"></span>${esc(project().name)} · ${statusText(run)}</span><span class="mono" data-live-time>${clockLabel(run.time)}</span>${active.length?`<button class="task-chip" data-action="tasks">${icon('Activity')} ${active.length} 个运行任务</button>`:''}<span class="optional">${currentProjectPending()?`当前项目 ${currentProjectPending()} 项待应用`:'当前项目参数已生效'}</span><span class="push"></span><button data-action="page-map" class="optional">页面导览</button><span class="prototype-label">单相流体网络 · Python 控制</span>`;syncWorkbenchStatus();
 }
@@ -1830,7 +1905,7 @@ function importDialog() {
       state.moduleGroups = mergedGroups;
       state.modules.push(...clone(incoming.modules.filter(m => !state.modules.some(v => v.id === m.id)))); state.models.push(...clone(incoming.models));
     } else {
-      try { localStorage.setItem(STORAGE_KEY + '-before-import', JSON.stringify(state)); } catch {}
+      backupLocalDraft(STORAGE_KEY + '-before-import');
       state = {...clone(incoming),workspaceRevision:state.workspaceRevision}; state.projects.forEach(p => { if (p.run.status === 'running') p.run.status = 'paused'; }); if (state.bench.run.status === 'running') state.bench.run.status = 'paused';
     }
     ui.floats = []; undoStack = []; redoStack = []; ui.selectedNode = ''; normalizeState(); markDirty(); navigate('home'); msg('导入已应用；点击保存原型以保留。');
@@ -2061,7 +2136,7 @@ function handleAction(action, el) {
     case 'export': exportData(d.format, id); break;
     case 'import': importDialog(); break;
     case 'reset-windows': state.windowPositions = {}; ui.floats.forEach(f => { delete f.x; delete f.y; delete f.restore; f.docked = false; f.minimized = false; f.w = 440; f.h = 520; }); markDirty(); render(); msg('窗口位置已恢复。'); break;
-    case 'reset-prototype': confirmChange('恢复内置示例', '替换当前原型草稿。可先取消并导出编辑内容。', () => { try { localStorage.setItem(STORAGE_KEY + '-before-reset', JSON.stringify(state)); } catch {} state = initialState(); normalizeState(); ui.floats = []; ui.selectedNode = ''; undoStack = []; redoStack = []; state.dirty = true; navigate('home'); msg('已恢复示例；保存后更新浏览器记录。'); }, '恢复示例'); break;
+    case 'reset-prototype': confirmChange('恢复内置示例', '替换当前原型草稿。可先取消并导出编辑内容。', () => { backupLocalDraft(STORAGE_KEY + '-before-reset'); state = initialState(); normalizeState(); ui.floats = []; ui.selectedNode = ''; undoStack = []; redoStack = []; state.dirty = true; navigate('home'); msg('已恢复示例；保存后更新浏览器记录。'); }, '恢复示例'); break;
     case 'float-close': { const f = ui.floats.find(f => f.id === id); rememberWindow(f); ui.floats = ui.floats.filter(f => f.id !== id); renderFloats(); break; }
     case 'float-tab': {
       const f = ui.floats.find(f => f.id === id); setDeviceTab(f, d.value);
@@ -2384,7 +2459,12 @@ function normalizeState() {
   normalizeModuleGroups();
   state.modules.forEach(m => { m.saving=false; if (m.manifest) PARAM_DEFS[m.kind] = manifestFields(m.manifest); normalizePythonSource(m); });
   backfillBuiltinParams(state);
-  state.windowPositions ||= {}; state.charts.extra ||= []; state.charts.range ||= 'window'; state.serial ||= 30;
+  state.windowPositions ||= {}; state.charts ||= {}; state.charts.series ||= {q:true,a:true,b:true}; state.charts.extra ||= []; state.charts.range ||= 'window'; state.serial ||= 30; state.messages ||= [];
+  // 兼容旧草稿：运行快照/验证台/项目运行可能缺少 history、events、values 等字段（例如被裁剪过的草稿），
+  // 补齐默认值后继续打开与保存，而不是让 normalizeState 抛错、整份草稿被内置示例覆盖。
+  state.records = Array.isArray(state.records) ? state.records : [];
+  for (const record of state.records) { record.history = Array.isArray(record.history) ? record.history : []; record.events = Array.isArray(record.events) ? record.events : []; }
+  state.bench ||= {}; state.bench.run ||= emptyRun('bench');
   const benchModule = state.bench && state.modules.find(m => m.id === state.bench.moduleId);
   if (benchModule?.runtime === 'python') { state.bench.params ||= {}; for (const spec of manifestParamSpecs(benchModule.manifest)) if (!(spec.id in state.bench.params)) state.bench.params[spec.id] = clone(spec.default); }
   for (const p of state.projects) {
@@ -2394,9 +2474,10 @@ function normalizeState() {
     if(p.controlLanguage!=='python')p.controlEnabled=false;
     p.controlInputs ||= '';p.controlOutputs ||= '';
     p.controlConfig ||= { name: '供水温度调节', when: 'accepted', period: 100, input: p.pages.flatMap(pg => pg.nodes).some(n => n.id === 'P1') ? 'P1.OUT_TEMP' : '', output: p.pages.flatMap(pg => pg.nodes).some(n => n.id === 'V1') ? 'V1.OPENING' : '' };
+    if (!p.run || typeof p.run !== 'object') p.run = emptyRun();
     if (p.run.source !== 'engine') p.run = emptyRun();
     if (p.run.status === 'solving') p.run.status = 'ready';
-    p.run.events ||= []; p.run.history ||= [];
+    p.run.events ||= []; p.run.history ||= []; p.run.values ||= emptyRun().values;
     for (const pg of p.pages) { pg.zoom ||= 1; pg.pan ||= [0, 0]; for (const n of pg.nodes) { const m = moduleOf(n); if (m.runtime === 'python') for (const spec of manifestParamSpecs(m.manifest)) { if (!(spec.id in n.params)) n.params[spec.id] = clone(spec.default); if (!n.draft || !(spec.id in n.draft)) { n.draft ||= clone(n.params); n.draft[spec.id] = clone(n.params[spec.id]); } } n.draft ||= clone(n.params); validateInstanceVariableState(n, m); ensureInstanceVariables(n, m, p); } }
     const variables = projectVariables(p);
     for (const field of ['input', 'output']) if (!variables.some(v => v.id === p.controlConfig[field])) {
@@ -2404,11 +2485,11 @@ function normalizeState() {
     }
   }
   if (state.bench.run.status === 'solving') state.bench.run.status = 'ready';
-  state.bench.run.events ||= []; state.bench.run.history ||= [];
+  state.bench.run.events ||= []; state.bench.run.history ||= []; state.bench.run.values ||= emptyRun().values;
 }
 const chartRegistry = new Map();
 engine = window.createEngineClient({state:()=>state, project, parameterKey:projectParameterKey, moduleOf,
-  persist:()=>{try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state));}catch{}},
+  persist:()=>persistLocal(),
   restoreWorkspace,validateWorkspace:validateImport,archives:receiveArchives,showArchive,
   moduleOutput:(m,text)=>{m.authoringOutput=text;if(m.id===state.selectedModule){const el=document.getElementById('module-output') || document.getElementById('code-output');if(el)el.textContent=text;}},
   parameterDefinitions:PARAM_DEFS, emptyRun, render:()=>retainFocus(), refresh:refreshLive,
@@ -2418,7 +2499,7 @@ engine = window.createEngineClient({state:()=>state, project, parameterKey:proje
     data=>{if(!data.token?.trim())throw Error('请输入令牌。');done(data.token);},'连接')});
 workflows=window.createModelingWorkflows({state:()=>state,engine:()=>engine,ui:()=>ui,project,
   esc,btn,openDialog,closeDialog,msg,clone,uid,emptyRun,confirm:confirmChange,paramSpecs:deviceParamSpecs,
-  projectKey:projectParameterKey,dirty:markDirty,render,persist:()=>{try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state));}catch{}},download:downloadFile,
+  projectKey:projectParameterKey,dirty:markDirty,render,persist:()=>persistLocal(),download:downloadFile,
   replaceState:next=>{validateImport(next);const previous=state;try{state=next;normalizeState();ui.floats=[];ui.selectedNode='';undoStack=[];redoStack=[];}catch(error){state=previous;throw error;}}});
 try { normalizeState(); } catch { state = initialState(); normalizeState(); recovery = '原型记录不完整，已恢复内置示例。'; }
 function routeFromLocation() {

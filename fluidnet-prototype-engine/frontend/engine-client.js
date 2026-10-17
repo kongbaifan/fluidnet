@@ -5,6 +5,8 @@ window.createEngineClient = function (ui) {
   const livePolling = new Set();
   const circuitsByProject = new Map();  // project id -> circuits of the last successful check
   // A browser keeps at most this many live rows (the server window); older rows come from /overview.
+  // This window is memory-only: the persisted browser draft may keep fewer recent frames per run when
+  // localStorage is short (studio.js persistLocal trims only the stored copy, never these in-memory rows).
   const LIVE_ROWS = 2001;
   const overviews = new Map();  // run id -> {rows, stride, total, at}
   let catalog = null, moduleCatalog = null, health = null;
@@ -271,7 +273,7 @@ window.createEngineClient = function (ui) {
       if (unchanged) { applyManifest(m,release.module); m.dirty=false; }
       ui.moduleOutput(m,`✓ v${release.module.version} 已保存到后端\n✓ Worker 试算通过，流量 ${traceFlow(m, release.test_result.frame.variables)} kg/s\n源码 SHA-256：${release.package.content_hash}\n契约 SHA-256：${release.package.definition_hash}`+(unchanged?'':'\n保存期间的新编辑已保留为草稿。'));
       await versions(m);
-      try { ui.persist(); } catch { ui.message(`后端 v${release.module.version} 已保存，浏览器草稿存储失败，请导出原型。`,true); return; }
+      if (!ui.persist()) { ui.message(`后端 v${release.module.version} 已保存，浏览器草稿存储失败（存储空间不足），请导出原型；内存中的修改未丢失。`,true); return; }
       ui.message(`模块 v${release.module.version} 已保存；已有项目版本保持绑定。`);
     } catch(error) { ui.moduleOutput(m,'版本未保存：'+error.message); ui.message('版本保存失败，草稿已保留。',true); }
     finally { m.saving=false; ui.render(); }
@@ -653,7 +655,7 @@ window.createEngineClient = function (ui) {
       ui.message(`计算服务 v${health.version} 已连接：稳态水力${health.capabilities?.tank_state ? '、水箱隐式积分' : ''}与准稳态时间序列可用。`);
       ui.render();
       await services.refreshArchives();
-    } catch (error) { ui.message('计算服务未连接，请通过启动脚本打开此页面。' + error.message,true); }
+    } catch (error) { const local=/^本地草稿/.test(error.message||''); ui.message((local ? '' : '计算服务未连接，请通过启动脚本打开此页面。') + error.message,true); }
   }
   async function pollLive(owner) {
     const id = owner.run.runId;
