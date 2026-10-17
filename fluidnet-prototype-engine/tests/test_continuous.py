@@ -129,7 +129,7 @@ def test_health_reports_continuous_runs_and_refprop_as_capabilities():
     with TestClient(create_app()) as client:
         health = client.get('/api/v1/health').json()
     assert health['capabilities']['continuous_runs'] is True
-    assert set(health['capabilities']['refprop']) == {'installed'}
+    assert set(health['capabilities']['refprop']) == {'installed', 'source', 'path', 'version'}
     assert health['history_window_max'] == 20001 and health['overview_points'] == 2000
 
 

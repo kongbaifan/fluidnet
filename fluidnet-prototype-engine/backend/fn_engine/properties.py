@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from contextlib import nullcontext
+import json
 import math
 import os
 from pathlib import Path
@@ -30,11 +31,20 @@ _TWO_PHASE = "twophase"
 # "REFPROP::WATER", "REFPROP::R407C.MIX", "REFPROP::AMMONIA[0.3]&WATER[0.7]" (FluidConfig.reference).
 _BACKENDS = ("HEOS", "INCOMP", "IF97", "REFPROP")
 
-# NIST REFPROP is licensed per user and never shipped. FLUIDNET_REFPROP_PATH (or the default
-# Windows install) must hold REFPRP64.DLL together with fluids/ and mixtures/ of the same version:
-# a DLL reading fluid files of another version aborts the whole process inside Fortran.
-REFPROP_DEFAULT = Path(r"C:\Program Files (x86)\REFPROP")
-REFPROP_LIBRARY = "REFPRP64.DLL"
+# NIST REFPROP 是按用户许可的商业软件，不随仓库提交：REFPRP64.DLL 必须与同版本 fluids/、
+# mixtures/ 配套（DLL 读到另一版本的工质文件会在 Fortran 里直接终止整个进程）。
+# 查找顺序：FLUIDNET_REFPROP_PATH 显式覆盖 → 项目/仓库内捆绑目录 → Windows 默认安装目录。
+# 仅在持有合法 NIST 许可时使用/随包分发 vendor/ 捆绑目录。
+REFPROP_DEFAULT = Path(r'C:\Program Files (x86)\REFPROP')
+REFPROP_LIBRARY = 'REFPRP64.DLL'
+# 捆绑目录布局：项目根 vendor/refprop9.1/（REFPRP64.DLL + fluids/ + mixtures/ + refprop-manifest.json）。
+REFPROP_ENV = 'FLUIDNET_REFPROP_PATH'
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+BUNDLE_DIRNAME = 'vendor'
+BUNDLE_REFPROP_NAME = 'refprop9.1'
+BUNDLE_MANIFEST = 'refprop-manifest.json'
+# 每个 base 下的捆绑目录，按优先级排列：契约布局在前，兼容旧版/别名目录在后。
+BUNDLE_LAYOUTS = (f'{BUNDLE_DIRNAME}/{BUNDLE_REFPROP_NAME}', BUNDLE_REFPROP_NAME, 'refprop', 'NISTRefprop9.1')
 # The DLL keeps one global fluid setup: every REFPROP call is serialized.
 _refprop_lock = threading.RLock()
 # Fluids already loaded once in a throw-away process (see _probe_refprop). Worker processes are
@@ -59,19 +69,97 @@ def _label(key: FluidKey) -> str:
     return text if backend == "HEOS" else f"{backend}::{text}"
 
 
+def _absolute(path: Path | str) -> Path:
+    """绝对路径；目录不存在也返回（resolve 不要求路径存在）。"""
+    try:
+        return Path(path).resolve()
+    except (OSError, RuntimeError):  # pragma: no cover - 悬空符号链接等极端情况
+        return Path(os.path.abspath(path))
+
+
+def _dedupe(paths) -> list[Path]:
+    """去重保序。Windows 大小写不敏感，用 normcase 后的绝对路径当键。"""
+    seen: set[str] = set()
+    unique: list[Path] = []
+    for path in paths:
+        key = os.path.normcase(str(_absolute(path)))
+        if key not in seen:
+            seen.add(key)
+            unique.append(path)
+    return unique
+
+
+def _is_refprop_installation(root: Path) -> bool:
+    """可用安装的判定：有 REFPRP64.DLL，且有 fluids/ 或 FLUIDS/ 工质目录。"""
+    return (root / REFPROP_LIBRARY).is_file() and any((root / name).is_dir() for name in ('fluids', 'FLUIDS'))
+
+
+def _bundle_bases() -> list[Path]:
+    """可能存放捆绑 REFPROP 的基目录：项目根、仓库根、当前工作目录、解释器目录；去重保序。"""
+    return _dedupe([PROJECT_ROOT, PROJECT_ROOT.parent, Path.cwd(), Path(sys.executable).parent])
+
+
+def refprop_candidates() -> list[Path]:
+    """按发现优先级列出 REFPROP 候选目录（去重保序），供诊断与测试使用。
+
+    顺序即契约：FLUIDNET_REFPROP_PATH（显式覆盖）→ 各 base 下的捆绑布局 → Windows 默认安装。
+    """
+    env_root = os.environ.get(REFPROP_ENV)
+    candidates = [Path(env_root)] if env_root else []
+    candidates.extend(base / layout for base in _bundle_bases() for layout in BUNDLE_LAYOUTS)
+    candidates.append(REFPROP_DEFAULT)
+    return _dedupe(candidates)
+
+
 def refprop_root() -> Path | None:
-    """The REFPROP directory if it holds the DLL plus fluid files; None when REFPROP is not installed."""
-    root = Path(os.environ.get("FLUIDNET_REFPROP_PATH") or REFPROP_DEFAULT)
-    if (root / REFPROP_LIBRARY).is_file() and any((root / name).is_dir() for name in ("fluids", "FLUIDS")):
-        return root
+    """可用 REFPROP 目录；没有则 None。候选顺序见 refprop_candidates()。
+
+    FLUIDNET_REFPROP_PATH 是显式覆盖：指向无效目录时视为未安装、不回退到捆绑或系统目录，
+    否则用户以为在用自己的安装，实际却静默加载了另一套 DLL 与工质文件。
+    """
+    candidates = refprop_candidates()
+    if os.environ.get(REFPROP_ENV):
+        candidates = candidates[:1]
+    return next((root for root in candidates if _is_refprop_installation(root)), None)
+
+
+def _refprop_source(root: Path) -> str | None:
+    """来源分类：env（环境变量显式覆盖）/ bundled（捆绑目录）/ system（默认安装）。"""
+    target = _absolute(root)
+    env_root = os.environ.get(REFPROP_ENV)
+    if env_root and target == _absolute(env_root):
+        return 'env'
+    if target in {_absolute(base / layout) for base in _bundle_bases() for layout in BUNDLE_LAYOUTS}:
+        return 'bundled'
+    if target == _absolute(REFPROP_DEFAULT):
+        return 'system'
     return None
+
+
+def _bundle_version(root: Path) -> str | None:
+    """捆绑目录 refprop-manifest.json 的版本；清单缺失或损坏时 None（不影响 installed）。"""
+    try:
+        manifest = json.loads((root / BUNDLE_MANIFEST).read_text(encoding='utf-8'))
+        version = manifest.get('version') if isinstance(manifest, dict) else None
+    except Exception:
+        return None
+    return str(version) if version not in (None, '') else None
+
+
+def refprop_info() -> dict[str, object]:
+    """运行时 REFPROP 发现结果，供 /api/v1/health 上报；此函数不加载 DLL。"""
+    root = refprop_root()
+    if root is None:
+        return {'installed': False, 'source': None, 'path': None, 'version': None}
+    return {'installed': True, 'source': _refprop_source(root), 'path': str(_absolute(root)), 'version': _bundle_version(root)}
 
 
 def _configure_refprop() -> Path:
     root = refprop_root()
     if root is None:
         raise PropertyError("PROPERTY_BACKEND_UNSUPPORTED", "未找到 REFPROP：需要用户自备 NIST 许可的 REFPRP64.DLL 及同版本 fluids、"
-                            f"mixtures 目录，放在 {REFPROP_DEFAULT} 或用环境变量 FLUIDNET_REFPROP_PATH 指定")
+                            f"mixtures 目录，可放在项目根 {BUNDLE_DIRNAME}/{BUNDLE_REFPROP_NAME}（仅在持有合法 NIST 许可时随包分发）、"
+                            f"用环境变量 {REFPROP_ENV} 指定，或安装到默认目录 {REFPROP_DEFAULT}")
     if _configured and _configured[0] != root:
         raise PropertyError("PROPERTY_BACKEND_UNSUPPORTED", f"REFPROP 已从 {_configured[0]} 加载，同一进程不能切换目录")
     if not _configured:

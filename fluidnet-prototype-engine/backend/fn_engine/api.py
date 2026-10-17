@@ -51,7 +51,7 @@ from .models import (
     ModuleVersionResponse,
     ModuleVersionsResponse,
 )
-from .properties import PropertyError, refprop_root
+from .properties import PropertyError, refprop_info
 from .packages import ModuleStore, ModuleVersionConflict, ModuleSaveInvalid, package_ref
 from .module_validation import validate_module_definition
 from .solver import SolveFailed, solve_dynamic, solve_steady
@@ -223,8 +223,8 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
                                 'module_versions':True,'run_control':True,'live_runs':True,'pid':True,'runtime_parameters':True,'continuous_step':True,
                                 'continuous_runs':True,'variables_api':True,'run_stream':True,
                                 'python_controls':True,'persistent_workspace':archive is not None,
-                                # Whether a REFPROP installation is present; the DLL is not loaded for this check.
-                                'refprop':{'installed':refprop_root() is not None}},
+                                # REFPROP 运行时发现（环境变量/捆绑目录/系统安装）；不加载 DLL。
+                                'refprop':refprop_info()},
                 'max_frames':2001,'run_retention':RUN_RETENTION,'history_window_max':20001,'overview_points':OVERVIEW_POINTS,
                 'auth':{'required':auth.required}}
 
