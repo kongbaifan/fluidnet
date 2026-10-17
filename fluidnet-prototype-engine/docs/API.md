@@ -6,7 +6,7 @@
 
 | 方法与路径 | 请求 | 返回 |
 | --- | --- | --- |
-| GET /api/v1/health | 无 | 版本（0.4.7）、能力标志（含 `thermal`、`property_coupling`、`tank_state`、`live_runs`、`pid`、`runtime_parameters`、`continuous_step`、`continuous_runs`、`variables_api`、`run_stream`、`refprop.installed`）、`auth.required`、同步运行 2001 帧上限、`history_window_max`、`overview_points`、20 次记录保留数 |
+| GET /api/v1/health | 无 | 版本（0.4.8）、能力标志（含 `thermal`、`property_coupling`、`tank_state`、`live_runs`、`pid`、`runtime_parameters`、`continuous_step`、`continuous_runs`、`variables_api`、`run_stream`、`python_controls`、`persistent_workspace`、`refprop.installed`）、`auth.required`、同步运行 2001 帧上限、`history_window_max`、`overview_points`、20 次记录保留数 |
 | GET /api/v1/examples/{name} | `level` 或 `temperature` | 内置 PID 示例 Project；未知名称 404 |
 | GET /api/v1/workspace | 可选 revision | 完整原型工作区、revision、saved_at；未保存时 data=null |
 | POST /api/v1/workspace | data、expected_revision | 已落盘修订与时间；陈旧修订 409，存储故障 507 |
@@ -15,12 +15,12 @@
 | POST /api/v1/workspace/backup | 无 | application/zip；SQLite 一致快照、模块包与 SHA-256 清单 |
 | POST /api/v1/workspace/restore | ZIP 原始字节，最多 256 MiB | 新目录、revision、启动 command 和 message；非法备份 422，上传超限 413 |
 | POST /api/v1/controls/preview | project、script | state、writes、diagnostics、content_hash、applied=false |
-| GET /api/v1/runs | 无 | 活动运行与归档列表 |
 | POST /api/v1/runs/{run_id}/delete | 空对象 | 删除终态记录；活动运行返回 409 |
 | GET /api/v1/catalog | 无 | 模块参数/通路/变量目录、原型参数名映射 |
 | GET /api/v1/modules | 无 | 可安装模块包和内置模块清单、版本与内容哈希 |
 | POST /api/v1/modules/validate | ModuleDefinition | 契约、Python 语法、Worker 入口与四阶段签名诊断 |
 | POST /api/v1/modules/test | ModuleTestRequest | 独立边界求解，返回 evaluation、committed、frame、history |
+| POST /api/v1/modules/design | ModuleDesignRequest | 独立 Worker 执行 design.py；返回 design_hash、parameters、changes、diagnostics，非法输出 422 |
 | POST /api/v1/modules/versions | ModuleSaveRequest | **201** ModuleVersionResponse，校验试算通过后保存新版本 |
 | GET /api/v1/modules/{module_id}/versions | 无 | 倒序版本记录，未知模块返回空列表 |
 | GET /api/v1/modules/{module_id}/versions/{version} | 整数版本 | 完整模块、引用和试算凭据；未知版本 404 |
@@ -31,7 +31,7 @@
 | GET /api/v1/runs/{run_id} | 无 | 状态、请求快照、最后一帧与事件，不重复携带整段历史(历史由 /history 提供)；记录不存在或已被保留上限淘汰时 404，detail 为固定字符串 |
 | GET /api/v1/runs/{run_id}/history | offset≥0, 1≤limit≤2001（绝对帧序号） | rows、total_rows（已发布帧数）、offset（实际起点）、first_offset（窗口内最早帧）、truncated（请求的 offset 已移出窗口） |
 | GET /api/v1/runs/{run_id}/overview | 无 | 全程抽稀：rows（每 stride 帧一行加最新帧，只含曲线变量和状态，无诊断）、stride、total_rows |
-| GET /api/v1/runs | 无 | 后台运行列表（id、status、mode、项目名、当前 time_s），新的在前 |
+| GET /api/v1/runs | 无 | 运行列表：活动运行与已归档运行（id、status、mode、项目名、当前 time_s） |
 | GET /api/v1/runs/{run_id}/events | 无 | 状态事件与命令事件（accepted/applied/rejected），每次运行恰好一条终态事件；后台运行只保留最近 1000 条事件，已处理的命令回执也只保留最近 1000 个（更早的 `command_id` 重发会当作新命令） |
 | POST /api/v1/runs/{run_id}/command | RunCommand | RunStatus 加命令回执；见「运行生命周期与控制」 |
 | GET /api/v1/runs/{run_id}/variables | `keys`（逗号分隔的帧变量键，省略为全部） | VariableValues：status、time_s、sequence、parameter_revision、values；未知键 422 `VARIABLE_UNKNOWN`（附 keys），还没有帧 409 `NO_FRAME` |
@@ -249,13 +249,13 @@ Worker RPC 超时默认 10 秒，超时返回 `MODULE_RUNTIME_TIMEOUT` 并终止
 | 接口 | 请求与结果 |
 | --- | --- |
 | GET /projects | 已保存项目的 ID、名称、修订、保存时间和实例数 |
-| GET /projects/{id}?revision=N | 当前或指定项目修订，返回 revision、saved_at 和 document；不存在或已删除返回 404 |
-| GET /projects/{id}/revisions | 最近 5 个项目修订，含 deleted 标记 |
-| POST /projects/{id} | ProjectSaveRequest：expected_revision 和 document，保存成功返回项目 revision、workspace_revision 和 previous_workspace_revision |
-| POST /projects/{id}/restore | ProjectRevisionRequest：expected_revision 和目标 revision；恢复生成新修订，并返回恢复的 document |
-| POST /projects/{id}/delete | ProjectDeleteRequest：expected_revision；保留其他项目和运行档案，删除最后一个项目返回 422 |
+| GET /projects/{project_id}?revision=N | 当前或指定项目修订，返回 revision、saved_at 和 document；不存在或已删除返回 404 |
+| GET /projects/{project_id}/revisions | 最近 5 个项目修订，含 deleted 标记 |
+| POST /projects/{project_id} | ProjectSaveRequest：expected_revision 和 document，保存成功返回项目 revision、workspace_revision 和 previous_workspace_revision |
+| POST /projects/{project_id}/restore | ProjectRevisionRequest：expected_revision 和目标 revision；恢复生成新修订，并返回恢复的 document |
+| POST /projects/{project_id}/delete | ProjectDeleteRequest：expected_revision；保留其他项目和运行档案，删除最后一个项目返回 422 |
 | POST /project-upgrades/preview | ProjectUpgradeRequest：规范 project、module_id、target_version；返回前后双哈希、源码、定义差异、兼容性及原因，兼容时另含升级后的 project |
 
-`document` 是格式为 `fluidnet-project`、schema=1 的单项目交换文档，含原型 project、固定模块快照 modules、关联 models 和 charts。路径 ID 必须与文档一致。expected_revision 使用各项目独立修订号，冲突返回 409 `PROJECT_CONFLICT`，成功保存会在同一事务中更新项目历史和完整工作区。项目保存、恢复、删除和模块升级预览在项目有活动运行时返回 409。
+`document` 是格式为 `fluidnet-project`、schema=1 的单项目交换文档，含原型 project、固定模块快照 modules、关联 models 和 charts。路径中的 `project_id` 必须与文档一致。expected_revision 使用各项目独立修订号，冲突返回 409 `PROJECT_CONFLICT`，成功保存会在同一事务中更新项目历史和完整工作区。项目保存、恢复、删除和模块升级预览在项目有活动运行时返回 409。
 
 升级预览不写入项目。前端应用时先保存原修订，再保存升级文档；已归档运行继续使用原快照。`RunRequest.project_revision` 为可选正整数元数据，前端仅在当前模型与已保存状态一致时填写。原型工况 overrides 经归一化转换为规范参数和单位，所选工况通过 `scenario_id` 提交。
