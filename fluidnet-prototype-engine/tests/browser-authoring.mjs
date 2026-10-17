@@ -1,24 +1,18 @@
 import { chromium, expect } from '@playwright/test';
 import { mkdirSync, mkdtempSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { spawn } from 'node:child_process';
-import { once } from 'node:events';
-import { createServer } from 'node:net';
+import { launchEngine } from './browser-server.mjs';
 
 // Dedicated store/server: acceptance must not add test versions to a user's library.
 const store=mkdtempSync(join(tmpdir(),'fluidnet-authoring-'));
-const socket=createServer(); socket.listen(0,'127.0.0.1'); await once(socket,'listening');
-const port=socket.address().port; await new Promise(resolve=>socket.close(resolve));
-const base=`http://127.0.0.1:${port}`;
-let server, serverLog='';
+let server, port, base, serverLog='', launched;
 async function startServer() {
-  server=spawn('python',['-m','fn_engine','serve','--host','127.0.0.1','--port',String(port)],{
-    cwd:resolve('.'),windowsHide:true,env:{...process.env,FLUIDNET_MODULE_STORE:store},stdio:['ignore','ignore','pipe']});
-  server.stderr.on('data',chunk=>serverLog+=chunk);
-  await expect.poll(async()=>{try{return (await fetch(base+'/api/v1/health')).ok;}catch{return false;}},{timeout:15000}).toBe(true);
+  launched=await launchEngine({args:[],env:{FLUIDNET_MODULE_STORE:store}});
+  ({server,port,base}=launched);
+  serverLog=launched.log();
 }
-async function stopServer() { if(server && server.exitCode===null){const exited=once(server,'exit');server.kill();await exited;} }
+async function stopServer() { if(launched)await launched.stop(); }
 const browser=await chromium.launch({channel:'msedge',headless:true});
 let page=await browser.newPage({viewport:{width:1600,height:1000}});
 const errors=[];

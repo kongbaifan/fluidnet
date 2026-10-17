@@ -1,24 +1,19 @@
 import { chromium, expect } from '@playwright/test';
 import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { spawn } from 'node:child_process';
-import { once } from 'node:events';
-import { createServer } from 'node:net';
+import { launchEngine } from './browser-server.mjs';
 
 const dir=mkdtempSync(join(tmpdir(),'fluidnet-workspace-'));
-const socket=createServer();socket.listen(0,'127.0.0.1');await once(socket,'listening');
-const port=socket.address().port;await new Promise(done=>socket.close(done));
-const base=`http://127.0.0.1:${port}`, key='fluidnet-prototype-engine-v1';
-let server, log='', runId;
+const key='fluidnet-prototype-engine-v1';
+let server, port, base, log='', runId, launched;
 async function start(){
-  server=spawn('python',['-m','fn_engine','serve','--port',String(port),'--data-dir',join(dir,'data')],{
-    cwd:resolve('.'),windowsHide:true,env:{...process.env,FLUIDNET_MODULE_STORE:join(dir,'modules')},stdio:['ignore','pipe','pipe']});
-  server.stdout.on('data',chunk=>log+=chunk);
-  server.stderr.on('data',chunk=>log+=chunk);
-  await expect.poll(async()=>{try{return (await fetch(base+'/api/v1/health')).ok;}catch{return false;}},{timeout:20000}).toBe(true);
+  // 端口在 close 之后可能被系统保留段拒绝绑定，launchEngine 会自动换端口重试。
+  launched=await launchEngine({args:['--data-dir',join(dir,'data')],env:{FLUIDNET_MODULE_STORE:join(dir,'modules')}});
+  ({server,port,base}=launched);
+  log=launched.log();
 }
-async function stop(){if(server?.exitCode===null){const ended=once(server,'exit');server.kill();await ended;}}
+async function stop(){if(launched)await launched.stop();}
 const browser=await chromium.launch({channel:'msedge',headless:true});
 let context=await browser.newContext({viewport:{width:1600,height:1100}}), page=await context.newPage();
 const errors=[];

@@ -2,9 +2,8 @@ import { chromium, expect } from '@playwright/test';
 import { mkdirSync, mkdtempSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
-import { execFileSync, spawn } from 'node:child_process';
-import { once } from 'node:events';
-import { createServer } from 'node:net';
+import { execFileSync } from 'node:child_process';
+import { launchEngine } from './browser-server.mjs';
 
 // Token-protected server: the page asks for a token, keeps it for the tab, and the API tab
 // sends a real authenticated read of the running project.
@@ -12,17 +11,14 @@ const dir = mkdtempSync(join(tmpdir(), 'fluidnet-auth-'));
 const env = { ...process.env, FLUIDNET_MODULE_STORE: join(dir, 'modules'), FLUIDNET_TOKEN_FILE: join(dir, 'tokens.json') };
 const created = execFileSync('python', ['-m', 'fn_engine', 'token', 'create', 'browser', '--scope', 'control'], { cwd: resolve('.'), env, encoding: 'utf8' });
 const token = created.trim().split(/\r?\n/).at(-1);
-const socket = createServer(); socket.listen(0, '127.0.0.1'); await once(socket, 'listening');
-const port = socket.address().port; await new Promise(resolve => socket.close(resolve));
-const base = `http://127.0.0.1:${port}`;
-let server, serverLog = '';
+let server, port, base, serverLog = '', launched;
 async function startServer() {
-  server = spawn('python', ['-m', 'fn_engine', 'serve', '--host', '127.0.0.1', '--port', String(port), '--auth', 'required'], {
-    cwd: resolve('.'), windowsHide: true, env, stdio: ['ignore', 'ignore', 'pipe'] });
-  server.stderr.on('data', chunk => serverLog += chunk);
-  await expect.poll(async () => { try { return (await fetch(base + '/api/v1/health')).ok; } catch { return false; } }, { timeout: 15000 }).toBe(true);
+  launched = await launchEngine({ args: ['--auth', 'required'],
+    env: { FLUIDNET_MODULE_STORE: join(dir, 'modules'), FLUIDNET_TOKEN_FILE: join(dir, 'tokens.json') } });
+  ({ server, port, base } = launched);
+  serverLog = launched.log();
 }
-async function stopServer() { if (server && server.exitCode === null) { const exited = once(server, 'exit'); server.kill(); await exited; } }
+async function stopServer() { if (launched) await launched.stop(); }
 
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
 const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
