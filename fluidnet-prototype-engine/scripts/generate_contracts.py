@@ -11,6 +11,7 @@ from fn_engine.models import (
     RunEventsResponse, RunFrame, RunHistoryResponse, RunRequest, RunStatus,
     ErrorResponse, ValidationResponse,
     ModuleSaveRequest, ModuleVersionResponse, ModuleVersionsResponse,
+    ModuleDesignRequest, ModuleDesignResponse,
     ProjectDocument, ProjectSaveRequest, ProjectRevisionRequest, ProjectDeleteRequest, ProjectUpgradeRequest,
 )
 from fn_engine.compiler import compile_project
@@ -31,6 +32,7 @@ models = [
     ('module-test-request', ModuleTestRequest), ('module-test-response', ModuleTestResponse),
     ('module-save-request', ModuleSaveRequest), ('module-version-response', ModuleVersionResponse),
     ('module-versions-response', ModuleVersionsResponse),
+    ('module-design-request', ModuleDesignRequest), ('module-design-response', ModuleDesignResponse),
     ('project-document', ProjectDocument), ('project-save-request', ProjectSaveRequest),
     ('project-revision-request', ProjectRevisionRequest), ('project-delete-request', ProjectDeleteRequest),
     ('project-upgrade-request', ProjectUpgradeRequest),

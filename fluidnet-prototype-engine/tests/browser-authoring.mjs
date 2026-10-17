@@ -113,9 +113,26 @@ try {
   await expect(page.locator('[data-bench-param="gain"]')).toHaveValue('1.2');
   await page.locator('[data-action="run-bench"][data-command="run"]').click();
   await expect(page.locator('[data-bench-commits]')).toHaveText('1',{timeout:15000});
+  // design.py derives Kv for one library-value set; nothing changes until the result is confirmed.
+  await edit(); await tab('code');
+  await page.locator('#module-code-design').fill('def design(ctx):\n    ctx.set("kv_m3_h", round(10.0 * ctx.parameter("gain"), 6))\n    ctx.log("Kv 由校正系数推算")\n');
+  await tab('values');
+  await page.locator('[data-action="bank-select"][data-value="1"]').click();
+  await page.locator('[data-value-id="param:gain"][data-bank="1"]').fill('1.5');
+  const designed=page.waitForResponse(r=>r.url().endsWith('/modules/design'));
+  await page.locator('[data-action="preview-design"]').click();
+  expect((await designed).status()).toBe(200);
+  await expect(page.getByRole('dialog')).toContainText('Kv 由校正系数推算');
+  await expect(page.getByRole('dialog').locator('.diff-table')).toContainText('15');
+  await page.getByRole('dialog').locator('button[type="submit"]').click();
+  const designedModule=(await localState()).modules.find(m=>m.id==='authoring_valve');
+  expect(designedModule.banks[1]['param:kv_m3_h']).toBe(15);
+  expect(designedModule.banks[0]['param:kv_m3_h']).toBe(16);
+  expect(designedModule.values['param:kv_m3_h']).toBe(16);
   await edit(); await tab('contract');
   const v1=await saveVersion();
   expect(v1.module.version).toBe(1);
+  expect(v1.module.source.design).toContain('def design(ctx)');
   expect(v1.test_result.evaluation.variables.gain).toBe(1.2);
   mkdirSync('artifacts',{recursive:true});
   await page.screenshot({path:'artifacts/module-authoring.png',fullPage:true});
@@ -169,7 +186,9 @@ try {
   await page.close(); page=await browser.newPage({viewport:{width:1600,height:1000}});watch(page);
   await page.goto(base+'/#modules');
   await expect(card()).toContainText('Python · v2');
-  await card().locator('[data-action="edit-module"]').click();await tab('contract');
+  await card().locator('[data-action="edit-module"]').click();
+  await tab('code'); await expect(page.locator('#module-code-design')).toHaveValue(/def design\(ctx\)/);
+  await tab('contract');
   await page.locator('[data-action="module-versions"]').click();
   await expect(page.locator('[data-action="load-module-version"]')).toHaveCount(2);
   await page.locator('[data-action="load-module-version"][data-version="1"]').click();

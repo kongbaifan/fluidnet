@@ -1,6 +1,6 @@
 """Module authoring checks. User code is loaded only inside a Worker."""
 from .models import Diagnostic, FluidConfig, ModuleDefinition, ValidationResponse
-from .runtime import WorkerProcess, module_content_hash, module_definition_hash, module_source
+from .runtime import WorkerProcess, design_source, module_content_hash, module_definition_hash, module_source
 
 
 def validate_module_definition(module: ModuleDefinition) -> ValidationResponse:
@@ -10,6 +10,10 @@ def validate_module_definition(module: ModuleDefinition) -> ValidationResponse:
     try:
         source = module_source(module)
         compile(source, "module.py", "exec")
+        try:
+            compile(design_source(module), "design.py", "exec")
+        except SyntaxError as error:
+            diagnostics.append(Diagnostic(code="DESIGN_SYNTAX_ERROR", message=f"design.py 第 {error.lineno} 行：{error.msg}", field=f"source.design:{error.lineno}"))
         if not module.entrypoint:
             diagnostics.append(Diagnostic(code="MODULE_ENTRYPOINT_MISSING", message="Python 模块必须声明 entrypoint", field="entrypoint"))
         if module.content_hash and module.content_hash != module_content_hash(module):
@@ -25,5 +29,6 @@ def validate_module_definition(module: ModuleDefinition) -> ValidationResponse:
     except SyntaxError as error:
         diagnostics.append(Diagnostic(code="MODULE_SYNTAX_ERROR", message=f"module.py 第 {error.lineno} 行：{error.msg}", field=f"source.runtime:{error.lineno}"))
     except ValueError as error:
-        diagnostics.append(Diagnostic(code=getattr(error, "code", "MODULE_LOAD_ERROR"), message=str(error), field="entrypoint"))
+        field = "source.design" if str(error).startswith("design.py") else "entrypoint"
+        diagnostics.append(Diagnostic(code=getattr(error, "code", "MODULE_LOAD_ERROR"), message=str(error), field=field))
     return ValidationResponse(valid=not diagnostics, diagnostics=diagnostics)

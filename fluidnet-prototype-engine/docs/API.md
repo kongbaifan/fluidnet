@@ -6,7 +6,7 @@
 
 | 方法与路径 | 请求 | 返回 |
 | --- | --- | --- |
-| GET /api/v1/health | 无 | 版本（0.4.6）、能力标志（含 `thermal`、`property_coupling`、`tank_state`、`live_runs`、`pid`、`runtime_parameters`、`continuous_step`、`continuous_runs`、`variables_api`、`run_stream`、`refprop.installed`）、`auth.required`、同步运行 2001 帧上限、`history_window_max`、`overview_points`、20 次记录保留数 |
+| GET /api/v1/health | 无 | 版本（0.4.7）、能力标志（含 `thermal`、`property_coupling`、`tank_state`、`live_runs`、`pid`、`runtime_parameters`、`continuous_step`、`continuous_runs`、`variables_api`、`run_stream`、`refprop.installed`）、`auth.required`、同步运行 2001 帧上限、`history_window_max`、`overview_points`、20 次记录保留数 |
 | GET /api/v1/examples/{name} | `level` 或 `temperature` | 内置 PID 示例 Project；未知名称 404 |
 | GET /api/v1/workspace | 可选 revision | 完整原型工作区、revision、saved_at；未保存时 data=null |
 | POST /api/v1/workspace | data、expected_revision | 已落盘修订与时间；陈旧修订 409，存储故障 507 |
@@ -50,6 +50,12 @@ module.py
 ```
 
 `manifest.json` 由 `ModuleDefinition` 校验；`module.py` 的 SHA-256 保存为 `content_hash`。版本保存要求同步实现 `initialize(ctx)`、`evaluate(ctx)`、`commit_step(ctx, dt_s)`、`finalize(ctx)`，无逻辑的阶段可以使用 `pass`。入口加载和生命周期签名检查均在独立 Worker 中进行。兼容的直接运行接口仍容许省略可选阶段。
+
+### 设计函数 design.py
+
+可选的 `design.py`（定义中的 `source.design`，单个文本）实现 `design(ctx)`，由一组库值计算派生参数，不参与运行求解。`ctx.parameter(id)` 读取规范单位的参数值，`ctx.set(id, value)` 写出已声明参数，`ctx.fluid` 为当前工质物性服务，`ctx.log(text)` 最多 20 条。版本保存时校验语法与签名，`design.py` 随版本写入目录，由 `definition_hash` 覆盖；`content_hash` 仍只对应 `module.py`。
+
+`POST /api/v1/modules/design` 接收 `ModuleDesignRequest {module, parameters, fluid}`，在独立 Worker 中执行一次，返回 `ModuleDesignResponse {module_id, design_hash, parameters, changes, diagnostics}`。输入和输出都按参数契约校验类型与范围；越限返回 422 `DESIGN_OUTPUT_INVALID`，未声明参数、非有限值、异常（含 design.py 行号）也返回 422。服务端不保存结果；浏览器在「变量值」页展示差异，确认后才写入所选库值。内置模型没有可执行的设计函数。
 
 ## 模块版本写入契约
 

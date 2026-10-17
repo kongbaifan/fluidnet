@@ -28,6 +28,8 @@ from .models import (
     CatalogResponse,
     Diagnostic,
     ModuleDefinition,
+    ModuleDesignRequest,
+    ModuleDesignResponse,
     ModuleTestRequest,
     ModuleTestResponse,
     ModuleCatalogResponse,
@@ -438,6 +440,17 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
         except Exception as error:
             # Worker/solver boundary faults must not escape as an opaque 500;
             # the caller gets an actionable status plus the original message.
+            status, detail = _unexpected_failure(error)
+            raise HTTPException(status, detail=detail) from error
+
+    @app.post('/api/v1/modules/design', response_model=ModuleDesignResponse)
+    def design_module(request: ModuleDesignRequest):
+        from .design import run_design
+        try:
+            return run_design(request)
+        except ValueError as error:
+            raise HTTPException(422, detail=diagnostic(error).model_dump(mode='json')) from error
+        except Exception as error:
             status, detail = _unexpected_failure(error)
             raise HTTPException(status, detail=detail) from error
 

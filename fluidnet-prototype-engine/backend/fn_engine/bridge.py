@@ -93,7 +93,9 @@ def normalize_prototype_export(data: dict[str, Any]) -> Project:
             allowed = set(ModuleDefinition.model_fields)
             manifest = deepcopy(original.get('manifest', original))
             if original.get('manifest') and not original.get('frozen'):
-                manifest.update(id=module_id, name=original['name'], version=original['version'], source={'runtime':original['source']['runtime']})
+                # design.py does not take part in a run; the draft keeps the manifest's copy.
+                manifest.update(id=module_id, name=original['name'], version=original['version'],
+                                source={**manifest.get('source', {}), 'runtime':original['source']['runtime']})
                 manifest['content_hash'] = original.get('contentHash') if manifest['source'] == original['manifest']['source'] else None
                 manifest['ports'] = [{**next((p for p in manifest['ports'] if p['id'] == item['id']), {}),
                                       **{k:item[k] for k in ('id','label','direction','domain')}} for item in original['ports']]

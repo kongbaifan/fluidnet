@@ -7,7 +7,7 @@ import os
 import inspect
 
 from .models import CommitStepRequest, EvaluateRequest, InitializeRequest, ModuleDefinition
-from .runtime import InProcessModuleRunner, _load_module
+from .runtime import InProcessModuleRunner, _load_module, design_source
 from . import properties
 
 # The API process loaded every REFPROP fluid of this project in a probe process before starting us.
@@ -29,6 +29,9 @@ def main():
             if control is None:
                 raise ValueError('控制 Worker 尚未初始化')
             return control.call('step' if action == 'control_step' else 'finalize', message)
+        if action == 'design':
+            from .design import run_in_worker
+            return run_in_worker(message['definition'], message['parameters'], message['fluid'])
         key=message.get('instance_id','default')
         runner=runners.get(key)
         if action=='batch':
@@ -41,6 +44,9 @@ def main():
                 if not callable(callback) or inspect.iscoroutinefunction(callback):
                     raise ValueError(f'入口必须实现同步生命周期方法 {name}')
                 inspect.signature(callback).bind(*([None]*count))
+            if design_source(definition).strip():
+                from .design import load_design
+                load_design(design_source(definition))
             return {'ok':True}
         if action=='initialize':
             definition=ModuleDefinition.model_validate(message['definition'])

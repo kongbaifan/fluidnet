@@ -10,7 +10,7 @@ from threading import Lock
 
 from .models import (ModuleDefinition, ModulePackageRef, ModuleSaveRequest,
                      ModuleTestRequest, ModuleVersionInfo, ModuleVersionResponse)
-from .runtime import module_content_hash, module_definition_hash, module_source
+from .runtime import design_source, module_content_hash, module_definition_hash, module_source
 
 
 def load_module_package(path: str | Path) -> ModuleDefinition:
@@ -26,7 +26,11 @@ def load_module_package(path: str | Path) -> ModuleDefinition:
     declared = manifest.get("content_hash")
     if declared and declared != digest:
         raise ValueError(f"模块包内容哈希不一致：{root}")
-    payload = {**manifest, "source": {"runtime": source}, "runtime": "python",
+    # design.py is optional and covered by definition_hash, not content_hash (runtime code only).
+    sources = {"runtime": source}
+    if (root / "design.py").exists():
+        sources["design"] = (root / "design.py").read_text(encoding="utf-8")
+    payload = {**manifest, "source": sources, "runtime": "python",
                "content_hash": digest, "package_path": str(root)}
     definition = ModuleDefinition.model_validate(payload)
     digest = module_definition_hash(definition)
@@ -120,7 +124,9 @@ class ModuleStore:
             validation = validate_module_definition(module)
             if not validation.valid:
                 raise ModuleSaveInvalid(validation.diagnostics)
-            module.source = {"runtime": module_source(module).replace("\r\n", "\n").replace("\r", "\n")}
+            normalize = lambda text: text.replace("\r\n", "\n").replace("\r", "\n")
+            runtime, design = normalize(module_source(module)), normalize(design_source(module))
+            module.source = {"runtime": runtime, **({"design": design} if design.strip() else {})}
             module.content_hash = module_content_hash(module)
             module.definition_hash = module_definition_hash(module)
             try:
@@ -141,6 +147,8 @@ class ModuleStore:
                 manifest = module.model_dump(mode="json", exclude={"source", "package_path"})
                 (temporary / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
                 (temporary / "module.py").write_text(module.source["runtime"], encoding="utf-8", newline="")
+                if "design" in module.source:
+                    (temporary / "design.py").write_text(module.source["design"], encoding="utf-8", newline="")
                 (temporary / "release.json").write_text(json.dumps(receipt, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
                 try:
                     os.rename(temporary, target)

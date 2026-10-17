@@ -653,6 +653,27 @@ class ModuleTestResponse(StrictModel):
     history: list[RunFrame] = Field(default_factory=list)
 
 
+class ModuleDesignRequest(StrictModel):
+    """Run design.py once on one library-value set; nothing is stored."""
+    module: ModuleDefinition
+    parameters: dict[str, Any] = Field(default_factory=dict)
+    fluid: FluidConfig = Field(default_factory=FluidConfig)
+
+
+class ParameterChange(StrictModel):
+    id: str
+    before: Any = None
+    after: Any = None
+
+
+class ModuleDesignResponse(StrictModel):
+    module_id: str
+    design_hash: str
+    parameters: dict[str, Any] = Field(default_factory=dict)
+    changes: list[ParameterChange] = Field(default_factory=list)
+    diagnostics: list[Diagnostic] = Field(default_factory=list)
+
+
 class ModuleSaveRequest(StrictModel):
     module: ModuleDefinition
     expected_latest_version: int = Field(ge=0)

@@ -810,6 +810,44 @@
         }
       }
     },
+    "/api/v1/modules/design": {
+      "post": {
+        "summary": "Design Module",
+        "operationId": "design_module_api_v1_modules_design_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModuleDesignRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModuleDesignResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/prototype/normalize": {
       "post": {
         "summary": "Normalize",
@@ -2194,6 +2232,66 @@
         ],
         "title": "ModuleDefinition"
       },
+      "ModuleDesignRequest": {
+        "properties": {
+          "module": {
+            "$ref": "#/components/schemas/ModuleDefinition"
+          },
+          "parameters": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Parameters"
+          },
+          "fluid": {
+            "$ref": "#/components/schemas/FluidConfig"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "module"
+        ],
+        "title": "ModuleDesignRequest",
+        "description": "Run design.py once on one library-value set; nothing is stored."
+      },
+      "ModuleDesignResponse": {
+        "properties": {
+          "module_id": {
+            "type": "string",
+            "title": "Module Id"
+          },
+          "design_hash": {
+            "type": "string",
+            "title": "Design Hash"
+          },
+          "parameters": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Parameters"
+          },
+          "changes": {
+            "items": {
+              "$ref": "#/components/schemas/ParameterChange"
+            },
+            "type": "array",
+            "title": "Changes"
+          },
+          "diagnostics": {
+            "items": {
+              "$ref": "#/components/schemas/Diagnostic"
+            },
+            "type": "array",
+            "title": "Diagnostics"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "module_id",
+          "design_hash"
+        ],
+        "title": "ModuleDesignResponse"
+      },
       "ModuleInstance": {
         "properties": {
           "id": {
@@ -2723,6 +2821,26 @@
           "setpoint"
         ],
         "title": "PIDController"
+      },
+      "ParameterChange": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "before": {
+            "title": "Before"
+          },
+          "after": {
+            "title": "After"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "ParameterChange"
       },
       "ParameterSpec": {
         "properties": {

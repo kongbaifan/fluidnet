@@ -34,7 +34,7 @@
 | `EvaluateRequest/Response` | trial_ports, readonly_state / relations, variables | 无副作用的数值试算协议 |
 | `CommitStepRequest/Response` | converged_ports, converged_channels, dt_s / state | 收敛时间步的状态提交协议 |
 
-`source` 支持 runtime/header 文本和 design 文本数组，作为定义资料保存。`state_model`、`thermal_model` 是扩展标识，不代表对应功能已经实现。内置未知水力模型和水箱状态模型明确拒绝；Python 模块可声明 generic，必须在 evaluate 为每条启用通路返回有效 SDK 关系。内置换热器的 `epsilon_ntu` 已由热力层计算；只有 `thermal=False` 时才产生 `THERMAL_NOT_SOLVED` 警告。
+`source` 支持 runtime/header 文本和 design 文本。Python 模块的 `source.design` 必须是单个 `design.py` 文本，可经 `POST /modules/design` 执行；内置模型原型中的三份 design 文本数组只作定义资料保存，不执行。`state_model`、`thermal_model` 是扩展标识，不代表对应功能已经实现。内置未知水力模型和水箱状态模型明确拒绝；Python 模块可声明 generic，必须在 evaluate 为每条启用通路返回有效 SDK 关系。内置换热器的 `epsilon_ntu` 已由热力层计算；只有 `thermal=False` 时才产生 `THERMAL_NOT_SOLVED` 警告。
 
 `NetworkRelation.parameters` 可带 `heat_w`（W，流体吸热为正，有限数），由 `ctx.net.pipe/valve/pump(..., heat_w=...)` 提交，热力层按 `h_out += heat_w / |m|` 处理。`pump`、`compressor` 关系的水力功率 `Δp·|m|/ρ` 另作为轴功计入流体焓升；关系不带效率，泵损失需由模块用 `heat_w` 声明。
 

@@ -126,6 +126,14 @@ def module_source(definition: ModuleDefinition) -> str:
     return source
 
 
+def design_source(definition: ModuleDefinition) -> str:
+    """design.py of a Python module; empty when the module has no design function."""
+    source = definition.source.get("design", "") if definition.source else ""
+    if not isinstance(source, str):
+        raise RuntimeErrorBase(f"design.py 必须是单个 Python 文本（模块 {definition.id}）")
+    return source
+
+
 def module_content_hash(definition: ModuleDefinition) -> str:
     return hashlib.sha256(module_source(definition).encode("utf-8")).hexdigest()
 

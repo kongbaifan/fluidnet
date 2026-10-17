@@ -153,7 +153,7 @@ window.createEngineClient = function (ui) {
       runtime:manifest.runtime || 'python',entrypoint:manifest.entrypoint || '',contentHash:manifest.content_hash || '',packagePath:manifest.package_path || '',manifest,
       ports,channels:(manifest.channels || []).map(c => ({id:c.id,name:c.name,input:c.input_port,output:c.output_port,kind:c.relation,enabled:c.enabled !== false})),
       parameters:manifest.parameters || [],parameterDefs,variables,customVars:[],quickParam:parameterDefs[0]?.[0] || '',quickType:'number',drawing:{shape:'rectangle',width:32,height:30,label:manifest.name},step:100,precision:4,dirty:false,
-      source:{runtime:manifest.source?.runtime || '',header:'',design:['','','']},sourceFormat:'python-v1',values,banks:[clone(values),clone(values),clone(values)],bankNames:manifest.bank_names || ['额定工况','部分负荷','调试备份']};
+      source:{runtime:manifest.source?.runtime || '',header:'',design:['','','']},designSource:typeof manifest.source?.design === 'string' ? manifest.source.design : '',sourceFormat:'python-v1',values,banks:[clone(values),clone(values),clone(values)],bankNames:manifest.bank_names || ['额定工况','部分负荷','调试备份']};
     return m;
   }
   function manifestPayload(m) {
@@ -171,7 +171,7 @@ window.createEngineClient = function (ui) {
         parameters:m.parameters, description:m.description, bank_names:m.bankNames,
         ports:m.ports.map(p => { const original=m.manifest.ports.find(item => item.id===p.id); return {id:p.id,label:p.label,domain:p.domain,direction:original?.direction === 'bidirectional' ? original.direction : p.direction,required:original?.required ?? true,circuit:original?.circuit || 'fluid'}; }),
         channels:m.channels.map(c => ({id:c.id,name:c.name,input_port:c.input,output_port:c.output,relation:c.kind,solver_model:m.manifest.channels.find(item=>item.id===c.id)?.solver_model || m.manifest.solver_model,enabled:c.enabled})),
-        entrypoint:m.entrypoint, ...contract, source:{runtime:m.source.runtime}, runtime:'python',
+        entrypoint:m.entrypoint, ...contract, source:{runtime:m.source.runtime, ...(m.designSource?.trim() ? {design:m.designSource} : {})}, runtime:'python',
         content_hash:null, definition_hash:null, package_path:null};
     }
     return m;
@@ -219,10 +219,28 @@ window.createEngineClient = function (ui) {
       ui.moduleOutput(m,'正在校验契约、Python 语法和生命周期入口…');
       const result=await request('/modules/validate',definition);
       if (before!==JSON.stringify(manifestPayload(m))) { ui.moduleOutput(m,'校验期间草稿已变化，请重新校验当前内容。'); return false; }
-      ui.moduleOutput(m,result.valid ? '✓ Pydantic 契约与默认值通过\n✓ Python 语法通过\n✓ Worker 入口与四阶段方法通过\n下一步：独立验证算法或保存新版本。' : result.diagnostics.map(d=>`${d.field || d.code}：${d.message}`).join('\n'));
+      ui.moduleOutput(m,result.valid ? '✓ Pydantic 契约与默认值通过\n✓ Python 语法通过\n✓ Worker 入口与四阶段方法通过\n'+(definition.source.design ? '✓ design.py 的 design(ctx) 通过\n' : '')+'下一步：独立验证算法或保存新版本。' :result.diagnostics.map(d=>`${d.field || d.code}：${d.message}`).join('\n'));
       if (apply && result.valid) { applyManifest(m,definition); ui.dirty(m); ui.render(); }
       return result.valid;
     } catch(error) { ui.moduleOutput(m,'校验失败：'+error.message); return false; }
+  }
+  // design.py on one library-value set. Returns display-unit proposals; the caller confirms.
+  async function runDesign(m, bank) {
+    const values=m.banks[bank], before=JSON.stringify(values), definition=manifestPayload(m);
+    const parameters={};
+    for (const spec of definition.parameters || []) {
+      const value=values['param:'+spec.id];
+      if (spec.value_type==='number' && value!==undefined) parameters[spec.id]=testParameters(definition,{[spec.id]:value})[spec.id];
+    }
+    const result=await request('/modules/design',{module:definition,parameters});
+    if (JSON.stringify(m.banks[bank])!==before) throw Error('计算期间库值已变化，请重新执行设计函数。');
+    const changes=result.changes.map(change => {
+      const spec=definition.parameters.find(p=>p.id===change.id), unit=spec?.unit;
+      const display=value => unit && typeof value==='number' ? value/Number(unit.display_scale || 1)+Number(unit.display_offset || 0) : value;
+      const variable=m.variables.find(v=>v.id==='param:'+change.id);
+      return {...change, label:spec?.label || change.id, before:display(change.before), after:display(change.after), variableId:variable && spec.value_type==='number' ? variable.id : null};
+    });
+    return {changes, diagnostics:result.diagnostics, designHash:result.design_hash};
   }
   async function versions(m) {
     try { const result=await request(`/modules/${encodeURIComponent(m.id)}/versions`); m.versions=result.versions; m.latestVersion=result.versions.length ? Number(result.versions[0].package.version.split('.')[0]) : 0; ui.render(); }
@@ -604,7 +622,7 @@ window.createEngineClient = function (ui) {
           ui.state().modules.push(m); ui.parameterDefinitions[m.kind]=m.parameterDefs;
         } else if (existing.manifest) {
           // Preserve local drafts. Catalog refresh only advances the available release.
-          if (!existing.dirty && existing.contractDraft===undefined && existing.source.runtime===existing.manifest.source.runtime) {
+          if (!existing.dirty && existing.contractDraft===undefined && existing.source.runtime===existing.manifest.source.runtime && (existing.designSource || '')===(existing.manifest.source.design || '')) {
             applyManifest(existing,manifest); existing.dirty=false;
           }
           existing.publishedManifest=clone(manifest); existing.latestVersion=manifest.version; existing.saving=false;
@@ -737,5 +755,5 @@ window.createEngineClient = function (ui) {
     owner.run.parameterKey=ui.parameterKey(owner);ui.persist();ui.render();
   }
   const services=window.createProjectServices({request,ui,normalize,health:()=>health,authHeaders,pinProject,moduleFromManifest});
-  return {...services,command,tick,validate,init,applyParameters,loadOverview,authHeaders,signOut:()=>{sessionStorage.removeItem(TOKEN_KEY);location.reload();},overview:id=>overviews.get(id),circuits:id=>circuitsByProject.get(id)||[],confirmedCommand,portValue,observation,manifestPayload,contractText,checkModule,saveModule,versions,loadVersion,newModule,updateContractItem,bindModule,pinProject,moduleForInsert,get catalog(){return catalog;},get health(){return health;}};
+  return {...services,command,tick,validate,init,applyParameters,loadOverview,authHeaders,signOut:()=>{sessionStorage.removeItem(TOKEN_KEY);location.reload();},overview:id=>overviews.get(id),circuits:id=>circuitsByProject.get(id)||[],confirmedCommand,portValue,observation,manifestPayload,contractText,checkModule,saveModule,runDesign,versions,loadVersion,newModule,updateContractItem,bindModule,pinProject,moduleForInsert,get catalog(){return catalog;},get health(){return health;}};
 };
