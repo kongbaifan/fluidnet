@@ -14,6 +14,9 @@ from .packages import load_module_package
 from .storage import StorageError
 
 MAX_BACKUP_BYTES = 2 * 1024**3
+# Only these fixed file names may appear in one module-version directory. design.py is
+# part of definition_hash (see packages.py), so dropping it would break restore validation.
+MODULE_VERSION_FILES = ('manifest.json', 'module.py', 'release.json', 'design.py')
 
 
 def digest(path):
@@ -48,7 +51,7 @@ def backup_workspace(storage, modules, output):
                         raise StorageError('同一模块版本存在不同内容，无法生成一致备份')
                     continue
                 target.mkdir(parents=True)
-                for name in ('manifest.json', 'module.py', 'release.json'):
+                for name in MODULE_VERSION_FILES:
                     if (source / name).exists():
                         shutil.copyfile(source / name, target / name)
             revision = storage.workspace()['revision']
@@ -107,7 +110,7 @@ def restore_workspace(source, destination):
                     allowed = name == 'workspace.sqlite3' or (
                         len(path.parts) == 4 and path.parts[0] == 'module-packages'
                         and path.parts[1].startswith('module-') and path.parts[2].startswith('v')
-                        and path.parts[3] in {'manifest.json', 'module.py', 'release.json'})
+                        and path.parts[3] in MODULE_VERSION_FILES)
                     if not allowed or path.is_absolute() or any(p in {'..', '.'} or ':' in p or '\\' in p for p in path.parts):
                         raise ValueError('备份包含不允许的文件路径')
                     target = root.joinpath(*path.parts)

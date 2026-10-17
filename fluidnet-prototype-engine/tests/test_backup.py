@@ -1,3 +1,4 @@
+import hashlib
 import io
 import json
 from pathlib import Path
@@ -8,11 +9,18 @@ from fastapi.testclient import TestClient
 
 from fn_engine.api import create_app
 from fn_engine.backup import backup_workspace, restore_workspace
-from fn_engine.packages import ModuleStore
+from fn_engine.packages import ModuleStore, load_module_package
+from fn_engine.runtime import module_content_hash, module_definition_hash, module_source
 from fn_engine.storage import WorkspaceStore
 from test_controls_storage import body, workspace
 from test_module_versions import save_payload
-from test_platform_contracts import custom_project
+from test_platform_contracts import custom_module, custom_project
+
+SEED_MODULES = Path(__file__).parents[1] / 'modules'
+DESIGN_SOURCE = '''def design(ctx):
+    rho = ctx.fluid.state_pt(101325.0, 293.15).density_kg_m3
+    ctx.set("kv_m3_h", round(10.0 * (rho / 1000.0) ** 0.5 / ctx.parameter("opening_ratio"), 6))
+'''
 
 
 def test_online_snapshot_restores_drafts_runs_and_module_hashes(tmp_path):
@@ -147,3 +155,86 @@ def test_cli_backup_restore_with_unicode_paths_and_live_directory_lock(tmp_path)
         assert restored.workspace()['data']==workspace()
     finally:
         restored.close()
+
+
+def write_module_version(root, module_id, design=None, version=1):
+    """按 ModuleStore.save 的落盘布局构造模块版本目录（含正确 definition_hash）。"""
+    module=custom_module().model_copy(deep=True,update={
+        'id':module_id,'name':module_id,'version':version,
+        'content_hash':None,'definition_hash':None,'package_path':None})
+    module.source={'runtime':module_source(module),**({'design':design} if design is not None else {})}
+    module.content_hash=module_content_hash(module)
+    module.definition_hash=module_definition_hash(module)
+    directory=root/f'module-{module.id}'/f'v{version}'
+    directory.mkdir(parents=True)
+    (directory/'manifest.json').write_text(json.dumps(
+        module.model_dump(mode='json',exclude={'source','package_path'}),ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+    (directory/'module.py').write_text(module.source['runtime'],encoding='utf-8',newline='')
+    if design is not None:
+        (directory/'design.py').write_text(design,encoding='utf-8',newline='')
+    (directory/'release.json').write_text(json.dumps(
+        {'created_at':'2026-01-01T00:00:00+00:00','release_notes':'备份回归','tested':True},
+        ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+    return directory,load_module_package(directory)
+
+
+def make_backup(tmp_path):
+    """在独立数据目录中生成一次备份，返回 (备份路径, 清单)。"""
+    storage=WorkspaceStore(tmp_path/'data')
+    store=ModuleStore(SEED_MODULES,tmp_path/'modules')
+    try:
+        storage.save_workspace(workspace(),0)
+        path=tmp_path/'backup.zip'
+        return path,backup_workspace(storage,store,path)
+    finally:
+        storage.close()
+
+
+def test_backup_copies_design_py_and_restore_keeps_definition_hash(tmp_path):
+    package,original=write_module_version(tmp_path/'modules','design_valve',DESIGN_SOURCE)
+    backup,manifest=make_backup(tmp_path)
+    name='module-packages/module-design_valve/v1/design.py'
+    assert name in manifest['files']
+    assert manifest['files'][name]=={'sha256':hashlib.sha256(DESIGN_SOURCE.encode('utf-8')).hexdigest(),
+                                     'size':(package/'design.py').stat().st_size}
+    restored=restore_workspace(backup,tmp_path/'restored')
+    assert restored['files']==manifest['files']
+    restored_package=tmp_path/'restored'/'module-packages/module-design_valve/v1'
+    assert (restored_package/'design.py').read_text(encoding='utf-8')==DESIGN_SOURCE
+    reloaded=load_module_package(restored_package)
+    assert reloaded.source['design']==DESIGN_SOURCE
+    assert reloaded.content_hash==original.content_hash
+    assert reloaded.definition_hash==original.definition_hash==module_definition_hash(reloaded)
+
+
+def test_backup_restores_legacy_module_version_without_design_py(tmp_path):
+    package,original=write_module_version(tmp_path/'modules','legacy_valve')
+    assert not (package/'design.py').exists()
+    backup,manifest=make_backup(tmp_path)
+    assert 'module-packages/module-legacy_valve/v1/module.py' in manifest['files']
+    assert 'module-packages/module-legacy_valve/v1/design.py' not in manifest['files']
+    restore_workspace(backup,tmp_path/'restored')
+    restored_package=tmp_path/'restored'/'module-packages/module-legacy_valve/v1'
+    assert sorted(p.name for p in restored_package.iterdir())==['manifest.json','module.py','release.json']
+    reloaded=load_module_package(restored_package)
+    assert 'design' not in reloaded.source
+    assert reloaded.definition_hash==original.definition_hash
+
+
+def test_restore_still_rejects_files_outside_the_fixed_allowlist(tmp_path):
+    write_module_version(tmp_path/'modules','legacy_valve')
+    backup,manifest=make_backup(tmp_path)
+    extra='module-packages/module-legacy_valve/v1/evil.py'
+    payload=b'print(1)\n'
+    with zipfile.ZipFile(backup) as original:
+        members={name:original.read(name) for name in original.namelist()}
+    manifest['files'][extra]={'sha256':hashlib.sha256(payload).hexdigest(),'size':len(payload)}
+    members['backup.json']=json.dumps(manifest).encode()
+    members[extra]=payload
+    tampered=tmp_path/'tampered.zip'
+    with zipfile.ZipFile(tampered,'w') as archive:
+        for name,content in members.items():
+            archive.writestr(name,content)
+    with pytest.raises(ValueError,match='不允许的文件路径'):
+        restore_workspace(tampered,tmp_path/'tampered-target')
+    assert not (tmp_path/'tampered-target').exists()
