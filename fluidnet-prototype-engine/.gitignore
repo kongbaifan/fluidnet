@@ -9,3 +9,8 @@ dist/
 build/
 # 本地/发行用 REFPROP 捆绑目录，NIST 许可文件不入库
 vendor/
+# 测试与质量工具产物
+.coverage
+coverage.xml
+.ruff_cache/
+.mypy_cache/

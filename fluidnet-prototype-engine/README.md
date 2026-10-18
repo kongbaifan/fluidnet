@@ -151,16 +151,19 @@ docs/                架构、字段、算法和接口说明
 - [数据合同与变量定义](docs/DATA_CONTRACT.md)
 - [算法、假设与后续状态方程](docs/ALGORITHM.md)
 - [API 请求与返回](docs/API.md)
+- [试用版验收记录](docs/TRIAL_ACCEPTANCE.md)
 - [原型适配说明](frontend/BACKEND_INTEGRATION.md)
 
 ## 验证
 
 ```powershell
-python -m pytest -q
-python scripts/generate_contracts.py
+python -m pytest -q --cov=fn_engine     # 374 项；覆盖率基线 88.5%，门禁 85%
+python -m ruff check backend tests scripts
+python -m mypy                          # advisory：当前 40 个已知错误，不阻塞 CI
+python scripts/generate_contracts.py --check
 ```
 
-浏览器验证使用 Node 和 Playwright；各脚本使用临时端口与隔离的模块/工作区目录，无需预先启动服务：
+浏览器验证使用 Node 和 Playwright；`npm run test:browser` 依次运行 11 个脚本（含旧存档迁移），各脚本使用临时端口与隔离的模块/工作区目录，无需预先启动服务：
 
 ```powershell
 npm install

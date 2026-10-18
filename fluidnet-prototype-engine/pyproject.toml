@@ -4,16 +4,18 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fluidnet-prototype-engine"
-version = "0.4.9"
+version = "0.4.10"
 description = "Prototype-aligned declarative fluid network engine"
 requires-python = ">=3.11"
+# 运行依赖全部锁定到本机实测版本，避免本机/CI 解析出不同小版本导致行为漂移。
+# 实测环境：Windows + CPython 3.11.0。
 dependencies = [
-  "fastapi>=0.115,<1",
-  "uvicorn>=0.30,<1",
-  "pydantic>=2.9,<3",
+  "fastapi==0.137.1",
+  "uvicorn==0.49.0",
+  "pydantic==2.13.4",
   "CoolProp==8.0.0",
-  "numpy>=1.26,<3",
-  "scipy>=1.12,<2"
+  "numpy==2.3.2",
+  "scipy==1.17.1"
 ]
 
 [tool.setuptools]
@@ -26,3 +28,16 @@ where = ["backend"]
 pythonpath = ["backend"]
 testpaths = ["tests"]
 addopts = "-ra"
+
+[tool.coverage.run]
+source = ["fn_engine"]
+branch = false
+
+[tool.coverage.report]
+# 覆盖率基线（2026-10-18，`python -m pytest --cov=fn_engine`，374 passed）：
+#   - 引入门禁时（并行改动前）：TOTAL 88%（5336 statements / 637 missed）
+#   - 并行任务合入后最终验证：TOTAL 88.50%（5759 statements / 662 missed）
+# floor 取 85%，略低于基线约 3.5 个百分点，防止后续改动回退；未覆盖行由 term-missing 持续跟踪。
+show_missing = true
+skip_covered = false
+fail_under = 85
