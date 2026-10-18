@@ -40,8 +40,11 @@ try {
   await page.goto(base+'/#controls');
   await expect(page.locator('[data-action="pid-example"][data-kind="temperature"]')).toBeVisible();
   await page.locator('[data-action="pid-example"][data-kind="temperature"]').click();
-  const response=page.waitForResponse(r=>new URL(r.url()).pathname.endsWith('/runs') && r.request().method()==='POST');
-  await page.locator('[data-action="run-project"][data-command="step"]').first().click();
+  // 示例载入是异步的：慢速 CI 上立刻点单步可能落在按钮禁用期，请求不会发出。
+  const stepButton=page.locator('[data-action="run-project"][data-command="step"]').first();
+  await expect(stepButton).toBeEnabled({timeout:30000});
+  const response=page.waitForResponse(r=>new URL(r.url()).pathname.endsWith('/runs') && r.request().method()==='POST',{timeout:60000});
+  await stepButton.click();
   const runId=(await (await response).json()).run_id;
   await expect.poll(async()=>{const r=await (await page.request.get(base+'/api/v1/runs/'+runId)).json();if(r.status==='failed')throw Error(JSON.stringify(r.frame));return r.status==='paused' && r.frame.time_s===1;},{timeout:15000}).toBe(true);
   await page.locator('.rail-link[data-route="controls"]').click();
@@ -49,7 +52,7 @@ try {
   await expect(card).toBeVisible();
   await card.locator('[data-pid-field="setpoint"]').fill('304.15');
   await card.locator('[data-pid-field="setpoint"]').blur();
-  await expect.poll(async()=>{const r=await (await page.request.get(base+'/api/v1/runs/'+runId+'/events')).json();return r.events.some(e=>e.command_status==='applied' && e.command_id);}).toBe(true);
+  await expect.poll(async()=>{const r=await (await page.request.get(base+'/api/v1/runs/'+runId+'/events')).json();return r.events.some(e=>e.command_status==='applied' && e.command_id);},{timeout:15000}).toBe(true);
   await card.locator('[data-pid-field="mode"]').selectOption('manual');
   await card.locator('[data-pid-field="manual_output"]').fill('1500');
   await card.locator('[data-pid-field="manual_output"]').blur();
@@ -58,8 +61,9 @@ try {
   await expect(page.locator('[data-pid-card="temperature"]')).toBeVisible();
   await page.screenshot({path:'artifacts/pid-controls.png',fullPage:true});
   await page.locator('.rail-link[data-route="workbench"]').click();
-  await page.locator('[data-action="run-project"][data-command="step"]').first().click();
-  await expect.poll(async()=>{const r=await (await page.request.get(base+'/api/v1/runs/'+runId)).json();return r.frame.time_s;}).toBe(2);
+  await expect(stepButton).toBeEnabled({timeout:30000});
+  await stepButton.click();
+  await expect.poll(async()=>{const r=await (await page.request.get(base+'/api/v1/runs/'+runId)).json();return r.frame.time_s;},{timeout:15000}).toBe(2);
   const record=await (await page.request.get(base+'/api/v1/runs/'+runId)).json();
   expect(record.frame.variables['controller.temperature.setpoint']).toBe(304.15);
   expect(record.frame.variables['controller.temperature.output']).toBe(1500);

@@ -66,8 +66,11 @@ models = [
     ('project-upgrade-response', ProjectUpgradeResponse),
 ]
 
-# 涉及数值求解的参考结果允许极小的浮点相对误差，避免不同机器/线程求和顺序导致门禁抖动。
+# 涉及数值求解的参考结果允许极小的浮点误差，避免不同机器/线程求和顺序导致门禁抖动。
+# 近零残差（如 energy_residual_w 约 1e-10）在不同平台/CPU 上可能相差数倍，
+# 相对误差失去意义，因此额外给 reference-result.json 设 1e-9 的绝对容差。
 rel_tolerances={'reference-result.json':1e-9}
+abs_tolerances={'reference-result.json':1e-9}
 
 
 def contract_files():
@@ -91,32 +94,32 @@ def write(files):
         (output/name).write_text(json.dumps(data,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
 
 
-def diff_contract(expected,actual,path='$',issues=None,limit=20,rel_tolerance=0.):
-    """语义比较两个 JSON 值并返回差异说明列表；键集双向比较，数字容忍 int/float 与给定相对误差。"""
+def diff_contract(expected,actual,path='$',issues=None,limit=20,rel_tolerance=0.,abs_tolerance=0.):
+    """语义比较两个 JSON 值并返回差异说明列表；键集双向比较，数字容忍 int/float 与给定相对/绝对误差。"""
     issues=[] if issues is None else issues
     if len(issues)>=limit:return issues
     if isinstance(expected,dict) and isinstance(actual,dict):
         for key in sorted(expected.keys()|actual.keys(),key=str):
             if key not in actual:issues.append(f'{path}.{key}: 仅源码生成结果中存在')
             elif key not in expected:issues.append(f'{path}.{key}: 仅契约文件中存在')
-            else:diff_contract(expected[key],actual[key],f'{path}.{key}',issues,limit,rel_tolerance)
+            else:diff_contract(expected[key],actual[key],f'{path}.{key}',issues,limit,rel_tolerance,abs_tolerance)
     elif isinstance(expected,list) and isinstance(actual,list):
         if len(expected)!=len(actual):issues.append(f'{path}: 长度 {len(expected)} != {len(actual)}')
         else:
             for index,(left,right) in enumerate(zip(expected,actual)):
-                diff_contract(left,right,f'{path}[{index}]',issues,limit,rel_tolerance)
+                diff_contract(left,right,f'{path}[{index}]',issues,limit,rel_tolerance,abs_tolerance)
     elif isinstance(expected,bool) or isinstance(actual,bool):
         if expected is not actual:issues.append(f'{path}: {expected!r} != {actual!r}')
     elif isinstance(expected,(int,float)) and isinstance(actual,(int,float)):
-        if not _numbers_equal(expected,actual,rel_tolerance):issues.append(f'{path}: {expected!r} != {actual!r}')
+        if not _numbers_equal(expected,actual,rel_tolerance,abs_tolerance):issues.append(f'{path}: {expected!r} != {actual!r}')
     elif type(expected) is not type(actual) or expected!=actual:
         issues.append(f'{path}: {expected!r} != {actual!r}')
     return issues
 
 
-def _numbers_equal(left,right,rel_tolerance=0.):
+def _numbers_equal(left,right,rel_tolerance=0.,abs_tolerance=0.):
     if left==right:return True
-    return abs(left-right)<=rel_tolerance*max(abs(left),abs(right))
+    return abs(left-right)<=max(abs_tolerance,rel_tolerance*max(abs(left),abs(right)))
 
 
 def check(files=None):
@@ -132,7 +135,8 @@ def check(files=None):
         except (OSError,json.JSONDecodeError) as error:
             problems[name]=[f'无法解析 JSON：{error}']
             continue
-        issues=diff_contract(expected,saved,rel_tolerance=rel_tolerances.get(name,0.))
+        issues=diff_contract(expected,saved,rel_tolerance=rel_tolerances.get(name,0.),
+                             abs_tolerance=abs_tolerances.get(name,0.))
         if issues:problems[name]=issues
     if output.is_dir():
         for path in sorted(output.glob('*.json')):

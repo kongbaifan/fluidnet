@@ -202,7 +202,7 @@ def contract_generator():
 
 
 def assert_semantic_match(expected,actual,path='$'):
-    """双向语义比较：键集双向一致、长度一致、值是同一 JSON 语义（浮点按 1e-9 相对误差）。"""
+    """双向语义比较：键集双向一致、长度一致、值是同一 JSON 语义（浮点按 1e-9 相对误差，近零值按 1e-9 绝对误差）。"""
     if isinstance(expected,dict) and isinstance(actual,dict):
         assert set(expected)==set(actual),f'{path} 键集不一致：缺 {sorted(set(expected)-set(actual))}，多 {sorted(set(actual)-set(expected))}'
         for key in expected:assert_semantic_match(expected[key],actual[key],f'{path}.{key}')
@@ -212,7 +212,7 @@ def assert_semantic_match(expected,actual,path='$'):
     elif isinstance(expected,bool) or isinstance(actual,bool):
         assert expected is actual,f'{path}: {expected!r} != {actual!r}'
     elif isinstance(expected,(int,float)) and isinstance(actual,(int,float)):
-        assert expected==pytest.approx(actual,rel=1e-9,abs=1e-12),f'{path}: {expected!r} != {actual!r}'
+        assert expected==pytest.approx(actual,rel=1e-9,abs=1e-9),f'{path}: {expected!r} != {actual!r}'
     else:assert type(expected) is type(actual) and expected==actual,f'{path}: {expected!r} != {actual!r}'
 
 
