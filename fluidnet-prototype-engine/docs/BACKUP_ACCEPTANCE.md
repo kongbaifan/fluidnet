@@ -83,3 +83,51 @@ python scripts/soak_workspace.py --status --output $soak.directory
 - 约 9 小时采样空洞期间几乎没有帧推进，采样与仿真同时停滞，疑与本机休眠/待机有关，待复核；不能把空洞期间的墙钟时间算作有效持续运行。
 - 前一轮 `artifacts/soak-24h-20261015-141022` 在 63 分 20.75 秒后中断（3905 帧、189 次命令，进程已不存在），同样不计通过。
 - 重新验收需排除休眠影响、确认采样连续，并验证停止后 Worker 数为 0 与归档可重读；重跑前不要沿用本轮结论。
+
+## 批量写入与锁范围（2026-10-18，v0.4.10）
+
+调研报告 P1 指出的问题：`jobs.py` 的全局 `wake` 锁覆盖了每帧 SQLite 事务与 Worker RPC，磁盘慢或 Worker 卡死时所有 API 调用一起停顿（实测慢盘 50 ms/次时快照 p95 约 58.6 ms、卡死 finalize 500 ms 时快照最长 515.8 ms）。本轮只改 `backend/fn_engine/jobs.py`（`storage.py`/`runtime.py` 未改：`save_run` 本就支持一次事务写多行，Worker close 只需移出锁），交付「锁外异步落盘 + 有界批量 + Worker RPC 锁外」，更大重构（跨运行合并事务、overview 增量落盘）列为后续项。
+
+### 实现要点
+
+- 专用 `_ArchiveWriter` 线程独占 SQLite 写入；全局 `wake` 锁内只更新内存状态与 O(1) 入队，不再有磁盘事务或 Worker RPC。
+- 每帧行按运行合并进一个有界批次：`ARCHIVE_COALESCE_S=0.01`（10 ms 聚合窗口，有写穿条目时立即写）、`ARCHIVE_BACKLOG=256`（每运行待写帧上限，超出后计算线程在锁外背压等待，运行变慢而不是丢数据或无限占内存）。
+- 抽稀 overview 是单次写入最大的载荷（最多 2000 个完整变量帧）。改为仅当 `overview_pending >= ARCHIVE_OVERVIEW_FRAMES(64)` 且距上次落盘 `>= ARCHIVE_OVERVIEW_S(0.5 s)` 时写一次，降采样步长变化时立即写；终态写穿总是带最新 overview。live overview/history API 始终读内存副本，不受影响。
+- 写穿语义保留：`submit`、命令回执、`pause/resume/step` 状态变化、终态记录都经写线程同步刷盘后才对外可见/才允许命令执行；终态状态（completed/failed/cancelled/interrupted）在终态记录成功落盘后才提交到内存记录，因此 `status` 与 `persisted_at/persisted_rows` 同时可见。
+- Worker RPC 锁外：`set/controller/write`、`session.close()`（finalize）不再持有全局锁；停止/完成时终态提交仍在锁内完成，状态机与命令回执顺序不变。
+
+### 基准（改前 / 改后）
+
+临时脚本直接驱动 `RunManager`（不经 HTTP 轮询），脚本与结果不提交。环境：Windows 10.0.29683、AMD64 Family 25 Model 80、Python 3.11.0、CoolProp 8.0.0、SQLite WAL `synchronous=FULL`，工作区在本地临时盘。负载：阀管线 1201 帧动态运行（`duration_s=60, dt_s=0.05`，fast 模式，`data_root` 启用归档）。每项为单次测量，停止延迟为 3 次取中位。
+
+| 指标 | 改前 | 改后 | 说明 |
+| --- | --- | --- | --- |
+| 每帧落盘耗时 | 53.1 ms | 2.3 ms | `save_run` 墙钟 / 帧，含打包与提交 |
+| 落盘事务数 | 1204 | 206 | 每事务行数 1 → 5.8 |
+| 每帧 overview 写 | 约每帧 | 8 次 | 抽稀曲线节流 |
+| 总落盘耗时 | 63.7 s | 2.8 s | 1201 帧 |
+| 端到端墙钟 | 66.6 s | 3.0 s | 18.0 → 398.3 帧/秒 |
+| 慢盘（每次写 sleep 50 ms）下 `snapshot` p50/p95/max | 2.0 / 58.6 / 111.1 ms | 1.2 / 1.9 / 2.4 ms | 全局锁不再覆盖磁盘事务 |
+| 卡死 Worker finalize（500 ms）下 `snapshot` p50/max | 515.8 / 515.8 ms | 1.4 / 2.9 ms | Worker RPC 移出全局锁 |
+| stop → 终态可见延迟（3 次中位） | 8.4 ms | 21.4 ms | 终态写穿需等最多一个在途批量写，绝对延迟仍小 |
+| 停止后 Worker 数 | 0 | 0 | 所有实验均确认 |
+| 单行事务 vs 64 行事务（同库微基准） | 2.33 ms/帧 | 2.07 vs 0.045 ms/帧 | 批量写本身约 46 倍吞吐提升 |
+
+改后 `stop → 终态` 比改前略慢：终态记录与命令回执现在也走同一写线程，需要等最多一个在途批量写（实测中位 21.4 ms）；换来的是不再出现旧版「慢盘时任一 API 被锁卡住 50–110 ms」的全局停顿，且停止路径的 Worker 回收保持为 0。
+
+### 语义变化与崩溃窗口
+
+- 每帧归档异步化：崩溃/断电最多丢失已入队但未落盘的帧，上限 `ARCHIVE_BACKLOG=256` 帧/运行；正常写盘时通常只是一个 10 ms 聚合窗口内的几帧。未落盘的只是磁盘副本，live API 读内存不受影响。
+- 重启恢复语义不变：未结束运行仍标为 interrupted，历史/overview 使用最后成功落盘的一致快照（record 元数据与帧行在同一事务写入，`total_rows` 与磁盘帧不会跨批错位）。
+- 抽稀 overview 最多滞后 `max(64 帧, 0.5 s)`；终态写穿总是落最新 overview。崩溃时归档 overview 可能少最后 ≤64 个抽稀点。
+- 命令回执语义不变：accepted 回执先写穿才允许执行；`pause/resume/step`、`set/controller/write` 的 applied/rejected 事件与回执在下一帧前写穿；终态时 pending 命令统一 rejected。
+- 终态可见性增强：终态状态只在终态记录成功落盘后对外可见（`status` 与 `persisted_rows/persisted_at` 同步）；终态落盘失败时运行标为 failed（诊断 `STORAGE_FAILED`），与旧行为一致。
+- 外部行为不变：状态机、命令回执、`history_window`、overview 内容与抽稀步长、20 条终态保留、重启 interrupted、停止后 Worker 回收为 0、API 契约均未改。
+- 新增背压：单运行待写帧超过 256 时计算线程在锁外等待写线程，慢盘下运行变慢而不是无界占内存；多运行共享一个写线程（单事务串行）。
+
+### 剩余风险
+
+- 终态/命令写穿仍是一次 fsync：磁盘尖峰时 stop 延迟可升到约 100 ms（实测 max 一次 `save_run` 约 102 ms），但不再阻塞其它 API 调用；写穿等待上限 30 s，超时报 `STORAGE_FAILED`。
+- 崩溃丢失窗口以帧计（≤256）而不是固定毫秒；极慢盘 + 高帧率时窗口靠近上限。
+- 单写线程串行所有运行：多运行同时高频落盘时总吞吐受单线程/单磁盘限制（背压会限制各运行速度）。
+- 未做：跨运行合并事务、overview 增量落盘、record 元数据（含 request）每批整体打包的进一步拆分；这些可作为后续 M1 优化项。
