@@ -33,7 +33,20 @@ const edit=async()=>{await expect(async()=>{
   await card().locator('[data-action="edit-module"]').click();
   await expect(page.locator('[data-action="editor-tab"]').first()).toBeVisible({timeout:2000});
 }).toPass({timeout:20000});};
-const tab=name=>page.locator(`[data-action="editor-tab"][data-value="${name}"]`).first().click();
+const tab=async name=>{
+  await expect(page.locator('.dialog-backdrop')).toHaveCount(0,{timeout:15000});
+  await page.locator(`[data-action="editor-tab"][data-value="${name}"]`).first().click();
+};
+// 弹窗提交：界面在状态变化时会整体重绘，点击可能被吞掉。若弹窗没关闭就重试；
+// 若弹窗内已显示校验错误则直接抛出错误文本，避免 30 秒盲等。
+const submitDialog=()=>expect(async()=>{
+  const backdrop=page.locator('.dialog-backdrop');
+  if (await backdrop.count()===0) return;
+  const error=page.locator('#dialog-error');
+  if (await error.isVisible().catch(()=>false)) throw Error('弹窗校验失败：'+await error.textContent());
+  await page.locator('#dialog-form button[type="submit"]').click({timeout:5000});
+  await expect(backdrop).toHaveCount(0,{timeout:5000});
+}).toPass({timeout:30000});
 async function saveVersion() {
   const response=page.waitForResponse(r=>r.url().endsWith('/modules/versions') && r.request().method()==='POST');
   await page.locator('[data-action="save-module-version"]').click();
@@ -58,7 +71,7 @@ try {
   await page.locator('[data-action="new-module"]').click();
   await page.locator('#dialog-form [name="name"]').fill('版本验收阀门');
   await page.locator('#dialog-form [name="code"]').fill('AUTHORING_VALVE');
-  await page.locator('#dialog-form button[type="submit"]').click();
+  await submitDialog();
   const source=await page.locator('#module-code').inputValue();
   const algorithm=source.replace('kv=ctx.parameter("kv_m3_h")','kv=ctx.parameter("kv_m3_h") * ctx.parameter("gain")')
     .replace('        ctx.var("opening_ratio"','        ctx.var("gain", ctx.parameter("gain"))\n        ctx.var("opening_ratio"');
@@ -70,11 +83,11 @@ try {
   await page.locator('#dialog-form [name="default"]').fill('1.2');
   await page.locator('#dialog-form [name="minimum"]').fill('0.1');
   await page.locator('#dialog-form [name="maximum"]').fill('3');
-  await page.locator('#dialog-form button[type="submit"]').click();
+  await submitDialog();
   await page.locator('[data-action="edit-contract-item"][data-section="variables"]').filter({hasText:'新增输出'}).click();
   await page.locator('#dialog-form [name="id"]').fill('gain');
   await page.locator('#dialog-form [name="label"]').fill('当前校正系数');
-  await page.locator('#dialog-form button[type="submit"]').click();
+  await submitDialog();
   await tab('contract');
   const contract=JSON.parse(await page.locator('[data-module-contract]').inputValue());
   contract.parameters[0].default=2;
@@ -95,7 +108,7 @@ try {
     await page.locator('#dialog-form [name="label"]').fill(label);
     await page.locator('#dialog-form [name="value_type"]').selectOption(type);
     await page.locator('#dialog-form [name="default"]').fill(value);
-    await page.locator('#dialog-form button[type="submit"]').click();
+    await submitDialog();
   };
   await addParam('enabled_flag','启用标记','boolean','true');
   await addParam('tag','工况标签','text','验收');
