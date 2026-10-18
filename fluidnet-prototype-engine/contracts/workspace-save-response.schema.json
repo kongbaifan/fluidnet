@@ -1,0 +1,28 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "revision": {
+      "minimum": 1,
+      "title": "Revision",
+      "type": "integer"
+    },
+    "saved_at": {
+      "title": "Saved At",
+      "type": "string"
+    },
+    "project_revisions": {
+      "additionalProperties": {
+        "type": "integer"
+      },
+      "title": "Project Revisions",
+      "type": "object"
+    }
+  },
+  "required": [
+    "revision",
+    "saved_at"
+  ],
+  "title": "WorkspaceSaveResponse",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

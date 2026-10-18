@@ -1,0 +1,53 @@
+{
+  "$defs": {
+    "ProjectSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "revision": {
+          "minimum": 1,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "saved_at": {
+          "title": "Saved At",
+          "type": "string"
+        },
+        "instances": {
+          "minimum": 0,
+          "title": "Instances",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "revision",
+        "saved_at",
+        "instances"
+      ],
+      "title": "ProjectSummary",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "projects": {
+      "items": {
+        "$ref": "#/$defs/ProjectSummary"
+      },
+      "title": "Projects",
+      "type": "array"
+    }
+  },
+  "title": "ProjectListResponse",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

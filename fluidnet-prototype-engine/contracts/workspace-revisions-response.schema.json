@@ -1,0 +1,37 @@
+{
+  "$defs": {
+    "WorkspaceRevision": {
+      "additionalProperties": false,
+      "properties": {
+        "revision": {
+          "minimum": 0,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "saved_at": {
+          "title": "Saved At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "revision",
+        "saved_at"
+      ],
+      "title": "WorkspaceRevision",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "revisions": {
+      "items": {
+        "$ref": "#/$defs/WorkspaceRevision"
+      },
+      "title": "Revisions",
+      "type": "array"
+    }
+  },
+  "title": "WorkspaceRevisionsResponse",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

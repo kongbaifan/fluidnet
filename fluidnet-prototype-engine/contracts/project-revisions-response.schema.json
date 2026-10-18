@@ -1,0 +1,42 @@
+{
+  "$defs": {
+    "ProjectRevisionInfo": {
+      "additionalProperties": false,
+      "properties": {
+        "revision": {
+          "minimum": 1,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "saved_at": {
+          "title": "Saved At",
+          "type": "string"
+        },
+        "deleted": {
+          "default": false,
+          "title": "Deleted",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "revision",
+        "saved_at"
+      ],
+      "title": "ProjectRevisionInfo",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "revisions": {
+      "items": {
+        "$ref": "#/$defs/ProjectRevisionInfo"
+      },
+      "title": "Revisions",
+      "type": "array"
+    }
+  },
+  "title": "ProjectRevisionsResponse",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

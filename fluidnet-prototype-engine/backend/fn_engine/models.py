@@ -712,11 +712,33 @@ class RunStatus(StrictModel):
     lag_s: float = 0.0
 
 
-class ErrorResponse(StrictModel):
+class ErrorDetail(StrictModel):
+    """结构化错误 `detail`：服务端主动抛出的 code/message，可带诊断与定位字段。"""
     code: str
     message: str
     diagnostics: list[Diagnostic] = Field(default_factory=list)
-    request_id: str | None = None
+    keys: list[str] = Field(default_factory=list)
+    instance_id: str | None = None
+    field: str | None = None
+
+
+class ValidationIssue(BaseModel):
+    """FastAPI/Pydantic 请求校验失败时 `detail` 列表中的一项（字段随错误类型变化）。"""
+    model_config = ConfigDict(extra='allow')
+
+    type: str
+    loc: list[str | int] = Field(default_factory=list)
+    msg: str
+    input: Any = None
+
+
+class ErrorResponse(StrictModel):
+    """HTTP 错误响应包络。
+
+    运行时 FastAPI 统一输出 `{"detail": …}`：`detail` 可能是结构化错误（`ErrorDetail`）、
+    纯文本说明，或请求校验问题列表。本模型只用于 OpenAPI 文档化，不改变运行时响应体。
+    """
+    detail: ErrorDetail | str | list[ValidationIssue]
 
 
 class CircuitInfo(StrictModel):
@@ -818,6 +840,192 @@ class RunRecordResponse(StrictModel):
     lag_s: float = 0.0
     persisted_at: str | None = None
     persisted_rows: int = 0
+
+
+class RefpropInfo(StrictModel):
+    """`GET /health` 上报的 REFPROP 运行时发现结果（不加载 DLL）。"""
+    installed: bool
+    source: Literal['env', 'bundled', 'system'] | None = None
+    path: str | None = None
+    version: str | None = None
+
+
+class HealthCapabilities(StrictModel):
+    steady_hydraulics: bool
+    quasi_steady_series: bool
+    thermal: bool
+    property_coupling: list[str] = Field(default_factory=list)
+    tank_state: bool
+    time_integration: str
+    coolprop_single_phase: bool
+    user_code: bool
+    worker_process: bool
+    async_runs: bool
+    module_versions: bool
+    run_control: bool
+    live_runs: bool
+    pid: bool
+    runtime_parameters: bool
+    continuous_step: bool
+    continuous_runs: bool
+    variables_api: bool
+    run_stream: bool
+    python_controls: bool
+    persistent_workspace: bool
+    refprop: RefpropInfo
+
+
+class HealthAuth(StrictModel):
+    required: bool
+
+
+class HealthResponse(StrictModel):
+    """`GET /health`：版本、能力标志与全局上限。"""
+    status: str
+    version: str
+    solver: str
+    supported_domains: list[str] = Field(default_factory=list)
+    capabilities: HealthCapabilities
+    max_frames: int = Field(ge=0)
+    run_retention: int = Field(ge=0)
+    history_window_max: int = Field(ge=0)
+    overview_points: int = Field(ge=0)
+    auth: HealthAuth
+
+
+class WorkspaceRevision(StrictModel):
+    revision: int = Field(ge=0)
+    saved_at: str
+
+
+class WorkspaceResponse(StrictModel):
+    """`GET /workspace`：最新（或指定修订）完整工作区；未保存时 revision=0、data=null。"""
+    revision: int = Field(ge=0)
+    saved_at: str | None = None
+    data: dict[str, Any] | None = None
+    project_revisions: dict[str, int] = Field(default_factory=dict)
+
+
+class WorkspaceRevisionsResponse(StrictModel):
+    revisions: list[WorkspaceRevision] = Field(default_factory=list)
+
+
+class WorkspaceStorageResponse(StrictModel):
+    database_bytes: int = Field(ge=0)
+    reusable_bytes: int = Field(ge=0)
+    wal_bytes: int = Field(ge=0)
+    free_disk_bytes: int = Field(ge=0)
+    runs: int = Field(ge=0)
+    frames: int = Field(ge=0)
+    revision_retention: int = Field(ge=0)
+    run_retention: int = Field(ge=0)
+    history_window_max: int = Field(ge=0)
+    overview_points: int = Field(ge=0)
+
+
+class WorkspaceSaveResponse(StrictModel):
+    revision: int = Field(ge=1)
+    saved_at: str
+    project_revisions: dict[str, int] = Field(default_factory=dict)
+
+
+class WorkspaceRestoreResponse(StrictModel):
+    directory: str
+    revision: int = Field(ge=0)
+    command: str
+    message: str
+
+
+class ControlPreviewResponse(StrictModel):
+    """`POST /controls/preview`：一次 initialize+step 的拟写入值，不产生运行档案。"""
+    state: dict[str, Any] = Field(default_factory=dict)
+    writes: dict[str, Any] = Field(default_factory=dict)
+    diagnostics: list[Diagnostic] = Field(default_factory=list)
+    content_hash: str
+    time_s: float = 0.0
+    applied: bool = False
+
+
+class ProjectSummary(StrictModel):
+    id: str
+    name: str
+    revision: int = Field(ge=1)
+    saved_at: str
+    instances: int = Field(ge=0)
+
+
+class ProjectListResponse(StrictModel):
+    projects: list[ProjectSummary] = Field(default_factory=list)
+
+
+class ProjectRevisionInfo(StrictModel):
+    revision: int = Field(ge=1)
+    saved_at: str
+    deleted: bool = False
+
+
+class ProjectRevisionsResponse(StrictModel):
+    revisions: list[ProjectRevisionInfo] = Field(default_factory=list)
+
+
+class ProjectDetailResponse(StrictModel):
+    revision: int = Field(ge=1)
+    saved_at: str
+    document: ProjectDocument
+
+
+class ProjectSaveResponse(StrictModel):
+    revision: int = Field(ge=1)
+    saved_at: str
+    workspace_revision: int = Field(ge=1)
+    previous_workspace_revision: int = Field(ge=0)
+
+
+class ProjectRestoreResponse(ProjectSaveResponse):
+    document: ProjectDocument
+
+
+class ProjectDeleteResponse(ProjectSaveResponse):
+    pass
+
+
+class ProjectUpgradeChange(StrictModel):
+    field: str
+    id: str
+    before: dict[str, Any] | None = None
+    after: dict[str, Any] | None = None
+
+
+class ProjectUpgradeResponse(StrictModel):
+    """`POST /project-upgrades/preview`：版本差异与兼容性结论；兼容时附升级后的项目。"""
+    module_id: str
+    from_version: int = Field(ge=1)
+    to_version: int = Field(ge=1)
+    from_hashes: ModulePackageRef
+    to_hashes: ModulePackageRef
+    source_before: str
+    source_after: str
+    changes: list[ProjectUpgradeChange] = Field(default_factory=list)
+    compatible: bool
+    reasons: list[str] = Field(default_factory=list)
+    module: ModuleDefinition
+    project: Project | None = None
+
+
+class RunSummary(StrictModel):
+    id: str
+    status: str
+    mode: str
+    name: str
+    time_s: float = 0.0
+
+
+class RunListResponse(StrictModel):
+    runs: list[RunSummary] = Field(default_factory=list)
+
+
+class RunDeleteResponse(StrictModel):
+    deleted: str
 
 
 EvaluateResponse.model_rebuild()

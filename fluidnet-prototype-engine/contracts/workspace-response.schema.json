@@ -1,0 +1,49 @@
+{
+  "additionalProperties": false,
+  "description": "`GET /workspace`：最新（或指定修订）完整工作区；未保存时 revision=0、data=null。",
+  "properties": {
+    "revision": {
+      "minimum": 0,
+      "title": "Revision",
+      "type": "integer"
+    },
+    "saved_at": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Saved At"
+    },
+    "data": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Data"
+    },
+    "project_revisions": {
+      "additionalProperties": {
+        "type": "integer"
+      },
+      "title": "Project Revisions",
+      "type": "object"
+    }
+  },
+  "required": [
+    "revision"
+  ],
+  "title": "WorkspaceResponse",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

@@ -1,0 +1,98 @@
+{
+  "$defs": {
+    "Diagnostic": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "severity": {
+          "default": "error",
+          "enum": [
+            "info",
+            "warning",
+            "error"
+          ],
+          "title": "Severity",
+          "type": "string"
+        },
+        "instance_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Instance Id"
+        },
+        "field": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Field"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "title": "Diagnostic",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "`POST /controls/preview`：一次 initialize+step 的拟写入值，不产生运行档案。",
+  "properties": {
+    "state": {
+      "additionalProperties": true,
+      "title": "State",
+      "type": "object"
+    },
+    "writes": {
+      "additionalProperties": true,
+      "title": "Writes",
+      "type": "object"
+    },
+    "diagnostics": {
+      "items": {
+        "$ref": "#/$defs/Diagnostic"
+      },
+      "title": "Diagnostics",
+      "type": "array"
+    },
+    "content_hash": {
+      "title": "Content Hash",
+      "type": "string"
+    },
+    "time_s": {
+      "default": 0.0,
+      "title": "Time S",
+      "type": "number"
+    },
+    "applied": {
+      "default": false,
+      "title": "Applied",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "content_hash"
+  ],
+  "title": "ControlPreviewResponse",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

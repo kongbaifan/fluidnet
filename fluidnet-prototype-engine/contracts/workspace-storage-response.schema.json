@@ -1,0 +1,70 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "database_bytes": {
+      "minimum": 0,
+      "title": "Database Bytes",
+      "type": "integer"
+    },
+    "reusable_bytes": {
+      "minimum": 0,
+      "title": "Reusable Bytes",
+      "type": "integer"
+    },
+    "wal_bytes": {
+      "minimum": 0,
+      "title": "Wal Bytes",
+      "type": "integer"
+    },
+    "free_disk_bytes": {
+      "minimum": 0,
+      "title": "Free Disk Bytes",
+      "type": "integer"
+    },
+    "runs": {
+      "minimum": 0,
+      "title": "Runs",
+      "type": "integer"
+    },
+    "frames": {
+      "minimum": 0,
+      "title": "Frames",
+      "type": "integer"
+    },
+    "revision_retention": {
+      "minimum": 0,
+      "title": "Revision Retention",
+      "type": "integer"
+    },
+    "run_retention": {
+      "minimum": 0,
+      "title": "Run Retention",
+      "type": "integer"
+    },
+    "history_window_max": {
+      "minimum": 0,
+      "title": "History Window Max",
+      "type": "integer"
+    },
+    "overview_points": {
+      "minimum": 0,
+      "title": "Overview Points",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "database_bytes",
+    "reusable_bytes",
+    "wal_bytes",
+    "free_disk_bytes",
+    "runs",
+    "frames",
+    "revision_retention",
+    "run_retention",
+    "history_window_max",
+    "overview_points"
+  ],
+  "title": "WorkspaceStorageResponse",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

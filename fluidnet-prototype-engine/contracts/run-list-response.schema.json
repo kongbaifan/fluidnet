@@ -1,0 +1,51 @@
+{
+  "$defs": {
+    "RunSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        },
+        "mode": {
+          "title": "Mode",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "time_s": {
+          "default": 0.0,
+          "title": "Time S",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "status",
+        "mode",
+        "name"
+      ],
+      "title": "RunSummary",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "runs": {
+      "items": {
+        "$ref": "#/$defs/RunSummary"
+      },
+      "title": "Runs",
+      "type": "array"
+    }
+  },
+  "title": "RunListResponse",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

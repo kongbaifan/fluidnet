@@ -12,14 +12,18 @@ from pathlib import Path
 from fn_engine.api import create_app
 from fn_engine.bridge import normalize_prototype_export
 from fn_engine.models import (
-    CommitStepRequest, CommitStepResponse, EvaluateRequest, EvaluateResponse,
-    FluidConfig, ModuleDefinition, ModulePackageRef, ModuleTestRequest,
-    ModuleTestResponse, NetworkRelation, PortState, Project, RunCreateResponse,
-    RunEventsResponse, RunFrame, RunHistoryResponse, RunRequest, RunStatus,
+    CommitStepRequest, CommitStepResponse, ControlPreviewResponse, EvaluateRequest, EvaluateResponse,
+    FluidConfig, HealthResponse, ModuleDefinition, ModulePackageRef, ModuleTestRequest,
+    ModuleTestResponse, NetworkRelation, PortState, Project, ProjectDeleteResponse,
+    ProjectDetailResponse, ProjectListResponse, ProjectRevisionsResponse, ProjectRestoreResponse,
+    ProjectSaveResponse, ProjectUpgradeResponse, RunCreateResponse, RunDeleteResponse,
+    RunEventsResponse, RunFrame, RunHistoryResponse, RunListResponse, RunRequest, RunStatus,
     ErrorResponse, ValidationResponse,
     ModuleSaveRequest, ModuleVersionResponse, ModuleVersionsResponse,
     ModuleDesignRequest, ModuleDesignResponse,
     ProjectDocument, ProjectSaveRequest, ProjectRevisionRequest, ProjectDeleteRequest, ProjectUpgradeRequest,
+    WorkspaceResponse, WorkspaceRestoreResponse, WorkspaceRevisionsResponse, WorkspaceSaveResponse,
+    WorkspaceStorageResponse,
 )
 from fn_engine.compiler import compile_project
 from fn_engine.solver import solve_steady
@@ -43,7 +47,23 @@ models = [
     ('project-upgrade-request', ProjectUpgradeRequest),
     ('run-status', RunStatus), ('run-create-response', RunCreateResponse),
     ('run-history-response', RunHistoryResponse), ('run-events-response', RunEventsResponse),
+    ('run-list-response', RunListResponse), ('run-delete-response', RunDeleteResponse),
     ('error-response', ErrorResponse), ('validation-response', ValidationResponse),
+    # v0.4.10 契约补全：此前没有 response_model 的路由现在都有严格响应模型。
+    ('health-response', HealthResponse),
+    ('workspace-response', WorkspaceResponse),
+    ('workspace-revisions-response', WorkspaceRevisionsResponse),
+    ('workspace-storage-response', WorkspaceStorageResponse),
+    ('workspace-save-response', WorkspaceSaveResponse),
+    ('workspace-restore-response', WorkspaceRestoreResponse),
+    ('control-preview-response', ControlPreviewResponse),
+    ('project-list-response', ProjectListResponse),
+    ('project-detail-response', ProjectDetailResponse),
+    ('project-revisions-response', ProjectRevisionsResponse),
+    ('project-save-response', ProjectSaveResponse),
+    ('project-restore-response', ProjectRestoreResponse),
+    ('project-delete-response', ProjectDeleteResponse),
+    ('project-upgrade-response', ProjectUpgradeResponse),
 ]
 
 # 涉及数值求解的参考结果允许极小的浮点相对误差，避免不同机器/线程求和顺序导致门禁抖动。

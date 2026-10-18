@@ -1,0 +1,91 @@
+{
+  "$defs": {
+    "ProjectDocument": {
+      "additionalProperties": false,
+      "properties": {
+        "format": {
+          "const": "fluidnet-project",
+          "default": "fluidnet-project",
+          "title": "Format",
+          "type": "string"
+        },
+        "schema": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema",
+          "type": "integer"
+        },
+        "project": {
+          "additionalProperties": true,
+          "title": "Project",
+          "type": "object"
+        },
+        "modules": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Modules",
+          "type": "array"
+        },
+        "models": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Models",
+          "type": "array"
+        },
+        "charts": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Charts",
+          "type": "array"
+        }
+      },
+      "required": [
+        "project",
+        "modules"
+      ],
+      "title": "ProjectDocument",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "revision": {
+      "minimum": 1,
+      "title": "Revision",
+      "type": "integer"
+    },
+    "saved_at": {
+      "title": "Saved At",
+      "type": "string"
+    },
+    "workspace_revision": {
+      "minimum": 1,
+      "title": "Workspace Revision",
+      "type": "integer"
+    },
+    "previous_workspace_revision": {
+      "minimum": 0,
+      "title": "Previous Workspace Revision",
+      "type": "integer"
+    },
+    "document": {
+      "$ref": "#/$defs/ProjectDocument"
+    }
+  },
+  "required": [
+    "revision",
+    "saved_at",
+    "workspace_revision",
+    "previous_workspace_revision",
+    "document"
+  ],
+  "title": "ProjectRestoreResponse",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

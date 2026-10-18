@@ -4,43 +4,75 @@
 
 ## 已实现端点
 
-| 方法与路径 | 请求 | 返回 |
-| --- | --- | --- |
-| GET /api/v1/health | 无 | 版本（0.4.9）、能力标志（含 `thermal`、`property_coupling`、`tank_state`、`live_runs`、`pid`、`runtime_parameters`、`continuous_step`、`continuous_runs`、`variables_api`、`run_stream`、`python_controls`、`persistent_workspace`，以及 `refprop: {installed,source,path,version}`）、`auth.required`、同步运行 2001 帧上限、`history_window_max`、`overview_points`、20 次记录保留数 |
-| GET /api/v1/examples/{name} | `level` 或 `temperature` | 内置 PID 示例 Project；未知名称 404 |
-| GET /api/v1/workspace | 可选 revision | 完整原型工作区、revision、saved_at；未保存时 data=null |
-| POST /api/v1/workspace | data、expected_revision | 已落盘修订与时间；陈旧修订 409，存储故障 507 |
-| GET /api/v1/workspace/revisions | 无 | 最近 5 个修订元数据 |
-| GET /api/v1/workspace/storage | 无 | 数据库、可复用页、WAL、剩余磁盘字节数，运行/帧数量和保留上限 |
-| POST /api/v1/workspace/backup | 无 | application/zip；SQLite 一致快照、模块包与 SHA-256 清单 |
-| POST /api/v1/workspace/restore | ZIP 原始字节，最多 256 MiB | 新目录、revision、启动 command 和 message；非法备份 422，上传超限 413 |
-| POST /api/v1/controls/preview | project、script | state、writes、diagnostics、content_hash、applied=false |
-| POST /api/v1/runs/{run_id}/delete | 空对象 | 删除终态记录；活动运行返回 409 |
-| GET /api/v1/catalog | 无 | 模块参数/通路/变量目录、原型参数名映射 |
-| GET /api/v1/modules | 无 | 可安装模块包和内置模块清单、版本与内容哈希 |
-| POST /api/v1/modules/validate | ModuleDefinition | 契约、Python 语法、Worker 入口与四阶段签名诊断 |
-| POST /api/v1/modules/test | ModuleTestRequest | 独立边界求解，返回 evaluation、committed、frame、history |
-| POST /api/v1/modules/design | ModuleDesignRequest | 独立 Worker 执行 design.py；返回 design_hash、parameters、changes、diagnostics，非法输出 422 |
-| POST /api/v1/modules/versions | ModuleSaveRequest | **201** ModuleVersionResponse，校验试算通过后保存新版本 |
-| GET /api/v1/modules/{module_id}/versions | 无 | 倒序版本记录，未知模块返回空列表 |
-| GET /api/v1/modules/{module_id}/versions/{version} | 整数版本 | 完整模块、引用和试算凭据；未知版本 404 |
-| POST /api/v1/prototype/normalize | 原型导出对象 | 规范 Project；显示单位转换；不能归一化时 422 |
-| POST /api/v1/projects/validate | Project | valid、diagnostics 和 circuits（各回路的工质、来源、端口）；编译校验并追加工况覆盖校验，检查失败时 valid=false、circuits 为空 |
-| POST /api/v1/solve | Project | 同步稳态 RunFrame；计算失败时 422 |
-| POST /api/v1/runs | RunRequest | **201**；run_id、status、frame、total_rows。`?background=true` 改返回 **202** 的 `RunStatus`(queued、frame 为 null)，frame 由状态接口补 |
-| GET /api/v1/runs/{run_id} | 无 | 状态、请求快照、最后一帧与事件，不重复携带整段历史(历史由 /history 提供)；记录不存在或已被保留上限淘汰时 404，detail 为固定字符串 |
-| GET /api/v1/runs/{run_id}/history | offset≥0, 1≤limit≤2001（绝对帧序号） | rows、total_rows（已发布帧数）、offset（实际起点）、first_offset（窗口内最早帧）、truncated（请求的 offset 已移出窗口） |
-| GET /api/v1/runs/{run_id}/overview | 无 | 全程抽稀：rows（每 stride 帧一行加最新帧，只含曲线变量和状态，无诊断）、stride、total_rows |
-| GET /api/v1/runs | 无 | 运行列表：活动运行与已归档运行（id、status、mode、项目名、当前 time_s） |
-| GET /api/v1/runs/{run_id}/events | 无 | 状态事件与命令事件（accepted/applied/rejected），每次运行恰好一条终态事件；后台运行只保留最近 1000 条事件，已处理的命令回执也只保留最近 1000 个（更早的 `command_id` 重发会当作新命令） |
-| POST /api/v1/runs/{run_id}/command | RunCommand | RunStatus 加命令回执；见「运行生命周期与控制」 |
-| GET /api/v1/runs/{run_id}/variables | `keys`（逗号分隔的帧变量键，省略为全部） | VariableValues：status、time_s、sequence、parameter_revision、values；未知键 422 `VARIABLE_UNKNOWN`（附 keys），还没有帧 409 `NO_FRAME` |
-| POST /api/v1/runs/{run_id}/variables | VariableWrite | RunStatus 加命令回执；见「变量接口」 |
-| WS /api/v1/runs/{run_id}/stream | `keys`、`interval_ms`（10–5000，默认 50） | 推送 `{"type":"frame",…}`，结束时 `{"type":"end","status":…}`；见「变量接口」 |
+| 方法与路径 | 请求 | 返回模型与内容 | 错误响应（`detail.code`） |
+| --- | --- | --- | --- |
+| GET /api/v1/health | 无 | `HealthResponse`：版本（0.4.10）、能力标志（含 `thermal`、`property_coupling`、`tank_state`、`live_runs`、`pid`、`runtime_parameters`、`continuous_step`、`continuous_runs`、`variables_api`、`run_stream`、`python_controls`、`persistent_workspace`，以及 `refprop: {installed,source,path,version}`）、`auth.required`、同步运行 2001 帧上限、`history_window_max`、`overview_points`、20 次记录保留数 | 500 `INTERNAL_ERROR`（health 不受令牌限制） |
+| GET /api/v1/examples/{name} | `level` 或 `temperature` | `Project`：内置 PID 示例 Project | 404（未知示例）；401/403 |
+| GET /api/v1/workspace | 可选 revision | `WorkspaceResponse`：完整原型工作区、revision、saved_at、project_revisions；未保存时 data=null | 404（修订不存在）、503（持久存储未启用）、507 `STORAGE_FAILED`；401/403 |
+| POST /api/v1/workspace | data、expected_revision | `WorkspaceSaveResponse`：已落盘修订、时间与项目修订映射 | 409 `WORKSPACE_CONFLICT`、503、507 `STORAGE_FAILED`；401/403 |
+| GET /api/v1/workspace/revisions | 无 | `WorkspaceRevisionsResponse`：最近 5 个修订元数据 | 503、507；401/403 |
+| GET /api/v1/workspace/storage | 无 | `WorkspaceStorageResponse`：数据库、可复用页、WAL、剩余磁盘字节数，运行/帧数量和保留上限 | 503、507；401/403 |
+| POST /api/v1/workspace/backup | 无 | `application/zip` 二进制（无 JSON response_model；OpenAPI 显式声明 binary schema）：SQLite 一致快照、模块包与 SHA-256 清单 | 503、507；401/403 |
+| POST /api/v1/workspace/restore | ZIP 原始字节，最多 256 MiB | `WorkspaceRestoreResponse`：新目录、revision、启动 command 和 message | 413（上传超限）、422（非法备份）、503、507；401/403 |
+| POST /api/v1/controls/preview | project、script | `ControlPreviewResponse`：state、writes、diagnostics、content_hash、time_s、applied=false | 422（脚本/项目校验失败）；401/403 |
+| POST /api/v1/runs/{run_id}/delete | 空对象 | `RunDeleteResponse`：`deleted` 为被删除的运行 ID | 404、409（活动运行未停止）、507；401/403 |
+| GET /api/v1/catalog | 无 | `CatalogResponse`：模块参数/通路/变量目录、原型参数名映射 | 401/403 |
+| GET /api/v1/modules | 无 | `ModuleCatalogResponse`：可安装模块包和内置模块清单、版本与内容哈希 | 500 `MODULE_STORAGE_ERROR`；401/403 |
+| POST /api/v1/modules/validate | ModuleDefinition | `ValidationResponse`：契约、Python 语法、Worker 入口与四阶段签名诊断 | 422（请求体校验）；401/403 |
+| POST /api/v1/modules/test | ModuleTestRequest | `ModuleTestResponse`：独立边界求解，返回 evaluation、committed、frame、history | 422（含 `MODULE_WORKER_IO_ERROR`）；401/403 |
+| POST /api/v1/modules/design | ModuleDesignRequest | `ModuleDesignResponse`：独立 Worker 执行 design.py；返回 design_hash、parameters、changes、diagnostics | 422（非法输出，含 `MODULE_WORKER_IO_ERROR`）；401/403 |
+| POST /api/v1/modules/versions | ModuleSaveRequest | **201** `ModuleVersionResponse`：校验试算通过后保存新版本 | 409 `MODULE_VERSION_CONFLICT`、422 `MODULE_SAVE_INVALID`、500 `MODULE_STORAGE_ERROR`；401/403 |
+| GET /api/v1/modules/{module_id}/versions | 无 | `ModuleVersionsResponse`：倒序版本记录，未知模块返回空列表 | 500 `MODULE_STORAGE_ERROR`；401/403 |
+| GET /api/v1/modules/{module_id}/versions/{version} | 整数版本 | `ModuleVersionResponse`：完整模块、引用和试算凭据 | 404（未知版本）、500；401/403 |
+| POST /api/v1/prototype/normalize | 原型导出对象 | `Project`：规范 Project；显示单位转换 | 422（不能归一化）；401/403 |
+| POST /api/v1/projects/validate | Project | `ValidationResponse`：valid、diagnostics 和 circuits（各回路的工质、来源、端口）；检查失败时 valid=false、circuits 为空 | 422（请求体校验）；401/403 |
+| POST /api/v1/solve | Project | `RunFrame`：同步稳态 RunFrame | 422（计算失败或 `MODULE_WORKER_IO_ERROR`）、500 `INTERNAL_ERROR`；401/403 |
+| POST /api/v1/runs | RunRequest | **201** `RunCreateResponse`（run_id、status、frame、total_rows）。`?background=true` 改返回 **202** `RunStatus`（queued、frame 为 null，frame 由状态接口补） | 422 `RUN_LIMIT`/`RUN_TOO_LONG`、500；401/403 |
+| GET /api/v1/runs/{run_id} | 无 | `RunRecordResponse`：状态、请求快照、最后一帧与事件，不重复携带整段历史（历史由 /history 提供） | 404（记录不存在或已被保留上限淘汰，detail 为固定字符串）、507；401/403 |
+| GET /api/v1/runs/{run_id}/history | offset≥0, 1≤limit≤2001（绝对帧序号） | `RunHistoryResponse`：rows、total_rows（已发布帧数）、offset（实际起点）、first_offset（窗口内最早帧）、truncated（请求的 offset 已移出窗口） | 404、507；401/403 |
+| GET /api/v1/runs/{run_id}/overview | 无 | `RunOverviewResponse`：全程抽稀 rows（每 stride 帧一行加最新帧，只含曲线变量和状态，无诊断）、stride、total_rows | 404、507；401/403 |
+| GET /api/v1/runs | 无 | `RunListResponse`：运行列表（活动运行与已归档运行：id、status、mode、项目名、当前 time_s） | 507；401/403 |
+| GET /api/v1/runs/{run_id}/events | 无 | `RunEventsResponse`：状态事件与命令事件（accepted/applied/rejected），每次运行恰好一条终态事件；后台运行只保留最近 1000 条事件，已处理的命令回执也只保留最近 1000 个（更早的 `command_id` 重发会当作新命令） | 404、507；401/403 |
+| POST /api/v1/runs/{run_id}/command | RunCommand | `RunStatus` 加命令回执；见「运行生命周期与控制」 | 404、409 `RUN_ALREADY_FINISHED`/`COMMAND_ID_CONFLICT`、422（命令校验）；401/403 |
+| GET /api/v1/runs/{run_id}/variables | `keys`（逗号分隔的帧变量键，省略为全部） | `VariableValues`：status、time_s、sequence、parameter_revision、values | 404、409 `NO_FRAME`（还没有帧）、422 `VARIABLE_UNKNOWN`（附 keys）、507；401/403 |
+| POST /api/v1/runs/{run_id}/variables | VariableWrite | `RunStatus` 加命令回执；见「变量接口」 | 404、409（运行已结束或命令冲突）、422；401/403 |
+| WS /api/v1/runs/{run_id}/stream | `keys`、`interval_ms`（10–5000，默认 50） | WebSocket 推送（非 OpenAPI response）：`{"type":"frame",…}`，结束时 `{"type":"end","status":…}`；见「变量接口」 | WS 关闭码 4401（令牌无效）、4404（运行不存在）、4422（未知变量） |
 
 `POST /api/v1/runs?background=true` 创建后台运行，返回 HTTP 202 和 `run_id`；已有 20 个非终态运行时返回 422 `RUN_LIMIT`。默认仍保持兼容的同步模式，返回 HTTP 201。前端稳态使用同步请求；动态项目在 health 报告 `live_runs` 时使用后台会话（运行、单步、暂停、改参数都对同一个 run_id 发命令）。同步运行不能中途控制。
 
 `GET /api/v1/health` 的 `capabilities.refprop` 为 `{"installed": bool, "source": "env" | "bundled" | "system" | null, "path": str | null, "version": str | null}`，向后兼容原来的 `installed` 布尔。`source` 表示 REFPROP 目录的发现方式：`env` 为环境变量 `FLUIDNET_REFPROP_PATH`，`bundled` 为捆绑候选（项目根、仓库根、当前工作目录或 `sys.executable` 所在目录下的 `vendor/refprop9.1`、`refprop9.1`、`refprop`、`NISTRefprop9.1`），`system` 为 Windows 默认安装目录 `C:\Program Files (x86)\REFPROP`；`path` 为实际生效目录，未检测到时两者为 `null`。`version` 优先取该目录 `refprop-manifest.json` 的 `version`，清单缺失或损坏时为 `null`，不影响 `installed`。详见 [内置 REFPROP 9.1](REFPROP_BUNDLE.md)。
+
+## 错误响应与错误码（v0.4.10）
+
+所有 HTTP 错误仍保持 FastAPI 的 `{"detail": …}` 包络，运行时响应体与状态码语义未变；OpenAPI 只是把错误路径文档化（`contracts/openapi.json` 中每个错误状态都引用 `ErrorResponse`）：
+
+- 结构化错误：`{"detail": {"code": "...", "message": "...", "diagnostics": [...], "keys": [...], "instance_id": ..., "field": ...}}`，用于服务端主动抛出的业务错误；
+- 纯文本错误：`{"detail": "..."}`，用于 404 资源不存在、409 活动运行、413 上传超限、422 文本校验、503 持久存储未启用等；
+- 请求校验错误：`{"detail": [{"type", "loc", "msg", "input"}, …]}`（FastAPI/Pydantic 默认格式）。
+
+`backend/fn_engine/errors.py` 是错误码的唯一注册表：`ERROR_CODES`（静态 `detail.code`）、`DIAGNOSTIC_CODES`（编译/求解/物性诊断码透传）、`STATUS_ERRORS`（无 code 的纯文本错误按状态登记）。路由通过 `error_responses()` / `protected_error_responses()` 生成 OpenAPI `responses`；除 `GET /api/v1/health` 外，所有 `/api/` 路由都声明 401 `AUTH_REQUIRED` 与 403 `AUTH_SCOPE`。
+
+| 错误码 | HTTP | 含义 |
+| --- | --- | --- |
+| `AUTH_REQUIRED` | 401 | 缺少或无效的访问令牌（响应带 `WWW-Authenticate: Bearer`） |
+| `AUTH_SCOPE` | 403 | 令牌权限不足以执行该请求方法（只读令牌发 POST） |
+| `RUN_NOT_FOUND` | 404 | 运行记录不存在或已过期（WebSocket 关闭码 4404） |
+| `PROJECT_CONFLICT` | 409 | 项目或工作区修订冲突（`WorkspaceConflict` 异常处理器） |
+| `WORKSPACE_CONFLICT` | 409 | 工作区 `expected_revision` 陈旧 |
+| `MODULE_VERSION_CONFLICT` | 409 | 模块版本写入冲突 |
+| `RUN_ALREADY_FINISHED` | 409 | 运行已结束，命令被拒绝 |
+| `COMMAND_ID_CONFLICT` | 409 | 命令 ID 已用于不同内容 |
+| `NO_FRAME` | 409 | 运行还没有可读的帧 |
+| `MODULE_SAVE_INVALID` | 422 | 模块版本校验或试算未通过（附 `diagnostics`） |
+| `MODULE_WORKER_IO_ERROR` | 422 | 模块 Worker 子进程 I/O 故障 |
+| `RUN_LIMIT` | 422 | 后台运行数量达到上限（20 个非终态运行） |
+| `RUN_TOO_LONG` | 422 | 同步运行帧数超过 2001 上限 |
+| `VARIABLE_UNKNOWN` | 422 | 请求的帧变量不存在（附 `keys`） |
+| `MODULE_STORAGE_ERROR` | 500 | 模块版本写入失败（目录权限/磁盘空间） |
+| `INTERNAL_ERROR` | 500 | 服务内部错误（原始信息保留，traceback 记入日志） |
+| `STORAGE_FAILED` | 507 | 工作区存储故障（磁盘空间或目录权限，`StorageError` 处理器） |
+
+编译/求解/物性层的诊断码（如 `SCENARIO_NOT_FOUND`、`SCENARIO_INSTANCE_MISSING`、`TREND_VARIABLE_UNKNOWN`、`SOLVER_ERROR` 以及编译器的完整诊断集）通过 `detail.code` 透传，HTTP 状态由所在路由决定（多为 422，运行命令冲突为 409）。
 
 ## 模块包和 Worker
 
@@ -248,15 +280,15 @@ Worker RPC 超时默认 10 秒，超时返回 `MODULE_RUNTIME_TIMEOUT` 并终止
 
 以下路径均以 `/api/v1` 为前缀。单项目存储接口需要先保存初始工作区。
 
-| 接口 | 请求与结果 |
-| --- | --- |
-| GET /projects | 已保存项目的 ID、名称、修订、保存时间和实例数 |
-| GET /projects/{project_id}?revision=N | 当前或指定项目修订，返回 revision、saved_at 和 document；不存在或已删除返回 404 |
-| GET /projects/{project_id}/revisions | 最近 5 个项目修订，含 deleted 标记 |
-| POST /projects/{project_id} | ProjectSaveRequest：expected_revision 和 document，保存成功返回项目 revision、workspace_revision 和 previous_workspace_revision |
-| POST /projects/{project_id}/restore | ProjectRevisionRequest：expected_revision 和目标 revision；恢复生成新修订，并返回恢复的 document |
-| POST /projects/{project_id}/delete | ProjectDeleteRequest：expected_revision；保留其他项目和运行档案，删除最后一个项目返回 422 |
-| POST /project-upgrades/preview | ProjectUpgradeRequest：规范 project、module_id、target_version；返回前后双哈希、源码、定义差异、兼容性及原因，兼容时另含升级后的 project |
+| 接口 | 请求 | 返回模型与结果 | 错误响应（`detail.code`） |
+| --- | --- | --- | --- |
+| GET /projects | 无 | `ProjectListResponse`：已保存项目的 ID、名称、修订、保存时间和实例数 | 503、507；401/403 |
+| GET /projects/{project_id}?revision=N | 可选 revision | `ProjectDetailResponse`：当前或指定项目修订，返回 revision、saved_at 和 document | 404（不存在或已删除）、503、507；401/403 |
+| GET /projects/{project_id}/revisions | 无 | `ProjectRevisionsResponse`：最近 5 个项目修订，含 deleted 标记 | 503、507；401/403 |
+| POST /projects/{project_id} | ProjectSaveRequest：expected_revision 和 document | `ProjectSaveResponse`：项目 revision、saved_at、workspace_revision 和 previous_workspace_revision | 409 `PROJECT_CONFLICT`/`WORKSPACE_CONFLICT`、422、503、507；401/403 |
+| POST /projects/{project_id}/restore | ProjectRevisionRequest：expected_revision 和目标 revision | `ProjectRestoreResponse`：恢复生成新修订，并返回恢复的 document | 404（修订不存在）、409 `PROJECT_CONFLICT`、503、507；401/403 |
+| POST /projects/{project_id}/delete | ProjectDeleteRequest：expected_revision | `ProjectDeleteResponse`：保留其他项目和运行档案；删除最后一个项目返回 422 | 409 `PROJECT_CONFLICT`/`WORKSPACE_CONFLICT`、422、503、507；401/403 |
+| POST /project-upgrades/preview | ProjectUpgradeRequest：规范 project、module_id、target_version | `ProjectUpgradeResponse`：前后双哈希、源码、定义差异、兼容性及原因，兼容时另含升级后的 project | 404（模块版本不存在）、409（项目有活动运行）、422、500；401/403 |
 
 `document` 是格式为 `fluidnet-project`、schema=1 的单项目交换文档，含原型 project、固定模块快照 modules、关联 models 和 charts。路径中的 `project_id` 必须与文档一致。expected_revision 使用各项目独立修订号，冲突返回 409 `PROJECT_CONFLICT`，成功保存会在同一事务中更新项目历史和完整工作区。项目保存、恢复、删除和模块升级预览在项目有活动运行时返回 409。
 

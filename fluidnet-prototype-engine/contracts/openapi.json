@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "FluidNet Prototype Engine",
-    "version": "0.4.9"
+    "version": "0.4.10"
   },
   "paths": {
     "/api/v1/health": {
@@ -14,7 +14,19 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           }
@@ -49,7 +61,69 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "资源不存在（运行记录、项目修订、模块版本、示例或工作区修订）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "持久存储未启用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "STORAGE_FAILED：工作区存储故障（磁盘空间或目录权限）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           },
@@ -83,7 +157,69 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceSaveResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "WORKSPACE_CONFLICT：工作区修订冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "持久存储未启用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "STORAGE_FAILED：工作区存储故障（磁盘空间或目录权限）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           },
@@ -109,7 +245,59 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceRevisionsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "持久存储未启用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "STORAGE_FAILED：工作区存储故障（磁盘空间或目录权限）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           }
@@ -125,7 +313,59 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceStorageResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "持久存储未启用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "STORAGE_FAILED：工作区存储故障（磁盘空间或目录权限）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           }
@@ -144,6 +384,56 @@
                 "schema": {
                   "type": "string",
                   "format": "binary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "持久存储未启用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "STORAGE_FAILED：工作区存储故障（磁盘空间或目录权限）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -171,7 +461,79 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceRestoreResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "请求体超过大小上限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "请求体或计算结果校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "持久存储未启用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "STORAGE_FAILED：工作区存储故障（磁盘空间或目录权限）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           }
@@ -197,16 +559,48 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/ControlPreviewResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           },
           "422": {
-            "description": "Validation Error",
+            "description": "请求体或计算结果校验失败",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -239,12 +633,42 @@
               }
             }
           },
-          "422": {
-            "description": "Validation Error",
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "请求体或计算结果校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -261,7 +685,59 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "持久存储未启用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "STORAGE_FAILED：工作区存储故障（磁盘空间或目录权限）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           }
@@ -305,7 +781,69 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectDetailResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "资源不存在（运行记录、项目修订、模块版本、示例或工作区修订）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "持久存储未启用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "STORAGE_FAILED：工作区存储故障（磁盘空间或目录权限）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           },
@@ -350,16 +888,78 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectSaveResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "PROJECT_CONFLICT：项目或工作区修订冲突；WORKSPACE_CONFLICT：工作区修订冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           },
           "422": {
-            "description": "Validation Error",
+            "description": "请求体或计算结果校验失败",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "持久存储未启用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "STORAGE_FAILED：工作区存储故障（磁盘空间或目录权限）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -387,7 +987,59 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectRevisionsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "持久存储未启用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "STORAGE_FAILED：工作区存储故障（磁盘空间或目录权限）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           },
@@ -434,7 +1086,79 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectRestoreResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "资源不存在（运行记录、项目修订、模块版本、示例或工作区修订）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "PROJECT_CONFLICT：项目或工作区修订冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "持久存储未启用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "STORAGE_FAILED：工作区存储故障（磁盘空间或目录权限）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           },
@@ -481,16 +1205,78 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectDeleteResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "PROJECT_CONFLICT：项目或工作区修订冲突；WORKSPACE_CONFLICT：工作区修订冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           },
           "422": {
-            "description": "Validation Error",
+            "description": "请求体或计算结果校验失败",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "持久存储未启用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "STORAGE_FAILED：工作区存储故障（磁盘空间或目录权限）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -517,16 +1303,68 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectUpgradeResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "资源不存在（运行记录、项目修订、模块版本、示例或工作区修订）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "资源状态冲突（活动运行、修订号或命令状态）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           },
           "422": {
-            "description": "Validation Error",
+            "description": "请求体或计算结果校验失败",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -545,6 +1383,36 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CatalogResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -578,6 +1446,46 @@
               }
             }
           },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "资源不存在（运行记录、项目修订、模块版本、示例或工作区修订）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -602,6 +1510,36 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ModuleCatalogResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "MODULE_STORAGE_ERROR：模块版本写入失败；INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -634,12 +1572,42 @@
               }
             }
           },
-          "422": {
-            "description": "Validation Error",
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "请求体或计算结果校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -669,6 +1637,36 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ModuleVersionsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "MODULE_STORAGE_ERROR：模块版本写入失败；INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -721,6 +1719,46 @@
               }
             }
           },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "资源不存在（运行记录、项目修订、模块版本、示例或工作区修订）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "MODULE_STORAGE_ERROR：模块版本写入失败；INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -759,12 +1797,52 @@
               }
             }
           },
-          "422": {
-            "description": "Validation Error",
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "MODULE_VERSION_CONFLICT：模块版本冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "MODULE_SAVE_INVALID：模块版本校验或试算未通过",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "MODULE_STORAGE_ERROR：模块版本写入失败；INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -797,12 +1875,42 @@
               }
             }
           },
-          "422": {
-            "description": "Validation Error",
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "请求体或计算结果校验失败；MODULE_WORKER_IO_ERROR：模块 Worker 子进程 I/O 故障",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -835,12 +1943,42 @@
               }
             }
           },
-          "422": {
-            "description": "Validation Error",
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "请求体或计算结果校验失败；MODULE_WORKER_IO_ERROR：模块 Worker 子进程 I/O 故障",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -869,16 +2007,48 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           },
           "422": {
-            "description": "Validation Error",
+            "description": "请求体或计算结果校验失败",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -911,12 +2081,42 @@
               }
             }
           },
-          "422": {
-            "description": "Validation Error",
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "请求体或计算结果校验失败；MODULE_WORKER_IO_ERROR：模块 Worker 子进程 I/O 故障",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -961,12 +2161,52 @@
               }
             }
           },
-          "422": {
-            "description": "Validation Error",
+          "202": {
+            "description": "后台运行已受理（background=true）",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/RunStatus"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "RUN_LIMIT：后台运行数量达到上限；RUN_TOO_LONG：同步运行帧数超过上限；MODULE_WORKER_IO_ERROR：模块 Worker 子进程 I/O 故障",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -981,7 +2221,49 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/RunListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "STORAGE_FAILED：工作区存储故障（磁盘空间或目录权限）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           }
@@ -1010,6 +2292,56 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RunRecordResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "资源不存在（运行记录、项目修订、模块版本、示例或工作区修订）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "STORAGE_FAILED：工作区存储故障（磁盘空间或目录权限）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -1047,7 +2379,69 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/RunDeleteResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "资源不存在（运行记录、项目修订、模块版本、示例或工作区修订）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "资源状态冲突（活动运行、修订号或命令状态）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "STORAGE_FAILED：工作区存储故障（磁盘空间或目录权限）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           },
@@ -1086,6 +2480,56 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RunEventsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "资源不存在（运行记录、项目修订、模块版本、示例或工作区修订）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "STORAGE_FAILED：工作区存储故障（磁盘空间或目录权限）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -1152,6 +2596,56 @@
               }
             }
           },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "资源不存在（运行记录、项目修订、模块版本、示例或工作区修订）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "STORAGE_FAILED：工作区存储故障（磁盘空间或目录权限）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -1187,6 +2681,56 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RunOverviewResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "资源不存在（运行记录、项目修订、模块版本、示例或工作区修订）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "STORAGE_FAILED：工作区存储故障（磁盘空间或目录权限）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -1240,12 +2784,62 @@
               }
             }
           },
-          "422": {
-            "description": "Validation Error",
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "资源不存在（运行记录、项目修订、模块版本、示例或工作区修订）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "RUN_ALREADY_FINISHED：运行已结束，命令被拒绝；COMMAND_ID_CONFLICT：命令 ID 已用于不同内容",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "请求体或计算结果校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -1297,12 +2891,72 @@
               }
             }
           },
-          "422": {
-            "description": "Validation Error",
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "资源不存在（运行记录、项目修订、模块版本、示例或工作区修订）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "NO_FRAME：运行还没有可读的帧",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VARIABLE_UNKNOWN：请求的帧变量不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "STORAGE_FAILED：工作区存储故障（磁盘空间或目录权限）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -1345,12 +2999,62 @@
               }
             }
           },
-          "422": {
-            "description": "Validation Error",
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "资源不存在（运行记录、项目修订、模块版本、示例或工作区修订）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "RUN_ALREADY_FINISHED：运行已结束，命令被拒绝；资源状态冲突（活动运行、修订号或命令状态）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "请求体或计算结果校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -1573,6 +3277,48 @@
         ],
         "title": "ControlPreviewRequest"
       },
+      "ControlPreviewResponse": {
+        "properties": {
+          "state": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "State"
+          },
+          "writes": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Writes"
+          },
+          "diagnostics": {
+            "items": {
+              "$ref": "#/components/schemas/Diagnostic"
+            },
+            "type": "array",
+            "title": "Diagnostics"
+          },
+          "content_hash": {
+            "type": "string",
+            "title": "Content Hash"
+          },
+          "time_s": {
+            "type": "number",
+            "title": "Time S",
+            "default": 0.0
+          },
+          "applied": {
+            "type": "boolean",
+            "title": "Applied",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "content_hash"
+        ],
+        "title": "ControlPreviewResponse",
+        "description": "`POST /controls/preview`：一次 initialize+step 的拟写入值，不产生运行档案。"
+      },
       "ControlScript": {
         "properties": {
           "id": {
@@ -1736,6 +3482,90 @@
         ],
         "title": "Endpoint"
       },
+      "ErrorDetail": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "diagnostics": {
+            "items": {
+              "$ref": "#/components/schemas/Diagnostic"
+            },
+            "type": "array",
+            "title": "Diagnostics"
+          },
+          "keys": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Keys"
+          },
+          "instance_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instance Id"
+          },
+          "field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ErrorDetail",
+        "description": "结构化错误 `detail`：服务端主动抛出的 code/message，可带诊断与定位字段。"
+      },
+      "ErrorResponse": {
+        "properties": {
+          "detail": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ErrorDetail"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ValidationIssue"
+                },
+                "type": "array"
+              }
+            ],
+            "title": "Detail"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "detail"
+        ],
+        "title": "ErrorResponse",
+        "description": "HTTP 错误响应包络。\n\n运行时 FastAPI 统一输出 `{\"detail\": …}`：`detail` 可能是结构化错误（`ErrorDetail`）、\n纯文本说明，或请求校验问题列表。本模型只用于 OpenAPI 文档化，不改变运行时响应体。"
+      },
       "EvaluateResponse": {
         "properties": {
           "relations": {
@@ -1838,6 +3668,204 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "HealthAuth": {
+        "properties": {
+          "required": {
+            "type": "boolean",
+            "title": "Required"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "required"
+        ],
+        "title": "HealthAuth"
+      },
+      "HealthCapabilities": {
+        "properties": {
+          "steady_hydraulics": {
+            "type": "boolean",
+            "title": "Steady Hydraulics"
+          },
+          "quasi_steady_series": {
+            "type": "boolean",
+            "title": "Quasi Steady Series"
+          },
+          "thermal": {
+            "type": "boolean",
+            "title": "Thermal"
+          },
+          "property_coupling": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Property Coupling"
+          },
+          "tank_state": {
+            "type": "boolean",
+            "title": "Tank State"
+          },
+          "time_integration": {
+            "type": "string",
+            "title": "Time Integration"
+          },
+          "coolprop_single_phase": {
+            "type": "boolean",
+            "title": "Coolprop Single Phase"
+          },
+          "user_code": {
+            "type": "boolean",
+            "title": "User Code"
+          },
+          "worker_process": {
+            "type": "boolean",
+            "title": "Worker Process"
+          },
+          "async_runs": {
+            "type": "boolean",
+            "title": "Async Runs"
+          },
+          "module_versions": {
+            "type": "boolean",
+            "title": "Module Versions"
+          },
+          "run_control": {
+            "type": "boolean",
+            "title": "Run Control"
+          },
+          "live_runs": {
+            "type": "boolean",
+            "title": "Live Runs"
+          },
+          "pid": {
+            "type": "boolean",
+            "title": "Pid"
+          },
+          "runtime_parameters": {
+            "type": "boolean",
+            "title": "Runtime Parameters"
+          },
+          "continuous_step": {
+            "type": "boolean",
+            "title": "Continuous Step"
+          },
+          "continuous_runs": {
+            "type": "boolean",
+            "title": "Continuous Runs"
+          },
+          "variables_api": {
+            "type": "boolean",
+            "title": "Variables Api"
+          },
+          "run_stream": {
+            "type": "boolean",
+            "title": "Run Stream"
+          },
+          "python_controls": {
+            "type": "boolean",
+            "title": "Python Controls"
+          },
+          "persistent_workspace": {
+            "type": "boolean",
+            "title": "Persistent Workspace"
+          },
+          "refprop": {
+            "$ref": "#/components/schemas/RefpropInfo"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "steady_hydraulics",
+          "quasi_steady_series",
+          "thermal",
+          "tank_state",
+          "time_integration",
+          "coolprop_single_phase",
+          "user_code",
+          "worker_process",
+          "async_runs",
+          "module_versions",
+          "run_control",
+          "live_runs",
+          "pid",
+          "runtime_parameters",
+          "continuous_step",
+          "continuous_runs",
+          "variables_api",
+          "run_stream",
+          "python_controls",
+          "persistent_workspace",
+          "refprop"
+        ],
+        "title": "HealthCapabilities"
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "solver": {
+            "type": "string",
+            "title": "Solver"
+          },
+          "supported_domains": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Supported Domains"
+          },
+          "capabilities": {
+            "$ref": "#/components/schemas/HealthCapabilities"
+          },
+          "max_frames": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Max Frames"
+          },
+          "run_retention": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Run Retention"
+          },
+          "history_window_max": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "History Window Max"
+          },
+          "overview_points": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Overview Points"
+          },
+          "auth": {
+            "$ref": "#/components/schemas/HealthAuth"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "status",
+          "version",
+          "solver",
+          "capabilities",
+          "max_frames",
+          "run_retention",
+          "history_window_max",
+          "overview_points",
+          "auth"
+        ],
+        "title": "HealthResponse",
+        "description": "`GET /health`：版本、能力标志与全局上限。"
       },
       "LibraryBank": {
         "properties": {
@@ -3092,6 +5120,62 @@
         ],
         "title": "ProjectDeleteRequest"
       },
+      "ProjectDeleteResponse": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Revision"
+          },
+          "saved_at": {
+            "type": "string",
+            "title": "Saved At"
+          },
+          "workspace_revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Workspace Revision"
+          },
+          "previous_workspace_revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Previous Workspace Revision"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision",
+          "saved_at",
+          "workspace_revision",
+          "previous_workspace_revision"
+        ],
+        "title": "ProjectDeleteResponse"
+      },
+      "ProjectDetailResponse": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Revision"
+          },
+          "saved_at": {
+            "type": "string",
+            "title": "Saved At"
+          },
+          "document": {
+            "$ref": "#/components/schemas/ProjectDocument"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision",
+          "saved_at",
+          "document"
+        ],
+        "title": "ProjectDetailResponse"
+      },
       "ProjectDocument": {
         "properties": {
           "format": {
@@ -3144,6 +5228,81 @@
         ],
         "title": "ProjectDocument"
       },
+      "ProjectListResponse": {
+        "properties": {
+          "projects": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectSummary"
+            },
+            "type": "array",
+            "title": "Projects"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ProjectListResponse"
+      },
+      "ProjectRestoreResponse": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Revision"
+          },
+          "saved_at": {
+            "type": "string",
+            "title": "Saved At"
+          },
+          "workspace_revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Workspace Revision"
+          },
+          "previous_workspace_revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Previous Workspace Revision"
+          },
+          "document": {
+            "$ref": "#/components/schemas/ProjectDocument"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision",
+          "saved_at",
+          "workspace_revision",
+          "previous_workspace_revision",
+          "document"
+        ],
+        "title": "ProjectRestoreResponse"
+      },
+      "ProjectRevisionInfo": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Revision"
+          },
+          "saved_at": {
+            "type": "string",
+            "title": "Saved At"
+          },
+          "deleted": {
+            "type": "boolean",
+            "title": "Deleted",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision",
+          "saved_at"
+        ],
+        "title": "ProjectRevisionInfo"
+      },
       "ProjectRevisionRequest": {
         "properties": {
           "expected_revision": {
@@ -3165,6 +5324,20 @@
         ],
         "title": "ProjectRevisionRequest"
       },
+      "ProjectRevisionsResponse": {
+        "properties": {
+          "revisions": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectRevisionInfo"
+            },
+            "type": "array",
+            "title": "Revisions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ProjectRevisionsResponse"
+      },
       "ProjectSaveRequest": {
         "properties": {
           "expected_revision": {
@@ -3183,6 +5356,117 @@
           "document"
         ],
         "title": "ProjectSaveRequest"
+      },
+      "ProjectSaveResponse": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Revision"
+          },
+          "saved_at": {
+            "type": "string",
+            "title": "Saved At"
+          },
+          "workspace_revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Workspace Revision"
+          },
+          "previous_workspace_revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Previous Workspace Revision"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision",
+          "saved_at",
+          "workspace_revision",
+          "previous_workspace_revision"
+        ],
+        "title": "ProjectSaveResponse"
+      },
+      "ProjectSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Revision"
+          },
+          "saved_at": {
+            "type": "string",
+            "title": "Saved At"
+          },
+          "instances": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Instances"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "revision",
+          "saved_at",
+          "instances"
+        ],
+        "title": "ProjectSummary"
+      },
+      "ProjectUpgradeChange": {
+        "properties": {
+          "field": {
+            "type": "string",
+            "title": "Field"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "before": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before"
+          },
+          "after": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "field",
+          "id"
+        ],
+        "title": "ProjectUpgradeChange"
       },
       "ProjectUpgradeRequest": {
         "properties": {
@@ -3208,6 +5492,137 @@
           "target_version"
         ],
         "title": "ProjectUpgradeRequest"
+      },
+      "ProjectUpgradeResponse": {
+        "properties": {
+          "module_id": {
+            "type": "string",
+            "title": "Module Id"
+          },
+          "from_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "From Version"
+          },
+          "to_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "To Version"
+          },
+          "from_hashes": {
+            "$ref": "#/components/schemas/ModulePackageRef"
+          },
+          "to_hashes": {
+            "$ref": "#/components/schemas/ModulePackageRef"
+          },
+          "source_before": {
+            "type": "string",
+            "title": "Source Before"
+          },
+          "source_after": {
+            "type": "string",
+            "title": "Source After"
+          },
+          "changes": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectUpgradeChange"
+            },
+            "type": "array",
+            "title": "Changes"
+          },
+          "compatible": {
+            "type": "boolean",
+            "title": "Compatible"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reasons"
+          },
+          "module": {
+            "$ref": "#/components/schemas/ModuleDefinition"
+          },
+          "project": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Project"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "module_id",
+          "from_version",
+          "to_version",
+          "from_hashes",
+          "to_hashes",
+          "source_before",
+          "source_after",
+          "compatible",
+          "module"
+        ],
+        "title": "ProjectUpgradeResponse",
+        "description": "`POST /project-upgrades/preview`：版本差异与兼容性结论；兼容时附升级后的项目。"
+      },
+      "RefpropInfo": {
+        "properties": {
+          "installed": {
+            "type": "boolean",
+            "title": "Installed"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "env",
+                  "bundled",
+                  "system"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "installed"
+        ],
+        "title": "RefpropInfo",
+        "description": "`GET /health` 上报的 REFPROP 运行时发现结果（不加载 DLL）。"
       },
       "RunCommand": {
         "properties": {
@@ -3328,6 +5743,20 @@
           "status"
         ],
         "title": "RunCreateResponse"
+      },
+      "RunDeleteResponse": {
+        "properties": {
+          "deleted": {
+            "type": "string",
+            "title": "Deleted"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "deleted"
+        ],
+        "title": "RunDeleteResponse"
       },
       "RunEvent": {
         "properties": {
@@ -3546,6 +5975,20 @@
         "additionalProperties": false,
         "type": "object",
         "title": "RunHistoryResponse"
+      },
+      "RunListResponse": {
+        "properties": {
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/RunSummary"
+            },
+            "type": "array",
+            "title": "Runs"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "RunListResponse"
       },
       "RunOverviewResponse": {
         "properties": {
@@ -3886,6 +6329,40 @@
         ],
         "title": "RunStatus"
       },
+      "RunSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "mode": {
+            "type": "string",
+            "title": "Mode"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "time_s": {
+            "type": "number",
+            "title": "Time S",
+            "default": 0.0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "mode",
+          "name"
+        ],
+        "title": "RunSummary"
+      },
       "Scenario": {
         "properties": {
           "id": {
@@ -4088,6 +6565,43 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "ValidationIssue": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Loc"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Msg"
+          },
+          "input": {
+            "title": "Input"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "type",
+          "msg"
+        ],
+        "title": "ValidationIssue",
+        "description": "FastAPI/Pydantic 请求校验失败时 `detail` 列表中的一项（字段随错误类型变化）。"
       },
       "ValidationResponse": {
         "properties": {
@@ -4322,6 +6836,116 @@
         "title": "VariableWrite",
         "description": "POST /runs/{id}/variables: values by frame key, all applied at one frame boundary or none."
       },
+      "WorkspaceResponse": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision"
+          },
+          "saved_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Saved At"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data"
+          },
+          "project_revisions": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Project Revisions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision"
+        ],
+        "title": "WorkspaceResponse",
+        "description": "`GET /workspace`：最新（或指定修订）完整工作区；未保存时 revision=0、data=null。"
+      },
+      "WorkspaceRestoreResponse": {
+        "properties": {
+          "directory": {
+            "type": "string",
+            "title": "Directory"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision"
+          },
+          "command": {
+            "type": "string",
+            "title": "Command"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "directory",
+          "revision",
+          "command",
+          "message"
+        ],
+        "title": "WorkspaceRestoreResponse"
+      },
+      "WorkspaceRevision": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision"
+          },
+          "saved_at": {
+            "type": "string",
+            "title": "Saved At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision",
+          "saved_at"
+        ],
+        "title": "WorkspaceRevision"
+      },
+      "WorkspaceRevisionsResponse": {
+        "properties": {
+          "revisions": {
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceRevision"
+            },
+            "type": "array",
+            "title": "Revisions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "WorkspaceRevisionsResponse"
+      },
       "WorkspaceSaveRequest": {
         "properties": {
           "expected_revision": {
@@ -4342,6 +6966,102 @@
           "data"
         ],
         "title": "WorkspaceSaveRequest"
+      },
+      "WorkspaceSaveResponse": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Revision"
+          },
+          "saved_at": {
+            "type": "string",
+            "title": "Saved At"
+          },
+          "project_revisions": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Project Revisions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision",
+          "saved_at"
+        ],
+        "title": "WorkspaceSaveResponse"
+      },
+      "WorkspaceStorageResponse": {
+        "properties": {
+          "database_bytes": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Database Bytes"
+          },
+          "reusable_bytes": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Reusable Bytes"
+          },
+          "wal_bytes": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Wal Bytes"
+          },
+          "free_disk_bytes": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Free Disk Bytes"
+          },
+          "runs": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Runs"
+          },
+          "frames": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Frames"
+          },
+          "revision_retention": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision Retention"
+          },
+          "run_retention": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Run Retention"
+          },
+          "history_window_max": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "History Window Max"
+          },
+          "overview_points": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Overview Points"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "database_bytes",
+          "reusable_bytes",
+          "wal_bytes",
+          "free_disk_bytes",
+          "runs",
+          "frames",
+          "revision_retention",
+          "run_retention",
+          "history_window_max",
+          "overview_points"
+        ],
+        "title": "WorkspaceStorageResponse"
       }
     }
   }

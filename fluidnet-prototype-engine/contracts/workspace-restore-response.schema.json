@@ -1,0 +1,31 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "directory": {
+      "title": "Directory",
+      "type": "string"
+    },
+    "revision": {
+      "minimum": 0,
+      "title": "Revision",
+      "type": "integer"
+    },
+    "command": {
+      "title": "Command",
+      "type": "string"
+    },
+    "message": {
+      "title": "Message",
+      "type": "string"
+    }
+  },
+  "required": [
+    "directory",
+    "revision",
+    "command",
+    "message"
+  ],
+  "title": "WorkspaceRestoreResponse",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

@@ -1,0 +1,257 @@
+{
+  "$defs": {
+    "HealthAuth": {
+      "additionalProperties": false,
+      "properties": {
+        "required": {
+          "title": "Required",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "required"
+      ],
+      "title": "HealthAuth",
+      "type": "object"
+    },
+    "HealthCapabilities": {
+      "additionalProperties": false,
+      "properties": {
+        "steady_hydraulics": {
+          "title": "Steady Hydraulics",
+          "type": "boolean"
+        },
+        "quasi_steady_series": {
+          "title": "Quasi Steady Series",
+          "type": "boolean"
+        },
+        "thermal": {
+          "title": "Thermal",
+          "type": "boolean"
+        },
+        "property_coupling": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Property Coupling",
+          "type": "array"
+        },
+        "tank_state": {
+          "title": "Tank State",
+          "type": "boolean"
+        },
+        "time_integration": {
+          "title": "Time Integration",
+          "type": "string"
+        },
+        "coolprop_single_phase": {
+          "title": "Coolprop Single Phase",
+          "type": "boolean"
+        },
+        "user_code": {
+          "title": "User Code",
+          "type": "boolean"
+        },
+        "worker_process": {
+          "title": "Worker Process",
+          "type": "boolean"
+        },
+        "async_runs": {
+          "title": "Async Runs",
+          "type": "boolean"
+        },
+        "module_versions": {
+          "title": "Module Versions",
+          "type": "boolean"
+        },
+        "run_control": {
+          "title": "Run Control",
+          "type": "boolean"
+        },
+        "live_runs": {
+          "title": "Live Runs",
+          "type": "boolean"
+        },
+        "pid": {
+          "title": "Pid",
+          "type": "boolean"
+        },
+        "runtime_parameters": {
+          "title": "Runtime Parameters",
+          "type": "boolean"
+        },
+        "continuous_step": {
+          "title": "Continuous Step",
+          "type": "boolean"
+        },
+        "continuous_runs": {
+          "title": "Continuous Runs",
+          "type": "boolean"
+        },
+        "variables_api": {
+          "title": "Variables Api",
+          "type": "boolean"
+        },
+        "run_stream": {
+          "title": "Run Stream",
+          "type": "boolean"
+        },
+        "python_controls": {
+          "title": "Python Controls",
+          "type": "boolean"
+        },
+        "persistent_workspace": {
+          "title": "Persistent Workspace",
+          "type": "boolean"
+        },
+        "refprop": {
+          "$ref": "#/$defs/RefpropInfo"
+        }
+      },
+      "required": [
+        "steady_hydraulics",
+        "quasi_steady_series",
+        "thermal",
+        "tank_state",
+        "time_integration",
+        "coolprop_single_phase",
+        "user_code",
+        "worker_process",
+        "async_runs",
+        "module_versions",
+        "run_control",
+        "live_runs",
+        "pid",
+        "runtime_parameters",
+        "continuous_step",
+        "continuous_runs",
+        "variables_api",
+        "run_stream",
+        "python_controls",
+        "persistent_workspace",
+        "refprop"
+      ],
+      "title": "HealthCapabilities",
+      "type": "object"
+    },
+    "RefpropInfo": {
+      "additionalProperties": false,
+      "description": "`GET /health` 上报的 REFPROP 运行时发现结果（不加载 DLL）。",
+      "properties": {
+        "installed": {
+          "title": "Installed",
+          "type": "boolean"
+        },
+        "source": {
+          "anyOf": [
+            {
+              "enum": [
+                "env",
+                "bundled",
+                "system"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Path"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version"
+        }
+      },
+      "required": [
+        "installed"
+      ],
+      "title": "RefpropInfo",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "`GET /health`：版本、能力标志与全局上限。",
+  "properties": {
+    "status": {
+      "title": "Status",
+      "type": "string"
+    },
+    "version": {
+      "title": "Version",
+      "type": "string"
+    },
+    "solver": {
+      "title": "Solver",
+      "type": "string"
+    },
+    "supported_domains": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Supported Domains",
+      "type": "array"
+    },
+    "capabilities": {
+      "$ref": "#/$defs/HealthCapabilities"
+    },
+    "max_frames": {
+      "minimum": 0,
+      "title": "Max Frames",
+      "type": "integer"
+    },
+    "run_retention": {
+      "minimum": 0,
+      "title": "Run Retention",
+      "type": "integer"
+    },
+    "history_window_max": {
+      "minimum": 0,
+      "title": "History Window Max",
+      "type": "integer"
+    },
+    "overview_points": {
+      "minimum": 0,
+      "title": "Overview Points",
+      "type": "integer"
+    },
+    "auth": {
+      "$ref": "#/$defs/HealthAuth"
+    }
+  },
+  "required": [
+    "status",
+    "version",
+    "solver",
+    "capabilities",
+    "max_frames",
+    "run_retention",
+    "history_window_max",
+    "overview_points",
+    "auth"
+  ],
+  "title": "HealthResponse",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

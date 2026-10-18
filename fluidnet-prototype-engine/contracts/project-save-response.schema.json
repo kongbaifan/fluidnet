@@ -1,0 +1,33 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "revision": {
+      "minimum": 1,
+      "title": "Revision",
+      "type": "integer"
+    },
+    "saved_at": {
+      "title": "Saved At",
+      "type": "string"
+    },
+    "workspace_revision": {
+      "minimum": 1,
+      "title": "Workspace Revision",
+      "type": "integer"
+    },
+    "previous_workspace_revision": {
+      "minimum": 0,
+      "title": "Previous Workspace Revision",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "revision",
+    "saved_at",
+    "workspace_revision",
+    "previous_workspace_revision"
+  ],
+  "title": "ProjectSaveResponse",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

@@ -26,7 +26,9 @@ from .catalog import builtin_catalog
 from .compiler import CompilationError, compile_project, validate_project_details
 from .models import (
     CatalogResponse,
+    ControlPreviewResponse,
     Diagnostic,
+    HealthResponse,
     ModuleDefinition,
     ModuleDesignRequest,
     ModuleDesignResponse,
@@ -34,15 +36,24 @@ from .models import (
     ModuleTestResponse,
     ModuleCatalogResponse,
     Project,
+    ProjectDeleteResponse,
+    ProjectDetailResponse,
+    ProjectListResponse,
+    ProjectRevisionsResponse,
+    ProjectRestoreResponse,
+    ProjectSaveResponse,
+    ProjectUpgradeResponse,
     RunCommand,
     RunFrame,
     RunRequest,
     RunStatus,
     RunRecordResponse,
     RunCreateResponse,
+    RunDeleteResponse,
     RunEventsResponse,
     RunEvent,
     RunHistoryResponse,
+    RunListResponse,
     RunOverviewResponse,
     VariableValues,
     VariableWrite,
@@ -50,7 +61,13 @@ from .models import (
     ModuleSaveRequest,
     ModuleVersionResponse,
     ModuleVersionsResponse,
+    WorkspaceResponse,
+    WorkspaceRestoreResponse,
+    WorkspaceRevisionsResponse,
+    WorkspaceSaveResponse,
+    WorkspaceStorageResponse,
 )
+from .errors import error_responses, protected_error_responses
 from .properties import PropertyError, refprop_info
 from .packages import ModuleStore, ModuleVersionConflict, ModuleSaveInvalid, package_ref
 from .module_validation import validate_module_definition
@@ -213,7 +230,8 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
         app.add_middleware(CORSMiddleware, allow_origins=list(cors_origins), allow_methods=['GET', 'POST'],
                            allow_headers=['Authorization', 'Content-Type'])
 
-    @app.get('/api/v1/health')
+    @app.get('/api/v1/health', response_model=HealthResponse,
+              responses=error_responses('INTERNAL_ERROR'))
     def health():
         return {'status':'ok','version':__version__,'solver':'declarative-fluid-v1','supported_domains':['fluid'],
                 'capabilities':{'steady_hydraulics':True,'quasi_steady_series':True,'thermal':True,
@@ -233,23 +251,27 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
             raise HTTPException(503, detail='持久存储未启用，请使用 serve 启动服务或为 create_app 配置 data_root')
         return archive
 
-    @app.get('/api/v1/workspace')
+    @app.get('/api/v1/workspace', response_model=WorkspaceResponse,
+              responses=protected_error_responses(404, 503, 'STORAGE_FAILED', 'INTERNAL_ERROR'))
     def read_workspace(revision: int | None = Query(None, ge=1)):
         try:
             return require_archive().workspace(revision)
         except KeyError:
             raise HTTPException(404, detail='工作区备份修订不存在')
 
-    @app.get('/api/v1/workspace/revisions')
+    @app.get('/api/v1/workspace/revisions', response_model=WorkspaceRevisionsResponse,
+              responses=protected_error_responses(503, 'STORAGE_FAILED', 'INTERNAL_ERROR'))
     def workspace_revisions():
         return {'revisions': require_archive().revisions()}
 
-    @app.get('/api/v1/workspace/storage')
+    @app.get('/api/v1/workspace/storage', response_model=WorkspaceStorageResponse,
+              responses=protected_error_responses(503, 'STORAGE_FAILED', 'INTERNAL_ERROR'))
     def workspace_storage():
         return require_archive().usage()
 
     @app.post('/api/v1/workspace/backup', response_class=FileResponse,
-              responses={200: {'content': {'application/zip': {'schema': {'type': 'string', 'format': 'binary'}}}}})
+              responses={200: {'content': {'application/zip': {'schema': {'type': 'string', 'format': 'binary'}}}},
+                         **protected_error_responses(503, 'STORAGE_FAILED', 'INTERNAL_ERROR')})
     def workspace_backup():
         from .backup import backup_workspace
         storage = require_archive()
@@ -263,7 +285,8 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
             temporary.cleanup()
             raise
 
-    @app.post('/api/v1/workspace/restore', openapi_extra={
+    @app.post('/api/v1/workspace/restore', response_model=WorkspaceRestoreResponse,
+              responses=protected_error_responses(413, 422, 503, 'STORAGE_FAILED', 'INTERNAL_ERROR'), openapi_extra={
         'requestBody': {'required': True, 'content': {'application/zip': {'schema': {'type': 'string', 'format': 'binary'}}}}})
     async def workspace_restore(request: Request):
         from .backup import restore_workspace
@@ -286,14 +309,16 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
                 'command': f'python -m fn_engine serve --data-dir "{target.resolve()}"',
                 'message': '已恢复到独立目录。关闭当前服务后使用下方命令打开；原工作区保留。'}
 
-    @app.post('/api/v1/workspace')
+    @app.post('/api/v1/workspace', response_model=WorkspaceSaveResponse,
+              responses=protected_error_responses('WORKSPACE_CONFLICT', 503, 'STORAGE_FAILED', 'INTERNAL_ERROR'))
     def save_workspace(request: WorkspaceSaveRequest):
         try:
             return require_archive().save_workspace(request.data, request.expected_revision)
         except WorkspaceConflict as error:
             raise HTTPException(409, detail={'code': 'WORKSPACE_CONFLICT', 'message': str(error)}) from error
 
-    @app.post('/api/v1/controls/preview')
+    @app.post('/api/v1/controls/preview', response_model=ControlPreviewResponse,
+              responses=protected_error_responses(422, 'INTERNAL_ERROR'))
     def preview_control(request: ControlPreviewRequest):
         from .simulation import SimulationSession
         script = request.script.model_copy(update={'enabled': True})
@@ -311,7 +336,8 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
             if session:
                 session.close()
 
-    @app.post('/api/v1/projects/validate', response_model=ValidationResponse)
+    @app.post('/api/v1/projects/validate', response_model=ValidationResponse,
+              responses=protected_error_responses(422, 'INTERNAL_ERROR'))
     def validate(project: Project):
         items, circuits = validate_project_details(project)
         return {'valid':not any(d.severity == 'error' for d in items),'diagnostics':items,'circuits':circuits}
@@ -321,22 +347,26 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
             if any(j.request.project.id == project_id and j.record['status'] not in TERMINAL for j in manager.jobs.values()):
                 raise HTTPException(409, detail='请先停止该项目的活动运行，再更改项目版本或删除项目')
 
-    @app.get('/api/v1/projects')
+    @app.get('/api/v1/projects', response_model=ProjectListResponse,
+              responses=protected_error_responses(503, 'STORAGE_FAILED', 'INTERNAL_ERROR'))
     def list_projects():
         return {'projects': require_archive().projects()}
 
-    @app.get('/api/v1/projects/{project_id}')
+    @app.get('/api/v1/projects/{project_id}', response_model=ProjectDetailResponse,
+              responses=protected_error_responses(404, 503, 'STORAGE_FAILED', 'INTERNAL_ERROR'))
     def read_project(project_id: str, revision: int | None = Query(None, ge=1)):
         try:
             return require_archive().project(project_id, revision)
         except KeyError:
             raise HTTPException(404, detail='项目或修订不存在')
 
-    @app.get('/api/v1/projects/{project_id}/revisions')
+    @app.get('/api/v1/projects/{project_id}/revisions', response_model=ProjectRevisionsResponse,
+              responses=protected_error_responses(503, 'STORAGE_FAILED', 'INTERNAL_ERROR'))
     def project_revisions(project_id: str):
         return {'revisions': require_archive().project_history(project_id)}
 
-    @app.post('/api/v1/projects/{project_id}')
+    @app.post('/api/v1/projects/{project_id}', response_model=ProjectSaveResponse,
+              responses=protected_error_responses('PROJECT_CONFLICT', 'WORKSPACE_CONFLICT', 422, 503, 'STORAGE_FAILED', 'INTERNAL_ERROR'))
     def save_project(project_id: str, request: ProjectSaveRequest):
         project_idle(project_id)
         if request.document.project['id'] != project_id:
@@ -348,7 +378,8 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
                 raise
             raise HTTPException(422, detail=str(error)) from error
 
-    @app.post('/api/v1/projects/{project_id}/restore')
+    @app.post('/api/v1/projects/{project_id}/restore', response_model=ProjectRestoreResponse,
+              responses=protected_error_responses(404, 'PROJECT_CONFLICT', 503, 'STORAGE_FAILED', 'INTERNAL_ERROR'))
     def restore_project_revision(project_id: str, request: ProjectRevisionRequest):
         project_idle(project_id)
         storage = require_archive()
@@ -359,7 +390,8 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
         except KeyError:
             raise HTTPException(404, detail='项目修订不存在')
 
-    @app.post('/api/v1/projects/{project_id}/delete')
+    @app.post('/api/v1/projects/{project_id}/delete', response_model=ProjectDeleteResponse,
+              responses=protected_error_responses('PROJECT_CONFLICT', 'WORKSPACE_CONFLICT', 422, 503, 'STORAGE_FAILED', 'INTERNAL_ERROR'))
     def delete_project(project_id: str, request: ProjectDeleteRequest):
         project_idle(project_id)
         try:
@@ -369,7 +401,8 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
                 raise
             raise HTTPException(422, detail=str(error)) from error
 
-    @app.post('/api/v1/project-upgrades/preview')
+    @app.post('/api/v1/project-upgrades/preview', response_model=ProjectUpgradeResponse,
+              responses=protected_error_responses(404, 409, 422, 'INTERNAL_ERROR'))
     def preview_project_upgrade(request: ProjectUpgradeRequest):
         from .projects import upgrade_project
         project_idle(request.project.id)
@@ -381,11 +414,13 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
         except ValueError as error:
             raise HTTPException(422, detail=str(error)) from error
 
-    @app.get('/api/v1/catalog', response_model=CatalogResponse)
+    @app.get('/api/v1/catalog', response_model=CatalogResponse,
+             responses=protected_error_responses('INTERNAL_ERROR'))
     def catalog():
         return {'modules':builtin_catalog(), 'prototype_parameter_bindings':PARAMETER_BINDINGS}
 
-    @app.get('/api/v1/examples/{name}', response_model=Project)
+    @app.get('/api/v1/examples/{name}', response_model=Project,
+             responses=protected_error_responses(404, 'INTERNAL_ERROR'))
     def example(name: str):
         from .examples import pid_example
         try:
@@ -393,7 +428,8 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
         except KeyError:
             raise HTTPException(404, detail='示例不存在')
 
-    @app.get('/api/v1/modules', response_model=ModuleCatalogResponse)
+    @app.get('/api/v1/modules', response_model=ModuleCatalogResponse,
+             responses=protected_error_responses('MODULE_STORAGE_ERROR', 'INTERNAL_ERROR'))
     def modules():
         items = []
         definitions = builtin_catalog() + store.latest()
@@ -403,22 +439,27 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
             items.append(payload)
         return {'modules': items}
 
-    @app.post('/api/v1/modules/validate', response_model=ValidationResponse)
+    @app.post('/api/v1/modules/validate', response_model=ValidationResponse,
+              responses=protected_error_responses(422, 'INTERNAL_ERROR'))
     def validate_module(module: ModuleDefinition):
         return validate_module_definition(module)
 
-    @app.get('/api/v1/modules/{module_id}/versions', response_model=ModuleVersionsResponse)
+    @app.get('/api/v1/modules/{module_id}/versions', response_model=ModuleVersionsResponse,
+             responses=protected_error_responses('MODULE_STORAGE_ERROR', 'INTERNAL_ERROR'))
     def module_versions(module_id: str):
         return {'versions': store.versions(module_id)}
 
-    @app.get('/api/v1/modules/{module_id}/versions/{version}', response_model=ModuleVersionResponse)
+    @app.get('/api/v1/modules/{module_id}/versions/{version}', response_model=ModuleVersionResponse,
+             responses=protected_error_responses(404, 'MODULE_STORAGE_ERROR', 'INTERNAL_ERROR'))
     def module_version(module_id: str, version: int):
         try:
             return store.get(module_id, version)
         except KeyError as error:
             raise HTTPException(404, detail='模块版本不存在') from error
 
-    @app.post('/api/v1/modules/versions', response_model=ModuleVersionResponse, status_code=201)
+    @app.post('/api/v1/modules/versions', response_model=ModuleVersionResponse, status_code=201,
+              responses=protected_error_responses('MODULE_VERSION_CONFLICT', 'MODULE_SAVE_INVALID',
+                                                  'MODULE_STORAGE_ERROR', 'INTERNAL_ERROR'))
     def save_module_version(request: ModuleSaveRequest):
         try:
             return store.save(request)
@@ -430,7 +471,8 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
         except OSError as error:
             raise HTTPException(500, detail={'code':'MODULE_STORAGE_ERROR','message':'模块版本写入失败,请检查存储目录权限和剩余空间'}) from error
 
-    @app.post('/api/v1/modules/test', response_model=ModuleTestResponse)
+    @app.post('/api/v1/modules/test', response_model=ModuleTestResponse,
+              responses=protected_error_responses(422, 'MODULE_WORKER_IO_ERROR', 'INTERNAL_ERROR'))
     def test_module(request: ModuleTestRequest):
         from .bench import run_module_test
         try:
@@ -443,7 +485,8 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
             status, detail = _unexpected_failure(error)
             raise HTTPException(status, detail=detail) from error
 
-    @app.post('/api/v1/modules/design', response_model=ModuleDesignResponse)
+    @app.post('/api/v1/modules/design', response_model=ModuleDesignResponse,
+              responses=protected_error_responses(422, 'MODULE_WORKER_IO_ERROR', 'INTERNAL_ERROR'))
     def design_module(request: ModuleDesignRequest):
         from .design import run_design
         try:
@@ -454,14 +497,16 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
             status, detail = _unexpected_failure(error)
             raise HTTPException(status, detail=detail) from error
 
-    @app.post('/api/v1/prototype/normalize')
+    @app.post('/api/v1/prototype/normalize', response_model=Project,
+              responses=protected_error_responses(422, 'INTERNAL_ERROR'))
     def normalize(payload: dict):
         try:
             return normalize_prototype_export(payload)
         except (ValueError,KeyError,TypeError,AttributeError,IndexError) as error:
             raise HTTPException(422,detail=str(error)) from error
 
-    @app.post('/api/v1/solve',response_model=RunFrame)
+    @app.post('/api/v1/solve',response_model=RunFrame,
+              responses=protected_error_responses(422, 'MODULE_WORKER_IO_ERROR', 'INTERNAL_ERROR'))
     def solve(project: Project):
         try:
             return solve_steady(compile_project(project))
@@ -510,7 +555,9 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
                 runs.popitem(last=False)
         return record
 
-    @app.post('/api/v1/runs',status_code=201, response_model=RunCreateResponse)
+    @app.post('/api/v1/runs',status_code=201, response_model=RunCreateResponse,
+              responses={202: {'model': RunStatus, 'description': '后台运行已受理（background=true）'},
+                         **protected_error_responses('RUN_LIMIT', 'RUN_TOO_LONG', 'MODULE_WORKER_IO_ERROR', 'INTERNAL_ERROR')})
     def run(request: RunRequest, background: bool = Query(False)):
         run_id = uuid.uuid4().hex
         if background:
@@ -533,7 +580,8 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
             raise HTTPException(status, detail=detail) from error
         return {'run_id':run_id,'status':record['status'],'frame':record['frame'],'total_rows':len(record['history'])}
 
-    @app.get('/api/v1/runs')
+    @app.get('/api/v1/runs', response_model=RunListResponse,
+             responses=protected_error_responses('STORAGE_FAILED', 'INTERNAL_ERROR'))
     def list_runs():
         records = {r['id']: r for r in archive.records()} if archive else {}
         with lock:
@@ -571,13 +619,15 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
                 'progress':progress,'frame':frame,'total_rows':record.get('total_rows',len(record.get('history') or [])),
                 'lag_s':record.get('lag_s',0.)}
 
-    @app.get('/api/v1/runs/{run_id}', response_model=RunRecordResponse)
+    @app.get('/api/v1/runs/{run_id}', response_model=RunRecordResponse,
+             responses=protected_error_responses(404, 'STORAGE_FAILED', 'INTERNAL_ERROR'))
     def run_status(run_id: str):
         record = get_run(run_id)
         # `history` is served by /runs/{id}/history; `events` stays visible here.
         return {key:value for key,value in record.items() if key != 'history'}
 
-    @app.post('/api/v1/runs/{run_id}/delete')
+    @app.post('/api/v1/runs/{run_id}/delete', response_model=RunDeleteResponse,
+              responses=protected_error_responses(404, 409, 'STORAGE_FAILED', 'INTERNAL_ERROR'))
     def delete_run(run_id: str):
         record = get_run(run_id)
         if record['status'] not in TERMINAL:
@@ -594,11 +644,13 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
             runs.pop(run_id, None)
         return {'deleted': run_id}
 
-    @app.get('/api/v1/runs/{run_id}/events', response_model=RunEventsResponse)
+    @app.get('/api/v1/runs/{run_id}/events', response_model=RunEventsResponse,
+             responses=protected_error_responses(404, 'STORAGE_FAILED', 'INTERNAL_ERROR'))
     def run_events(run_id: str):
         return {'run_id': run_id, 'events': [RunEvent.model_validate(event) for event in get_run(run_id).get('events', [])]}
 
-    @app.get('/api/v1/runs/{run_id}/history', response_model=RunHistoryResponse)
+    @app.get('/api/v1/runs/{run_id}/history', response_model=RunHistoryResponse,
+             responses=protected_error_responses(404, 'STORAGE_FAILED', 'INTERNAL_ERROR'))
     def run_history(run_id: str, offset: int = Query(0,ge=0), limit: int = Query(2001,ge=1,le=2001)):
         try:
             return manager.history(run_id, offset, limit)
@@ -609,7 +661,8 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
             history = record['history']
         return {'rows':history[offset:offset+limit],'total_rows':len(history),'offset':offset}
 
-    @app.get('/api/v1/runs/{run_id}/overview', response_model=RunOverviewResponse)
+    @app.get('/api/v1/runs/{run_id}/overview', response_model=RunOverviewResponse,
+             responses=protected_error_responses(404, 'STORAGE_FAILED', 'INTERNAL_ERROR'))
     def run_overview(run_id: str):
         try:
             return manager.overview(run_id)
@@ -626,7 +679,8 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
             rows = rows + [history[-1]]
         return {'rows':rows,'stride':stride,'total_rows':len(history)}
 
-    @app.post('/api/v1/runs/{run_id}/command', response_model=RunStatus)
+    @app.post('/api/v1/runs/{run_id}/command', response_model=RunStatus,
+              responses=protected_error_responses(404, 'RUN_ALREADY_FINISHED', 'COMMAND_ID_CONFLICT', 422, 'INTERNAL_ERROR'))
     def run_command(run_id: str, command: RunCommand):
         record = get_run(run_id)
         try:
@@ -661,7 +715,8 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
             raise HTTPException(422, detail={'code': 'VARIABLE_UNKNOWN', 'message': f'帧中没有这些变量：{unknown}',
                                              'keys': unknown})
 
-    @app.get('/api/v1/runs/{run_id}/variables', response_model=VariableValues)
+    @app.get('/api/v1/runs/{run_id}/variables', response_model=VariableValues,
+             responses=protected_error_responses(404, 'NO_FRAME', 'VARIABLE_UNKNOWN', 'STORAGE_FAILED', 'INTERNAL_ERROR'))
     def run_variables(run_id: str, keys: str | None = Query(None, max_length=16384)):
         """Latest frame values; `keys` is a comma-separated list of frame keys (default: all)."""
         wanted = split_keys(keys)
@@ -669,7 +724,8 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
         check_keys(data, wanted)
         return {key: data[key] for key in ('run_id', 'status', 'time_s', 'sequence', 'parameter_revision', 'values')}
 
-    @app.post('/api/v1/runs/{run_id}/variables', response_model=RunStatus)
+    @app.post('/api/v1/runs/{run_id}/variables', response_model=RunStatus,
+              responses=protected_error_responses(404, 'RUN_ALREADY_FINISHED', 409, 422, 'INTERNAL_ERROR'))
     def write_run_variables(run_id: str, body: VariableWrite):
         """Write runtime parameters / PID settings by frame key, together at the next frame boundary."""
         get_run(run_id)

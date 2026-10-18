@@ -52,41 +52,127 @@
       ],
       "title": "Diagnostic",
       "type": "object"
+    },
+    "ErrorDetail": {
+      "additionalProperties": false,
+      "description": "结构化错误 `detail`：服务端主动抛出的 code/message，可带诊断与定位字段。",
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "diagnostics": {
+          "items": {
+            "$ref": "#/$defs/Diagnostic"
+          },
+          "title": "Diagnostics",
+          "type": "array"
+        },
+        "keys": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Keys",
+          "type": "array"
+        },
+        "instance_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Instance Id"
+        },
+        "field": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Field"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "title": "ErrorDetail",
+      "type": "object"
+    },
+    "ValidationIssue": {
+      "additionalProperties": true,
+      "description": "FastAPI/Pydantic 请求校验失败时 `detail` 列表中的一项（字段随错误类型变化）。",
+      "properties": {
+        "type": {
+          "title": "Type",
+          "type": "string"
+        },
+        "loc": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ]
+          },
+          "title": "Loc",
+          "type": "array"
+        },
+        "msg": {
+          "title": "Msg",
+          "type": "string"
+        },
+        "input": {
+          "default": null,
+          "title": "Input"
+        }
+      },
+      "required": [
+        "type",
+        "msg"
+      ],
+      "title": "ValidationIssue",
+      "type": "object"
     }
   },
   "additionalProperties": false,
+  "description": "HTTP 错误响应包络。\n\n运行时 FastAPI 统一输出 `{\"detail\": …}`：`detail` 可能是结构化错误（`ErrorDetail`）、\n纯文本说明，或请求校验问题列表。本模型只用于 OpenAPI 文档化，不改变运行时响应体。",
   "properties": {
-    "code": {
-      "title": "Code",
-      "type": "string"
-    },
-    "message": {
-      "title": "Message",
-      "type": "string"
-    },
-    "diagnostics": {
-      "items": {
-        "$ref": "#/$defs/Diagnostic"
-      },
-      "title": "Diagnostics",
-      "type": "array"
-    },
-    "request_id": {
+    "detail": {
       "anyOf": [
+        {
+          "$ref": "#/$defs/ErrorDetail"
+        },
         {
           "type": "string"
         },
         {
-          "type": "null"
+          "items": {
+            "$ref": "#/$defs/ValidationIssue"
+          },
+          "type": "array"
         }
       ],
-      "default": null,
-      "title": "Request Id"
+      "title": "Detail"
     }
   },
   "required": [
-    "code",
-    "message"
+    "detail"
   ],
   "title": "ErrorResponse",
   "type": "object",
