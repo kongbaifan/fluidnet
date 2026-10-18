@@ -1,4 +1,4 @@
-# CI 门禁：后端引擎（pytest + 契约一致性）与前端（语法检查 + 浏览器冒烟）。
+# CI 门禁：后端引擎（ruff + mypy advisory + pytest/覆盖率 + 契约一致性）与前端（语法检查 + 浏览器冒烟）。
 # 仓库根只是外壳，实际工程在 fluidnet-prototype-engine/ 下，所有命令统一在该目录执行。
 name: ci
 
@@ -14,7 +14,8 @@ jobs:
   backend:
     name: backend (Python 3.11)
     runs-on: windows-latest
-    timeout-minutes: 20
+    # 全量测试 + 覆盖率统计比纯 pytest 慢，留足余量（本机实测约 7 分钟，CI 更慢）。
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: fluidnet-prototype-engine
@@ -23,13 +24,30 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      # requirements.txt 内含 `-e .`，pip 按当前目录解析本地路径，因此这里必须在工程目录内执行。
-      - name: 安装后端依赖
+      # requirements-dev.txt 通过 `-r requirements.txt` 带入运行/测试依赖，
+      # 而 requirements.txt 首行的 `-e .` 会按当前目录做可编辑安装，因此一步即可完成。
+      - name: 安装后端依赖（含 ruff/mypy/pytest-cov）
         run: |
-          python -m pip install -r requirements.txt
-          python -m pip install -e .
-      - name: 后端测试
-        run: python -m pytest -q
+          python -m pip install -r requirements-dev.txt
+      # 阻塞门禁：pyflakes + 语法错误，规则集见 ruff.toml。
+      - name: ruff lint
+        run: python -m ruff check backend tests scripts
+      # 类型检查目前为 advisory（宽松模式，基线 40 errors / 10 files，见 mypy.ini），
+      # 不阻塞合并；后续按模块收紧后再改为阻塞门禁。
+      - name: mypy（advisory，暂不阻塞）
+        continue-on-error: true
+        run: python -m mypy
+      # 覆盖率 floor 配置在 pyproject.toml [tool.coverage.report].fail_under，
+      # 低于 floor 时 pytest 以非零退出码失败。
+      - name: 后端测试 + 覆盖率
+        run: python -m pytest -q --cov=fn_engine --cov-report=term-missing --cov-report=xml:coverage.xml
+      - name: 上传覆盖率报告
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: fluidnet-prototype-engine/coverage.xml
+          if-no-files-found: ignore
       # 由 generate_contracts.py --check 比对 contracts/ 与可执行模型是否一致。
       - name: 契约一致性检查
         run: python scripts/generate_contracts.py --check
@@ -51,7 +69,6 @@ jobs:
       - name: 安装后端依赖（供浏览器测试启动引擎）
         run: |
           python -m pip install -r requirements.txt
-          python -m pip install -e .
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
@@ -59,6 +76,9 @@ jobs:
           cache-dependency-path: fluidnet-prototype-engine/package-lock.json
       - name: 安装前端依赖
         run: npm ci
+      # 前端门禁使用 `node --check` 语法检查（npm run check）。
+      # 暂不引入 eslint：新增 devDependency 必须同步 package-lock.json 才能保证 npm ci 可装，
+      # 当前以语法检查为前端质量门禁，eslint 待后续单独 PR 引入。
       - name: 前端语法检查
         run: npm run check
       # windows-latest 自带 Edge，浏览器脚本用 chromium.launch({channel:'msedge',headless:true}) 无头运行。

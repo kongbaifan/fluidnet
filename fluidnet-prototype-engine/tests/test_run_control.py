@@ -3,7 +3,6 @@
 Every polling loop here is bounded by an explicit iteration cap so a regression
 can never hang the suite.
 """
-import threading
 import time
 from pathlib import Path
 
@@ -352,7 +351,6 @@ def test_health_declares_run_control_capability(tmp_path):
 
 def test_background_crash_before_record_write_is_terminalized(tmp_path, monkeypatch):
     """A fault compute_run cannot name must still terminalize the record."""
-    import fn_engine.api as api
 
     def explode(*args, **kwargs):
         raise RuntimeError("solver exploded")
@@ -485,7 +483,6 @@ def test_stop_then_engine_fault_still_reports_the_fault(tmp_path, monkeypatch):
     writing the final record, that provisional write would otherwise be the last
     one - a permanently frameless `cancelled` record instead of the failure.
     """
-    import fn_engine.api as api
 
     def slow_explode(*args, **kwargs):
         time.sleep(0.4)

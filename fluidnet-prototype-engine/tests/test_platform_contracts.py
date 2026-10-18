@@ -1,6 +1,5 @@
 import time
 import os
-from copy import deepcopy
 from pathlib import Path
 
 import pytest
@@ -18,14 +17,13 @@ from fn_engine.models import (
     Project,
     PortSpec,
     Scenario,
-    ChannelSpec,
     ParameterSpec,
 )
 from fn_engine.packages import load_module_package
 from fn_engine.properties import property_service
 from fn_engine.solver import solve_steady, solve_dynamic
 from fn_engine.runtime import WorkerProcess, RuntimeErrorBase, ModuleRuntimeTimeout
-from fn_engine.models import EvaluateRequest, CommitStepRequest, ChannelState
+from fn_engine.models import EvaluateRequest, CommitStepRequest
 from fn_engine.bridge import normalize_prototype_export
 
 

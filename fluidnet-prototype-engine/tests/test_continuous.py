@@ -89,7 +89,7 @@ def test_trend_history_in_a_continuous_run_has_key_frames_per_window():
         run_id = client.post('/api/v1/runs?background=true', json=body).json()['run_id']
         wait(client, run_id, lambda r: r['total_rows'] > 30)
         client.post(f'/api/v1/runs/{run_id}/command', json={'action': 'pause'})
-        record = wait(client, run_id, lambda r: r['status'] == 'paused')
+        wait(client, run_id, lambda r: r['status'] == 'paused')
         rows = client.get(f'/api/v1/runs/{run_id}/history').json()['rows'][:-1]
         client.post(f'/api/v1/runs/{run_id}/command', json={'action': 'stop'})
     every = 4  # ceil(200 / 50)

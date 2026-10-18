@@ -29,7 +29,7 @@ def hx(cold=MEG30, t_cold=263.15, coupling='reference', cold_sink=('SC', 'source
                  ('HX', 'exchanger', {'ua_w_k': 2000.}),
                  ('SH', 'source', {'pressure_pa': P_OUT, 'temperature_k': 303.15}),
                  (sink_id, sink_kind, sink_params or {'pressure_pa': P_OUT, 'temperature_k': t_cold})],
-                [('BH:out0', 'HX:in0'), ('HX:out0', 'SH:out0'), ('BC:out0', 'HX:in1'), (f'HX:out1', f'{sink_id}:' + ('in0' if sink_kind == 'tank' else 'out0'))],
+                [('BH:out0', 'HX:in0'), ('HX:out0', 'SH:out0'), ('BC:out0', 'HX:in1'), ('HX:out1', f'{sink_id}:' + ('in0' if sink_kind == 'tank' else 'out0'))],
                 property_coupling=coupling)
     if cold:
         p.circuit_fluids = [circuit('brine', 'BC', 'out0', cold)]

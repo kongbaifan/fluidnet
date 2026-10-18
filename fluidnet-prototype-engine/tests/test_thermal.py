@@ -11,8 +11,7 @@ from fn_engine.compiler import CompilationError, compile_project
 from fn_engine.models import (ChannelSpec, Connection, Endpoint, FluidConfig, ModuleDefinition, ModuleInstance,
                               ParameterSpec, PortSpec, Project)
 from fn_engine.properties import property_service
-from fn_engine.solver import (MU_WATER, RHO_WATER, THERMAL_ONLY_SUFFIXES, solve_dynamic, solve_network, solve_steady,
-                              snapshot)
+from fn_engine.solver import (MU_WATER, RHO_WATER, THERMAL_ONLY_SUFFIXES, solve_dynamic, solve_steady)
 from fn_engine.thermal import ThermalError, solve_thermal
 
 WATER = property_service(FluidConfig())

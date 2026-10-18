@@ -1,0 +1,29 @@
+# ruff 配置：保守规则集。
+#
+# 背景：本仓库是历史原型代码，若一次性启用 E/W 全量格式规则会产生数百条告警，
+# 且大部分修复会大面积改动业务文件。因此先只启用"能发现真实缺陷"的规则：
+#   - E9：语法错误（如 E999）
+#   - F ：pyflakes（未使用导入/变量、未定义名称、f-string 缺占位符等）
+# 格式类规则（E4/E5/E7、I 排序等）留待后续逐步引入。
+target-version = "py311"
+line-length = 120
+exclude = [
+  "node_modules",
+  "vendor",
+  "artifacts",
+  "build",
+  "dist",
+  "tmp",
+  ".runtime",
+]
+
+[lint]
+select = ["E9", "F"]
+
+[lint.per-file-ignores]
+# api.py 中 `record = get_run(run_id)` 的赋值仅用于保留 get_run 的存在性校验副作用
+# （不存在时抛 404），删除赋值会改变行为；该文件同时由并行任务重构，先按历史问题豁免。
+"backend/fn_engine/api.py" = ["F841"]
+# jobs.py 中 SolveFailed 为历史遗留未使用导入；该文件由并行任务重构中，
+# 为避免交叉冲突暂不清理，后续统一删除。
+"backend/fn_engine/jobs.py" = ["F401"]

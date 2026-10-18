@@ -2,7 +2,7 @@ import pytest
 
 from fn_engine.compiler import compile_project
 from fn_engine.models import ModuleInstance, Connection, Endpoint
-from fn_engine.solver import solve_dynamic, solve_steady
+from fn_engine.solver import solve_dynamic
 from test_thermal import prototype
 from test_run_control import custom_project
 
