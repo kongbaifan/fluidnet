@@ -39,10 +39,15 @@ try {
   await startServer();
   await page.goto(base+'/#controls');
   await expect(page.locator('[data-action="pid-example"][data-kind="temperature"]')).toBeVisible();
-  await page.locator('[data-action="pid-example"][data-kind="temperature"]').click();
-  // 示例载入是异步的：慢速 CI 上立刻点单步可能落在按钮禁用期，请求不会发出。
+  // 示例载入依赖 catalog 就绪：慢速 CI 上点击可能早于 catalog 加载完成，
+  // 处理函数抛错、项目不生成，单步按钮也就不会出现。按「点示例 → 等单步按钮出现」重试。
   const stepButton=page.locator('[data-action="run-project"][data-command="step"]').first();
-  await expect(stepButton).toBeEnabled({timeout:30000});
+  await expect(async()=>{
+    if (await stepButton.isVisible().catch(()=>false)) return;
+    await page.locator('[data-action="pid-example"][data-kind="temperature"]').click();
+    await expect(stepButton).toBeVisible({timeout:5000});
+  }).toPass({timeout:60000});
+  await expect(stepButton).toBeEnabled({timeout:15000});
   const response=page.waitForResponse(r=>new URL(r.url()).pathname.endsWith('/runs') && r.request().method()==='POST',{timeout:60000});
   await stepButton.click();
   const runId=(await (await response).json()).run_id;

@@ -229,7 +229,11 @@ def test_generated_contracts_are_current():
         saved=json.loads((CONTRACTS/name).read_text(encoding='utf-8'))
         assert_semantic_match(data,saved,f'{name}:')
         # 门禁脚本自己的比较逻辑也必须判定一致，避免检查实现与测试口径脱节。
-        assert generator.diff_contract(data,saved)==[],name
+        # 必须与 check() 使用同一组容差（参考结果对近零残差与末位浮点差异有绝对/相对容差）。
+        assert generator.diff_contract(
+            data,saved,
+            rel_tolerance=generator.rel_tolerances.get(name,0.),
+            abs_tolerance=generator.abs_tolerances.get(name,0.))==[],name
 
 
 def test_contract_check_detects_drift(tmp_path,monkeypatch,capsys):
