@@ -33,8 +33,8 @@ vendor/refprop9.1/
 ```
 
 最小运行时文件集是 `REFPRP64.DLL` + `fluids/` + `mixtures/`，本机实测 REFPROP 9.1 加上可选的
-`defaults.prf`、`FLUIDSET.LST` 共 209 个文件、5,102,937 字节（约 4.9 MiB / 5.1 MB），CoolProp 7.x
-可以加载。`defaults.prf`、`FLUIDSET.LST` 等 REFPROP 安装目录里的其他文件不是运行时必需，可按需一并复制。
+`defaults.prf`、`FLUIDSET.LST` 共 209 个文件、5,102,937 字节（约 4.9 MiB / 5.1 MB），CoolProp 8.0.0
+（pyproject.toml 锁定版本）可以加载。`defaults.prf`、`FLUIDSET.LST` 等 REFPROP 安装目录里的其他文件不是运行时必需，可按需一并复制。
 
 ### 捆绑清单 `refprop-manifest.json`
 
