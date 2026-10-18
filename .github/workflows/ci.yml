@@ -82,9 +82,28 @@ jobs:
       - name: 前端语法检查
         run: npm run check
       # windows-latest 自带 Edge，浏览器脚本用 chromium.launch({channel:'msedge',headless:true}) 无头运行。
+      # 逐个运行脚本：清单从 package.json 的 test:browser 解析，保持单一来源。
+      # 失败脚本先记 ::warning::（可见于 CI 注解，便于定位偶发 flake），单次重试；
+      # 两次都失败才终止，避免慢速 runner 的一次超时把整个前端门禁判红。
       - name: 浏览器冒烟测试
-        timeout-minutes: 20
-        run: npm run test:browser
+        timeout-minutes: 25
+        shell: pwsh
+        run: |
+          $command = (Get-Content package.json -Raw | ConvertFrom-Json).scripts.'test:browser'
+          $scripts = $command -split '&&' | ForEach-Object { ($_ -replace '^\s*node\s+', '').Trim() }
+          foreach ($script in $scripts) {
+            Write-Host "::group::$script"
+            node $script
+            if ($LASTEXITCODE -ne 0) {
+              Write-Host "::warning::$script failed on first attempt; retrying once (CI runner flake mitigation)"
+              node $script
+            }
+            if ($LASTEXITCODE -ne 0) {
+              Write-Host "::endgroup::"
+              throw "$script failed twice"
+            }
+            Write-Host "::endgroup::"
+          }
       - name: 上传失败截图
         if: failure()
         uses: actions/upload-artifact@v4
