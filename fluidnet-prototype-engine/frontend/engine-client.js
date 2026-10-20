@@ -130,7 +130,7 @@ window.createEngineClient = function (ui) {
     const parameterDefs = (manifest.parameters || []).filter(p => p.value_type === 'number').map(manifestParamDef);
     const ports = (manifest.ports || []).map((p, index) => ({
       id:p.id, name:p.id.toUpperCase(), label:p.label || p.id, direction:p.direction === 'bidirectional' ? (index ? 'out' : 'in') : p.direction,
-      domain:p.domain || 'fluid', x:p.direction === 'in' ? 20 : 80, y: manifest.ports.length > 2 ? (index % 2 ? 70 : 30) : 50
+      domain:p.domain || 'fluid', required:p.required !== false, x:p.direction === 'in' ? 20 : 80, y: manifest.ports.length > 2 ? (index % 2 ? 70 : 30) : 50
     }));
     const variables = [];
     for (const p of ports) {
@@ -616,7 +616,7 @@ window.createEngineClient = function (ui) {
       await services.loadWorkspace(forceWorkspace);
       catalog=data;
       moduleCatalog=packages;
-      for (const manifest of data.modules.filter(m=>m.ports.some(p=>p.domain==='thermal'))) {
+      for (const manifest of data.modules.filter(m=>m.ports.some(p=>p.domain==='thermal' || p.domain==='refrigerant'))) {
         let m=ui.state().modules.find(m=>m.id===manifest.id);
         if(!m){m=moduleFromManifest(manifest);ui.state().modules.push(m);}
         ui.parameterDefinitions[m.kind]=manifest.parameters.filter(p=>p.value_type==='number').map(manifestParamDef);

@@ -264,7 +264,7 @@ REFPROP（v0.4.4）：用户自备 NIST 许可的 REFPROP，`REFPRP64.DLL` 和�
 
 INCOMP 溶液没有 `phase()`，一律按液相；它没有饱和状态，`state_pq/state_tq/saturation_*` 报 `PROPERTY_FAILURE`；声速为 `None`。
 
-查询方法：`state_pt(p,T)`、`state_ph(p,h)`、`state_ps(p,s)`（等熵压缩等）、`state_pq(p,Q)`、`state_tq(T,Q)`、`saturation_t(p)`、`saturation_p(T)`、`limits()` 与湿空气 `humid_air(T,p,rh)`（含湿量、露点、湿球、单位干空气焓；只给模块用，不进网络）。Python 模块通过 `ctx.fluid` 直接调用。饱和查询是显式的两相请求，不受 `phase_policy` 约束。两相区内部（0 < Q < 1）黏度、导热、cp、cv、声速为 `None`；饱和线上（Q = 0 或 1）这些量按 CoolProp 给出。
+查询方法：`state_pt(p,T)`、`state_ph(p,h)`、`state_ps(p,s)`（等熵压缩等）、`state_pq(p,Q)`、`state_tq(T,Q)`、`state_du(ρ,u)`（闭式容积按平均密度与比内能闪蒸，可为两相，不受 `phase_policy` 约束）、`saturation_t(p)`、`saturation_p(T)`、`limits()` 与湿空气 `humid_air(T,p,rh)`（含湿量、露点、湿球、单位干空气焓；只给模块用，不进网络）。Python 模块通过 `ctx.fluid` 直接调用。饱和查询是显式的两相请求，不受 `phase_policy` 约束。两相区内部（0 < Q < 1）黏度、导热、cp、cv、声速为 `None`；饱和线上（Q = 0 或 1）这些量按 CoolProp 给出。
 
 `limits()` 返回 `t_min_k`、`t_max_k`、`p_max_pa`（未知为 `None`）。水为 273.16–2000 K，液氨 195.5–725 K；INCOMP 的下限取凝固点（CoolProp 不直接提供，按 1 atm 二分求得，MEG30 约 −14.58 °C），没有压力上限。
 
@@ -331,6 +331,25 @@ T_{n+1}  = [C·T_n + h·(UA_air·T_amb + floor_ua_w_k·T_ground + heat_input_w �
 - 验收：`test_refrigeration_a1.py` 用线性 ODE 解析解对照 3600 s 末温度，内部步长减半时误差按一阶收敛，步长 10/5/2.5 s 的末温误差比约 2:1；冷却量与储能变化的能量残差在 1e-3 J 内。A1 种子项目 2 h fast 运行到达 255.15 K，稳态冷却功率 2.864 kW，与 A0 独立参考的围护漏热 2864 W 一致；附加热负荷改为 1 kW 后稳态冷却功率为 3.864 kW。浏览器脚本 `browser-cold-storage.mjs` 另验证创建、运行、改参数、保存和重启读取链路。
 - 范围：A1 不计算货物热节点、冷风机、蒸发/冷凝工作点、融霜和电量；这些在 A2–A4 加入，届时热执行域与流体/制冷循环的耦合方式按案例计划扩展。
 
+## 冷库 B 集总制冷站设备（2026-10-20，设备层）
+
+制冷站不经过通用管网：压力只存在于饱和容器里，其余设备是它所连接容器状态的代数关系，两相物性只在设备函数内部查询（`refrigeration/devices.py`）。端口域为 `refrigerant`；工质由端口所在回路决定，复叠换热器两侧分属 `evaporating`/`condensing` 两个回路。方程（规范单位）：
+
+```text
+饱和容器   V = M_l/ρ_l(T) + M_v/ρ_v(T)，U = M_l·u_l(T) + M_v·u_v(T)；由 ρ = M/V、u = U/M 经 state_du 反求 T、p、干度，
+           液位 = (M_l/ρ_l)/V（立式等截面，level_m = 液位 × 高度）；非两相报 VESSEL_PHASE_RANGE，液位带外报 VESSEL_LEVEL_RANGE
+压缩机     m = V_disp·load·η_vol·ρ_v(p_吸)；h2 = h1 + (h2s − h1)/η_is；P_shaft = m(h2 − h1)，P_el = P_shaft/η_motor
+           吸气取吸气容器饱和气；排气压力 ≤ 吸气压力报 COMPRESSOR_PRESSURE_RATIO；压比超包络给警告 COMPRESSOR_ENVELOPE
+冷凝器     UA_eff = UA·(r_nat + (1 − r_nat)·fan)·(r_flood + (1 − r_flood)·回气阀)；Q = UA_eff·(T_sat(p) − T_wb)，保留符号
+节流阀     m = Kv·opening·sqrt(1000·ρ_l·Δp/1e5)/3600（与调节阀同一 Kv 定义），Δp ≤ 0 时为零；出口按等焓闪发
+复叠换热器 Q = UA·(T_sat,冷凝侧 − T_sat,蒸发侧)；两侧蒸发/冷凝量 = Q/潜热
+液泵       m = m_rated·n，Δp = Δp_rated·n²，P = m·Δp/ρ_l/η，全部电功率进入液体（屏蔽泵）
+冷风机     Q = min(UA·(r_nat + (1 − r_nat)·fan)·(T_库 − T_sat)⁺, m_供·h_lv·x_max)；库房净冷量 = Q − P_fan
+           同一供液集管下的冷风机按供液阀开度比例分配泵流量
+```
+
+性质与验收：`state_du` 是 CoolProp `DmassUmass` 闪蒸，不受 `phase_policy` 约束；设备服务应使用 `phase_policy='any'`。`tests/test_refrigeration_devices.py` 逐台对照 CoolProp `PropsSI` 独立计算（容器往返温度误差 < 1e-6 K、液位 < 1e-7，压缩机、节流阀、复叠、泵、冷风机按上式逐项比对）。尚未实现：连接拓扑校验（按容器划分压力等级）、8 状态隐式推进和会话；含 `refrigerant` 端口的项目编译时报 `REFRIGERATION_STATION_PENDING`。
+
 ## 运行中隔离的被动管段（v0.4.2）
 
 参考倍思鹿 V1.1 说明“两阀均关闭后压力转换为容积性质”。运行中阀门关闭可能产生没有压力参考的子网络。每个子步重新做连通性检查：这样的子网络如果只含管道、阀门、阻力和换热器，就把其中 ID 最小的节点固定为上一接受步的压力和温度。零流量下整个子网络压力相等，温度由管道热容和散热照常演化，不计算液体热膨胀引起的压力变化；诊断 `ISOLATED_PRESSURE_HELD`。重新开阀后从保持的压力继续。含泵或 Python 模块的隔离子网络报 `ISOLATED_ACTIVE_NETWORK`；编译期就没有压力参考的子网络仍报 `PRESSURE_REFERENCE_MISSING`。
@@ -346,4 +365,4 @@ T_{n+1}  = [C·T_n + h·(UA_air·T_amb + floor_ua_w_k·T_ground + heat_input_w �
 
 ## 后续状态算法（未实现）
 
-不在计划内：管道流动惯性（倍思鹿 `RLS`）、两位式滞环控制、气垫或气液两相闭式罐、满箱溢流与空箱断流的切换、BDF2 或时间误差控制、Python 模块自定义微分状态、管网内两相流（均相模型、相变换热器、闭式两相罐；两相物性只在模块内部查询）、完整可压缩气体网络和水锤。
+不在计划内：管道流动惯性（倍思鹿 `RLS`）、两位式滞环控制、气垫或气液两相闭式罐、满箱溢流与空箱断流的切换、BDF2 或时间误差控制、Python 模块自定义微分状态、管网内两相流（均相模型、相变换热器、闭式两相罐；两相物性只在模块内部查询）、完整可压缩气体网络和水锤。冷库 B 的集总制冷站（见上文）不属于管网：容器和换热器的两相状态只在设备内部计算，不形成压力节点或两相支路。

@@ -16,6 +16,8 @@ class StrictModel(BaseModel):
 class Domain(str, Enum):
     fluid = "fluid"
     thermal = "thermal"
+    # Lumped refrigeration-station streams: no pressure node of their own (see ALGORITHM.md).
+    refrigerant = "refrigerant"
     info = "info"
     power = "power"
     mech = "mech"

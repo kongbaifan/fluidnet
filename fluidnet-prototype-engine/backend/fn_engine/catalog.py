@@ -127,6 +127,7 @@ def builtin_catalog() -> list[ModuleDefinition]:
             definition.variables.append(VariableSpec(id='shaft_power_w',label='估算轴功率',quantity='power',
                 unit=UnitSpec(quantity='power',canonical_unit='W',display_unit='W'),source='derived'))
     definitions.extend(thermal_catalog())
+    definitions.extend(refrigeration_catalog())
     return definitions
 
 
@@ -171,6 +172,155 @@ def thermal_catalog() -> list[ModuleDefinition]:
         definition.variables.extend(VariableSpec(id='param.' + p.id, label=p.label, source='parameter',
             parameter_id=p.id, quantity=p.unit.quantity, unit=p.unit) for p in definition.parameters)
     return [room, source]
+
+
+def _stream(id, label, direction, required=True, circuit='refrigerant'):
+    return PortSpec(id=id, label=label, domain=Domain.refrigerant, direction=direction, required=required, circuit=circuit)
+
+
+def _var(id, label, quantity, unit, display=None, scale=1., offset=0., source='derived'):
+    return VariableSpec(id=id, label=label, source=source, quantity=quantity,
+                        unit=UnitSpec(quantity=quantity, canonical_unit=unit, display_unit=display or unit,
+                                      display_scale=scale, display_offset=offset))
+
+
+def _celsius(id, label, default, runtime=False):
+    return number(id, label, default, 'temperature', 'K', '°C', minimum=1, runtime=runtime, offset=-273.15)
+
+
+def _ratio(id, label, default, runtime=False, minimum=0., maximum=1.):
+    return number(id, label, default, 'ratio', '1', '%', .01, minimum, maximum, runtime)
+
+
+def _switch(label='启停（1 运行 / 0 停机）'):
+    return number('running', label, 1., 'ratio', '1', minimum=0., maximum=1., runtime=True)
+
+
+def refrigeration_catalog() -> list[ModuleDefinition]:
+    """Case-B lumped refrigeration-station devices; the fluid comes from each port's circuit."""
+    def vessel(id, name, description, defaults, required):
+        volume, height, temperature, level = defaults
+        return ModuleDefinition(id=id, name=name, category='制冷站设备', solver_model='saturated_vessel',
+            state_model='saturated_vessel', description=description,
+            ports=[_stream('in0', '进液/进气', Direction.in_, 'in0' in required),
+                   _stream('in1', '进液/进气 2', Direction.in_, 'in1' in required),
+                   _stream('vapor', '气相出口', Direction.out, 'vapor' in required),
+                   _stream('liquid', '液相出口', Direction.out, 'liquid' in required)],
+            parameters=[number('volume_m3', '容积', volume, 'volume', 'm³', minimum=.001),
+                        number('height_m', '液位换算高度（立式等截面）', height, 'length', 'm', minimum=.01),
+                        _celsius('temperature_k', '初始饱和温度', temperature),
+                        _ratio('level_ratio', '初始液位（液体体积占比）', level, minimum=.01, maximum=.99),
+                        _ratio('min_level_ratio', '模型适用液位下限', .05),
+                        _ratio('max_level_ratio', '模型适用液位上限', .95)],
+            variables=[_var('state.pressure_pa', '压力', 'pressure', 'Pa', 'MPa', 1e6, source='state'),
+                       _var('state.temperature_k', '饱和温度', 'temperature', 'K', '°C', offset=-273.15, source='state'),
+                       _var('state.mass_kg', '存量', 'mass', 'kg', source='state'),
+                       _var('state.internal_energy_j', '内能', 'energy', 'J', 'MJ', 1e6, source='state'),
+                       _var('state.liquid_mass_kg', '液相质量', 'mass', 'kg', source='state'),
+                       _var('state.vapor_mass_kg', '气相质量', 'mass', 'kg', source='state'),
+                       _var('state.quality', '罐内干度', 'ratio', '1', source='state'),
+                       _var('state.level_ratio', '液位（体积占比）', 'ratio', '1', '%', .01, source='state'),
+                       _var('state.level_m', '液位高度', 'length', 'm', source='state'),
+                       _var('liquid_enthalpy_j_kg', '饱和液比焓', 'specific_enthalpy', 'J/kg', 'kJ/kg', 1000.),
+                       _var('vapor_enthalpy_j_kg', '饱和气比焓', 'specific_enthalpy', 'J/kg', 'kJ/kg', 1000.),
+                       _var('net_inflow_kg_s', '净流入质量流量', 'mass_flow', 'kg/s')])
+
+    receiver = vessel('hp_receiver', '高压贮液器',
+        '饱和两相集总容器：由存量 M、内能 U 与容积反求压力和液位。冷凝液进 in0，供液从 liquid 出。',
+        (3., 2., 308.15, .62), {'in0', 'liquid'})
+    lp_drum = vessel('lp_drum', '低压循环桶',
+        '饱和两相集总容器：节流供液与满液式蒸发器回气进入，压缩机从 vapor 吸气，liquid 向蒸发器供液。',
+        (4., 2., 243.15, .4), {'in0', 'vapor'})
+    co2_drum = vessel('pumped_drum', '泵供液储液器',
+        '载冷侧饱和两相集总容器：冷风机湿回气进入，vapor 去复叠冷凝侧，liquid 供液泵。',
+        (3., 2., 247.15, .4), {'in0', 'vapor', 'liquid'})
+    compressor = ModuleDefinition(id='refrigerant_compressor', name='压缩机（强制流量）', category='制冷站设备',
+        solver_model='refrigerant_compressor', description='吸气为吸气容器的饱和气；流量由排量、载量和容积效率决定，'
+            '排气压力取排气侧容器压力。电机损耗排向机房，不进入制冷剂。',
+        ports=[_stream('suction', '吸气', Direction.in_), _stream('discharge', '排气', Direction.out)],
+        parameters=[_switch(), _ratio('load_ratio', '载量', 1., runtime=True),
+                    number('displacement_m3_s', '理论排量', 290 / 3600, 'volume_flow', 'm³/s', 'm³/h', 1 / 3600, minimum=1e-6),
+                    _ratio('volumetric_efficiency', '容积效率', .8, minimum=.01),
+                    _ratio('isentropic_efficiency', '等熵效率', .72, minimum=.01),
+                    _ratio('motor_efficiency', '电机效率', .92, minimum=.01),
+                    number('max_pressure_ratio', '单级压比包络', 12., 'ratio', '1', minimum=1.)],
+        variables=[_var('mass_flow_kg_s', '质量流量', 'mass_flow', 'kg/s'),
+                   _var('shaft_power_w', '轴功率', 'power', 'W', 'kW', 1000.),
+                   _var('electric_power_w', '电功率', 'power', 'W', 'kW', 1000.),
+                   _var('discharge_temperature_k', '排气温度', 'temperature', 'K', '°C', offset=-273.15),
+                   _var('pressure_ratio', '压比', 'ratio', '1')])
+    condenser = ModuleDefinition(id='evaporative_condenser', name='蒸发式冷凝器', category='制冷站设备',
+        solver_model='evaporative_condenser', description='排热 = UA_eff·(T_cond − T_wb)。风机比例与贮液器回气阀开度修正 UA；'
+            '回气阀关小时冷凝液积存、有效面积减小。按湿球温差近似，不解喷淋水与空气焓差。',
+        ports=[_stream('in0', '排气进口', Direction.in_), _stream('out0', '冷凝液出口', Direction.out)],
+        parameters=[number('ua_w_k', '额定 UA（风机全开）', 40000., 'conductance', 'W/K', 'kW/K', 1000., minimum=0.),
+                    _ratio('fan_ratio', '风机投入比例', 1., runtime=True),
+                    _ratio('natural_ua_ratio', '风机全停时 UA 比例', .2),
+                    _celsius('wet_bulb_temperature_k', '室外湿球温度', 300.15, runtime=True),
+                    number('fan_power_w', '风机与喷淋泵功率（全开）', 7500., 'power', 'W', 'kW', 1000., minimum=0.),
+                    _ratio('return_gas_ratio', '贮液器回气阀开度', 1., runtime=True),
+                    _ratio('flooded_ua_ratio', '回气阀全关时 UA 比例', .5)],
+        variables=[_var('heat_rejection_w', '排热量', 'power', 'W', 'kW', 1000.),
+                   _var('effective_ua_w_k', '有效 UA', 'conductance', 'W/K', 'kW/K', 1000.),
+                   _var('condensing_temperature_k', '冷凝温度', 'temperature', 'K', '°C', offset=-273.15),
+                   _var('fan_power_w', '风机功率', 'power', 'W', 'kW', 1000.)])
+    valve = ModuleDefinition(id='expansion_valve', name='电磁节流阀', category='制冷站设备',
+        solver_model='expansion_valve', description='饱和液经 Kv 节流（与调节阀同一 Kv 定义），等焓闪发；只允许正向流动。',
+        ports=[_stream('in0', '高压液进口', Direction.in_), _stream('out0', '低压两相出口', Direction.out)],
+        parameters=[number('kv_m3_h', '流量系数 Kv', .6, 'flow_coefficient', 'm³/h', minimum=.001),
+                    _ratio('opening_ratio', '开度', .5, runtime=True)],
+        variables=[_var('mass_flow_kg_s', '质量流量', 'mass_flow', 'kg/s'),
+                   _var('pressure_drop_pa', '压差', 'pressure', 'Pa', 'MPa', 1e6),
+                   _var('outlet_quality', '出口干度', 'ratio', '1')])
+    cascade = ModuleDefinition(id='cascade_exchanger', name='复叠换热器（蒸发/冷凝）', category='制冷站设备',
+        solver_model='cascade_exchanger', description='满液式：蒸发侧与冷凝侧均按饱和处理，Q = UA·(T_sat,冷凝 − T_sat,蒸发)。'
+            '两侧分属不同回路与工质。',
+        ports=[_stream('evap_in', '蒸发侧进液', Direction.in_, circuit='evaporating'),
+               _stream('evap_out', '蒸发侧回气', Direction.out, circuit='evaporating'),
+               _stream('cond_in', '冷凝侧进气', Direction.in_, circuit='condensing'),
+               _stream('cond_out', '冷凝侧出液', Direction.out, circuit='condensing')],
+        parameters=[number('ua_w_k', '传热能力 UA', 45000., 'conductance', 'W/K', 'kW/K', 1000., minimum=0.)],
+        variables=[_var('heat_w', '换热量', 'power', 'W', 'kW', 1000.),
+                   _var('approach_k', '两侧饱和温差', 'temperature_difference', 'K'),
+                   _var('evaporated_kg_s', '蒸发侧蒸发量', 'mass_flow', 'kg/s'),
+                   _var('condensed_kg_s', '冷凝侧冷凝量', 'mass_flow', 'kg/s')])
+    pump = ModuleDefinition(id='refrigerant_pump', name='制冷剂液泵', category='制冷站设备',
+        solver_model='refrigerant_pump', description='屏蔽泵：流量 ∝ 转速，压升 ∝ 转速²；电功率全部进入液体。不计汽蚀余量。',
+        ports=[_stream('in0', '吸入', Direction.in_), _stream('out0', '排出', Direction.out)],
+        parameters=[_switch(), _ratio('speed_ratio', '转速比（变频）', 1., runtime=True, maximum=1.2),
+                    number('rated_mass_flow_kg_s', '额定质量流量', 2., 'mass_flow', 'kg/s', minimum=0.),
+                    number('rated_pressure_rise_pa', '额定压升', 200000., 'pressure', 'Pa', 'kPa', 1000., minimum=0.),
+                    _ratio('efficiency_ratio', '泵与电机效率', .45, minimum=.01)],
+        variables=[_var('mass_flow_kg_s', '质量流量', 'mass_flow', 'kg/s'),
+                   _var('pressure_rise_pa', '压升', 'pressure', 'Pa', 'kPa', 1000.),
+                   _var('electric_power_w', '电功率', 'power', 'W', 'kW', 1000.)])
+    cooler = ModuleDefinition(id='air_cooler', name='冷风机（泵供液）', category='制冷站设备',
+        solver_model='air_cooler', description='空气侧 UA·(T_库 − T_蒸发)，受供液量与出口干度上限约束；'
+            '风机热量留在库内。供液阀开度决定同一供液集管下各冷风机的分流比例。',
+        ports=[_stream('in0', '供液', Direction.in_), _stream('out0', '湿回气', Direction.out),
+               PortSpec(id='heat', label='冷量输出', domain=Domain.thermal, direction=Direction.out, circuit='thermal')],
+        parameters=[_switch('风机启停（1 运行 / 0 停机）'),
+                    number('ua_w_k', '空气侧 UA（风机全开）', 12000., 'conductance', 'W/K', 'kW/K', 1000., minimum=0.),
+                    _ratio('fan_ratio', '风量比例', 1., runtime=True),
+                    _ratio('natural_ua_ratio', '风机停转时 UA 比例', .1),
+                    number('fan_power_w', '风机功率（全开）', 4000., 'power', 'W', 'kW', 1000., minimum=0.),
+                    _ratio('supply_valve_ratio', '供液阀开度', 1., runtime=True),
+                    _ratio('max_outlet_quality', '出口干度上限', .5, minimum=.01)],
+        variables=[_var('refrigerant_heat_w', '制冷剂吸热量', 'power', 'W', 'kW', 1000.),
+                   _var('room_cooling_w', '库房净冷量（扣风机热）', 'power', 'W', 'kW', 1000.),
+                   _var('fan_power_w', '风机功率', 'power', 'W', 'kW', 1000.),
+                   _var('supply_mass_flow_kg_s', '供液量', 'mass_flow', 'kg/s'),
+                   _var('outlet_quality', '出口干度', 'ratio', '1'),
+                   _var('evaporating_temperature_k', '蒸发温度', 'temperature', 'K', '°C', offset=-273.15)])
+    header = ModuleDefinition(id='refrigerant_header', name='制冷剂集管', category='制冷站设备',
+        solver_model='refrigerant_header', description='汇流/分流节点：同一压力等级内的多台设备经集管连到一个容器端口。',
+        ports=[_stream(f'in{i}', f'汇入 {i + 1}', Direction.in_, False) for i in range(4)]
+              + [_stream(f'out{i}', f'分出 {i + 1}', Direction.out, False) for i in range(4)])
+    definitions = [receiver, lp_drum, co2_drum, compressor, condenser, valve, cascade, pump, cooler, header]
+    for definition in definitions:
+        definition.variables.extend(VariableSpec(id='param.' + p.id, label=p.label, source='parameter',
+            parameter_id=p.id, quantity=p.unit.quantity, unit=p.unit) for p in definition.parameters)
+    return definitions
 
 
 def catalog_map() -> dict[str, ModuleDefinition]:

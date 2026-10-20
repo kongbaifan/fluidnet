@@ -4,7 +4,7 @@ from copy import deepcopy
 import math
 from typing import Any
 
-from .catalog import catalog_map
+from .catalog import catalog_map, refrigeration_catalog, thermal_catalog
 from .models import (ChannelSpec, Connection, Diagnostic, Endpoint, FluidConfig, LibraryBank, ModuleInstance, PortSpec,
                      Position, Project, SolverOptions)
 
@@ -32,8 +32,9 @@ PARAMETER_BINDINGS = {
     'tank': {'level':'level_m', 'area':'area_m2', 'height':'height_m', 'surface':'surface_pressure_pa',
              'temperature':'temperature_k', 'heater':'heat_input_w', 'heatLoss':'heat_loss_ua_w_k',
              'ambient':'ambient_temperature_k'},
-    'cold_room': {p.id: p.id for p in catalog_map()['cold_room'].parameters},
-    'ideal_cold_source': {p.id: p.id for p in catalog_map()['ideal_cold_source'].parameters},
+    # Engine-era devices use the canonical IDs in the prototype as well.
+    **{definition.id: {p.id: p.id for p in definition.parameters}
+       for definition in (*thermal_catalog(), *refrigeration_catalog())},
 }
 
 
@@ -115,7 +116,10 @@ def normalize_prototype_export(data: dict[str, Any]) -> Project:
             definition.source = original.get('source', {})
             definition.bank_names = original.get('bankNames', definition.bank_names)
             if 'ports' in original:
-                definition.ports = [PortSpec(id=p['id'], label=p.get('label',p['id']), direction=p['direction'], domain=p['domain'], required=p.get('required', kind not in {'junction','tank'}), circuit=p.get('circuit', next((q.circuit for q in definition.ports if q.id == p['id']), 'main'))) for p in original['ports']]
+                registered = {q.id: q for q in definition.ports}
+                definition.ports = [PortSpec(id=p['id'], label=p.get('label',p['id']), direction=p['direction'], domain=p['domain'],
+                    required=p.get('required', registered[p['id']].required if p['id'] in registered else True),
+                    circuit=p.get('circuit', registered[p['id']].circuit if p['id'] in registered else 'main')) for p in original['ports']]
             if 'channels' in original:
                 if kind in {'source','junction','tank'} and original['channels']:
                     raise ValueError(f'{module_id} 当前模型不允许额外通路')
@@ -161,7 +165,7 @@ def normalize_prototype_export(data: dict[str, Any]) -> Project:
                 raise ValueError(f'工况 {scenario["id"]} 引用了不存在的设备 {instance_id}')
             overrides[instance_id] = parameter_map(kinds[node.module_id], values, definitions[node.module_id])
         scenarios.append({'id': scenario['id'], 'name': scenario['name'], 'overrides': overrides})
-    thermal = any(p.domain.value == 'thermal' for definition in definitions.values() for p in definition.ports)
+    thermal = any(p.domain.value in ('thermal', 'refrigerant') for definition in definitions.values() for p in definition.ports)
     diagnostics.append(Diagnostic(code='THERMAL_SCOPE' if thermal else 'HYDRAULIC_SCOPE', severity='info',
         message='库房热系统按已应用参数计算热平衡；热端口不传递工质压力或质量流量' if thermal else
         '按已应用参数与所选工况计算各回路工质的水力与端口焓、温度；动态状态按隐式 Euler 积分，Python 模块及项目控制在独立 Worker 执行'))

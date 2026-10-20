@@ -160,6 +160,7 @@
       "enum": [
         "fluid",
         "thermal",
+        "refrigerant",
         "info",
         "power",
         "mech"

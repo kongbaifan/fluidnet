@@ -185,6 +185,27 @@ A1 只有两台内置设备：
 - 诊断码：`THERMAL_CONNECTION_MISSING`、`THERMAL_CONNECTION_INVALID`、`THERMAL_PORT_INVALID`、`THERMAL_MODEL_UNSUPPORTED`、`THERMAL_PARAMETER_CONTRACT`、`THERMAL_TOPOLOGY_UNSUPPORTED`、`THERMAL_REQUIRED`、`THERMAL_STEADY_UNDEFINED`、`THERMAL_STEP_INVALID`、`THERMAL_STATE_RANGE`（运行错误）、`COLD_ROOM_IDEAL_SOURCE`（提示）。
 - 已知边界：A1 只支持单库房 + 理想冷源的一对一热拓扑，不混合流体与热端口，不含货物热节点、冷风机、制冷循环、融霜和电量；这些在 A2–A4 按案例计划扩展。
 
+## 冷库 B 制冷站设备（2026-10-20，设备层）
+
+`Domain` 增加 `refrigerant`（集总制冷站物流，不是管网压力节点）。`builtin_catalog()` 增加 10 台内置设备，分类“制冷站设备”，由 `refrigeration_catalog()` 固定，方程见 [ALGORITHM](ALGORITHM.md#冷库-b-集总制冷站设备2026-10-20设备层)。
+
+| 设备 | 端口 | runtime 参数 | 主要输出 |
+| --- | --- | --- | --- |
+| `hp_receiver` 高压贮液器 / `lp_drum` 低压循环桶 / `pumped_drum` 泵供液储液器（同一 `saturated_vessel` 模型，默认值不同） | `in0`、`in1`（入）、`vapor`、`liquid`（出）；必连端口按角色不同，其余可选 | — | `state.pressure_pa/temperature_k/mass_kg/internal_energy_j/liquid_mass_kg/vapor_mass_kg/quality/level_ratio/level_m`、`liquid_enthalpy_j_kg`、`vapor_enthalpy_j_kg`、`net_inflow_kg_s` |
+| `refrigerant_compressor` 压缩机 | `suction` 入、`discharge` 出 | `running`、`load_ratio` | `mass_flow_kg_s`、`shaft_power_w`、`electric_power_w`、`discharge_temperature_k`、`pressure_ratio` |
+| `evaporative_condenser` 蒸发式冷凝器 | `in0`、`out0` | `fan_ratio`、`wet_bulb_temperature_k`、`return_gas_ratio` | `heat_rejection_w`、`effective_ua_w_k`、`condensing_temperature_k`、`fan_power_w` |
+| `expansion_valve` 电磁节流阀 | `in0`、`out0` | `opening_ratio` | `mass_flow_kg_s`、`pressure_drop_pa`、`outlet_quality` |
+| `cascade_exchanger` 复叠换热器 | `evap_in/evap_out`（回路 `evaporating`）、`cond_in/cond_out`（回路 `condensing`） | — | `heat_w`、`approach_k`、`evaporated_kg_s`、`condensed_kg_s` |
+| `refrigerant_pump` 制冷剂液泵 | `in0`、`out0` | `running`、`speed_ratio`（0–1.2） | `mass_flow_kg_s`、`pressure_rise_pa`、`electric_power_w` |
+| `air_cooler` 冷风机 | `in0`、`out0`（refrigerant）、`heat`（thermal 出，接 `cold_room.heat`） | `running`、`fan_ratio`、`supply_valve_ratio` | `refrigerant_heat_w`、`room_cooling_w`、`fan_power_w`、`supply_mass_flow_kg_s`、`outlet_quality`、`evaporating_temperature_k` |
+| `refrigerant_header` 制冷剂集管 | `in0–in3`、`out0–out3`，均可选 | — | — |
+
+- 启停类执行器用 0/1 数值参数（≥ 0.5 为运行），不扩展布尔类型；每台设备的 `param.*` 变量与其他内置设备一致。
+- 单位：排量规范单位 m³/s（显示 m³/h），压力 Pa（容器显示 MPa），UA W/K（显示 kW/K），温度 K（显示 °C）。
+- 原型归一化：这些设备在原型里直接使用规范参数 ID；端口未写 `required`/`circuit` 时按注册定义取值（此前非节点设备一律视为必连）。
+- 诊断码：`VESSEL_PHASE_RANGE`、`VESSEL_LEVEL_RANGE`、`COMPRESSOR_PRESSURE_RATIO`（设备函数抛出，运行接通后转为运行错误）、`COMPRESSOR_ENVELOPE`（警告）、`REFRIGERATION_STATION_PENDING`（编译：系统连接校验与运行尚未接通）。
+- 已知边界：只有设备层；连接拓扑校验、制冷站会话、`health` 能力位与案例示例未实现。
+
 ## 参数与状态
 
 `parameters` 是物理输入；`draft_parameters` 与 `banks` 不自动生效。内置模型的参数上下限不能突破注册约束；Python 模块采用自身 ParameterSpec，返回的 NetworkRelation 另外按关系种类校验物理参数。

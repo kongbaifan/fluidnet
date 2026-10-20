@@ -297,7 +297,12 @@ def tank_initial_state(instance_id: str, params: dict, node: int, service) -> St
 
 def compile_project(project: Project) -> CompiledNetwork:
     used = {instance.module_id for instance in project.instances}
-    if any(port.domain == Domain.thermal for module in project.modules if module.id in used for port in module.ports):
+    used_domains = {port.domain for module in project.modules if module.id in used for port in module.ports}
+    if Domain.refrigerant in used_domains:
+        # Device models and contracts exist (refrigeration/devices.py); station topology and its session are B1's next step.
+        raise CompilationError('REFRIGERATION_STATION_PENDING',
+                               '制冷站设备已注册，系统连接校验与运行尚未接通（B1 下一步）')
+    if Domain.thermal in used_domains:
         from .refrigeration.compile import compile_thermal_project
         return compile_thermal_project(project)
     modules = {m.id: m for m in project.modules}

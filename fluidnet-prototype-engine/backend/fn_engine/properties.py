@@ -258,13 +258,14 @@ def _optional(read):
 
 
 # (CoolProp input pair, argument order) for each supported query. `first`/`second` follow the
-# method signatures: PT -> (p, T), PH -> (p, h), PS -> (p, s), PQ -> (p, Q), TQ -> (T, Q).
+# method signatures: PT -> (p, T), PH -> (p, h), PS -> (p, s), PQ -> (p, Q), TQ -> (T, Q), DU -> (rho, u).
 _INPUTS = {
     "PT": (CP.PT_INPUTS, lambda a, b: (a, b)),
     "PH": (CP.HmassP_INPUTS, lambda a, b: (b, a)),
     "PS": (CP.PSmass_INPUTS, lambda a, b: (a, b)),
     "PQ": (CP.PQ_INPUTS, lambda a, b: (a, b)),
     "TQ": (CP.QT_INPUTS, lambda a, b: (b, a)),
+    "DU": (CP.DmassUmass_INPUTS, lambda a, b: (a, b)),
 }
 
 
@@ -298,10 +299,10 @@ def _flash_locked(key: FluidKey, inputs: str, pair, order, first: float, second:
             return _optional(read) if on_line or key[0] == "REFPROP" else float(read())
 
         values = {
-            "pressure_pa": first if inputs != "TQ" else float(state.p()),
+            "pressure_pa": float(state.p()) if inputs in ("TQ", "DU") else first,
             "temperature_k": second if inputs == "PT" else first if inputs == "TQ" else float(state.T()),
             "enthalpy_j_kg": second if inputs == "PH" else float(state.hmass()),
-            "density_kg_m3": float(state.rhomass()),
+            "density_kg_m3": first if inputs == "DU" else float(state.rhomass()),
             "viscosity_pa_s": transport(state.viscosity),
             "specific_heat_j_kg_k": transport(state.cpmass),
             "thermal_conductivity_w_m_k": transport(state.conductivity),
@@ -529,6 +530,16 @@ class CoolPropPropertyService:
         if temperature <= 0 or not 0.0 <= quality <= 1.0:
             raise PropertyError("PROPERTY_RANGE", "温度必须为正数，干度在 [0, 1] 内")
         return self._result(_flash(self.key, "TQ", temperature, quality), check_phase=False)
+
+    def state_du(self, density: float, internal_energy: float) -> FluidState:
+        """State of a closed volume from mean density and specific internal energy (lumped vessels).
+
+        The result may be two-phase; callers decide which phases they accept, so the policy does not apply."""
+        density, internal_energy = float(density), float(internal_energy)
+        _finite(density, internal_energy)
+        if density <= 0:
+            raise PropertyError("PROPERTY_RANGE", "密度必须为正数")
+        return self._result(_flash(self.key, "DU", density, internal_energy), check_phase=False)
 
     def saturation_t(self, pressure: float) -> float:
         """Saturation temperature (K) at the given pressure; the bubble point for a mixture
