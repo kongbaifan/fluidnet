@@ -5,7 +5,7 @@
 - [完整开发计划](PLAN.md)：范围、模型、阶段、工期与验收。
 - [任务与实测进度](TASKS.md)：已完成内容、下一步与证据。
 - [单库房案例说明](single-room-minus18/README.md)：参数、七组日程与验证命令。
-- [NH₃/CO₂ 扩展范围](nh3-co2/README.md)：后续阶段入口。
+- [NH₃/CO₂ 扩展范围](nh3-co2/README.md)：B 版入口；含[倍思鹿案例拆解](nh3-co2/BASELU_CASE.md)与 [B 版详细执行计划](nh3-co2/EXECUTION_PLAN.md)。
 
 ```text
 cold-storage/
@@ -21,6 +21,8 @@ cold-storage/
     verify_reference.py           输入校验及独立循环参考
   nh3-co2/
     README.md                     NH₃/CO₂ 后续扩展入口
+    BASELU_CASE.md                倍思鹿公开案例拆解（B0 参考）
+    EXECUTION_PLAN.md             B 版详细执行计划
 ```
 
 在本项目根目录运行：
