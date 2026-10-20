@@ -17,6 +17,11 @@
     "HealthCapabilities": {
       "additionalProperties": false,
       "properties": {
+        "cold_room_ideal_source": {
+          "default": false,
+          "title": "Cold Room Ideal Source",
+          "type": "boolean"
+        },
         "steady_hydraulics": {
           "title": "Steady Hydraulics",
           "type": "boolean"

@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test:browser": "node tests/browser-smoke.mjs && node tests/browser-platform.mjs && node tests/browser-authoring.mjs && node tests/browser-run-control.mjs && node tests/browser-pid.mjs && node tests/browser-continuous.mjs && node tests/browser-multifluid.mjs && node tests/browser-auth.mjs && node tests/browser-workspace.mjs && node tests/browser-workflows.mjs && node tests/browser-archive-migration.mjs",
-    "check": "node --check frontend/studio.js && node --check frontend/engine-client.js && node --check frontend/project-services.js && node --check frontend/modeling-workflows.js"
+    "test:browser": "node tests/browser-smoke.mjs && node tests/browser-platform.mjs && node tests/browser-authoring.mjs && node tests/browser-run-control.mjs && node tests/browser-pid.mjs && node tests/browser-continuous.mjs && node tests/browser-multifluid.mjs && node tests/browser-auth.mjs && node tests/browser-workspace.mjs && node tests/browser-workflows.mjs && node tests/browser-archive-migration.mjs && node tests/browser-cold-storage.mjs",
+    "check": "node --check frontend/studio.js && node --check frontend/engine-client.js && node --check frontend/project-services.js && node --check frontend/modeling-workflows.js && node --check frontend/cold-storage.js"
   },
   "devDependencies": {
     "@playwright/test": "1.64.0"

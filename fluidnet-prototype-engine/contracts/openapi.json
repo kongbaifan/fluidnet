@@ -3457,6 +3457,7 @@
         "type": "string",
         "enum": [
           "fluid",
+          "thermal",
           "info",
           "power",
           "mech"
@@ -3685,6 +3686,11 @@
       },
       "HealthCapabilities": {
         "properties": {
+          "cold_room_ideal_source": {
+            "type": "boolean",
+            "title": "Cold Room Ideal Source",
+            "default": false
+          },
           "steady_hydraulics": {
             "type": "boolean",
             "title": "Steady Hydraulics"

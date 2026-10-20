@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "case_id": "single-room-minus18-v1",
+  "source_revision": 1,
+  "sources": [
+    {
+      "id": "user-case-target",
+      "kind": "user_requirement",
+      "date": "2026-10-18",
+      "fields": ["room.setpoint_temperature_k"],
+      "description": "用户选定 −18°C 冻结物储藏库，先单库房后 NH3/CO2"
+    },
+    {
+      "id": "room-assumptions-v1",
+      "kind": "engineering_assumption",
+      "fields": ["room.*", "goods.*"],
+      "description": "总计划中声明的几何、U 值、等效热容与冻结物显热；新入货为同类完全混合，UA 与总质量成比例",
+      "exclusions": ["目标温度由 user-case-target 给定", "无厂家或现场数据", "无冻结潜热、气流组织或湿度模型"]
+    },
+    {
+      "id": "cycle-assumptions-v1",
+      "kind": "engineering_assumption",
+      "fields": ["refrigeration.*"],
+      "description": "R290，额定制冷 10 kW，蒸发 −28°C/冷凝 40°C，常数效率、固定排量和等效 UA；包络是待核对示范范围",
+      "exclusions": ["不是实际压缩机型号", "没有制冷剂库存与管路压降"]
+    },
+    {
+      "id": "control-assumptions-v1",
+      "kind": "engineering_assumption",
+      "fields": ["control.*", "defrost.*", "numerics.*"],
+      "description": "采样与启停时长、电融霜及积分配置为开发起点；融霜热量默认全部传入库房，PI/PID 参数及步长仍待验证"
+    },
+    {
+      "id": "schedule-assumptions-v1",
+      "kind": "engineering_assumption",
+      "fields": ["scenarios.*", "event_semantics.*"],
+      "description": "七个工况来自总计划，24 h 对照的完整事件时间表在本目录固定"
+    },
+    {
+      "id": "coolprop-eos",
+      "kind": "property_library",
+      "url": "https://coolprop.org/fluid_properties/fluids/n-Propane.html",
+      "description": "HEOS::R290 物性，由独立参考脚本记录实际库版本与工质输出；物性数据不构成机组性能实测"
+    },
+    {
+      "id": "baselu-topology-reference",
+      "kind": "public_topology_reference",
+      "url": "https://www.baselu.cn/article?id=moqzu05zdi27",
+      "description": "后续 NH3 制冷/CO2 液泵载冷与融霜拓扑参考；未提供本案例参数或参考数值"
+    }
+  ],
+  "verification_grade": "independent_equations_and_property_queries",
+  "manufacturer_data_available": false,
+  "site_data_available": false
+}

@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "case_id": "single-room-minus18-v1",
+  "scenario_revision": 1,
+  "data_grade": "engineering_demonstration_assumptions",
+  "event_semantics": {
+    "clock": "simulation_time_s",
+    "duration_interval": "start_inclusive_end_exclusive",
+    "simultaneous_events": "atomic_inputs_then_control_then_physics",
+    "lighting_initially_enabled": false
+  },
+  "scenarios": [
+    {
+      "id": "A-S01",
+      "name": "基础降温与保温",
+      "duration_s": 21600.0,
+      "control_modes": ["on_off"],
+      "overrides": {},
+      "events": [],
+      "expected_behavior": "进入温控带，观察货温滞后及启停，恢复时间由实际计算记录"
+    },
+    {
+      "id": "A-S02",
+      "name": "开门扰动",
+      "duration_s": 21600.0,
+      "control_modes": ["on_off"],
+      "overrides": {},
+      "events": [
+        {"id": "door-1", "type": "door_heat", "time_s": 7200.0, "duration_s": 600.0, "heat_w": 5000.0}
+      ],
+      "expected_behavior": "记录库温峰值、超限时间与恢复时间，不预设结果"
+    },
+    {
+      "id": "A-S03",
+      "name": "冻结货物入库",
+      "duration_s": 28800.0,
+      "control_modes": ["on_off"],
+      "overrides": {},
+      "events": [
+        {"id": "goods-1", "type": "goods_addition", "time_s": 7200.0, "mass_kg": 500.0, "temperature_k": 261.15}
+      ],
+      "expected_behavior": "同类货物能量混合，总质量增加，UA 按比例更新，观察温度恢复"
+    },
+    {
+      "id": "A-S04",
+      "name": "高环境温度",
+      "duration_s": 28800.0,
+      "control_modes": ["on_off"],
+      "overrides": {},
+      "events": [
+        {"id": "ambient-1", "type": "ambient_temperature", "time_s": 7200.0, "temperature_k": 311.15}
+      ],
+      "expected_behavior": "环境变化通过冷凝换热和围护漏热影响工作点及能耗"
+    },
+    {
+      "id": "A-S05",
+      "name": "控制策略对照",
+      "duration_s": 86400.0,
+      "control_modes": ["on_off", "variable_capacity"],
+      "overrides": {},
+      "events": [
+        {"id": "door-1", "type": "door_heat", "time_s": 7200.0, "duration_s": 600.0, "heat_w": 5000.0},
+        {"id": "goods-1", "type": "goods_addition", "time_s": 14400.0, "mass_kg": 500.0, "temperature_k": 261.15},
+        {"id": "ambient-rise", "type": "ambient_temperature", "time_s": 28800.0, "temperature_k": 311.15},
+        {"id": "door-2", "type": "door_heat", "time_s": 43200.0, "duration_s": 600.0, "heat_w": 5000.0},
+        {"id": "ambient-reset", "type": "ambient_temperature", "time_s": 57600.0, "temperature_k": 305.15}
+      ],
+      "expected_behavior": "两策略使用相同初态和日程，比较耗电、温度约束、末态储能及启停次数"
+    },
+    {
+      "id": "A-S06",
+      "name": "定时电融霜",
+      "duration_s": 86400.0,
+      "control_modes": ["on_off"],
+      "overrides": {},
+      "events": [
+        {"id": "defrost-1", "type": "electric_defrost", "time_s": 28800.0},
+        {"id": "defrost-2", "type": "electric_defrost", "time_s": 57600.0}
+      ],
+      "expected_behavior": "按加热、滴水等待和恢复顺序转换，热量和电量纳入账本"
+    },
+    {
+      "id": "A-S07",
+      "name": "制冷能力不足",
+      "duration_s": 21600.0,
+      "control_modes": ["on_off"],
+      "overrides": {"refrigeration.rated_cooling_power_w": 2000.0},
+      "events": [],
+      "expected_behavior": "在目标温度下制冷能力小于围护漏热，报告持续超限和能力不足；包络越界另作模型负向验证"
+    }
+  ]
+}

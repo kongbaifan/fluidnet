@@ -45,6 +45,10 @@ flowchart LR
 | `compiler.py` | 参数与工况覆盖校验、端口连接并查集、通路支路、每个子网络的压力参考、按回路分配工质、边界温度与冲突检查 | 求解数值方程 |
 | `solver.py` | 支路关系、非线性方程组（稠密或稀疏 Jacobian）、模块 evaluate 关系、残差验证；`solve_network` 编排水力与热力及 `node` 耦合、动态热启动、结果采样 | 管理界面草稿 |
 | `simulation.py` | `SimulationSession`：可逐帧推进的动态会话，持有 Worker、水箱/管段状态和 PID；运行时参数写入、隔离管段保压、子步减半与液位事件 | 线程调度、HTTP |
+| `sessions.py` | 会话工厂：按 `execution_domain` 选择 `SimulationSession` 或冷库 `ThermalSession`，同步运行、后台运行与控制预览共用 | 具体物理求解 |
+| `refrigeration/compile.py` | 冷库 A1 限定热拓扑编译：两设备、一对一热连接、端口与参数合同、编译期诊断 | 流体水力与制冷循环 |
+| `refrigeration/session.py` | 冷库 A1 热会话：库房隐式 Euler、热平衡快照、能量账本与稳态参考；复用公共参数、控制与命令方法 | 流体水力求解 |
+| `refrigeration/examples.py` | 冷库 A1 种子项目（库房 + 理想冷源 + 库温 PID） | 通用示例管理 |
 | `controllers.py` | 采样 PID：零阶保持、测量值微分滤波、条件积分抗饱和、手自动无扰切换 | 写参数（由会话执行） |
 | `jobs.py` | `RunManager`：后台运行调度线程加 2 个计算线程，实时/快速节奏，命令队列与回执，历史发布 | 求解数值方程 |
 | `batch.py` | 多个 Python 实例按分片共用 Worker 进程，每次迭代每个分片一次 evaluate RPC | 实例状态合并（各实例独立） |
@@ -53,7 +57,8 @@ flowchart LR
 | `bench.py` | 为每条启用通路各接一组压力边界，复用编译/求解/Worker，返回状态及历史 | 生成演示流量 |
 | `api.py` | 模块/项目契约端点、同步运行、后台运行与命令端点（转交 `RunManager`）、变量读写与推送、示例项目、运行事件和历史 | 永久数据库或集群调度 |
 | `auth.py` | 令牌文件（只存哈希）、只读/控制两级权限、按监听地址决定是否强制认证 | 用户账户、HTTPS |
-| `engine-client.js` | 请求、运行/回放、真实变量映射、断线及失败显示 | 生成模拟物理结果 |
+| `engine-client.js` | 请求、运行/回放、真实变量映射、断线及失败显示；注入 thermal 模块与参数定义 | 生成模拟物理结果 |
+| `cold-storage.js` | 冷库 A1 案例创建、库房指标面板与曲线绑定 | 计算物理方程 |
 | `studio.js` | 保留原型交互与本地保存 | 计算物理方程 |
 
 ## 一次运行的数据一致性

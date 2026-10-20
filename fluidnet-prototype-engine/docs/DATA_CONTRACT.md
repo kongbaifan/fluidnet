@@ -164,6 +164,27 @@ PID 控制器（v0.4.2）：`Project.controllers` 是 `PIDController` 列表，�
 
 运行中被动管段的隔离（v0.4.2）：运行中阀门开度改为 0 后，没有压力参考的子网络如果只含管道、阀门、阻力和换热器，取一个节点保持上一接受步的压力和温度，流量为零，诊断 `ISOLATED_PRESSURE_HELD`（提示）；子网络含泵或 Python 模块（管道、阀门、阻力、换热器以外的支路）时报 `ISOLATED_ACTIVE_NETWORK`。含水箱的子网络由水箱定压，不算隔离。编译期就没有压力参考的子网络仍报 `PRESSURE_REFERENCE_MISSING`。
 
+## 冷库 A1 热执行域（2026-10-20）
+
+冷库案例引入与流体网络并列的**热执行域（`execution_domain='thermal'`）**：项目里被使用的模块只要含 `domain=thermal` 端口，`compile_project` 就走热编译分支，不建立压力节点、不求解质量流量；其余项目仍走既有水力/热力层路径，行为不变。
+
+A1 只有两台内置设备：
+
+| 设备 | 参数（规范单位） | 状态与派生变量 |
+| --- | --- | --- |
+| `cold_room` 库房热节点 | `temperature_k` 初始库温（K）、`heat_capacity_j_k` 等效热容（J/K）、`ambient_temperature_k` 室外温度、`ground_temperature_k` 地面温度、`wall_ua_w_k` / `roof_ua_w_k` / `floor_ua_w_k` 围护 UA（W/K）、`heat_input_w` 附加热负荷（W，runtime） | `state.temperature_k`、`envelope_heat_w`、`stored_energy_j`（相对 273.15 K）、`state.external_energy_j`、`cooling_power_w` |
+| `ideal_cold_source` 理想恒容量冷源 | `cooling_power_w` 额定冷却功率（W，runtime）、`capacity_ratio` 容量比例（0–1，runtime） | `cooling_power_w`（实际输出）、`state.cooling_energy_j` |
+
+- 端口：两台设备各有一个 `domain=thermal` 的 `heat` 端口（库房 `in`、冷源 `out`，`required=true`、`circuit='thermal'`）。热连接必须一对一、方向相反；未连接端口报 `THERMAL_CONNECTION_MISSING`，重复/反向/自连报 `THERMAL_CONNECTION_INVALID`。
+- 模型合同：热设备的 `solver_model`、`state_model`、端口和参数声明由内置 `thermal_catalog()` 固定；项目只能改参数默认值，改动类型、单位、runtime/writable 或上下限报 `THERMAL_PARAMETER_CONTRACT`。混入流体设备、Python 运行模块或改动端口定义分别报 `THERMAL_MODEL_UNSUPPORTED` / `THERMAL_PORT_INVALID` / `THERMAL_TOPOLOGY_UNSUPPORTED`。项目若配置 `circuit_fluids` 也报 `THERMAL_TOPOLOGY_UNSUPPORTED`。
+- 求解开关：热项目必须 `SolverOptions.thermal=true`，否则报 `THERMAL_REQUIRED`；带 PID 或 Python 控制脚本的项目只能动态运行（`CONTROL_DYNAMIC_REQUIRED`），稳态只返回一个热平衡帧，无 UA 参考时报 `THERMAL_STEADY_UNDEFINED`。
+- 帧变量：两台设备的 `param.*` 与上表状态/派生变量进入同一 RunFrame，另有 PID/脚本变量；指标含 `energy_residual_j`、`energy_residual_w`、`storage_power_w`。每帧带提示 `COLD_ROOM_IDEAL_SOURCE`，说明尚未计算货物热状态、制冷循环、电功率或 COP。
+- 单位：原型设备面板按显示单位编辑（温度 °C、功率 kW、等效热容 kJ/K），归一化按 `UnitSpec` 换算为 K/W/J；帧变量保留规范单位。热项目的 `dynamic_step_s` 归一化后不超过 10 s，导入诊断用 `THERMAL_SCOPE`。
+- 会话与接口：`sessions.create_session` 按 `execution_domain` 选择 `ThermalSession` 或 `SimulationSession`；同步运行、后台运行、控制预览、变量写入、命令、历史、归档、备份和重启读取对两种执行域使用同一响应模型。
+- 能力上报：`GET /api/v1/health` 的 `supported_domains` 增加 `thermal`，`capabilities.cold_room_ideal_source=true`；`GET /api/v1/examples/cold-storage` 返回 A1 种子项目（2 h、30 s 发布、10 s 内部步长）。
+- 诊断码：`THERMAL_CONNECTION_MISSING`、`THERMAL_CONNECTION_INVALID`、`THERMAL_PORT_INVALID`、`THERMAL_MODEL_UNSUPPORTED`、`THERMAL_PARAMETER_CONTRACT`、`THERMAL_TOPOLOGY_UNSUPPORTED`、`THERMAL_REQUIRED`、`THERMAL_STEADY_UNDEFINED`、`THERMAL_STEP_INVALID`、`THERMAL_STATE_RANGE`（运行错误）、`COLD_ROOM_IDEAL_SOURCE`（提示）。
+- 已知边界：A1 只支持单库房 + 理想冷源的一对一热拓扑，不混合流体与热端口，不含货物热节点、冷风机、制冷循环、融霜和电量；这些在 A2–A4 按案例计划扩展。
+
 ## 参数与状态
 
 `parameters` 是物理输入；`draft_parameters` 与 `banks` 不自动生效。内置模型的参数上下限不能突破注册约束；Python 模块采用自身 ParameterSpec，返回的 NetworkRelation 另外按关系种类校验物理参数。
@@ -180,7 +201,7 @@ PID 控制器（v0.4.2）：`Project.controllers` 是 `PIDController` 列表，�
 - `RunStatus`:run_id、status(queued/running/paused/completed/failed/cancelled/interrupted；`stopping` 未使用)、mode、progress、frame、total_rows、lag_s，命令响应另带 command_id、command_status(accepted/applied/rejected)、applied_time_s、message。`progress` 在 completed 为 1，动态运行按 `frame.time_s / duration_s` 估算。
 - `RunCommand`:action(pause/resume/step/stop/set/controller)、可选 command_id(1–96 位字母数字、`_`、`-`)、instance_id、parameter_id、value、controller_id。`RunEvent` 对命令另带 command_id、command_status、message、command 和 parameter_revision。
 - `RunFrame` v0.4.2 新增 `sequence`（帧序号）与 `parameter_revision`（该帧计算时运行参数和控制器设定已被修改的次数，0 为未改）。
-- `/api/v1/health` 的 `capabilities` 含 `run_control`、`module_versions`、`thermal`、`property_coupling: ["reference","node"]`、`tank_state`、`time_integration: "implicit_euler"`；v0.4.2 起 `live_runs`、`pid`、`runtime_parameters`、`continuous_step` 为 true；v0.4.3 起 `continuous_runs` 为 true，另报 `history_window_max`(20001)、`overview_points`(2000)；`max_frames`(2001，指同步运行)与 `run_retention`(20)不变。
+- `/api/v1/health` 的 `capabilities` 含 `run_control`、`module_versions`、`thermal`、`property_coupling: ["reference","node"]`、`tank_state`、`time_integration: "implicit_euler"`；v0.4.2 起 `live_runs`、`pid`、`runtime_parameters`、`continuous_step` 为 true；v0.4.3 起 `continuous_runs` 为 true，另报 `history_window_max`(20001)、`overview_points`(2000)；`max_frames`(2001，指同步运行)与 `run_retention`(20)不变。冷库 A1（2026-10-20）起顶层 `supported_domains` 为 `["fluid","thermal"]`，`capabilities.cold_room_ideal_source` 为 true。
 - 取消记录 `frame.status=cancelled`、`valid=false`,`history` 保留取消前已算出的帧;每次运行恰好一条终态事件；已结束的运行再收到命令返回 409 `RUN_ALREADY_FINISHED`。
 - 运行中的 `set` 只改本次会话的参数，请求快照（`request.project`）保持提交时的值；修改历史以命令事件为准。
 

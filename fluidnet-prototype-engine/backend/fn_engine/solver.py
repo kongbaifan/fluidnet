@@ -759,6 +759,9 @@ def _with_states(network, frame: RunFrame, result: NetworkResult, tanks: dict[in
 
 
 def solve_steady(network):
+    if getattr(network, 'execution_domain', None) == 'thermal':
+        from .refrigeration.session import solve_thermal_steady
+        return solve_thermal_steady(network)
     if any(script.enabled for script in network.project.control_scripts):
         raise CompilationError('CONTROL_DYNAMIC_REQUIRED', 'Python 控制脚本需要动态运行；请切换运行模式或停用脚本')
     result = solve_network(network)
@@ -799,6 +802,16 @@ def has_state(network: CompiledNetwork) -> bool:
 
 
 def solve_dynamic(network, duration_s, dt_s):
+    if getattr(network, 'execution_domain', None) == 'thermal':
+        from .sessions import create_session
+        session = create_session(network, duration_s, dt_s)
+        try:
+            session.initialize()
+            while not session.done:
+                session.advance()
+            return list(session.frames)
+        finally:
+            session.close()
     from .simulation import run_dynamic
     return run_dynamic(network, duration_s, dt_s)
 

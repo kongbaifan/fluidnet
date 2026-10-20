@@ -21,7 +21,7 @@ import uuid
 
 from .compiler import CompilationError, compile_project
 from .models import RunFrame
-from .simulation import SimulationSession
+from .sessions import RunSession, create_session
 from .solver import SolveFailed, solve_steady
 from .storage import StorageError
 
@@ -51,7 +51,7 @@ ARCHIVE_OVERVIEW_S = 0.5
 class Job:
     request: object
     record: dict
-    session: SimulationSession | None = None
+    session: RunSession | None = None
     pending: deque = field(default_factory=deque)
     receipts: dict = field(default_factory=dict)
     busy: bool = False
@@ -595,7 +595,7 @@ class RunManager:
                         self._publish(job, frame)
                     self._finish(job, 'completed')
                     return
-                session = SimulationSession(network, job.request.duration_s, job.request.dt_s, keep=SESSION_FRAMES)
+                session = create_session(network, job.request.duration_s, job.request.dt_s, keep=SESSION_FRAMES)
                 job.session = session
                 frame = session.initialize()
                 status = 'paused' if job.request.start_paused else 'running'

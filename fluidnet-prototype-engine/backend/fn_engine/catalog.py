@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .models import ChannelSpec, Direction, ModuleDefinition, ParameterSpec, PortSpec, UnitSpec, VariableSpec
+from .models import ChannelSpec, Direction, Domain, ModuleDefinition, ParameterSpec, PortSpec, UnitSpec, VariableSpec
 
 
 def number(id, label, default, quantity, unit, display=None, scale=1.0, minimum=None, maximum=None, runtime=False, offset=0.0):
@@ -126,7 +126,51 @@ def builtin_catalog() -> list[ModuleDefinition]:
         if definition.solver_model == 'pump_curve':
             definition.variables.append(VariableSpec(id='shaft_power_w',label='估算轴功率',quantity='power',
                 unit=UnitSpec(quantity='power',canonical_unit='W',display_unit='W'),source='derived'))
+    definitions.extend(thermal_catalog())
     return definitions
+
+
+def thermal_catalog() -> list[ModuleDefinition]:
+    """A1 heat nodes and an explicitly ideal cold source; no refrigerant network."""
+    room = ModuleDefinition(id='cold_room', name='库房热节点', category='冷库案例',
+        solver_model='cold_room', state_model='room_temperature',
+        description='空气及内部构件等效热容；围护漏热与热负荷。A1 不含货物热节点。',
+        ports=[PortSpec(id='heat', label='冷却热接口', domain=Domain.thermal, direction=Direction.in_, circuit='thermal')],
+        parameters=[
+            number('temperature_k', '初始库温', 263.15, 'temperature', 'K', '°C', minimum=1, offset=-273.15),
+            number('heat_capacity_j_k', '等效热容', 1200000., 'heat_capacity', 'J/K', 'kJ/K', 1000., minimum=1),
+            number('ambient_temperature_k', '室外温度', 305.15, 'temperature', 'K', '°C', minimum=1, runtime=True, offset=-273.15),
+            number('ground_temperature_k', '地面温度', 283.15, 'temperature', 'K', '°C', minimum=1, runtime=True, offset=-273.15),
+            number('wall_ua_w_k', '墙体传热 UA', 31.68, 'conductance', 'W/K', minimum=0),
+            number('roof_ua_w_k', '屋顶传热 UA', 14.4, 'conductance', 'W/K', minimum=0),
+            number('floor_ua_w_k', '地面传热 UA', 20., 'conductance', 'W/K', minimum=0),
+            number('heat_input_w', '附加热负荷', 0., 'power', 'W', 'kW', 1000., minimum=0, runtime=True)],
+        variables=[
+            VariableSpec(id='state.temperature_k', label='库温', source='state', quantity='temperature',
+                         unit=UnitSpec(quantity='temperature', canonical_unit='K', display_unit='°C', display_offset=-273.15)),
+            VariableSpec(id='envelope_heat_w', label='围护漏热', source='derived', quantity='power',
+                         unit=UnitSpec(quantity='power', canonical_unit='W', display_unit='kW', display_scale=1000)),
+            VariableSpec(id='stored_energy_j', label='库房储能（相对 273.15 K）', source='state', quantity='energy',
+                         unit=UnitSpec(quantity='energy', canonical_unit='J', display_unit='kWh', display_scale=3600000)),
+            VariableSpec(id='state.external_energy_j', label='累计外界输入热量', source='state', quantity='energy',
+                         unit=UnitSpec(quantity='energy', canonical_unit='J', display_unit='kWh', display_scale=3600000)),
+            VariableSpec(id='cooling_power_w', label='冷却功率', source='derived', quantity='power',
+                         unit=UnitSpec(quantity='power', canonical_unit='W', display_unit='kW', display_scale=1000))])
+    source = ModuleDefinition(id='ideal_cold_source', name='理想恒容量冷源 · A1', category='冷库案例',
+        solver_model='ideal_cold_source', description='开发基准：指定制冷功率，不计算制冷循环、压缩功或 COP。',
+        ports=[PortSpec(id='heat', label='冷量输出', domain=Domain.thermal, direction=Direction.out, circuit='thermal')],
+        parameters=[
+            number('cooling_power_w', '额定冷却功率', 10000., 'power', 'W', 'kW', 1000., minimum=0, runtime=True),
+            number('capacity_ratio', '容量比例', 1., 'ratio', '1', '%', .01, 0., 1., True)],
+        variables=[
+            VariableSpec(id='cooling_power_w', label='实际冷却功率', source='derived', quantity='power',
+                         unit=UnitSpec(quantity='power', canonical_unit='W', display_unit='kW', display_scale=1000)),
+            VariableSpec(id='state.cooling_energy_j', label='累计冷量', source='state', quantity='energy',
+                         unit=UnitSpec(quantity='energy', canonical_unit='J', display_unit='kWh', display_scale=3600000))])
+    for definition in (room, source):
+        definition.variables.extend(VariableSpec(id='param.' + p.id, label=p.label, source='parameter',
+            parameter_id=p.id, quantity=p.unit.quantity, unit=p.unit) for p in definition.parameters)
+    return [room, source]
 
 
 def catalog_map() -> dict[str, ModuleDefinition]:

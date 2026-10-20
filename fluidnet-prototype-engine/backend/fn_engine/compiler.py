@@ -296,6 +296,10 @@ def tank_initial_state(instance_id: str, params: dict, node: int, service) -> St
 
 
 def compile_project(project: Project) -> CompiledNetwork:
+    used = {instance.module_id for instance in project.instances}
+    if any(port.domain == Domain.thermal for module in project.modules if module.id in used for port in module.ports):
+        from .refrigeration.compile import compile_thermal_project
+        return compile_thermal_project(project)
     modules = {m.id: m for m in project.modules}
     instances = {i.id: i for i in project.instances}
     if not instances:
@@ -501,6 +505,8 @@ def validate_project(project: Project) -> list[Diagnostic]:
 
 def circuit_info(network: CompiledNetwork) -> list[dict]:
     """Fluid circuits of a compiled network (one entry for a single-fluid project)."""
+    if getattr(network, 'execution_domain', None) == 'thermal':
+        return []
     count = len(network.circuit_fluids) or 1
     ports = [[] for _ in range(count)]
     for key, node in network.port_nodes.items():

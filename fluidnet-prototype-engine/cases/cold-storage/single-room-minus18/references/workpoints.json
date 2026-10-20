@@ -1,0 +1,459 @@
+{
+  "schema_version": 1,
+  "case_id": "single-room-minus18-v1",
+  "scope": "A0 independent inputs and fixed-boundary cycle points; no dynamic room/product validation",
+  "environment": {
+    "python": "3.11.0",
+    "platform": "Windows-10-10.0.29683-SP0",
+    "coolprop_version": "8.0.0"
+  },
+  "input_sha256": {
+    "parameters.json": "84a4231b2d39eed4e8717efce159141e91155f1d06a666d024c349c6fdc2ed69",
+    "scenarios.json": "25bb694b0a2221a9b41831da3626aeaed90a0be3d7c20d509c476ed61c1a710d",
+    "sources.json": "548b616701152ebb20c9f8773ec28a01b56e9a399d9e6c08979f56a2db71368c"
+  },
+  "reference_script_sha256": "c190e4968458447270a7a058524d32b574c8f18a8bb192ef0067ead5f0946e45",
+  "geometry": {
+    "volume_m3": 320.0,
+    "wall_area_m2": 144.0,
+    "roof_area_m2": 80.0,
+    "floor_area_m2": 80.0,
+    "wall_heat_w": 1583.999999999999,
+    "roof_heat_w": 719.9999999999995,
+    "floor_heat_w": 559.9999999999994,
+    "target_envelope_heat_w": 2863.999999999998,
+    "goods_heat_capacity_j_k": 3600000.0
+  },
+  "design": {
+    "fixed_displacement_m3_s": 0.013035024753664063,
+    "condenser_ua_w_k": 1996.4918923008415
+  },
+  "workpoints": {
+    "rated": {
+      "evaporating_temperature_k": 245.15,
+      "condensing_temperature_k": 313.15,
+      "capacity_ratio": 1.0,
+      "displacement_m3_s": 0.013035024753664063,
+      "mass_flow_kg_s": 0.03969408406175247,
+      "pressure_ratio": 7.547347353569657,
+      "cooling_power_w": 10000.0,
+      "shaft_power_w": 5971.935138406732,
+      "compressor_electric_power_w": 6635.483487118591,
+      "condenser_rejection_power_w": 15971.935138406732,
+      "auxiliary_electric_power_w": 500.0,
+      "total_electric_power_w": 7135.483487118591,
+      "cop_compressor_electric": 1.507049187811697,
+      "cop_system_instantaneous": 1.4014467300012128,
+      "energy_residual_w": 0.0,
+      "isentropic_discharge_enthalpy_j_kg": 648203.0541184683,
+      "states": {
+        "1": {
+          "pressure_pa": 181443.93263630712,
+          "enthalpy_j_kg": 550411.2059950682,
+          "temperature_k": 250.14999999109907,
+          "entropy_j_kg_k": 2445.8956255655235,
+          "density_kg_m3": 4.06024893838674,
+          "quality": null
+        },
+        "2": {
+          "pressure_pa": 1369420.3848039038,
+          "enthalpy_j_kg": 700860.2031079915,
+          "temperature_k": 353.0926576088314,
+          "entropy_j_kg_k": 2600.4638837966286,
+          "density_kg_m3": 23.95900690826897,
+          "quality": null
+        },
+        "3": {
+          "pressure_pa": 1369420.3848039038,
+          "enthalpy_j_kg": 298484.4960993844,
+          "temperature_k": 310.14999994080176,
+          "entropy_j_kg_k": 1331.555941146238,
+          "density_kg_m3": 473.07096220409505,
+          "quality": null
+        },
+        "4": {
+          "pressure_pa": 181443.93263630712,
+          "enthalpy_j_kg": 298484.4960993844,
+          "temperature_k": 245.14999999999986,
+          "entropy_j_kg_k": 1418.5674490005015,
+          "density_kg_m3": 10.174345994180127,
+          "quality": 0.40443899450290527
+        }
+      }
+    },
+    "lower_evaporation": {
+      "evaporating_temperature_k": 241.15,
+      "condensing_temperature_k": 313.15,
+      "capacity_ratio": 1.0,
+      "displacement_m3_s": 0.013035024753664063,
+      "mass_flow_kg_s": 0.0342638858746857,
+      "pressure_ratio": 8.833916928081528,
+      "cooling_power_w": 8465.440359278846,
+      "shaft_power_w": 5560.694338362831,
+      "compressor_electric_power_w": 6178.54926484759,
+      "condenser_rejection_power_w": 14026.134697641677,
+      "auxiliary_electric_power_w": 500.0,
+      "total_electric_power_w": 6678.54926484759,
+      "cop_compressor_electric": 1.3701339904243148,
+      "cop_system_instantaneous": 1.267556773719784,
+      "energy_residual_w": 0.0,
+      "isentropic_discharge_enthalpy_j_kg": 651039.1282095549,
+      "states": {
+        "1": {
+          "pressure_pa": 155018.48115084122,
+          "enthalpy_j_kg": 545550.4707596942,
+          "temperature_k": 246.1499999927987,
+          "entropy_j_kg_k": 2454.5098852474107,
+          "density_kg_m3": 3.504802026169225,
+          "quality": null
+        },
+        "2": {
+          "pressure_pa": 1369420.3848039038,
+          "enthalpy_j_kg": 707840.7129902492,
+          "temperature_k": 356.3408612497659,
+          "entropy_j_kg_k": 2620.1431061092476,
+          "density_kg_m3": 23.60877205296742,
+          "quality": null
+        },
+        "3": {
+          "pressure_pa": 1369420.3848039038,
+          "enthalpy_j_kg": 298484.4960993844,
+          "temperature_k": 310.14999994080176,
+          "entropy_j_kg_k": 1331.555941146238,
+          "density_kg_m3": 473.07096220409505,
+          "quality": null
+        },
+        "4": {
+          "pressure_pa": 155018.48115084122,
+          "enthalpy_j_kg": 298484.4960993844,
+          "temperature_k": 241.15000000000006,
+          "entropy_j_kg_k": 1430.297625496381,
+          "density_kg_m3": 8.428313430495923,
+          "quality": 0.4223346761603845
+        }
+      }
+    },
+    "high_condensation": {
+      "evaporating_temperature_k": 245.15,
+      "condensing_temperature_k": 319.15,
+      "capacity_ratio": 1.0,
+      "displacement_m3_s": 0.013035024753664063,
+      "mass_flow_kg_s": 0.03969408406175247,
+      "pressure_ratio": 8.647079165610373,
+      "cooling_power_w": 9312.122753903273,
+      "shaft_power_w": 6389.418667655647,
+      "compressor_electric_power_w": 7099.3540751729415,
+      "condenser_rejection_power_w": 15701.54142155892,
+      "auxiliary_electric_power_w": 500.0,
+      "total_electric_power_w": 7599.3540751729415,
+      "cop_compressor_electric": 1.3116859161129286,
+      "cop_system_instantaneous": 1.2253834551973226,
+      "energy_residual_w": 0.0,
+      "isentropic_discharge_enthalpy_j_kg": 655039.445495824,
+      "states": {
+        "1": {
+          "pressure_pa": 181443.93263630712,
+          "enthalpy_j_kg": 550411.2059950682,
+          "temperature_k": 250.14999999109907,
+          "entropy_j_kg_k": 2445.8956255655235,
+          "density_kg_m3": 4.06024893838674,
+          "quality": null
+        },
+        "2": {
+          "pressure_pa": 1568960.0496258233,
+          "enthalpy_j_kg": 711377.7283039233,
+          "temperature_k": 360.28428005291397,
+          "entropy_j_kg_k": 2608.078638756391,
+          "density_kg_m3": 27.268286460974174,
+          "quality": null
+        },
+        "3": {
+          "pressure_pa": 1568960.0496258233,
+          "enthalpy_j_kg": 315813.9612415096,
+          "temperature_k": 316.14999986530347,
+          "entropy_j_kg_k": 1385.5324254257578,
+          "density_kg_m3": 462.56577491624125,
+          "quality": null
+        },
+        "4": {
+          "pressure_pa": 181443.93263630712,
+          "enthalpy_j_kg": 315813.9612415096,
+          "temperature_k": 245.14999999999986,
+          "entropy_j_kg_k": 1489.25668066326,
+          "density_kg_m3": 9.227694878159939,
+          "quality": 0.4466914995573386
+        }
+      }
+    },
+    "half_capacity": {
+      "evaporating_temperature_k": 245.15,
+      "condensing_temperature_k": 313.15,
+      "capacity_ratio": 0.5,
+      "displacement_m3_s": 0.013035024753664063,
+      "mass_flow_kg_s": 0.019847042030876234,
+      "pressure_ratio": 7.547347353569657,
+      "cooling_power_w": 5000.0,
+      "shaft_power_w": 2985.967569203366,
+      "compressor_electric_power_w": 3317.7417435592956,
+      "condenser_rejection_power_w": 7985.967569203366,
+      "auxiliary_electric_power_w": 500.0,
+      "total_electric_power_w": 3817.7417435592956,
+      "cop_compressor_electric": 1.507049187811697,
+      "cop_system_instantaneous": 1.3096747595447564,
+      "energy_residual_w": 0.0,
+      "isentropic_discharge_enthalpy_j_kg": 648203.0541184683,
+      "states": {
+        "1": {
+          "pressure_pa": 181443.93263630712,
+          "enthalpy_j_kg": 550411.2059950682,
+          "temperature_k": 250.14999999109907,
+          "entropy_j_kg_k": 2445.8956255655235,
+          "density_kg_m3": 4.06024893838674,
+          "quality": null
+        },
+        "2": {
+          "pressure_pa": 1369420.3848039038,
+          "enthalpy_j_kg": 700860.2031079915,
+          "temperature_k": 353.0926576088314,
+          "entropy_j_kg_k": 2600.4638837966286,
+          "density_kg_m3": 23.95900690826897,
+          "quality": null
+        },
+        "3": {
+          "pressure_pa": 1369420.3848039038,
+          "enthalpy_j_kg": 298484.4960993844,
+          "temperature_k": 310.14999994080176,
+          "entropy_j_kg_k": 1331.555941146238,
+          "density_kg_m3": 473.07096220409505,
+          "quality": null
+        },
+        "4": {
+          "pressure_pa": 181443.93263630712,
+          "enthalpy_j_kg": 298484.4960993844,
+          "temperature_k": 245.14999999999986,
+          "entropy_j_kg_k": 1418.5674490005015,
+          "density_kg_m3": 10.174345994180127,
+          "quality": 0.40443899450290527
+        }
+      }
+    }
+  },
+  "scenarios": [
+    {
+      "id": "A-S01",
+      "name": "基础降温与保温",
+      "duration_s": 21600.0,
+      "event_count": 0,
+      "control_modes": [
+        "on_off"
+      ]
+    },
+    {
+      "id": "A-S02",
+      "name": "开门扰动",
+      "duration_s": 21600.0,
+      "event_count": 1,
+      "control_modes": [
+        "on_off"
+      ]
+    },
+    {
+      "id": "A-S03",
+      "name": "冻结货物入库",
+      "duration_s": 28800.0,
+      "event_count": 1,
+      "control_modes": [
+        "on_off"
+      ]
+    },
+    {
+      "id": "A-S04",
+      "name": "高环境温度",
+      "duration_s": 28800.0,
+      "event_count": 1,
+      "control_modes": [
+        "on_off"
+      ]
+    },
+    {
+      "id": "A-S05",
+      "name": "控制策略对照",
+      "duration_s": 86400.0,
+      "event_count": 5,
+      "control_modes": [
+        "on_off",
+        "variable_capacity"
+      ]
+    },
+    {
+      "id": "A-S06",
+      "name": "定时电融霜",
+      "duration_s": 86400.0,
+      "event_count": 2,
+      "control_modes": [
+        "on_off"
+      ]
+    },
+    {
+      "id": "A-S07",
+      "name": "制冷能力不足",
+      "duration_s": 21600.0,
+      "event_count": 0,
+      "control_modes": [
+        "on_off"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "name": "input_geometry",
+      "passed": true,
+      "detail": "wall=144 m2, roof/floor=80 m2"
+    },
+    {
+      "name": "envelope_load",
+      "passed": true,
+      "detail": "calculated 2864.000000 W"
+    },
+    {
+      "name": "rated_cooling",
+      "passed": true,
+      "detail": "displacement derived once from declared rating"
+    },
+    {
+      "name": "rated.energy_balance",
+      "passed": true,
+      "detail": "residual 0 W"
+    },
+    {
+      "name": "rated.positive_powers",
+      "passed": true,
+      "detail": "positive mass flow, cooling and compression work"
+    },
+    {
+      "name": "rated.compression_entropy",
+      "passed": true,
+      "detail": "irreversible adiabatic compression increases entropy"
+    },
+    {
+      "name": "rated.throttle",
+      "passed": true,
+      "detail": "isenthalpic expansion with wet outlet"
+    },
+    {
+      "name": "rated.carnot_bound",
+      "passed": true,
+      "detail": "shaft-based cycle COP below saturation-temperature Carnot COP"
+    },
+    {
+      "name": "rated.fixed_displacement",
+      "passed": true,
+      "detail": "all non-rated points retain rated displacement"
+    },
+    {
+      "name": "lower_evaporation.energy_balance",
+      "passed": true,
+      "detail": "residual 0 W"
+    },
+    {
+      "name": "lower_evaporation.positive_powers",
+      "passed": true,
+      "detail": "positive mass flow, cooling and compression work"
+    },
+    {
+      "name": "lower_evaporation.compression_entropy",
+      "passed": true,
+      "detail": "irreversible adiabatic compression increases entropy"
+    },
+    {
+      "name": "lower_evaporation.throttle",
+      "passed": true,
+      "detail": "isenthalpic expansion with wet outlet"
+    },
+    {
+      "name": "lower_evaporation.carnot_bound",
+      "passed": true,
+      "detail": "shaft-based cycle COP below saturation-temperature Carnot COP"
+    },
+    {
+      "name": "lower_evaporation.fixed_displacement",
+      "passed": true,
+      "detail": "all non-rated points retain rated displacement"
+    },
+    {
+      "name": "high_condensation.energy_balance",
+      "passed": true,
+      "detail": "residual 0 W"
+    },
+    {
+      "name": "high_condensation.positive_powers",
+      "passed": true,
+      "detail": "positive mass flow, cooling and compression work"
+    },
+    {
+      "name": "high_condensation.compression_entropy",
+      "passed": true,
+      "detail": "irreversible adiabatic compression increases entropy"
+    },
+    {
+      "name": "high_condensation.throttle",
+      "passed": true,
+      "detail": "isenthalpic expansion with wet outlet"
+    },
+    {
+      "name": "high_condensation.carnot_bound",
+      "passed": true,
+      "detail": "shaft-based cycle COP below saturation-temperature Carnot COP"
+    },
+    {
+      "name": "high_condensation.fixed_displacement",
+      "passed": true,
+      "detail": "all non-rated points retain rated displacement"
+    },
+    {
+      "name": "half_capacity.energy_balance",
+      "passed": true,
+      "detail": "residual 0 W"
+    },
+    {
+      "name": "half_capacity.positive_powers",
+      "passed": true,
+      "detail": "positive mass flow, cooling and compression work"
+    },
+    {
+      "name": "half_capacity.compression_entropy",
+      "passed": true,
+      "detail": "irreversible adiabatic compression increases entropy"
+    },
+    {
+      "name": "half_capacity.throttle",
+      "passed": true,
+      "detail": "isenthalpic expansion with wet outlet"
+    },
+    {
+      "name": "half_capacity.carnot_bound",
+      "passed": true,
+      "detail": "shaft-based cycle COP below saturation-temperature Carnot COP"
+    },
+    {
+      "name": "half_capacity.fixed_displacement",
+      "passed": true,
+      "detail": "all non-rated points retain rated displacement"
+    },
+    {
+      "name": "half_capacity_scaling",
+      "passed": true,
+      "detail": "same temperatures/efficiencies, half mass flow and cooling"
+    },
+    {
+      "name": "high_condensation_cop",
+      "passed": true,
+      "detail": "higher condensing temperature reduces COP at fixed evaporation"
+    },
+    {
+      "name": "insufficient_capacity_design",
+      "passed": true,
+      "detail": "S07 rated cooling below target envelope load alone"
+    }
+  ]
+}

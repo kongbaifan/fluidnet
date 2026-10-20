@@ -261,14 +261,14 @@ flowchart LR
 | API 适配、版本绑定、真实数据映射 | [engine-client.js](../frontend/engine-client.js) |
 | 启动和接入 | [cli.py](../backend/fn_engine/cli.py)、[api.py](../backend/fn_engine/api.py)、[auth.py](../backend/fn_engine/auth.py) |
 | 契约、目录、归一化、编译 | [models.py](../backend/fn_engine/models.py)、[catalog.py](../backend/fn_engine/catalog.py)、[bridge.py](../backend/fn_engine/bridge.py)、[compiler.py](../backend/fn_engine/compiler.py) |
-| 任务、动态状态和控制 | [jobs.py](../backend/fn_engine/jobs.py)、[simulation.py](../backend/fn_engine/simulation.py)、[controllers.py](../backend/fn_engine/controllers.py) |
+| 任务、动态状态和控制 | [jobs.py](../backend/fn_engine/jobs.py)、[simulation.py](../backend/fn_engine/simulation.py)、[sessions.py](../backend/fn_engine/sessions.py)、[refrigeration/](../backend/fn_engine/refrigeration/)、[controllers.py](../backend/fn_engine/controllers.py) |
 | 数值算法与物性 | [solver.py](../backend/fn_engine/solver.py)、[thermal.py](../backend/fn_engine/thermal.py)、[properties.py](../backend/fn_engine/properties.py) |
 | 模块执行与版本 | [runtime.py](../backend/fn_engine/runtime.py)、[worker.py](../backend/fn_engine/worker.py)、[batch.py](../backend/fn_engine/batch.py)、[packages.py](../backend/fn_engine/packages.py) |
 | 模块验证 | [module_validation.py](../backend/fn_engine/module_validation.py)、[bench.py](../backend/fn_engine/bench.py) |
 | 示例、合同生成、性能评估 | [examples.py](../backend/fn_engine/examples.py)、[generate_contracts.py](../scripts/generate_contracts.py)、[benchmark_scaling.py](../scripts/benchmark_scaling.py) |
 | 回归与端到端验证 | `tests/test_*.py` 覆盖物理、状态、接口、版本、工质和并发；`tests/browser-*.mjs` 使用 Playwright 验证页面工作流 |
 
-当前可计算的内置模型包括压力源、连接节点、泵、阀门、管道、双侧换热器和开式水箱，以及版本化 Python 模块与项目级 PID。动态部分包含水箱质量/焓和分段管道热容；不计算水锤、完整可压缩流动或管网内两相流。模块物性查询可使用显式两相状态接口。
+当前可计算的内置模型包括压力源、连接节点、泵、阀门、管道、双侧换热器和开式水箱，以及版本化 Python 模块与项目级 PID。动态部分包含水箱质量/焓和分段管道热容；不计算水锤、完整可压缩流动或管网内两相流。模块物性查询可使用显式两相状态接口。冷库案例 A1（2026-10-20）另有独立的热执行域：只含 thermal 端口的项目由 `refrigeration/compile.py` 编译、`ThermalSession` 推进库房热平衡，不经水力求解；边界与后续阶段见 [数据合同](DATA_CONTRACT.md#冷库-a1-热执行域2026-10-20)和 [算法文档](ALGORITHM.md#冷库-a1-热执行域2026-10-20)。
 
 Python 项目控制脚本已接通采样执行和独立 Worker；串口演示、原型自定义变量等部分入口仍为编辑或预览。未支持的模型进入求解器时会被拒绝；组合设备只有已经展开为普通实例和连接的项目可计算，递归组合定义展开尚未实现。
 

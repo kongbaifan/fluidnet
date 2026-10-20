@@ -6,8 +6,8 @@
 
 | 方法与路径 | 请求 | 返回模型与内容 | 错误响应（`detail.code`） |
 | --- | --- | --- | --- |
-| GET /api/v1/health | 无 | `HealthResponse`：版本（0.4.10）、能力标志（含 `thermal`、`property_coupling`、`tank_state`、`live_runs`、`pid`、`runtime_parameters`、`continuous_step`、`continuous_runs`、`variables_api`、`run_stream`、`python_controls`、`persistent_workspace`，以及 `refprop: {installed,source,path,version}`）、`auth.required`、同步运行 2001 帧上限、`history_window_max`、`overview_points`、20 次记录保留数 | 500 `INTERNAL_ERROR`（health 不受令牌限制） |
-| GET /api/v1/examples/{name} | `level` 或 `temperature` | `Project`：内置 PID 示例 Project | 404（未知示例）；401/403 |
+| GET /api/v1/health | 无 | `HealthResponse`：版本（0.4.10）、`supported_domains`（`fluid`、`thermal`）、能力标志（含 `thermal`、`property_coupling`、`tank_state`、`live_runs`、`pid`、`runtime_parameters`、`continuous_step`、`continuous_runs`、`variables_api`、`run_stream`、`python_controls`、`persistent_workspace`、`cold_room_ideal_source`，以及 `refprop: {installed,source,path,version}`）、`auth.required`、同步运行 2001 帧上限、`history_window_max`、`overview_points`、20 次记录保留数 | 500 `INTERNAL_ERROR`（health 不受令牌限制） |
+| GET /api/v1/examples/{name} | `level`、`temperature` 或 `cold-storage` | `Project`：内置 PID 示例，或冷库 A1 库房 + 理想冷源示例 Project | 404（未知示例）；401/403 |
 | GET /api/v1/workspace | 可选 revision | `WorkspaceResponse`：完整原型工作区、revision、saved_at、project_revisions；未保存时 data=null | 404（修订不存在）、503（持久存储未启用）、507 `STORAGE_FAILED`；401/403 |
 | POST /api/v1/workspace | data、expected_revision | `WorkspaceSaveResponse`：已落盘修订、时间与项目修订映射 | 409 `WORKSPACE_CONFLICT`、503、507 `STORAGE_FAILED`；401/403 |
 | GET /api/v1/workspace/revisions | 无 | `WorkspaceRevisionsResponse`：最近 5 个修订元数据 | 503、507；401/403 |
@@ -122,6 +122,14 @@ Invoke-RestMethod ('http://127.0.0.1:8798/api/v1/runs/' + $result.run_id + '/his
 ```
 
 `contracts/reference-project.json` 是完整模块、实例与连接集合，不是空占位。`reference-result.json` 为同一算例的预期输出。
+
+## 冷库案例 A1（2026-10-20）
+
+`GET /api/v1/examples/cold-storage` 返回可直接运行的冷库 A1 示例 `Project`（`id=cold-room-ideal-v1`）：两台设备 `ROOM1`（`cold_room` 库房热节点）与 `COLD1`（`ideal_cold_source` 理想恒容量冷源）、一条热连接、一个库温 PID，默认动态运行 2 h / 30 s 发布 / 10 s 内部步长。前端项目页的「−18°C 冷库案例」按钮调用同一接口生成可保存副本。
+
+- 热项目只含 `domain=thermal` 端口，运行方式与流体项目相同：`POST /api/v1/runs`（动态可走 `?background=true`）、命令、历史、归档、流式推送均沿用本文合同；`circuit_info` 为空，不返回水力回路。
+- 帧变量为两台设备的 `param.*`、`ROOM1.state.temperature_k`、`ROOM1.envelope_heat_w`、`ROOM1.stored_energy_j`、`ROOM1.state.external_energy_j`、`ROOM1.cooling_power_w`、`COLD1.cooling_power_w`、`COLD1.state.cooling_energy_j`，另有 PID 变量；帧诊断含 `COLD_ROOM_IDEAL_SOURCE` 提示。
+- 设备、参数、单位换算、诊断码与已知边界见 [数据合同「冷库 A1 热执行域」](DATA_CONTRACT.md#冷库-a1-热执行域2026-10-20)；数值方法与能量校核见 [算法文档](ALGORITHM.md#冷库-a1-热执行域2026-10-20)。
 
 ## RunRequest
 

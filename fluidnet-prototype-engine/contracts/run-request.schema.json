@@ -238,6 +238,7 @@
     "Domain": {
       "enum": [
         "fluid",
+        "thermal",
         "info",
         "power",
         "mech"

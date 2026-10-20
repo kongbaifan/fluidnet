@@ -233,7 +233,7 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
     @app.get('/api/v1/health', response_model=HealthResponse,
               responses=error_responses('INTERNAL_ERROR'))
     def health():
-        return {'status':'ok','version':__version__,'solver':'declarative-fluid-v1','supported_domains':['fluid'],
+        return {'status':'ok','version':__version__,'solver':'declarative-fluid-v1','supported_domains':['fluid', 'thermal'],
                 'capabilities':{'steady_hydraulics':True,'quasi_steady_series':True,'thermal':True,
                                 'property_coupling':['reference','node'],'tank_state':True,
                                 'time_integration':'implicit_euler',
@@ -241,6 +241,7 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
                                 'module_versions':True,'run_control':True,'live_runs':True,'pid':True,'runtime_parameters':True,'continuous_step':True,
                                 'continuous_runs':True,'variables_api':True,'run_stream':True,
                                 'python_controls':True,'persistent_workspace':archive is not None,
+                                'cold_room_ideal_source':True,
                                 # REFPROP 运行时发现（环境变量/捆绑目录/系统安装）；不加载 DLL。
                                 'refprop':refprop_info()},
                 'max_frames':2001,'run_retention':RUN_RETENTION,'history_window_max':20001,'overview_points':OVERVIEW_POINTS,
@@ -320,12 +321,12 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
     @app.post('/api/v1/controls/preview', response_model=ControlPreviewResponse,
               responses=protected_error_responses(422, 'INTERNAL_ERROR'))
     def preview_control(request: ControlPreviewRequest):
-        from .simulation import SimulationSession
+        from .sessions import create_session
         script = request.script.model_copy(update={'enabled': True})
         project = request.project.model_copy(deep=True, update={'control_scripts': [script]})
         session = None
         try:
-            session = SimulationSession(compile_project(project), script.sample_s, script.sample_s)
+            session = create_session(compile_project(project), script.sample_s, script.sample_s)
             session.initialize()
             session._control()
             result = session.scripts[script.id].pending[0]
@@ -424,6 +425,9 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
     def example(name: str):
         from .examples import pid_example
         try:
+            if name == 'cold-storage':
+                from .refrigeration.examples import ideal_room_example
+                return ideal_room_example()
             return pid_example(name)
         except KeyError:
             raise HTTPException(404, detail='示例不存在')

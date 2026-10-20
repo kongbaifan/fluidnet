@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "case_id": "single-room-minus18-v1",
+  "parameter_revision": 1,
+  "created_on": "2026-10-19",
+  "data_grade": "engineering_demonstration_assumptions",
+  "unit_system": "SI",
+  "room": {
+    "length_m": 10.0,
+    "width_m": 8.0,
+    "height_m": 4.0,
+    "setpoint_temperature_k": 255.15,
+    "initial_temperature_k": 263.15,
+    "ambient_temperature_k": 305.15,
+    "ground_temperature_k": 283.15,
+    "wall_u_w_m2_k": 0.22,
+    "roof_u_w_m2_k": 0.18,
+    "floor_u_w_m2_k": 0.25,
+    "effective_heat_capacity_j_k": 1200000.0,
+    "lighting_power_w": 100.0,
+    "lighting_enabled": false
+  },
+  "goods": {
+    "mass_kg": 2000.0,
+    "specific_heat_j_kg_k": 1800.0,
+    "initial_temperature_k": 258.15,
+    "room_ua_w_k": 500.0,
+    "ua_mass_scaling": "proportional_to_total_mass",
+    "mixing_model": "same_frozen_product_energy_weighted",
+    "energy_reference_temperature_k": 253.15,
+    "valid_temperature_range_k": [253.15, 265.15]
+  },
+  "refrigeration": {
+    "fluid": "HEOS::R290",
+    "rated_cooling_power_w": 10000.0,
+    "rated_evaporating_temperature_k": 245.15,
+    "rated_condensing_temperature_k": 313.15,
+    "superheat_k": 5.0,
+    "subcooling_k": 3.0,
+    "isentropic_efficiency": 0.65,
+    "volumetric_efficiency": 0.75,
+    "motor_efficiency": 0.90,
+    "capacity_ratio_minimum": 0.35,
+    "capacity_ratio_maximum": 1.0,
+    "nominal_capacity_ratio": 1.0,
+    "evaporator_ua_w_k": 1000.0,
+    "evaporator_fan_power_w": 300.0,
+    "condenser_fan_power_w": 200.0,
+    "displacement_definition": "derive_once_at_rated_point_then_hold_fixed",
+    "condenser_ua_definition": "rated_refrigerant_rejection_over_rated_ambient_difference",
+    "motor_loss_destination": "external_environment",
+    "superheat_location": "evaporator",
+    "model_limits": {
+      "evaporating_temperature_k": [233.15, 263.15],
+      "condensing_temperature_k": [298.15, 323.15],
+      "discharge_temperature_maximum_k": 393.15,
+      "pressure_ratio_maximum": 20.0,
+      "qualification": "provisional_demonstration_limits_not_manufacturer_envelope"
+    }
+  },
+  "control": {
+    "default_mode": "on_off",
+    "start_temperature_k": 255.65,
+    "stop_temperature_k": 254.65,
+    "sample_s": 5.0,
+    "minimum_on_s": 120.0,
+    "minimum_off_s": 180.0,
+    "initial_equipment_state": "off",
+    "initial_off_elapsed_s": 180.0,
+    "variable_capacity_tuning_status": "pending_A4"
+  },
+  "defrost": {
+    "heater_power_w": 1500.0,
+    "heating_duration_s": 900.0,
+    "room_heat_fraction": 1.0,
+    "drip_wait_s": 300.0,
+    "cooling_during_defrost": false,
+    "room_fan_during_defrost": false,
+    "model": "scheduled_equivalent_electric_heat_without_frost_mass"
+  },
+  "numerics": {
+    "publish_interval_s": 30.0,
+    "internal_step_maximum_s": 10.0,
+    "execution_mode": "fast",
+    "integration_method": "implicit_euler",
+    "configuration_status": "pending_step_convergence_A3"
+  }
+}

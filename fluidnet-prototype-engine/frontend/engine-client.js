@@ -147,7 +147,7 @@ window.createEngineClient = function (ui) {
       if (!['derived','state'].includes(v.source)) continue;
       variables.push({id:'runtime:' + v.id,name:v.id.replace(/[^A-Za-z0-9_]/g,'_').toUpperCase(),label:v.label,
         unit:v.unit?.display_unit || '',type:'double',port:'',origin:'runtime',canonicalId:v.id,unitSpec:v.unit,
-        note:'Worker 返回值',display:true,writable:false,value:null});
+        note:manifest.runtime==='builtin'?'引擎计算值':'Worker 返回值',display:true,writable:false,value:null});
     }
     for (const v of variables) v.note ||= v.label;
     const values = Object.fromEntries(variables.map(v => [v.id,clone(v.value)]));
@@ -616,6 +616,11 @@ window.createEngineClient = function (ui) {
       await services.loadWorkspace(forceWorkspace);
       catalog=data;
       moduleCatalog=packages;
+      for (const manifest of data.modules.filter(m=>m.ports.some(p=>p.domain==='thermal'))) {
+        let m=ui.state().modules.find(m=>m.id===manifest.id);
+        if(!m){m=moduleFromManifest(manifest);ui.state().modules.push(m);}
+        ui.parameterDefinitions[m.kind]=manifest.parameters.filter(p=>p.value_type==='number').map(manifestParamDef);
+      }
       for (const manifest of packages.modules || []) {
         if (manifest.runtime !== 'python') continue;
         const existing=ui.state().modules.find(m => m.id === manifest.id);
@@ -635,10 +640,10 @@ window.createEngineClient = function (ui) {
       ui.state().modules.forEach(m => { if (m.runtime === 'python' && !m.manifest) { const manifest = (packages.modules || []).find(item => item.id === m.id); if (manifest) Object.assign(m, moduleFromManifest(manifest)); } });
       for (const owner of ui.state().projects) pinProject(owner,true);
       ui.state().bench.params ||= {};
-      const benchModule = ui.state().modules.find(m => m.id === ui.state().bench.moduleId) || ui.state().modules.find(m => m.manifest);
+      const benchModule = ui.state().modules.find(m => m.id === ui.state().bench.moduleId) || ui.state().modules.find(m => m.runtime === 'python' && m.manifest);
       if (benchModule && !Object.keys(ui.state().bench.params).length) ui.state().bench.params = Object.fromEntries((ui.parameterDefinitions[benchModule.kind] || []).map(f => [f[0], f[6]]));
       if (!benchModule?.manifest && !ui.state().bench.run.history.length) {
-        const pythonModule=ui.state().modules.find(m=>m.manifest);
+        const pythonModule=ui.state().modules.find(m=>m.runtime==='python' && m.manifest);
         if (pythonModule) { ui.state().bench.moduleId=pythonModule.id; ui.state().bench.params=Object.fromEntries(ui.parameterDefinitions[pythonModule.kind].map(f=>[f[0],f[6]])); }
       }
       for (const [kind,bindings] of Object.entries(data.prototype_parameter_bindings)) {

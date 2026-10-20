@@ -15,6 +15,7 @@ class StrictModel(BaseModel):
 
 class Domain(str, Enum):
     fluid = "fluid"
+    thermal = "thermal"
     info = "info"
     power = "power"
     mech = "mech"
@@ -851,6 +852,7 @@ class RefpropInfo(StrictModel):
 
 
 class HealthCapabilities(StrictModel):
+    cold_room_ideal_source: bool = False
     steady_hydraulics: bool
     quasi_steady_series: bool
     thermal: bool

@@ -37,6 +37,7 @@ branch = false
 # 覆盖率基线（2026-10-18，`python -m pytest --cov=fn_engine`，374 passed）：
 #   - 引入门禁时（并行改动前）：TOTAL 88%（5336 statements / 637 missed）
 #   - 并行任务合入后最终验证：TOTAL 88.50%（5759 statements / 662 missed）
+# 冷库 A1（2026-10-20）：390 passed，TOTAL 88.7%（6011 statements）。
 # floor 取 85%，略低于基线约 3.5 个百分点，防止后续改动回退；未覆盖行由 term-missing 持续跟踪。
 show_missing = true
 skip_covered = false

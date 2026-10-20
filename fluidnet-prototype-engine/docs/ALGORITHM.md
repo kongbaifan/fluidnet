@@ -308,6 +308,29 @@ PID 是项目级对象（`Project.controllers`），不进入网络方程。每�
 
 验收：液位示例纯比例控制的静差与阀门特性的解析平衡点一致（`test_pid.py`）；PI 控制液位收敛到 1.5 ± 0.005 m，温控示例收敛到 30 ± 0.2 °C 且输出始终在限幅内。
 
+## 冷库 A1 热执行域（2026-10-20）
+
+含 `domain=thermal` 端口的项目走与流体网络并列的热执行分支：不建立压力节点，不计算质量流量和压降，只推进库房热容量。A1 只有两台设备——库房热节点和理想恒容量冷源——连接方式是一对一热连接，冷源按 `cooling_power_w × capacity_ratio` 输出冷量，模型不涉及制冷循环、压缩功或 COP（帧诊断 `COLD_ROOM_IDEAL_SOURCE`）。
+
+库房热平衡（隐式 Euler，子步 h）：
+
+```text
+UA_air   = wall_ua_w_k + roof_ua_w_k
+UA       = UA_air + floor_ua_w_k
+C dT/dt  = UA_air·(T_amb − T) + floor_ua_w_k·(T_ground − T) + heat_input_w − Q_cool
+Q_cool   = cooling_power_w · capacity_ratio
+
+T_{n+1}  = [C·T_n + h·(UA_air·T_amb + floor_ua_w_k·T_ground + heat_input_w − Q_cool)]
+           / (C + h·UA)
+```
+
+- 时间推进：`ThermalSession.advance` 推进到下一个发布时刻（`dt_s`），内部子步取 `dynamic_step_s`（热项目归一化后不超过 10 s），并按 PID/脚本的下次采样时刻截断；每个接受子步提交库房温度、冷却功率和累计能量。试算得到非有限或非正温度时报运行错误 `THERMAL_STATE_RANGE`。
+- 能量账本：逐子步累计外界输入热量 `ΔE_in = h·(envelope_heat + heat_input_w)` 和冷量 `ΔE_cool = h·Q_cool`，帧上分别对应 `state.external_energy_j` 与 `state.cooling_energy_j`；残差 `C·(T−T_0) − (ΣE_in − ΣE_cool)` 累加到 `metrics.energy_residual_j`，除以本帧时长得到 `energy_residual_w`，`storage_power_w` 为当前净功率。
+- 稳态参考：`solve_steady` 对无控制器/脚本的热项目直接解 `dT/dt=0`，即 `T = (UA_air·T_amb + floor_ua_w_k·T_ground + heat_input_w − Q_cool) / UA`；`UA=0` 时没有稳态参考，报 `THERMAL_STEADY_UNDEFINED`。带控制的热项目只能动态运行。
+- 控制：PID 和 Python 控制脚本沿用公共采样、写参数和提交协议；A1 示例用库温 PID 调节冷源 `capacity_ratio`，目标 255.15 K。
+- 验收：`test_refrigeration_a1.py` 用线性 ODE 解析解对照 3600 s 末温度，内部步长减半时误差按一阶收敛，步长 10/5/2.5 s 的末温误差比约 2:1；冷却量与储能变化的能量残差在 1e-3 J 内。A1 种子项目 2 h fast 运行到达 255.15 K，稳态冷却功率 2.864 kW，与 A0 独立参考的围护漏热 2864 W 一致；附加热负荷改为 1 kW 后稳态冷却功率为 3.864 kW。浏览器脚本 `browser-cold-storage.mjs` 另验证创建、运行、改参数、保存和重启读取链路。
+- 范围：A1 不计算货物热节点、冷风机、蒸发/冷凝工作点、融霜和电量；这些在 A2–A4 加入，届时热执行域与流体/制冷循环的耦合方式按案例计划扩展。
+
 ## 运行中隔离的被动管段（v0.4.2）
 
 参考倍思鹿 V1.1 说明“两阀均关闭后压力转换为容积性质”。运行中阀门关闭可能产生没有压力参考的子网络。每个子步重新做连通性检查：这样的子网络如果只含管道、阀门、阻力和换热器，就把其中 ID 最小的节点固定为上一接受步的压力和温度。零流量下整个子网络压力相等，温度由管道热容和散热照常演化，不计算液体热膨胀引起的压力变化；诊断 `ISOLATED_PRESSURE_HELD`。重新开阀后从保持的压力继续。含泵或 Python 模块的隔离子网络报 `ISOLATED_ACTIVE_NETWORK`；编译期就没有压力参考的子网络仍报 `PRESSURE_REFERENCE_MISSING`。
