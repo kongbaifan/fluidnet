@@ -1,0 +1,49 @@
+{
+  "electric_energy_j": 9936034172.289425,
+  "mean_electric_power_w": 115000.39551260909,
+  "satisfaction": 1.0,
+  "compressor_starts": 0.0,
+  "compressor_stops": 0.0,
+  "condenser_fan_changes": 0.0,
+  "last_reason": "初始",
+  "target_infeasible": 0.0,
+  "rooms": {
+    "ROOM1": {
+      "max_deviation_k": 9.914510121689091e-05,
+      "final_temperature_k": 255.14999999927429
+    },
+    "ROOM2": {
+      "max_deviation_k": 9.914510121689091e-05,
+      "final_temperature_k": 255.14999999927429
+    }
+  },
+  "levels": {
+    "LP1": {
+      "min": 0.39998655096273594,
+      "max": 0.4000035580153431
+    },
+    "HP1": {
+      "min": 0.6329940939238018,
+      "max": 0.6330222505569304
+    },
+    "CD1": {
+      "min": 0.3999998982523502,
+      "max": 0.4000002792888777
+    }
+  },
+  "max_tracking_after_1h": {
+    "suction": 0.6250216906191781,
+    "head": 5.337591637624428,
+    "level": 5.906076198214372e-06,
+    "room1": 3.0496822205350327e-05,
+    "room2": 3.0496822205350327e-05
+  },
+  "energy_residual_j": -4.6523996167234145,
+  "mass_residual_kg": {
+    "mass_residual_kg_circuit0": -9.094947017729282e-13,
+    "mass_residual_kg_circuit1": 0.0
+  },
+  "events_applied": 0,
+  "initial_electric_power_w": 114984.92128261554,
+  "final_electric_power_w": 115000.3851014084
+}

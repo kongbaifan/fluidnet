@@ -1,0 +1,49 @@
+{
+  "electric_energy_j": 7130907609.401443,
+  "mean_electric_power_w": 110044.87051545436,
+  "satisfaction": 1.0,
+  "compressor_starts": 0.0,
+  "compressor_stops": 0.0,
+  "condenser_fan_changes": 2.0,
+  "last_reason": "t=41530s 回气阀全开仍超压，冷凝器风机增至 1.0",
+  "target_infeasible": 0.0,
+  "rooms": {
+    "ROOM1": {
+      "max_deviation_k": 0.2416573554641559,
+      "final_temperature_k": 255.14999981089258
+    },
+    "ROOM2": {
+      "max_deviation_k": 0.2416573554641559,
+      "final_temperature_k": 255.14999981089258
+    }
+  },
+  "levels": {
+    "LP1": {
+      "min": 0.39584153758507895,
+      "max": 0.40232962641376974
+    },
+    "HP1": {
+      "min": 0.6296982674366013,
+      "max": 0.6359008177828472
+    },
+    "CD1": {
+      "min": 0.3999998982523502,
+      "max": 0.40248389229486786
+    }
+  },
+  "max_tracking_after_1h": {
+    "suction": 4351.417146066626,
+    "head": 104055.28890719521,
+    "level": 0.0033017325633987182,
+    "room1": 0.2416573554641559,
+    "room2": 0.2416573554641559
+  },
+  "energy_residual_j": -0.5100628124782816,
+  "mass_residual_kg": {
+    "mass_residual_kg_circuit0": 5.4569682106375694e-12,
+    "mass_residual_kg_circuit1": 0.0
+  },
+  "events_applied": 7,
+  "initial_electric_power_w": 114984.92128261554,
+  "final_electric_power_w": 105190.98743419742
+}

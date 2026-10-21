@@ -1,0 +1,49 @@
+{
+  "electric_energy_j": 10061802404.292004,
+  "mean_electric_power_w": 116456.04634597227,
+  "satisfaction": 1.0,
+  "compressor_starts": 1.0,
+  "compressor_stops": 1.0,
+  "condenser_fan_changes": 0.0,
+  "last_reason": "t=51130s 停一台后载量约 0.85，停止 K4",
+  "target_infeasible": 0.0,
+  "rooms": {
+    "ROOM1": {
+      "max_deviation_k": 0.7316427270233987,
+      "final_temperature_k": 255.14999999320307
+    },
+    "ROOM2": {
+      "max_deviation_k": 0.11608447842152714,
+      "final_temperature_k": 255.14999999228894
+    }
+  },
+  "levels": {
+    "LP1": {
+      "min": 0.3949176742298855,
+      "max": 0.404832742594009
+    },
+    "HP1": {
+      "min": 0.6250551703159458,
+      "max": 0.6418564727887371
+    },
+    "CD1": {
+      "min": 0.3995066548049538,
+      "max": 0.4007476380355353
+    }
+  },
+  "max_tracking_after_1h": {
+    "suction": 4527.9218177554285,
+    "head": 45073.588599922834,
+    "level": 0.008856472788737135,
+    "room1": 0.7316427270233987,
+    "room2": 0.11608447842152714
+  },
+  "energy_residual_j": 0.35830139787867665,
+  "mass_residual_kg": {
+    "mass_residual_kg_circuit0": 0.0,
+    "mass_residual_kg_circuit1": 0.0
+  },
+  "events_applied": 2,
+  "initial_electric_power_w": 114984.92128261554,
+  "final_electric_power_w": 105474.45131687577
+}

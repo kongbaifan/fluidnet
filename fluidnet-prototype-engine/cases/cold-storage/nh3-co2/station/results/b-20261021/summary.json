@@ -1,0 +1,479 @@
+{
+  "case_id": "nh3co2-two-room-v1",
+  "generated_at": "2026-10-21T14:19:03.359398+00:00",
+  "environment": {
+    "engine": "0.4.10",
+    "python": "3.11.0",
+    "coolprop": "8.0.0",
+    "platform": "Windows-10-10.0.29683-SP0",
+    "cpu_count": 16
+  },
+  "input_sha256": {
+    "parameters.json": "4b362b6437e86179cd2e4b645b6b02be1438cbfcc7d4fb23c00af6f7f08303ed"
+  },
+  "scenarios": [
+    {
+      "id": "B-S01",
+      "name": "B-S01 额定负荷 · 24 h",
+      "run_id": "52d5cde152f54c4b8212d8cc2fb7f748",
+      "simulated_s": 86400.0,
+      "wall_s": 33.43207059999986,
+      "frames": 2881,
+      "checks": [
+        {
+          "name": "运行完成",
+          "passed": true,
+          "detail": "completed"
+        },
+        {
+          "name": "两库库温在设定 ±1 K",
+          "passed": true,
+          "detail": "ROOM1 0.000 K，ROOM2 0.000 K"
+        },
+        {
+          "name": "贮液器液位在 0.6–0.667",
+          "passed": true,
+          "detail": "0.6330 … 0.6330"
+        },
+        {
+          "name": "其余容器在模型液位带内",
+          "passed": true,
+          "detail": "{'LP1': {'min': 0.39998655096273594, 'max': 0.4000035580153431}, 'HP1': {'min': 0.6329940939238018, 'max': 0.6330222505569304}, 'CD1': {'min': 0.3999998982523502, 'max': 0.4000002792888777}}"
+        },
+        {
+          "name": "NH₃/CO₂ 存量守恒",
+          "passed": true,
+          "detail": "{'mass_residual_kg_circuit0': -9.094947017729282e-13, 'mass_residual_kg_circuit1': 0.0}"
+        },
+        {
+          "name": "能量账本 ≤ 0.1%",
+          "passed": true,
+          "detail": "-4.65 J / 13736 kWh"
+        },
+        {
+          "name": "无越界停止诊断",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "需求满足度 100%",
+          "passed": true,
+          "detail": "1.0"
+        },
+        {
+          "name": "末 3 h suction 压力跟踪目标（≤ 0.5%）",
+          "passed": true,
+          "detail": "0.00 kPa"
+        },
+        {
+          "name": "末 3 h head 压力跟踪目标（≤ 0.5%）",
+          "passed": true,
+          "detail": "0.00 kPa"
+        },
+        {
+          "name": "稳态与 B0 独立设计点一致",
+          "passed": true,
+          "detail": "载量 0.8261（参考 0.8261），电功率 115.000 kW（参考 115.000）"
+        }
+      ],
+      "metrics": {
+        "electric_energy_j": 9936034172.289425,
+        "mean_electric_power_w": 115000.39551260909,
+        "satisfaction": 1.0,
+        "compressor_starts": 0.0,
+        "compressor_stops": 0.0,
+        "condenser_fan_changes": 0.0,
+        "last_reason": "初始",
+        "target_infeasible": 0.0,
+        "rooms": {
+          "ROOM1": {
+            "max_deviation_k": 9.914510121689091e-05,
+            "final_temperature_k": 255.14999999927429
+          },
+          "ROOM2": {
+            "max_deviation_k": 9.914510121689091e-05,
+            "final_temperature_k": 255.14999999927429
+          }
+        },
+        "levels": {
+          "LP1": {
+            "min": 0.39998655096273594,
+            "max": 0.4000035580153431
+          },
+          "HP1": {
+            "min": 0.6329940939238018,
+            "max": 0.6330222505569304
+          },
+          "CD1": {
+            "min": 0.3999998982523502,
+            "max": 0.4000002792888777
+          }
+        },
+        "max_tracking_after_1h": {
+          "suction": 0.6250216906191781,
+          "head": 5.337591637624428,
+          "level": 5.906076198214372e-06,
+          "room1": 3.0496822205350327e-05,
+          "room2": 3.0496822205350327e-05
+        },
+        "energy_residual_j": -4.6523996167234145,
+        "mass_residual_kg": {
+          "mass_residual_kg_circuit0": -9.094947017729282e-13,
+          "mass_residual_kg_circuit1": 0.0
+        },
+        "events_applied": 0,
+        "initial_electric_power_w": 114984.92128261554,
+        "final_electric_power_w": 115000.3851014084
+      }
+    },
+    {
+      "id": "B-S02",
+      "name": "B-S02 库房 1 负荷阶跃 · 24 h",
+      "run_id": "7ef15b3ad5ac45e1816763e719ad18fb",
+      "simulated_s": 86400.0,
+      "wall_s": 46.454572700000426,
+      "frames": 2881,
+      "checks": [
+        {
+          "name": "运行完成",
+          "passed": true,
+          "detail": "completed"
+        },
+        {
+          "name": "两库库温在设定 ±1 K",
+          "passed": true,
+          "detail": "ROOM1 0.732 K，ROOM2 0.116 K"
+        },
+        {
+          "name": "贮液器液位在 0.6–0.667",
+          "passed": true,
+          "detail": "0.6251 … 0.6419"
+        },
+        {
+          "name": "其余容器在模型液位带内",
+          "passed": true,
+          "detail": "{'LP1': {'min': 0.3949176742298855, 'max': 0.404832742594009}, 'HP1': {'min': 0.6250551703159458, 'max': 0.6418564727887371}, 'CD1': {'min': 0.3995066548049538, 'max': 0.4007476380355353}}"
+        },
+        {
+          "name": "NH₃/CO₂ 存量守恒",
+          "passed": true,
+          "detail": "{'mass_residual_kg_circuit0': 0.0, 'mass_residual_kg_circuit1': 0.0}"
+        },
+        {
+          "name": "能量账本 ≤ 0.1%",
+          "passed": true,
+          "detail": "0.358 J / 13904 kWh"
+        },
+        {
+          "name": "无越界停止诊断",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "需求满足度 100%",
+          "passed": true,
+          "detail": "1.0"
+        },
+        {
+          "name": "末 3 h suction 压力跟踪目标（≤ 0.5%）",
+          "passed": true,
+          "detail": "0.00 kPa"
+        },
+        {
+          "name": "末 3 h head 压力跟踪目标（≤ 0.5%）",
+          "passed": true,
+          "detail": "0.00 kPa"
+        },
+        {
+          "name": "负荷升高增开、降低后减停",
+          "passed": true,
+          "detail": "启动 1、停止 1，最多 4 台"
+        }
+      ],
+      "metrics": {
+        "electric_energy_j": 10061802404.292004,
+        "mean_electric_power_w": 116456.04634597227,
+        "satisfaction": 1.0,
+        "compressor_starts": 1.0,
+        "compressor_stops": 1.0,
+        "condenser_fan_changes": 0.0,
+        "last_reason": "t=51130s 停一台后载量约 0.85，停止 K4",
+        "target_infeasible": 0.0,
+        "rooms": {
+          "ROOM1": {
+            "max_deviation_k": 0.7316427270233987,
+            "final_temperature_k": 255.14999999320307
+          },
+          "ROOM2": {
+            "max_deviation_k": 0.11608447842152714,
+            "final_temperature_k": 255.14999999228894
+          }
+        },
+        "levels": {
+          "LP1": {
+            "min": 0.3949176742298855,
+            "max": 0.404832742594009
+          },
+          "HP1": {
+            "min": 0.6250551703159458,
+            "max": 0.6418564727887371
+          },
+          "CD1": {
+            "min": 0.3995066548049538,
+            "max": 0.4007476380355353
+          }
+        },
+        "max_tracking_after_1h": {
+          "suction": 4527.9218177554285,
+          "head": 45073.588599922834,
+          "level": 0.008856472788737135,
+          "room1": 0.7316427270233987,
+          "room2": 0.11608447842152714
+        },
+        "energy_residual_j": 0.35830139787867665,
+        "mass_residual_kg": {
+          "mass_residual_kg_circuit0": 0.0,
+          "mass_residual_kg_circuit1": 0.0
+        },
+        "events_applied": 2,
+        "initial_electric_power_w": 114984.92128261554,
+        "final_electric_power_w": 105474.45131687577
+      }
+    },
+    {
+      "id": "B-S03",
+      "name": "B-S03 改目标蒸发/冷凝压力 · 18 h",
+      "run_id": "ab34a50570364de3b0b0f776d820c3ca",
+      "simulated_s": 64800.0,
+      "wall_s": 39.625723400000425,
+      "frames": 2161,
+      "checks": [
+        {
+          "name": "运行完成",
+          "passed": true,
+          "detail": "completed"
+        },
+        {
+          "name": "两库库温在设定 ±1 K",
+          "passed": true,
+          "detail": "ROOM1 0.242 K，ROOM2 0.242 K"
+        },
+        {
+          "name": "贮液器液位在 0.6–0.667",
+          "passed": true,
+          "detail": "0.6297 … 0.6359"
+        },
+        {
+          "name": "其余容器在模型液位带内",
+          "passed": true,
+          "detail": "{'LP1': {'min': 0.39584153758507895, 'max': 0.40232962641376974}, 'HP1': {'min': 0.6296982674366013, 'max': 0.6359008177828472}, 'CD1': {'min': 0.3999998982523502, 'max': 0.40248389229486786}}"
+        },
+        {
+          "name": "NH₃/CO₂ 存量守恒",
+          "passed": true,
+          "detail": "{'mass_residual_kg_circuit0': 5.4569682106375694e-12, 'mass_residual_kg_circuit1': 0.0}"
+        },
+        {
+          "name": "能量账本 ≤ 0.1%",
+          "passed": true,
+          "detail": "-0.51 J / 10135 kWh"
+        },
+        {
+          "name": "无越界停止诊断",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "需求满足度 100%",
+          "passed": true,
+          "detail": "1.0"
+        },
+        {
+          "name": "末 3 h suction 压力跟踪目标（≤ 0.5%）",
+          "passed": true,
+          "detail": "0.00 kPa"
+        },
+        {
+          "name": "末 3 h head 压力跟踪目标（≤ 0.5%）",
+          "passed": true,
+          "detail": "0.01 kPa"
+        },
+        {
+          "name": "提高蒸发、降低冷凝目标后电功率下降",
+          "passed": true,
+          "detail": "115.00 → 105.19 kW"
+        }
+      ],
+      "metrics": {
+        "electric_energy_j": 7130907609.401443,
+        "mean_electric_power_w": 110044.87051545436,
+        "satisfaction": 1.0,
+        "compressor_starts": 0.0,
+        "compressor_stops": 0.0,
+        "condenser_fan_changes": 2.0,
+        "last_reason": "t=41530s 回气阀全开仍超压，冷凝器风机增至 1.0",
+        "target_infeasible": 0.0,
+        "rooms": {
+          "ROOM1": {
+            "max_deviation_k": 0.2416573554641559,
+            "final_temperature_k": 255.14999981089258
+          },
+          "ROOM2": {
+            "max_deviation_k": 0.2416573554641559,
+            "final_temperature_k": 255.14999981089258
+          }
+        },
+        "levels": {
+          "LP1": {
+            "min": 0.39584153758507895,
+            "max": 0.40232962641376974
+          },
+          "HP1": {
+            "min": 0.6296982674366013,
+            "max": 0.6359008177828472
+          },
+          "CD1": {
+            "min": 0.3999998982523502,
+            "max": 0.40248389229486786
+          }
+        },
+        "max_tracking_after_1h": {
+          "suction": 4351.417146066626,
+          "head": 104055.28890719521,
+          "level": 0.0033017325633987182,
+          "room1": 0.2416573554641559,
+          "room2": 0.2416573554641559
+        },
+        "energy_residual_j": -0.5100628124782816,
+        "mass_residual_kg": {
+          "mass_residual_kg_circuit0": 5.4569682106375694e-12,
+          "mass_residual_kg_circuit1": 0.0
+        },
+        "events_applied": 7,
+        "initial_electric_power_w": 114984.92128261554,
+        "final_electric_power_w": 105190.98743419742
+      }
+    },
+    {
+      "id": "B-S04",
+      "name": "B-S04 湿球温度变化 · 20 h",
+      "run_id": "85f4610555a7449b90e33897f001e0e8",
+      "simulated_s": 72000.0,
+      "wall_s": 42.58826149999368,
+      "frames": 2401,
+      "checks": [
+        {
+          "name": "运行完成",
+          "passed": true,
+          "detail": "completed"
+        },
+        {
+          "name": "两库库温在设定 ±1 K",
+          "passed": true,
+          "detail": "ROOM1 0.005 K，ROOM2 0.005 K"
+        },
+        {
+          "name": "贮液器液位在 0.6–0.667",
+          "passed": true,
+          "detail": "0.6317 … 0.6344"
+        },
+        {
+          "name": "其余容器在模型液位带内",
+          "passed": true,
+          "detail": "{'LP1': {'min': 0.39896848457041467, 'max': 0.40106422527520325}, 'HP1': {'min': 0.631720496666624, 'max': 0.6344029805275762}, 'CD1': {'min': 0.39996879805030755, 'max': 0.40002731988032764}}"
+        },
+        {
+          "name": "NH₃/CO₂ 存量守恒",
+          "passed": true,
+          "detail": "{'mass_residual_kg_circuit0': 1.8189894035458565e-11, 'mass_residual_kg_circuit1': 0.0}"
+        },
+        {
+          "name": "能量账本 ≤ 0.1%",
+          "passed": true,
+          "detail": "0.206 J / 11418 kWh"
+        },
+        {
+          "name": "无越界停止诊断",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "需求满足度 100%",
+          "passed": true,
+          "detail": "1.0"
+        },
+        {
+          "name": "末 3 h suction 压力跟踪目标（≤ 0.5%）",
+          "passed": true,
+          "detail": "0.03 kPa"
+        },
+        {
+          "name": "末 3 h head 压力跟踪目标（≤ 0.5%）",
+          "passed": true,
+          "detail": "0.31 kPa"
+        },
+        {
+          "name": "湿球降低时冷凝器风机减组、回升后恢复",
+          "passed": true,
+          "detail": "风机组切换 2 次"
+        }
+      ],
+      "metrics": {
+        "electric_energy_j": 8176892988.846222,
+        "mean_electric_power_w": 113567.95817841975,
+        "satisfaction": 1.0,
+        "compressor_starts": 0.0,
+        "compressor_stops": 0.0,
+        "condenser_fan_changes": 2.0,
+        "last_reason": "t=54450s 回气阀全开仍超压，冷凝器风机增至 1.0",
+        "target_infeasible": 0.0,
+        "rooms": {
+          "ROOM1": {
+            "max_deviation_k": 0.005317308400208276,
+            "final_temperature_k": 255.15000903184273
+          },
+          "ROOM2": {
+            "max_deviation_k": 0.005317308400208276,
+            "final_temperature_k": 255.15000903184273
+          }
+        },
+        "levels": {
+          "LP1": {
+            "min": 0.39896848457041467,
+            "max": 0.40106422527520325
+          },
+          "HP1": {
+            "min": 0.631720496666624,
+            "max": 0.6344029805275762
+          },
+          "CD1": {
+            "min": 0.39996879805030755,
+            "max": 0.40002731988032764
+          }
+        },
+        "max_tracking_after_1h": {
+          "suction": 241.9973753263621,
+          "head": 45559.201830033446,
+          "level": 0.0014029805275761476,
+          "room1": 0.005317308400208276,
+          "room2": 0.005317308400208276
+        },
+        "energy_residual_j": 0.20603054988896474,
+        "mass_residual_kg": {
+          "mass_residual_kg_circuit0": 1.8189894035458565e-11,
+          "mass_residual_kg_circuit1": 0.0
+        },
+        "events_applied": 14,
+        "initial_electric_power_w": 114984.92128261554,
+        "final_electric_power_w": 115000.03950652154
+      }
+    }
+  ],
+  "restart": {
+    "archived_status": "completed",
+    "replay_identical": true
+  },
+  "workers_after_stop": 0,
+  "total_wall_s": 204.46638959999837,
+  "passed": true
+}

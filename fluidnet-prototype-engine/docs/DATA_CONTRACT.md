@@ -204,6 +204,7 @@ A1 只有两台内置设备：
 - 趋势历史：冷库会话的标准曲线变量（`refrigeration/report.py::series_keys`）在所有趋势帧上保留，报告与 CSV 不依赖前端传入的 `trend_variables`。
 - 接口：`GET /api/v1/examples/cold-storage-room`（案例种子项目，含 8 个工况）；`POST /api/v1/cold-store/workpoint`（`UnitWorkpointRequest` → `UnitWorkpointResponse`，与运行同一循环函数，越界作为警告返回）；`GET /api/v1/runs/{id}/report.html`、`/report.csv`、`GET /api/v1/runs/compare/report.html?a=&b=`（结束后可用；非冷库运行 `REPORT_UNSUPPORTED`；历史窗口不含全部帧时曲线改用抽稀概览并在报告中注明）。health `capabilities.cold_store_cycle=true`。
 - 已知边界：单级准稳态循环；不计制冷剂管路压降与存量动态、冻结潜热、湿度与结霜、融霜完成程度；参数为工程示范假设。
+- `set_variable` 事件（2026-10-21，冷库与制冷站共用）：`key` 为 `<设备>.param.<运行参数>` 或 `controller.<PID>.setpoint|manual_output`，`value` 为数值；按与外部命令相同的整批写入执行（增加 `parameter_revision`）。编译时检查：目标不可写 `SCHEDULE_EVENT_TARGET` / `PARAMETER_NOT_RUNTIME`，越界 `SCHEDULE_EVENT_INVALID`，已被 PID 或启用脚本控制 `SCHEDULE_EVENT_CONFLICT`。制冷站项目只接受 `set_variable`，其他类型 `SCHEDULE_UNSUPPORTED`。
 
 ## 冷库 B 制冷站设备（2026-10-20，设备层）
 
@@ -228,7 +229,8 @@ A1 只有两台内置设备：
 - 帧指标：`energy_residual_j`、`energy_residual_w`、`storage_power_w`、`electric_power_w`、`mass_residual_kg_circuit<i>`；每帧带提示 `REFRIGERATION_STATION`。
 - 能力上报：`supported_domains` 增加 `refrigerant`，`capabilities.refrigeration_station=true`。
 - 诊断码（编译）：`REFRIGERATION_MODEL_UNSUPPORTED`、`REFRIGERATION_PORT_INVALID`、`REFRIGERATION_PARAMETER_CONTRACT`、`REFRIGERATION_CONNECTION_INVALID`、`REFRIGERATION_CONNECTION_MISSING`、`REFRIGERATION_VESSEL_SHORT`、`REFRIGERATION_PORT_ROLE`、`REFRIGERATION_LEVEL_VESSELS`、`REFRIGERATION_LEVEL_NO_VESSEL`、`REFRIGERATION_BRIDGE_SAME_LEVEL`、`REFRIGERATION_CASCADE_CIRCUIT`、`REFRIGERATION_COIL_SUPPLY`、`VESSEL_INITIAL_STATE`、`REFRIGERATION_DYNAMIC_REQUIRED`（稳态请求）；（运行）`VESSEL_LEVEL_RANGE`、`VESSEL_PHASE_RANGE`、`COMPRESSOR_PRESSURE_RATIO`、`REFRIGERATION_NOT_CONVERGED` 及物性错误码；`COMPRESSOR_ENVELOPE`（警告）。
-- 已知边界：尚无五闭环/上层控制（B2）、一键创建案例与专用页面（B3）；不计管路压降、换热器持液与过冷/过热。
+- 分层控制案例（2026-10-21）：`GET /api/v1/examples/cold-storage-nh3co2` 返回 `station_case()`（5 个 PID、上层脚本、B-S01～B-S04 四个工况）；帧变量 `script.control.state.{running,satisfaction,starts,stops,fan_changes,reason,infeasible}`；帧指标增加 `events_applied`。`/runs/{id}/report.html`、`/report.csv` 支持制冷站运行（标准曲线变量在所有趋势帧保留）；对照报告仍只支持冷库 A。
+- 已知边界：不计管路压降、换热器持液与过冷/过热、油冷却；不含双级、乙二醇与融霜回路。
 
 ## 参数与状态
 
