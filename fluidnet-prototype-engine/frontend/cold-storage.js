@@ -2,9 +2,11 @@
    All result values come from the shared engine run; this file only arranges inputs and views. */
 window.createColdStorageUI = function (ui) {
   const state=ui.state, engine=ui.engine, {esc,btn,openDialog,msg}=ui;
-  const IDEAL='cold-room-ideal-v1', ROOM='cold-room-minus18-v1';
+  const IDEAL='cold-room-ideal-v1', ROOM='cold-room-minus18-v1', STATION='cold-storage-nh3co2-v2';
   // Mirrors refrigeration/examples.py ROOM_SCENARIO_DURATIONS (cases/cold-storage/single-room-minus18/scenarios.json).
-  const DURATIONS={'A-S01':21600,'A-S02':21600,'A-S03':28800,'A-S04':28800,'A-S05-onoff':86400,'A-S05-variable':86400,'A-S06':86400,'A-S07':21600};
+  const DURATIONS={'A-S01':21600,'A-S02':21600,'A-S03':28800,'A-S04':28800,'A-S05-onoff':86400,'A-S05-variable':86400,'A-S06':86400,'A-S07':21600,
+    // Mirrors refrigeration/examples.py STATION_SCENARIO_DURATIONS.
+    'B-S01':86400,'B-S02':86400,'B-S03':64800,'B-S04':72000};
   const MODES=['制冷','融霜加热','滴水'];
   const EVENT_TYPES=[['door_heat','开门热负荷'],['goods_addition','货物入库'],['ambient_temperature','室外温度变化'],['electric_defrost','电融霜']];
   let eventDraft=null;
@@ -77,8 +79,76 @@ window.createColdStorageUI = function (ui) {
   function markupIdeal(p){
     return `<section class="panel cold-storage-summary" aria-label="冷库运行指标"><div class="panel-head"><strong>−18°C 单库房 · A1</strong><span>理想冷源</span></div><div class="panel-body"><p>库房热容、围护漏热与温度控制。冷源按指定容量供冷；完整制冷循环案例请在项目页重新创建“−18°C 冷库案例”。</p><div class="metric-row"><div class="metric"><span>库温 · °C</span><strong data-cold-temperature>${fmt(p,'ROOM1.state.temperature_k',1,-273.15)}</strong></div><div class="metric"><span>冷却功率 · kW</span><strong data-cold-power>${fmt(p,'COLD1.cooling_power_w',1000)}</strong></div><div class="metric"><span>累计冷量 · kWh</span><strong data-cold-energy>${fmt(p,'COLD1.state.cooling_energy_j',3600000)}</strong></div></div></div></section>`;
   }
+  // --- case B: NH3/CO2 lumped station ------------------------------------------------------------
+  const STATION_LAYOUT={LP1:[190,330],SH1:[330,330],K1:[470,120],K2:[470,250],K3:[470,380],K4:[470,510],DH1:[610,330],EC1:[750,330],
+    HP1:[890,330],EV1:[890,470],RH1:[610,520],HX1:[330,560],CD1:[190,640],PU1:[330,720],FH1:[470,720],AC1:[610,640],AC2:[610,800],
+    BH1:[190,800],ROOM1:[790,640],ROOM2:[790,800]};
+  async function createStation(){
+    if(!engine().catalog||!engine().health?.capabilities?.refrigeration_station)throw Error('请等待支持制冷站的计算服务连接。');
+    if(state().projects.length>=20)throw Error('最多保存 20 个项目');
+    const model=await fetchExample('cold-storage-nh3co2');
+    const pg={id:'main',name:'制冷站总览',zoom:.8,pan:[0,0],nodes:nodesOf(model,STATION_LAYOUT),
+      edges:model.connections.map(c=>[c.id,c.source.instance_id,c.source.port_id,c.target.instance_id,c.target.port_id])};
+    const p=ui.makeProject(ui.uid('project'),model.name,model.description,pg);
+    const script=model.control_scripts[0];
+    Object.assign(p,{caseId:STATION,controllers:model.controllers,events:model.events,control:script.source,controlLanguage:'python',controlEnabled:true,
+      controlInputs:script.inputs.join(', '),controlOutputs:script.outputs.join(', '),
+      circuitFluids:model.circuit_fluids.map(c=>({id:c.id,anchor:c.anchor,medium:'',fluid:c.fluid.fluid,fluidReference:'mass'})),
+      scenarios:model.scenarios.map(s=>({id:s.id,name:s.name,events:s.events,overrides:{}})),activeScenarioId:'B-S01'});
+    p.controlConfig={...(p.controlConfig||{}),name:'上层启停 · 液泵 · 满足度',period:script.sample_s*1000};
+    p.solver={...p.solver,mode:'dynamic',duration:DURATIONS['B-S01'],dt:30,executionMode:'fast',historyWindow:DURATIONS['B-S01']/30+1};
+    state().projects.push(p);ui.normalizeState();
+    charts(p,[['ROOM1','runtime:state.temperature_k','库房 1 库温','°C','ROOM1.state.temperature_k',1,-273.15],
+      ['ROOM2','runtime:state.temperature_k','库房 2 库温','°C','ROOM2.state.temperature_k',1,-273.15],
+      ['LP1','runtime:state.pressure_pa','低压桶压力','MPa','LP1.state.pressure_pa',1e6,0],
+      ['HP1','runtime:state.pressure_pa','贮液器压力','MPa','HP1.state.pressure_pa',1e6,0],
+      ['HP1','runtime:state.level_ratio','贮液器液位','%','HP1.state.level_ratio',.01,0],
+      ['K1','runtime:electric_power_w','压缩机 1 电功率','kW','K1.electric_power_w',1000,0]]);
+    ui.markDirty(p);ui.persist();ui.openProject(p.id);
+    msg('NH₃/CO₂ 制冷站已创建：输入目标蒸发/冷凝压力即可自运行；选工况运行或修改目标压力。');
+  }
+  const STATION_METRICS=[['room1','库房 1 · °C','ROOM1.state.temperature_k',1,-273.15,2],['room2','库房 2 · °C','ROOM2.state.temperature_k',1,-273.15,2],
+    ['lp','低压桶 · MPa','LP1.state.pressure_pa',1e6,0,4],['lp-target','目标蒸发 · MPa','controller.suction.setpoint',1e6,0,4],
+    ['hp','贮液器 · MPa','HP1.state.pressure_pa',1e6,0,4],['hp-target','目标冷凝 · MPa','controller.head.setpoint',1e6,0,4],
+    ['hp-level','贮液器液位 · %','HP1.state.level_ratio',.01,0,1],['lp-level','低压桶液位 · %','LP1.state.level_ratio',.01,0,1],
+    ['running','压缩机台数','script.control.state.running',1,0,0],['load','载量 · %','K1.param.load_ratio',.01,0,1],
+    ['fans','冷凝器风机','EC1.param.fan_ratio',1,0,2],['satisfaction','需求满足度 · %','script.control.state.satisfaction',.01,0,2]];
+  function stationPower(p){const v=p.run.history.at(-1)?.metrics?.electric_power_w;return typeof v==='number'?(v/1000).toFixed(1):'—';}
+  function stationEnergy(p){
+    const row=p.run.history.at(-1)?.canonical;if(!row)return '—';
+    const keys=Object.keys(row).filter(k=>/\.state\.(electric|fan)_energy_j$/.test(k));
+    return keys.length?(keys.reduce((s,k)=>s+row[k],0)/3.6e6).toFixed(1):'—';
+  }
+  function stationMarkup(p){
+    const run=lastRun(p),disabled=run?'':'disabled';
+    return `<section class="panel cold-storage-summary cold-room" aria-label="制冷站运行指标"><div class="panel-head"><strong>NH₃/CO₂ 两库房冷库</strong><span data-cold-scenario>${esc(scenarioName(p))}</span><span class="push"></span>${btn('cs-scenarios','工况','ListChecks','','small')}${btn('cs-targets','目标压力','Gauge','','small')}${btn('cs-report','运行报告','FileText',disabled,'small')}${btn('cs-csv','CSV','Download',disabled,'small')}</div><div class="panel-body"><div class="metric-row cold-metrics">${STATION_METRICS.map(([id,label,key,scale,offset,digits])=>`<div class="metric"><span>${label}</span><strong data-station-${id}>${fmt(p,key,scale,offset,digits)}</strong></div>`).join('')}<div class="metric"><span>电功率 · kW</span><strong data-station-power>${stationPower(p)}</strong></div><div class="metric"><span>累计电量 · kWh</span><strong data-station-energy>${stationEnergy(p)}</strong></div></div><div data-cold-warnings>${warnings(p).map(w=>`<div class="notice warn">${esc(w)}</div>`).join('')}</div></div></section>`;
+  }
+  function stationRefresh(p){
+    for(const [id,,key,scale,offset,digits] of STATION_METRICS){const e=document.querySelector(`[data-station-${id}]`);if(e)e.textContent=fmt(p,key,scale,offset,digits);}
+    const power=document.querySelector('[data-station-power]');if(power)power.textContent=stationPower(p);
+    const energy=document.querySelector('[data-station-energy]');if(energy)energy.textContent=stationEnergy(p);
+    const box=document.querySelector('[data-cold-warnings]');if(box)box.innerHTML=warnings(p).map(w=>`<div class="notice warn">${esc(w)}</div>`).join('');
+    const run=lastRun(p);for(const action of ['cs-report','cs-csv']){const b=document.querySelector(`[data-action="${action}"]`);if(b)b.disabled=!run;}
+  }
+  function targets(p){
+    const c=id=>(p.controllers||[]).find(c=>c.id===id);
+    openDialog('目标蒸发 / 冷凝压力',p.run.live&&p.run.runId?'运行中修改：作为 PID 设定值命令在下一帧边界生效并记入运行事件。':'修改项目中的 PID 设定值，下次运行生效。',
+      `<div class="fields">${field('evaporating','目标蒸发压力 · kPa',(c('suction').setpoint/1000).toFixed(1),'type="number" step="any" min="50" max="400"')}${field('condensing','目标冷凝压力 · kPa',(c('head').setpoint/1000).toFixed(1),'type="number" step="any" min="800" max="1800"')}</div><p class="muted">冷凝目标低于当时冷凝能力（湿球温度高、风机已全开）时达不到，控制脚本会记录“目标冷凝压力不可达”。</p>`,
+      data=>{
+        const values={suction:Number(data.evaporating)*1000,head:Number(data.condensing)*1000};
+        if(!Object.values(values).every(Number.isFinite))throw Error('请输入有效数值');
+        if(p.run.live&&p.run.runId){
+          (async()=>{for(const [id,value] of Object.entries(values))await engine().confirmedCommand(p,{action:'controller',controller_id:id,parameter_id:'setpoint',value});
+            msg('目标压力已在运行中生效。');})().catch(error=>msg(error.message,true));
+          return;
+        }
+        for(const [id,value] of Object.entries(values))c(id).setpoint=value;
+        ui.markDirty(p);ui.persist();ui.render();msg('目标压力已写入项目，下次运行生效。');
+      },'应用');
+  }
   function markup(p){
     if(p.caseId===IDEAL)return markupIdeal(p);
+    if(p.caseId===STATION)return stationMarkup(p);
     if(p.caseId!==ROOM)return '';
     const run=lastRun(p), disabled=run?'':'disabled';
     return `<section class="panel cold-storage-summary cold-room" aria-label="冷库运行指标"><div class="panel-head"><strong>−18°C 冻结物储藏库</strong><span data-cold-scenario>${esc(scenarioName(p))}</span><span class="push"></span>${btn('cs-scenarios','工况','ListChecks','','small')}${btn('cs-schedule','负荷日程','Clock3','','small')}${btn('cs-bench','机组工作点','Gauge','','small')}${btn('cs-report','运行报告','FileText',disabled,'small')}${btn('cs-csv','CSV','Download',disabled,'small')}${btn('cs-compare','策略对照','ArrowRightLeft','','small')}</div><div class="panel-body"><div class="metric-row cold-metrics">${METRICS.map(([id,label,key,scale,offset,digits])=>`<div class="metric"><span>${label}</span><strong data-cold-${id}>${fmt(p,key,scale,offset,digits)}</strong></div>`).join('')}<div class="metric"><span>冷风机</span><strong data-cold-mode>${modeText(p)}</strong></div></div><div data-cold-warnings>${warnings(p).map(w=>`<div class="notice warn">${esc(w)}</div>`).join('')}</div></div></section>`;
@@ -91,6 +161,7 @@ window.createColdStorageUI = function (ui) {
       }
       return;
     }
+    if(p.caseId===STATION)return stationRefresh(p);
     if(p.caseId!==ROOM)return;
     for(const [id,,key,scale,offset,digits] of METRICS){const element=document.querySelector(`[data-cold-${id}]`);if(element)element.textContent=fmt(p,key,scale,offset,digits);}
     const mode=document.querySelector('[data-cold-mode]');if(mode)mode.textContent=modeText(p);
@@ -99,7 +170,7 @@ window.createColdStorageUI = function (ui) {
   }
   function scenarios(p){
     const rows=(p.scenarios||[]).map(s=>`<tr><td>${esc(s.name)}</td><td>${DURATIONS[s.id]?(DURATIONS[s.id]/3600)+' h':'—'}</td><td>${s.events?s.events.length:'沿用项目'}</td><td>${btn('cs-run-scenario','运行','Play',`data-scenario="${esc(s.id)}"`,'small primary')}</td></tr>`).join('');
-    openDialog('冷库工况','选择工况运行：时长按案例设定，后台快算并保留全部帧以便导出报告。',`<table class="data-table cold-table"><thead><tr><th>工况</th><th>时长</th><th>事件</th><th></th></tr></thead><tbody>${rows}</tbody></table><p class="muted">A-S05 的两种控制方式使用同一日程；运行后用“策略对照”生成公平性检查与对照报告。</p>`,null,'',true);
+    openDialog('冷库工况','选择工况运行：时长按案例设定，后台快算并保留全部帧以便导出报告。',`<table class="data-table cold-table"><thead><tr><th>工况</th><th>时长</th><th>事件</th><th></th></tr></thead><tbody>${rows}</tbody></table><p class="muted">${p.caseId===STATION?'B-S01～B-S04 对应 B 版验收场景：额定负荷、负荷阶跃、改目标压力、湿球温度变化。':'A-S05 的两种控制方式使用同一日程；运行后用“策略对照”生成公平性检查与对照报告。'}</p>`,null,'',true);
   }
   function runScenario(p,id){
     idle(p);
@@ -191,6 +262,8 @@ window.createColdStorageUI = function (ui) {
     const p=ui.project();
     switch(name){
       case 'cs-create':await create();break;
+      case 'cs-create-station':await createStation();break;
+      case 'cs-targets':targets(p);break;
       case 'cs-scenarios':scenarios(p);break;
       case 'cs-run-scenario':await runScenario(p,el.dataset.scenario);break;
       case 'cs-schedule':schedule(p);break;
