@@ -960,6 +960,14 @@
           "maxItems": 64,
           "title": "Circuit Fluids",
           "type": "array"
+        },
+        "events": {
+          "items": {
+            "$ref": "#/$defs/ScheduleEvent"
+          },
+          "maxItems": 500,
+          "title": "Events",
+          "type": "array"
         }
       },
       "required": [
@@ -1032,6 +1040,22 @@
           },
           "title": "Overrides",
           "type": "object"
+        },
+        "events": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/ScheduleEvent"
+              },
+              "maxItems": 500,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Events"
         }
       },
       "required": [
@@ -1039,6 +1063,104 @@
         "name"
       ],
       "title": "Scenario",
+      "type": "object"
+    },
+    "ScheduleEvent": {
+      "additionalProperties": false,
+      "description": "A load or operation event at a simulation time (cold-store projects; canonical units).\n\ndoor_heat: `heat_w` for `duration_s` [time_s, time_s + duration_s); goods_addition: `mass_kg` frozen goods\nat `temperature_k`, mixed by energy; ambient_temperature: outdoor `temperature_k` from `time_s` on;\nelectric_defrost: start one defrost cycle of the target cooler. `instance_id` may be omitted when the\nproject has exactly one matching device (ambient: every device with an outdoor temperature).",
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "door_heat",
+            "goods_addition",
+            "ambient_temperature",
+            "electric_defrost"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "time_s": {
+          "minimum": 0,
+          "title": "Time S",
+          "type": "number"
+        },
+        "instance_id": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Instance Id"
+        },
+        "duration_s": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Duration S"
+        },
+        "heat_w": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Heat W"
+        },
+        "mass_kg": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mass Kg"
+        },
+        "temperature_k": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Temperature K"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "time_s"
+      ],
+      "title": "ScheduleEvent",
       "type": "object"
     },
     "SolverOptions": {

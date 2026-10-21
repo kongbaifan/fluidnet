@@ -8,16 +8,9 @@ from dataclasses import asdict, dataclass
 import math
 
 from ..models import Diagnostic
+from .cycle import DeviceRangeError, compress, displaced_flow
 
 TWO_PHASE = 'twophase'
-
-
-class DeviceRangeError(ValueError):
-    """A device evaluated outside its model range; `code` is the diagnostic code."""
-
-    def __init__(self, code, message, instance_id=None):
-        self.code, self.instance_id = code, instance_id
-        super().__init__(message)
 
 
 def running(params):
@@ -104,9 +97,8 @@ def compressor_point(service, params, suction_pa, discharge_pa):
         return result
     if discharge_pa <= suction_pa:
         raise DeviceRangeError('COMPRESSOR_PRESSURE_RATIO', '运行中的压缩机排气压力必须高于吸气压力')
-    mass = params['displacement_m3_s'] * load * params['volumetric_efficiency'] * vapor.density_kg_m3
-    isentropic = service.state_ps(discharge_pa, vapor.entropy_j_kg_k).enthalpy_j_kg
-    enthalpy = vapor.enthalpy_j_kg + (isentropic - vapor.enthalpy_j_kg) / params['isentropic_efficiency']
+    mass = displaced_flow(params['displacement_m3_s'], load, params['volumetric_efficiency'], vapor.density_kg_m3)
+    _, enthalpy = compress(service, vapor, discharge_pa, params['isentropic_efficiency'])
     shaft = mass * (enthalpy - vapor.enthalpy_j_kg)
     ratio = discharge_pa / suction_pa
     diagnostics = []

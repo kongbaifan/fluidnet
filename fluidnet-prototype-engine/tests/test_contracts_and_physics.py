@@ -285,7 +285,13 @@ API_PREFIX='/api/'
 # 二进制下载没有 JSON response_model；OpenAPI 里已显式声明 application/zip 的 content schema。
 RESPONSE_MODEL_EXCEPTIONS={
     '/api/v1/workspace/backup': 'application/zip 二进制下载（FileResponse），由 responses= 声明二进制 schema',
+    '/api/v1/runs/{run_id}/report.csv': 'text/csv 下载（冷库运行曲线数据）',
+    '/api/v1/runs/{run_id}/report.html': 'text/html 下载（冷库运行报告）',
+    '/api/v1/runs/compare/report.html': 'text/html 下载（两次运行对照报告）',
 }
+# 白名单路由的成功响应媒体类型。
+EXCEPTION_MEDIA={'/api/v1/workspace/backup': 'application/zip', '/api/v1/runs/{run_id}/report.csv': 'text/csv',
+                 '/api/v1/runs/{run_id}/report.html': 'text/html', '/api/v1/runs/compare/report.html': 'text/html'}
 # 运行时由 api.py 写进 detail.code 的静态错误码；诊断码（编译/求解/物性）另行透传，见 errors.DIAGNOSTIC_CODES。
 EXPECTED_ERROR_CODES={
     'AUTH_REQUIRED', 'AUTH_SCOPE', 'RUN_NOT_FOUND', 'PROJECT_CONFLICT', 'WORKSPACE_CONFLICT',
@@ -302,7 +308,8 @@ def api_http_routes():
 
 def test_every_api_route_has_response_model_or_whitelist():
     routes=api_http_routes()
-    assert len(routes)==37,f'HTTP 路由数量变化：{len(routes)}'
+    # 冷库 A 增加运行报告（CSV/HTML/对照）与机组工作点 4 条路由。
+    assert len(routes)==41,f'HTTP 路由数量变化：{len(routes)}'
     missing=[f'{sorted(route.methods)} {route.path}' for route in routes
              if route.response_model is None and route.path not in RESPONSE_MODEL_EXCEPTIONS]
     assert missing==[],f'以下路由缺少 response_model 且不在白名单：{missing}'
@@ -322,7 +329,7 @@ def test_every_success_response_has_openapi_schema():
                     continue
                 content=response.get('content') or {}
                 if path in RESPONSE_MODEL_EXCEPTIONS:
-                    assert 'schema' in content.get('application/zip',{}),f'{method.upper()} {path} 缺少二进制 schema'
+                    assert 'schema' in content.get(EXCEPTION_MEDIA[path],{}),f'{method.upper()} {path} 缺少下载内容 schema'
                     continue
                 if 'schema' not in (content.get('application/json') or {}):
                     missing.append(f'{method.upper()} {path} {status}')

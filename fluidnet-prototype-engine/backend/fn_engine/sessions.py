@@ -20,6 +20,9 @@ class RunSession(Protocol):
 
 
 def create_session(network, duration_s, dt_s, keep=None):
+    if getattr(network, 'execution_domain', None) == 'cold_store':
+        from .refrigeration.cold_store import ColdStoreSession
+        return ColdStoreSession(network, duration_s, dt_s, keep)
     if getattr(network, 'execution_domain', None) == 'refrigeration':
         from .refrigeration.station import StationSession
         return StationSession(network, duration_s, dt_s, keep)

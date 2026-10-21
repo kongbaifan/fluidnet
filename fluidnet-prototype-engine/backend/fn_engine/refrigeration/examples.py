@@ -1,7 +1,7 @@
 """Product A1 seed; canonical parameters mirror the versioned case assumptions."""
-from ..catalog import catalog_map, thermal_catalog
-from ..models import (CircuitFluid, Connection, Endpoint, FluidConfig, ModuleInstance, PIDController, Project,
-                      SolverOptions)
+from ..catalog import catalog_map, cold_store_catalog, thermal_catalog
+from ..models import (CircuitFluid, Connection, ControlScript, Endpoint, FluidConfig, ModuleInstance, PIDController,
+                      Project, Scenario, ScheduleEvent, SolverOptions)
 
 
 def ideal_room_example():
@@ -17,6 +17,85 @@ def ideal_room_example():
             instance_id='COLD1', parameter_id='capacity_ratio', setpoint=255.15, kp=-.4, ki=-.002,
             sample_s=5., minimum=0., maximum=1.)],
         selected_variables=[],
+        solver=SolverOptions(dynamic_step_s=10.))
+
+
+# Case A thermostat: on/off hysteresis around the room setpoint; with variable capacity a PI on the
+# room temperature sets the capacity request (anti-windup: the integral freezes while saturated).
+ROOM_CONTROL = '''KP = 1.0       # capacity per K above setpoint
+KI = 1 / 600   # capacity per K·s
+
+def initialize(ctx):
+    ctx.state["integral"] = 0.0
+    ctx.state["request"] = 1.0
+
+def step(ctx, dt_s):
+    t = ctx.read("ROOM1.state.temperature_k")
+    setpoint = ctx.read("ROOM1.param.setpoint_temperature_k")
+    band = ctx.read("ROOM1.param.hysteresis_k")
+    if t >= setpoint + band:
+        ctx.state["request"] = 1.0
+    elif t <= setpoint - band:
+        ctx.state["request"] = 0.0
+    error = t - setpoint
+    raw = KP * error + ctx.state["integral"]
+    if 0.0 < raw < 1.0 or raw >= 1.0 and error < 0 or raw <= 0.0 and error > 0:
+        ctx.state["integral"] += KI * error * dt_s
+    capacity = min(1.0, max(0.0, KP * error + ctx.state["integral"]))
+    ctx.write("CU1.param.run_request", ctx.state["request"])
+    ctx.write("CU1.param.capacity_ratio", capacity)
+
+def finalize(ctx):
+    pass
+'''
+
+# A-S01..A-S07 of cases/cold-storage/single-room-minus18/scenarios.json (durations in ROOM_SCENARIO_DURATIONS);
+# A-S05 is split into its two control modes. tests/test_refrigeration_cold_store.py keeps them identical.
+ROOM_SCENARIO_DURATIONS = {'A-S01': 21600., 'A-S02': 21600., 'A-S03': 28800., 'A-S04': 28800.,
+                           'A-S05-onoff': 86400., 'A-S05-variable': 86400., 'A-S06': 86400., 'A-S07': 21600.}
+
+
+def _room_scenarios():
+    door = lambda id, t: ScheduleEvent(id=id, type='door_heat', time_s=t, duration_s=600., heat_w=5000.)
+    goods = lambda id, t: ScheduleEvent(id=id, type='goods_addition', time_s=t, mass_kg=500., temperature_k=261.15)
+    ambient = lambda id, t, k: ScheduleEvent(id=id, type='ambient_temperature', time_s=t, temperature_k=k)
+    s05 = [door('door-1', 7200.), goods('goods-1', 14400.), ambient('ambient-rise', 28800., 311.15),
+           door('door-2', 43200.), ambient('ambient-reset', 57600., 305.15)]
+    return [
+        Scenario(id='A-S01', name='A-S01 基础降温与保温 · 6 h', events=[]),
+        Scenario(id='A-S02', name='A-S02 开门扰动 · 6 h', events=[door('door-1', 7200.)]),
+        Scenario(id='A-S03', name='A-S03 冻结货物入库 · 8 h', events=[goods('goods-1', 7200.)]),
+        Scenario(id='A-S04', name='A-S04 高环境温度 · 8 h', events=[ambient('ambient-1', 7200., 311.15)]),
+        Scenario(id='A-S05-onoff', name='A-S05 控制对照 · 定容量启停 · 24 h', events=s05,
+                 overrides={'CU1': {'variable_capacity': 0.}}),
+        Scenario(id='A-S05-variable', name='A-S05 控制对照 · 变容量 · 24 h', events=s05,
+                 overrides={'CU1': {'variable_capacity': 1.}}),
+        Scenario(id='A-S06', name='A-S06 定时电融霜 · 24 h',
+                 events=[ScheduleEvent(id='defrost-1', type='electric_defrost', time_s=28800.),
+                         ScheduleEvent(id='defrost-2', type='electric_defrost', time_s=57600.)]),
+        Scenario(id='A-S07', name='A-S07 制冷能力不足 · 6 h', events=[],
+                 overrides={'CU1': {'rated_cooling_power_w': 2000.}}),
+    ]
+
+
+def room_example():
+    """−18 °C single room (case A): room + goods, unit cooler, R290 single-stage unit, thermostat script."""
+    return Project(id='cold-room-minus18-v1', name='−18°C 冻结物储藏库 · 单级 R290 机组',
+        description='库房与冻结货物两个热节点、冷风机、单级制冷循环；温控脚本按回差启停，变容量时 PI 调节容量。'
+                    '参数为示范假设（cases/cold-storage/single-room-minus18/parameters.json）。',
+        fluid=FluidConfig(fluid='HEOS::R290'),
+        modules=cold_store_catalog(),
+        instances=[
+            ModuleInstance(id='ROOM1', module_id='storage_room', name='冻结物储藏库'),
+            ModuleInstance(id='AC1', module_id='unit_cooler', name='冷风机'),
+            ModuleInstance(id='CU1', module_id='condensing_unit', name='单级制冷机组')],
+        connections=[
+            Connection(id='cold1', source=Endpoint(instance_id='CU1', port_id='cold'), target=Endpoint(instance_id='AC1', port_id='supply')),
+            Connection(id='heat1', source=Endpoint(instance_id='AC1', port_id='heat'), target=Endpoint(instance_id='ROOM1', port_id='heat'))],
+        control_scripts=[ControlScript(id='control', enabled=True, source=ROOM_CONTROL, sample_s=5.,
+            inputs=['ROOM1.state.temperature_k', 'ROOM1.param.setpoint_temperature_k', 'ROOM1.param.hysteresis_k'],
+            outputs=['CU1.param.run_request', 'CU1.param.capacity_ratio'])],
+        scenarios=_room_scenarios(),
         solver=SolverOptions(dynamic_step_s=10.))
 
 

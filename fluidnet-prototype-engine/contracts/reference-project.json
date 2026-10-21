@@ -3338,5 +3338,6 @@
   },
   "controllers": [],
   "control_scripts": [],
-  "circuit_fluids": []
+  "circuit_fluids": [],
+  "events": []
 }

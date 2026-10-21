@@ -765,6 +765,9 @@ def solve_steady(network):
     if getattr(network, 'execution_domain', None) == 'refrigeration':
         from .refrigeration.station import solve_station_steady
         return solve_station_steady(network)
+    if getattr(network, 'execution_domain', None) == 'cold_store':
+        from .refrigeration.cold_store import solve_cold_store_steady
+        return solve_cold_store_steady(network)
     if any(script.enabled for script in network.project.control_scripts):
         raise CompilationError('CONTROL_DYNAMIC_REQUIRED', 'Python 控制脚本需要动态运行；请切换运行模式或停用脚本')
     result = solve_network(network)
@@ -805,7 +808,7 @@ def has_state(network: CompiledNetwork) -> bool:
 
 
 def solve_dynamic(network, duration_s, dt_s):
-    if getattr(network, 'execution_domain', None) in ('thermal', 'refrigeration'):
+    if getattr(network, 'execution_domain', None) in ('thermal', 'refrigeration', 'cold_store'):
         from .sessions import create_session
         session = create_session(network, duration_s, dt_s)
         try:

@@ -4,7 +4,7 @@ from copy import deepcopy
 import math
 from typing import Any
 
-from .catalog import catalog_map, refrigeration_catalog, thermal_catalog
+from .catalog import catalog_map, cold_store_catalog, refrigeration_catalog, thermal_catalog
 from .models import (ChannelSpec, Connection, Diagnostic, Endpoint, FluidConfig, LibraryBank, ModuleInstance, PortSpec,
                      Position, Project, SolverOptions)
 
@@ -34,7 +34,7 @@ PARAMETER_BINDINGS = {
              'ambient':'ambient_temperature_k'},
     # Engine-era devices use the canonical IDs in the prototype as well.
     **{definition.id: {p.id: p.id for p in definition.parameters}
-       for definition in (*thermal_catalog(), *refrigeration_catalog())},
+       for definition in (*thermal_catalog(), *cold_store_catalog(), *refrigeration_catalog())},
 }
 
 
@@ -164,7 +164,11 @@ def normalize_prototype_export(data: dict[str, Any]) -> Project:
             if node is None:
                 raise ValueError(f'工况 {scenario["id"]} 引用了不存在的设备 {instance_id}')
             overrides[instance_id] = parameter_map(kinds[node.module_id], values, definitions[node.module_id])
-        scenarios.append({'id': scenario['id'], 'name': scenario['name'], 'overrides': overrides})
+        entry = {'id': scenario['id'], 'name': scenario['name'], 'overrides': overrides}
+        if scenario.get('events') is not None:
+            # Schedule events are kept in canonical units in the prototype as well.
+            entry['events'] = deepcopy(scenario['events'])
+        scenarios.append(entry)
     thermal = any(p.domain.value in ('thermal', 'refrigerant') for definition in definitions.values() for p in definition.ports)
     diagnostics.append(Diagnostic(code='THERMAL_SCOPE' if thermal else 'HYDRAULIC_SCOPE', severity='info',
         message='库房热系统按已应用参数计算热平衡；热端口不传递工质压力或质量流量' if thermal else
@@ -175,6 +179,7 @@ def normalize_prototype_export(data: dict[str, Any]) -> Project:
         controllers=raw.get('controllers', []),
         control_scripts=raw.get('controlScripts', []),
         scenarios=scenarios,
+        events=deepcopy(raw.get('events', [])),
         circuit_fluids=[{'id': c['id'], 'anchor': c['anchor'],
                          'fluid': {'fluid': (c.get('fluid') or '').strip() or PROTOTYPE_MEDIA[c.get('medium', 'water')],
                                    'reference': c.get('fluidReference', 'mass')}}

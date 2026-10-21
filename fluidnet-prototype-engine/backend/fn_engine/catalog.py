@@ -127,6 +127,7 @@ def builtin_catalog() -> list[ModuleDefinition]:
             definition.variables.append(VariableSpec(id='shaft_power_w',label='估算轴功率',quantity='power',
                 unit=UnitSpec(quantity='power',canonical_unit='W',display_unit='W'),source='derived'))
     definitions.extend(thermal_catalog())
+    definitions.extend(cold_store_catalog())
     definitions.extend(refrigeration_catalog())
     return definitions
 
@@ -172,6 +173,149 @@ def thermal_catalog() -> list[ModuleDefinition]:
         definition.variables.extend(VariableSpec(id='param.' + p.id, label=p.label, source='parameter',
             parameter_id=p.id, quantity=p.unit.quantity, unit=p.unit) for p in definition.parameters)
     return [room, source]
+
+
+def _heat_port(id, label, direction):
+    return PortSpec(id=id, label=label, domain=Domain.thermal, direction=direction, circuit='thermal')
+
+
+def cold_store_catalog() -> list[ModuleDefinition]:
+    """Case-A devices: room + frozen goods, unit cooler, single-stage condensing unit (PLAN 3.1).
+
+    The thermal chain is unit.cold → cooler.supply, cooler.heat → room.heat; the refrigerant is the
+    project fluid and its two-phase states stay inside the condensing unit."""
+    power = lambda id, label, default, runtime=False: number(id, label, default, 'power', 'W', 'kW', 1000., minimum=0, runtime=runtime)
+    duration = lambda id, label, default: number(id, label, default, 'time', 's', 'min', 60., minimum=0)
+    switch = lambda id, label, default: number(id, label, default, 'ratio', '1', minimum=0., maximum=1., runtime=True)
+    energy = lambda id, label: _var(id, label, 'energy', 'J', 'kWh', 3600000., source='state')
+    kw = lambda id, label, source='derived': _var(id, label, 'power', 'W', 'kW', 1000., source=source)
+    celsius_var = lambda id, label, source='derived': _var(id, label, 'temperature', 'K', '°C', offset=-273.15, source=source)
+    room = ModuleDefinition(id='storage_room', name='冻结物库房', category='冷库案例',
+        solver_model='storage_room', state_model='room_goods',
+        description='库房空气及内部构件等效热节点 + 冻结货物热节点；围护漏热、照明、开门与入库事件。货物只计冻结状态显热。',
+        ports=[_heat_port('heat', '冷风机热接口', Direction.in_)],
+        parameters=[
+            _celsius('temperature_k', '初始库温', 263.15),
+            _celsius('setpoint_temperature_k', '温控设定', 255.15, runtime=True),
+            number('hysteresis_k', '温控回差（±）', .5, 'temperature_difference', 'K', minimum=.01, runtime=True),
+            _celsius('alarm_temperature_k', '超温报警线', 256.15, runtime=True),
+            number('capacity_alarm_delay_s', '满负荷超温报警延时', 3600., 'time', 's', 'min', 60., minimum=0),
+            number('heat_capacity_j_k', '空气及构件等效热容', 1200000., 'heat_capacity', 'J/K', 'kJ/K', 1000., minimum=1),
+            _celsius('ambient_temperature_k', '室外温度', 305.15, runtime=True),
+            _celsius('ground_temperature_k', '地面温度', 283.15, runtime=True),
+            number('wall_ua_w_k', '墙体传热 UA', 31.68, 'conductance', 'W/K', minimum=0),
+            number('roof_ua_w_k', '屋顶传热 UA', 14.4, 'conductance', 'W/K', minimum=0),
+            number('floor_ua_w_k', '地面传热 UA', 20., 'conductance', 'W/K', minimum=0),
+            power('lighting_power_w', '照明功率', 100.),
+            switch('lighting_on', '照明（1 开 / 0 关）', 0.),
+            power('heat_input_w', '其他附加热负荷', 0., runtime=True),
+            number('goods_mass_kg', '初始货物质量', 2000., 'mass', 'kg', minimum=0),
+            number('goods_specific_heat_j_kg_k', '货物比热（冻结）', 1800., 'specific_heat', 'J/(kg·K)', 'kJ/(kg·K)', 1000., minimum=1),
+            _celsius('goods_temperature_k', '初始货温', 258.15),
+            number('goods_ua_w_k', '货物与库内换热 UA（初始质量）', 500., 'conductance', 'W/K', minimum=0),
+            _celsius('goods_min_temperature_k', '货物冻结模型下限', 253.15),
+            _celsius('goods_max_temperature_k', '货物冻结模型上限', 265.15),
+            _celsius('energy_reference_temperature_k', '能量参考温度', 253.15)],
+        variables=[
+            celsius_var('state.temperature_k', '库温', 'state'), celsius_var('state.goods_temperature_k', '货温', 'state'),
+            _var('state.goods_mass_kg', '货物质量', 'mass', 'kg', source='state'),
+            _var('goods_ua_w_k', '货物换热 UA（按质量）', 'conductance', 'W/K'),
+            kw('envelope_heat_w', '围护漏热'), kw('door_heat_w', '开门热负荷'), kw('lighting_heat_w', '照明热量'),
+            kw('goods_heat_w', '货物放热（向库内）'), kw('fan_heat_w', '冷风机风机热'), kw('defrost_heat_w', '融霜进入库内热量'),
+            kw('cooling_power_w', '冷风机制冷量（制冷剂侧）'), kw('net_heat_w', '库房净得热'),
+            energy('stored_energy_j', '库房+货物储能（相对参考温度）'), energy('state.external_energy_j', '累计外界输入热量'),
+            energy('state.goods_energy_j', '累计入库货物带入能量'), energy('state.cooling_energy_j', '累计冷风机制冷量'),
+            energy('state.lighting_energy_j', '累计照明电量'),
+            _var('state.time_above_alarm_s', '累计超温时间', 'time', 's', 'h', 3600., source='state'),
+            _var('state.degree_hours_above_alarm', '超温度时', 'temperature_time', 'K·h', source='state'),
+            _var('state.service_time_above_alarm_s', '保温期超温时间', 'time', 's', 'h', 3600., source='state'),
+            _var('state.service_degree_hours_above_alarm', '保温期超温度时', 'temperature_time', 'K·h', source='state'),
+            _var('state.in_service', '已进入保温（库温首次到达设定值）', 'ratio', '1', source='state'),
+            _var('state.pulldown_time_s', '降温到设定值用时', 'time', 's', 'h', 3600., source='state'),
+            _var('state.goods_pulldown_time_s', '货温到报警线用时', 'time', 's', 'h', 3600., source='state'),
+            celsius_var('state.max_service_temperature_k', '保温期最高库温', 'state'),
+            celsius_var('state.min_service_temperature_k', '保温期最低库温', 'state')])
+    cooler = ModuleDefinition(id='unit_cooler', name='冷风机（库内）', category='冷库案例',
+        solver_model='unit_cooler', state_model='cooler_mode',
+        description='空气侧 Q = UA·(T_库 − T_蒸发)；风机热留在库内。电融霜：加热（停机停风机）→ 滴水等待 → 恢复制冷。不计霜量。',
+        ports=[_heat_port('supply', '制冷剂冷量输入', Direction.in_), _heat_port('heat', '库内冷量输出', Direction.out)],
+        parameters=[
+            number('ua_w_k', '空气侧 UA（风机运行）', 1000., 'conductance', 'W/K', 'kW/K', 1000., minimum=1),
+            power('fan_power_w', '风机功率', 300.),
+            switch('fan_continuous', '风机常开（1）/ 随机组启停（0）', 0.),
+            power('defrost_heater_power_w', '电融霜加热功率', 1500.),
+            duration('defrost_duration_s', '融霜加热时长', 900.),
+            duration('drip_duration_s', '滴水等待时长', 300.),
+            _ratio('defrost_room_fraction', '融霜热量进入库内比例', 1.)],
+        variables=[
+            _var('state.mode', '状态（0 制冷 / 1 融霜加热 / 2 滴水）', 'count', '1', source='state'),
+            _var('state.fan_running', '风机运行', 'ratio', '1', source='state'),
+            kw('refrigerant_heat_w', '空气侧换热量'), kw('fan_power_w', '风机电功率'), kw('heater_power_w', '融霜电功率'),
+            _var('state.defrost_count', '已完成融霜次数', 'count', '1', source='state'),
+            _var('state.defrost_pending', '融霜等待（最小开机时间）', 'ratio', '1', source='state'),
+            energy('state.fan_energy_j', '累计风机电量'), energy('state.heater_energy_j', '累计融霜电量')])
+    unit = ModuleDefinition(id='condensing_unit', name='单级制冷机组', category='冷库案例',
+        solver_model='condensing_unit', state_model='unit_switching',
+        description='压缩—冷凝—节流—蒸发集中循环（工质为项目工质）。排量与冷凝器 UA 在额定点反算一次后固定；'
+                    '蒸发/冷凝温度与冷风机、室外温度联立求解。最小开/停机时间由机组状态机保证。',
+        ports=[_heat_port('cold', '蒸发冷量输出', Direction.out)],
+        parameters=[
+            switch('run_request', '运行请求（1 开 / 0 停）', 1.),
+            _ratio('capacity_ratio', '容量请求', 1., runtime=True),
+            switch('variable_capacity', '变容量（1）/ 定容量启停（0）', 0.),
+            _ratio('min_capacity_ratio', '最小运行容量', .35, minimum=.01),
+            power('rated_cooling_power_w', '额定制冷量', 10000.),
+            _celsius('rated_evaporating_temperature_k', '额定蒸发温度', 245.15),
+            _celsius('rated_condensing_temperature_k', '额定冷凝温度', 313.15),
+            _celsius('rated_ambient_temperature_k', '额定环境温度（定冷凝器 UA）', 305.15),
+            number('superheat_k', '吸气过热度', 5., 'temperature_difference', 'K', minimum=.1),
+            number('subcooling_k', '冷凝器出口过冷度', 3., 'temperature_difference', 'K', minimum=.1),
+            _ratio('isentropic_efficiency', '等熵效率', .65, minimum=.01),
+            _ratio('volumetric_efficiency', '容积效率', .75, minimum=.01),
+            _ratio('motor_efficiency', '电机效率', .9, minimum=.01),
+            power('condenser_fan_power_w', '冷凝器风机功率', 200.),
+            _celsius('ambient_temperature_k', '冷凝器进风温度（室外）', 305.15, runtime=True),
+            duration('minimum_on_s', '最小开机时间', 120.),
+            duration('minimum_off_s', '最小停机时间', 180.),
+            duration('initial_off_elapsed_s', '初始已停机时长', 180.),
+            _celsius('min_evaporating_temperature_k', '运行范围：最低蒸发温度', 233.15),
+            _celsius('max_evaporating_temperature_k', '运行范围：最高蒸发温度', 263.15),
+            _celsius('min_condensing_temperature_k', '运行范围：最低冷凝温度', 298.15),
+            _celsius('max_condensing_temperature_k', '运行范围：最高冷凝温度', 323.15),
+            _celsius('max_discharge_temperature_k', '运行范围：最高排气温度', 393.15),
+            number('max_pressure_ratio', '运行范围：最大压比', 20., 'ratio', '1', minimum=1.)],
+        variables=[
+            _var('state.running', '运行', 'ratio', '1', source='state'),
+            _var('actual_capacity_ratio', '实际容量', 'ratio', '1', '%', .01),
+            _var('state.starts', '开机次数', 'count', '1', source='state'),
+            _var('state.run_time_s', '累计运行时间', 'time', 's', 'h', 3600., source='state'),
+            _var('state.state_elapsed_s', '当前开/停状态持续时间', 'time', 's', 'min', 60., source='state'),
+            _var('state.switch_blocked', '启停请求被最小开/停机时间暂缓', 'ratio', '1', source='state'),
+            celsius_var('evaporating_temperature_k', '蒸发温度'), celsius_var('condensing_temperature_k', '冷凝温度'),
+            _var('evaporating_pressure_pa', '蒸发压力', 'pressure', 'Pa', 'kPa', 1000.),
+            _var('condensing_pressure_pa', '冷凝压力', 'pressure', 'Pa', 'kPa', 1000.),
+            celsius_var('suction_temperature_k', '吸气温度'), celsius_var('discharge_temperature_k', '排气温度'),
+            _var('pressure_ratio', '压比', 'ratio', '1'), _var('mass_flow_kg_s', '质量流量', 'mass_flow', 'kg/s'),
+            kw('cooling_power_w', '制冷量'), kw('shaft_power_w', '压缩轴功率'), kw('electric_power_w', '压缩机电功率'),
+            kw('condenser_heat_w', '冷凝排热'), kw('condenser_fan_power_w', '冷凝器风机电功率'),
+            _var('cop', '机组 COP（制冷量/压缩机电功率）', 'ratio', '1'),
+            _var('system_cop', '系统瞬时 COP（制冷量/全部制冷设备电功率）', 'ratio', '1'),
+            _var('displacement_m3_s', '额定点反算排量', 'volume_flow', 'm³/s', 'm³/h', 1 / 3600),
+            _var('condenser_ua_w_k', '额定点反算冷凝器 UA', 'conductance', 'W/K'),
+            *[_var(f'state{i}.{key}', f'状态点 {i} {label}', quantity, unit, display, scale, offset)
+              for i in range(1, 5) for key, label, quantity, unit, display, scale, offset in [
+                  ('pressure_pa', '压力', 'pressure', 'Pa', 'kPa', 1000., 0.),
+                  ('temperature_k', '温度', 'temperature', 'K', '°C', 1., -273.15),
+                  ('enthalpy_j_kg', '比焓', 'specific_enthalpy', 'J/kg', 'kJ/kg', 1000., 0.),
+                  ('entropy_j_kg_k', '比熵', 'specific_entropy', 'J/(kg·K)', 'kJ/(kg·K)', 1000., 0.),
+                  ('quality', '干度（单相为空）', 'ratio', '1', '1', 1., 0.)]],
+            energy('state.electric_energy_j', '累计压缩机电量'), energy('state.condenser_fan_energy_j', '累计冷凝器风机电量'),
+            energy('state.cooling_energy_j', '累计制冷量'), energy('state.condenser_heat_j', '累计冷凝排热')])
+    definitions = [room, cooler, unit]
+    for definition in definitions:
+        definition.variables.extend(VariableSpec(id='param.' + p.id, label=p.label, source='parameter',
+            parameter_id=p.id, quantity=p.unit.quantity, unit=p.unit) for p in definition.parameters if p.unit)
+    return definitions
 
 
 def _stream(id, label, direction, required=True, circuit='refrigerant'):

@@ -20,7 +20,7 @@ from fn_engine.models import (
     RunEventsResponse, RunFrame, RunHistoryResponse, RunListResponse, RunRequest, RunStatus,
     ErrorResponse, ValidationResponse,
     ModuleSaveRequest, ModuleVersionResponse, ModuleVersionsResponse,
-    ModuleDesignRequest, ModuleDesignResponse,
+    ModuleDesignRequest, ModuleDesignResponse, UnitWorkpointRequest, UnitWorkpointResponse,
     ProjectDocument, ProjectSaveRequest, ProjectRevisionRequest, ProjectDeleteRequest, ProjectUpgradeRequest,
     WorkspaceResponse, WorkspaceRestoreResponse, WorkspaceRevisionsResponse, WorkspaceSaveResponse,
     WorkspaceStorageResponse,
@@ -64,6 +64,8 @@ models = [
     ('project-restore-response', ProjectRestoreResponse),
     ('project-delete-response', ProjectDeleteResponse),
     ('project-upgrade-response', ProjectUpgradeResponse),
+    # 冷库 A：机组工作点验证台。
+    ('unit-workpoint-request', UnitWorkpointRequest), ('unit-workpoint-response', UnitWorkpointResponse),
 ]
 
 # 涉及数值求解的参考结果允许极小的浮点误差，避免不同机器/线程求和顺序导致门禁抖动。

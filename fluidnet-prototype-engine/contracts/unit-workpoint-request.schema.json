@@ -1,0 +1,86 @@
+{
+  "$defs": {
+    "FluidConfig": {
+      "additionalProperties": false,
+      "description": "Serializable fluid selection passed to the property service.",
+      "properties": {
+        "backend": {
+          "const": "coolprop",
+          "default": "coolprop",
+          "title": "Backend",
+          "type": "string"
+        },
+        "fluid": {
+          "default": "Water",
+          "title": "Fluid",
+          "type": "string"
+        },
+        "composition": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Composition",
+          "type": "object"
+        },
+        "reference": {
+          "default": "mass",
+          "enum": [
+            "mass",
+            "mole"
+          ],
+          "title": "Reference",
+          "type": "string"
+        },
+        "phase_policy": {
+          "default": "single_phase",
+          "enum": [
+            "single_phase",
+            "liquid",
+            "gas",
+            "any"
+          ],
+          "title": "Phase Policy",
+          "type": "string"
+        }
+      },
+      "title": "FluidConfig",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Condensing-unit bench (cold-store case): one cycle point at given saturation temperatures (K).",
+  "properties": {
+    "parameters": {
+      "additionalProperties": true,
+      "title": "Parameters",
+      "type": "object"
+    },
+    "fluid": {
+      "$ref": "#/$defs/FluidConfig"
+    },
+    "evaporating_temperature_k": {
+      "exclusiveMinimum": 0,
+      "title": "Evaporating Temperature K",
+      "type": "number"
+    },
+    "condensing_temperature_k": {
+      "exclusiveMinimum": 0,
+      "title": "Condensing Temperature K",
+      "type": "number"
+    },
+    "capacity_ratio": {
+      "default": 1.0,
+      "exclusiveMinimum": 0,
+      "maximum": 1,
+      "title": "Capacity Ratio",
+      "type": "number"
+    }
+  },
+  "required": [
+    "evaporating_temperature_k",
+    "condensing_temperature_k"
+  ],
+  "title": "UnitWorkpointRequest",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

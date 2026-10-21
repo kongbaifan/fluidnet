@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import functools
 import math
 from dataclasses import dataclass, field
 
@@ -119,11 +120,20 @@ def instance_fluids(network: CompiledNetwork, instance_id: str) -> tuple[FluidCo
     return main, {port: network.fluid_at(node) for port, node in nodes.items() if network.fluid_at(node) != main}
 
 
+@functools.lru_cache(maxsize=1)
+def _registered_models() -> dict[str, ModuleDefinition]:
+    """First built-in definition per solver_model; read-only (runtime writes validate parameters every sample)."""
+    registered: dict[str, ModuleDefinition] = {}
+    for module in builtin_catalog():
+        registered.setdefault(module.solver_model, module)
+    return registered
+
+
 def validated_parameters(instance, definition):
     # Registered model constraints remain authoritative for safety limits, while
     # the project definition owns defaults. This keeps custom package defaults
     # from being silently replaced by a same-shaped built-in model.
-    registered = next((m for m in builtin_catalog() if m.solver_model == definition.solver_model), None) if definition.runtime == 'builtin' else None
+    registered = _registered_models().get(definition.solver_model) if definition.runtime == 'builtin' else None
     specs = {p.id: p for p in definition.parameters}
     if registered:
         for registered_spec in registered.parameters:
@@ -298,6 +308,14 @@ def tank_initial_state(instance_id: str, params: dict, node: int, service) -> St
 def compile_project(project: Project) -> CompiledNetwork:
     used = {instance.module_id for instance in project.instances}
     used_domains = {port.domain for module in project.modules if module.id in used for port in module.ports}
+    if Domain.thermal in used_domains or Domain.refrigerant in used_domains:
+        from .refrigeration.cold_store import check_event_conflicts, compile_cold_store, uses_cold_store
+        if uses_cold_store(project):
+            network = compile_cold_store(project)
+            check_event_conflicts(network)
+            return network
+    if project.events:
+        raise CompilationError('SCHEDULE_UNSUPPORTED', '只有冷库系统（冻结物库房、冷风机、单级机组）执行负荷日程', field='events')
     if Domain.refrigerant in used_domains:
         from .refrigeration.station import compile_station
         return compile_station(project)
@@ -500,6 +518,20 @@ def validate_scenarios(project: Project, modules: dict[str, ModuleDefinition]) -
             except CompilationError as error:
                 error.diagnostic.message = f'工况 {scenario.id}:{error.diagnostic.message}'
                 diagnostics.append(error.diagnostic)
+        if scenario.events is not None:
+            # The schedule is resolved against the scenario's merged parameters, as a run would.
+            candidate = project.model_copy(deep=True)
+            candidate.events = list(scenario.events)
+            targets = {i.id: i for i in candidate.instances}
+            for instance_id, overrides in scenario.overrides.items():
+                if instance_id in targets:
+                    targets[instance_id].parameters.update(overrides)
+            try:
+                compile_project(candidate)
+            except CompilationError as error:
+                if error.diagnostic.code.startswith('SCHEDULE_'):
+                    error.diagnostic.message = f'工况 {scenario.id}:{error.diagnostic.message}'
+                    diagnostics.append(error.diagnostic)
     return diagnostics
 
 
@@ -509,7 +541,7 @@ def validate_project(project: Project) -> list[Diagnostic]:
 
 def circuit_info(network: CompiledNetwork) -> list[dict]:
     """Fluid circuits of a compiled network (one entry for a single-fluid project)."""
-    if getattr(network, 'execution_domain', None) == 'thermal':
+    if getattr(network, 'execution_domain', None) in ('thermal', 'cold_store'):
         return []
     if getattr(network, 'execution_domain', None) == 'refrigeration':
         from .refrigeration.station import station_circuits

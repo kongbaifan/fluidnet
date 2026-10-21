@@ -331,10 +331,38 @@ class Connection(StrictModel):
     target: Endpoint
 
 
+class ScheduleEvent(StrictModel):
+    """A load or operation event at a simulation time (cold-store projects; canonical units).
+
+    door_heat: `heat_w` for `duration_s` [time_s, time_s + duration_s); goods_addition: `mass_kg` frozen goods
+    at `temperature_k`, mixed by energy; ambient_temperature: outdoor `temperature_k` from `time_s` on;
+    electric_defrost: start one defrost cycle of the target cooler. `instance_id` may be omitted when the
+    project has exactly one matching device (ambient: every device with an outdoor temperature)."""
+    id: Identifier
+    type: Literal['door_heat', 'goods_addition', 'ambient_temperature', 'electric_defrost']
+    time_s: float = Field(ge=0)
+    instance_id: Identifier | None = None
+    duration_s: float | None = Field(default=None, gt=0)
+    heat_w: float | None = Field(default=None, ge=0)
+    mass_kg: float | None = Field(default=None, gt=0)
+    temperature_k: float | None = Field(default=None, gt=0)
+
+    @model_validator(mode='after')
+    def check_fields(self):
+        required = {'door_heat': {'duration_s', 'heat_w'}, 'goods_addition': {'mass_kg', 'temperature_k'},
+                    'ambient_temperature': {'temperature_k'}, 'electric_defrost': set()}[self.type]
+        given = {k for k in ('duration_s', 'heat_w', 'mass_kg', 'temperature_k') if getattr(self, k) is not None}
+        if given != required:
+            raise ValueError(f'{self.type} 事件需要且只能填写 {sorted(required) or "时间"}（当前 {sorted(given)}）')
+        return self
+
+
 class Scenario(StrictModel):
     id: str
     name: str
     overrides: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    # None keeps the project schedule; a list (also empty) replaces it for this scenario.
+    events: list[ScheduleEvent] | None = Field(default=None, max_length=500)
 
 
 class SolverOptions(StrictModel):
@@ -429,6 +457,8 @@ class Project(StrictModel):
     controllers: list[PIDController] = Field(default_factory=list)
     control_scripts: list[ControlScript] = Field(default_factory=list, max_length=16)
     circuit_fluids: list[CircuitFluid] = Field(default_factory=list, max_length=64)
+    # Load/operation schedule; only cold-store projects execute it (others reject a non-empty list).
+    events: list[ScheduleEvent] = Field(default_factory=list, max_length=500)
 
     @model_validator(mode="after")
     def validate_project(self):
@@ -677,6 +707,23 @@ class ModuleDesignResponse(StrictModel):
     diagnostics: list[Diagnostic] = Field(default_factory=list)
 
 
+class UnitWorkpointRequest(StrictModel):
+    """Condensing-unit bench (cold-store case): one cycle point at given saturation temperatures (K)."""
+    parameters: dict[str, Any] = Field(default_factory=dict)
+    fluid: FluidConfig = Field(default_factory=lambda: FluidConfig(fluid='HEOS::R290'))
+    evaporating_temperature_k: float = Field(gt=0)
+    condensing_temperature_k: float = Field(gt=0)
+    capacity_ratio: float = Field(default=1., gt=0, le=1)
+
+
+class UnitWorkpointResponse(StrictModel):
+    design: dict[str, float]
+    point: dict[str, float | None]
+    unit_electric_power_w: float
+    unit_cop: float
+    diagnostics: list[Diagnostic] = Field(default_factory=list)
+
+
 class ModuleSaveRequest(StrictModel):
     module: ModuleDefinition
     expected_latest_version: int = Field(ge=0)
@@ -856,6 +903,8 @@ class RefpropInfo(StrictModel):
 class HealthCapabilities(StrictModel):
     cold_room_ideal_source: bool = False
     refrigeration_station: bool = False
+    # Case A: storage room + goods, unit cooler, single-stage cycle, schedule events and reports.
+    cold_store_cycle: bool = False
     steady_hydraulics: bool
     quasi_steady_series: bool
     thermal: bool

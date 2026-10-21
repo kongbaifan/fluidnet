@@ -27,6 +27,11 @@
           "title": "Refrigeration Station",
           "type": "boolean"
         },
+        "cold_store_cycle": {
+          "default": false,
+          "title": "Cold Store Cycle",
+          "type": "boolean"
+        },
         "steady_hydraulics": {
           "title": "Steady Hydraulics",
           "type": "boolean"

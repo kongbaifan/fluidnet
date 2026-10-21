@@ -48,6 +48,7 @@ DIAGNOSTIC_CODES: dict[str, int] = {
     'SCENARIO_INSTANCE_MISSING': 422,
     'TREND_VARIABLE_UNKNOWN': 422,
     'SOLVER_ERROR': 422,
+    'REPORT_UNSUPPORTED': 422,
 }
 
 # 没有 detail.code、只有纯文本 detail 的错误按状态登记（用于 OpenAPI 描述）。

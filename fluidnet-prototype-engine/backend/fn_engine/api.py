@@ -13,7 +13,7 @@ from threading import Lock
 
 from fastapi import FastAPI, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import JSONResponse, FileResponse, Response
 from starlette.background import BackgroundTask
 from starlette.concurrency import run_in_threadpool
 from fastapi.staticfiles import StaticFiles
@@ -55,6 +55,8 @@ from .models import (
     RunHistoryResponse,
     RunListResponse,
     RunOverviewResponse,
+    UnitWorkpointRequest,
+    UnitWorkpointResponse,
     VariableValues,
     VariableWrite,
     ValidationResponse,
@@ -96,6 +98,8 @@ def apply_scenario(project, scenario_id):
             # that reaches the merge step still has to point at the instance.
             raise CompilationError('SCENARIO_INSTANCE_MISSING', f'工况引用不存在的实例:{id}', instance_id=id)
         instances[id].parameters.update(overrides)
+    if scenario.events is not None:
+        project.events = [event.model_copy(deep=True) for event in scenario.events]
     return project
 
 
@@ -132,7 +136,7 @@ def trend_history(history: list[RunFrame], variables: list[str]) -> None:
         frame.full = False
 
 
-def shape_history(history: list[RunFrame], request: RunRequest, project: Project) -> None:
+def shape_history(history: list[RunFrame], request: RunRequest, project: Project, network=None) -> None:
     """Apply `selected_variables` (every frame), then the dynamic `history='trend'` slimming."""
     if not history:
         return
@@ -145,6 +149,9 @@ def shape_history(history: list[RunFrame], request: RunRequest, project: Project
             frame.variables = {key:frame.variables[key] for key in selected}
     if request.mode == 'dynamic' and request.history == 'trend':
         outputs = {key for script in project.control_scripts if script.enabled for key in script.outputs}
+        if getattr(network, 'execution_domain', None) == 'cold_store':
+            from .refrigeration.report import series_keys
+            outputs |= {key for key, _ in series_keys(network.chains)}
         outputs &= history[0].variables.keys() | history[-1].variables.keys()
         trend_history(history, list(set(request.trend_variables) | outputs))
 
@@ -241,7 +248,7 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
                                 'module_versions':True,'run_control':True,'live_runs':True,'pid':True,'runtime_parameters':True,'continuous_step':True,
                                 'continuous_runs':True,'variables_api':True,'run_stream':True,
                                 'python_controls':True,'persistent_workspace':archive is not None,
-                                'cold_room_ideal_source':True,'refrigeration_station':True,
+                                'cold_room_ideal_source':True,'refrigeration_station':True,'cold_store_cycle':True,
                                 # REFPROP 运行时发现（环境变量/捆绑目录/系统安装）；不加载 DLL。
                                 'refprop':refprop_info()},
                 'max_frames':2001,'run_retention':RUN_RETENTION,'history_window_max':20001,'overview_points':OVERVIEW_POINTS,
@@ -428,6 +435,9 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
             if name == 'cold-storage':
                 from .refrigeration.examples import ideal_room_example
                 return ideal_room_example()
+            if name == 'cold-storage-room':
+                from .refrigeration.examples import room_example
+                return room_example()
             return pid_example(name)
         except KeyError:
             raise HTTPException(404, detail='示例不存在')
@@ -530,7 +540,7 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
                 history = [solve_steady(network)]
             else:
                 history = solve_dynamic(network, request.duration_s, request.dt_s)
-            shape_history(history, request, project)
+            shape_history(history, request, project, network)
             frame, status = history[-1], 'completed'
         except SolveFailed as error:
             # A dynamic run that stopped at a tank limit or an unsolvable step keeps its accepted frames.
@@ -682,6 +692,81 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
         if history and (len(history) - 1) % stride:
             rows = rows + [history[-1]]
         return {'rows':rows,'stride':stride,'total_rows':len(history)}
+
+    def report_inputs(run_id):
+        """Finished cold-store run: record, every frame still in its history window (else the overview), network."""
+        from .refrigeration.cold_store import CompiledColdStore
+        record = get_run(run_id)
+        if record['status'] not in TERMINAL:
+            raise HTTPException(409, detail='运行尚未结束，结束后再生成报告')
+        page = run_history(run_id, 0, 2001)
+        rows, decimated = list(page['rows']), page.get('truncated', False)
+        while not decimated and len(rows) < page['total_rows']:
+            page = run_history(run_id, page['offset'] + len(page['rows']), 2001)
+            if not page['rows']:
+                break
+            rows += page['rows']
+        if decimated:
+            rows = run_overview(run_id)['rows']
+        rows = [row.model_dump(mode='json') if hasattr(row, 'model_dump') else row for row in rows]
+        if not rows:
+            raise HTTPException(409, detail={'code': 'NO_FRAME', 'message': '运行没有可用帧'})
+        request = RunRequest.model_validate(record['request'])
+        try:
+            network = compile_project(apply_scenario(request.project, request.scenario_id))
+        except ValueError as error:
+            raise HTTPException(422, detail=diagnostic(error).model_dump()) from error
+        if not isinstance(network, CompiledColdStore):
+            raise HTTPException(422, detail={'code': 'REPORT_UNSUPPORTED', 'message': '运行报告目前只支持冷库案例（单级机组）项目'})
+        return {**record, 'request': request.model_dump(mode='json')}, rows, network, decimated
+
+    def report_download(content, name, media):
+        return Response(content, media_type=media, headers={'Content-Disposition': f'attachment; filename="{name}"'})
+
+    @app.get('/api/v1/runs/compare/report.html', response_class=Response,
+             responses={200: {'content': {'text/html': {'schema': {'type': 'string'}}}},
+                        **protected_error_responses(404, 409, 422, 'STORAGE_FAILED', 'INTERNAL_ERROR')})
+    def compare_report_html(a: str = Query(..., max_length=64), b: str = Query(..., max_length=64)):
+        from .refrigeration.report import comparison_report
+        if a == b:
+            raise HTTPException(422, detail='请选择两次不同的运行')
+        left, right = report_inputs(a), report_inputs(b)
+        if len(left[2].chains) != len(right[2].chains):
+            raise HTTPException(422, detail='两次运行的库房数量不同，无法对照')
+        return report_download(comparison_report([left[0], right[0]], [left[1], right[1]], [left[2], right[2]]),
+                               f'cold-store-compare-{a[:6]}-{b[:6]}.html', 'text/html; charset=utf-8')
+
+    @app.get('/api/v1/runs/{run_id}/report.csv', response_class=Response,
+             responses={200: {'content': {'text/csv': {'schema': {'type': 'string'}}}},
+                        **protected_error_responses(404, 409, 422, 'STORAGE_FAILED', 'INTERNAL_ERROR')})
+    def run_report_csv(run_id: str):
+        from .refrigeration.report import run_csv
+        record, rows, network, _ = report_inputs(run_id)
+        return report_download(run_csv(rows, network), f'cold-store-{run_id[:8]}.csv', 'text/csv; charset=utf-8')
+
+    @app.get('/api/v1/runs/{run_id}/report.html', response_class=Response,
+             responses={200: {'content': {'text/html': {'schema': {'type': 'string'}}}},
+                        **protected_error_responses(404, 409, 422, 'STORAGE_FAILED', 'INTERNAL_ERROR')})
+    def run_report_html(run_id: str):
+        from .refrigeration.report import run_report
+        record, rows, network, decimated = report_inputs(run_id)
+        content = run_report(record, rows, network)
+        if decimated:
+            content = content.replace('<h1>冷库运行报告</h1>', '<h1>冷库运行报告</h1><p><strong>历史窗口不含全部帧，曲线与峰值使用抽稀概览；'
+                                      '累计量仍取最后一帧的精确计数。</strong></p>')
+        return report_download(content, f'cold-store-{run_id[:8]}.html', 'text/html; charset=utf-8')
+
+    @app.post('/api/v1/cold-store/workpoint', response_model=UnitWorkpointResponse,
+              responses=protected_error_responses(422, 'INTERNAL_ERROR'))
+    def cold_store_workpoint(request: UnitWorkpointRequest):
+        from .catalog import cold_store_catalog
+        from .refrigeration.cold_store import unit_workpoint
+        definition = next(m for m in cold_store_catalog() if m.id == 'condensing_unit')
+        try:
+            return unit_workpoint(definition, request.parameters, request.fluid, request.evaporating_temperature_k,
+                                  request.condensing_temperature_k, request.capacity_ratio)
+        except (ValueError, PropertyError) as error:
+            raise HTTPException(422, detail=diagnostic(error).model_dump()) from error
 
     @app.post('/api/v1/runs/{run_id}/command', response_model=RunStatus,
               responses=protected_error_responses(404, 'RUN_ALREADY_FINISHED', 'COMMAND_ID_CONFLICT', 422, 'INTERNAL_ERROR'))
