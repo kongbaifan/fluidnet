@@ -223,6 +223,8 @@ def refrigeration_catalog() -> list[ModuleDefinition]:
                        _var('state.level_m', '液位高度', 'length', 'm', source='state'),
                        _var('liquid_enthalpy_j_kg', '饱和液比焓', 'specific_enthalpy', 'J/kg', 'kJ/kg', 1000.),
                        _var('vapor_enthalpy_j_kg', '饱和气比焓', 'specific_enthalpy', 'J/kg', 'kJ/kg', 1000.),
+                       _var('liquid_density_kg_m3', '饱和液密度', 'density', 'kg/m³'),
+                       _var('vapor_density_kg_m3', '饱和气密度', 'density', 'kg/m³'),
                        _var('net_inflow_kg_s', '净流入质量流量', 'mass_flow', 'kg/s')])
 
     receiver = vessel('hp_receiver', '高压贮液器',
@@ -248,7 +250,8 @@ def refrigeration_catalog() -> list[ModuleDefinition]:
                    _var('shaft_power_w', '轴功率', 'power', 'W', 'kW', 1000.),
                    _var('electric_power_w', '电功率', 'power', 'W', 'kW', 1000.),
                    _var('discharge_temperature_k', '排气温度', 'temperature', 'K', '°C', offset=-273.15),
-                   _var('pressure_ratio', '压比', 'ratio', '1')])
+                   _var('pressure_ratio', '压比', 'ratio', '1'),
+                   _var('state.electric_energy_j', '累计电量', 'energy', 'J', 'kWh', 3600000., source='state')])
     condenser = ModuleDefinition(id='evaporative_condenser', name='蒸发式冷凝器', category='制冷站设备',
         solver_model='evaporative_condenser', description='排热 = UA_eff·(T_cond − T_wb)。风机比例与贮液器回气阀开度修正 UA；'
             '回气阀关小时冷凝液积存、有效面积减小。按湿球温差近似，不解喷淋水与空气焓差。',
@@ -263,7 +266,9 @@ def refrigeration_catalog() -> list[ModuleDefinition]:
         variables=[_var('heat_rejection_w', '排热量', 'power', 'W', 'kW', 1000.),
                    _var('effective_ua_w_k', '有效 UA', 'conductance', 'W/K', 'kW/K', 1000.),
                    _var('condensing_temperature_k', '冷凝温度', 'temperature', 'K', '°C', offset=-273.15),
-                   _var('fan_power_w', '风机功率', 'power', 'W', 'kW', 1000.)])
+                   _var('fan_power_w', '风机功率', 'power', 'W', 'kW', 1000.),
+                   _var('state.heat_rejected_j', '累计排热', 'energy', 'J', 'kWh', 3600000., source='state'),
+                   _var('state.fan_energy_j', '累计风机电量', 'energy', 'J', 'kWh', 3600000., source='state')])
     valve = ModuleDefinition(id='expansion_valve', name='电磁节流阀', category='制冷站设备',
         solver_model='expansion_valve', description='饱和液经 Kv 节流（与调节阀同一 Kv 定义），等焓闪发；只允许正向流动。',
         ports=[_stream('in0', '高压液进口', Direction.in_), _stream('out0', '低压两相出口', Direction.out)],
@@ -293,7 +298,8 @@ def refrigeration_catalog() -> list[ModuleDefinition]:
                     _ratio('efficiency_ratio', '泵与电机效率', .45, minimum=.01)],
         variables=[_var('mass_flow_kg_s', '质量流量', 'mass_flow', 'kg/s'),
                    _var('pressure_rise_pa', '压升', 'pressure', 'Pa', 'kPa', 1000.),
-                   _var('electric_power_w', '电功率', 'power', 'W', 'kW', 1000.)])
+                   _var('electric_power_w', '电功率', 'power', 'W', 'kW', 1000.),
+                   _var('state.electric_energy_j', '累计电量', 'energy', 'J', 'kWh', 3600000., source='state')])
     cooler = ModuleDefinition(id='air_cooler', name='冷风机（泵供液）', category='制冷站设备',
         solver_model='air_cooler', description='空气侧 UA·(T_库 − T_蒸发)，受供液量与出口干度上限约束；'
             '风机热量留在库内。供液阀开度决定同一供液集管下各冷风机的分流比例。',
@@ -311,7 +317,9 @@ def refrigeration_catalog() -> list[ModuleDefinition]:
                    _var('fan_power_w', '风机功率', 'power', 'W', 'kW', 1000.),
                    _var('supply_mass_flow_kg_s', '供液量', 'mass_flow', 'kg/s'),
                    _var('outlet_quality', '出口干度', 'ratio', '1'),
-                   _var('evaporating_temperature_k', '蒸发温度', 'temperature', 'K', '°C', offset=-273.15)])
+                   _var('evaporating_temperature_k', '蒸发温度', 'temperature', 'K', '°C', offset=-273.15),
+                   _var('state.cooling_energy_j', '累计库房净冷量', 'energy', 'J', 'kWh', 3600000., source='state'),
+                   _var('state.fan_energy_j', '累计风机电量', 'energy', 'J', 'kWh', 3600000., source='state')])
     header = ModuleDefinition(id='refrigerant_header', name='制冷剂集管', category='制冷站设备',
         solver_model='refrigerant_header', description='汇流/分流节点：同一压力等级内的多台设备经集管连到一个容器端口。',
         ports=[_stream(f'in{i}', f'汇入 {i + 1}', Direction.in_, False) for i in range(4)]

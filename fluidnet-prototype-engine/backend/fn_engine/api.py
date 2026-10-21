@@ -233,7 +233,7 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
     @app.get('/api/v1/health', response_model=HealthResponse,
               responses=error_responses('INTERNAL_ERROR'))
     def health():
-        return {'status':'ok','version':__version__,'solver':'declarative-fluid-v1','supported_domains':['fluid', 'thermal'],
+        return {'status':'ok','version':__version__,'solver':'declarative-fluid-v1','supported_domains':['fluid', 'thermal', 'refrigerant'],
                 'capabilities':{'steady_hydraulics':True,'quasi_steady_series':True,'thermal':True,
                                 'property_coupling':['reference','node'],'tank_state':True,
                                 'time_integration':'implicit_euler',
@@ -241,7 +241,7 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
                                 'module_versions':True,'run_control':True,'live_runs':True,'pid':True,'runtime_parameters':True,'continuous_step':True,
                                 'continuous_runs':True,'variables_api':True,'run_stream':True,
                                 'python_controls':True,'persistent_workspace':archive is not None,
-                                'cold_room_ideal_source':True,
+                                'cold_room_ideal_source':True,'refrigeration_station':True,
                                 # REFPROP 运行时发现（环境变量/捆绑目录/系统安装）；不加载 DLL。
                                 'refprop':refprop_info()},
                 'max_frames':2001,'run_retention':RUN_RETENTION,'history_window_max':20001,'overview_points':OVERVIEW_POINTS,

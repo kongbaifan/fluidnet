@@ -15,8 +15,8 @@ TWO_PHASE = 'twophase'
 class DeviceRangeError(ValueError):
     """A device evaluated outside its model range; `code` is the diagnostic code."""
 
-    def __init__(self, code, message):
-        self.code = code
+    def __init__(self, code, message, instance_id=None):
+        self.code, self.instance_id = code, instance_id
         super().__init__(message)
 
 

@@ -348,7 +348,22 @@ T_{n+1}  = [C·T_n + h·(UA_air·T_amb + floor_ua_w_k·T_ground + heat_input_w �
            同一供液集管下的冷风机按供液阀开度比例分配泵流量
 ```
 
-性质与验收：`state_du` 是 CoolProp `DmassUmass` 闪蒸，不受 `phase_policy` 约束；设备服务应使用 `phase_policy='any'`。`tests/test_refrigeration_devices.py` 逐台对照 CoolProp `PropsSI` 独立计算（容器往返温度误差 < 1e-6 K、液位 < 1e-7，压缩机、节流阀、复叠、泵、冷风机按上式逐项比对）。尚未实现：连接拓扑校验（按容器划分压力等级）、8 状态隐式推进和会话；含 `refrigerant` 端口的项目编译时报 `REFRIGERATION_STATION_PENDING`。
+性质与验收：`state_du` 是 CoolProp `DmassUmass` 闪蒸，不受 `phase_policy` 约束；设备服务应使用 `phase_policy='any'`。`tests/test_refrigeration_devices.py` 逐台对照 CoolProp `PropsSI` 独立计算（容器往返温度误差 < 1e-6 K、液位 < 1e-7，压缩机、节流阀、复叠、泵、冷风机按上式逐项比对）。
+
+### 制冷站系统层（`refrigeration/station.py`，执行域 `refrigeration`）
+
+含 `refrigerant` 端口的项目走制冷站分支，只允许制冷站设备与 `cold_room`。
+
+拓扑由连接推出，三层并查集：
+1. 流股节点：连接两端与集管的全部端口；一个流股节点最多连一个容器端口（否则两容器直通，`REFRIGERATION_VESSEL_SHORT`）。压缩机吸气、节流阀/液泵/复叠蒸发侧进口须取自容器液相或气相出口（`REFRIGERATION_PORT_ROLE`）。
+2. 压力等级：流股节点经冷凝器、复叠各侧、液泵、冷风机与容器内部合并；每个等级恰好一个容器（多于一个 `REFRIGERATION_LEVEL_VESSELS`，没有 `REFRIGERATION_LEVEL_NO_VESSEL`）。设备读取所在等级容器的压力。
+3. 回路：等级经压缩机、节流阀合并；两端同等级报 `REFRIGERATION_BRIDGE_SAME_LEVEL`，复叠两侧同回路报 `REFRIGERATION_CASCADE_CIRCUIT`。回路工质取 `circuit_fluids`（锚点为任一已连接制冷剂端口），没有则用项目工质；不能形成初始饱和状态时报 `VESSEL_INITIAL_STATE`，不静默回退。冷风机须与液泵出口在同一流股节点（`REFRIGERATION_COIL_SUPPLY`），同一供液节点上的泵流量按各冷风机供液阀开度分配；冷风机热端口一对一接库房。
+
+状态与时间推进：状态向量为各容器 `(M, U)` 与各库房温度，隐式 Euler `x − x₀ − h·f(x) = 0`，按容器存量（能量按存量 × 1e5 J/kg）与 1 K 缩放，牛顿法收敛到缩放残差 < 1e-10。通量雅可比用有限差分，跨步复用，收敛变慢或参数变化后重算；牛顿步离开两相区时回退减半。子步失败（不收敛、离开两相区、物性失败）减半重试最多 6 次；接受状态的液位越出适用带立即停止（`VESSEL_LEVEL_RANGE`，保留已接受帧）。一个发布步内全部子步成功才提交状态、累计量与残差。PID 与 Python 控制沿用 A1 的采样与写参数协议；只能动态运行（稳态报 `REFRIGERATION_DYNAMIC_REQUIRED`）。
+
+账本：容器之间的质量只经压缩机和节流阀转移，每个回路的总存量按构造守恒（帧指标 `mass_residual_kg_circuit<i>`）。能量边界为压缩机轴功 + 液泵电功率 + 冷风机风机热 + 库房围护漏热与附加负荷 − 冷凝器排热；`energy_residual_j` 为储能变化与边界能量之差（仅牛顿残差）。帧指标另有 `storage_power_w`（边界净功率）与 `electric_power_w`（压缩机、冷凝器风机、液泵与冷风机风机电功率之和）。
+
+验收（`tests/test_refrigeration_station.py`，示例 `refrigeration/examples.py::station_example`）：帧内各设备关系按帧中容器压力用 `PropsSI` 重算一致；由各设备累计电量/排热/漏热计数独立复算的 2 h 能量账本误差 0.037 J（交换量 3.4×10⁹ J）；两回路存量相对变化 < 1e-12；内部步长 20/10/5 s 的末值误差比 2.00（一阶）；九组执行器开环方向（加载降低吸气压力、开大节流阀把存量移到低压桶、冷凝器风机/回气阀/湿球温度改变冷凝压力、液泵转速与供液阀限制冷风机、单库风量减小经共用冷源让另一库更冷等）。12 h fast 运行约 23 s（本机）。开环示例约 15.7 h 时高压贮液器液位到 95% 停止，液位控制在 B2 加入。
 
 ## 运行中隔离的被动管段（v0.4.2）
 

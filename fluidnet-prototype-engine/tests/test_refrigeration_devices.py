@@ -232,10 +232,11 @@ def station_fragment():
                                 target=Endpoint(instance_id='ROOM1', port_id='heat'))])
 
 
-def test_station_projects_report_pending_instead_of_falling_into_the_a1_heat_branch():
+def test_station_projects_use_the_station_compiler_not_the_a1_heat_branch():
     with pytest.raises(CompilationError) as error:
         compile_project(station_fragment())
-    assert error.value.diagnostic.code == 'REFRIGERATION_STATION_PENDING'
+    # The coil's refrigerant ports are unconnected; the A1 branch would have rejected the coil model instead.
+    assert error.value.diagnostic.code == 'REFRIGERATION_CONNECTION_MISSING'
 
 
 def test_prototype_export_keeps_optional_vessel_ports_and_canonical_parameters():

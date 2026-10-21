@@ -855,6 +855,7 @@ class RefpropInfo(StrictModel):
 
 class HealthCapabilities(StrictModel):
     cold_room_ideal_source: bool = False
+    refrigeration_station: bool = False
     steady_hydraulics: bool
     quasi_steady_series: bool
     thermal: bool

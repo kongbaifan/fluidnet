@@ -1,0 +1,504 @@
+"""Lumped refrigeration station (case B): topology from connections, implicit Euler on vessel (M, U) and room T.
+
+Connections and headers join ports into stream nodes; pass-through devices (condenser, cascade sides, pump,
+coil, vessel) join stream nodes into pressure levels, and every level holds exactly one saturated vessel.
+Compressors and expansion valves move mass between levels; they and the levels form a refrigerant circuit,
+whose fluid comes from `Project.circuit_fluids`. No fluid-network pressure node is created.
+"""
+from dataclasses import dataclass, field
+import math
+
+import numpy as np
+
+from ..catalog import refrigeration_catalog, thermal_catalog
+from ..compiler import CompilationError, DisjointSet, fluid_service, validated_parameters, validate_controllers
+from ..control import validate_scripts
+from ..models import Diagnostic, Domain, Project, RunFrame
+from ..properties import PropertyError, property_service
+from ..solver import SolveFailed
+from . import devices
+from .session import ThermalSession
+
+# Ports that take fluid out of a vessel and the vessel phase they must be fed from.
+DRAWS = {('refrigerant_compressor', 'suction'): 'vapor', ('expansion_valve', 'in0'): 'liquid',
+         ('refrigerant_pump', 'in0'): 'liquid', ('cascade_exchanger', 'evap_in'): 'liquid',
+         ('cascade_exchanger', 'cond_in'): 'vapor'}
+# Devices whose two stream ports sit on one pressure level.
+PASS_THROUGH = {'evaporative_condenser': [('in0', 'out0')], 'refrigerant_pump': [('in0', 'out0')],
+                'air_cooler': [('in0', 'out0')], 'cascade_exchanger': [('evap_in', 'evap_out'), ('cond_in', 'cond_out')],
+                'saturated_vessel': [('in0', 'in1'), ('in0', 'vapor'), ('in0', 'liquid')]}
+# Devices that connect two pressure levels.
+BRIDGES = {'refrigerant_compressor': ('suction', 'discharge'), 'expansion_valve': ('in0', 'out0')}
+
+
+def same_parameter_contract(definition, reference):
+    """Types, units, runtime/writable flags and limits of a built-in model; only defaults are project-owned."""
+    actual = {p.id: p for p in definition.parameters}
+    return actual.keys() == {p.id for p in reference.parameters} and not any(
+        actual[p.id].value_type != p.value_type or actual[p.id].unit != p.unit or actual[p.id].runtime != p.runtime
+        or actual[p.id].writable != p.writable or actual[p.id].minimum != p.minimum or actual[p.id].maximum != p.maximum
+        for p in reference.parameters)
+
+
+@dataclass
+class CompiledStation:
+    project: Project
+    modules: dict
+    instances: dict
+    parameters: dict
+    kinds: dict                 # instance -> solver_model
+    vessels: list               # vessel instance IDs in project order
+    circuit_of: dict            # vessel -> circuit index
+    circuit_fluids: list        # FluidConfig per circuit (as configured)
+    circuit_sources: list
+    vessel_fluids: dict         # vessel -> FluidConfig with phase_policy='any'
+    levels: dict                # (instance, port) -> vessel for every connected stream port
+    supply: dict                # air cooler -> pump IDs feeding its supply node
+    room_coolers: dict          # room -> air cooler
+    diagnostics: list = field(default_factory=list)
+    branches: list = field(default_factory=list)
+    storage: dict = field(default_factory=dict)
+    execution_domain: str = 'refrigeration'
+
+    def vessel(self, instance_id, port_id):
+        return self.levels[(instance_id, port_id)]
+
+
+def _fluid_key(config):
+    from ..properties import _parse_fluid
+    return _parse_fluid(config)
+
+
+def compile_station(project):
+    modules = {m.id: m for m in project.modules}
+    instances = {i.id: i for i in project.instances}
+    if not instances:
+        raise CompilationError('EMPTY_NETWORK', '项目没有设备')
+    registered = {}
+    for definition in (*refrigeration_catalog(), *thermal_catalog()):
+        registered.setdefault(definition.solver_model, definition)
+    parameters, kinds, ports = {}, {}, {}
+    for instance in project.instances:
+        definition = modules[instance.module_id]
+        reference = registered.get(definition.solver_model)
+        if reference is None or definition.runtime != 'builtin' or definition.solver_model == 'ideal_cold_source':
+            raise CompilationError('REFRIGERATION_MODEL_UNSUPPORTED',
+                                   '制冷站只能由制冷站设备与库房热节点组成（不能混入流体设备、理想冷源或 Python 模块）', instance.id)
+        expected = {(p.id, p.domain, p.direction, p.circuit) for p in reference.ports}
+        if definition.channels or definition.state_model != reference.state_model or \
+                {(p.id, p.domain, p.direction, p.circuit) for p in definition.ports} != expected:
+            raise CompilationError('REFRIGERATION_PORT_INVALID', '设备端口须保持注册的标识、类型、方向与回路', instance.id)
+        if not same_parameter_contract(definition, reference):
+            raise CompilationError('REFRIGERATION_PARAMETER_CONTRACT', '设备参数类型、单位或可写范围与注册合同不一致', instance.id)
+        parameters[instance.id] = validated_parameters(instance, definition)
+        kinds[instance.id] = definition.solver_model
+        for port in definition.ports:
+            ports[(instance.id, port.id)] = port
+    # Connections: one per port, same domain, an outlet to an inlet.
+    links, used, edge_ids = [], set(), set()
+    for edge in project.connections:
+        a, b = (edge.source.instance_id, edge.source.port_id), (edge.target.instance_id, edge.target.port_id)
+        if edge.id in edge_ids or a not in ports or b not in ports or a[0] == b[0]:
+            raise CompilationError('REFRIGERATION_CONNECTION_INVALID', f'连接 {edge.id} 无效、重复或连到设备自身')
+        if a in used or b in used:
+            raise CompilationError('REFRIGERATION_CONNECTION_INVALID', f'连接 {edge.id}：每个端口只能连接一次，分支请用制冷剂集管')
+        if ports[a].domain != ports[b].domain or ports[a].direction == ports[b].direction:
+            raise CompilationError('REFRIGERATION_CONNECTION_INVALID', f'连接 {edge.id}：两端须同类型，且出口接入口')
+        edge_ids.add(edge.id)
+        used.update((a, b))
+        links.append((a, b))
+    missing = sorted(f'{i}:{p}' for (i, p), port in ports.items() if port.required and (i, p) not in used)
+    if missing:
+        raise CompilationError('REFRIGERATION_CONNECTION_MISSING', f'必连端口未连接：{missing}', missing[0].split(':')[0])
+    room_coolers = {}
+    for a, b in links:
+        if ports[a].domain == Domain.thermal:
+            room, cooler = (a[0], b[0]) if kinds[a[0]] == 'cold_room' else (b[0], a[0])
+            room_coolers[room] = cooler
+    # Stream nodes: connections plus headers.
+    stream = [key for key, port in ports.items() if port.domain == Domain.refrigerant]
+    nodes = DisjointSet(stream)
+    for a, b in links:
+        if ports[a].domain == Domain.refrigerant:
+            nodes.union(a, b)
+    for iid, kind in kinds.items():
+        if kind == 'refrigerant_header':
+            header = [key for key in stream if key[0] == iid]
+            for key in header[1:]:
+                nodes.union(header[0], key)
+    vessel_ports = {}
+    for key in stream:
+        if kinds[key[0]] == 'saturated_vessel' and key in used:
+            root = nodes.find(key)
+            if root in vessel_ports:
+                raise CompilationError('REFRIGERATION_VESSEL_SHORT', f'{vessel_ports[root][0]} 与 {key[0]} 的端口直接相通；'
+                                       '两个容器之间须经压缩机、节流阀或换热设备', key[0])
+            vessel_ports[root] = key
+    for iid, port_id in stream:
+        phase = DRAWS.get((kinds[iid], port_id))
+        if phase is None:
+            continue
+        source = vessel_ports.get(nodes.find((iid, port_id)))
+        if source is None or source[1] != phase:
+            raise CompilationError('REFRIGERATION_PORT_ROLE', f'{iid}.{port_id} 须直接或经集管连到容器的'
+                                   f'{"气相" if phase == "vapor" else "液相"}出口', iid, port_id)
+    # Pressure levels: stream nodes joined through pass-through devices.
+    levels = DisjointSet({nodes.find(key) for key in stream})
+    for iid, kind in kinds.items():
+        for left, right in PASS_THROUGH.get(kind, ()):
+            levels.union(nodes.find((iid, left)), nodes.find((iid, right)))
+    level_vessel = {}
+    for iid, kind in kinds.items():
+        if kind == 'saturated_vessel':
+            root = levels.find(nodes.find((iid, 'in0')))
+            if root in level_vessel:
+                raise CompilationError('REFRIGERATION_LEVEL_VESSELS', f'{level_vessel[root]} 与 {iid} 处在同一压力等级；'
+                                       '每个压力等级只能有一个容器', iid)
+            level_vessel[root] = iid
+    resolved = {}
+    for key in stream:
+        if key not in used and kinds[key[0]] in ('refrigerant_header', 'saturated_vessel'):
+            continue
+        vessel = level_vessel.get(levels.find(nodes.find(key)))
+        if vessel is None:
+            raise CompilationError('REFRIGERATION_LEVEL_NO_VESSEL', f'{key[0]}.{key[1]} 所在压力等级没有容器，'
+                                   '压力无法确定', key[0], key[1])
+        resolved[key] = vessel
+    for iid, kind in kinds.items():
+        if kind in BRIDGES:
+            low, high = (resolved[(iid, p)] for p in BRIDGES[kind])
+            if low == high:
+                raise CompilationError('REFRIGERATION_BRIDGE_SAME_LEVEL', f'{iid} 两端处在同一压力等级（{low}）', iid)
+    # Circuits: levels joined through compressors and valves.
+    vessels = [iid for iid, kind in kinds.items() if kind == 'saturated_vessel']
+    circuits = DisjointSet(vessels)
+    for iid, kind in kinds.items():
+        if kind in BRIDGES:
+            circuits.union(*(resolved[(iid, p)] for p in BRIDGES[kind]))
+    for iid, kind in kinds.items():
+        if kind == 'cascade_exchanger' and circuits.find(resolved[(iid, 'evap_in')]) == circuits.find(resolved[(iid, 'cond_in')]):
+            raise CompilationError('REFRIGERATION_CASCADE_CIRCUIT', f'{iid} 的蒸发侧与冷凝侧在同一制冷剂回路', iid)
+    order = {}
+    for vessel in vessels:
+        order.setdefault(circuits.find(vessel), len(order))
+    fluids, sources = [project.fluid] * len(order), ['project'] * len(order)
+    for entry in project.circuit_fluids:
+        key = (entry.anchor.instance_id, entry.anchor.port_id)
+        if key not in resolved:
+            raise CompilationError('CIRCUIT_ANCHOR_UNKNOWN', f'回路工质 {entry.id} 的锚点 {key[0]}:{key[1]} 不是已连接的制冷剂端口',
+                                   key[0] if key[0] in instances else None, 'circuit_fluids')
+        fluid_service(project, entry.fluid, f'回路工质 {entry.id}')
+        index = order[circuits.find(resolved[key])]
+        if sources[index] != 'project' and _fluid_key(fluids[index]) != _fluid_key(entry.fluid):
+            raise CompilationError('FLUID_CONFLICT', f'回路工质 {entry.id} 与 {sources[index]} 指定在同一个制冷剂回路',
+                                   key[0], 'circuit_fluids')
+        fluids[index], sources[index] = entry.fluid, entry.id
+    circuit_of = {vessel: order[circuits.find(vessel)] for vessel in vessels}
+    vessel_fluids = {vessel: fluids[circuit_of[vessel]].model_copy(update={'phase_policy': 'any'}) for vessel in vessels}
+    for vessel in vessels:
+        service = fluid_service(project, vessel_fluids[vessel], f'{vessel} 所在回路工质')
+        params = parameters[vessel]
+        if params['min_level_ratio'] >= params['max_level_ratio']:
+            raise CompilationError('PARAMETER_RANGE', f'{vessel} 液位适用下限须小于上限', vessel, 'min_level_ratio')
+        try:
+            state = devices.vessel_state(service, params, *devices.vessel_initial(service, params))
+            devices.check_vessel(params, state)
+        except (devices.DeviceRangeError, PropertyError) as error:
+            raise CompilationError('VESSEL_INITIAL_STATE', f'{vessel} 初始状态不可用（{service.fluid}，'
+                                   f'{params["temperature_k"] - 273.15:.2f} °C）：{error}', vessel, 'temperature_k') from error
+    # Coil supply: the pumps whose outlet shares the coil's supply stream node.
+    supply = {}
+    for iid, kind in kinds.items():
+        if kind == 'air_cooler':
+            root = nodes.find((iid, 'in0'))
+            pumps = [pid for pid, k in kinds.items() if k == 'refrigerant_pump' and nodes.find((pid, 'out0')) == root]
+            if not pumps:
+                raise CompilationError('REFRIGERATION_COIL_SUPPLY', f'{iid} 的供液口须直接或经集管连到制冷剂液泵出口', iid, 'in0')
+            supply[iid] = pumps
+    validate_controllers(project, modules, instances)
+    validate_scripts(project, modules, instances)
+    return CompiledStation(project.model_copy(deep=True), modules, instances, parameters, kinds, vessels, circuit_of,
+                           fluids, sources, vessel_fluids, resolved, supply, room_coolers,
+                           diagnostics=list(project.import_diagnostics))
+
+
+def station_circuits(network):
+    """Fluid circuits for /projects/validate: the connected stream ports of each refrigerant circuit."""
+    ports = [[] for _ in network.circuit_fluids]
+    for (iid, port_id), vessel in network.levels.items():
+        ports[network.circuit_of[vessel]].append(f'{iid}:{port_id}')
+    return [{'id': i, 'fluid': fluid, 'source': network.circuit_sources[i], 'ports': sorted(ports[i])}
+            for i, fluid in enumerate(network.circuit_fluids)]
+
+def _device(instance_id, call, *args):
+    """Device evaluation; range and property failures name the instance."""
+    try:
+        return call(*args)
+    except devices.DeviceRangeError as error:
+        raise devices.DeviceRangeError(error.code, f'{instance_id}：{error}', instance_id) from error
+    except PropertyError as error:
+        raise devices.DeviceRangeError(error.code, f'{instance_id}：{error}', instance_id) from error
+
+
+def evaluate(network, services, masses, energies, temperatures):
+    """Device outputs and the state derivatives (dM/dt, dU/dt per vessel, dT/dt per room) at one state."""
+    p = network.parameters
+    vessel = {v: _device(v, devices.vessel_state, services[v], p[v], masses[v], energies[v]) for v in network.vessels}
+    dm = dict.fromkeys(network.vessels, 0.)
+    du = dict.fromkeys(network.vessels, 0.)
+    out, boundary = {}, 0.
+    by_kind = {}
+    for iid, kind in network.kinds.items():
+        by_kind.setdefault(kind, []).append(iid)
+    for iid in by_kind.get('refrigerant_compressor', ()):
+        low, high = network.vessel(iid, 'suction'), network.vessel(iid, 'discharge')
+        r = _device(iid, devices.compressor_point, services[low], p[iid], vessel[low].pressure_pa, vessel[high].pressure_pa)
+        dm[low] -= r['mass_flow_kg_s']
+        du[low] -= r['mass_flow_kg_s'] * r['suction_enthalpy_j_kg']
+        dm[high] += r['mass_flow_kg_s']
+        du[high] += r['mass_flow_kg_s'] * r['discharge_enthalpy_j_kg']
+        boundary += r['shaft_power_w']
+        out[iid] = r
+    for iid in by_kind.get('expansion_valve', ()):
+        high, low = network.vessel(iid, 'in0'), network.vessel(iid, 'out0')
+        r = _device(iid, devices.valve_flow, services[high], p[iid], vessel[high].pressure_pa, vessel[low].pressure_pa)
+        for v, sign in ((high, -1), (low, 1)):
+            dm[v] += sign * r['mass_flow_kg_s']
+            du[v] += sign * r['mass_flow_kg_s'] * r['enthalpy_j_kg']
+        out[iid] = r
+    for iid in by_kind.get('evaporative_condenser', ()):
+        v = network.vessel(iid, 'in0')
+        r = _device(iid, devices.condenser_duty, services[v], p[iid], vessel[v].pressure_pa)
+        du[v] -= r['heat_rejection_w']
+        boundary -= r['heat_rejection_w']
+        out[iid] = r
+    for iid in by_kind.get('cascade_exchanger', ()):
+        evap, cond = network.vessel(iid, 'evap_in'), network.vessel(iid, 'cond_in')
+        r = _device(iid, devices.cascade_duty, services[evap], services[cond], p[iid],
+                    vessel[evap].pressure_pa, vessel[cond].pressure_pa)
+        du[evap] += r['heat_w']
+        du[cond] -= r['heat_w']
+        out[iid] = r
+    for iid in by_kind.get('refrigerant_pump', ()):
+        v = network.vessel(iid, 'in0')
+        r = _device(iid, devices.pump_point, services[v], p[iid], vessel[v].pressure_pa)
+        du[v] += r['heat_to_fluid_w']
+        boundary += r['electric_power_w']
+        out[iid] = r
+    room_of = {cooler: room for room, cooler in network.room_coolers.items()}
+    dt = {}
+    for iid in by_kind.get('air_cooler', ()):
+        v = network.vessel(iid, 'in0')
+        # Every coil on a supply node shares the flow of the pumps on that node, by supply-valve opening.
+        share = [c for c, pumps in network.supply.items() if pumps == network.supply[iid]]
+        pumped = sum(out[pid]['mass_flow_kg_s'] for pid in network.supply[iid])
+        flow = devices.split_supply(pumped, {c: p[c]['supply_valve_ratio'] for c in share})[iid]
+        r = _device(iid, devices.air_cooler_point, services[v], p[iid], vessel[v].pressure_pa, temperatures[room_of[iid]], flow)
+        du[v] += r['refrigerant_heat_w']
+        boundary += r['fan_power_w']
+        out[iid] = r
+    for room in by_kind.get('cold_room', ()):
+        q = p[room]
+        envelope = ((q['wall_ua_w_k'] + q['roof_ua_w_k']) * (q['ambient_temperature_k'] - temperatures[room])
+                    + q['floor_ua_w_k'] * (q['ground_temperature_k'] - temperatures[room]))
+        cooling = out[network.room_coolers[room]]['room_cooling_w']
+        dt[room] = (envelope + q['heat_input_w'] - cooling) / q['heat_capacity_j_k']
+        boundary += envelope + q['heat_input_w']
+        out[room] = {'envelope_heat_w': envelope, 'cooling_power_w': cooling}
+    return {'vessels': vessel, 'devices': out, 'dm': dm, 'du': du, 'dt': dt, 'boundary_w': boundary}
+
+
+SPECIFIC_ENERGY_SCALE = 1e5  # J/kg; vessel energies are compared per unit of stored mass
+
+
+class StationSession(ThermalSession):
+    """Implicit Euler on vessel (M, U) and room temperatures; control and publishing as in A1."""
+
+    TOLERANCE = 1e-10
+    MAX_ITERATIONS = 12
+    MAX_HALVINGS = 6
+
+    def _init_state(self):
+        network = self.network
+        self.services = {v: property_service(network.vessel_fluids[v]) for v in network.vessels}
+        self.masses, self.energies = {}, {}
+        for v in network.vessels:
+            self.masses[v], self.energies[v] = devices.vessel_initial(self.services[v], network.parameters[v])
+        self.temperatures = {iid: network.parameters[iid]['temperature_k']
+                             for iid, kind in network.kinds.items() if kind == 'cold_room'}
+        self.circuit_mass = [sum(self.masses[v] for v in network.vessels if network.circuit_of[v] == c)
+                             for c in range(len(network.circuit_fluids))]
+        self.counters = {}
+        self.scale = np.array([s for v in network.vessels for s in (self.masses[v], self.masses[v] * SPECIFIC_ENERGY_SCALE)]
+                              + [1.] * len(self.temperatures))
+        self._jacobian = None
+        self._cache = None
+
+    # --- state vector -------------------------------------------------------------------------
+    def _vector(self, masses, energies, temperatures):
+        return np.array([x for v in self.network.vessels for x in (masses[v], energies[v])]
+                        + [temperatures[r] for r in self.temperatures]) / self.scale
+
+    def _unpack(self, x):
+        values = x * self.scale
+        n = len(self.network.vessels)
+        masses = {v: values[2 * i] for i, v in enumerate(self.network.vessels)}
+        energies = {v: values[2 * i + 1] for i, v in enumerate(self.network.vessels)}
+        temperatures = {r: values[2 * n + i] for i, r in enumerate(self.temperatures)}
+        return masses, energies, temperatures
+
+    def _flux(self, x):
+        result = evaluate(self.network, self.services, *self._unpack(x))
+        rate = [r for v in self.network.vessels for r in (result['dm'][v], result['du'][v])] + \
+               [result['dt'][r] for r in self.temperatures]
+        return np.array(rate) / self.scale, result
+
+    def _derivative(self, x, base):
+        jac = np.empty((len(x), len(x)))
+        for i in range(len(x)):
+            probe = x.copy()
+            delta = 1e-7 * max(1., abs(x[i]))
+            probe[i] += delta
+            jac[:, i] = (self._flux(probe)[0] - base) / delta
+        return jac
+
+    def _solve(self, x_old, h):
+        """Newton on x − x_old − h·f(x) = 0 (scaled); the flux Jacobian is reused across steps until it stalls."""
+        x = x_old.copy()
+        f, result = self._flux(x)
+        refreshed = self._jacobian is None
+        if refreshed:
+            self._jacobian = self._derivative(x, f)
+        previous = math.inf
+        for _ in range(self.MAX_ITERATIONS):
+            residual = x - x_old - h * f
+            norm = float(np.max(np.abs(residual)))
+            if norm < self.TOLERANCE:
+                return x, result
+            if norm > .5 * previous and not refreshed:
+                self._jacobian, refreshed = self._derivative(x, f), True
+            previous = norm
+            step = np.linalg.solve(np.eye(len(x)) - h * self._jacobian, residual)
+            for _ in range(5):
+                try:
+                    trial = x - step
+                    f, result = self._flux(trial)
+                    x = trial
+                    break
+                except devices.DeviceRangeError:
+                    step = step / 2
+            else:
+                raise devices.DeviceRangeError('REFRIGERATION_NOT_CONVERGED', '牛顿迭代离开容器的两相适用区')
+        raise devices.DeviceRangeError('REFRIGERATION_NOT_CONVERGED', f'隐式步未收敛（残差 {norm:.2e}）')
+
+    def _integrate(self, step):
+        """All substeps of `step` succeed before any state, counter or residual is committed."""
+        network = self.network
+        x = self._vector(self.masses, self.energies, self.temperatures)
+        counters, energy_residual = dict(self.counters), 0.
+        done, h, halvings = 0., step, 0
+        while done < step - 1e-12 * max(1., step):
+            h = min(h, step - done)
+            try:
+                x_new, result = self._solve(x, h)
+                masses, energies, temperatures = self._unpack(x_new)
+                for v in network.vessels:
+                    _device(v, devices.check_vessel, network.parameters[v], result['vessels'][v])
+            except devices.DeviceRangeError as error:
+                self._jacobian = None
+                final = error.code in ('VESSEL_LEVEL_RANGE',) or halvings >= self.MAX_HALVINGS
+                if final:
+                    raise SolveFailed(error.code, f't={self.time + done + h:g}s {error}', error.instance_id,
+                                      list(self.frames)) from error
+                h, halvings = h / 2, halvings + 1
+                continue
+            stored_old = self._stored(*self._unpack(x))
+            energy_residual += self._stored(masses, energies, temperatures) - stored_old - h * result['boundary_w']
+            for key, power in self._powers(result).items():
+                counters[key] = counters.get(key, 0.) + h * power
+            x, done = x_new, done + h
+        self.masses, self.energies, self.temperatures = self._unpack(x)
+        self.counters = counters
+        self.energy_residual_j += energy_residual
+        self.frame_residual_j += energy_residual
+
+    def _stored(self, masses, energies, temperatures):
+        return sum(energies.values()) + sum(self.network.parameters[r]['heat_capacity_j_k'] * t for r, t in temperatures.items())
+
+    def _powers(self, result):
+        """Rates integrated into the cumulative `state.*_energy_j` counters."""
+        powers = {}
+        for iid, r in result['devices'].items():
+            kind = self.network.kinds[iid]
+            if kind in ('refrigerant_compressor', 'refrigerant_pump'):
+                powers[(iid, 'electric_energy_j')] = r['electric_power_w']
+            elif kind == 'evaporative_condenser':
+                powers[(iid, 'heat_rejected_j')] = r['heat_rejection_w']
+                powers[(iid, 'fan_energy_j')] = r['fan_power_w']
+            elif kind == 'air_cooler':
+                powers[(iid, 'cooling_energy_j')] = r['room_cooling_w']
+                powers[(iid, 'fan_energy_j')] = r['fan_power_w']
+            elif kind == 'cold_room':
+                powers[(iid, 'external_energy_j')] = r['envelope_heat_w'] + self.network.parameters[iid]['heat_input_w']
+        return powers
+
+    def _current(self):
+        key = (self.time, self.revision, tuple(self.masses.values()), tuple(self.energies.values()),
+               tuple(self.temperatures.values()))
+        if self._cache is None or self._cache[0] != key:
+            try:
+                self._cache = key, evaluate(self.network, self.services, self.masses, self.energies, self.temperatures)
+            except devices.DeviceRangeError as error:
+                raise SolveFailed(error.code, f't={self.time:g}s {error}', error.instance_id, list(self.frames)) from error
+        return self._cache[1]
+
+    def snapshot(self):
+        network, result = self.network, self._current()
+        values = {}
+        for v in network.vessels:
+            values.update(result['vessels'][v].variables(v))
+            values[f'{v}.net_inflow_kg_s'] = result['dm'][v]
+        exported = {'refrigerant_compressor': ('mass_flow_kg_s', 'shaft_power_w', 'electric_power_w',
+                                               'discharge_temperature_k', 'pressure_ratio'),
+                    'evaporative_condenser': ('heat_rejection_w', 'effective_ua_w_k', 'condensing_temperature_k', 'fan_power_w'),
+                    'expansion_valve': ('mass_flow_kg_s', 'pressure_drop_pa', 'outlet_quality'),
+                    'cascade_exchanger': ('heat_w', 'approach_k', 'evaporated_kg_s', 'condensed_kg_s'),
+                    'refrigerant_pump': ('mass_flow_kg_s', 'pressure_rise_pa', 'electric_power_w'),
+                    'air_cooler': ('refrigerant_heat_w', 'room_cooling_w', 'fan_power_w', 'supply_mass_flow_kg_s',
+                                   'outlet_quality', 'evaporating_temperature_k')}
+        for iid, r in result['devices'].items():
+            kind = network.kinds[iid]
+            values.update({f'{iid}.{key}': r[key] for key in exported.get(kind, ())})
+        for room, temperature in self.temperatures.items():
+            q, r = network.parameters[room], result['devices'][room]
+            values.update({f'{room}.state.temperature_k': temperature, f'{room}.envelope_heat_w': r['envelope_heat_w'],
+                           f'{room}.cooling_power_w': r['cooling_power_w'],
+                           f'{room}.stored_energy_j': q['heat_capacity_j_k'] * (temperature - 273.15)})
+        for (iid, key) in self._powers(result):
+            values[f'{iid}.state.{key}'] = self.counters.get((iid, key), 0.)
+        for iid, parameters in network.parameters.items():
+            values.update({f'{iid}.param.{key}': value for key, value in parameters.items()})
+        for pid in self.controllers.values():
+            values.update(pid.variables())
+        for script in self.scripts.values():
+            values.update(script.variables())
+        scope = Diagnostic(code='REFRIGERATION_STATION', severity='info',
+            message='集总制冷站：压力只在饱和容器中，设备为容器状态的代数关系；不计管路压降、换热器持液与过冷/过热')
+        envelope = [d.model_copy(update={'instance_id': iid}) for iid, r in result['devices'].items()
+                    for d in r.get('diagnostics', ())]
+        electric = sum(r.get('electric_power_w', 0.) + r.get('fan_power_w', 0.) for iid, r in result['devices'].items()
+                       if network.kinds[iid] != 'cold_room')
+        metrics = {'energy_residual_w': self.frame_residual_j / (self.time - self.published_time)
+                   if self.time > self.published_time else 0.,
+                   'energy_residual_j': self.energy_residual_j, 'storage_power_w': result['boundary_w'],
+                   'electric_power_w': electric}
+        for c, initial in enumerate(self.circuit_mass):
+            metrics[f'mass_residual_kg_circuit{c}'] = sum(self.masses[v] for v in network.vessels
+                                                          if network.circuit_of[v] == c) - initial
+        return RunFrame(status='converged', valid=True, time_s=self.time, variables=values,
+                        diagnostics=[*network.diagnostics, scope, *envelope, *self.diagnostics], metrics=metrics,
+                        sequence=self.sequence, parameter_revision=self.revision)
+
+
+def solve_station_steady(network):
+    raise CompilationError('REFRIGERATION_DYNAMIC_REQUIRED', '制冷站的容器存量随时间变化，只能动态运行')

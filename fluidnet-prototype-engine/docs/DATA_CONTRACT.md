@@ -203,8 +203,12 @@ A1 只有两台内置设备：
 - 启停类执行器用 0/1 数值参数（≥ 0.5 为运行），不扩展布尔类型；每台设备的 `param.*` 变量与其他内置设备一致。
 - 单位：排量规范单位 m³/s（显示 m³/h），压力 Pa（容器显示 MPa），UA W/K（显示 kW/K），温度 K（显示 °C）。
 - 原型归一化：这些设备在原型里直接使用规范参数 ID；端口未写 `required`/`circuit` 时按注册定义取值（此前非节点设备一律视为必连）。
-- 诊断码：`VESSEL_PHASE_RANGE`、`VESSEL_LEVEL_RANGE`、`COMPRESSOR_PRESSURE_RATIO`（设备函数抛出，运行接通后转为运行错误）、`COMPRESSOR_ENVELOPE`（警告）、`REFRIGERATION_STATION_PENDING`（编译：系统连接校验与运行尚未接通）。
-- 已知边界：只有设备层；连接拓扑校验、制冷站会话、`health` 能力位与案例示例未实现。
+- 累计量：压缩机与液泵 `state.electric_energy_j`，冷凝器 `state.heat_rejected_j`、`state.fan_energy_j`，冷风机 `state.cooling_energy_j`（库房净冷量）、`state.fan_energy_j`；库房沿用 `state.external_energy_j`。容器另有 `liquid_density_kg_m3`、`vapor_density_kg_m3`。
+- 执行域：含 `refrigerant` 端口的项目 `execution_domain='refrigeration'`，由 `StationSession` 运行；拓扑规则与时间推进见 [ALGORITHM](ALGORITHM.md#制冷站系统层refrigerationstationpy执行域-refrigeration)。回路工质用 `circuit_fluids` 指定，锚点为任一已连接的制冷剂端口；`/projects/validate` 的 `circuits` 按制冷剂回路列出端口。
+- 帧指标：`energy_residual_j`、`energy_residual_w`、`storage_power_w`、`electric_power_w`、`mass_residual_kg_circuit<i>`；每帧带提示 `REFRIGERATION_STATION`。
+- 能力上报：`supported_domains` 增加 `refrigerant`，`capabilities.refrigeration_station=true`。
+- 诊断码（编译）：`REFRIGERATION_MODEL_UNSUPPORTED`、`REFRIGERATION_PORT_INVALID`、`REFRIGERATION_PARAMETER_CONTRACT`、`REFRIGERATION_CONNECTION_INVALID`、`REFRIGERATION_CONNECTION_MISSING`、`REFRIGERATION_VESSEL_SHORT`、`REFRIGERATION_PORT_ROLE`、`REFRIGERATION_LEVEL_VESSELS`、`REFRIGERATION_LEVEL_NO_VESSEL`、`REFRIGERATION_BRIDGE_SAME_LEVEL`、`REFRIGERATION_CASCADE_CIRCUIT`、`REFRIGERATION_COIL_SUPPLY`、`VESSEL_INITIAL_STATE`、`REFRIGERATION_DYNAMIC_REQUIRED`（稳态请求）；（运行）`VESSEL_LEVEL_RANGE`、`VESSEL_PHASE_RANGE`、`COMPRESSOR_PRESSURE_RATIO`、`REFRIGERATION_NOT_CONVERGED` 及物性错误码；`COMPRESSOR_ENVELOPE`（警告）。
+- 已知边界：尚无五闭环/上层控制（B2）、一键创建案例与专用页面（B3）；不计管路压降、换热器持液与过冷/过热。
 
 ## 参数与状态
 

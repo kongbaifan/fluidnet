@@ -25,14 +25,18 @@ class ThermalSession(SimulationSession):
         self.frames = deque(maxlen=keep) if keep else []
         self.runners, self.controllers, self.scripts = {}, {}, {}
         self.script_owners = {key: script.id for script in network.project.control_scripts if script.enabled for key in script.outputs}
-        self.temperatures = {room: network.parameters[room]['temperature_k'] for room in network.room_sources}
-        self.cooling_energy = {source: 0. for source in network.room_sources.values()}
-        self.external_energy = {room: 0. for room in network.room_sources}
         self.energy_residual_j = 0.
         self.frame_residual_j = 0.
         self.published_time = 0.
         self.diagnostics = []
         self.closed = False
+        self._init_state()
+
+    def _init_state(self):
+        network = self.network
+        self.temperatures = {room: network.parameters[room]['temperature_k'] for room in network.room_sources}
+        self.cooling_energy = {source: 0. for source in network.room_sources.values()}
+        self.external_energy = {room: 0. for room in network.room_sources}
 
     def initialize(self):
         if self.frames:
@@ -103,6 +107,15 @@ class ThermalSession(SimulationSession):
         return frame
 
     def _advance_heat(self, step):
+        self._integrate(step)
+        for script in self.scripts.values():
+            if script.pending:
+                self.diagnostics.extend(Diagnostic.model_validate(d) for d in script.pending[0].get('diagnostics', []))
+                script.accept()
+        self.time += step
+
+    def _integrate(self, step):
+        """Advance the physical state by `step`; nothing is committed unless the whole step succeeds."""
         temperatures, external, cooling = {}, {}, {}
         residual = 0.
         for room, source in self.network.room_sources.items():
@@ -129,11 +142,6 @@ class ThermalSession(SimulationSession):
             self.cooling_energy[source] += energy
         self.energy_residual_j += residual
         self.frame_residual_j += residual
-        for script in self.scripts.values():
-            if script.pending:
-                self.diagnostics.extend(Diagnostic.model_validate(d) for d in script.pending[0].get('diagnostics', []))
-                script.accept()
-        self.time += step
 
     def advance(self):
         if not self.frames:

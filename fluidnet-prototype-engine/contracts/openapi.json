@@ -3692,6 +3692,11 @@
             "title": "Cold Room Ideal Source",
             "default": false
           },
+          "refrigeration_station": {
+            "type": "boolean",
+            "title": "Refrigeration Station",
+            "default": false
+          },
           "steady_hydraulics": {
             "type": "boolean",
             "title": "Steady Hydraulics"
