@@ -723,7 +723,8 @@ window.createEngineClient = function (ui) {
       const project=await normalize(owner);
       const result=await request('/runs?background=true',{project,mode:'dynamic',...services.runMetadata(owner),duration_s:owner.solver.continuous ? null : owner.solver.duration,
         dt_s:owner.solver.dt,execution_mode:owner.solver.executionMode || 'realtime',speed_ratio:owner.solver.speedRatio || 1,
-        start_paused:action==='step',history:'trend',trend_variables:trendVariables(owner)});
+        start_paused:action==='step',history:'trend',trend_variables:trendVariables(owner),
+        ...(owner.solver.historyWindow ? {history_window:Math.min(20001,Math.max(10,owner.solver.historyWindow))} : {})});
       owner.run={...ui.emptyRun(),source:'engine',status:'solving',id:result.run_id,runId:result.run_id,live:true,offset:0};
       ui.persist();ui.render();
       if(action==='step') await confirmedCommand(owner,{action:'step'});

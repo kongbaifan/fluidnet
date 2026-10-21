@@ -424,6 +424,19 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 #fn-studio .metric>span { display:block;font-size:11px;color:var(--muted);margin-bottom:5px; }
 #fn-studio .metric strong { font:23px Consolas,monospace;color:var(--text); }
 #fn-studio .metric small { color:var(--muted);margin-left:5px; }
+/* Cold-store case panel: compact so the canvas keeps its height. */
+#fn-studio .cold-room { flex:none;max-height:34vh;overflow:auto;border-radius:0;border-left:0;border-right:0; }
+#fn-studio .cold-room .panel-head { padding:7px 12px;gap:6px;flex-wrap:wrap; }
+#fn-studio .cold-room .panel-head .push { flex:1; }
+#fn-studio .cold-room .panel-body { padding:0 0 6px; }
+#fn-studio .cold-metrics { grid-template-columns:repeat(auto-fill,minmax(118px,1fr)); }
+#fn-studio .cold-metrics .metric { padding:6px 12px;border-bottom:1px solid var(--border); }
+#fn-studio .cold-metrics .metric span { font-size:11px;color:var(--muted);display:block; }
+#fn-studio .cold-metrics .metric strong { font-size:16px; }
+#fn-studio .cold-room .notice { margin:6px 12px 0; }
+#fn-studio .cold-table { width:100%;border-collapse:collapse;font-size:12px;margin:6px 0; }
+#fn-studio .cold-table th,#fn-studio .cold-table td { border-bottom:1px solid var(--border);padding:5px 8px;text-align:left; }
+#fn-studio .cold-table th { color:var(--muted);font-weight:500; }
 #fn-studio .chart-panel { padding:18px;background:var(--surface);min-width:0; }
 #fn-studio .chart-heading { display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px; }
 #fn-studio .chart-legend { display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:11px; }
