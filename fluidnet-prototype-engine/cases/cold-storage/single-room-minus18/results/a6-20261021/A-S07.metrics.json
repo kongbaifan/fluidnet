@@ -1,0 +1,41 @@
+[
+  {
+    "room": "ROOM1",
+    "cooler": "AC1",
+    "unit": "CU1",
+    "setpoint_temperature_k": 255.15,
+    "hysteresis_k": 0.5,
+    "alarm_temperature_k": 256.15,
+    "final_room_temperature_k": 258.9045065525418,
+    "final_goods_temperature_k": 258.96713896998176,
+    "final_goods_mass_kg": 2000.0,
+    "pulldown_time_s": null,
+    "goods_pulldown_time_s": null,
+    "max_service_temperature_k": null,
+    "min_service_temperature_k": null,
+    "max_service_deviation_k": null,
+    "time_above_alarm_s": 21600.0,
+    "degree_hours_above_alarm": 18.78038657122822,
+    "service_time_above_alarm_s": 0.0,
+    "service_degree_hours_above_alarm": 0.0,
+    "starts": 1.0,
+    "run_time_s": 21600.0,
+    "electric_energy_j": {
+      "compressor": 35043557.668770924,
+      "condenser_fan": 4320000.0,
+      "cooler_fan": 6480000.0,
+      "defrost_heater": 0.0
+    },
+    "total_electric_energy_j": 45843557.668770924,
+    "lighting_energy_j": 0.0,
+    "cooling_energy_j": 64600335.25617174,
+    "condenser_heat_j": 96139537.15806545,
+    "period_cop": 1.40914751256703,
+    "stored_energy_change_j": -2152891.845015373,
+    "final_stored_energy_j": 27847108.154984493,
+    "ledger_residual_j": -0.00014500692486763,
+    "ledger_scale_j": 127047778.6435574,
+    "events": [],
+    "goods_mass_kg_initial": 2000.0
+  }
+]

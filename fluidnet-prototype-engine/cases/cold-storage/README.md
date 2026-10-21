@@ -1,6 +1,6 @@
 # 冷库案例
 
-本目录是“−18°C 单库房 → NH₃ 制冷 + CO₂ 液泵载冷系统”的计划和实施入口。2026-10-19 完成 A0（固定输入数据与独立循环参考），2026-10-20 完成 A1（库房热节点 + 理想冷源贯通引擎与页面）。
+本目录是“−18°C 单库房 → NH₃ 制冷 + CO₂ 液泵载冷系统”的计划和实施入口。2026-10-19 完成 A0（固定输入数据与独立循环参考），2026-10-20 完成 A1（库房热节点 + 理想冷源贯通引擎与页面），2026-10-21 完成 A2–A6（真实单级循环、库房/货物/冷风机耦合、控制与日程、报告与对照、案例验收，见 [VALIDATION-A](single-room-minus18/results/VALIDATION-A.md)）。
 
 - [完整开发计划](PLAN.md)：范围、模型、阶段、工期与验收。
 - [任务与实测进度](TASKS.md)：已完成内容、下一步与证据。
@@ -29,9 +29,10 @@ cold-storage/
 
 ```powershell
 python cases/cold-storage/tools/verify_reference.py --check
-python -m pytest tests/test_refrigeration_a1.py -q
+python -m pytest tests/test_refrigeration_a1.py tests/test_refrigeration_cold_store.py -q
+python scripts/verify_cold_storage.py --output artifacts/cold-storage-a6-<日期>
 ```
 
-第一条命令需要安装项目既有依赖中的 CoolProp，直接按热力方程核对输入与 A0 独立工作点。第二条运行 A1 产品链路验收。浏览器链路（创建案例 → 运行 → 指标/曲线 → 改参数 → 保存 → 重启读取）用 `node tests/browser-cold-storage.mjs` 运行，需要 Playwright 与 Edge，与既有浏览器验收脚本相同。
+第一条命令需要安装项目既有依赖中的 CoolProp，直接按热力方程核对输入与 A0 独立工作点。第二条运行 A1 与 A 版产品验收，第三条在全新工作区跑完七组工况并输出案例包。浏览器链路（创建案例 → 选工况运行 → 单步改参数 → 改日程 → 导出报告/CSV/对照 → 保存 → 重启复算）用 `node tests/browser-cold-storage.mjs` 运行，需要 Playwright 与 Edge，与既有浏览器验收脚本相同。
 
-输入参数和工况是工程示范假设，数据文件采用本案例的 `schema_version=1`，尚不是引擎 `Project` 导入格式。工作台上的案例由引擎 `/api/v1/examples/cold-storage` 生成，导出保存时保留这些输入版本和来源。A1 只实现库房热节点与理想恒容量冷源；货物热状态、真实制冷循环和能耗按 A2–A4 接入。
+输入参数和工况是工程示范假设，数据文件采用本案例的 `schema_version=1`，尚不是引擎 `Project` 导入格式。工作台上的案例由引擎 `/api/v1/examples/cold-storage-room` 生成（A1 理想冷源种子仍为 `/api/v1/examples/cold-storage`），参数与工况和本目录文件逐项一致（由测试核对）。

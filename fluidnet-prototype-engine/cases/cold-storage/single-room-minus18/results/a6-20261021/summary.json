@@ -1,0 +1,777 @@
+{
+  "case_id": "single-room-minus18-v1",
+  "generated_at": "2026-10-21T11:25:07.958111+00:00",
+  "environment": {
+    "engine": "0.4.10",
+    "python": "3.11.0",
+    "coolprop": "8.0.0",
+    "platform": "Windows-10-10.0.29683-SP0",
+    "processor": "AMD64 Family 25 Model 80 Stepping 0, AuthenticAMD",
+    "cpu_count": 16,
+    "memory_bytes": 17008422912
+  },
+  "input_sha256": {
+    "parameters.json": "84a4231b2d39eed4e8717efce159141e91155f1d06a666d024c349c6fdc2ed69",
+    "scenarios.json": "25bb694b0a2221a9b41831da3626aeaed90a0be3d7c20d509c476ed61c1a710d",
+    "sources.json": "548b616701152ebb20c9f8773ec28a01b56e9a399d9e6c08979f56a2db71368c"
+  },
+  "numerics": {
+    "publish_s": 30.0,
+    "internal_step_max_s": 10.0,
+    "control_sample_s": 5.0,
+    "mode": "background fast"
+  },
+  "scenarios": [
+    {
+      "id": "A-S01",
+      "name": "A-S01 基础降温与保温 · 6 h",
+      "run_id": "bbd3757b9a784409ae81a61a44620a33",
+      "simulated_s": 21600.0,
+      "wall_s": 9.553673800000979,
+      "frames": 721,
+      "checks": [
+        {
+          "name": "运行完成",
+          "passed": true,
+          "detail": "completed"
+        },
+        {
+          "name": "独立能量账本 ≤ max(100 J, 0.1%)",
+          "passed": true,
+          "detail": "-0.000144 J / 41.15 kWh"
+        },
+        {
+          "name": "事件执行次数",
+          "passed": true,
+          "detail": "0 / 0"
+        },
+        {
+          "name": "全部帧保留",
+          "passed": true,
+          "detail": "721"
+        },
+        {
+          "name": "进入温控带后不超温",
+          "passed": true,
+          "detail": "降温 1175.0 s，保温期超温 0.0 s"
+        }
+      ],
+      "metrics": {
+        "room": "ROOM1",
+        "cooler": "AC1",
+        "unit": "CU1",
+        "setpoint_temperature_k": 255.15,
+        "hysteresis_k": 0.5,
+        "alarm_temperature_k": 256.15,
+        "final_room_temperature_k": 254.98539545389113,
+        "final_goods_temperature_k": 255.32851682156158,
+        "final_goods_mass_kg": 2000.0,
+        "pulldown_time_s": 1175.0,
+        "goods_pulldown_time_s": 9225.0,
+        "max_service_temperature_k": 255.66345046746724,
+        "min_service_temperature_k": 254.6251639387875,
+        "max_service_deviation_k": 0.5248360612125111,
+        "time_above_alarm_s": 960.0,
+        "degree_hours_above_alarm": 0.8222255975161128,
+        "service_time_above_alarm_s": 0.0,
+        "service_degree_hours_above_alarm": 0.0,
+        "starts": 37.0,
+        "run_time_s": 8295.0,
+        "electric_energy_j": {
+          "compressor": 55399260.74357036,
+          "condenser_fan": 1659000.0,
+          "cooler_fan": 2488500.0,
+          "defrost_heater": 0.0
+        },
+        "total_electric_energy_j": 59546760.74357036,
+        "lighting_energy_j": 0.0,
+        "cooling_energy_j": 84040487.62426965,
+        "condenser_heat_j": 133899822.29348317,
+        "period_cop": 1.411336008455238,
+        "stored_energy_change_j": -19954864.897708856,
+        "final_stored_energy_j": 10045135.10229101,
+        "ledger_residual_j": -0.0001443997025489807,
+        "ledger_scale_j": 148126110.2390167,
+        "goods_mass_kg_initial": 2000.0
+      },
+      "events": []
+    },
+    {
+      "id": "A-S02",
+      "name": "A-S02 开门扰动 · 6 h",
+      "run_id": "b11ac0cd03774be083a5adf617c1c4a7",
+      "simulated_s": 21600.0,
+      "wall_s": 9.468141799996374,
+      "frames": 721,
+      "checks": [
+        {
+          "name": "运行完成",
+          "passed": true,
+          "detail": "completed"
+        },
+        {
+          "name": "独立能量账本 ≤ max(100 J, 0.1%)",
+          "passed": true,
+          "detail": "-0.000138 J / 42.64 kWh"
+        },
+        {
+          "name": "事件执行次数",
+          "passed": true,
+          "detail": "1 / 1"
+        },
+        {
+          "name": "全部帧保留",
+          "passed": true,
+          "detail": "721"
+        },
+        {
+          "name": "进入温控带后不超温",
+          "passed": true,
+          "detail": "降温 1175.0 s，保温期超温 0.0 s"
+        },
+        {
+          "name": "扰动后恢复",
+          "passed": true,
+          "detail": "door-1 峰值 -17.51 °C，恢复 30.0 s"
+        }
+      ],
+      "metrics": {
+        "room": "ROOM1",
+        "cooler": "AC1",
+        "unit": "CU1",
+        "setpoint_temperature_k": 255.15,
+        "hysteresis_k": 0.5,
+        "alarm_temperature_k": 256.15,
+        "final_room_temperature_k": 255.59085774443312,
+        "final_goods_temperature_k": 255.33287817493743,
+        "final_goods_mass_kg": 2000.0,
+        "pulldown_time_s": 1175.0,
+        "goods_pulldown_time_s": 9210.0,
+        "max_service_temperature_k": 255.66345046746724,
+        "min_service_temperature_k": 254.62451553140332,
+        "max_service_deviation_k": 0.5254844685966873,
+        "time_above_alarm_s": 960.0,
+        "degree_hours_above_alarm": 0.8222255975161128,
+        "service_time_above_alarm_s": 0.0,
+        "service_degree_hours_above_alarm": 0.0,
+        "starts": 36.0,
+        "run_time_s": 8525.0,
+        "electric_energy_j": {
+          "compressor": 56932900.59659132,
+          "condenser_fan": 1705000.0,
+          "cooler_fan": 2557500.0,
+          "defrost_heater": 0.0
+        },
+        "total_electric_energy_j": 61195400.59659132,
+        "lighting_energy_j": 0.0,
+        "cooling_energy_j": 86362200.8565925,
+        "condenser_heat_j": 137601811.3935248,
+        "period_cop": 1.4112531336448677,
+        "stored_energy_change_j": -19212609.27690538,
+        "final_stored_energy_j": 10787390.723094484,
+        "ledger_residual_j": -0.00013823062181472778,
+        "ledger_scale_j": 153511792.32708186,
+        "goods_mass_kg_initial": 2000.0
+      },
+      "events": [
+        {
+          "id": "door-1",
+          "type": "door_heat",
+          "time_s": 7200.0,
+          "end_s": 7800.0,
+          "variable": "ROOM1.state.temperature_k",
+          "recovery_limit_k": 255.65,
+          "peak_k": 255.63796275889217,
+          "recovery_s": 30.0
+        }
+      ]
+    },
+    {
+      "id": "A-S03",
+      "name": "A-S03 冻结货物入库 · 8 h",
+      "run_id": "c0e87280826e4ad5a12daf98ee7a1ef1",
+      "simulated_s": 28800.0,
+      "wall_s": 12.264511199995468,
+      "frames": 961,
+      "checks": [
+        {
+          "name": "运行完成",
+          "passed": true,
+          "detail": "completed"
+        },
+        {
+          "name": "独立能量账本 ≤ max(100 J, 0.1%)",
+          "passed": true,
+          "detail": "5.84e-06 J / 56.51 kWh"
+        },
+        {
+          "name": "事件执行次数",
+          "passed": true,
+          "detail": "1 / 1"
+        },
+        {
+          "name": "全部帧保留",
+          "passed": true,
+          "detail": "961"
+        },
+        {
+          "name": "进入温控带后不超温",
+          "passed": true,
+          "detail": "降温 1175.0 s，保温期超温 0.0 s"
+        },
+        {
+          "name": "扰动后恢复",
+          "passed": true,
+          "detail": "goods-1 峰值 -15.76 °C，恢复 3930.0 s"
+        },
+        {
+          "name": "入库后货物质量",
+          "passed": true,
+          "detail": "2500.0"
+        }
+      ],
+      "metrics": {
+        "room": "ROOM1",
+        "cooler": "AC1",
+        "unit": "CU1",
+        "setpoint_temperature_k": 255.15,
+        "hysteresis_k": 0.5,
+        "alarm_temperature_k": 256.15,
+        "final_room_temperature_k": 255.218892186259,
+        "final_goods_temperature_k": 255.2624859550869,
+        "final_goods_mass_kg": 2500.0,
+        "pulldown_time_s": 1175.0,
+        "goods_pulldown_time_s": 13030.0,
+        "max_service_temperature_k": 255.66345046746724,
+        "min_service_temperature_k": 254.6244935643167,
+        "max_service_deviation_k": 0.5255064356832975,
+        "time_above_alarm_s": 960.0,
+        "degree_hours_above_alarm": 0.8222255975161128,
+        "service_time_above_alarm_s": 0.0,
+        "service_degree_hours_above_alarm": 0.0,
+        "starts": 50.0,
+        "run_time_s": 10965.0,
+        "electric_energy_j": {
+          "compressor": 73107627.31698021,
+          "condenser_fan": 2193000.0,
+          "cooler_fan": 3289500.0,
+          "defrost_heater": 0.0
+        },
+        "total_electric_energy_j": 78590127.31698021,
+        "lighting_energy_j": 0.0,
+        "cooling_energy_j": 110716803.31806579,
+        "condenser_heat_j": 176513667.90334806,
+        "period_cop": 1.4087876823447298,
+        "stored_energy_change_j": -18011142.578598026,
+        "final_stored_energy_j": 11988857.42140184,
+        "ledger_residual_j": 5.837529897689819e-06,
+        "ledger_scale_j": 203422463.90843642,
+        "goods_mass_kg_initial": 2000.0
+      },
+      "events": [
+        {
+          "id": "goods-1",
+          "type": "goods_addition",
+          "time_s": 7200.0,
+          "end_s": 7200.0,
+          "variable": "ROOM1.state.goods_temperature_k",
+          "recovery_limit_k": 256.46473541170866,
+          "peak_k": 257.39244906872756,
+          "recovery_s": 3930.0
+        }
+      ]
+    },
+    {
+      "id": "A-S04",
+      "name": "A-S04 高环境温度 · 8 h",
+      "run_id": "2aaa92ddbc604f2298a1fe31ca496146",
+      "simulated_s": 28800.0,
+      "wall_s": 12.743411800001923,
+      "frames": 961,
+      "checks": [
+        {
+          "name": "运行完成",
+          "passed": true,
+          "detail": "completed"
+        },
+        {
+          "name": "独立能量账本 ≤ max(100 J, 0.1%)",
+          "passed": true,
+          "detail": "-0.000192 J / 56.38 kWh"
+        },
+        {
+          "name": "事件执行次数",
+          "passed": true,
+          "detail": "1 / 1"
+        },
+        {
+          "name": "全部帧保留",
+          "passed": true,
+          "detail": "961"
+        },
+        {
+          "name": "进入温控带后不超温",
+          "passed": true,
+          "detail": "降温 1175.0 s，保温期超温 0.0 s"
+        },
+        {
+          "name": "室外升温后冷凝温度升高、COP 降低",
+          "passed": true,
+          "detail": "冷凝 40.00 → 45.98 °C，COP 1.507 → 1.327"
+        }
+      ],
+      "metrics": {
+        "room": "ROOM1",
+        "cooler": "AC1",
+        "unit": "CU1",
+        "setpoint_temperature_k": 255.15,
+        "hysteresis_k": 0.5,
+        "alarm_temperature_k": 256.15,
+        "final_room_temperature_k": 255.4756360131375,
+        "final_goods_temperature_k": 255.2221862292929,
+        "final_goods_mass_kg": 2000.0,
+        "pulldown_time_s": 1175.0,
+        "goods_pulldown_time_s": 9225.0,
+        "max_service_temperature_k": 255.66345046746724,
+        "min_service_temperature_k": 254.62827390396137,
+        "max_service_deviation_k": 0.5217260960386341,
+        "time_above_alarm_s": 960.0,
+        "degree_hours_above_alarm": 0.8222255975161128,
+        "service_time_above_alarm_s": 0.0,
+        "service_degree_hours_above_alarm": 0.0,
+        "starts": 50.0,
+        "run_time_s": 11415.0,
+        "electric_energy_j": {
+          "compressor": 80201832.91038664,
+          "condenser_fan": 2283000.0,
+          "cooler_fan": 3424500.0,
+          "defrost_heater": 0.0
+        },
+        "total_electric_energy_j": 85909332.91038664,
+        "lighting_energy_j": 0.0,
+        "cooling_energy_j": 111360605.03056306,
+        "condenser_heat_j": 183542254.64991084,
+        "period_cop": 1.2962573594503992,
+        "stored_energy_change_j": -19749366.35878046,
+        "final_stored_energy_j": 10250633.641219405,
+        "ledger_residual_j": -0.00019203126430511475,
+        "ledger_scale_j": 202971843.64265156,
+        "goods_mass_kg_initial": 2000.0
+      },
+      "events": []
+    },
+    {
+      "id": "A-S05-onoff",
+      "name": "A-S05 控制对照 · 定容量启停 · 24 h",
+      "run_id": "3cb45bf0201f420e8d2314dafb59e91b",
+      "simulated_s": 86400.0,
+      "wall_s": 33.975365400001465,
+      "frames": 2881,
+      "checks": [
+        {
+          "name": "运行完成",
+          "passed": true,
+          "detail": "completed"
+        },
+        {
+          "name": "独立能量账本 ≤ max(100 J, 0.1%)",
+          "passed": true,
+          "detail": "6.7e-05 J / 159.07 kWh"
+        },
+        {
+          "name": "事件执行次数",
+          "passed": true,
+          "detail": "5 / 5"
+        },
+        {
+          "name": "全部帧保留",
+          "passed": true,
+          "detail": "2881"
+        },
+        {
+          "name": "进入温控带后不超温",
+          "passed": true,
+          "detail": "降温 1175.0 s，保温期超温 0.0 s"
+        }
+      ],
+      "metrics": {
+        "room": "ROOM1",
+        "cooler": "AC1",
+        "unit": "CU1",
+        "setpoint_temperature_k": 255.15,
+        "hysteresis_k": 0.5,
+        "alarm_temperature_k": 256.15,
+        "final_room_temperature_k": 255.55805844730205,
+        "final_goods_temperature_k": 255.15814171044175,
+        "final_goods_mass_kg": 2500.0,
+        "pulldown_time_s": 1175.0,
+        "goods_pulldown_time_s": 9210.0,
+        "max_service_temperature_k": 255.66345046746724,
+        "min_service_temperature_k": 254.6255907506757,
+        "max_service_deviation_k": 0.5244092493242931,
+        "time_above_alarm_s": 960.0,
+        "degree_hours_above_alarm": 0.8222255975161128,
+        "service_time_above_alarm_s": 0.0,
+        "service_degree_hours_above_alarm": 0.0,
+        "starts": 145.0,
+        "run_time_s": 29945.0,
+        "electric_energy_j": {
+          "compressor": 204386037.07482225,
+          "condenser_fan": 5989000.0,
+          "cooler_fan": 8983500.0,
+          "defrost_heater": 0.0
+        },
+        "total_electric_energy_j": 219358537.07482225,
+        "lighting_energy_j": 0.0,
+        "cooling_energy_j": 295369109.01997995,
+        "condenser_heat_j": 479316542.38732237,
+        "period_cop": 1.3465129415921973,
+        "stored_energy_change_j": -18073692.16624955,
+        "final_stored_energy_j": 11926307.833750315,
+        "ledger_residual_j": 6.701797246932983e-05,
+        "ledger_scale_j": 572664525.5641117,
+        "goods_mass_kg_initial": 2000.0
+      },
+      "events": [
+        {
+          "id": "door-1",
+          "type": "door_heat",
+          "time_s": 7200.0,
+          "end_s": 7800.0,
+          "variable": "ROOM1.state.temperature_k",
+          "recovery_limit_k": 255.65,
+          "peak_k": 255.63796275889217,
+          "recovery_s": 30.0
+        },
+        {
+          "id": "goods-1",
+          "type": "goods_addition",
+          "time_s": 14400.0,
+          "end_s": 14400.0,
+          "variable": "ROOM1.state.goods_temperature_k",
+          "recovery_limit_k": 255.636874742392,
+          "peak_k": 256.7340992259138,
+          "recovery_s": 8610.0
+        },
+        {
+          "id": "door-2",
+          "type": "door_heat",
+          "time_s": 43200.0,
+          "end_s": 43800.0,
+          "variable": "ROOM1.state.temperature_k",
+          "recovery_limit_k": 255.65,
+          "peak_k": 255.646814316004,
+          "recovery_s": 30.0
+        }
+      ]
+    },
+    {
+      "id": "A-S05-variable",
+      "name": "A-S05 控制对照 · 变容量 · 24 h",
+      "run_id": "4f6eb1341e75428fbec44c1269fe2dc2",
+      "simulated_s": 86400.0,
+      "wall_s": 54.48385009999765,
+      "frames": 2881,
+      "checks": [
+        {
+          "name": "运行完成",
+          "passed": true,
+          "detail": "completed"
+        },
+        {
+          "name": "独立能量账本 ≤ max(100 J, 0.1%)",
+          "passed": true,
+          "detail": "6.07e-05 J / 164.73 kWh"
+        },
+        {
+          "name": "事件执行次数",
+          "passed": true,
+          "detail": "5 / 5"
+        },
+        {
+          "name": "全部帧保留",
+          "passed": true,
+          "detail": "2881"
+        },
+        {
+          "name": "进入温控带后不超温",
+          "passed": true,
+          "detail": "降温 2270.0 s，保温期超温 0.0 s"
+        }
+      ],
+      "metrics": {
+        "room": "ROOM1",
+        "cooler": "AC1",
+        "unit": "CU1",
+        "setpoint_temperature_k": 255.15,
+        "hysteresis_k": 0.5,
+        "alarm_temperature_k": 256.15,
+        "final_room_temperature_k": 254.7579650763642,
+        "final_goods_temperature_k": 255.06368246238776,
+        "final_goods_mass_kg": 2500.0,
+        "pulldown_time_s": 2270.0,
+        "goods_pulldown_time_s": 8620.0,
+        "max_service_temperature_k": 255.69372478354356,
+        "min_service_temperature_k": 254.6461037399639,
+        "max_service_deviation_k": 0.5437247835435528,
+        "time_above_alarm_s": 960.0,
+        "degree_hours_above_alarm": 0.8222255975161128,
+        "service_time_above_alarm_s": 0.0,
+        "service_degree_hours_above_alarm": 0.0,
+        "starts": 68.0,
+        "run_time_s": 59350.0,
+        "electric_energy_j": {
+          "compressor": 175397160.28041977,
+          "condenser_fan": 11870000.0,
+          "cooler_fan": 17805000.0,
+          "defrost_heater": 0.0
+        },
+        "total_electric_energy_j": 205072160.28041977,
+        "lighting_energy_j": 0.0,
+        "cooling_energy_j": 306243371.51445657,
+        "condenser_heat_j": 464100815.7668353,
+        "period_cop": 1.4933444456609481,
+        "stored_energy_change_j": -19458870.827617936,
+        "final_stored_energy_j": 10541129.172381928,
+        "ledger_residual_j": 6.068497896194458e-05,
+        "ledger_scale_j": 593027871.9124663,
+        "goods_mass_kg_initial": 2000.0
+      },
+      "events": [
+        {
+          "id": "door-1",
+          "type": "door_heat",
+          "time_s": 7200.0,
+          "end_s": 7800.0,
+          "variable": "ROOM1.state.temperature_k",
+          "recovery_limit_k": 255.65,
+          "peak_k": 255.68643614518203,
+          "recovery_s": 30.0
+        },
+        {
+          "id": "goods-1",
+          "type": "goods_addition",
+          "time_s": 14400.0,
+          "end_s": 14400.0,
+          "variable": "ROOM1.state.goods_temperature_k",
+          "recovery_limit_k": 255.5316992088007,
+          "peak_k": 256.64705958958166,
+          "recovery_s": 8370.0
+        },
+        {
+          "id": "door-2",
+          "type": "door_heat",
+          "time_s": 43200.0,
+          "end_s": 43800.0,
+          "variable": "ROOM1.state.temperature_k",
+          "recovery_limit_k": 255.65,
+          "peak_k": 255.63377490370902,
+          "recovery_s": 30.0
+        }
+      ]
+    },
+    {
+      "id": "A-S06",
+      "name": "A-S06 定时电融霜 · 24 h",
+      "run_id": "85580bdba8de4245a966cd107cb16f02",
+      "simulated_s": 86400.0,
+      "wall_s": 32.79539659999864,
+      "frames": 2881,
+      "checks": [
+        {
+          "name": "运行完成",
+          "passed": true,
+          "detail": "completed"
+        },
+        {
+          "name": "独立能量账本 ≤ max(100 J, 0.1%)",
+          "passed": true,
+          "detail": "-0.000584 J / 149.05 kWh"
+        },
+        {
+          "name": "事件执行次数",
+          "passed": true,
+          "detail": "2 / 2"
+        },
+        {
+          "name": "全部帧保留",
+          "passed": true,
+          "detail": "2881"
+        },
+        {
+          "name": "扰动后恢复",
+          "passed": true,
+          "detail": "defrost-1 峰值 -15.01 °C，恢复 390.0 s；defrost-2 峰值 -15.24 °C，恢复 360.0 s"
+        },
+        {
+          "name": "两次融霜完成、融霜电量",
+          "passed": true,
+          "detail": "2.0 次，0.750 kWh"
+        }
+      ],
+      "metrics": {
+        "room": "ROOM1",
+        "cooler": "AC1",
+        "unit": "CU1",
+        "setpoint_temperature_k": 255.15,
+        "hysteresis_k": 0.5,
+        "alarm_temperature_k": 256.15,
+        "final_room_temperature_k": 254.7154541090644,
+        "final_goods_temperature_k": 255.16455858294955,
+        "final_goods_mass_kg": 2000.0,
+        "pulldown_time_s": 1175.0,
+        "goods_pulldown_time_s": 9225.0,
+        "max_service_temperature_k": 258.1401279577285,
+        "min_service_temperature_k": 254.6251639387875,
+        "max_service_deviation_k": 2.990127957728504,
+        "time_above_alarm_s": 3175.0,
+        "degree_hours_above_alarm": 1.4770737409726205,
+        "service_time_above_alarm_s": 2215.0,
+        "service_degree_hours_above_alarm": 0.6548481434565084,
+        "starts": 141.0,
+        "run_time_s": 27745.0,
+        "electric_energy_j": {
+          "compressor": 184519969.7298293,
+          "condenser_fan": 5549000.0,
+          "cooler_fan": 8323500.0,
+          "defrost_heater": 2700000.0
+        },
+        "total_electric_energy_j": 201092469.7298293,
+        "lighting_energy_j": 0.0,
+        "cooling_energy_j": 278725796.9261379,
+        "condenser_heat_j": 444793769.68298566,
+        "period_cop": 1.386057853387599,
+        "stored_energy_change_j": -20869044.170504212,
+        "final_stored_energy_j": 9130955.829495655,
+        "ledger_residual_j": -0.0005835890769958496,
+        "ledger_scale_j": 536582549.26943964,
+        "goods_mass_kg_initial": 2000.0
+      },
+      "events": [
+        {
+          "id": "defrost-1",
+          "type": "electric_defrost",
+          "time_s": 28800.0,
+          "end_s": 30000.0,
+          "variable": "ROOM1.state.temperature_k",
+          "recovery_limit_k": 255.65,
+          "peak_k": 258.1401279577285,
+          "recovery_s": 390.0
+        },
+        {
+          "id": "defrost-2",
+          "type": "electric_defrost",
+          "time_s": 57600.0,
+          "end_s": 58800.0,
+          "variable": "ROOM1.state.temperature_k",
+          "recovery_limit_k": 255.65,
+          "peak_k": 257.91054385960206,
+          "recovery_s": 360.0
+        }
+      ]
+    },
+    {
+      "id": "A-S07",
+      "name": "A-S07 制冷能力不足 · 6 h",
+      "run_id": "840ef92cd24048fbb29b0d2ca2ee0b6f",
+      "simulated_s": 21600.0,
+      "wall_s": 12.275319799999124,
+      "frames": 721,
+      "checks": [
+        {
+          "name": "运行完成",
+          "passed": true,
+          "detail": "completed"
+        },
+        {
+          "name": "独立能量账本 ≤ max(100 J, 0.1%)",
+          "passed": true,
+          "detail": "-0.000145 J / 35.29 kWh"
+        },
+        {
+          "name": "事件执行次数",
+          "passed": true,
+          "detail": "0 / 0"
+        },
+        {
+          "name": "全部帧保留",
+          "passed": true,
+          "detail": "721"
+        },
+        {
+          "name": "能力不足：未到设定值、持续超温并给出诊断",
+          "passed": true,
+          "detail": "超温 6.00 h"
+        }
+      ],
+      "metrics": {
+        "room": "ROOM1",
+        "cooler": "AC1",
+        "unit": "CU1",
+        "setpoint_temperature_k": 255.15,
+        "hysteresis_k": 0.5,
+        "alarm_temperature_k": 256.15,
+        "final_room_temperature_k": 258.9045065525418,
+        "final_goods_temperature_k": 258.96713896998176,
+        "final_goods_mass_kg": 2000.0,
+        "pulldown_time_s": null,
+        "goods_pulldown_time_s": null,
+        "max_service_temperature_k": null,
+        "min_service_temperature_k": null,
+        "max_service_deviation_k": null,
+        "time_above_alarm_s": 21600.0,
+        "degree_hours_above_alarm": 18.78038657122822,
+        "service_time_above_alarm_s": 0.0,
+        "service_degree_hours_above_alarm": 0.0,
+        "starts": 1.0,
+        "run_time_s": 21600.0,
+        "electric_energy_j": {
+          "compressor": 35043557.668770924,
+          "condenser_fan": 4320000.0,
+          "cooler_fan": 6480000.0,
+          "defrost_heater": 0.0
+        },
+        "total_electric_energy_j": 45843557.668770924,
+        "lighting_energy_j": 0.0,
+        "cooling_energy_j": 64600335.25617174,
+        "condenser_heat_j": 96139537.15806545,
+        "period_cop": 1.40914751256703,
+        "stored_energy_change_j": -2152891.845015373,
+        "final_stored_energy_j": 27847108.154984493,
+        "ledger_residual_j": -0.00014500692486763,
+        "ledger_scale_j": 127047778.6435574,
+        "goods_mass_kg_initial": 2000.0
+      },
+      "events": []
+    }
+  ],
+  "negative": [
+    {
+      "name": "室外 50 °C：冷凝温度超出运行范围",
+      "expected": "REFRIGERATION_ENVELOPE",
+      "passed": true,
+      "detail": "failed t=3645s ['REFRIGERATION_ENVELOPE']"
+    },
+    {
+      "name": "入库货温超出冻结模型",
+      "expected": "SCHEDULE_EVENT_INVALID",
+      "passed": true,
+      "detail": "failed t=0s ['SCHEDULE_EVENT_INVALID']"
+    }
+  ],
+  "comparison": {
+    "a": "3cb45bf0201f420e8d2314dafb59e91b",
+    "b": "4f6eb1341e75428fbec44c1269fe2dc2",
+    "fair": true,
+    "verdict": "温度约束满足、末态储能差 0.385 kWh（≤ 1% 累计制冷量）：B 相对 A 的制冷系统电量变化 -6.51%（-3.968 kWh）。结果可以是“无优势”，不预设节能。"
+  },
+  "restart": {
+    "archived_status": "completed",
+    "report_after_restart": true,
+    "replay_identical": true
+  },
+  "workers_after_stop": 0,
+  "peak_rss_bytes": 418451456,
+  "total_wall_s": 194.77502780000214,
+  "passed": true
+}

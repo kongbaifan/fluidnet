@@ -185,6 +185,26 @@ A1 只有两台内置设备：
 - 诊断码：`THERMAL_CONNECTION_MISSING`、`THERMAL_CONNECTION_INVALID`、`THERMAL_PORT_INVALID`、`THERMAL_MODEL_UNSUPPORTED`、`THERMAL_PARAMETER_CONTRACT`、`THERMAL_TOPOLOGY_UNSUPPORTED`、`THERMAL_REQUIRED`、`THERMAL_STEADY_UNDEFINED`、`THERMAL_STEP_INVALID`、`THERMAL_STATE_RANGE`（运行错误）、`COLD_ROOM_IDEAL_SOURCE`（提示）。
 - 已知边界：A1 只支持单库房 + 理想冷源的一对一热拓扑，不混合流体与热端口，不含货物热节点、冷风机、制冷循环、融霜和电量；这些在 A2–A4 按案例计划扩展。
 
+## 冷库 A 单库房案例（2026-10-21）
+
+执行域 `execution_domain='cold_store'`：项目里使用了下表任一设备时，`compile_project` 走 `refrigeration/cold_store.py`，只允许这三类设备组成的“机组 → 冷风机 → 库房”链（可多条）。混入流体设备、A1 理想冷源、制冷站设备或 Python 模块报 `COLD_STORE_MODEL_UNSUPPORTED`。方程见 [ALGORITHM](ALGORITHM.md#冷库-a-单库房与单级循环2026-10-21执行域-cold_store)。
+
+| 设备 | 端口（thermal） | runtime 参数 | 主要输出 |
+| --- | --- | --- | --- |
+| `storage_room` 冻结物库房 | `heat` 入 | `setpoint_temperature_k`、`hysteresis_k`、`alarm_temperature_k`、`ambient_temperature_k`、`ground_temperature_k`、`lighting_on`、`heat_input_w` | `state.temperature_k`、`state.goods_temperature_k`、`state.goods_mass_kg`、各项热流（`envelope/door/lighting/goods/fan/defrost_heat_w`、`cooling_power_w`、`net_heat_w`）、`stored_energy_j`、累计 `state.external/goods/cooling/lighting_energy_j`、超温 `state.time_above_alarm_s`、`state.degree_hours_above_alarm`、保温期 `state.service_*`、`state.pulldown_time_s`、`state.max/min_service_temperature_k` |
+| `unit_cooler` 冷风机 | `supply` 入、`heat` 出 | `fan_continuous` | `state.mode`（0 制冷 / 1 融霜加热 / 2 滴水）、`state.fan_running`、`refrigerant_heat_w`、`fan_power_w`、`heater_power_w`、`state.defrost_count`、`state.defrost_pending`、累计 `state.fan/heater_energy_j` |
+| `condensing_unit` 单级制冷机组 | `cold` 出 | `run_request`、`capacity_ratio`、`variable_capacity`、`ambient_temperature_k` | `state.running`、`actual_capacity_ratio`、`state.starts`、`state.run_time_s`、`state.state_elapsed_s`、`state.switch_blocked`、蒸发/冷凝温度与压力、吸排气温度、压比、质量流量、制冷量、轴功率、电功率、冷凝排热、冷凝风机功率、`cop`、`system_cop`、`state1…4.{pressure_pa,temperature_k,enthalpy_j_kg,entropy_j_kg_k,quality}`、`displacement_m3_s`、`condenser_ua_w_k`、累计 `state.electric/condenser_fan/cooling_energy_j`、`state.condenser_heat_j` |
+
+- 机组停机时温度、压力、状态点与 COP 为 `null`，功率与流量为 0。启停与布尔类请求用 0/1 数值参数（≥ 0.5 为真）。
+- 制冷剂取 `Project.fluid`；配置 `circuit_fluids` 报 `COLD_STORE_TOPOLOGY`。额定点不能饱和（如水）报 `CYCLE_DESIGN_INVALID`。
+- 负荷日程：`Project.events: list[ScheduleEvent]`（≤ 500），字段 `id`、`type`、`time_s`、可选 `instance_id`，按类型必填且只能填：`door_heat`（`duration_s`、`heat_w`，区间 `[t, t+duration)`）、`goods_addition`（`mass_kg`、`temperature_k`）、`ambient_temperature`（`temperature_k`，写所有库房与机组的室外温度）、`electric_defrost`（无数值，按冷风机参数）。`Scenario.events` 为 `null` 时沿用项目日程，为列表（含空列表）时替换。原型导出的 `projects[].events` 与 `scenarios[].events` 使用规范单位。
+- 日程校验：ID 重复或入库货温超出冻结模型 `SCHEDULE_EVENT_INVALID`；目标不存在、类型不符或多台候选未指定 `SCHEDULE_EVENT_TARGET`；室外温度目标已被 PID/脚本控制 `SCHEDULE_EVENT_CONFLICT`；非冷库项目带日程 `SCHEDULE_UNSUPPORTED`。工况日程在 `/projects/validate` 中按合并后的参数校验。运行时超出时长的事件给 `SCHEDULE_EVENT_AFTER_RUN`，每次执行给 `SCHEDULE_EVENT`，重叠融霜请求给 `DEFROST_REQUEST_IGNORED`。
+- 运行诊断：`REFRIGERATION_ENVELOPE`（带 `field`）、`GOODS_TEMPERATURE_RANGE`、`THERMAL_STATE_RANGE`、`COLD_STORE_NOT_CONVERGED`、`CYCLE_*` 物性/相态码；警告 `CYCLE_SUPERHEAT_APPROACH`、`COLD_ROOM_CAPACITY_SHORTFALL`；提示 `COLD_STORE_MODEL`。稳态请求 `COLD_STORE_DYNAMIC_REQUIRED`。
+- 帧指标：`energy_residual_j/_w`、`storage_power_w`、`electric_power_w`、`lighting_power_w`、`coupling_residual_w`、`events_applied`。
+- 趋势历史：冷库会话的标准曲线变量（`refrigeration/report.py::series_keys`）在所有趋势帧上保留，报告与 CSV 不依赖前端传入的 `trend_variables`。
+- 接口：`GET /api/v1/examples/cold-storage-room`（案例种子项目，含 8 个工况）；`POST /api/v1/cold-store/workpoint`（`UnitWorkpointRequest` → `UnitWorkpointResponse`，与运行同一循环函数，越界作为警告返回）；`GET /api/v1/runs/{id}/report.html`、`/report.csv`、`GET /api/v1/runs/compare/report.html?a=&b=`（结束后可用；非冷库运行 `REPORT_UNSUPPORTED`；历史窗口不含全部帧时曲线改用抽稀概览并在报告中注明）。health `capabilities.cold_store_cycle=true`。
+- 已知边界：单级准稳态循环；不计制冷剂管路压降与存量动态、冻结潜热、湿度与结霜、融霜完成程度；参数为工程示范假设。
+
 ## 冷库 B 制冷站设备（2026-10-20，设备层）
 
 `Domain` 增加 `refrigerant`（集总制冷站物流，不是管网压力节点）。`builtin_catalog()` 增加 10 台内置设备，分类“制冷站设备”，由 `refrigeration_catalog()` 固定，方程见 [ALGORITHM](ALGORITHM.md#冷库-b-集总制冷站设备2026-10-20设备层)。
