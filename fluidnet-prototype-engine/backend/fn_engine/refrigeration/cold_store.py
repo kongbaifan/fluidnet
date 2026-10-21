@@ -24,6 +24,7 @@ from ..models import Diagnostic, Project, RunFrame
 from ..properties import PropertyError, property_service
 from ..solver import SolveFailed
 from .cycle import DeviceRangeError, check_envelope, cycle_point, cycle_rates, rated_design, superheat_warning
+from .schedule import apply_set_variable, check_set_variable, check_unique
 from .session import ThermalSession
 from .station import same_parameter_contract
 
@@ -56,17 +57,18 @@ def uses_cold_store(project):
     return any(m.solver_model in MODELS for m in project.modules if m.id in used)
 
 
-def resolve_events(project, kinds, parameters):
+def resolve_events(project, kinds, parameters, modules=None, instances=None):
     """Event targets by type; one matching device may be implicit. Checks goods temperatures against the room."""
     by_kind = {}
     for iid, kind in kinds.items():
         by_kind.setdefault(kind, []).append(iid)
     wanted = {'door_heat': 'storage_room', 'goods_addition': 'storage_room', 'electric_defrost': 'unit_cooler'}
-    seen, targets = set(), {}
+    targets = {}
+    check_unique(project.events)
     for event in project.events:
-        if event.id in seen:
-            raise CompilationError('SCHEDULE_EVENT_INVALID', f'日程事件 ID 重复：{event.id}', field='events')
-        seen.add(event.id)
+        if event.type == 'set_variable':
+            targets[event.id] = check_set_variable(project, modules, instances, event)
+            continue
         if event.type == 'ambient_temperature':
             candidates = [iid for iid, kind in kinds.items() if kind in ('storage_room', 'condensing_unit')]
         else:
@@ -174,7 +176,7 @@ def compile_cold_store(project):
                                    unit, error.field or 'rated_evaporating_temperature_k') from error
     validate_controllers(project, modules, instances)
     validate_scripts(project, modules, instances)
-    events, targets = resolve_events(project, kinds, parameters)
+    events, targets = resolve_events(project, kinds, parameters, modules, instances)
     return CompiledColdStore(project.model_copy(deep=True), modules, instances, parameters, kinds, chains, designs,
                              fluid, events, targets, diagnostics=list(project.import_diagnostics))
 
@@ -237,6 +239,10 @@ class ColdStoreSession(ThermalSession):
             event = events[self.event_index]
             self.event_index += 1
             targets = self.network.targets[event.id]
+            if event.type == 'set_variable':
+                apply_set_variable(self, event)
+                self.events_applied += 1
+                continue
             text = {'door_heat': f'开门附加 {event.heat_w or 0:g} W，持续 {event.duration_s or 0:g} s',
                     'goods_addition': f'入库 {event.mass_kg or 0:g} kg、{(event.temperature_k or 0) - 273.15:.2f} °C 冻结货物',
                     'ambient_temperature': f'室外温度变为 {(event.temperature_k or 0) - 273.15:.2f} °C',

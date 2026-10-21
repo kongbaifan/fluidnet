@@ -29,6 +29,11 @@ def initialize(ctx):
     ctx.state["integral"] = 0.0
     ctx.state["request"] = 1.0
 
+def needed(fan, lower, valve):
+    # Return-gas opening that keeps today's UA after dropping one fan group (condenser UA model of EC1).
+    ua = (NATURAL + (1 - NATURAL) * fan) * (FLOODED + (1 - FLOODED) * valve)
+    return (ua / (NATURAL + (1 - NATURAL) * lower) - FLOODED) / (1 - FLOODED)
+
 def step(ctx, dt_s):
     t = ctx.read("ROOM1.state.temperature_k")
     setpoint = ctx.read("ROOM1.param.setpoint_temperature_k")
@@ -102,6 +107,142 @@ def room_example():
 # Two identical rooms (case B): engineering assumptions sized so three of four compressors carry the load.
 ROOM = {'temperature_k': 255.15, 'heat_capacity_j_k': 2e7, 'ambient_temperature_k': 305.15, 'ground_temperature_k': 283.15,
         'wall_ua_w_k': 900., 'roof_ua_w_k': 450., 'floor_ua_w_k': 250., 'heat_input_w': 30000.}
+
+
+# B0 design point: cases/cold-storage/nh3-co2/station/references/design_point.json (tests keep them equal).
+# Case B upper loop (Python project control). PIDs own: K1 load (suction pressure), EC1 return-gas valve
+# (receiver/condensing pressure), EV1 opening (receiver level), AC1/AC2 fan ratio (room temperatures).
+STATION_CONTROL = '''MIN_ON, MIN_OFF, CONFIRM = 600.0, 300.0, 300.0   # compressor minimum on/off and staging confirmation, s
+START_LOAD, STOP_REMAINING = 0.95, 0.90        # start when the running mean load stays high; stop if the rest stay below
+FAN_INTERVAL = 300.0                           # condenser fan group staging, s
+NATURAL, FLOODED = 0.2, 0.5                    # EC1 natural_ua_ratio / flooded_ua_ratio
+FAN_RAMP = 0.005                               # fan ratio change per 10 s sample (one group in 1000 s)
+PUMP_MIN, PUMP_GAIN = 0.3, 0.7                 # loop 5: pump speed from the mean cooler fan ratio
+BAND = 1.0                                     # demand satisfaction: room within setpoint ± BAND
+FOLLOWERS = ["K2", "K3", "K4"]
+
+def initialize(ctx):
+    ctx.state.update({"last_K2": -1e9, "last_K3": -1e9, "last_K4": -1e9, "high_since": -1.0, "low_since": -1.0,
+                      "fan_since": -1e9, "fan_high_since": -1.0, "fan_low_since": -1.0, "in_band_1": 0.0, "in_band_2": 0.0,
+                      "elapsed": 0.0, "starts": 0.0, "stops": 0.0, "fan_changes": 0.0, "reason": "初始",
+                      "infeasible_since": -1.0, "infeasible": 0.0})
+
+def timer(ctx, key, active, t):
+    if not active:
+        ctx.state[key] = -1.0
+        return 0.0
+    if ctx.state[key] < 0:
+        ctx.state[key] = t
+    return t - ctx.state[key]
+
+def needed(fan, lower, valve):
+    # Return-gas opening that keeps today's UA after dropping one fan group (condenser UA model of EC1).
+    ua = (NATURAL + (1 - NATURAL) * fan) * (FLOODED + (1 - FLOODED) * valve)
+    return (ua / (NATURAL + (1 - NATURAL) * lower) - FLOODED) / (1 - FLOODED)
+
+def step(ctx, dt_s):
+    s, t = ctx.state, ctx.time_s
+    lead = ctx.read("K1.param.load_ratio")
+    running = [k for k in FOLLOWERS if ctx.read(k + ".param.running") >= 0.5]
+    n = 1 + len(running)
+    # Upper loop: number of compressors from the lead load (all running units carry the same load).
+    if timer(ctx, "high_since", lead >= START_LOAD, t) >= CONFIRM:
+        stopped = [k for k in FOLLOWERS if k not in running and t - s["last_" + k] >= MIN_OFF]
+        if stopped:
+            running.append(stopped[0]); s["last_" + stopped[0]] = t; s["high_since"] = -1.0
+            s["starts"] += 1; s["reason"] = f"t={t:.0f}s 载量 {lead:.2f} 持续偏高，启动 {stopped[0]}"
+    remaining = lead * n / (n - 1) if n > 1 else 9.0
+    if timer(ctx, "low_since", remaining < STOP_REMAINING, t) >= CONFIRM:
+        movable = [k for k in reversed(running) if t - s["last_" + k] >= MIN_ON]
+        if movable:
+            running.remove(movable[0]); s["last_" + movable[0]] = t; s["low_since"] = -1.0
+            s["stops"] += 1; s["reason"] = f"t={t:.0f}s 停一台后载量约 {remaining:.2f}，停止 {movable[0]}"
+    for k in FOLLOWERS:
+        ctx.write(k + ".param.running", 1.0 if k in running else 0.0)
+        ctx.write(k + ".param.load_ratio", lead)
+    # Upper loop: condenser fan groups (0, 1/2, 1) from the return-gas valve the pressure PID is using.
+    # Upper loop: condenser fan groups (stages 0, 1/2, 1) from the return-gas valve the pressure PID is using;
+    # the fan ratio ramps to the stage (FAN_RAMP per sample), as fan motors do.
+    fan, valve = ctx.read("EC1.param.fan_ratio"), ctx.read("EC1.param.return_gas_ratio")
+    stage = s.setdefault("fan_stage", fan)
+    error = ctx.read("HP1.state.pressure_pa") - ctx.read("controller.head.setpoint")
+    if t - s["fan_since"] >= FAN_INTERVAL and abs(fan - stage) < 1e-9:
+        raise_ok = valve >= 0.98 and error > 2e4 and stage < 1.0
+        lower_ok = valve <= 0.6 and error <= 1e4 and stage > 0.0 and needed(stage, stage - 0.5, valve) <= 0.85
+        if timer(ctx, "fan_high_since", raise_ok, t) >= 120.0:
+            stage = min(1.0, stage + 0.5); s["fan_since"] = t; s["fan_changes"] += 1
+            s["reason"] = f"t={t:.0f}s 回气阀全开仍超压，冷凝器风机增至 {stage:.1f}"
+        elif timer(ctx, "fan_low_since", lower_ok, t) >= FAN_INTERVAL:
+            stage = max(0.0, stage - 0.5); s["fan_since"] = t; s["fan_changes"] += 1
+            s["reason"] = f"t={t:.0f}s 回气阀开度低、冷凝能力过剩，冷凝器风机减至 {stage:.1f}"
+    s["fan_stage"] = stage
+    fan = min(stage, fan + FAN_RAMP) if stage > fan else max(stage, fan - FAN_RAMP)
+    ctx.write("EC1.param.fan_ratio", fan)
+    # Condensing target not reachable: return-gas valve and fans fully open, pressure still high.
+    if timer(ctx, "infeasible_since", valve >= 0.98 and fan >= 1.0 and error > 2e4, t) >= 1800.0 and not s["infeasible"]:
+        s["infeasible"] = 1.0
+        ctx.log(f"冷凝能力已到上限，目标冷凝压力不可达（实际高出 {error / 1000:.0f} kPa）")
+    elif s["infeasible_since"] < 0:
+        s["infeasible"] = 0.0
+    # Loop 5: CO2 pump speed follows the cooler fans.
+    mean_fan = (ctx.read("AC1.param.fan_ratio") + ctx.read("AC2.param.fan_ratio")) / 2
+    ctx.write("PU1.param.speed_ratio", min(1.0, max(PUMP_MIN, PUMP_MIN + PUMP_GAIN * mean_fan)))
+    # Feedback: demand satisfaction (own definition: time share inside setpoint ± BAND).
+    s["elapsed"] += dt_s
+    for i in (1, 2):
+        if abs(ctx.read(f"ROOM{i}.state.temperature_k") - ctx.read(f"controller.room{i}.setpoint")) <= BAND:
+            s[f"in_band_{i}"] += dt_s
+    s["satisfaction"] = (s["in_band_1"] + s["in_band_2"]) / (2 * s["elapsed"]) if s["elapsed"] > 0 else 1.0
+    s["running"] = float(len(running) + 1)
+
+def finalize(ctx):
+    pass
+'''
+STATION_SCENARIO_DURATIONS = {'B-S01': 86400., 'B-S02': 86400., 'B-S03': 64800., 'B-S04': 72000.}
+
+
+def station_case():
+    """Case B with the five loops and the upper loop; actuators start at the B0 design point."""
+    from ..models import ScheduleEvent
+    project = station_example()
+    design = {'LP1': {'temperature_k': 241.482716507}, 'HP1': {'temperature_k': 308.150214111, 'level_ratio': .633},
+              'CD1': {'temperature_k': 245.577548873}, 'EV1': {'opening_ratio': .388}, 'PU1': {'rated_mass_flow_kg_s': 3., 'speed_ratio': .72},
+              'EC1': {'return_gas_ratio': .739}, **{f'AC{i}': {'fan_ratio': .6, 'ua_w_k': 15000.} for i in (1, 2)},
+              **{f'ROOM{i}': {'heat_input_w': 15000.} for i in (1, 2)},
+              **{f'K{i}': {'load_ratio': .826, 'running': 0. if i == 4 else 1., 'displacement_m3_s': 330 / 3600, 'max_pressure_ratio': 14.}
+                 for i in range(1, 5)}}
+    for instance in project.instances:
+        instance.parameters.update(design.get(instance.id, {}))
+    pid = lambda id, measurement, iid, parameter, setpoint, kp, ki, lo=0., hi=1.: PIDController(id=id, measurement=measurement,
+        instance_id=iid, parameter_id=parameter, setpoint=setpoint, kp=kp, ki=ki, sample_s=10., minimum=lo, maximum=hi)
+    project.controllers = [
+        pid('suction', 'LP1.state.pressure_pa', 'K1', 'load_ratio', 110000., -2e-5, -2e-5 / 300, .2),
+        pid('head', 'HP1.state.pressure_pa', 'EC1', 'return_gas_ratio', 1350000., -4e-6, -4e-6 / 300),
+        pid('level', 'HP1.state.level_ratio', 'EV1', 'opening_ratio', .633, -5., -5. / 600),
+        *[pid(f'room{i}', f'ROOM{i}.state.temperature_k', f'AC{i}', 'fan_ratio', 255.15, -.3, -.3 / 1200) for i in (1, 2)]]
+    reads = ['K1.param.load_ratio', *[f'K{i}.param.running' for i in (2, 3, 4)], 'EC1.param.fan_ratio', 'EC1.param.return_gas_ratio',
+             'HP1.state.pressure_pa', 'controller.head.setpoint', 'AC1.param.fan_ratio', 'AC2.param.fan_ratio',
+             'ROOM1.state.temperature_k', 'ROOM2.state.temperature_k', 'controller.room1.setpoint', 'controller.room2.setpoint']
+    writes = [*[f'K{i}.param.{p}' for i in (2, 3, 4) for p in ('running', 'load_ratio')], 'EC1.param.fan_ratio', 'PU1.param.speed_ratio']
+    project.control_scripts = [ControlScript(id='control', enabled=True, source=STATION_CONTROL, sample_s=10., inputs=reads, outputs=writes)]
+    set_ = lambda id, t, key, value: ScheduleEvent(id=id, type='set_variable', time_s=t, key=key, value=value)
+    project.scenarios = [
+        Scenario(id='B-S01', name='B-S01 额定负荷 · 24 h', events=[]),
+        Scenario(id='B-S02', name='B-S02 库房 1 负荷阶跃 · 24 h', events=[set_('load-up', 21600., 'ROOM1.param.heat_input_w', 40000.),
+                                                                  set_('load-down', 50400., 'ROOM1.param.heat_input_w', 0.)]),
+        # Operators move targets in steps; the condensing target is lowered after the wet bulb drops (feasible).
+        Scenario(id='B-S03', name='B-S03 改目标蒸发/冷凝压力 · 18 h', events=[
+            *[set_(f'evap-{k}', 21600. + 1800 * k, 'controller.suction.setpoint', 110000. + 5000 * (k + 1)) for k in range(3)],
+            set_('wb-down', 36000., 'EC1.param.wet_bulb_temperature_k', 293.15),
+            *[set_(f'cond-{k}', 37800. + 1800 * k, 'controller.head.setpoint', 1350000. - 50000 * (k + 1)) for k in range(3)]]),
+        # Weather changes gradually: 1 K every 20 min, 27 → 20 °C and back.
+        Scenario(id='B-S04', name='B-S04 湿球温度变化 · 20 h', events=[
+            *[set_(f'wb-down-{k}', 21600. + 1200 * k, 'EC1.param.wet_bulb_temperature_k', 299.15 - k) for k in range(7)],
+            *[set_(f'wb-up-{k}', 50400. + 1200 * k, 'EC1.param.wet_bulb_temperature_k', 294.15 + k) for k in range(7)]])]
+    project.id, project.name = 'cold-storage-nh3co2-v2', 'NH₃/CO₂ 两库房冷库 · 五闭环 + 上层启停'
+    project.description = ('4 台单级 NH₃ 压缩机、蒸发式冷凝器、高压贮液器、节流阀、低压循环桶，复叠换热器冷凝 CO₂，CO₂ 液泵向两库冷风机供液。'
+                           '输入目标蒸发/冷凝压力（PID suction/head 的设定值）即可自运行；参数为工程假设（cases/cold-storage/nh3-co2/station）。')
+    return project
 
 
 def station_example():

@@ -336,22 +336,27 @@ class ScheduleEvent(StrictModel):
 
     door_heat: `heat_w` for `duration_s` [time_s, time_s + duration_s); goods_addition: `mass_kg` frozen goods
     at `temperature_k`, mixed by energy; ambient_temperature: outdoor `temperature_k` from `time_s` on;
-    electric_defrost: start one defrost cycle of the target cooler. `instance_id` may be omitted when the
-    project has exactly one matching device (ambient: every device with an outdoor temperature)."""
+    electric_defrost: start one defrost cycle of the target cooler; set_variable: write `value` to `key`
+    (`<instance>.param.<runtime parameter>` or `controller.<id>.setpoint|manual_output`) like a run command.
+    `instance_id` may be omitted when the project has exactly one matching device (ambient: every device
+    with an outdoor temperature)."""
     id: Identifier
-    type: Literal['door_heat', 'goods_addition', 'ambient_temperature', 'electric_defrost']
+    type: Literal['door_heat', 'goods_addition', 'ambient_temperature', 'electric_defrost', 'set_variable']
     time_s: float = Field(ge=0)
     instance_id: Identifier | None = None
     duration_s: float | None = Field(default=None, gt=0)
     heat_w: float | None = Field(default=None, ge=0)
     mass_kg: float | None = Field(default=None, gt=0)
     temperature_k: float | None = Field(default=None, gt=0)
+    key: str | None = Field(default=None, max_length=200)
+    value: float | None = None
 
     @model_validator(mode='after')
     def check_fields(self):
         required = {'door_heat': {'duration_s', 'heat_w'}, 'goods_addition': {'mass_kg', 'temperature_k'},
-                    'ambient_temperature': {'temperature_k'}, 'electric_defrost': set()}[self.type]
-        given = {k for k in ('duration_s', 'heat_w', 'mass_kg', 'temperature_k') if getattr(self, k) is not None}
+                    'ambient_temperature': {'temperature_k'}, 'electric_defrost': set(),
+                    'set_variable': {'key', 'value'}}[self.type]
+        given = {k for k in ('duration_s', 'heat_w', 'mass_kg', 'temperature_k', 'key', 'value') if getattr(self, k) is not None}
         if given != required:
             raise ValueError(f'{self.type} 事件需要且只能填写 {sorted(required) or "时间"}（当前 {sorted(given)}）')
         return self

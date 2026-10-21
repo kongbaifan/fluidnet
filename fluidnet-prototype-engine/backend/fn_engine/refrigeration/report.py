@@ -297,6 +297,110 @@ def fairness(networks, records):
     return checks
 
 
+# --- case B: lumped NH3/CO2 station ---------------------------------------------------------------
+
+def station_series_keys(network):
+    """Standard curves of a station run (rooms, vessel pressures/levels, actuators, controllers, energy)."""
+    keys = []
+    for room, cooler in network.room_coolers.items():
+        keys += [(f'{room}.state.temperature_k', 'K'), (f'{room}.param.heat_input_w', 'W'), (f'{cooler}.param.fan_ratio', '1'),
+                 (f'{cooler}.refrigerant_heat_w', 'W')]
+    for vessel in network.vessels:
+        keys += [(f'{vessel}.state.pressure_pa', 'Pa'), (f'{vessel}.state.temperature_k', 'K'), (f'{vessel}.state.level_ratio', '1')]
+    for iid, kind in network.kinds.items():
+        keys += {'refrigerant_compressor': [(f'{iid}.param.running', '1'), (f'{iid}.param.load_ratio', '1'), (f'{iid}.electric_power_w', 'W')],
+                 'evaporative_condenser': [(f'{iid}.param.fan_ratio', '1'), (f'{iid}.param.return_gas_ratio', '1'),
+                                           (f'{iid}.param.wet_bulb_temperature_k', 'K'), (f'{iid}.heat_rejection_w', 'W')],
+                 'expansion_valve': [(f'{iid}.param.opening_ratio', '1'), (f'{iid}.mass_flow_kg_s', 'kg/s')],
+                 'refrigerant_pump': [(f'{iid}.param.speed_ratio', '1')],
+                 'cascade_exchanger': [(f'{iid}.heat_w', 'W')]}.get(kind, [])
+    keys += [(f'controller.{c.id}.setpoint', '') for c in network.project.controllers]
+    return keys
+
+
+def station_metrics(rows, network):
+    last = rows[-1]['variables']
+    counters = [k for k in last if k.endswith(('.state.electric_energy_j', '.state.fan_energy_j'))]
+    electric = sum(last[k] for k in counters)
+    controllers = {c.id: c for c in network.project.controllers}
+
+    def tracking(cid, start):
+        c = controllers.get(cid)
+        if c is None:
+            return None
+        values = [abs(r['variables'][c.measurement] - r['variables'][f'controller.{cid}.setpoint']) for r in rows
+                  if r['time_s'] >= start and c.measurement in r['variables']]
+        return max(values) if values else None
+    rooms = {}
+    for room in network.room_coolers:
+        pid = next((c for c in controllers.values() if c.measurement == f'{room}.state.temperature_k'), None)
+        values = [r['variables'][f'{room}.state.temperature_k'] - (r['variables'][f'controller.{pid.id}.setpoint'] if pid else 255.15)
+                  for r in rows if f'{room}.state.temperature_k' in r['variables']]
+        rooms[room] = {'max_deviation_k': max(abs(v) for v in values), 'final_temperature_k': last[f'{room}.state.temperature_k']}
+    script = lambda key: last.get(f'script.control.state.{key}')
+    return {'electric_energy_j': electric, 'mean_electric_power_w': electric / max(1., rows[-1]['time_s']),
+            'satisfaction': script('satisfaction'), 'compressor_starts': script('starts'), 'compressor_stops': script('stops'),
+            'condenser_fan_changes': script('fan_changes'), 'last_reason': script('reason'), 'target_infeasible': script('infeasible'),
+            'rooms': rooms, 'levels': {v: {'min': min(r['variables'][f'{v}.state.level_ratio'] for r in rows),
+                                           'max': max(r['variables'][f'{v}.state.level_ratio'] for r in rows)} for v in network.vessels},
+            'max_tracking_after_1h': {cid: tracking(cid, 3600.) for cid in controllers},
+            'energy_residual_j': rows[-1]['metrics']['energy_residual_j'],
+            'mass_residual_kg': {k: rows[-1]['metrics'][k] for k in rows[-1]['metrics'] if k.startswith('mass_residual_kg')},
+            'events_applied': rows[-1]['metrics'].get('events_applied'), 'initial_electric_power_w': rows[0]['metrics'].get('electric_power_w'),
+            'final_electric_power_w': rows[-1]['metrics'].get('electric_power_w')}
+
+
+def station_csv(rows, network):
+    keys = station_series_keys(network)
+    buffer = io.StringIO()
+    writer = csv.writer(buffer, lineterminator='\r\n')
+    writer.writerow(['time_s'] + [f'{key} [{unit}]' if unit else key for key, unit in keys])
+    for row in rows:
+        values = row['variables']
+        writer.writerow([row['time_s']] + ['' if values.get(key) is None else values[key] for key, _ in keys])
+    return BOM + buffer.getvalue()
+
+
+def station_report(record, rows, network):
+    m = station_metrics(rows, network)
+    rooms = list(network.room_coolers)
+    pct = lambda v: '—' if v is None else f'{v * 100:.2f} %'
+    body = [('需求满足度（库温在设定 ±1 K 内的时间占比，自定义口径）', pct(m['satisfaction'])),
+            ('制冷站电量（压缩机、液泵、冷凝器与冷风机风机）', _text(m['electric_energy_j'], 'kWh')),
+            ('平均电功率 / 末帧电功率', f'{_text(m["mean_electric_power_w"], "kW")} / {_text(m["final_electric_power_w"], "kW")}'),
+            ('压缩机启动 / 停止次数', f'{_text(m["compressor_starts"], "", 0)} / {_text(m["compressor_stops"], "", 0)}'),
+            ('冷凝器风机组切换次数', _text(m['condenser_fan_changes'], '', 0)),
+            ('最后一次上层动作', html.escape(str(m['last_reason']))),
+            ('目标冷凝压力不可达', '是' if m['target_infeasible'] else '否'),
+            *[(f'{r} 最大偏离设定 / 末态库温', f'{_text(v["max_deviation_k"], "K")} / {_text(v["final_temperature_k"], "C")}') for r, v in m['rooms'].items()],
+            *[(f'{v} 液位范围', f'{x["min"]:.4f} … {x["max"]:.4f}') for v, x in m['levels'].items()],
+            *[(f'控制器 {cid} 1 h 后最大跟踪偏差', '—' if v is None else f'{v:.4g}') for cid, v in m['max_tracking_after_1h'].items()],
+            ('能量账本残差', _text(m['energy_residual_j'], 'J')),
+            ('回路存量残差', html.escape(', '.join(f'{k}={v:.3g} kg' for k, v in m['mass_residual_kg'].items())))]
+    role = lambda module: next((v for v in network.vessels if network.instances[v].module_id == module), network.vessels[0])
+    lp, hp = role('lp_drum'), role('hp_receiver')
+    charts = (_chart(rows, [(f'{r}.state.temperature_k', r) for r in rooms], '库温', '°C', offset=-273.15)
+              + _chart(rows, [(f'{lp}.state.pressure_pa', '低压桶压力'), ('controller.suction.setpoint', '目标蒸发压力')], '蒸发侧压力', 'kPa', scale=1000.)
+              + _chart(rows, [(f'{hp}.state.pressure_pa', '贮液器压力'), ('controller.head.setpoint', '目标冷凝压力')], '冷凝侧压力', 'kPa', scale=1000.)
+              + _chart(rows, [(f'{v}.state.level_ratio', v) for v in network.vessels], '容器液位', '1')
+              + _chart(rows, [(f'{k}.param.load_ratio', k) for k, kind in network.kinds.items() if kind == 'refrigerant_compressor'][:1]
+                       + [('EC1.param.fan_ratio', '冷凝器风机'), ('EC1.param.return_gas_ratio', '回气阀'), ('EV1.param.opening_ratio', '节流阀')],
+                       '执行器', '1'))
+    events = _table(['ID', '时刻', '写入'], [(html.escape(e.id), f'{e.time_s / 3600:.3f} h', html.escape(f'{e.key} = {e.value:g}'))
+                                         for e in network.events]) if network.events else '<p>本次运行没有日程事件。</p>'
+    request = record['request']
+    return (f'<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>制冷站运行报告</title><style>{STYLE}</style></head>'
+            '<body><h1>NH₃/CO₂ 制冷站运行报告</h1>'
+            + _table(['项目', '内容'], [('项目', html.escape(request['project']['name'])), ('工况', html.escape(_scenario_name(record))),
+                                       ('运行', html.escape(record['id'])), ('状态', html.escape(record['status'])),
+                                       ('仿真时长 / 发布间隔', f'{rows[-1]["time_s"] / 3600:.3f} h / {request["dt_s"]:g} s'),
+                                       ('引擎版本', __version__), ('数据等级', '工程示范假设；不与倍思鹿数值对比')])
+            + '<h2>指标</h2>' + _table(['指标', '数值'], body) + charts + '<h2>日程</h2>' + events
+            + '<h2>模型边界</h2><p>集总制冷站：压力只在饱和容器中，其余设备为代数关系；不计管路压降、换热器持液与过冷/过热；'
+              '单级压缩未计油冷，排气温度偏高。控制：吸气压力→压缩机载量、贮液器压力→回气阀、贮液器液位→节流阀、库温→冷风机风量，'
+              '上层脚本按载量增减压缩机、按回气阀开度增减冷凝器风机组、按冷风机风量调液泵。</p></body></html>')
+
+
 def comparison_report(records, rows, networks):
     metrics = [run_metrics(r, rw, n) for r, rw, n in zip(records, rows, networks)]
     checks = fairness(networks, records)

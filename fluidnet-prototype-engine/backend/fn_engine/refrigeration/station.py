@@ -17,6 +17,7 @@ from ..models import Diagnostic, Domain, Project, RunFrame
 from ..properties import PropertyError, property_service
 from ..solver import SolveFailed
 from . import devices
+from .schedule import EPS, apply_set_variable, check_set_variable, check_unique
 from .session import ThermalSession
 
 # Ports that take fluid out of a vessel and the vessel phase they must be fed from.
@@ -56,6 +57,7 @@ class CompiledStation:
     supply: dict                # air cooler -> pump IDs feeding its supply node
     room_coolers: dict          # room -> air cooler
     diagnostics: list = field(default_factory=list)
+    events: list = field(default_factory=list)   # set_variable schedule, sorted by time
     branches: list = field(default_factory=list)
     storage: dict = field(default_factory=dict)
     execution_domain: str = 'refrigeration'
@@ -217,9 +219,16 @@ def compile_station(project):
             supply[iid] = pumps
     validate_controllers(project, modules, instances)
     validate_scripts(project, modules, instances)
+    check_unique(project.events)
+    for event in project.events:
+        if event.type != 'set_variable':
+            raise CompilationError('SCHEDULE_UNSUPPORTED', f'制冷站日程只支持 set_variable（事件 {event.id} 为 {event.type}）',
+                                   field='events')
+        check_set_variable(project, modules, instances, event)
     return CompiledStation(project.model_copy(deep=True), modules, instances, parameters, kinds, vessels, circuit_of,
                            fluids, sources, vessel_fluids, resolved, supply, room_coolers,
-                           diagnostics=list(project.import_diagnostics))
+                           diagnostics=list(project.import_diagnostics),
+                           events=sorted(project.events, key=lambda e: e.time_s))
 
 
 def station_circuits(network):
@@ -329,6 +338,10 @@ class StationSession(ThermalSession):
         self.circuit_mass = [sum(self.masses[v] for v in network.vessels if network.circuit_of[v] == c)
                              for c in range(len(network.circuit_fluids))]
         self.counters = {}
+        self.event_index = self.events_applied = 0
+        from .report import station_series_keys
+        # Kept on every trend-history frame so CSV/HTML reports have the full curves (jobs._publish).
+        self.report_keys = frozenset(key for key, _ in station_series_keys(network))
         self.scale = np.array([s for v in network.vessels for s in (self.masses[v], self.masses[v] * SPECIFIC_ENERGY_SCALE)]
                               + [1.] * len(self.temperatures))
         self._jacobian = None
@@ -422,6 +435,48 @@ class StationSession(ThermalSession):
         self.energy_residual_j += energy_residual
         self.frame_residual_j += energy_residual
 
+    def initialize(self):
+        if not self.frames and self.duration is not None:
+            self.diagnostics.extend(Diagnostic(code='SCHEDULE_EVENT_AFTER_RUN', severity='warning', field='events',
+                message=f'事件 {e.id} 在 t={e.time_s:g}s，超出本次运行时长 {self.duration:g}s，不会执行')
+                for e in self.network.events if e.time_s >= self.duration)
+        return super().initialize()
+
+    def advance(self):
+        """ThermalSession.advance plus the schedule: due events apply before the control sample of that instant."""
+        if not self.frames:
+            return self.initialize()
+        if self.done:
+            raise StopIteration
+        target = (self.index + 1) * self.dt
+        if self.duration is not None:
+            target = min(target, self.duration)
+        events = self.network.events
+        while target - self.time > 1e-12 * max(1., target):
+            while self.event_index < len(events) and events[self.event_index].time_s <= self.time + EPS:
+                apply_set_variable(self, events[self.event_index])
+                self.event_index += 1
+                self.events_applied += 1
+            self._control()
+            upcoming = [e.time_s - self.time for e in events[self.event_index:self.event_index + 1]]
+            step = min([target - self.time, self.network.project.solver.dynamic_step_s, *upcoming]
+                       + [pid.next_s - self.time for pid in self.controllers.values()]
+                       + [script.next_s - self.time for script in self.scripts.values()])
+            if step <= 0:
+                raise CompilationError('THERMAL_STEP_INVALID', '制冷站控制时钟未推进')
+            self._advance_heat(step)
+        self.time = target
+        self.index += 1
+        return self.publish()
+
+    def _control(self):
+        """Skip the frame snapshot when no PID or script is due; their outputs are unchanged then."""
+        due = any(r.next_s <= self.time + 1e-10 for r in self.scripts.values()) or \
+            any(p.next_s <= self.time + 1e-10 for p in self.controllers.values())
+        if due or not getattr(self, '_controlled', False):
+            self._controlled = True
+            super()._control()
+
     def _stored(self, masses, energies, temperatures):
         return sum(energies.values()) + sum(self.network.parameters[r]['heat_capacity_j_k'] * t for r, t in temperatures.items())
 
@@ -491,7 +546,7 @@ class StationSession(ThermalSession):
         metrics = {'energy_residual_w': self.frame_residual_j / (self.time - self.published_time)
                    if self.time > self.published_time else 0.,
                    'energy_residual_j': self.energy_residual_j, 'storage_power_w': result['boundary_w'],
-                   'electric_power_w': electric}
+                   'electric_power_w': electric, 'events_applied': self.events_applied}
         for c, initial in enumerate(self.circuit_mass):
             metrics[f'mass_residual_kg_circuit{c}'] = sum(self.masses[v] for v in network.vessels
                                                           if network.circuit_of[v] == c) - initial

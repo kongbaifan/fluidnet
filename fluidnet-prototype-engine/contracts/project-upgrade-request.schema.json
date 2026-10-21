@@ -1022,7 +1022,7 @@
     },
     "ScheduleEvent": {
       "additionalProperties": false,
-      "description": "A load or operation event at a simulation time (cold-store projects; canonical units).\n\ndoor_heat: `heat_w` for `duration_s` [time_s, time_s + duration_s); goods_addition: `mass_kg` frozen goods\nat `temperature_k`, mixed by energy; ambient_temperature: outdoor `temperature_k` from `time_s` on;\nelectric_defrost: start one defrost cycle of the target cooler. `instance_id` may be omitted when the\nproject has exactly one matching device (ambient: every device with an outdoor temperature).",
+      "description": "A load or operation event at a simulation time (cold-store projects; canonical units).\n\ndoor_heat: `heat_w` for `duration_s` [time_s, time_s + duration_s); goods_addition: `mass_kg` frozen goods\nat `temperature_k`, mixed by energy; ambient_temperature: outdoor `temperature_k` from `time_s` on;\nelectric_defrost: start one defrost cycle of the target cooler; set_variable: write `value` to `key`\n(`<instance>.param.<runtime parameter>` or `controller.<id>.setpoint|manual_output`) like a run command.\n`instance_id` may be omitted when the project has exactly one matching device (ambient: every device\nwith an outdoor temperature).",
       "properties": {
         "id": {
           "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
@@ -1034,7 +1034,8 @@
             "door_heat",
             "goods_addition",
             "ambient_temperature",
-            "electric_defrost"
+            "electric_defrost",
+            "set_variable"
           ],
           "title": "Type",
           "type": "string"
@@ -1108,6 +1109,31 @@
           ],
           "default": null,
           "title": "Temperature K"
+        },
+        "key": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Key"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
         }
       },
       "required": [

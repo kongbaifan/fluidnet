@@ -1,0 +1,116 @@
+{
+  "schema_version": 1,
+  "case_id": "nh3co2-two-room-v1",
+  "scope": "B0 independent steady design point (lumped station)",
+  "environment": {
+    "python": "3.11.0",
+    "platform": "Windows-10-10.0.29683-SP0",
+    "coolprop_version": "8.0.0"
+  },
+  "input_sha256": {
+    "parameters.json": "4b362b6437e86179cd2e4b645b6b02be1438cbfcc7d4fb23c00af6f7f08303ed"
+  },
+  "reference_script_sha256": "bda5704a72321f691798182fb4663a4b0fe7a9ad5e957220594296733d6cc396",
+  "design": {
+    "room": {
+      "envelope_heat_w": 74499.99999999994,
+      "load_w": 89499.99999999994,
+      "temperature_k": 255.15
+    },
+    "cooler": {
+      "fan_ratio": 0.6000356883362886,
+      "refrigerant_heat_w": 91900.14275334509,
+      "outlet_quality": 0.28497154936239155
+    },
+    "co2": {
+      "saturation_temperature_k": 245.57754887314545,
+      "pressure_pa": 1547714.7996407463,
+      "pump_speed_ratio": 0.720024981835402,
+      "pump_mass_flow_kg_s": 2.160074945506206,
+      "pump_power_w": 467.1709656565396
+    },
+    "cascade": {
+      "heat_w": 184267.4564724527,
+      "approach_k": 4.094832366054504
+    },
+    "nh3_low": {
+      "pressure_pa": 110000.0,
+      "saturation_temperature_k": 241.48271650709094,
+      "mass_flow_kg_s": 0.17466478918873818
+    },
+    "compressors": {
+      "total_load": 2.478366784696555,
+      "running": 3,
+      "load_each": 0.8261222615655184,
+      "shaft_power_w": 94054.2945470434,
+      "electric_power_w": 102232.92885548197,
+      "discharge_temperature_k": 487.1744067081542,
+      "pressure_ratio": 12.272727272727273
+    },
+    "condenser": {
+      "pressure_pa": 1350000.0,
+      "condensing_temperature_k": 308.1502141112723,
+      "heat_rejection_w": 278321.7510194961,
+      "required_ua_w_k": 34789.28778010327,
+      "fan_ratio": 1.0,
+      "return_gas_ratio": 0.7394643890051633
+    },
+    "expansion_valve": {
+      "opening_ratio": 0.3882487576412494,
+      "mass_flow_kg_s": 0.17466478918873818
+    },
+    "balance": {
+      "station_input_w": 278321.7510193901,
+      "heat_rejection_w": 278321.7510194961,
+      "residual_w": 1.0599615052342415e-07,
+      "electric_power_w": 115000.38532782882
+    }
+  },
+  "checks": [
+    {
+      "name": "station_energy_balance",
+      "passed": true,
+      "detail": "1.060e-07 W"
+    },
+    {
+      "name": "cooler_fan_in_range",
+      "passed": true,
+      "detail": "0.6000"
+    },
+    {
+      "name": "coil_not_supply_limited",
+      "passed": true,
+      "detail": "x_out 0.285"
+    },
+    {
+      "name": "return_gas_in_range",
+      "passed": true,
+      "detail": "0.7395"
+    },
+    {
+      "name": "valve_in_range",
+      "passed": true,
+      "detail": "0.3882"
+    },
+    {
+      "name": "compressor_load_in_range",
+      "passed": true,
+      "detail": "3 × 0.8261"
+    },
+    {
+      "name": "pressure_ratio_inside_envelope",
+      "passed": true,
+      "detail": "12.273"
+    },
+    {
+      "name": "temperature_ladder",
+      "passed": true,
+      "detail": "T_NH3 < T_CO2 < T_room, T_cond > T_wb"
+    },
+    {
+      "name": "level_band",
+      "passed": true,
+      "detail": "0.6 ≤ 0.633 ≤ 0.667"
+    }
+  ]
+}

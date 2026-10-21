@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "case_id": "nh3co2-two-room-v1",
+  "parameter_revision": 1,
+  "created_on": "2026-10-21",
+  "data_grade": "engineering_demonstration_assumptions",
+  "unit_system": "SI",
+  "fluids": {"refrigerant": "Ammonia", "secondary": "CarbonDioxide"},
+  "rooms": {
+    "count": 2,
+    "setpoint_temperature_k": 255.15,
+    "heat_capacity_j_k": 20000000.0,
+    "wall_ua_w_k": 900.0,
+    "roof_ua_w_k": 450.0,
+    "floor_ua_w_k": 250.0,
+    "ambient_temperature_k": 305.15,
+    "ground_temperature_k": 283.15,
+    "rated_heat_input_w": 15000.0
+  },
+  "air_cooler": {
+    "ua_w_k": 15000.0,
+    "natural_ua_ratio": 0.1,
+    "fan_power_w": 4000.0,
+    "max_outlet_quality": 0.5,
+    "supply_valve_ratio": 1.0
+  },
+  "pump": {
+    "rated_mass_flow_kg_s": 3.0,
+    "rated_pressure_rise_pa": 200000.0,
+    "efficiency_ratio": 0.45,
+    "speed_rule": {"minimum": 0.3, "per_mean_fan_ratio": 0.7, "maximum": 1.0}
+  },
+  "cascade": {"ua_w_k": 45000.0},
+  "compressors": {
+    "count": 4,
+    "displacement_m3_s": 0.09166666666666666,
+    "volumetric_efficiency": 0.8,
+    "isentropic_efficiency": 0.72,
+    "motor_efficiency": 0.92,
+    "max_pressure_ratio": 14.0
+  },
+  "condenser": {
+    "ua_w_k": 40000.0,
+    "fan_groups": 2,
+    "natural_ua_ratio": 0.2,
+    "flooded_ua_ratio": 0.5,
+    "fan_power_w": 7500.0,
+    "wet_bulb_temperature_k": 300.15
+  },
+  "expansion_valve": {"kv_m3_h": 0.6},
+  "vessels": {
+    "hp_receiver": {"volume_m3": 3.0, "height_m": 2.0, "level_ratio": 0.633},
+    "lp_drum": {"volume_m3": 4.0, "height_m": 2.0, "level_ratio": 0.4},
+    "pumped_drum": {"volume_m3": 3.0, "height_m": 2.0, "level_ratio": 0.4},
+    "model_level_band": [0.05, 0.95]
+  },
+  "targets": {
+    "evaporating_pressure_pa": 110000.0,
+    "condensing_pressure_pa": 1350000.0,
+    "hp_level_setpoint": 0.633,
+    "hp_level_upper": 0.667,
+    "hp_level_lower": 0.6,
+    "hp_level_rule": "原文：上限 2/3，下限 1/2 + 20 cm；罐高 2 m 时下限为 0.6",
+    "satisfaction_band_k": 1.0
+  },
+  "control": {
+    "sample_s": 10.0,
+    "compressor_minimum_on_s": 600.0,
+    "compressor_minimum_off_s": 300.0,
+    "staging_confirm_s": 300.0,
+    "start_mean_load": 0.95,
+    "stop_if_remaining_load_below": 0.9,
+    "fan_stage_minimum_interval_s": 300.0
+  },
+  "numerics": {"publish_interval_s": 30.0, "internal_step_maximum_s": 10.0}
+}

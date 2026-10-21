@@ -152,6 +152,9 @@ def shape_history(history: list[RunFrame], request: RunRequest, project: Project
         if getattr(network, 'execution_domain', None) == 'cold_store':
             from .refrigeration.report import series_keys
             outputs |= {key for key, _ in series_keys(network.chains)}
+        elif getattr(network, 'execution_domain', None) == 'refrigeration':
+            from .refrigeration.report import station_series_keys
+            outputs |= {key for key, _ in station_series_keys(network)}
         outputs &= history[0].variables.keys() | history[-1].variables.keys()
         trend_history(history, list(set(request.trend_variables) | outputs))
 
@@ -438,6 +441,9 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
             if name == 'cold-storage-room':
                 from .refrigeration.examples import room_example
                 return room_example()
+            if name == 'cold-storage-nh3co2':
+                from .refrigeration.examples import station_case
+                return station_case()
             return pid_example(name)
         except KeyError:
             raise HTTPException(404, detail='示例不存在')
@@ -716,8 +722,8 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
             network = compile_project(apply_scenario(request.project, request.scenario_id))
         except ValueError as error:
             raise HTTPException(422, detail=diagnostic(error).model_dump()) from error
-        if not isinstance(network, CompiledColdStore):
-            raise HTTPException(422, detail={'code': 'REPORT_UNSUPPORTED', 'message': '运行报告目前只支持冷库案例（单级机组）项目'})
+        if not isinstance(network, CompiledColdStore) and getattr(network, 'execution_domain', None) != 'refrigeration':
+            raise HTTPException(422, detail={'code': 'REPORT_UNSUPPORTED', 'message': '运行报告只支持冷库案例与集总制冷站项目'})
         return {**record, 'request': request.model_dump(mode='json')}, rows, network, decimated
 
     def report_download(content, name, media):
@@ -731,6 +737,8 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
         if a == b:
             raise HTTPException(422, detail='请选择两次不同的运行')
         left, right = report_inputs(a), report_inputs(b)
+        if left[2].execution_domain != 'cold_store' or right[2].execution_domain != 'cold_store':
+            raise HTTPException(422, detail={'code': 'REPORT_UNSUPPORTED', 'message': '策略对照报告目前只支持冷库 A 案例'})
         if len(left[2].chains) != len(right[2].chains):
             raise HTTPException(422, detail='两次运行的库房数量不同，无法对照')
         return report_download(comparison_report([left[0], right[0]], [left[1], right[1]], [left[2], right[2]]),
@@ -740,17 +748,18 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
              responses={200: {'content': {'text/csv': {'schema': {'type': 'string'}}}},
                         **protected_error_responses(404, 409, 422, 'STORAGE_FAILED', 'INTERNAL_ERROR')})
     def run_report_csv(run_id: str):
-        from .refrigeration.report import run_csv
+        from .refrigeration.report import run_csv, station_csv
         record, rows, network, _ = report_inputs(run_id)
-        return report_download(run_csv(rows, network), f'cold-store-{run_id[:8]}.csv', 'text/csv; charset=utf-8')
+        content = station_csv(rows, network) if network.execution_domain == 'refrigeration' else run_csv(rows, network)
+        return report_download(content, f'cold-store-{run_id[:8]}.csv', 'text/csv; charset=utf-8')
 
     @app.get('/api/v1/runs/{run_id}/report.html', response_class=Response,
              responses={200: {'content': {'text/html': {'schema': {'type': 'string'}}}},
                         **protected_error_responses(404, 409, 422, 'STORAGE_FAILED', 'INTERNAL_ERROR')})
     def run_report_html(run_id: str):
-        from .refrigeration.report import run_report
+        from .refrigeration.report import run_report, station_report
         record, rows, network, decimated = report_inputs(run_id)
-        content = run_report(record, rows, network)
+        content = (station_report if network.execution_domain == 'refrigeration' else run_report)(record, rows, network)
         if decimated:
             content = content.replace('<h1>冷库运行报告</h1>', '<h1>冷库运行报告</h1><p><strong>历史窗口不含全部帧，曲线与峰值使用抽稀概览；'
                                       '累计量仍取最后一帧的精确计数。</strong></p>')

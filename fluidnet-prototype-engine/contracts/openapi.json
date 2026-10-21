@@ -2748,6 +2748,116 @@
         }
       }
     },
+    "/api/v1/runs/compare/report.html": {
+      "get": {
+        "summary": "Compare Report Html",
+        "operationId": "compare_report_html_api_v1_runs_compare_report_html_get",
+        "parameters": [
+          {
+            "name": "a",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64,
+              "title": "A"
+            }
+          },
+          {
+            "name": "b",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64,
+              "title": "B"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "资源不存在（运行记录、项目修订、模块版本、示例或工作区修订）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "资源状态冲突（活动运行、修订号或命令状态）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "请求体或计算结果校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "STORAGE_FAILED：工作区存储故障（磁盘空间或目录权限）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/runs/{run_id}/report.csv": {
       "get": {
         "summary": "Run Report Csv",
@@ -2859,116 +2969,6 @@
             "schema": {
               "type": "string",
               "title": "Run Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "text/html": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "资源不存在（运行记录、项目修订、模块版本、示例或工作区修订）",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "资源状态冲突（活动运行、修订号或命令状态）",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "请求体或计算结果校验失败",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "507": {
-            "description": "STORAGE_FAILED：工作区存储故障（磁盘空间或目录权限）",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/runs/compare/report.html": {
-      "get": {
-        "summary": "Compare Report Html",
-        "operationId": "compare_report_html_api_v1_runs_compare_report_html_get",
-        "parameters": [
-          {
-            "name": "a",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "maxLength": 64,
-              "title": "A"
-            }
-          },
-          {
-            "name": "b",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "maxLength": 64,
-              "title": "B"
             }
           }
         ],
@@ -6819,7 +6819,8 @@
               "door_heat",
               "goods_addition",
               "ambient_temperature",
-              "electric_defrost"
+              "electric_defrost",
+              "set_variable"
             ],
             "title": "Type"
           },
@@ -6887,6 +6888,29 @@
               }
             ],
             "title": "Temperature K"
+          },
+          "key": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
           }
         },
         "additionalProperties": false,
@@ -6897,7 +6921,7 @@
           "time_s"
         ],
         "title": "ScheduleEvent",
-        "description": "A load or operation event at a simulation time (cold-store projects; canonical units).\n\ndoor_heat: `heat_w` for `duration_s` [time_s, time_s + duration_s); goods_addition: `mass_kg` frozen goods\nat `temperature_k`, mixed by energy; ambient_temperature: outdoor `temperature_k` from `time_s` on;\nelectric_defrost: start one defrost cycle of the target cooler. `instance_id` may be omitted when the\nproject has exactly one matching device (ambient: every device with an outdoor temperature)."
+        "description": "A load or operation event at a simulation time (cold-store projects; canonical units).\n\ndoor_heat: `heat_w` for `duration_s` [time_s, time_s + duration_s); goods_addition: `mass_kg` frozen goods\nat `temperature_k`, mixed by energy; ambient_temperature: outdoor `temperature_k` from `time_s` on;\nelectric_defrost: start one defrost cycle of the target cooler; set_variable: write `value` to `key`\n(`<instance>.param.<runtime parameter>` or `controller.<id>.setpoint|manual_output`) like a run command.\n`instance_id` may be omitted when the project has exactly one matching device (ambient: every device\nwith an outdoor temperature)."
       },
       "SolverOptions": {
         "properties": {

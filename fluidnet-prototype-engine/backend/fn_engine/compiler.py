@@ -314,8 +314,8 @@ def compile_project(project: Project) -> CompiledNetwork:
             network = compile_cold_store(project)
             check_event_conflicts(network)
             return network
-    if project.events:
-        raise CompilationError('SCHEDULE_UNSUPPORTED', '只有冷库系统（冻结物库房、冷风机、单级机组）执行负荷日程', field='events')
+    if project.events and Domain.refrigerant not in used_domains:
+        raise CompilationError('SCHEDULE_UNSUPPORTED', '只有冷库系统和集总制冷站执行运行日程', field='events')
     if Domain.refrigerant in used_domains:
         from .refrigeration.station import compile_station
         return compile_station(project)
