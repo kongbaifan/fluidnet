@@ -1177,6 +1177,7 @@ function moduleGroupSidebar() {
   </aside>`;
 }
 
+const isReferenceModule = m => m.category === '倍思鹿参考模块';
 function renderModules() {
   const groups = moduleGroupNames();
   if (ui.category !== '全部模块' && !groups.includes(ui.category)) ui.category = '全部模块';
@@ -1185,10 +1186,29 @@ function renderModules() {
   const custom = state.moduleGroups.includes(ui.category), blankGroup = ui.category !== '全部模块' && !members.length;
   return `<div class="page-shell">${heading('模块库', '定义可复用的设备：图形、端口、通路、变量与算法。', btn('nav', '节点定义', 'Waypoints', 'data-route="nodes"') + btn('new-module', '新建模块', 'Plus', '', 'primary'))}
     <div class="split-view">${moduleGroupSidebar()}<div class="module-content">
+      ${ui.category === '倍思鹿参考模块' ? `<div class="notice module-reference-note">${icon('Info')}<span>来自倍思鹿参考实现，L1/L2/L3 验证状态见文档。</span></div>` : ''}
       ${ui.category !== '全部模块' ? `<div class="module-group-context"><div class="grow"><h2>${esc(ui.category)}</h2><small>${custom ? '自建分组' : '内置分类'} · ${members.length} 个模块</small></div>${custom ? btn('rename-module-group', '重命名', 'Pencil', `data-value="${esc(ui.category)}"`, 'small') + btn('delete-module-group', '删除分组', 'Trash2', `data-value="${esc(ui.category)}" ${members.length ? 'disabled title="请先将组内模块移到其他分组"' : ''}`, 'small') : ''}</div>` : ''}
       <div class="filterbar"><label class="search">${icon('Search')}<input data-filter="moduleSearch" aria-label="搜索模块" placeholder="名称或模块标识" value="${esc(ui.moduleSearch)}"></label><span class="push muted">${list.length} 个模块</span><div class="segmented" role="group" aria-label="模块库视图">${[['cards', '卡片视图', 'Grid2X2'], ['list', '紧凑列表', 'List']].map(([value, label, glyph]) => `<button data-action="module-view" data-value="${value}" aria-label="${label}" title="${label}" aria-pressed="${ui.moduleView === value}" class="${ui.moduleView === value ? 'active' : ''}">${icon(glyph)}</button>`).join('')}</div>${btn('compile-preview', '批量检查预览', 'CheckCheck', '', 'small')}</div>
-      <div id="module-results" class="module-grid${ui.moduleView === 'list' ? ' module-compact-list' : ''}">${list.map(m => `<article class="module-card" data-module-id="${m.id}"><div class="row module-card-title"><span class="object-icon">${icon(m.icon)}</span><div class="grow"><h3>${esc(m.name)}</h3><small class="muted mono">${esc(m.code)}</small></div>${badge(m.runtime === 'python' ? (m.publishedManifest ? 'Python · v'+m.publishedManifest.version : 'Python · 未发布') + (m.dirty?' · 有草稿':'') : '内置 · v'+m.version,m.runtime === 'python' ? 'blue' : '')}</div><button class="module-group-chip" data-action="move-module-group" data-id="${m.id}" aria-label="调整 ${esc(m.name)} 的分组" title="调整所属分组">${icon('Folder')}<span>${esc(m.category)}</span>${icon('ChevronDown')}</button><p>${esc(m.description)}</p><div class="stat-line"><span>${m.ports.length} 个端口</span><span>${m.channels.length} 条通路</span><span>${m.variables.length} 个变量</span></div><div class="card-footer">${btn('edit-module', '编辑模块', 'Pencil', `data-id="${m.id}"`, 'small')}${m.runtime === 'python' ? btn('test-module','独立验证','CheckCheck',`data-id="${m.id}"`,'small') + btn('module-example','管网算例','Network',`data-id="${m.id}"`,'small') : ''}<span class="push"></span>${ibtn('insert-module', '插入项目 ' + m.name, 'Plus', `data-id="${m.id}"`)}</div></article>`).join('') || (blankGroup ? empty('分组已建好，添加第一个模块', '可在此分组中新建模块，也可从“全部模块”的模块卡片调整所属分组。', btn('new-module', '在此分组新建模块', 'Plus', '', 'primary')) : empty('没有匹配的模块', '尝试其他分类或关键词。'))}</div>
+      <div id="module-results" class="module-grid${ui.moduleView === 'list' ? ' module-compact-list' : ''}">${list.map(m => `<article class="module-card" data-module-id="${m.id}"><div class="row module-card-title"><span class="object-icon">${icon(m.icon)}</span><div class="grow"><h3>${esc(m.name)}</h3><small class="muted mono">${esc(m.code)}</small></div>${isReferenceModule(m) ? badge('参考模块', 'good') : ''}${badge(m.runtime === 'python' ? (m.publishedManifest ? 'Python · v'+m.publishedManifest.version : 'Python · 未发布') + (m.dirty?' · 有草稿':'') : '内置 · v'+m.version,m.runtime === 'python' ? 'blue' : '')}</div><button class="module-group-chip" data-action="move-module-group" data-id="${m.id}" aria-label="调整 ${esc(m.name)} 的分组" title="调整所属分组">${icon('Folder')}<span>${esc(m.category)}</span>${icon('ChevronDown')}</button><p>${esc(m.description)}</p><div class="stat-line"><span>${(m.parameters || PARAM_DEFS[m.kind] || []).length} 个参数</span><span>${m.ports.length} 个端口</span><span>${m.channels.length} 条通路</span><span>${m.variables.length} 个变量</span></div><div class="card-footer">${isReferenceModule(m) ? btn('module-doc', '说明', 'BookOpen', `data-id="${m.id}"`, 'small') : ''}${btn('edit-module', '编辑模块', 'Pencil', `data-id="${m.id}"`, 'small')}${m.runtime === 'python' ? btn('test-module','独立验证','CheckCheck',`data-id="${m.id}"`,'small') + btn('module-example','管网算例','Network',`data-id="${m.id}"`,'small') : ''}<span class="push"></span>${ibtn('insert-module', '插入项目 ' + m.name, 'Plus', `data-id="${m.id}"`)}</div></article>`).join('') || (blankGroup ? empty('分组已建好，添加第一个模块', '可在此分组中新建模块，也可从“全部模块”的模块卡片调整所属分组。', btn('new-module', '在此分组新建模块', 'Plus', '', 'primary')) : empty('没有匹配的模块', '尝试其他分类或关键词。'))}</div>
     </div></div></div>`;
+}
+
+function openModuleDoc(id) {
+  const m = state.modules.find(item => item.id === id);
+  if (!m) throw Error('模块不存在或已从目录中移除。');
+  const manifest = m.manifest || {};
+  const parameters = m.parameters || [], ports = manifest.ports || m.ports || [];
+  const variables = manifest.variables || [], channels = manifest.channels || m.channels || [];
+  const text = value => value && typeof value === 'object' ? JSON.stringify(value) : String(value ?? '—');
+  const parameterUnit = p => p.unit?.display_unit || p.unit?.canonical_unit || p.value_type || '—';
+  const table = (heads, rows) => `<div class="table-wrap"><table><thead><tr>${heads.map(h => `<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(row => `<tr>${row.map(cell => `<td>${esc(cell)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+  const section = (title, note, heads, rows) => rows.length ? `<section class="module-doc-section"><h3>${esc(title)}<small>${esc(note)}</small></h3>${table(heads, rows)}</section>` : '';
+  const body = `${section('参数', `${parameters.length} 项`, ['id', 'label', '默认值', '单位 / value_type'], parameters.map(p => [p.id, p.label || p.id, text(p.default), parameterUnit(p)]))}
+    ${section('端口', `${ports.length} 个`, ['id', 'label', 'domain', 'direction'], ports.map(p => [p.id, p.label || p.id, p.domain || 'fluid', p.direction || '—']))}
+    ${section('变量', `${variables.length} 个`, ['id', 'label', 'source', '单位'], variables.map(v => [v.id, v.label || v.id, v.source || '—', v.unit?.display_unit || v.unit?.canonical_unit || '—']))}
+    ${section('通路', `${channels.length} 条`, ['id', 'relation', 'solver_model'], channels.map(c => [c.id, c.relation || c.kind || '—', c.solver_model || manifest.solver_model || '—']))}
+    <p class="module-doc-hint">参考模块的映射/验证状态见仓库 docs/MODULE_KIT.md、docs/MAPPING_A.md、docs/MAPPING_C.md、docs/M2_L3_CALIBRATION.md。</p>`;
+  openDialog(`${m.name} · v${m.version} · ${m.category}`, m.description || '参考模块说明', body, null, '', true);
 }
 
 // 画布操作与模块定义共用端口 / 通路，不根据图形猜测内部连接。
@@ -1996,6 +2016,7 @@ function handleAction(action, el) {
     case 'module-versions': engine.versions(mod()); break;
     case 'load-module-version': engine.loadVersion(mod(),Number(d.version)); break;
     case 'edit-module': openEditor(id || state.selectedModule, d.tab || 'drawing'); break;
+    case 'module-doc': openModuleDoc(id); break;
     case 'insert-module': navigate('workbench'); newInstance(id); break;
     case 'place-module': ui.placing = ui.placing === id ? null : id; ui.connecting = null; render(); break;
     case 'insert-defaults': remember(); {

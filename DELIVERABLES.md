@@ -31,6 +31,10 @@
 | `modules/valve_equal_percentage/` | 3 文件 | 等百分比调节阀（ALF/LF 特性，CVF→Kv），对应倍思鹿 V-4 |
 | `docs/M2_L3_CALIBRATION.md` | 279 行 | M2-L3 标定清单：11 条 L3 的现状、倍思鹿侧数据采集清单、验收公式与回填流程 |
 | `tests/test_bsl_calibration.py` | 约 19.7 KB | P-4/V-4/M-4 的 6 项标定/验收测试（本地已通过） |
+| `docs/M3_MODULE_CATALOG_UI.md` | 212 行 | M3：模块目录 UI 数据流、卡片/说明弹窗行为、8 模块清单、测试入口与运维说明 |
+| `tests/test_module_catalog.py` | 97 行 | `/api/v1/modules` 契约测试：8 个参考模块的 category/runtime/端口/参数/变量/双哈希（10 项） |
+| `tests/browser-module-catalog.mjs` | 约 4.1 KB | 浏览器回归：分类计数、8 张卡片、图标、说明弹窗、pageerror（已加入 `test:browser` 链） |
+| `frontend/{engine-client,studio}.js` + `index.html` | 少量 | 参考模块图标、卡片“参考模块”徽章/参数数/说明按钮、只读说明弹窗、分类提示条 |
 | `examples/control_templates/comparator.py` | — | 比较器控制模板（双阈值 + 回差） |
 | `examples/control_templates/fan_coil_thermostat.py` | — | 风机盘管温控模板（三速 + 比例阀位 + 死区） |
 | `tests/test_bsl_modules.py` | 304 行 | P0 批次 7 项回归 |
@@ -69,10 +73,19 @@ python -m pytest tests/test_bsl_integration.py -q
 python -m pytest tests/test_bsl_calibration.py -q
 6 passed
 
-# 本机合计 36 项（21 单元 + 9 集成 + 6 标定）
+python -m pytest tests/test_module_catalog.py -q
+10 passed
+
+# 本机合计 46 项（21 单元 + 9 集成 + 6 标定 + 10 目录契约）
 
 python -m ruff check backend tests scripts modules examples/control_templates
 All checks passed!
+
+npm run check
+# 前端 5 个 JS 语法检查通过
+
+PYTHONPATH=backend node tests/browser-module-catalog.mjs
+# 分类计数 8、8 张卡片、说明弹窗、pageerror=[]，exit 0
 
 python scripts/extract_baselu_cases.py --out <目录>          # 10 个 fixture，连跑两次 SHA 一致
 python scripts/extract_nh3co2zl_parameters.py --out <目录>  # 222 对象，连跑两次 SHA 一致
@@ -101,6 +114,11 @@ python scripts/extract_nh3co2zl_parameters.py --out <目录>  # 222 对象，连
   - 已执行：**P-4** 管道动态热容（`thermal_cells=4` + 壁面热容，动态逼近稳态）、**V-4** 等百分比阀（新增 `modules/valve_equal_percentage`，复刻 `CVF=(ALF^(o−1)+LF)/(1+LF)−1/ALF`，50% 开度流量比≈0.09 对照线性 0.5）、**M-4** 泵曲线单位（MPa/bar 两种假设的工作点对比，单位待倍思鹿一次运行判定）。
   - 待数据：C-4、E-4、EC-4、V-4(罐体液位)、V-7、IC-4、R-4、TX-4，必须跑倍思鹿导出指定变量后回填，不得用快照假装通过。
   - 测试：`tests/test_bsl_calibration.py` 6 项，本地通过。
+- **M3 模块目录 UI（本轮新增）**：
+  - 8 个参考模块由 `/api/v1/modules` 自动发现并渲染进模块库：分类「倍思鹿参考模块」、卡片显示版本/参数/端口/通路/变量数、「参考模块」徽章与「说明」按钮；说明弹窗展示参数/端口/变量/通路四表与文档路径提示（只读）。
+  - 前端补齐了参考模块图标映射与分类提示条；未改引擎/后端接口。
+  - 测试：`tests/test_module_catalog.py` 10 项（API 契约）+ `tests/browser-module-catalog.mjs`（分类计数 8、8 卡片、说明弹窗、pageerror 为空，已加入 `test:browser` 链）。
+  - 本机验证：浏览器测试实测通过（npm ci + Edge headless），截图 `artifacts/module-catalog.png`。
 
 ## 4. CI / CD（本次新增）
 
@@ -110,6 +128,7 @@ python scripts/extract_nh3co2zl_parameters.py --out <目录>  # 222 对象，连
   - `package` job 在门禁通过后上传 artifact `bsl-module-kit`（modules + templates + docs + tests + fixtures）。
 - **`.github/workflows/ci.yml`**：ruff 范围扩展为 `backend tests scripts modules examples/control_templates`，主 backend job 的全量 pytest 会自动收集新增测试。
 - **触发策略**：feature 分支只由 `pull_request` 事件运行，`push` 仅 `master`，避免同一提交产生重复运行；两个 workflow 都配置 `concurrency`（同分支取消旧运行），防止 `cancelled` 检查影响 PR 合并状态。
+- **前端门禁**：`test:browser` 链新增 `tests/browser-module-catalog.mjs`，`ci.yml` frontend job 会随现有 13 个浏览器脚本一起执行；`npm run check` 覆盖 5 个前端 JS 文件。
 
 未在本机运行倍思鹿 exe；L3 的可执行部分（P-4/V-4/M-4）已在本地跑通，待数据项由全量 `ci` backend job 登记、回填后再转为断言。
 
@@ -125,6 +144,7 @@ python scripts/extract_nh3co2zl_parameters.py --out <目录>  # 222 对象，连
 | `pump_variable_speed` | 模块 | 变速相似律、效率/电能账本 | 2 |
 | `capillary_tube` | 模块 | 单相细长管阻力、流速、累计质量；两相明确不支持 | 5 |
 | `valve_equal_percentage` | 模块 | 等百分比特性（ALF/LF，CVF→Kv），50% 开度≈9% Kv；对应 V-4 | 6（含 P-4/M-4 标定） |
+| 模块目录 UI | 前端 | 参考模块分类、卡片徽章/参数数、说明弹窗、图标映射 | 10 API + 1 浏览器 |
 | `comparator` / `fan_coil_thermostat` | 控制模板 | 回差比较；三速分级 + 比例阀位 + 死区 | 2 |
 
 ## 6. 设计决策与平台依赖
@@ -151,7 +171,11 @@ cd fluidnet-prototype-engine
 python -m pytest tests/test_bsl_modules.py tests/test_bsl_modules_p1.py tests/test_bsl_modules_p2.py tests/test_control_templates.py -q
 python -m pytest tests/test_bsl_integration.py -q
 python -m pytest tests/test_bsl_calibration.py -q
+python -m pytest tests/test_module_catalog.py -q
 python -m ruff check backend tests scripts modules examples/control_templates
+npm run check
+# 浏览器测试（需 playwright + Edge）：
+$env:PYTHONPATH='backend'; node tests/browser-module-catalog.mjs
 python scripts/extract_baselu_cases.py --out tests/fixtures/baselu
 python scripts/extract_nh3co2zl_parameters.py --out tests/fixtures/nh3co2zl
 ```

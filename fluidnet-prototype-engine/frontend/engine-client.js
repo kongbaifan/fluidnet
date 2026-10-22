@@ -127,6 +127,8 @@ window.createEngineClient = function (ui) {
     return [spec.id, spec.label, display, minimum, maximum, step, toDisplay(spec.default)];
   }
   function moduleFromManifest(manifest) {
+    // Catalog icons come from studio.js ICONS; unknown ids intentionally fall back to Box.
+    const icon = {pipe_fitting:'GitBranch',check_valve:'ArrowRightLeft',fan_coil_unit:'Wind',cooling_tower:'Sun',fan:'Wind',pump_variable_speed:'Gauge',capillary_tube:'Minus',valve_equal_percentage:'SlidersHorizontal'}[manifest.id] || 'Box';
     const parameterDefs = (manifest.parameters || []).filter(p => p.value_type === 'number').map(manifestParamDef);
     const ports = (manifest.ports || []).map((p, index) => ({
       id:p.id, name:p.id.toUpperCase(), label:p.label || p.id, direction:p.direction === 'bidirectional' ? (index ? 'out' : 'in') : p.direction,
@@ -151,7 +153,7 @@ window.createEngineClient = function (ui) {
     }
     for (const v of variables) v.note ||= v.label;
     const values = Object.fromEntries(variables.map(v => [v.id,clone(v.value)]));
-    const m = {id:manifest.id,kind:manifest.id,name:manifest.name,code:manifest.id.toUpperCase(),category:manifest.category || '自定义模块',icon:'Box',description:manifest.description || '',version:manifest.version || 1,
+    const m = {id:manifest.id,kind:manifest.id,name:manifest.name,code:manifest.id.toUpperCase(),category:manifest.category || '自定义模块',icon,description:manifest.description || '',version:manifest.version || 1,
       runtime:manifest.runtime || 'python',entrypoint:manifest.entrypoint || '',contentHash:manifest.content_hash || '',packagePath:manifest.package_path || '',manifest,
       ports,channels:(manifest.channels || []).map(c => ({id:c.id,name:c.name,input:c.input_port,output:c.output_port,kind:c.relation,enabled:c.enabled !== false})),
       parameters:manifest.parameters || [],parameterDefs,variables,customVars:[],quickParam:parameterDefs[0]?.[0] || '',quickType:'number',drawing:{shape:'rectangle',width:32,height:30,label:manifest.name},step:100,precision:4,dirty:false,
