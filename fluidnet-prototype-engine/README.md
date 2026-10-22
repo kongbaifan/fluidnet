@@ -110,6 +110,7 @@ python -m fn_engine serve --host 0.0.0.0 --port 8798 --cors-origin http://twin.l
 | PID 控制 | 「控制」页配置反馈变量与执行参数；采样 PID，限幅、条件积分抗饱和、测量值微分、手自动无扰切换；运行中可改设定值与手自动；内置液位、温控两个示例 |
 | 冷库案例 A | 项目页「−18°C 冷库案例」一键创建冻结物库房 + 冷风机 + 单级 R290 机组（执行域 `cold_store`）：库房/货物两个热节点隐式推进，蒸发/冷凝温度与冷风机、室外温度联立求解；最小开/停机时间、回差温控与 PI 变容量、开门/入库/室外温度/电融霜日程；8 个预置工况（A-S01～A-S07，A-S05 分两种控制）、机组工作点验证台、HTML 运行报告、CSV 与两次运行对照（含公平性检查）。A1 理想冷源项目保持原执行域。不计管路压降、制冷剂存量、冻结潜热与结霜 |
 | 冷库案例 B | 项目页「NH₃/CO₂ 冷库案例」一键创建两库房集总制冷站（4 台 NH₃ 压缩机、蒸发式冷凝器、贮液器、节流阀、低压桶、复叠换热器、CO₂ 液泵与冷风机）：五闭环 + 上层启停（5 个 PID + Python 脚本），只需目标蒸发/冷凝压力即可自运行；4 个验收工况（额定、负荷阶跃、改目标压力、湿球变化）、需求满足度与能耗、运行报告与 CSV。不含双级、乙二醇、融霜，不计管路压降与持液 |
+| 倍思鹿参考模块 | 8 个 Python 模块包（管件、止回阀、风机盘管、冷却塔、风机、变速泵、毛细管、等百分比阀）+ 2 个控制脚本模板；模块库「倍思鹿参考模块」分类、参数/端口/变量/通路说明弹窗；34 模块映射矩阵、L3 集成/标定测试与参考算例快照 |
 | 关阀隔离 | 运行中两端关阀隔离的被动管段保持压力、零流量，重新开阀后继续；含泵或 Python 模块的隔离段报错 |
 | 设计函数 | Python 模块可选 `design.py`：在模块编辑器「变量值」页对所选库值执行，Worker 计算派生参数并按契约校验，确认后写回库值；随版本保存。内置模型的三组设计函数文本仍只预览；项目设备浮窗暂不提供 |
 | 加热器、止回阀、物性扩展 | 保留原型编辑入口；进入当前求解器时明确拒绝 |
@@ -144,30 +145,35 @@ PID 示例：打开「控制」页，点击“液位示例”或“温控示例�
 frontend/             原型前端、计算适配器、基线说明
 backend/fn_engine/    数据模型、模块目录、归一化、编译器、求解器、API、CLI
 contracts/            自动生成的 JSON Schema/OpenAPI 和完整参考算例
-scripts/              合同生成工具
+scripts/              合同生成工具与倍思鹿数据提取脚本
 tests/                物理/合同/API 回归测试和浏览器端到端验证
 cases/                按案例组织的开发计划、输入数据、独立参考与进度记录
-docs/                架构、字段、算法和接口说明
+modules/              倍思鹿参考 Python 模块包
+examples/             项目控制脚本模板
+docs/                架构、字段、算法、接口、模块套件与发布说明
 ```
 
 - [架构与扩展边界](docs/ARCHITECTURE.md)
 - [数据合同与变量定义](docs/DATA_CONTRACT.md)
 - [算法、假设与后续状态方程](docs/ALGORITHM.md)
 - [冷库案例与开发计划：−18°C 单库房 → NH₃/CO₂ 系统](cases/cold-storage/README.md)
+- [NH₃/CO₂ 集总制冷站案例（B 版）](cases/cold-storage/nh3-co2/README.md)
+- [模块开发套件](docs/MODULE_KIT.md)、[倍思鹿模块映射矩阵](docs/BSL_MODULE_MAP.md)
 - [API 请求与返回](docs/API.md)
+- [版本发布说明](docs/RELEASE_NOTES.md)
 - [试用版验收记录](docs/TRIAL_ACCEPTANCE.md)
 - [原型适配说明](frontend/BACKEND_INTEGRATION.md)
 
 ## 验证
 
 ```powershell
-python -m pytest -q --cov=fn_engine     # 390 项；覆盖率 88.7%，门禁 85%
-python -m ruff check backend tests scripts
+python -m pytest -q --cov=fn_engine     # 532 项；覆盖率 90.77%，门禁 85%
+python -m ruff check backend tests scripts modules examples/control_templates
 python -m mypy                          # advisory：当前 40 个已知错误，不阻塞 CI
 python scripts/generate_contracts.py --check
 ```
 
-浏览器验证使用 Node 和 Playwright；`npm run test:browser` 依次运行 12 个脚本（含旧存档迁移与冷库 A1），各脚本使用临时端口与隔离的模块/工作区目录，无需预先启动服务：
+浏览器验证使用 Node 和 Playwright；`npm run test:browser` 依次运行 14 个脚本（含旧存档迁移、冷库 A/B 案例与模块目录 UI），各脚本使用临时端口与隔离的模块/工作区目录，无需预先启动服务：
 
 ```powershell
 npm install
@@ -175,6 +181,8 @@ npm run test:browser
 ```
 
 Windows 测试使用本机 Edge 的无头模式。验证真实页面加载、连接检查、求解、修改开度、应用、曲线值、保存和刷新。`browser-authoring.mjs` 另外启动临时端口和隔离存储，覆盖新建模块、参数/输出编辑、校验失败、版本保存、旧项目隔离与服务重启复现，不向用户模块目录写入测试版本。截图写入忽略提交的 `artifacts/`，包括 `module-authoring.png`。仅在明确更新原型基线时执行 `node tests/browser-smoke.mjs --refresh-fixture`。
+
+冷库与倍思鹿专项：`cases/cold-storage/` 下的 A 版（A0–A6）与 B 版（B0–B3）分别有独立参考、账本、场景验收与浏览器脚本（`browser-cold-storage.mjs`、`browser-cold-storage-station.mjs`）；模块套件测试包括 `test_bsl_modules*.py`、`test_bsl_integration.py`、`test_bsl_calibration.py`、`test_module_catalog.py` 与 `browser-module-catalog.mjs`，由 `.github/workflows/bsl-modules.yml` 快速门禁和主 `ci.yml` 全量门禁分别覆盖。
 
 当前测试包含单位双向转换、Kv 解析解、管道层流压降、粗糙度影响、节点流量守恒、关阀、反向流、未收敛、断开子网络、冲突压力边界、不支持模型、双侧换热器、API 错误响应、工况覆盖和采样上限。热力测试（`test_thermal.py`）覆盖节点混合、等焓、管道散热解析解、泵温升、ε–NTU（含 C_r=1）、单侧无流量、反向流、停滞节点、闭合回路参考热量、全网能量平衡、reference 模式水力基准、thermal 关闭、node 耦合、Python 模块 heat_w 与相态拒绝、动态热启动、边界温度冲突，以及与归档 v0.2 内核的换热器对照；物性测试（`test_properties.py`）覆盖 PT/PH 往返、两相干度、相态策略与多线程查询；介质测试（`test_media.py`）覆盖乙二醇溶液 −10 °C 回路、液氨 −30 °C 边界、按工质的温度/相态范围、等熵与饱和查询、模块内 `state_ps`、工质字符串错误码与湿空气；历史测试（`test_history.py`）覆盖 2001 帧瘦身体积、关键帧、与完整历史逐帧一致、模块状态保留和取消后的部分帧；状态测试（`test_states.py`）覆盖水箱初始状态一致性、线性 ODE 的隐式 Euler 递推与一阶收敛、质量与能量账本、进水混合、加热与散热、只靠水箱定压的闭合回路、排空与满箱事件、子步减半不留痕迹、热力层关闭和编译期拒绝，以及管道热容的 N 段串联稳态解与一阶收敛、输入不变时保持稳态、停流管段的冷却递推、进水升温的延迟与储热账本、反向流和非法分段数。PID 测试（`test_pid.py`）覆盖抗饱和、纯比例静差的解析平衡点、PI 无静差、非 runtime 目标与越界限幅、受控参数拒绝手工写入与手动切换、失败子步不推进控制器；持续运行测试（`test_continuous.py`）覆盖同步运行帧数限制、长后台运行的窗口与全程抽稀、持续运行直到停止、窗口内 trend 关键帧、会话帧数有界且时刻不漂移；会话测试（`test_live.py`）覆盖暂停会话释放计算线程、单步保持 Worker 状态、`set` 幂等与冲突、实时节奏与暂停不过期、温控 PID、隔离管段保压与重连；接口与认证测试（`test_access.py`）覆盖变量读取、批量写入的全有或全无与单一修订号、推送与结束消息、未知运行和变量、令牌分级与撤销、WebSocket 的请求头和子协议令牌、CORS 预检、令牌文件只存哈希、不安全启动配置被拒绝和令牌命令行；多工质测试（`test_multifluid.py`）覆盖换热器两侧各用各的物性并与 ε–NTU 对照、按回路检查边界范围、两种耦合模式下的分回路水力、与项目工质相同时结果不变、盐水回路中的水箱、同回路冲突与关阀不分回路、锚点和工质错误、跨两回路的 Python 模块（含批量 Worker）、检查接口返回回路和原型归一化；REFPROP 测试（`test_refprop.py`，未安装时跳过）覆盖未安装提示、纯质与 HEOS 对照、非共沸混合物滑移与相态、质量/摩尔基准、无输运方程的混合物、错误写法、R134a 管网对照、多线程交替查询和版本不匹配不崩溃；规模测试（`test_scaling.py`）覆盖稀疏与稠密一致、批量 Worker 下实例状态独立。浏览器 `browser-pid.mjs` 覆盖 PID 示例运行与控制面板，`browser-continuous.mjs` 覆盖持续运行开关、全程曲线和停止，`browser-multifluid.mjs` 覆盖给换热机组二次侧设乙二醇、按回路着色和两侧密度，`browser-auth.mjs` 覆盖带令牌启动的服务、令牌输入与错误重输、「对接」页带令牌读取当前运行。平台契约测试另外覆盖 CoolProp 水/空气状态、版本化可编程阀门 Worker、`evaluate` 关系进入网络求解器、模块默认值、后台运行事件、独立进程 ID、嵌套状态隔离、超时终止、失败清理、末步 dt、真实累计质量、通路缺失诊断及前端保存/刷新/拖放。
 

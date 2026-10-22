@@ -1,6 +1,6 @@
 # P1 模块详细设计：cooling_tower / fan / pump_variable_speed
 
-> 适用 `fluidnet-prototype-engine` 0.4.10，`schema_version = 1`。合同唯一来源是 `backend/fn_engine/models.py`（Pydantic v2），本文与之冲突时以模型为准。
+> 适用 `fluidnet-prototype-engine` 0.5.0，`schema_version = 1`。合同唯一来源是 `backend/fn_engine/models.py`（Pydantic v2），本文与之冲突时以模型为准。
 > 本文只定义三个 Python 模块包的**行为与接口**；实现落在 `modules/<id>/{manifest.json,module.py,README.md}`，`design.py` 本批不需要。
 > 前置阅读：`docs/MODULE_KIT.md`（下称 KIT）、`docs/MODULES_P0.md`（下称 P0）、`modules/programmable_valve/*`、`modules/fan_coil_unit/*`。
 > 表头约定：`canonical → display（scale / offset）`；参数默认值、上下限、模块内拿到的值**一律 canonical**。

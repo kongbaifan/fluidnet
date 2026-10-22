@@ -1,6 +1,6 @@
 # 模块开发套件 v1
 
-> 适用 `fluidnet-prototype-engine` 0.4.10，`schema_version = 1`（`backend/fn_engine/__init__.py:1`）。合同唯一来源是 `backend/fn_engine/models.py` 的 Pydantic v2 模型；本文件是施工手册，冲突时以模型为准。
+> 适用 `fluidnet-prototype-engine` 0.5.0，`schema_version = 1`（`backend/fn_engine/__init__.py:1`）。合同唯一来源是 `backend/fn_engine/models.py` 的 Pydantic v2 模型；本文件是施工手册，冲突时以模型为准。
 > 核对基准：`docs/DATA_CONTRACT.md`、`docs/ARCHITECTURE.md`、`modules/programmable_valve/*`、`backend/fn_engine/{runtime,models,packages,compiler,solver,thermal,bench,worker,bridge,module_validation,design}.py`、`tests/test_module_versions.py`、`tests/test_platform_contracts.py`。
 
 ## 1. 目的与适用范围

@@ -4,8 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fluidnet-prototype-engine"
-version = "0.4.10"
+version = "0.5.0"
 description = "Prototype-aligned declarative fluid network engine"
+license = {text = "MIT"}
 requires-python = ">=3.11"
 # 运行依赖全部锁定到本机实测版本，避免本机/CI 解析出不同小版本导致行为漂移。
 # 实测环境：Windows + CPython 3.11.0。
@@ -34,11 +35,11 @@ source = ["fn_engine"]
 branch = false
 
 [tool.coverage.report]
-# 覆盖率基线（2026-10-18，`python -m pytest --cov=fn_engine`，374 passed）：
-#   - 引入门禁时（并行改动前）：TOTAL 88%（5336 statements / 637 missed）
-#   - 并行任务合入后最终验证：TOTAL 88.50%（5759 statements / 662 missed）
-# 冷库 A1（2026-10-20）：390 passed，TOTAL 88.7%（6011 statements）。
-# floor 取 85%，略低于基线约 3.5 个百分点，防止后续改动回退；未覆盖行由 term-missing 持续跟踪。
+# 覆盖率基线（`python -m pytest --cov=fn_engine`）：
+#  2026-10-18（引入门禁）：374 passed，TOTAL 88.50%
+#  2026-10-20（冷库 A1）：390 passed，TOTAL 88.7%
+#  2026-10-22（v0.5.0，A/B 案例 + 模块套件）：532 passed，TOTAL 90.77%（7617 statements / 703 missed）
+# floor 取 85%，低于当前基线约 5.8 个百分点，防止后续改动回退；未覆盖行由 term-missing 持续跟踪。
 show_missing = true
 skip_covered = false
 fail_under = 85

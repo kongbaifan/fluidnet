@@ -1,6 +1,6 @@
 # FluidNet 与倍思鹿的当前差异
 
-> 2026-10-20 补充：本文保留 2026-10-15（v0.4.6 基线）的能力级对照；针对 NH₃/CO₂ 冷库案例的拓扑、控制架构、模型简化与证据分级，见 [倍思鹿案例拆解](../cases/cold-storage/nh3-co2/BASELU_CASE.md)，案例执行计划见 [B 版执行计划](../cases/cold-storage/nh3-co2/EXECUTION_PLAN.md)（同日已按原文深度收缩为集总制冷站 + 五闭环/上层控制）。本文未重新执行对照，也未更新 A1 之后的代码状态。
+> 2026-10-22 补充：v0.5.0 已发布，冷库 A/B 案例与倍思鹿模块套件 v1 完成；本文仍保留 2026-10-15（v0.4.6 基线）的能力级对照，未重新执行对照。案例级拆解见 [倍思鹿案例拆解](../cases/cold-storage/nh3-co2/BASELU_CASE.md)，B 版执行计划见 [B 版执行计划](../cases/cold-storage/nh3-co2/EXECUTION_PLAN.md)（已按原文深度收缩为集总制冷站 + 五闭环/上层控制），模块落点见 [BSL_MODULE_MAP](BSL_MODULE_MAP.md)。当前版本状态与发布说明见 [RELEASE_NOTES](RELEASE_NOTES.md)。
 
 核对日期：2026-10-15。FluidNet 基线：`fluidnet-prototype-engine` v0.4.6，最新提交 `2301796`。本次计入 Python 项目控制、SQLite 保存与运行归档、备份恢复、独立项目修订、模块升级预览与回退、工况编辑和结果对照。
 

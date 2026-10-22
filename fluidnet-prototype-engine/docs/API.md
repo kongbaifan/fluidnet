@@ -6,7 +6,7 @@
 
 | 方法与路径 | 请求 | 返回模型与内容 | 错误响应（`detail.code`） |
 | --- | --- | --- | --- |
-| GET /api/v1/health | 无 | `HealthResponse`：版本（0.4.10）、`supported_domains`（`fluid`、`thermal`）、能力标志（含 `thermal`、`property_coupling`、`tank_state`、`live_runs`、`pid`、`runtime_parameters`、`continuous_step`、`continuous_runs`、`variables_api`、`run_stream`、`python_controls`、`persistent_workspace`、`cold_room_ideal_source`，以及 `refprop: {installed,source,path,version}`）、`auth.required`、同步运行 2001 帧上限、`history_window_max`、`overview_points`、20 次记录保留数 | 500 `INTERNAL_ERROR`（health 不受令牌限制） |
+| GET /api/v1/health | 无 | `HealthResponse`：版本（0.5.0）、`supported_domains`（`fluid`、`thermal`）、能力标志（含 `thermal`、`property_coupling`、`tank_state`、`live_runs`、`pid`、`runtime_parameters`、`continuous_step`、`continuous_runs`、`variables_api`、`run_stream`、`python_controls`、`persistent_workspace`、`cold_room_ideal_source`，以及 `refprop: {installed,source,path,version}`）、`auth.required`、同步运行 2001 帧上限、`history_window_max`、`overview_points`、20 次记录保留数 | 500 `INTERNAL_ERROR`（health 不受令牌限制） |
 | GET /api/v1/examples/{name} | `level`、`temperature` 或 `cold-storage` | `Project`：内置 PID 示例，或冷库 A1 库房 + 理想冷源示例 Project | 404（未知示例）；401/403 |
 | GET /api/v1/workspace | 可选 revision | `WorkspaceResponse`：完整原型工作区、revision、saved_at、project_revisions；未保存时 data=null | 404（修订不存在）、503（持久存储未启用）、507 `STORAGE_FAILED`；401/403 |
 | POST /api/v1/workspace | data、expected_revision | `WorkspaceSaveResponse`：已落盘修订、时间与项目修订映射 | 409 `WORKSPACE_CONFLICT`、503、507 `STORAGE_FAILED`；401/403 |
@@ -42,7 +42,7 @@
 
 `GET /api/v1/health` 的 `capabilities.refprop` 为 `{"installed": bool, "source": "env" | "bundled" | "system" | null, "path": str | null, "version": str | null}`，向后兼容原来的 `installed` 布尔。`source` 表示 REFPROP 目录的发现方式：`env` 为环境变量 `FLUIDNET_REFPROP_PATH`，`bundled` 为捆绑候选（项目根、仓库根、当前工作目录或 `sys.executable` 所在目录下的 `vendor/refprop9.1`、`refprop9.1`、`refprop`、`NISTRefprop9.1`），`system` 为 Windows 默认安装目录 `C:\Program Files (x86)\REFPROP`；`path` 为实际生效目录，未检测到时两者为 `null`。`version` 优先取该目录 `refprop-manifest.json` 的 `version`，清单缺失或损坏时为 `null`，不影响 `installed`。详见 [内置 REFPROP 9.1](REFPROP_BUNDLE.md)。
 
-## 错误响应与错误码（v0.4.10）
+## 错误响应与错误码（v0.4.10 起）
 
 所有 HTTP 错误仍保持 FastAPI 的 `{"detail": …}` 包络，运行时响应体与状态码语义未变；OpenAPI 只是把错误路径文档化（`contracts/openapi.json` 中每个错误状态都引用 `ErrorResponse`）：
 

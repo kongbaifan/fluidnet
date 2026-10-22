@@ -1,6 +1,6 @@
 # P2 模块详细设计：capillary_tube + 控制脚本模板（comparator / fan_coil_thermostat）
 
-> 适用 `fluidnet-prototype-engine` 0.4.10，`schema_version = 1`。合同唯一来源是 `backend/fn_engine/models.py`（Pydantic v2），本文与之冲突时以模型为准。
+> 适用 `fluidnet-prototype-engine` 0.5.0，`schema_version = 1`。合同唯一来源是 `backend/fn_engine/models.py`（Pydantic v2），本文与之冲突时以模型为准。
 > 本批是「1 个单相近似模块 + 2 个项目控制脚本模板」：模块落在 `modules/capillary_tube/{manifest.json,module.py,README.md}`，模板落在 `examples/control_templates/{comparator,fan_coil_thermostat}.py`。
 > 前置阅读：`docs/MODULE_KIT.md`（下称 KIT）、`docs/MODULES_P0.md`（P0）、`docs/MODULES_P1.md`（P1）、`backend/fn_engine/control.py`。
 > 表头约定：`canonical → display（scale / offset）`；参数默认值、上下限、模块内拿到的值**一律 canonical**。
