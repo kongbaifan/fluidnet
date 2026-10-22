@@ -1,0 +1,116 @@
+{
+  "schema_version": 1,
+  "id": "pipe_fitting",
+  "name": "管道管件",
+  "version": 1,
+  "category": "倍思鹿参考模块",
+  "description": "按局部阻力系数 K 换算阀门等效 Kv 的管件参考模块，并累计通过质量。",
+  "entrypoint": "module:Module",
+  "ports": [
+    {
+      "id": "in0",
+      "label": "入口",
+      "domain": "fluid",
+      "direction": "in",
+      "required": true,
+      "circuit": "fluid"
+    },
+    {
+      "id": "out0",
+      "label": "出口",
+      "domain": "fluid",
+      "direction": "out",
+      "required": true,
+      "circuit": "fluid"
+    }
+  ],
+  "parameters": [
+    {
+      "id": "fitting_type",
+      "label": "管件类型",
+      "value_type": "text",
+      "default": "elbow_90"
+    },
+    {
+      "id": "loss_coefficient",
+      "label": "局部阻力系数 K（custom 时使用）",
+      "value_type": "number",
+      "default": 0.9,
+      "minimum": 0.0,
+      "maximum": 100.0
+    },
+    {
+      "id": "diameter_m",
+      "label": "管道内径",
+      "value_type": "number",
+      "default": 0.05,
+      "minimum": 0.0001,
+      "unit": {
+        "quantity": "length",
+        "canonical_unit": "m",
+        "display_unit": "mm",
+        "display_scale": 0.001
+      }
+    },
+    {
+      "id": "density_kg_m3",
+      "label": "参考密度",
+      "value_type": "number",
+      "default": 998.2,
+      "minimum": 1.0,
+      "unit": {
+        "quantity": "density",
+        "canonical_unit": "kg/m³",
+        "display_unit": "kg/m³"
+      }
+    }
+  ],
+  "variables": [
+    {
+      "id": "loss_coefficient",
+      "label": "有效局部阻力系数 K",
+      "quantity": "ratio",
+      "source": "derived",
+      "unit": {
+        "quantity": "ratio",
+        "canonical_unit": "1",
+        "display_unit": "1"
+      }
+    },
+    {
+      "id": "velocity_m_s",
+      "label": "管内流速",
+      "quantity": "velocity",
+      "source": "derived",
+      "unit": {
+        "quantity": "velocity",
+        "canonical_unit": "m/s",
+        "display_unit": "m/s"
+      }
+    },
+    {
+      "id": "state.throughput_kg",
+      "label": "累计通过质量",
+      "quantity": "mass",
+      "source": "state",
+      "unit": {
+        "quantity": "mass",
+        "canonical_unit": "kg",
+        "display_unit": "kg"
+      }
+    }
+  ],
+  "channels": [
+    {
+      "id": "main",
+      "name": "主通路",
+      "input_port": "in0",
+      "output_port": "out0",
+      "relation": "resistance",
+      "solver_model": "valve",
+      "enabled": true
+    }
+  ],
+  "solver_model": "generic",
+  "source_format": "python-v1"
+}
