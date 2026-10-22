@@ -1,0 +1,254 @@
+{
+  "schema_version": 1,
+  "id": "fan_coil_unit",
+  "name": "风机盘管机组",
+  "version": 1,
+  "category": "倍思鹿参考模块",
+  "description": "ε-NTU 空气-水换热的风机盘管参考模块：注册水路管道关系并输出换热量、出风温度与效能。",
+  "entrypoint": "module:Module",
+  "ports": [
+    {
+      "id": "in0",
+      "label": "入口",
+      "domain": "fluid",
+      "direction": "in",
+      "required": true,
+      "circuit": "fluid"
+    },
+    {
+      "id": "out0",
+      "label": "出口",
+      "domain": "fluid",
+      "direction": "out",
+      "required": true,
+      "circuit": "fluid"
+    }
+  ],
+  "parameters": [
+    {
+      "id": "ua_w_k",
+      "label": "传热能力 UA",
+      "value_type": "number",
+      "default": 2000.0,
+      "minimum": 0.0,
+      "unit": {
+        "quantity": "conductance",
+        "canonical_unit": "W/K",
+        "display_unit": "kW/K",
+        "display_scale": 0.001
+      }
+    },
+    {
+      "id": "water_side_diameter_m",
+      "label": "水路内径",
+      "value_type": "number",
+      "default": 0.02,
+      "minimum": 0.0001,
+      "unit": {
+        "quantity": "length",
+        "canonical_unit": "m",
+        "display_unit": "mm",
+        "display_scale": 0.001
+      }
+    },
+    {
+      "id": "water_side_length_m",
+      "label": "水路长度",
+      "value_type": "number",
+      "default": 5.0,
+      "minimum": 0.0,
+      "unit": {
+        "quantity": "length",
+        "canonical_unit": "m",
+        "display_unit": "m"
+      }
+    },
+    {
+      "id": "roughness_m",
+      "label": "水路绝对粗糙度",
+      "value_type": "number",
+      "default": 1.5e-06,
+      "minimum": 0.0,
+      "unit": {
+        "quantity": "length",
+        "canonical_unit": "m",
+        "display_unit": "mm",
+        "display_scale": 0.001
+      }
+    },
+    {
+      "id": "air_flow_m3_s",
+      "label": "风量",
+      "value_type": "number",
+      "default": 0.2,
+      "minimum": 0.0,
+      "unit": {
+        "quantity": "volume_flow",
+        "canonical_unit": "m³/s",
+        "display_unit": "m³/s"
+      }
+    },
+    {
+      "id": "air_inlet_temperature_k",
+      "label": "进风温度",
+      "value_type": "number",
+      "default": 300.15,
+      "minimum": 1.0,
+      "unit": {
+        "quantity": "temperature",
+        "canonical_unit": "K",
+        "display_unit": "°C",
+        "display_offset": -273.15
+      }
+    },
+    {
+      "id": "air_inlet_relative_humidity",
+      "label": "进风相对湿度",
+      "value_type": "number",
+      "default": 0.5,
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "unit": {
+        "quantity": "ratio",
+        "canonical_unit": "1",
+        "display_unit": "%",
+        "display_scale": 0.01
+      }
+    },
+    {
+      "id": "air_density_kg_m3",
+      "label": "空气密度",
+      "value_type": "number",
+      "default": 1.2,
+      "minimum": 0.01,
+      "unit": {
+        "quantity": "density",
+        "canonical_unit": "kg/m³",
+        "display_unit": "kg/m³"
+      }
+    },
+    {
+      "id": "air_cp_j_kg_k",
+      "label": "空气定压比热",
+      "value_type": "number",
+      "default": 1006.0,
+      "minimum": 100.0,
+      "unit": {
+        "quantity": "specific_heat",
+        "canonical_unit": "J/(kg·K)",
+        "display_unit": "J/(kg·K)"
+      }
+    },
+    {
+      "id": "water_cp_j_kg_k",
+      "label": "水定压比热",
+      "value_type": "number",
+      "default": 4180.0,
+      "minimum": 100.0,
+      "unit": {
+        "quantity": "specific_heat",
+        "canonical_unit": "J/(kg·K)",
+        "display_unit": "J/(kg·K)"
+      }
+    },
+    {
+      "id": "water_inlet_temperature_k",
+      "label": "进水温度",
+      "value_type": "number",
+      "default": 285.15,
+      "minimum": 1.0,
+      "unit": {
+        "quantity": "temperature",
+        "canonical_unit": "K",
+        "display_unit": "°C",
+        "display_offset": -273.15
+      }
+    },
+    {
+      "id": "density_kg_m3",
+      "label": "水参考密度",
+      "value_type": "number",
+      "default": 998.2,
+      "minimum": 1.0,
+      "unit": {
+        "quantity": "density",
+        "canonical_unit": "kg/m³",
+        "display_unit": "kg/m³"
+      }
+    },
+    {
+      "id": "viscosity_pa_s",
+      "label": "水动力黏度",
+      "value_type": "number",
+      "default": 0.001,
+      "minimum": 0.0,
+      "unit": {
+        "quantity": "dynamic_viscosity",
+        "canonical_unit": "Pa·s",
+        "display_unit": "mPa·s",
+        "display_scale": 0.001
+      }
+    }
+  ],
+  "variables": [
+    {
+      "id": "heat_flow_w",
+      "label": "水侧换热量（正=水吸热）",
+      "quantity": "power",
+      "source": "derived",
+      "unit": {
+        "quantity": "power",
+        "canonical_unit": "W",
+        "display_unit": "W"
+      }
+    },
+    {
+      "id": "air_outlet_temperature_k",
+      "label": "出风温度",
+      "quantity": "temperature",
+      "source": "derived",
+      "unit": {
+        "quantity": "temperature",
+        "canonical_unit": "K",
+        "display_unit": "°C",
+        "display_offset": -273.15
+      }
+    },
+    {
+      "id": "effectiveness",
+      "label": "换热效能 ε",
+      "quantity": "ratio",
+      "source": "derived",
+      "unit": {
+        "quantity": "ratio",
+        "canonical_unit": "1",
+        "display_unit": "1"
+      }
+    },
+    {
+      "id": "state.thermal_energy_j",
+      "label": "累计换热量",
+      "quantity": "energy",
+      "source": "state",
+      "unit": {
+        "quantity": "energy",
+        "canonical_unit": "J",
+        "display_unit": "kJ",
+        "display_scale": 1000.0
+      }
+    }
+  ],
+  "channels": [
+    {
+      "id": "main",
+      "name": "水路",
+      "input_port": "in0",
+      "output_port": "out0",
+      "relation": "resistance",
+      "solver_model": "pipe",
+      "enabled": true
+    }
+  ],
+  "solver_model": "generic",
+  "source_format": "python-v1"
+}
