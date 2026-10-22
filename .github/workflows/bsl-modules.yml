@@ -75,8 +75,12 @@ jobs:
             fluidnet-prototype-engine/docs/MODULES_P2.md
             fluidnet-prototype-engine/docs/BSL_MODULE_MAP.md
             fluidnet-prototype-engine/docs/BASELU_REFERENCE_CASES.md
+            fluidnet-prototype-engine/docs/MAPPING_A.md
+            fluidnet-prototype-engine/docs/MAPPING_C.md
+            fluidnet-prototype-engine/docs/M2_L3_CALIBRATION.md
             fluidnet-prototype-engine/tests/test_bsl_modules.py
             fluidnet-prototype-engine/tests/test_bsl_modules_p1.py
             fluidnet-prototype-engine/tests/test_bsl_modules_p2.py
             fluidnet-prototype-engine/tests/test_control_templates.py
+            fluidnet-prototype-engine/tests/test_bsl_calibration.py
             fluidnet-prototype-engine/tests/fixtures/baselu
