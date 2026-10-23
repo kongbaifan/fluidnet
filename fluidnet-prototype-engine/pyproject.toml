@@ -29,6 +29,9 @@ where = ["backend"]
 pythonpath = ["backend"]
 testpaths = ["tests"]
 addopts = "-ra"
+markers = [
+  "numerics_fast: 数值优化的快速验收子集（CI 只跑这些；完整矩阵由固定环境基线脚本执行）",
+]
 
 [tool.coverage.run]
 source = ["fn_engine"]

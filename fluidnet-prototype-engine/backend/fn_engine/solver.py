@@ -1,27 +1,30 @@
 from __future__ import annotations
 
 import dataclasses
-import math
+import importlib
 import time
 from dataclasses import dataclass, field
 
 import numpy as np
 from scipy.optimize import least_squares
-from scipy.sparse import lil_matrix
+from scipy.sparse import csr_matrix, lil_matrix
 
 from .compiler import CompilationError, CompiledBranch, CompiledNetwork, TankState, instance_fluids, service_at
+from .hydraulic_derivatives import (GRAVITY, MU_WATER, RHO_WATER, branch_drop_and_slope,
+                                    branch_drop_value, pipe_drop, pump_head)
 from .models import CommitStepRequest, Diagnostic, EvaluateRequest, FluidState, PortState, RunFrame, NetworkRelation
 from .properties import PropertyError, is_pure_water, property_service
 from .runtime import ChannelResult, WorkerProcess, RuntimeErrorBase
 from .thermal import ThermalError, ThermalResult, initial_guess, solve_thermal
 
-# Reference values at 250 kPa / 20 °C. They preserve the public helper's
-# backwards-compatible defaults while normal runs use the configured property
-# service below.
-RHO_WATER = 998.2752462838249
-MU_WATER = 1.0015503944484675e-3
-GRAVITY = 9.80665
+# 历史公开入口的再导出：测试与脚本从 fn_engine.solver 导入这些物理函数/常量。
+__all__ = ['GRAVITY', 'MU_WATER', 'RHO_WATER', 'branch_drop', 'branch_drop_and_slope', 'pipe_drop', 'pump_head']
+
 PRESSURE_SCALE = 100000.0
+
+# C/D 求解前变换的模块名（延迟导入，避免循环依赖）：
+#   partition（D0–D2，分块求解）与 hydraulic_plan（C0–C3，串联压缩）。
+_HOOK_MODULES = {'blocks': 'fn_engine.partition', 'compression': 'fn_engine.hydraulic_plan'}
 
 
 class HydraulicNotConverged(ValueError):
@@ -99,6 +102,9 @@ class HydraulicResult:
     method_reason: str = ''
     matrix_size: int = 0
     matrix_nnz: int = 0
+    # J2：'analytic'（纯内置解析导数）或 'finite_difference'（含原因）。
+    jacobian_mode: str = 'finite_difference'
+    jacobian_reason: str = ''
 
 
 @dataclass
@@ -107,32 +113,6 @@ class NetworkResult:
     thermal: ThermalResult | None = None
     coupling_iterations: int = 0
     port_states: dict[str, PortState] = field(default_factory=dict)
-
-
-def pipe_drop(params, flow, density=RHO_WATER, viscosity=MU_WATER):
-    length, diameter, roughness = params['length_m'], params['diameter_m'], params['roughness_m']
-    area = math.pi * diameter ** 2 / 4
-    reynolds = abs(flow) * diameter / (viscosity * area)
-    laminar = 32 * viscosity * length * flow / (density * area * diameter ** 2)
-    if reynolds <= 2300:
-        return laminar
-    friction = (-1.8 * math.log10((roughness / diameter / 3.7) ** 1.11 + 6.9 / reynolds)) ** -2
-    turbulent = friction * length / diameter * flow * abs(flow) / (2 * density * area ** 2)
-    blend = min(1., (reynolds - 2300) / 1700)
-    return laminar * (1 - blend) + turbulent * blend
-
-
-def pump_head(curve, flow_m3_h, speed):
-    x = flow_m3_h / speed
-    # Linear extrapolation is used only to locate the root. Out-of-curve results are rejected below.
-    points = curve
-    if x < points[0][0]:
-        a, b = points[:2]
-    elif x > points[-1][0]:
-        a, b = points[-2:]
-    else:
-        return float(np.interp(x, [p[0] for p in points], [p[1] for p in points])) * speed ** 2
-    return (a[1] + (b[1] - a[1]) * (x - a[0]) / (b[0] - a[0])) * speed ** 2
 
 
 def branch_drop(network: CompiledNetwork, branch: CompiledBranch, flow_kg_s: float, density: float,
@@ -144,20 +124,9 @@ def branch_drop(network: CompiledNetwork, branch: CompiledBranch, flow_kg_s: flo
         params = {**params, **relation_params}
         density = relation_params.get('density_kg_m3') or density
         viscosity = relation_params.get('viscosity_pa_s') or viscosity
-    volume = flow_kg_s / density * 3600
-    if model == 'valve':
-        kv = params['kv_m3_h'] * params['opening_ratio']
-        return 100000 * (density / 1000) * volume * abs(volume) / kv ** 2 + density * GRAVITY * params.get('height_m', 0)
-    if model == 'pipe':
-        return pipe_drop(params, flow_kg_s, density, viscosity) + density * GRAVITY * params.get('height_m', 0)
-    if model == 'pump_curve':
-        if params['speed_ratio'] <= 0:
-            raise ValueError(f'{branch.instance_id} 停泵阻力模型尚未定义，转速必须大于零')
-        return -density * GRAVITY * pump_head(params['head_curve'], volume, params['speed_ratio'])
-    if model == 'resistance':
-        area = math.pi * params['diameter_m'] ** 2 / 4
-        return params['loss_coefficient'] * flow_kg_s * abs(flow_kg_s) / (2 * density * area ** 2)
-    raise ValueError(f'未注册的支路模型：{model}')
+    if model == 'pump_curve' and params['speed_ratio'] <= 0:
+        raise ValueError(f'{branch.instance_id} 停泵阻力模型尚未定义，转速必须大于零')
+    return branch_drop_value(model, params, flow_kg_s, density, viscosity)
 
 
 # S0 的 auto 阈值：由 S0 证据（docs/numerics/results/S0.md）里三类拓扑的实测交叉点取保守值。
@@ -308,7 +277,8 @@ def reference_arrays(network: CompiledNetwork) -> tuple[np.ndarray, np.ndarray, 
 
 
 def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_density=None, branch_viscosity=None,
-                      port_base: dict[str, PortState] | None = None, initial=None, storage_step=None) -> HydraulicResult:
+                      port_base: dict[str, PortState] | None = None, initial=None, storage_step=None,
+                      hooks: frozenset[str] | None = None) -> HydraulicResult:
     """Solve pressures and branch flows.
 
     With `storage_step` = (dt_s, {node: TankState}) each listed tank is no longer a fixed pressure:
@@ -323,6 +293,21 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
     fixed = {node: value for node, value in network.fixed_pressures.items() if node not in tank_old}
     unknown = [n for n in range(n_nodes) if n not in fixed and n not in tank_old]
     options = network.project.solver
+    if hooks is None:
+        hooks = frozenset(name for name, enabled in
+                          (('blocks', options.hydraulic_blocks), ('compression', options.series_compression))
+                          if enabled)
+    if hooks:
+        # D 在 C 外层：先按真正的独立性分块，块内部再按串联链压缩（模块各自递归调用本函数）。
+        for name in ('blocks', 'compression'):
+            if name not in hooks:
+                continue
+            module = importlib.import_module(_HOOK_MODULES[name])
+            solved = module.solve_hydraulics_hook(
+                network, runners, time_s, branch_density=branch_density, branch_viscosity=branch_viscosity,
+                port_base=port_base, initial=initial, storage_step=storage_step, hooks=frozenset(hooks - {name}))
+            if solved is not None:
+                return solved
     counters = SolveCounters() if options.hydraulic_diagnostics else None
     m = len(network.branches)
     density, viscosity = reference_properties(network)
@@ -451,6 +436,7 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
         return np.concatenate((scaled, balance))
 
     size = len(unknown) + len(tanks) + m
+    node_columns = {node: column for column, node in enumerate(unknown + tanks)}
     requested = options.hydraulic_method
     pattern_csr = None
     nnz = size * size
@@ -465,6 +451,70 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
     if counters is not None:
         counters.problem_size = size
         counters.jacobian_nnz = nnz
+
+    # J2：解析 Jacobian 只在纯内置关系上启用；Python 模块的端口关系依赖全部试算端口压力，
+    # 需要完整链式依赖，本轮保留有限差分，并在结果里说明原因。
+    analytic_models = {'valve', 'pipe', 'pump_curve', 'resistance'}
+    if python_runners:
+        analytic_supported, jacobian_mode = False, 'finite_difference'
+        jacobian_reason = 'Python 模块的端口关系可能依赖全部试算压力，保留有限差分'
+    elif not options.analytic_jacobian:
+        analytic_supported, jacobian_mode = False, 'finite_difference'
+        jacobian_reason = '项目显式关闭解析 Jacobian'
+    else:
+        unsupported = sorted({branch.solver_model for branch in network.branches} - analytic_models)
+        analytic_supported = not unsupported
+        jacobian_mode = 'analytic' if analytic_supported else 'finite_difference'
+        jacobian_reason = ('纯内置关系（阀门/管道/泵/阻力）' if analytic_supported
+                           else f'内置模型 {unsupported} 未注册解析导数，保留有限差分')
+
+    def analytic_jacobian(vector):
+        rows, cols, data = [], [], []
+        tank_rate_columns = {node: node_columns[node] for node in tanks}
+        # 只有 `unknown` 里的节点有独立压力未知量；水箱节点的压力由净流入决定（见下）。
+        pressure_columns = {node: column for column, node in enumerate(unknown)}
+        _, flows = unpack(vector)
+        for idx, (branch, flow) in enumerate(zip(network.branches, flows)):
+            column = len(node_columns) + idx
+            if branch.closed:
+                rows.append(idx); cols.append(column); data.append(1.0)
+                continue
+            params = network.parameters[branch.instance_id]
+            if branch.solver_model == 'pump_curve' and params['speed_ratio'] <= 0:
+                raise ValueError(f'{branch.instance_id} 停泵阻力模型尚未定义，转速必须大于零')
+            _, slope = branch_drop_and_slope(branch.solver_model, params, float(flow),
+                                             float(rho_b[idx]), float(mu_b[idx]))
+            if branch.start_node in pressure_columns:
+                rows.append(idx); cols.append(pressure_columns[branch.start_node]); data.append(1.0)
+            if branch.end_node in pressure_columns:
+                rows.append(idx); cols.append(pressure_columns[branch.end_node]); data.append(-1.0)
+            # 水箱节点的压力由隐式步的净流入决定：p = p_surface + g·(M_old + dt·r)/A，
+            # 所以支路行对水箱净流入列也有 ∂p/∂r = dt·g/A。
+            if branch.start_node in tank_rate_columns:
+                rows.append(idx); cols.append(tank_rate_columns[branch.start_node])
+                data.append(dt_s * GRAVITY / network.storage[branch.start_node].area_m2 / PRESSURE_SCALE)
+            if branch.end_node in tank_rate_columns:
+                rows.append(idx); cols.append(tank_rate_columns[branch.end_node])
+                data.append(-dt_s * GRAVITY / network.storage[branch.end_node].area_m2 / PRESSURE_SCALE)
+            # 行方程已除以 PRESSURE_SCALE，而压力列的未知量本身就是 p/PRESSURE_SCALE。
+            rows.append(idx); cols.append(column); data.append(-slope / PRESSURE_SCALE)
+        for position, node in enumerate(unknown):
+            row = m + position
+            for idx, branch in enumerate(network.branches):
+                if branch.start_node == node:
+                    rows.append(row); cols.append(len(node_columns) + idx); data.append(-1.0)
+                if branch.end_node == node:
+                    rows.append(row); cols.append(len(node_columns) + idx); data.append(1.0)
+        for position, node in enumerate(tanks):
+            row = m + len(unknown) + position
+            for idx, branch in enumerate(network.branches):
+                if branch.start_node == node:
+                    rows.append(row); cols.append(len(node_columns) + idx); data.append(-1.0)
+                if branch.end_node == node:
+                    rows.append(row); cols.append(len(node_columns) + idx); data.append(1.0)
+            rows.append(row); cols.append(node_columns[node]); data.append(-1.0)
+        matrix = csr_matrix((data, (rows, cols)), shape=(size, size))
+        return matrix.toarray() if method == 'dense' else matrix
     # A loop held only by tanks has no fixed pressure left; start from the tanks' current pressures.
     level = list(fixed.values()) or [network.storage[node].pressure(tank_old[node].mass_kg) for node in tanks]
     cold = np.concatenate((np.full(len(unknown), np.mean(level) / PRESSURE_SCALE), np.zeros(len(tanks)), np.full(m, .1)))
@@ -484,8 +534,13 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
             counters.solver_attempts += 1
         sparse_options = {}
         if method == 'sparse':
-            sparse_options = {'jac_sparsity': pattern_csr, 'tr_solver': 'lsmr',
+            sparse_options = {'tr_solver': 'lsmr',
                               'tr_options': {'atol': 1e-13, 'btol': 1e-13, 'maxiter': max(100, size*4)}}
+        if analytic_supported:
+            # 解析导数与 x_scale='jac' 不冲突：jac 返回 CSR（稀疏）或 ndarray（稠密）。
+            sparse_options['jac'] = analytic_jacobian
+        elif method == 'sparse':
+            sparse_options['jac_sparsity'] = pattern_csr
         result = least_squares(residual, vector, max_nfev=options.max_iterations, xtol=1e-12, ftol=1e-12, gtol=1e-12, x_scale='jac', **sparse_options)
         if counters is not None:
             counters.nfev += int(result.nfev)
@@ -558,7 +613,7 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
     return HydraulicResult(pressures, flows, int(result.nfev), pressure_error, mass_error, density, viscosity,
                            module_variables.copy(), module_diagnostics.copy(), rho_b, mu_b, dict(final_relations),
                            np.array(result.x, copy=True), unpack_rates(result.x), counters_result,
-                           requested, method, reason, size, nnz)
+                           requested, method, reason, size, nnz, jacobian_mode, jacobian_reason)
 
 
 def solve_hydraulics(network: CompiledNetwork, runners=None, time_s=0., **options) -> HydraulicResult:
@@ -747,6 +802,11 @@ def _solve_network(network, runners, time_s, warm, service, storage_step=None) -
     else:
         _, _, rho_b, mu_b = reference_arrays(network)
         node_states, previous_t = initial_guess(network, service), None
+    # L2：node 外循环加速（默认 none = v0.5.0 的直接替换，旧项目数值不变）。
+    coupling_acceleration = getattr(options, 'coupling_acceleration', 'none')
+    relaxation = 1.0
+    previous_defect = None
+    topology_signature = None
     for iteration in range(1, options.max_coupling_iterations + 1):
         hydraulic = _solve_hydraulics(network, runners, time_s, branch_density=rho_b, branch_viscosity=mu_b,
                                       port_base=_node_ports(network, node_states) if runners else None, initial=start,
@@ -755,15 +815,60 @@ def _solve_network(network, runners, time_s, warm, service, storage_step=None) -
                                 shaft_power(network, hydraulic), h_start, storage_step)
         new_rho, new_mu = _branch_properties(network, thermal)
         temperatures = np.array([s.temperature_k for s in thermal.node_states])
+        # 固定点缺陷：目标是“本轮的物性”，与是否松弛无关；L2 不允许用“松弛后步长变小”冒充收敛。
         density_change = float(np.max(np.abs(new_rho - rho_b) / new_rho, initial=0.0))
         converged = (previous_t is not None and density_change < options.coupling_density_rtol
                      and float(np.max(np.abs(temperatures - previous_t), initial=0.0)) < options.thermal_tolerance_k)
         if converged:
             return NetworkResult(hydraulic, thermal, iteration, build_port_states(network, hydraulic, thermal))
-        rho_b, mu_b, previous_t = new_rho, new_mu, temperatures
+        current_signature = (tuple(branch.closed for branch in network.branches),
+                             tuple(sorted((key, relation.kind) for key, relation in hydraulic.relations.items())))
+        if coupling_acceleration == 'none':
+            rho_b, mu_b = new_rho, new_mu
+        else:
+            if topology_signature is not None and current_signature != topology_signature:
+                # 关开阀/模块关系变化：重置加速历史，避免沿用旧工况的松弛系数。
+                relaxation, previous_defect = 1.0, None
+            defect = new_rho - rho_b
+            scale = np.maximum(new_rho, 1e-12)
+            relaxation = _coupling_relaxation(coupling_acceleration, relaxation, defect,
+                                              previous_defect, scale)
+            candidate = rho_b + relaxation * defect
+            candidate_mu = mu_b + relaxation * (new_mu - mu_b)
+            if not (np.all(np.isfinite(candidate)) and np.all(candidate > 0) and np.all(candidate_mu > 0)):
+                relaxation, previous_defect = 1.0, None
+                rho_b, mu_b = new_rho, new_mu
+            else:
+                previous_defect = defect.copy()
+                rho_b, mu_b = candidate, candidate_mu
+        topology_signature = current_signature
+        previous_t = temperatures
         node_states, start, h_start = thermal.node_states, hydraulic.solution, thermal.enthalpies
     raise ThermalError('COUPLING_NOT_CONVERGED',
                        f'水力与物性耦合 {options.max_coupling_iterations} 次未收敛（密度相对变化 {density_change:.3g}）')
+
+
+def _coupling_relaxation(mode: str, relaxation: float, defect: np.ndarray, previous_defect,
+                         scale: np.ndarray) -> float:
+    """L2 的有界松弛系数（[0.2, 1.0]）。"""
+    if previous_defect is None:
+        return 1.0
+    if mode == 'adaptive':
+        previous_norm = float(np.max(np.abs(previous_defect) / scale, initial=0.0))
+        current_norm = float(np.max(np.abs(defect) / scale, initial=0.0))
+        if previous_norm == 0.0 or current_norm < previous_norm:
+            return min(1.0, max(0.2, relaxation * 1.25))
+        return max(0.2, relaxation * 0.5)
+    scaled = defect / scale
+    previous_scaled = previous_defect / scale
+    difference = scaled - previous_scaled
+    denominator = float(np.dot(difference, difference))
+    if not np.isfinite(denominator) or denominator <= 1e-300:
+        return 1.0
+    alpha = -relaxation * float(np.dot(previous_scaled, difference)) / denominator
+    if not np.isfinite(alpha):
+        return 1.0
+    return min(1.0, max(0.2, alpha))
 
 
 PORT_THERMAL_FIELDS = ('enthalpy_j_kg', 'density_kg_m3', 'viscosity_pa_s', 'specific_heat_j_kg_k', 'quality')
@@ -877,8 +982,12 @@ def snapshot(network, result, time_s=0., warning=None):
     if thermal is not None:
         metrics.update({'thermal_iterations': thermal.iterations, 'coupling_iterations': coupling,
                         'energy_residual_w': thermal.energy_residual_w, 'reference_heat_w': thermal.reference_heat_w})
+    summary = {'requested_method': hydraulic.requested_method, 'effective_method': hydraulic.effective_method,
+               'method_reason': hydraulic.method_reason, 'matrix_size': hydraulic.matrix_size,
+               'matrix_nnz': hydraulic.matrix_nnz, 'jacobian_mode': hydraulic.jacobian_mode,
+               'jacobian_reason': hydraulic.jacobian_reason}
     return RunFrame(status='converged', valid=True, time_s=time_s, variables=variables, diagnostics=diagnostics,
-                    metrics=metrics, solve_counters=hydraulic.counters)
+                    metrics=metrics, solve_counters=hydraulic.counters, solve_summary=summary)
 
 
 def cell_variables(network: CompiledNetwork, result: NetworkResult, service):

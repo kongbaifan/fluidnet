@@ -113,6 +113,10 @@
 
 ## 2. check_valve（止回阀）
 
+> **版本状态**：本章 §2.1–§2.8 描述 **v1**（`modules/check_valve/`，`version=1`），源码与契约快照保持
+> 不变，旧项目继续按 v1 语义运行。**v2**（`modules/check_valve_v2/`，`id=check_valve, version=2`）
+> 的语义冻结、方程、发布与验收见 **§5**。v2 修掉了 §2.8 里“反向压差低于开启压差仍反向导通”的语义。
+
 ### 2.1 用途与倍思鹿语义
 
 单向导通、反向截止。倍思鹿 `AlgModule/止回阀` 的判据是：`CVF = 0`（关闭）当 `IM0_PRE < EX0_PRE`，否则 `CVF = 1`，随后 `VALVECV_SHUT(..., CVF, CV, RLS, RE)` 并用 `Netlink_Check(0, RLS, CV, DENSITY, DHIGH)` 注册；`CVF` 直接充当开度。本设计保留"用压力方向决定开度"的分段语义，但把开度改成 `opening_ratio` 参数，并增加开启压差 `cracking_pressure_pa`；关闭时交给求解器做**零流量等式约束**，比倍思鹿的极小 CV 更容易收敛。
@@ -355,3 +359,158 @@
 - [ ] 12 个用例在独立验证台通过（容差按各节），L2 的"两次 evaluate 逐字段相同"成立。
 - [ ] 与倍思鹿对照：PF 的 K→Kv 换算在 3 个 DN 上与 `K·ρv²/2` 一致到 2e-5（`50912` 相对精确值 `50911.7` 的舍入量）；FC-1 的 Q 与手算 ε-NTU 一致到 1e-6。
 - [ ] 动态运行 `energy_residual_w` 相对全网焓流 ≤1e-6；`state.throughput_kg` 与 `state.thermal_energy_j` 等于对应积分。
+
+---
+
+## 5. check_valve V2：语义冻结与稳定求解（V0–V2）
+
+> 实施日期 2026-10-23，基线 v0.5.0 `a986ca3`。模块包 `modules/check_valve_v2/`（`manifest`：
+> `id=check_valve`、`version=2`、包版本 `2.0.0`）；v1 包 `modules/check_valve/`（`version=1`）
+> 源码与契约快照**不改写**。独立参考在 `backend/fn_engine/check_valve.py`，验收入口
+> `tests/test_check_valve_numerics.py`，实测证据 `docs/numerics/results/V0.md`、`V1.md`、`V2.md`。
+
+### 5.1 用途与冻结结论（V0）
+
+单向导通、反向截止。v2 的物理语义**冻结**为下列四条，不再含糊：
+
+| 项 | 冻结值 / 语义 |
+| --- | --- |
+| 压差定义 | `Δp = p_in − p_out`（`in0` 减 `out0`，单位 Pa） |
+| 正向开启压差 `p_crack_pa` | 只有 `Δp > p_crack` 才导通；默认 `0`（理想二极管：任何正压差都开启，与 v1 默认的前向行为一致） |
+| 反向截止 | **精确零流**：`Δp ≤ p_crack`（含全部反向）时 `opening_ratio` 精确为 `0.0`，求解器把它变成 `flow == 0` 等式约束 |
+| 泄漏 | **不承诺“有界泄漏”**：选定的语义是精确截止，反向/亚开启区通过质量的声明上界是 **0 kg/s**（只剩求解器质量容差 `mass_tolerance_kg_s`，默认 1e-8 kg/s，它不是物理泄漏参数）。本模型同时**不承诺处处光滑** |
+| 迟滞 | `hysteresis_pa` 默认 `0`（无迟滞）。`> 0` 为可选路径，状态只在 accepted 步更新；动态按步推进已自洽，但“同一步内活动集自洽”需要求解器外层活动集（未接入，§5.6）；无论迟滞是否开启，`Δp ≤ 0` 恒关 |
+| 光滑性 | 开关点 `Δp = p_crack` 处两支路流量都 → 0，残差**连续（C0）**但左右导数不同：关闭行是 `flow == 0`（不含压力），开启支路在临界点 `∂q/∂Δp → ∞`。这是设计选择，不是待修的缺陷 |
+
+**旧参数语义（v1，不覆写）**：v1 的 `cracking_pressure_pa` 是“**容许反向流的反向压差**”——
+当 `0 < p_out − p_in ≤ cracking_pressure_pa` 时阀门仍按正向开度**反向导通**。实测
+`cracking_pressure_pa=5000` 时：`Δp=−1 Pa` 反向流 0.0439 kg/s、`Δp=−1000 Pa` 反向流 1.3877 kg/s，
+且 `Δp=−4500/−4999 Pa` 处 `least_squares` 停在不收敛点（压力残差 4500/4999 Pa，`gtol` 误判）。
+v1 的开/关判据落在 `Δp = −cracking`，那里“开启支路”残差比“关闭支路”多出 `cracking_pressure_pa`
+的**跳变**，是旧版临界点附近不稳的根因。v2 不沿用该参数语义；v1 源码与行为保持原样（V1/V2 证据有回归）。
+
+### 5.2 v2 参数（冻结默认值）
+
+| id | 类型 | 默认 | 范围 | 单位 | 说明 |
+| --- | --- | --- | --- | --- | --- |
+| `kv_m3_h` | number | `50` | `≥ 0.001` | m³/h | 全开流量系数 |
+| `p_crack_pa` | number | `0` | `≥ 0` | Pa → kPa（scale 1000） | **正向开启压差**（新增） |
+| `opening_ratio` | number | `1.0` | `[0, 1]` | 1 → %（0.01） | 正向最大开度（缩放 Kv） |
+| `hysteresis_pa` | number | `0` | `≥ 0` | Pa → kPa（1000） | 迟滞带宽；0 = 无迟滞（新增） |
+| `density_kg_m3` | number | `998.2` | `≥ 1` | kg/m³ | 端口密度缺失时的参考密度 |
+| `cracking_pressure_pa` | number | `0` | `≥ 0` | Pa → kPa（1000） | **v1 遗留，v2 不参与计算**；非零时发一次 `CHECK_VALVE_LEGACY_PARAMETER`（info） |
+
+参数 id 全部保留（含遗留参数），所以 v1→v2 的升级预览是 `compatible=true`，但会把
+`cracking_pressure_pa` 的 label 与 `p_crack_pa`/`hysteresis_pa` 的新增列进 `changes`，由用户确认；
+**不会把旧的 `cracking_pressure_pa` 数值静默改释为正向开启压差**（新增参数默认 0，旧值原样保留且不生效）。
+
+### 5.3 变量与方程
+
+| id | source | 语义 |
+| --- | --- | --- |
+| `opening_ratio` | derived | 有效开度；`0` = 精确截止 |
+| `is_open` | derived | 1 = 该次试算/提交时导通 |
+| `direction` | derived | `+1`：`Δp > 0`；`−1`：`Δp ≤ 0`（**不**代表是否导通） |
+| `state.is_open` | state | 只在**接受步**更新的开闭状态（无迟滞时仅记账） |
+| `state.closed_steps` / `state.open_steps` | state | 接受步计数 |
+| `state.throughput_kg` | state | `∑|q|·Δt` |
+| `state.reverse_throughput_kg` | state | `∑min(q,0)·Δt`，v2 验收要求恒为 0 |
+
+`evaluate` 用既有的 `valve` relation（`kv`、`opening_ratio`、`density_kg_m3`），**不新增 relation kind**，
+因此 v1 的求解器路径即可求解。开度构造：
+
+```
+opening = 0                                            , Δp ≤ p_crack 或 opening_max = 0
+opening = opening_max · sqrt(max(0, 1 − p_crack/Δp))   , Δp > p_crack
+```
+
+把 `opening` 代入 `Δp = 1e5·(ρ/1000)·Q|Q|/(Kv·opening)²` 恰好还原独立参考曲线
+
+```
+Q [m³/h] = Kv · opening_max · sqrt( (Δp − p_crack) / (1e5·ρ/1000) )
+q [kg/s] = Q · ρ / 3600
+```
+
+即“开启压差 + 阀门阻力”串联，`Δp → p_crack⁺` 时 `q → 0`，与关闭约束衔接连续。
+`opening_ratio == 0` 必须是**精确 0.0**（不能是 `1e-12`），否则求解器会得到约 `1e18` Pa 量级的
+假压降；`evaluate` 在 `sqrt` 下溢到 0 时也返回精确 0.0，与 `Δp = p_crack` 处的物理解一致。
+
+`evaluate` 只读参数、试算端口与（仅在 `hysteresis_pa > 0` 时）只读 state，因此对同一试算输入与同一
+accepted state 幂等；`commit_step` 才写 `ctx.state`，且只在被接受的子步调用。
+
+### 5.4 独立 Δp–q 参考与验收入口（V0/V1）
+
+- `backend/fn_engine/check_valve.py`：不依赖 numpy/scipy/solver 的解析曲线生成器
+  （`reference_mass_flow_kg_s`、`reference_pressure_drop_pa`、`curve_points`）、开关判据
+  （`is_open`/`required_opening`）、互补残差（`opening_slack_pa`/`complementarity_residual`）、
+  迟滞状态机（`next_open_state`）与方案 (a) 对照（`smooth_*`）。
+- 模块自带同一公式的自包含实现（Worker 不 import `fn_engine`），两者由测试逐点对照，不靠人工同步。
+- `tests/test_check_valve_numerics.py`：曲线逐点对照、阈值两侧、冷/热启动、泵旁路、并联、
+  迟滞纯函数、幂等、动态扫压差、版本升级/回滚、无参考段限制。
+- 实测数字见 `docs/numerics/results/V0.md`（语义与曲线）、`V1.md`（方案比较与迭代/RPC）、`V2.md`（发布与动态验收）。
+
+### 5.5 V1 方案比较结论（二选一）
+
+比较了两类方案，**选择方案 (b) 互补/活动集（本实现为关系层互补 + 精确零流量约束）**：
+
+- **(a) 光滑过渡（tanh 门，C∞，有界泄漏）**：没有真正的开启压差（`Δp = p_crack` 处开度已是 0.5，
+  实测 `Δp=5001 Pa` 流量 1.5547 kg/s，而 (b) 为 0.0439 kg/s），且门在远离临界点时指数变小，
+  `opening ≈ 1e-9` 一类的极小开度把支路压降推到 `1e5+ Pa` 量级：实测 width=500 Pa 时
+  `Δp ∈ {1, 0, −1, −1000} Pa` 全部 `HydraulicNotConverged`（其中 −1000 Pa 压力残差 415823 Pa），
+  `Δp=1000 Pa` 需 31 次 nfev；width=100 Pa 时 4000 Pa 需 74 次 nfev 且 1000 Pa 以下开度下溢为 0。
+  这正是计划里禁止的“用极小开度近似精确关断”。
+- **(b) 互补/活动集（精确零流）**：`Δp ≤ p_crack` 直接走求解器既有的 `flow == 0` 约束，反向与
+  亚开启区质量精确为 0；开关点放在两支路汇合处，残差连续。实测临界带 nfev：`5001 Pa` 6 次、
+  `5000.01 Pa` 10 次、`5000 Pa` 及以下 2 次，均收敛到默认容差，没有靠减小 dt 修稳态。
+  代价是 C0（非 C1）与临界点附近的刚度，已在 §5.1 冻结。
+
+### 5.6 可选迟滞与求解器集成提案（V2 条件项，默认不启用）
+
+默认 `hysteresis_pa = 0`，`evaluate` 与 accepted state 无关，现有求解器无需改动。`> 0` 时冻结的
+纯转移函数（`backend/fn_engine/check_valve.py`）：
+
+```python
+is_open(delta_p, p_crack, hysteresis, was_open):
+    Δp ≤ 0 → False                                    # 反向恒关，与迟滞无关
+    hysteresis == 0 → Δp > p_crack                    # 静态互补
+    was_open False → Δp > p_crack + hysteresis        # 开启阈值抬高
+    was_open True  → Δp > max(0, p_crack − hysteresis) # 关闭阈值下移
+```
+
+启用 `hysteresis_pa > 0` 后，动态按 accepted 步推进已经自洽：每次 `evaluate` 用上一次接受步的
+`is_open` 与当前试算 Δp 判定，`commit_step` 用同一转移函数更新状态。实测（V2 §2）：路径相关符合
+迟滞语义，反向始终精确零流，累计反向质量为 0；因此**动态路径不需要求解器改动**。若还需要
+“同一步内活动集自洽”（控制步内重解、或稳态从一个可能过期的活动集出发），再接入外层活动集：
+一次 `_solve_hydraulics` 收敛后，用收敛压差/流量检查互补性并在同一时间步内翻转 `state.is_open`
+后重解，直到活动集稳定（上限 N 次，超限报可诊断错误），只有最终活动集对应的解才交给
+`commit_step`。集成提案（签名、插入点、判据、预期迭代）见 `docs/numerics/results/V2.md` §2.3；
+本包**未接入**，默认发布参数 `hysteresis_pa = 0`。
+
+### 5.7 发布、兼容升级与回滚
+
+- 发布形态：同 id 新版本目录 `modules/check_valve_v2/`（`version=2`），`release.json` 记录
+  `tested=true`、试算条件与发布说明；v1 目录逐字节不动（测试锁定其 `content_hash`）。
+- 模块目录 `/api/v1/modules` 取最新版本（check_valve → v2）；`/api/v1/modules/check_valve/versions`
+  同时返回 `2.0.0` 与 `1.0.0`，两个版本的源码与契约哈希独立可查。
+- 升级：只能显式走 `POST /api/v1/project-upgrades/preview`（`backend/fn_engine/projects.py`），
+  预览返回 `changes`（参数/变量/源码变化）与 `compatible`；v1→v2 实测 `compatible=true`，且
+  `changes` 里明确列出 `p_crack_pa`、`hysteresis_pa` 新增与 `cracking_pressure_pa` label 变更。
+  用户确认后实例参数、参数库与 `package` 绑定一并更新到 `2.0.0`。
+- 回滚：预览不写库、失败/拒绝时项目文档逐字段不变（实测 `model_dump()` 前后相等）；已保存的
+  旧项目快照继续绑定 v1 定义与源码，可继续 `compile_project` + `solve_steady`（旧行为不变）。
+  运行期回滚 = 用 v1 快照重存/重跑，不做自动降级。
+
+### 5.8 已知边界与剩余限制
+
+- **Python 关闭产生无参考段**：若关闭的 Python 支路是某个子网唯一连接，运行报
+  `模块通路关系产生了缺少压力参考的子网络`（实测复现）。动态时间步的“被动段保压近似”只看内置
+  被动支路，运行期由 Python 模块决定的关断不在其内；需要在关闭后仍保持连接的一侧保留压力边界/
+  泵/其它支路。这是关系层活动集的**剩余限制**，要根治需要运行时重建依赖（计划 I5+ 或 D2 范围）。
+- `evaluate` 契约拿不到流量，开关判据只能基于压差；流量方向只能由收敛结果事后检查；
+  所以“流量为负但压差为正”的病态工况不会在 evaluate 内被发现。
+- 热力：关闭支路沿用既有零流量热语义（`NO_FLOW_HEAT` 前提），v2 不输出 `heat_w`。
+- `state.closed_steps` 只统计被接受的步；稳态计算不提交，恒为 0。
+- 冷/热启动都可能更快：从大流量跳到临界附近时热启动不一定更省（实测 `5001 Pa`：冷 6 次、
+  热 11 次 nfev），不宣称 warm 一定更优。
+- 可选迟滞尚未默认启用，外层活动集未接入（§5.6）。
+

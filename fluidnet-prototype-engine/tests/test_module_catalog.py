@@ -56,7 +56,8 @@ def test_reference_module_contract(client, module_id):
     assert module['description'], f'{module_id} 缺少说明文字'
     assert module['category'] == '倍思鹿参考模块'
     assert module['runtime'] == 'python'
-    assert module['version'] == 1
+    # v0.5.0 之后参考模块可以有新版本（如止回阀 v2）；这里只要求合法的整数版本。
+    assert isinstance(module['version'], int) and module['version'] >= 1
 
     ports = module['ports']
     assert len(ports) >= 2, f'{module_id} 至少应有 2 个端口'
@@ -85,7 +86,7 @@ def test_reference_module_contract(client, module_id):
     package = module.get('package')
     assert package is not None, f'{module_id} Python 包应返回 package 绑定'
     assert package['module_id'] == module_id
-    assert package['version'] == '1.0.0'
+    assert package['version'] == f"{module['version']}.0.0"
     assert package['content_hash'] == content_hash
     assert package['definition_hash'] == definition_hash
 

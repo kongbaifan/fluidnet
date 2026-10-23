@@ -426,12 +426,20 @@ class SolverOptions(StrictModel):
     max_thermal_iterations: int = Field(default=50, ge=1, le=500)
     max_coupling_iterations: int = Field(default=20, ge=1, le=200)
     coupling_density_rtol: float = Field(default=1e-6, gt=0)
+    # L1/L2：迭代加速模式。'none' = v0.5.0 的固定 0.7/0.3 阻尼（旧项目默认不变）。
+    thermal_acceleration: Literal['none', 'adaptive', 'aitken'] = 'none'
+    coupling_acceleration: Literal['none', 'adaptive', 'aitken'] = 'none'
     # Implicit time stepping (networks with tanks): a failed substep is retried with half the step.
     max_step_halvings: int = Field(default=6, ge=0, le=20)
     # S1: 'auto' 由实际未知量、Jacobian 稀疏度与模块端口依赖选择；旧项目缺字段仍按 dense。
     hydraulic_method: Literal['dense', 'sparse', 'auto'] = 'dense'
     # B0 观测器开关：只额外返回求解计数/计时（默认关闭），不改变任何数值结果。
     hydraulic_diagnostics: bool = False
+    # J2：纯内置关系使用解析 Jacobian；Python 混合网络与非注册模型自动保留有限差分。
+    analytic_jacobian: bool = True
+    # C/D：串联压缩（C）与依赖安全分块（D）。先默认关闭，验收由 R 决定默认值。
+    series_compression: bool = False
+    hydraulic_blocks: bool = False
     module_parallelism: int = Field(default=1, ge=1, le=16)
     batch_modules: bool = True
     # A0：Euler 时间步误差控制；默认关闭，旧固定步长语义不变。
@@ -689,6 +697,8 @@ class RunFrame(StrictModel):
     metrics: dict[str, float | int | None] = Field(default_factory=dict)
     # B0 观测器：仅 hydraulic_diagnostics 打开时非空（真实残差/Jacobian/RPC 计数与分项计时）。
     solve_counters: dict | None = None
+    # S1/J2 求解选择摘要（请求方法/实际方法/原因/矩阵规模/Jacobian 模式），始终记录。
+    solve_summary: dict | None = None
     # False on trend-history frames that carry only the trend variables (see RunRequest.history).
     full: bool = True
     sequence: int = 0

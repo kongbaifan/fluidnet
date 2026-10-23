@@ -77,6 +77,54 @@ def phase_family(state: FluidState) -> str:
     return 'unknown'
 
 
+def _next_damping(mode: str, damping: float, delta: np.ndarray, previous_delta,
+                  change: float, previous_change, scale: np.ndarray) -> float:
+    """L1 的有界阻尼系数（恒在 [0.1, 1.0]）。"""
+    if mode == 'adaptive':
+        if previous_change is None:
+            proposed = 1.0
+        elif change < previous_change:
+            proposed = min(1.0, damping * 1.25)
+        else:
+            proposed = max(0.1, damping * 0.5)
+        return min(1.0, max(0.1, proposed))
+    # aitken：在按比热归一化的空间里做，避免 kg/J 量级混合
+    if previous_delta is None:
+        return min(1.0, max(0.1, damping))
+    delta_scaled = delta / scale
+    previous_scaled = previous_delta / scale
+    difference = delta_scaled - previous_scaled
+    denominator = float(np.dot(difference, difference))
+    if not math.isfinite(denominator) or denominator <= 1e-300:
+        return 0.7
+    alpha = -damping * float(np.dot(previous_scaled, difference)) / denominator
+    if not math.isfinite(alpha):
+        return 0.7
+    return min(1.0, max(0.1, alpha))
+
+
+def _acceleration_guard(base, trial, node_states, max_step_k: float = 200.0):
+    """L1 保护：非有限、物性/相态越界、单步温度变化过大时返回原因（否则 None）。"""
+    if not np.all(np.isfinite(trial)):
+        return '出现非有限值'
+    try:
+        states = node_states(trial)
+    except (ThermalError, PropertyError) as error:
+        return f'物性/相态越界（{getattr(error, "code", type(error).__name__)}）'
+    base_states = node_states(base)
+    for old, new in zip(base_states, states):
+        if _phase_family_change(old, new):
+            return '相态族在一次加速步内改变'
+        if abs(new.temperature_k - old.temperature_k) > max_step_k:
+            return f'单步温度变化 {abs(new.temperature_k - old.temperature_k):.1f} K 超过 {max_step_k:g} K'
+    return None
+
+
+def _phase_family_change(old: FluidState, new: FluidState) -> bool:
+    old_family, new_family = phase_family(old), phase_family(new)
+    return old_family not in ('unknown',) and new_family not in ('unknown',) and old_family != new_family
+
+
 def _node_labels(network: CompiledNetwork) -> list[str]:
     """One instance ID per node for diagnostics, preferring real devices over boundaries/junctions."""
     labels = [key.split(':', 1)[0] for key in network.node_keys]
@@ -492,6 +540,10 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
         h = h_init.copy()
     for node, value in fixed_rows.items():
         h[node] = value
+    acceleration = getattr(options, 'thermal_acceleration', 'none')
+    damping = 0.7
+    previous_delta = None
+    previous_change = None
     for iterations in range(1, options.max_thermal_iterations + 1):
         states = node_states(h) if nonlinear else None
         weights, consts = relations_for(states, h)
@@ -504,10 +556,41 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
         if change < options.thermal_tolerance_k:
             h = candidate
             break
-        # The first pass replaces a cold guess outright; later passes are damped as in v0.2.
-        h = candidate if iterations == 1 else 0.7 * candidate + 0.3 * h
+        delta = candidate - h
+        if acceleration == 'none' or iterations == 1:
+            # 旧行为：首轮直接取新值，之后固定 0.7/0.3 阻尼（旧项目默认路径不变）。
+            h = candidate if iterations == 1 else 0.7 * candidate + 0.3 * h
+        else:
+            used_damping = _next_damping(acceleration, damping, delta, previous_delta, change, previous_change,
+                                         np.array([s.specific_heat_j_kg_k or 4180.0 for s in states]))
+            trial = h + used_damping * delta
+            problem = _acceleration_guard(h, trial, node_states)
+            if problem is not None:
+                # 保护触发：退回旧阻尼并记录原因，绝不放宽收敛判据。
+                diagnostics.append(Diagnostic(code='THERMAL_ACCELERATION_FALLBACK', severity='info',
+                                              message=f'热力加速第 {iterations} 轮退回旧阻尼：{problem}'))
+                damping, previous_delta, previous_change = 0.7, None, None
+                h = 0.7 * candidate + 0.3 * h
+            else:
+                damping = used_damping
+                previous_delta, previous_change = delta.copy(), change
+                h = trial
     else:
         raise ThermalError('THERMAL_NOT_CONVERGED', f'热力迭代 {options.max_thermal_iterations} 次未收敛，请检查换热与散热参数')
+
+    if acceleration != 'none' and nonlinear:
+        # 未经加速伪装的方程残差复核：在最终 h 上做一次纯 Picard 评估，
+        # 用真实的固定点缺陷（而不是加速后的步长）确认收敛。
+        check_states = node_states(h)
+        check_weights, check_consts = relations_for(check_states, h)
+        check = solve_linear(check_weights, check_consts, storage_terms(check_states, h))
+        defect = max((abs(check[k] - h[k]) / (check_states[k].specific_heat_j_kg_k or 4180.0)
+                      for k in range(n)), default=0.0)
+        if defect > max(options.thermal_tolerance_k * 10, 1e-5):
+            raise ThermalError('THERMAL_ACCELERATION_DEFECT',
+                               f'热力加速后的固定点残差 {defect:.3g} K 超过容差，拒绝该加速结果')
+        # 后续出口/热流用最终 h 上的关系系数，避免沿用上一轮的冻结系数。
+        weights, consts = check_weights, check_consts
 
     states = node_states(h)
     outlet_h = np.array([h[downstream[j]] for j in range(m)])

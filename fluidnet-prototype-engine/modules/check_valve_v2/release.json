@@ -1,0 +1,25 @@
+{
+  "created_at": "2026-10-23T02:40:00+00:00",
+  "release_notes": "V2 止回阀语义修正：新增正向开启压差 p_crack_pa（默认 0），Δp ≤ p_crack（含全部反向）精确零流量；开启后 opening = sqrt(1 − p_crack/Δp)，等价于 q_vol = Kv·sqrt((Δp − p_crack)/(1e5·ρ/1000))；v1 的 cracking_pressure_pa 保留但不再参与计算。默认无迟滞；hysteresis_pa > 0 为可选，需求解器外层活动集。旧 v1 包源码与契约快照不变，升级须经 /api/v1/project-upgrades/preview。",
+  "tested": true,
+  "test_conditions": {
+    "parameters": {
+      "kv_m3_h": 50.0,
+      "p_crack_pa": 5000.0,
+      "opening_ratio": 1.0,
+      "hysteresis_pa": 0.0
+    },
+    "fluid": {
+      "backend": "coolprop",
+      "fluid": "Water",
+      "composition": {},
+      "reference": "mass",
+      "phase_policy": "single_phase"
+    },
+    "inlet_pressure_pa": 255000.0,
+    "outlet_pressure_pa": 245000.0,
+    "temperature_k": 293.15,
+    "duration_s": 0.2,
+    "dt_s": 0.1
+  }
+}
