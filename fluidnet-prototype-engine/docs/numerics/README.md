@@ -18,7 +18,7 @@
 | B0 | [B0.md](results/B0.md)、[B0_COUNTERS.md](B0_COUNTERS.md) | 真实残差/Jacobian/RPC 计数与旧 `iterations` 缺口已可观测 |
 | B1–B3 | [B1.md](results/B1.md)、[B2.md](results/B2.md)、[B3.md](results/B3.md) | 6 类拓扑 × 小中大样例、动态场景与固定环境基线 |
 | W0–W2 | [W0.md](results/W0.md)、[W1.md](results/W1.md)、[W2.md](results/W2.md) | Worker 启动分解与消 eager import 的实测收益 |
-| S0–S2 | [S0.md](results/S0.md)、[S2.md](results/S2.md) | auto 稀疏选择（阈值 64/0.45）、一次可诊断回退、新项目默认 auto |
+| S0–S2 | [S0.md](results/S0.md)、[S1.md](results/S1.md)、[S2.md](results/S2.md) | auto 稀疏选择（阈值 64/0.45）、一次可诊断回退、新项目默认 auto |
 | J0–J3 | [J.md](results/J.md) | 纯内置解析 Jacobian：扰动调用归零，dense 大网络约 7× |
 | C0–C3 | [C0.md](results/C0.md)、[C1.md](results/C1.md)、[C2.md](results/C2.md)、[C3.md](results/C3.md) | 串联压缩：1000 串联 1999→1 未知量，端到端约 141×；默认关闭 |
 | D0–D2 | [D0.md](results/D0.md)、[D1.md](results/D1.md)、[D2.md](results/D2.md) | 分块/整网结果一致；大网络 1.45–2.38×，小模型回退，默认关闭 |
@@ -27,7 +27,7 @@
 | A0–A4 | [A0.md](results/A0.md)、[A1.md](results/A1.md)、[A2.md](results/A2.md)、[A3.md](results/A3.md)、[A4.md](results/A4.md) | Euler 步长误差控制：理想热模型 + 冷库 B；默认关闭 |
 | I0–I4 | [I0.md](results/I0.md)、[I1.md](results/I1.md)、[I2.md](results/I2.md)、[I3.md](results/I3.md)、[I4.md](results/I4.md) | 单容积封闭原型；不是“完整隔离段功能” |
 | X/G | [X.md](results/X.md) | X0 线程并行无收益停止；X1/X2/G0 无立项证据 |
-| R0/R1 | [R0_CROSSCHECK.md](results/R0_CROSSCHECK.md) | 旧项目/契约/开关回退与全量回归 |
+| R0/R1 | [R0_CROSSCHECK.md](results/R0_CROSSCHECK.md)、[R1.md](results/R1.md) | 旧项目交叉核验、全量回归 835 passed / 覆盖率 90.94% |
 
 ## 3. 默认行为一览（v0.6）
 

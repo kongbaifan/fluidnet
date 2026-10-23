@@ -4,11 +4,10 @@ import pytest
 from scipy.optimize._numdiff import approx_derivative
 
 from fn_engine import solver as solver_module
-from fn_engine.catalog import catalog_map
 from fn_engine.compiler import compile_project
-from fn_engine.models import Connection, Endpoint, ModuleInstance, Project
+from fn_engine.models import Connection, Endpoint, ModuleInstance
 from fn_engine.solver import solve_dynamic, solve_hydraulics, solve_steady
-from test_thermal import line, project, prototype
+from test_thermal import project, prototype
 from test_run_control import custom_project
 
 
