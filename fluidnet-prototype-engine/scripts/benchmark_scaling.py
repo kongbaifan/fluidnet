@@ -14,30 +14,14 @@ from unittest.mock import patch
 
 import psutil
 from fn_engine import solver
-from fn_engine.catalog import catalog_map
 from fn_engine.compiler import compile_project
-from fn_engine.models import Project, ModuleInstance, Endpoint, Connection
-from fn_engine.packages import load_module_package
 from fn_engine.runtime import WorkerProcess
+from numerics_cases import series_project
 
 
 def make_network(size, python_fraction=0):
-    catalog=catalog_map()
-    count=size-2
-    definitions=[catalog['source'],catalog['pipe']]
-    module=load_module_package(Path(__file__).resolve().parents[1]/'modules/programmable_valve')
-    if python_fraction:definitions.append(module)
-    nodes=[ModuleInstance(id='B1',module_id='source',name='in',parameters={'pressure_pa':250000})]
-    for i in range(count):
-        custom=i<int(count*python_fraction)
-        nodes.append(ModuleInstance(id=f'N{i}',module_id=module.id if custom else 'pipe',name=str(i),
-                                    parameters={'opening_ratio':.8,'kv_m3_h':16} if custom else {'length_m':1.}))
-    nodes.append(ModuleInstance(id='B2',module_id='source',name='out',parameters={'pressure_pa':120000}))
-    links=[]
-    for i,(a,b) in enumerate(zip(nodes,nodes[1:])):
-        links.append(Connection(id=f'e{i}',source=Endpoint(instance_id=a.id,port_id='out0'),
-                                target=Endpoint(instance_id=b.id,port_id='out0' if b.id=='B2' else 'in0')))
-    return Project(id='scale',name=f'{size} instances',modules=definitions,instances=nodes,connections=links)
+    """原 100/500/1000 串联入口；样例工厂迁移后保持函数名与语义不变。"""
+    return series_project(size, python_fraction)
 
 
 def measure(model):
@@ -70,18 +54,29 @@ def measure(model):
              patch.object(WorkerProcess,'_request',timed('worker_rpc_s',WorkerProcess._request)):
             start=time.perf_counter();frame=solver.solve_steady(network);solve_s=time.perf_counter()-start
         start=time.perf_counter();data=frame.model_dump_json();serialize_s=time.perf_counter()-start
-        flow = next(value for key,value in frame.variables.items() if len(key.split('.')) == 2 and key.endswith('.mass_flow_kg_s'))
+        # 部分 Python 多端口模块只暴露 <实例>.<通道>.mass_flow，不一定有 2 段聚合流量；
+        # 没有合适的流量字段时返回 None，不让单个展示字段影响整组基准。
+        flow = next((value for key,value in frame.variables.items()
+                     if len(key.split('.')) == 2 and key.endswith('.mass_flow_kg_s')), None)
         return {'compile_s':compile_s,'solve_s':solve_s,'serialize_s':serialize_s,**totals,'peak_rss_mb':memory[0]/1024**2,
                 'result_bytes':len(data.encode()),'flow':flow,**frame.metrics}
     finally:stop.set();thread.join()
 
 
-def main():
+def build_parser():
+    """原 CLI 语义保持不变；新增的 --families 只追加复杂拓扑档位。"""
     parser=argparse.ArgumentParser()
     parser.add_argument('--sizes',default='100,500,1000')
     parser.add_argument('--repeats',type=int,default=3)
     parser.add_argument('--output',default='artifacts/scaling-benchmark.json')
-    args=parser.parse_args()
+    parser.add_argument('--families',default='',
+                        help='逗号分隔的复杂拓扑（series/parallel/mesh/components/thermal-dual-loop/python-multiport）')
+    parser.add_argument('--tiers',default='small,medium,large')
+    return parser
+
+
+def main(argv=None):
+    args=build_parser().parse_args(argv)
     report={'hardware':platform.platform(),'cpu':platform.processor(),'native_threads':1,'repeats':args.repeats,'cases':[],
             'notes':'RPC totals are summed across Workers and overlap hydraulic time. Peak RSS includes child processes. First compile includes cold property initialization.'}
     path=Path(args.output);path.parent.mkdir(parents=True,exist_ok=True)
@@ -95,6 +90,18 @@ def main():
               'median':{key:statistics.median(row[key] for row in samples) for key in samples[0]},'samples':samples}
         report['cases'].append(case);path.write_text(json.dumps(report,indent=2),encoding='utf-8')
         print(json.dumps({k:v for k,v in case.items() if k!='samples'}),flush=True)
+    if args.families:
+        from numerics_cases import build_project, describe
+        for family in [name.strip() for name in args.families.split(',') if name.strip()]:
+            for tier in [name.strip() for name in args.tiers.split(',') if name.strip()]:
+                model=build_project(family,tier);model.solver.hydraulic_method='sparse'
+                counts=describe(compile_project(model))
+                samples=[measure(model) for _ in range(args.repeats)]
+                case={'family':family,'tier':tier,**counts,
+                      'median':{key:statistics.median(row[key] for row in samples) for key in samples[0]},
+                      'samples':samples}
+                report['cases'].append(case);path.write_text(json.dumps(report,indent=2),encoding='utf-8')
+                print(json.dumps({k:v for k,v in case.items() if k!='samples'}),flush=True)
 
 
 if __name__=='__main__':main()

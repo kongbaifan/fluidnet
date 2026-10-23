@@ -6327,6 +6327,18 @@
             ],
             "title": "Solve Counters"
           },
+          "solve_summary": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Solve Summary"
+          },
           "full": {
             "type": "boolean",
             "title": "Full",
@@ -7003,6 +7015,26 @@
             "title": "Coupling Density Rtol",
             "default": 1e-06
           },
+          "thermal_acceleration": {
+            "type": "string",
+            "enum": [
+              "none",
+              "adaptive",
+              "aitken"
+            ],
+            "title": "Thermal Acceleration",
+            "default": "none"
+          },
+          "coupling_acceleration": {
+            "type": "string",
+            "enum": [
+              "none",
+              "adaptive",
+              "aitken"
+            ],
+            "title": "Coupling Acceleration",
+            "default": "none"
+          },
           "max_step_halvings": {
             "type": "integer",
             "maximum": 20.0,
@@ -7023,6 +7055,21 @@
           "hydraulic_diagnostics": {
             "type": "boolean",
             "title": "Hydraulic Diagnostics",
+            "default": false
+          },
+          "analytic_jacobian": {
+            "type": "boolean",
+            "title": "Analytic Jacobian",
+            "default": true
+          },
+          "series_compression": {
+            "type": "boolean",
+            "title": "Series Compression",
+            "default": false
+          },
+          "hydraulic_blocks": {
+            "type": "boolean",
+            "title": "Hydraulic Blocks",
             "default": false
           },
           "module_parallelism": {

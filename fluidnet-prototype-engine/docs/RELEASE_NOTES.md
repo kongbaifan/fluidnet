@@ -1,5 +1,49 @@
 # FluidNet 版本发布说明
 
+## 未发布：数值性能与物理能力专项（2026-10-23）
+
+基线 v0.5.0（`a986ca3`）。逐包证据与复现命令见 [证据索引](numerics/README.md)；
+计划与验收依据见 [NUMERICS_OPTIMIZATION_PLAN](NUMERICS_OPTIMIZATION_PLAN.md)（已更新为执行状态）。
+
+### 默认行为变化（只有两处）
+
+- **新建项目默认 `hydraulic_method='auto'`**：按真实未知量与 Jacobian 稀疏度自动选 dense/sparse
+  （阈值：未知量 ≥64 且稀疏度 ≤0.45 用 sparse；≥3000 未知量强制 sparse）。旧项目缺字段仍为 `dense`，
+  显式请求永不被覆盖，auto 失败只允许一次可诊断回退。
+- **纯内置网络默认解析 Jacobian**（`analytic_jacobian=True`）：阀门/管道/泵/阻力/换热器通路/水箱的
+  解析导数，Jacobian 扰动调用降为 0；含 Python 模块的网络自动保留有限差分并在帧里说明原因。
+  退化用例（零流量驻点假收敛）会一次性回退有限差分并记录原因。
+
+### 新增能力（默认关闭或限定范围）
+
+- **C 串联压缩**（`series_compression`，默认关）：1000 串联未知量 1999→1，端到端实测约 141×；
+  结果与常规路径满足 3.1 差值门，`solution` 保持原网络布局。默认关闭，待更大范围回归后再定默认。
+- **D 依赖安全分块**（`hydraulic_blocks`，默认关）：块/整网结果一致；静态多独立分量大网络 1.45–2.38×，
+  但小模型回退 1.03–4.03×，因此不设为默认。
+- **A 时间步误差控制**（`SolverOptions.time_step.enabled`，默认关）：Euler step-doubling + 按类别归一化，
+  首轮支持理想热模型与冷库 B；四场景对固定 1 s 参考误差远低于计划门限；其他执行域显式拒绝。
+- **I0–I4 单容积困液原型**（新内置模块 `closed_volume`）：定容 `state_du` 求 p/T、同温管壁储能、
+  能量账本；只支持“初始即关闭”的单一均匀纯水容积。**不是完整隔离段功能**，开闭周期属 I5–I9。
+- **V 止回阀 v2**：同 id 新版本 `2.0.0`（`modules/check_valve_v2`），反向精确零流、开关点残差连续；
+  v1 源码与项目绑定不变。
+- **L 迭代加速**：`thermal_acceleration='adaptive'/'aitken'` 为试验模式，慢例迭代 −67%；
+  `coupling_acceleration` 实测无收益，保留试验选项，默认均为 `none`。
+
+### 观测与基准
+
+- `SolverOptions.hydraulic_diagnostics`（默认关）：帧里增加 `solve_counters`（真实残差调用、Jacobian 扰动、
+  RPC 批次/实例、分项计时），数值不变。`RunFrame.solve_summary` 始终记录请求/实际方法、矩阵规模、选择原因与
+  Jacobian 模式；两个字段都是新增可选字段，旧读取路径不受影响。
+- 新增样例工厂/动态场景/基线与比较器脚本，以及 `docs/NUMERICS_BASELINE.md`。
+
+### 兼容与升级
+
+- 契约已重建（51 文件，`generate_contracts.py --check` 通过）；`SolverOptions` 新增字段全部有旧默认，
+  旧项目/快照/工作区可继续打开，无需数据迁移。
+- mypy 仍为 advisory；本轮把新模块的 advisory 错误清零（全仓低于 v0.5.0 的 40 条基线）。
+- 未实现并明确排除：通用管网/冷库 A 的误差控制（X1/X2）、多容积与开闭周期（I5–I9）、分块并行（X0 实测无线程收益）、
+  可变密度长输（G0 无案例）。
+
 ## v0.5.0（2026-10-22）
 
 本版本是冷库案例 A/B 与倍思鹿模块套件的第一个里程碑发布。

@@ -252,6 +252,19 @@
           "default": null,
           "title": "Solve Counters"
         },
+        "solve_summary": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Solve Summary"
+        },
         "full": {
           "default": true,
           "title": "Full",

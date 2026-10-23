@@ -555,6 +555,18 @@ window.createEngineClient = function (ui) {
       owner.run.id = data.run_id;
       owner.run.events = (stopped ? history.rows.at(-1).diagnostics : data.frame.diagnostics).map(d => ({t:0,text:d.message}));
       owner.run.events.push({t:0,text:`后端计算完成；压力残差 ${metrics.pressure_residual_pa.toExponential(2)} Pa，质量残差 ${metrics.mass_residual_kg_s.toExponential(2)} kg/s。`});
+      // S1/J2：把“请求方法 → 实际方法、Jacobian 模式”记进运行事件，便于对照报告与复现。
+      const summary = (stopped ? history.rows.at(-1) : data.frame).solve_summary;
+      if (summary) {
+        const method = summary.effective_method === 'sparse' ? '稀疏' : '稠密';
+        const requested = summary.requested_method === 'auto' ? '自动→' : '';
+        const jacobian = summary.jacobian_mode === 'analytic' ? '解析' : '有限差分';
+        owner.run.events.push({t:0,text:`求解：${requested}${method}，未知量 ${summary.matrix_size}，Jacobian ${jacobian}。`});
+      }
+      // A4：误差接受控制开启时才展示内部步长/拒绝数/局部误差范数（不可称为全局误差）。
+      if (metrics.timestep_adaptive) {
+        owner.run.events.push({t:0,text:`内部步长 ${metrics.internal_step_s} s；本帧接受 ${metrics.internal_steps} 步、拒绝 ${metrics.internal_rejections} 次，局部时间离散误差范数最大 ${Number(metrics.local_error_norm_max).toExponential(2)}。`});
+      }
       if (stopped) owner.run.events.push({t:rows.at(-1).t,text:stopped.message});
       if (action === 'step') {
         // Each step is a new immutable solve; keep the sequence with the parameters that produced each row.

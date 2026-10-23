@@ -1102,6 +1102,26 @@
           "title": "Coupling Density Rtol",
           "type": "number"
         },
+        "thermal_acceleration": {
+          "default": "none",
+          "enum": [
+            "none",
+            "adaptive",
+            "aitken"
+          ],
+          "title": "Thermal Acceleration",
+          "type": "string"
+        },
+        "coupling_acceleration": {
+          "default": "none",
+          "enum": [
+            "none",
+            "adaptive",
+            "aitken"
+          ],
+          "title": "Coupling Acceleration",
+          "type": "string"
+        },
         "max_step_halvings": {
           "default": 6,
           "maximum": 20,
@@ -1122,6 +1142,21 @@
         "hydraulic_diagnostics": {
           "default": false,
           "title": "Hydraulic Diagnostics",
+          "type": "boolean"
+        },
+        "analytic_jacobian": {
+          "default": true,
+          "title": "Analytic Jacobian",
+          "type": "boolean"
+        },
+        "series_compression": {
+          "default": false,
+          "title": "Series Compression",
+          "type": "boolean"
+        },
+        "hydraulic_blocks": {
+          "default": false,
+          "title": "Hydraulic Blocks",
           "type": "boolean"
         },
         "module_parallelism": {
