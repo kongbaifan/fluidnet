@@ -8,6 +8,8 @@ from ..controllers import PID
 from ..models import Diagnostic, RunFrame
 from ..simulation import SimulationSession
 from ..solver import SolveFailed
+from ..timestep import (AdaptiveMarch, StepStatistics, TimeStepConfig, TimeStepExhausted, TrialFailure,
+                        ensure_supported, normalized_error)
 
 
 class ThermalSession(SimulationSession):
@@ -18,7 +20,15 @@ class ThermalSession(SimulationSession):
             raise ValueError('运行时长和步长必须为有限正数')
         if keep is None and (duration_s is None or duration_s > 2000 * dt_s):
             raise ValueError('一次返回全部帧的运行最多 2001 帧，且必须设定时长')
+        # A0：旧项目缺省 time_step.enabled=False，按原固定步长路径；开启前先检查执行域是否已接入。
+        self.timestep = TimeStepConfig.from_solver(network.project.solver)
+        if self.timestep.enabled:
+            ensure_supported(getattr(network, 'execution_domain', None))
         self.network = network
+        # 困液定容（I0–I4）只在通用流体执行域编译；热模型/制冷站的编译结果没有 trapped 字段，
+        # 而共用的参数写入路径会读 network.trapped，这里补空集合，行为与引入 I 系列前一致。
+        if not hasattr(network, 'trapped'):
+            network.trapped = {}
         self.duration, self.dt = duration_s, dt_s
         self.time = 0.
         self.index = self.sequence = self.revision = 0
@@ -30,7 +40,13 @@ class ThermalSession(SimulationSession):
         self.published_time = 0.
         self.diagnostics = []
         self.closed = False
+        # 困液定容（I0–I4）只在通用流体执行域启用；热模型/制冷站复用 SimulationSession 的参数与
+        # 控制方法但不调用其 __init__，这里保持空状态，使共用参数写入路径与原行为一致。
+        self.trapped, self.trapped_ledgers = {}, {}
         self._init_state()
+        # 误差控制状态：统计与步长建议只在 accepted state 上推进，拒绝的试算不写入。
+        self.march = AdaptiveMarch(self.timestep) if self.timestep.enabled else None
+        self.step_stats = self.march.stats if self.march is not None else StepStatistics()
 
     def _init_state(self):
         network = self.network
@@ -90,12 +106,14 @@ class ThermalSession(SimulationSession):
             values.update(script.variables())
         warning = Diagnostic(code='COLD_ROOM_IDEAL_SOURCE', severity='info',
             message='A1 库房隐式热平衡与理想恒容量冷源；尚未计算货物热状态、制冷循环、电功率或 COP')
+        metrics = {'energy_residual_w': self.frame_residual_j / (self.time - self.published_time)
+                   if self.time > self.published_time else 0.,
+                   'energy_residual_j': self.energy_residual_j, 'storage_power_w': storage_power}
+        metrics.update(self.step_stats.frame_metrics(adaptive=self.timestep.enabled,
+                                                     fixed_step=self.network.project.solver.dynamic_step_s))
         return RunFrame(status='converged', valid=True, time_s=self.time, variables=values,
             diagnostics=[*self.network.diagnostics, warning, *self.diagnostics],
-            metrics={'energy_residual_w': self.frame_residual_j / (self.time - self.published_time)
-                     if self.time > self.published_time else 0.,
-                     'energy_residual_j': self.energy_residual_j, 'storage_power_w': storage_power},
-            sequence=self.sequence, parameter_revision=self.revision)
+            metrics=metrics, sequence=self.sequence, parameter_revision=self.revision)
 
     def publish(self):
         frame = self.snapshot()
@@ -103,6 +121,7 @@ class ThermalSession(SimulationSession):
         self.sequence += 1
         self.published_time = self.time
         self.frame_residual_j = 0.
+        self.step_stats.end_frame()
         self.diagnostics.clear()
         return frame
 
@@ -116,6 +135,8 @@ class ThermalSession(SimulationSession):
 
     def _integrate(self, step):
         """Advance the physical state by `step`; nothing is committed unless the whole step succeeds."""
+        if self.timestep.enabled:
+            return self._integrate_adaptive(step)
         temperatures, external, cooling = {}, {}, {}
         residual = 0.
         for room, source in self.network.room_sources.items():
@@ -142,6 +163,64 @@ class ThermalSession(SimulationSession):
             self.cooling_energy[source] += energy
         self.energy_residual_j += residual
         self.frame_residual_j += residual
+        self.step_stats.fixed_step(step)
+
+    def _heat_trial(self, temperatures, h):
+        """从给定 accepted 温度向量试算 h（纯函数，不写任何状态）；返回细步所需的全部量。"""
+        values, external, cooling = {}, {}, {}
+        residual = 0.
+        for room, source in self.network.room_sources.items():
+            p, old = self.network.parameters[room], temperatures[room]
+            ua_air = p['wall_ua_w_k'] + p['roof_ua_w_k']
+            ua = ua_air + p['floor_ua_w_k']
+            _, power = self._powers(room, old)
+            rhs = (ua_air * p['ambient_temperature_k'] + p['floor_ua_w_k'] * p['ground_temperature_k']
+                   + p['heat_input_w'] - power)
+            temperature = (p['heat_capacity_j_k'] * old + h * rhs) / (p['heat_capacity_j_k'] + h * ua)
+            if not math.isfinite(temperature) or temperature <= 0:
+                raise TrialFailure(f'{room} 库温不在模型范围')
+            envelope, power = self._powers(room, temperature)
+            heat_in = h * (envelope + p['heat_input_w'])
+            heat_out = h * power
+            residual += p['heat_capacity_j_k'] * (temperature - old) - (heat_in - heat_out)
+            values[room], external[room], cooling[source] = temperature, heat_in, heat_out
+        return {'temperatures': values, 'external': external, 'cooling': cooling, 'residual': residual}
+
+    def _commit_heat(self, payload):
+        """只提交被接受细步的库温、累计冷量/外供热量与能量残差。"""
+        self.temperatures.update(payload['temperatures'])
+        for room, energy in payload['external'].items():
+            self.external_energy[room] += energy
+        for source, energy in payload['cooling'].items():
+            self.cooling_energy[source] += energy
+        self.energy_residual_j += payload['residual']
+        self.frame_residual_j += payload['residual']
+
+    def _integrate_adaptive(self, step):
+        """A1：整步与两个半步都从同一 accepted state 试算；只在 error_norm≤1 时提交细步路径。"""
+        rooms = list(self.network.room_sources)
+
+        def trial(h):
+            old = {room: self.temperatures[room] for room in rooms}
+            full = self._heat_trial(old, h)
+            half = self._heat_trial(old, 0.5 * h)
+            fine = self._heat_trial(half['temperatures'], 0.5 * h)
+            error = normalized_error(
+                [old[room] for room in rooms], [full['temperatures'][room] for room in rooms],
+                [fine['temperatures'][room] for room in rooms],
+                categories=['temperature'] * len(rooms),
+                atol={'temperature': self.timestep.temperature_atol_k}, rtol=self.timestep.rtol)
+            return (half, fine), error
+
+        def accept(payload, h, error):
+            half, fine = payload
+            self._commit_heat(half)
+            self._commit_heat(fine)
+
+        try:
+            self.march.march(segment=step, trial=trial, accept=accept, time=self.time)
+        except TimeStepExhausted as error:
+            raise SolveFailed(error.code, str(error), None, list(self.frames)) from error
 
     def advance(self):
         if not self.frames:
@@ -153,7 +232,8 @@ class ThermalSession(SimulationSession):
             target = min(target, self.duration)
         while target - self.time > 1e-12 * max(1., target):
             self._control()
-            step = min([target - self.time, self.network.project.solver.dynamic_step_s]
+            limit = self.timestep.max_step_s if self.timestep.enabled else self.network.project.solver.dynamic_step_s
+            step = min([target - self.time, limit]
                        + [pid.next_s - self.time for pid in self.controllers.values()]
                        + [script.next_s - self.time for script in self.scripts.values()])
             if step <= 0:
@@ -181,3 +261,39 @@ def solve_thermal_steady(network):
             raise CompilationError('THERMAL_STATE_RANGE', f'{room} 稳态温度不在模型范围')
         session.temperatures[room] = temperature
     return session.snapshot()
+
+
+def ideal_room_analytic(network, time_s, *, temperature_key='temperature_k'):
+    """理想热模型（无控制、恒定容量冷源）的解析解，用于校验 A1 的步长误差估计。
+
+    单库房热平衡为常系数线性 ODE：``C·dT/dt = UA_air·T_amb + UA_floor·T_ground + Q − P − UA·T``，
+    初值取项目参数里的库温，因此 ``T(t)`` 为指数解。返回每个库房的
+    ``{'temperature_k', 'external_energy_j', 'cooling_energy_j'}``（能量为从 t=0 起的累计值，
+    与会话账本定义一致）。仅当无 PID/脚本且 ``capacity_ratio`` 恒定时等于真实轨迹。
+    """
+    if network.project.controllers or any(script.enabled for script in network.project.control_scripts):
+        raise ValueError('解析解只适用于无控制、恒定容量冷源的理想热模型')
+    result = {}
+    for room, source in network.room_sources.items():
+        p = network.parameters[room]
+        rated = network.parameters[source]
+        ua_air = p['wall_ua_w_k'] + p['roof_ua_w_k']
+        ua = ua_air + p['floor_ua_w_k']
+        capacity = p['heat_capacity_j_k']
+        power = rated['cooling_power_w'] * rated['capacity_ratio']
+        rhs = (ua_air * p['ambient_temperature_k'] + p['floor_ua_w_k'] * p['ground_temperature_k']
+               + p['heat_input_w'] - power)
+        if ua <= 0 or capacity <= 0:
+            raise ValueError(f'{room} 的解析解需要正热容与正 UA')
+        equilibrium = rhs / ua
+        decay = ua / capacity
+        delta = p[temperature_key] - equilibrium
+        temperature = equilibrium + delta * math.exp(-decay * time_s)
+        envelope_integral = (ua_air * (p['ambient_temperature_k'] - equilibrium)
+                             + p['floor_ua_w_k'] * (p['ground_temperature_k'] - equilibrium)) * time_s
+        envelope_integral -= (ua_air + p['floor_ua_w_k']) * delta * (1. - math.exp(-decay * time_s)) / decay
+        result[room] = {'temperature_k': temperature,
+                        'external_energy_j': envelope_integral + p['heat_input_w'] * time_s,
+                        'cooling_energy_j': power * time_s}
+    return result
+

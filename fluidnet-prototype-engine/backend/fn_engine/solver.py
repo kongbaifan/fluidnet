@@ -67,6 +67,8 @@ class SolveCounters:
     jacobian_nnz: int = 0
     # S1：auto 回退记录（空字符串表示没有回退）。
     method_fallback: str = ''
+    # J2：解析 Jacobian 退化时的一次性回退记录。
+    jacobian_fallback: str = ''
     # 仅在开关打开时记录；键名与 3.2 的分项对应，嵌套/重叠计时不相加。
     timing_s: dict = field(default_factory=dict)
 
@@ -317,8 +319,9 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
 
     python_runners = runners
     iteration_id = 0
-    module_variables, module_diagnostics = {}, []
-    final_relations = {}
+    module_variables: dict = {}
+    module_diagnostics: list = []
+    final_relations: dict = {}
 
     def trial_port(instance_id, port_id, pressure):
         key = f'{instance_id}:{port_id}'
@@ -528,7 +531,7 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
     else:
         start = cold
 
-    def attempt(vector):
+    def attempt(vector, numeric_jacobian=False):
         started = time.perf_counter()
         if counters is not None:
             counters.solver_attempts += 1
@@ -536,7 +539,7 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
         if method == 'sparse':
             sparse_options = {'tr_solver': 'lsmr',
                               'tr_options': {'atol': 1e-13, 'btol': 1e-13, 'maxiter': max(100, size*4)}}
-        if analytic_supported:
+        if analytic_supported and not numeric_jacobian:
             # 解析导数与 x_scale='jac' 不冲突：jac 返回 CSR（稀疏）或 ndarray（稠密）。
             sparse_options['jac'] = analytic_jacobian
         elif method == 'sparse':
@@ -565,12 +568,20 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
         if counters is not None:
             counters.method_fallback = 'dense'
         result, drops, balance, closed, constraints, ok = attempt(cold)
+    if not ok and analytic_supported:
+        # 解析 Jacobian 的已知退化：q=0 是 q|q| 项的驻点，Newton 步可能停在零流量假收敛点
+        # （gtol 满足但压力残差不为 0）。只允许一次可诊断回退到有限差分，容差不放宽。
+        jacobian_mode = 'finite_difference'
+        jacobian_reason = '解析 Jacobian 在零流量驻点假收敛，已回退有限差分（仅一次）'
+        if counters is not None:
+            counters.jacobian_fallback = 'finite_difference'
+        result, drops, balance, closed, constraints, ok = attempt(cold, numeric_jacobian=True)
     pressures, flows = unpack(result.x)
     # Zero-flow and forced-flow relations do not determine a pressure difference.
     # Every pressure component left after removing them needs its own reference.
     # A tank row fixes its pressure through the stored mass, so it is a reference as well.
     reached, pending = set(fixed) | set(tanks), list(fixed) + tanks
-    adjacency = {node: set() for node in range(n_nodes)}
+    adjacency: dict[int, set[int]] = {node: set() for node in range(n_nodes)}
     for idx, branch in enumerate(network.branches):
         if idx not in constraints:
             adjacency[branch.start_node].add(branch.end_node)

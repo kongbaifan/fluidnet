@@ -87,6 +87,21 @@ def test_python_module_keeps_finite_difference():
     assert result.counters['perturbation_calls'] > 0
 
 
+def test_degenerate_zero_flow_station_falls_back_to_numeric():
+    """单支路偏置网络：q=0 是 q|q| 的驻点，解析 Newton 步可能停在假收敛点。
+
+    必须只回退一次到有限差分、得到正确反向流量，并在结果里说明原因（容差不放宽）。
+    """
+    from test_contracts_and_physics import simple
+    model = simple(params={'opening_ratio': 0.5, 'kv_m3_h': 10}, inlet=100000., outlet=200000.)
+    model.solver.hydraulic_diagnostics = True
+    result = solve_hydraulics(compile_project(model))
+    assert result.flows[0] == pytest.approx(-1.38769063, rel=1e-6)
+    assert result.jacobian_mode == 'finite_difference'
+    assert '回退有限差分' in result.jacobian_reason
+    assert result.counters['jacobian_fallback'] == 'finite_difference'
+
+
 def test_heat_exchanger_channels_use_resistance_derivatives():
     """换热器的每条通路被编译为阻力关系，因此纯内置换热器网络同样走解析路径。"""
     model = exchanger_project()

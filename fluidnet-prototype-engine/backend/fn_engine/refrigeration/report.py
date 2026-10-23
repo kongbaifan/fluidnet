@@ -212,6 +212,43 @@ def _scenario_name(record):
     return next((s['name'] for s in project.get('scenarios', []) if s['id'] == sid), '基础模型') if sid else '基础模型'
 
 
+def _timestep_rows(rows, network):
+    """A4：内部步长、拒绝数与该帧最大局部时间离散误差范数；旧档案缺失时明确标注。
+
+    指标只描述 step-doubling 的 **局部** 时间离散误差估计，不是全程误差，也不是模型准确度保证。
+    """
+    options = network.project.solver.time_step
+    limits = (f'{options.min_internal_step_s:g}–{options.max_internal_step_s:g} s'
+              if options.max_internal_step_s is not None else f'{options.min_internal_step_s:g} s 起，上限沿用发布步长')
+    settings = (f'{"开启（step-doubling 接受/拒绝）" if options.enabled else "关闭（固定步长旧路径）"}；'
+                f'atol 质量 {options.mass_atol_kg:g} kg / 能量 {options.energy_atol_j:g} J / 温度 '
+                f'{options.temperature_atol_k:g} K；rtol {options.rtol:g}；内部步长 {limits}')
+    body = [('时间误差控制设置', html.escape(settings))]
+    last = (rows[-1].get('metrics') if rows else None) or {}
+    if 'timestep_adaptive' not in last:
+        body.append(('内部步长 / 拒绝数 / 最大局部误差范数', '本档案没有这些指标（A4 之前的运行记录）'))
+        return body
+    adaptive = bool(last['timestep_adaptive'])
+    accepted = last.get('internal_steps_total')
+    accepted = accepted if accepted is not None else sum(int((r.get('metrics') or {}).get('internal_steps') or 0) for r in rows)
+    rejected = last.get('internal_rejections_total')
+    rejected = rejected if rejected is not None else sum(int((r.get('metrics') or {}).get('internal_rejections') or 0) for r in rows)
+    boundary = sum(int((r.get('metrics') or {}).get('boundary_truncations') or 0) for r in rows)
+    steps = [(r.get('metrics') or {}).get('internal_step_s') for r in rows]
+    steps = [float(s) for s in steps if isinstance(s, (int, float)) and s > 0]
+    errors = [(r.get('metrics') or {}).get('local_error_norm_max') for r in rows]
+    errors = [float(e) for e in errors if isinstance(e, (int, float))]
+    mode = '自适应（误差接受控制）' if adaptive else '固定步长（未开启误差接受控制）'
+    body += [
+        ('内部积分 / 内部步长范围', f'{mode}；被接受内部步 {accepted} 步；步长 '
+                               f'{min(steps):.3g}–{max(steps):.3g} s' if steps else f'{mode}；被接受内部步 {accepted} 步'),
+        ('内部步拒绝 / 边界截断', f'{rejected} 次误差拒绝 / {boundary} 次边界截断'),
+        ('局部时间离散误差范数最大值', f'{max(errors):.3g}（step-doubling 局部估计；不是全程误差，也不是模型准确度保证）'
+                                if errors else '无（固定步长路径不估计）'),
+    ]
+    return body
+
+
 def _parameters(network):
     body = []
     for iid, kind in network.kinds.items():
@@ -273,6 +310,7 @@ def run_report(record, rows, network):
                      ('数据等级', '工程示范假设；无厂家或现场数据')])
             + (f'<h2>运行停止</h2><ul>{final}</ul>' if final else '')
             + ''.join(sections)
+            + '<h2>时间离散误差控制</h2>' + _table(['指标', '数值'], _timestep_rows(rows, network))
             + '<h2>模型与公式</h2><pre>' + html.escape(FORMULAS) + '</pre><h2>假设与边界</h2><ul>'
             + ''.join(f'<li>{html.escape(a)}</li>' for a in ASSUMPTIONS) + '</ul>'
             + '<h2>日程事件</h2>' + _events(network) + '<h2>输入参数</h2>' + _parameters(network)
@@ -293,7 +331,8 @@ def fairness(networks, records):
               ('工质', a.project.fluid == b.project.fluid),
               ('仿真时长与发布间隔', (records[0]['request']['duration_s'], records[0]['request']['dt_s'])
                == (records[1]['request']['duration_s'], records[1]['request']['dt_s'])),
-              ('内部步长', a.project.solver.dynamic_step_s == b.project.solver.dynamic_step_s)]
+              ('内部步长', a.project.solver.dynamic_step_s == b.project.solver.dynamic_step_s),
+              ('时间误差控制设置（A0）', a.project.solver.time_step == b.project.solver.time_step)]
     return checks
 
 
@@ -375,6 +414,7 @@ def station_report(record, rows, network):
             *[(f'{r} 最大偏离设定 / 末态库温', f'{_text(v["max_deviation_k"], "K")} / {_text(v["final_temperature_k"], "C")}') for r, v in m['rooms'].items()],
             *[(f'{v} 液位范围', f'{x["min"]:.4f} … {x["max"]:.4f}') for v, x in m['levels'].items()],
             *[(f'控制器 {cid} 1 h 后最大跟踪偏差', '—' if v is None else f'{v:.4g}') for cid, v in m['max_tracking_after_1h'].items()],
+            *_timestep_rows(rows, network),
             ('能量账本残差', _text(m['energy_residual_j'], 'J')),
             ('回路存量残差', html.escape(', '.join(f'{k}={v:.3g} kg' for k, v in m['mass_residual_kg'].items())))]
     role = lambda module: next((v for v in network.vessels if network.instances[v].module_id == module), network.vessels[0])

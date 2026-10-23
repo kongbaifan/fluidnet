@@ -417,6 +417,62 @@ C_g(G' − G) = h·UA_g(T' − G')，C_g = M·c_p，UA_g = UA_g0·M/M0
 - 编译期范围检查、水箱初始质量与液位事件都用设备所在回路的工质；同一回路只允许一种相态族的规则不变。
 - 所有回路工质都与项目工质相同时走原来的单工质路径；只要有一个回路（哪怕项目只有这一个回路）用了别的工质，就按多工质计算。
 
+## 时间误差控制（A0–A4，理想热模型与冷库 B）
+
+首轮范围只有两个执行域：`thermal`（A1 理想热模型，`refrigeration/session.py`）与 `refrigeration`（冷库 B 集总制冷站，`refrigeration/station.py`）。其他执行域（通用管网、冷库 A `cold_store`）开启该配置时在会话创建阶段报 `TIMESTEP_DOMAIN_UNSUPPORTED`，不静默忽略。默认 `SolverOptions.time_step.enabled=False`，旧项目与旧默认完全按上面的固定步长路径运行。
+
+配置（`models.py::TimeStepOptions`，随项目快照保存/恢复）：
+
+| 字段 | 默认 | 含义 |
+| --- | --- | --- |
+| `enabled` | `False` | 关闭时保持旧固定步长路径；开启后每步做 step-doubling |
+| `mass_atol_kg` | `1e-9` | 质量类别绝对容差（kg） |
+| `energy_atol_j` | `1e-3` | 能量类别绝对容差（J） |
+| `temperature_atol_k` | `1e-5` | 温度类别绝对容差（K） |
+| `rtol` | `1e-6` | 相对容差（1） |
+| `min_internal_step_s` / `max_internal_step_s` | `1e-3` / `None` | 内部步长下限；上限为 `None` 时沿用 `dynamic_step_s` |
+| `safety` / `growth_factor` / `shrink_factor` | `0.9` / `2.0` / `0.5` | 步长建议与控制倍率 |
+
+算法（`backend/fn_engine/timestep.py`，约定冻结于计划 §12.1）：
+
+- 同一 accepted state 上算整步 `x_full(h)` 与两个半步 `x_fine(h/2, h/2)`，局部误差取 `|x_fine − x_full|` 的量级，不做 Richardson 外推。
+- 每一类积分状态单独归一化：`error_i = |x_fine,i − x_full,i| / (atol_i + rtol·max(|x_old,i − ref_i|, |x_fine,i − ref_i|))`，取最大范数。质量 kg、能量 J、温度 K 各有 atol；能量状态相对会话初始化时冻结的参考态 `ref` 中心化，改变物性内能零点不改变接受结果。
+- 冷库 B 另对每个容器的 **派生压力** 做整步/细步差值检查（`pressure_tolerance_pa + rtol·max(|p_full|, |p_fine|)`），避免内能中心化掩盖压力误差；派生量不是积分状态。
+- `error_norm ≤ 1` 才按细步路径接受；建议步长 `h_next = clamp(h·safety·error_norm^(-1/2), growth/shrink 界, min/max)`，零误差按 `growth` 增长。接受时提交两个半步的状态、累计量、能量残差与 PID/脚本提案；整步试算、两个半步和拒绝重试都不提交任何状态。
+- 输出时刻、PID/脚本采样、日程事件、启停边界都截断内部步长：外循环先取 `min(目标输出时刻 − t, dynamic_step_s 或 max_internal_step_s, 下一个控制采样, 下一个日程事件)`。被边界截断的细小步单独计入 `boundary_truncations`，与因误差触底最小步长的停止区分。
+- 最小步长仍不满足误差（或求解失败到最小步长）时抛 `TIME_STEP_MIN_EXCEEDED`；边界截断的细小步仍不满足时抛 `TIME_STEP_BOUNDARY_EXCEEDED`；两者都保留已接受历史并停止，不放宽 atol/rtol。
+- 隐含求解器从任意 accepted vector 起步：`StationSession._trial_doubling(x, h)` 先解整步，再从 `x` 解第一个半步得到 `x_mid`，**第二个半步从 `x_mid` 出发**；Newton 雅可比与求值缓存只在接受时保留，拒绝或求解失败后恢复原值（失败不污染缓存）。
+
+`RunFrame.metrics` 的稳定键（A0 冻结，A4 报告使用）：`timestep_adaptive`、`internal_step_s`、`internal_steps`、`internal_rejections`、`solver_retries`、`boundary_truncations`、`local_error_norm_max`、`internal_steps_total`、`internal_rejections_total`、`accepted_step_min_s`、`accepted_step_max_s`。`local_error_norm_max` 只是 **局部** 时间离散误差估计（step-doubling），不是全程误差，也不是模型准确度保证；报告按此措辞展示。
+
+验收（A1–A4，数字见 `numerics/results/A1.md`–`A4.md`）：理想热模型对照解析解，缩紧容差误差有规律下降、输出时刻不漂移、拒绝试算不进入能量账本；原固定步长路径与 v0.5.0 逐变量/逐计数完全一致；冷库 B 的 24 h 额定、负荷阶跃、目标压力、湿球变化四场景对固定 1 s 更细步参考的末值温差、压力差与累计电量差均在门限内；同参数重跑的接受步序列可复现。
+
+## 困液定容压力第一阶段原型（I0–I4，单容积封闭）
+
+只交付“显式封闭、刚性、单一均匀液体容积”的压力/温度演化原型，接入限定的封闭运行场景。仅 HEOS 纯水、
+单相液体；不支持 INCOMP、气垫、两相、弹性管壁、泄漏、水锤、多容积串联与完整开闭周期。**I0–I4 不计为
+“完整隔离段功能完成”**，对外只标“单容积封闭原型”。证据与实测数字见 `docs/numerics/results/I0.md`–`I4.md`。
+
+- 状态与方程：几何体积 `V` 固定、质量 `M` 固定（编译期由初态 p/T 的密度算出），唯一流体积分状态是总内能
+  `U`；`p/T = state_du(M/V, U/M)`，不另写 EOS，也不沿用定压管道“等效质量×焓变化”。可选集总管壁与流体同温：
+  总储能 `E = U + C_wall·(T−T_ref)`（`T_ref` 取初温），刚性体不做边界体积功，外部能量交换只有
+  `heat_input_w` 与 `heat_loss_ua_w_k·(T−T_ambient)`。
+- 离散：对标量 `U` 的后向 Euler，`F(U) = U + C_wall(T−T_ref) − E_old − Δt·[Q_in − UA(T−T_amb)] = 0`，
+  其中 `T(U)` 由 `state_du` 给出；固定 `M/V` 时 `F` 单调，用带括区的 Newton 求根。失败/越界明确报错，不夹断。
+- 账本：能量尺度 `E_scale = max(Σ|Q|Δt, |E−E₀|)`，能量残差门 `max(1 J, 1e-6·E_scale)`；质量相对漂移门
+  `1e-10`；物性闭合对独立 PT-flash 等容反解的压力差门 `max(10 Pa, 1e-5·|p_ref|)`。实测（加热 20 kW×60 s）：
+  质量漂移 0、能量残差 1.7e-5 J（门限 1.2 J）、压力闭合差 1.4e-4 Pa（门限 220 Pa）。
+- 编译期：内置模块 `closed_volume`（参数 `volume_m3 / wall_heat_capacity_j_k / initial_temperature_k /
+  initial_pressure_pa / heat_input_w / heat_loss_ua_w_k / ambient_temperature_k`）在两端相邻支路全关时激活，
+  该节点登记为子网络唯一压力参考；拒绝多容积、与水箱混用、同节点压力边界、非 HEOS/非纯水、初态越相态/越压力
+  范围、V 未显式给出，并给出具体诊断码（`TRAPPED_*`）。
+- 动态接入：`SimulationSession` 在 t=0 把 `(M,U)` 捕获为 accepted 初态（本阶段只支持“初始即关闭”的捕获），
+  每步用 accepted 状态经 `state_du` 重算边界 p/T；子步在 trial/accepted 分离下推进，失败子步不提交。
+  开阀请求在生效前以 `TRAPPED_OPEN_UNSUPPORTED` 拒绝并报告释放账本（质量/内能/总储能/管壁储能），
+  不做压力强赋值；`solve_steady` 不积分困液状态（只把节点当初始压力参考）。帧内暴露
+  `<实例>.state.*` 与 `trapped_*` 指标，附 `TRAPPED_PROTOTYPE_ONLY` 能力边界信息。
+- 未实现（属 I5–I9）：运行中关阀捕获、开阀释放/保守重连、开放阶段质量账本、多容积串联与任意阀门隔离网络。
+
 ## 后续状态算法（未实现）
 
-不在计划内：管道流动惯性（倍思鹿 `RLS`）、两位式滞环控制、气垫或气液两相闭式罐、满箱溢流与空箱断流的切换、BDF2 或时间误差控制、Python 模块自定义微分状态、管网内两相流（均相模型、相变换热器、闭式两相罐；两相物性只在模块内部查询）、完整可压缩气体网络和水锤。冷库 B 的集总制冷站（见上文）不属于管网：容器和换热器的两相状态只在设备内部计算，不形成压力节点或两相支路。
+不在计划内：管道流动惯性（倍思鹿 `RLS`）、两位式滞环控制、气垫或气液两相闭式罐、满箱溢流与空箱断流的切换、BDF2 或时间误差控制（A0–A4 已在理想热模型与冷库 B 落地，见上文“时间误差控制”；其余执行域仍未实现）、Python 模块自定义微分状态、管网内两相流（均相模型、相变换热器、闭式两相罐；两相物性只在模块内部查询）、完整可压缩气体网络和水锤。冷库 B 的集总制冷站（见上文）不属于管网：容器和换热器的两相状态只在设备内部计算，不形成压力节点或两相支路。

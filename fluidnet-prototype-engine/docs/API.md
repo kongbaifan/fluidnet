@@ -203,6 +203,12 @@ scenario_id 指向 Project.scenarios。覆盖只修改本次运行的项目副�
 
 该示例取自 `contracts/reference-result.json`，省略了其他变量和归一化提示。valid 表示当前声明的水力方程和热力层（`thermal=True` 时）已通过验收；含水箱的动态帧还表示水箱储能方程已通过验收。`SolverOptions.thermal=False` 时热力变量为 null，指标中没有热力项。
 
+### 时间误差控制设置与指标（A0–A4）
+
+`Project.solver.time_step` 保存时间误差控制设置（`TimeStepOptions`）：`enabled`（默认 false）、`mass_atol_kg`、`energy_atol_j`、`temperature_atol_k`、`rtol`、`min_internal_step_s`、`max_internal_step_s`（null 表示沿用 `dynamic_step_s`）、`safety`、`growth_factor`、`shrink_factor`。项目保存/恢复、工况复制和运行请求都携带这些字段；缺字段按旧固定步长行为解释。首轮只在理想热模型（`thermal`）与冷库 B（`refrigeration`）生效，其他执行域开启时编译/建会话报 `TIMESTEP_DOMAIN_UNSUPPORTED`。
+
+这两个执行域的 `RunFrame.metrics` 另有稳定键：`timestep_adaptive`（1/0）、`internal_step_s`、`internal_steps`、`internal_rejections`、`solver_retries`、`boundary_truncations`、`local_error_norm_max`、`internal_steps_total`、`internal_rejections_total`、`accepted_step_min_s`、`accepted_step_max_s`。其中 `local_error_norm_max` 是 step-doubling 的 **局部** 时间离散误差范数最大值，不是全程误差，也不是模型准确度保证；冷库报告按“局部时间离散误差范数最大值”展示并附此说明。最小步长仍不满足误差时运行以 `TIME_STEP_MIN_EXCEEDED` 失败、边界截断的细小步仍不满足时以 `TIME_STEP_BOUNDARY_EXCEEDED` 失败，两种记录都保留失败前已接受的 history。
+
 Diagnostic 包含 code、message、severity（info/warning/error）、可选 instance_id 与 field。前端可以定位到实例。结构错误采用 PORT_UNCONNECTED、BOUNDARY_CONFLICT、BOUNDARY_TEMPERATURE_CONFLICT、PRESSURE_REFERENCE_MISSING、MODEL_NOT_SUPPORTED 等代码;参数与工况错误采用 PARAMETER_RANGE(含 `diameter_m` 不大于零、`roughness_m` 为负)、ROUGHNESS_RANGE、UNKNOWN_PARAMETER、PARAMETER_INVALID、CURVE_INVALID、SCENARIO_INSTANCE_MISSING 等代码;热力错误采用 PHASE_UNSUPPORTED、NO_FLOW_HEAT、THERMAL_REFERENCE_MISSING、THERMAL_NOT_CONVERGED、COUPLING_NOT_CONVERGED 等代码(完整列表见数据合同文档)。
 
 POST /runs 对类型正确但编译或求解失败的请求仍创建可查询的记录，status=failed、frame.valid=false、history 为空。例外：动态运行在水箱事件（`TANK_EMPTY`、`TANK_FULL`）或 `STEP_NOT_CONVERGED` 处停止时，history 保留已接受的帧，`frame.time_s` 为最后一帧时刻，`frame.diagnostics` 给出停止原因。schema 不合法、帧数超限等请求在创建前返回 422。POST /solve 则将编译/求解错误直接返回 422/detail Diagnostic。被取消的后台运行同样保留记录:status=cancelled,frame.status=cancelled、valid=false,history 保留取消前已算出的帧。

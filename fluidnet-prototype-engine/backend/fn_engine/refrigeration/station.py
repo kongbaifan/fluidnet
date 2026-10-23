@@ -16,6 +16,7 @@ from ..control import validate_scripts
 from ..models import Diagnostic, Domain, Project, RunFrame
 from ..properties import PropertyError, property_service
 from ..solver import SolveFailed
+from ..timestep import TimeStepExhausted, TrialFailure, normalized_error
 from . import devices
 from .schedule import EPS, apply_set_variable, check_set_variable, check_unique
 from .session import ThermalSession
@@ -337,6 +338,9 @@ class StationSession(ThermalSession):
                              for iid, kind in network.kinds.items() if kind == 'cold_room'}
         self.circuit_mass = [sum(self.masses[v] for v in network.vessels if network.circuit_of[v] == c)
                              for c in range(len(network.circuit_fluids))]
+        # A0：能量状态相对这个冻结参考态中心化；物性内能零点改变时 u 与参考同步平移。
+        self.energy_reference = dict(self.energies)
+        self.last_trial = None
         self.counters = {}
         self.event_index = self.events_applied = 0
         from .report import station_series_keys
@@ -406,6 +410,8 @@ class StationSession(ThermalSession):
 
     def _integrate(self, step):
         """All substeps of `step` succeed before any state, counter or residual is committed."""
+        if self.timestep.enabled:
+            return self._integrate_adaptive(step)
         network = self.network
         x = self._vector(self.masses, self.energies, self.temperatures)
         counters, energy_residual = dict(self.counters), 0.
@@ -430,10 +436,92 @@ class StationSession(ThermalSession):
             for key, power in self._powers(result).items():
                 counters[key] = counters.get(key, 0.) + h * power
             x, done = x_new, done + h
+            self.step_stats.fixed_step(h)
         self.masses, self.energies, self.temperatures = self._unpack(x)
         self.counters = counters
         self.energy_residual_j += energy_residual
         self.frame_residual_j += energy_residual
+
+    # --- A2：可从任意 accepted vector 开始的无提交试算与误差接受控制 --------------------------
+    def _check_vessels(self, result):
+        for v in self.network.vessels:
+            _device(v, devices.check_vessel, self.network.parameters[v], result['vessels'][v])
+
+    def _error_estimate(self, x, x_full, x_fine, result_full, result_fine):
+        """按类别归一化的步加倍局部误差估计：质量 kg、能量 J（相对冻结参考态）、温度 K，另查容器压力。"""
+        network, config = self.network, self.timestep
+        categories, references = [], []
+        for v in network.vessels:
+            categories += ['mass', 'energy']
+            references += [0., self.energy_reference[v]]
+        categories += ['temperature'] * len(self.temperatures)
+        references += [0.] * len(self.temperatures)
+        atol = {'mass': config.mass_atol_kg, 'energy': config.energy_atol_j,
+                'temperature': config.temperature_atol_k}
+        # 压力不是积分状态，由容器 (M,U) 反演；单独检查，避免能量中心化掩盖容器压力误差。
+        pressure = {}
+        for v in network.vessels:
+            pressure[v] = (result_full['vessels'][v].pressure_pa, result_fine['vessels'][v].pressure_pa,
+                           network.project.solver.pressure_tolerance_pa)
+        return normalized_error(x, x_full, x_fine, categories=categories, atol=atol, rtol=config.rtol,
+                                references=references, extra=pressure)
+
+    def _trial_doubling(self, x, h):
+        """从 accepted vector x 试算整步与两个半步；返回 (payload, ErrorEstimate)。
+
+        失败或误差拒绝时把 Newton 扰动缓存恢复原状，accepted state 与账本均未被触碰。
+        第二个半步确实从第一个半步的 x_mid 出发。
+        """
+        saved = (self._jacobian, self._cache)
+        half = 0.5 * h
+        try:
+            x_full, result_full = self._solve(x, h)
+            self._check_vessels(result_full)
+            x_mid, result_mid = self._solve(x, half)
+            self._check_vessels(result_mid)
+            x_fine, result_fine = self._solve(x_mid, half)
+            self._check_vessels(result_fine)
+        except devices.DeviceRangeError as error:
+            self._jacobian, self._cache = saved
+            raise TrialFailure(str(error)) from error
+        error = self._error_estimate(x, x_full, x_fine, result_full, result_fine)
+        payload = None
+        if error.norm <= 1.:
+            stored_x = self._stored(*self._unpack(x))
+            stored_mid = self._stored(*self._unpack(x_mid))
+            stored_fine = self._stored(*self._unpack(x_fine))
+            residual = stored_mid - stored_x - half * result_mid['boundary_w']
+            residual += stored_fine - stored_mid - half * result_fine['boundary_w']
+            counters = {}
+            for result in (result_mid, result_fine):
+                for key, power in self._powers(result).items():
+                    counters[key] = counters.get(key, 0.) + half * power
+            payload = {'x': x_fine, 'residual': residual, 'counters': counters}
+            self.last_trial = {'h': h, 'x_full': x_full, 'x_mid': x_mid, 'x_fine': x_fine,
+                               'error_norm': error.norm}
+            return payload, error
+        # 误差超过 1：整步与半步试算都不提交，恢复缓存。
+        self._jacobian, self._cache = saved
+        self.last_trial = {'h': h, 'x_full': x_full, 'x_mid': x_mid, 'x_fine': x_fine, 'error_norm': error.norm}
+        return None, error
+
+    def _integrate_adaptive(self, step):
+        """冷库 B：在输出/控制/日程边界截断后的每个 segment 内做误差接受控制。"""
+        def trial(h):
+            x = self._vector(self.masses, self.energies, self.temperatures)
+            return self._trial_doubling(x, h)
+
+        def accept(payload, h, error):
+            self.masses, self.energies, self.temperatures = self._unpack(payload['x'])
+            for key, energy in payload['counters'].items():
+                self.counters[key] = self.counters.get(key, 0.) + energy
+            self.energy_residual_j += payload['residual']
+            self.frame_residual_j += payload['residual']
+
+        try:
+            self.march.march(segment=step, trial=trial, accept=accept, time=self.time)
+        except TimeStepExhausted as error:
+            raise SolveFailed(error.code, str(error), None, list(self.frames)) from error
 
     def initialize(self):
         if not self.frames and self.duration is not None:
@@ -459,7 +547,8 @@ class StationSession(ThermalSession):
                 self.events_applied += 1
             self._control()
             upcoming = [e.time_s - self.time for e in events[self.event_index:self.event_index + 1]]
-            step = min([target - self.time, self.network.project.solver.dynamic_step_s, *upcoming]
+            limit = self.timestep.max_step_s if self.timestep.enabled else self.network.project.solver.dynamic_step_s
+            step = min([target - self.time, limit, *upcoming]
                        + [pid.next_s - self.time for pid in self.controllers.values()]
                        + [script.next_s - self.time for script in self.scripts.values()])
             if step <= 0:
@@ -547,6 +636,8 @@ class StationSession(ThermalSession):
                    if self.time > self.published_time else 0.,
                    'energy_residual_j': self.energy_residual_j, 'storage_power_w': result['boundary_w'],
                    'electric_power_w': electric, 'events_applied': self.events_applied}
+        metrics.update(self.step_stats.frame_metrics(adaptive=self.timestep.enabled,
+                                                     fixed_step=self.network.project.solver.dynamic_step_s))
         for c, initial in enumerate(self.circuit_mass):
             metrics[f'mass_residual_kg_circuit{c}'] = sum(self.masses[v] for v in network.vessels
                                                           if network.circuit_of[v] == c) - initial

@@ -53,6 +53,7 @@ def test_counters_are_off_by_default():
 def test_counter_identities():
     model = two_valve_project()
     model.solver.hydraulic_diagnostics = True
+    model.solver.analytic_jacobian = False  # 手工计数的是数值 Jacobian 的扰动调用
     counters = counters_for(model)
     assert counters is not None
     assert counters['residual_calls'] == counters['nfev'] + counters['perturbation_calls']
@@ -69,6 +70,7 @@ def test_manual_count_perturbations_equal_size_times_jacobians():
     """dense 数值 Jacobian：每次形成 = 未知量个数次扰动调用（这里 size=3）。"""
     model = two_valve_project()
     model.solver.hydraulic_diagnostics = True
+    model.solver.analytic_jacobian = False  # 手工计数的是数值 Jacobian 的扰动调用
     counters = counters_for(model)
     assert counters['perturbation_calls'] == counters['problem_size'] * counters['jacobian_evaluations']
 

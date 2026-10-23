@@ -13,9 +13,16 @@ from .controllers import PID
 from .models import Diagnostic, PIDController
 from .properties import property_service
 from .control import ScriptControl
+from .timestep import TimeStepConfig, ensure_supported
+from . import trapped as tr
 
 
 class SimulationSession:
+    # 困液状态（I0–I4）：只有通用流体执行域的 __init__ 会填充；
+    # ThermalSession/StationSession/ColdStoreSession 不调用父类 __init__，因此这里给类级空默认。
+    trapped: dict = {}
+    trapped_ledgers: dict = {}
+
     def __init__(self, network, duration_s, dt_s, keep=None):
         """`duration_s=None` runs until stopped. `keep` bounds the frames held here (the caller
         publishes them); without it every frame is kept and the run is limited to 2001 frames."""
@@ -23,6 +30,10 @@ class SimulationSession:
             raise ValueError('运行时长和步长必须为有限正数')
         if keep is None and (duration_s is None or duration_s > 2000 * dt_s):
             raise ValueError('一次返回全部帧的运行最多 2001 帧，且必须设定时长')
+        # A0：通用流体执行域尚未接入误差接受控制；显式开启时明确拒绝，不静默忽略。
+        self.timestep = TimeStepConfig.from_solver(network.project.solver)
+        if self.timestep.enabled:
+            ensure_supported(getattr(network, 'execution_domain', None))
         self.network = network
         self.duration, self.dt = duration_s, dt_s
         self.time = 0.0
@@ -35,7 +46,11 @@ class SimulationSession:
         self.scripts = {}
         self.script_owners = {key: script.id for script in network.project.control_scripts if script.enabled for key in script.outputs}
         self.service = property_service(network.project.fluid)
-        self.stateful = s.has_state(network)
+        # 困液定容容积（I0–I4）：初态即“关阀捕获”的 accepted state；M/U 在此冻结，之后只有热量收支。
+        self.trapped = tr.initial_states(network)
+        self.trapped_ledgers = tr.initial_ledgers(
+            network, self.trapped, lambda node: s.service_at(network, node, self.service))
+        self.stateful = s.has_state(network) or bool(self.trapped)
         self.warning = Diagnostic(code='DYNAMIC_IMPLICIT_EULER' if self.stateful else 'DYNAMIC_QUASI_STEADY',
             severity='info' if self.stateful else 'warning', message='隐式 Euler 时间推进，一阶精度，失败子步减半' if self.stateful
             else '准稳态时间序列：每步求解水力与热力并提交模块状态；未计算容积和热惯性')
@@ -108,6 +123,19 @@ class SimulationSession:
         if parameters == self.network.parameters[instance_id]:
             return False
         definition = self.network.modules[self.network.instances[instance_id].module_id]
+        if self.trapped and definition.runtime == 'builtin' and definition.solver_model == 'valve' \
+                and float(parameters.get('opening_ratio', 0.)) > 0:
+            # 开阀请求必须在生效前拒绝：困液库存还没释放给相邻节点（I5–I9），不能把新压力硬塞回网络。
+            for branch in self.network.branches:
+                if branch.instance_id != instance_id:
+                    continue
+                nodes = [node for node in (branch.start_node, branch.end_node) if node in self.trapped]
+                if nodes:
+                    spec = self.network.trapped[nodes[0]]
+                    message = tr.open_rejection_message(
+                        s.service_at(self.network, nodes[0], self.service), spec, self.trapped[nodes[0]],
+                        f'{instance_id}.opening_ratio')
+                    raise CompilationError('TRAPPED_OPEN_UNSUPPORTED', message, instance_id, 'opening_ratio')
         if instance_id in self.runners:
             self.runners[instance_id].update_parameters(parameters)
         self.network.parameters[instance_id] = parameters
@@ -117,6 +145,11 @@ class SimulationSession:
         for spec in self.network.storage.values():
             if spec.instance_id == instance_id:
                 spec.heat_input_w = parameters.get('heat_input_w', spec.heat_input_w)
+        for spec in getattr(self.network, 'trapped', {}).values():
+            if spec.instance_id == instance_id:
+                spec.heat_input_w = parameters.get('heat_input_w', spec.heat_input_w)
+                spec.heat_loss_ua_w_k = parameters.get('heat_loss_ua_w_k', spec.heat_loss_ua_w_k)
+                spec.ambient_temperature_k = parameters.get('ambient_temperature_k', spec.ambient_temperature_k)
         return True
 
     def set_parameter(self, instance_id, parameter_id, value, controlled=False):
@@ -205,6 +238,12 @@ class SimulationSession:
                 adjacency[branch.end_node].add(branch.start_node)
         unseen = set(adjacency)
         pressure, temperature = dict(view.fixed_pressures), dict(view.fixed_temperatures)
+        # 困液定容容积：每一步的边界压力/温度来自 accepted 积分状态，而不是编译初值或保压近似。
+        for node, spec in view.trapped.items():
+            state = self.trapped[node]
+            fluid = tr.state_of(s.service_at(view, node, self.service), spec, state)
+            pressure[node] = fluid.pressure_pa
+            temperature[node] = fluid.temperature_k
         diagnostics = list(view.diagnostics)
         while unseen:
             group, pending = set(), [min(unseen)]
@@ -239,9 +278,18 @@ class SimulationSession:
             storage_step=(h, self.tanks, self.cells) if self.stateful else None)
         tanks = s.tank_states_from(view, result, self.tanks, h) if view.storage else {}
         cells = dict(result.thermal.cell_enthalpies) if result.thermal else {}
-        return view, result, tanks, cells
+        # 封闭容积没有边界质量交换：失败/越界在 _trial 内抛出，绝不会留下半提交状态。
+        if view.trapped:
+            try:
+                trapped = tr.step_network(view, self.trapped, self.trapped_ledgers, result.hydraulic.flows, h,
+                                          lambda node: s.service_at(view, node, self.service))
+            except tr.TrappedError as error:
+                raise CompilationError(error.code, str(error), error.instance_id, error.field) from error
+        else:
+            trapped = (self.trapped, self.trapped_ledgers)
+        return view, result, tanks, cells, trapped
 
-    def _accept(self, h, view, result, tanks, cells):
+    def _accept(self, h, view, result, tanks, cells, trapped):
         values, diagnostics = s._commit_modules(self.network, self.runners, result, self.time + h, h)
         for runner in self.scripts.values():
             if runner.pending:
@@ -249,6 +297,7 @@ class SimulationSession:
                 runner.accept()
         self.time += h
         self.view, self.result, self.tanks, self.cells = view, result, tanks, cells
+        self.trapped, self.trapped_ledgers = trapped
         self.committed.update(values)
         self.diagnostics.extend(diagnostics)
 
@@ -258,6 +307,17 @@ class SimulationSession:
         if protected & self.committed.keys():
             raise CompilationError('MODULE_OUTPUT_CONFLICT', 'commit_step 输出不能覆盖网络求解变量')
         frame.variables.update(self.committed)
+        trapped_specs = getattr(self.network, 'trapped', {})
+        if trapped_specs:
+            for node, spec in trapped_specs.items():
+                service = s.service_at(self.view, node, self.service)
+                variables, metrics = tr.frame_terms(service, spec, self.trapped[node], self.trapped_ledgers[node])
+                frame.variables.update(variables)
+                frame.metrics.update(metrics)
+                diagnostic = tr.ledger_diagnostic(
+                    self.trapped_ledgers[node], spec, self.trapped[node], tr.state_of(service, spec, self.trapped[node]))
+                if diagnostic is not None:
+                    frame.diagnostics.append(diagnostic)
         frame.diagnostics.extend(self.diagnostics)
         for pid in self.controllers.values():
             frame.variables.update(pid.variables())
@@ -290,6 +350,17 @@ class SimulationSession:
                 try:
                     trial = self._trial(h)
                     break
+                except CompilationError as error:
+                    # 困液的越相/超压/能量步失败是物理边界，不靠缩步“成功”；先不提交，直接停止。
+                    if error.diagnostic.code.startswith('TRAPPED_'):
+                        raise s.SolveFailed(error.diagnostic.code, str(error), error.diagnostic.instance_id,
+                                             list(self.frames)) from error
+                    if not self.stateful or not s._retryable(error):
+                        raise
+                    if attempt == self.network.project.solver.max_step_halvings:
+                        raise s.SolveFailed('STEP_NOT_CONVERGED', f't={self.time:g} s：缩步后仍未收敛：{error}',
+                                            frames=list(self.frames)) from error
+                    h /= 2
                 except ValueError as error:
                     if not self.stateful or not s._retryable(error):
                         raise

@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 
 from .catalog import builtin_catalog
 from .models import Diagnostic, Domain, FluidConfig, ModuleDefinition, ModuleInstance, Project
+from .trapped import TrappedError, TrappedSpec, build_spec as trapped_build_spec
 
 
 class CompilationError(ValueError):
@@ -97,6 +98,9 @@ class CompiledNetwork:
     circuit_fluids: list[FluidConfig] = field(default_factory=list)
     circuit_sources: list[str] = field(default_factory=list)
     mixed: bool = False
+    # 困液定容容积（I0–I4）：节点 -> 配置。节点同时出现在 fixed_pressures/fixed_temperatures 里，
+    # 作为编译期与首帧的初态压力/温度参考；动态步用积分状态覆盖它们。
+    trapped: dict[int, TrappedSpec] = field(default_factory=dict)
 
     def fluid_at(self, node: int) -> FluidConfig:
         return self.circuit_fluids[self.node_circuit[node]] if self.mixed else self.project.fluid
@@ -305,6 +309,50 @@ def tank_initial_state(instance_id: str, params: dict, node: int, service) -> St
                        params['ambient_temperature_k'], mass, pressure, temperature, enthalpy)
 
 
+def _compile_trapped(project, modules, parameters, nodes, branches, fixed, fixed_temperatures, storage,
+                     service_of, diagnostics) -> dict[int, TrappedSpec]:
+    """困液定容容积（I0–I4）的识别、范围检查与拒绝条件。
+
+    只接受单一均匀容积、HEOS 纯水单相液体、两端相邻支路全关的被动段，并把初态压力/温度登记为
+    该子网络的唯一压力参考。多容积、与开式水箱混用、与压力边界同节点、非 HEOS/非纯水、初态越界
+    都在编译期给出具体诊断，不生成“定压近似”的替代结果。
+    """
+    instances = [inst for inst in project.instances if modules[inst.module_id].solver_model == 'closed_volume']
+    if not instances:
+        return {}
+    first = instances[0]
+    if storage:
+        tank = next(iter(storage.values()))
+        raise CompilationError('TRAPPED_TANK_MIXED', f'{first.id}（封闭定容容积）不能与开式水箱 {tank.instance_id} 混用；'
+                               '水箱是定压储量节点，困液定容需要独立的单容积压力参考', first.id)
+    if len(instances) > 1:
+        names = '、'.join(inst.id for inst in instances)
+        raise CompilationError('TRAPPED_MULTIVOLUME_UNSUPPORTED', f'第一阶段只支持单一均匀容积；检测到多个封闭定容容积'
+                               f'（{names}）。多容积串联需要逐段显式体积与共同压力方程，属 I5–I9 的后续扩展', first.id)
+    definition, params = modules[first.module_id], parameters[first.id]
+    node = nodes[f'{first.id}:{definition.ports[0].id}']
+    if node in fixed:
+        raise CompilationError('TRAPPED_PRESSURE_REFERENCE_CONFLICT', f'{first.id} 与压力边界（或其他定压节点）接在同一节点；'
+                               '封闭定容容积本身就是该子网络的唯一压力参考，不能再跨接到别的压力参考', first.id)
+    try:
+        spec, _ = trapped_build_spec(first.id, node, params, service_of(first.id))
+    except TrappedError as error:
+        raise CompilationError(error.code, str(error), first.id, error.field) from error
+    open_branches = [b for b in branches if node in (b.start_node, b.end_node) and not b.closed]
+    if open_branches:
+        names = '、'.join(branch.instance_id for branch in open_branches)
+        raise CompilationError('TRAPPED_NOT_CLOSED', f'{first.id} 的相邻设备/支路 {names} 在初始时刻未关闭'
+                               '（opening_ratio > 0）；第一阶段要求两端全关，初态 p/T 显式给定并保持封闭', first.id)
+    fixed[node] = spec.initial_pressure_pa
+    fixed_temperatures[node] = spec.initial_temperature_k
+    diagnostics.append(Diagnostic(code='TRAPPED_PROTOTYPE_ONLY', severity='info', instance_id=first.id,
+        message=f'{first.id} 是单容积封闭定容原型（I0–I4）：V={spec.volume_m3:g} m³，M={spec.initial_mass_kg:.6g} kg，'
+                f'p={spec.initial_pressure_pa:.6g} Pa，T={spec.initial_temperature_k:.6g} K，'
+                f'C_wall={spec.wall_heat_capacity_j_k:g} J/K；只支持 HEOS 纯水单相液体与两端全关，'
+                '完整开闭周期与任意阀门隔离网络仍未实现'))
+    return {node: spec}
+
+
 def compile_project(project: Project) -> CompiledNetwork:
     used = {instance.module_id for instance in project.instances}
     used_domains = {port.domain for module in project.modules if module.id in used for port in module.ports}
@@ -328,9 +376,10 @@ def compile_project(project: Project) -> CompiledNetwork:
         raise CompilationError('EMPTY_NETWORK', '项目没有设备')
     diagnostics = list(project.import_diagnostics)
     parameters, port_keys = {}, []
-    supported = {'pressure_source', 'junction', 'valve', 'pipe', 'pump_curve', 'heat_exchanger', 'tank'}
+    supported = {'pressure_source', 'junction', 'valve', 'pipe', 'pump_curve', 'heat_exchanger', 'tank',
+                 'closed_volume'}
     # Built-in state models and the solver model each one belongs to.
-    state_models = {'open_tank': 'tank'}
+    state_models = {'open_tank': 'tank', 'closed_volume': 'closed_volume'}
     service = fluid_service(project)
     for inst in project.instances:
         definition = modules[inst.module_id]
@@ -377,7 +426,7 @@ def compile_project(project: Project) -> CompiledNetwork:
         dsu.union(source, target)
     for inst in project.instances:
         definition = modules[inst.module_id]
-        if definition.solver_model in ('junction', 'tank'):
+        if definition.solver_model in ('junction', 'tank', 'closed_volume'):
             for p in definition.ports[1:]:
                 dsu.union(f'{inst.id}:{definition.ports[0].id}', f'{inst.id}:{p.id}')
         for port in definition.ports:
@@ -429,7 +478,7 @@ def compile_project(project: Project) -> CompiledNetwork:
             storage[node] = spec
             fixed[node], fixed_temperatures[node] = spec.initial_pressure_pa, spec.initial_temperature_k
             continue
-        if definition.solver_model == 'junction':
+        if definition.solver_model in ('junction', 'closed_volume'):
             continue
         channels = [c for c in definition.channels if c.enabled]
         covered = {p for c in channels for p in (c.input_port, c.output_port)}
@@ -447,6 +496,8 @@ def compile_project(project: Project) -> CompiledNetwork:
                                             definition.runtime == 'builtin' and ch.solver_model == 'valve' and params['opening_ratio'] == 0))
     if not branches:
         raise CompilationError('NO_BRANCHES', '网络没有可计算支路')
+    trapped = _compile_trapped(project, modules, parameters, nodes, branches, fixed, fixed_temperatures, storage,
+                               service_of, diagnostics)
     components = DisjointSet(range(len(roots)))
     for branch in branches:
         if not branch.closed:
@@ -465,7 +516,7 @@ def compile_project(project: Project) -> CompiledNetwork:
                                       f'{project.fluid.fluid}）；各回路物性独立计算'))
     return CompiledNetwork(project, modules, instances, parameters, nodes, roots, branches, fixed, diagnostics,
                            fixed_temperatures, [components.find(n) for n in range(len(roots))], storage,
-                           node_circuit, circuit_fluids, circuit_sources, mixed)
+                           node_circuit, circuit_fluids, circuit_sources, mixed, trapped=trapped)
 
 
 def runtime_parameter(instance, definition, parameter_id):
