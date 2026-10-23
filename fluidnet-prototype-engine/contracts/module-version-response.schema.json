@@ -786,6 +786,19 @@
           "title": "Metrics",
           "type": "object"
         },
+        "solve_counters": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Solve Counters"
+        },
         "full": {
           "default": true,
           "title": "Full",

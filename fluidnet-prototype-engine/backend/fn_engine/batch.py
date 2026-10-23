@@ -57,6 +57,11 @@ class BatchRunners(dict):
         results=list(self.pool.map(execute,batches.items())) if self.pool else [execute(item) for item in batches.items()]
         return {key:EvaluateResponse.model_validate(value) for result in results for key,value in result.items()}
 
+    @property
+    def request_count(self):
+        """B0 观测器：所有分片 Worker 的累计 RPC 数（一个分片一次 evaluate = 一次 RPC）。"""
+        return sum(worker.request_count for worker in self.workers)
+
     def close(self):
         if self.pool:
             self.pool.shutdown(wait=True,cancel_futures=True)

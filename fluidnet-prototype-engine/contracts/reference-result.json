@@ -270,11 +270,14 @@
     "iterations": 7,
     "node_count": 5,
     "branch_count": 5,
+    "matrix_size": 8,
+    "matrix_nnz": 64,
     "thermal_iterations": 1,
     "coupling_iterations": 1,
     "energy_residual_w": 3.361719791428186e-10,
     "reference_heat_w": 0.0
   },
+  "solve_counters": null,
   "full": true,
   "sequence": 0,
   "parameter_revision": 0

@@ -3333,8 +3333,21 @@
     "coupling_density_rtol": 1e-06,
     "max_step_halvings": 6,
     "hydraulic_method": "dense",
+    "hydraulic_diagnostics": false,
     "module_parallelism": 1,
-    "batch_modules": true
+    "batch_modules": true,
+    "time_step": {
+      "enabled": false,
+      "mass_atol_kg": 1e-09,
+      "energy_atol_j": 0.001,
+      "temperature_atol_k": 1e-05,
+      "rtol": 1e-06,
+      "min_internal_step_s": 0.001,
+      "max_internal_step_s": null,
+      "safety": 0.9,
+      "growth_factor": 2.0,
+      "shrink_factor": 0.5
+    }
   },
   "controllers": [],
   "control_scripts": [],

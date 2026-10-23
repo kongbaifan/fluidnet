@@ -1113,10 +1113,16 @@
           "default": "dense",
           "enum": [
             "dense",
-            "sparse"
+            "sparse",
+            "auto"
           ],
           "title": "Hydraulic Method",
           "type": "string"
+        },
+        "hydraulic_diagnostics": {
+          "default": false,
+          "title": "Hydraulic Diagnostics",
+          "type": "boolean"
         },
         "module_parallelism": {
           "default": 1,
@@ -1129,9 +1135,92 @@
           "default": true,
           "title": "Batch Modules",
           "type": "boolean"
+        },
+        "time_step": {
+          "$ref": "#/$defs/TimeStepOptions"
         }
       },
       "title": "SolverOptions",
+      "type": "object"
+    },
+    "TimeStepOptions": {
+      "additionalProperties": false,
+      "description": "Euler 时间步误差控制（A0；计划 §12.1）。\n\n默认关闭，关闭时按 `SolverOptions.dynamic_step_s` 固定步长推进，旧项目与旧默认完全不变。\n开启后每次整步试算都要用两个半步做局部截断误差估计；容差按单位分开，不用一个裸数混合 kg/J/K。",
+      "properties": {
+        "enabled": {
+          "default": false,
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "mass_atol_kg": {
+          "default": 1e-09,
+          "exclusiveMinimum": 0,
+          "title": "Mass Atol Kg",
+          "type": "number"
+        },
+        "energy_atol_j": {
+          "default": 0.001,
+          "exclusiveMinimum": 0,
+          "title": "Energy Atol J",
+          "type": "number"
+        },
+        "temperature_atol_k": {
+          "default": 1e-05,
+          "exclusiveMinimum": 0,
+          "title": "Temperature Atol K",
+          "type": "number"
+        },
+        "rtol": {
+          "default": 1e-06,
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "title": "Rtol",
+          "type": "number"
+        },
+        "min_internal_step_s": {
+          "default": 0.001,
+          "exclusiveMinimum": 0,
+          "maximum": 60,
+          "title": "Min Internal Step S",
+          "type": "number"
+        },
+        "max_internal_step_s": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "maximum": 3600,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Internal Step S"
+        },
+        "safety": {
+          "default": 0.9,
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "title": "Safety",
+          "type": "number"
+        },
+        "growth_factor": {
+          "default": 2.0,
+          "exclusiveMinimum": 1,
+          "maximum": 10,
+          "title": "Growth Factor",
+          "type": "number"
+        },
+        "shrink_factor": {
+          "default": 0.5,
+          "exclusiveMaximum": 1,
+          "exclusiveMinimum": 0,
+          "title": "Shrink Factor",
+          "type": "number"
+        }
+      },
+      "title": "TimeStepOptions",
       "type": "object"
     },
     "UnitSpec": {

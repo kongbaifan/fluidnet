@@ -370,6 +370,48 @@ class Scenario(StrictModel):
     events: list[ScheduleEvent] | None = Field(default=None, max_length=500)
 
 
+class TimeStepOptions(StrictModel):
+    """Euler 时间步误差控制（A0；计划 §12.1）。
+
+    默认关闭，关闭时按 `SolverOptions.dynamic_step_s` 固定步长推进，旧项目与旧默认完全不变。
+    开启后每次整步试算都要用两个半步做局部截断误差估计；容差按单位分开，不用一个裸数混合 kg/J/K。
+    """
+
+    enabled: bool = False
+    # 误差尺度：atol_i + rtol·max(|x_old_i|,|x_fine_i|)；能量先相对冻结参考态中心化（见 timestep.py）。
+    mass_atol_kg: float = Field(default=1e-9, gt=0)
+    energy_atol_j: float = Field(default=1e-3, gt=0)
+    temperature_atol_k: float = Field(default=1e-5, gt=0)
+    rtol: float = Field(default=1e-6, gt=0, le=1)
+    min_internal_step_s: float = Field(default=1e-3, gt=0, le=60)
+    # None 表示沿用 SolverOptions.dynamic_step_s；显式值给出自适应内部步长上限。
+    max_internal_step_s: float | None = Field(default=None, gt=0, le=3600)
+    safety: float = Field(default=0.9, gt=0, le=1)
+    growth_factor: float = Field(default=2.0, gt=1, le=10)
+    shrink_factor: float = Field(default=0.5, gt=0, lt=1)
+
+    @model_validator(mode='before')
+    @classmethod
+    def check_units(cls, data):
+        """容差必须带明确单位后缀；漏写单位或写错类别时直接拒绝，不猜数量级。"""
+        if not isinstance(data, dict):
+            return data
+        expected = {'mass_atol_kg', 'energy_atol_j', 'temperature_atol_k'}
+        for key in data:
+            if key in expected:
+                continue
+            if key.startswith('atol') or '_atol' in key:
+                raise ValueError(f'时间误差容差字段 {key!r} 单位不明确：质量用 mass_atol_kg、'
+                                 '能量用 energy_atol_j、温度用 temperature_atol_k')
+        return data
+
+    @model_validator(mode='after')
+    def check_ranges(self):
+        if self.max_internal_step_s is not None and self.min_internal_step_s >= self.max_internal_step_s:
+            raise ValueError('内部最小步长必须小于最大步长')
+        return self
+
+
 class SolverOptions(StrictModel):
     pressure_tolerance_pa: float = Field(default=1.0, gt=0)
     mass_tolerance_kg_s: float = Field(default=1e-8, gt=0)
@@ -386,9 +428,14 @@ class SolverOptions(StrictModel):
     coupling_density_rtol: float = Field(default=1e-6, gt=0)
     # Implicit time stepping (networks with tanks): a failed substep is retried with half the step.
     max_step_halvings: int = Field(default=6, ge=0, le=20)
-    hydraulic_method: Literal['dense', 'sparse'] = 'dense'
+    # S1: 'auto' 由实际未知量、Jacobian 稀疏度与模块端口依赖选择；旧项目缺字段仍按 dense。
+    hydraulic_method: Literal['dense', 'sparse', 'auto'] = 'dense'
+    # B0 观测器开关：只额外返回求解计数/计时（默认关闭），不改变任何数值结果。
+    hydraulic_diagnostics: bool = False
     module_parallelism: int = Field(default=1, ge=1, le=16)
     batch_modules: bool = True
+    # A0：Euler 时间步误差控制；默认关闭，旧固定步长语义不变。
+    time_step: TimeStepOptions = Field(default_factory=TimeStepOptions)
 
 
 class PIDController(StrictModel):
@@ -640,6 +687,8 @@ class RunFrame(StrictModel):
     variables: dict[str, float | int | str | bool | None] = Field(default_factory=dict)
     diagnostics: list[Diagnostic] = Field(default_factory=list)
     metrics: dict[str, float | int | None] = Field(default_factory=dict)
+    # B0 观测器：仅 hydraulic_diagnostics 打开时非空（真实残差/Jacobian/RPC 计数与分项计时）。
+    solve_counters: dict | None = None
     # False on trend-history frames that carry only the trend variables (see RunRequest.history).
     full: bool = True
     sequence: int = 0

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 import math
+import time
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -37,6 +38,41 @@ class SolveFailed(CompilationError):
 
 
 @dataclass
+class SolveCounters:
+    """B0 观测器：一次水力求解的真实调用计数（语义见 docs/numerics/B0_COUNTERS.md）。
+
+    - `nfev` / `njev` 是 SciPy `trf` 报告的基础函数/Jacobian 次数；按 SciPy 的约定，它们
+      **不含**数值 Jacobian 的扰动调用，因此不能当作“真实残差调用”使用。
+    - `residual_calls` 是本模块 `physical_residual` 的真实调用总数（基础调用 + 扰动调用），
+      差额 `perturbation_calls` 就是被旧 `iterations` 字段漏掉的 Jacobian 扰动。
+    - `rpc_batches` 与 `rpc_instances` 是两种不同的单位：批量 Worker 一次 evaluate 只发一个
+      RPC（一个分片一个批次），逐实例 Worker 每个实例一次 RPC。
+    """
+
+    residual_calls: int = 0
+    jacobian_evaluations: int = 0
+    perturbation_calls: int = 0
+    solver_attempts: int = 0
+    nfev: int = 0
+    njev: int = 0
+    rpc_batches: int = 0
+    rpc_instances: int = 0
+    worker_requests: int = 0
+    module_evaluations: int = 0
+    # 未知量总数（压力 + 水箱净流入 + 支路流量）与 Jacobian 非零元数（稀疏模式）。
+    problem_size: int = 0
+    jacobian_nnz: int = 0
+    # S1：auto 回退记录（空字符串表示没有回退）。
+    method_fallback: str = ''
+    # 仅在开关打开时记录；键名与 3.2 的分项对应，嵌套/重叠计时不相加。
+    timing_s: dict = field(default_factory=dict)
+
+    def as_dict(self) -> dict:
+        return {name: (dict(value) if isinstance(value, dict) else value)
+                for name, value in dataclasses.asdict(self).items()}
+
+
+@dataclass
 class HydraulicResult:
     pressures: np.ndarray
     flows: np.ndarray
@@ -55,6 +91,14 @@ class HydraulicResult:
     solution: np.ndarray | None = None
     # Net inflow (kg/s) of every tank solved as a storage node in this step.
     storage_rates: dict[int, float] = field(default_factory=dict)
+    # B0 观测器结果（仅 hydraulic_diagnostics 打开时填充）；旧字段含义全部保留。
+    counters: dict | None = None
+    # S1 选择记录：请求方法、实际方法、矩阵规模与选择原因（始终记录，便于报告追溯）。
+    requested_method: str = 'dense'
+    effective_method: str = 'dense'
+    method_reason: str = ''
+    matrix_size: int = 0
+    matrix_nnz: int = 0
 
 
 @dataclass
@@ -114,6 +158,73 @@ def branch_drop(network: CompiledNetwork, branch: CompiledBranch, flow_kg_s: flo
         area = math.pi * params['diameter_m'] ** 2 / 4
         return params['loss_coefficient'] * flow_kg_s * abs(flow_kg_s) / (2 * density * area ** 2)
     raise ValueError(f'未注册的支路模型：{model}')
+
+
+# S0 的 auto 阈值：由 S0 证据（docs/numerics/results/S0.md）里三类拓扑的实测交叉点取保守值。
+# 串联在未知量 59 附近交叉（ratio ≈ 1.0），并联在 16–24，二维多环在 63–94；
+# 取 64 让最差的小模型（多环 38–63）仍走稠密，避免超过 10% 的小模型回退门。
+AUTO_SPARSE_MIN_SIZE = 64
+AUTO_SPARSE_MAX_DENSITY = 0.45
+# 稠密矩阵的内存量级是 size²；超过该规模即使稀疏度很高也绝不选稠密。
+AUTO_DENSE_MAX_SIZE = 3000
+
+
+@dataclass
+class HydraulicMethodChoice:
+    requested: str
+    effective: str
+    size: int
+    nnz: int
+    density: float
+    reason: str
+
+
+def jacobian_pattern(network: CompiledNetwork, unknown, tanks, python_runners):
+    """水力 Jacobian 的稀疏模式（行=方程，列=未知量）；S0 选择器与 S1 稀疏求解共用。"""
+    node_columns = {node: column for column, node in enumerate(unknown + tanks)}
+    m = len(network.branches)
+    size = len(node_columns) + m
+    pattern = lil_matrix((size, size), dtype=int)
+    for idx, branch in enumerate(network.branches):
+        dependencies = {branch.start_node, branch.end_node}
+        if branch.instance_id in python_runners:
+            definition = network.modules[network.instances[branch.instance_id].module_id]
+            dependencies.update(network.port_nodes[f'{branch.instance_id}:{p.id}'] for p in definition.ports)
+        for node in dependencies:
+            if node in node_columns:
+                pattern[idx, node_columns[node]] = 1
+        pattern[idx, len(node_columns) + idx] = 1
+        for node in (branch.start_node, branch.end_node):
+            if node in node_columns:
+                pattern[m + node_columns[node], len(node_columns) + idx] = 1
+    for node in tanks:
+        pattern[m + node_columns[node], node_columns[node]] = 1
+    return pattern.tocsr()
+
+
+def choose_hydraulic_method(requested: str, size: int, nnz: int) -> HydraulicMethodChoice:
+    """S0/S1 选择器：只依据真实未知量与 Jacobian 稀疏度，不用实例数代替。"""
+    density = nnz / (size * size) if size else 1.0
+    if requested == 'dense':
+        return HydraulicMethodChoice('dense', 'dense', size, nnz, density, '显式请求 dense')
+    if requested == 'sparse':
+        return HydraulicMethodChoice('sparse', 'sparse', size, nnz, density, '显式请求 sparse')
+    if size >= AUTO_DENSE_MAX_SIZE:
+        reason = (f'auto：未知量 {size} ≥ {AUTO_DENSE_MAX_SIZE}，稠密矩阵内存不可接受，'
+                  '强制稀疏（与稀疏度无关）')
+        method = 'sparse'
+    elif size < AUTO_SPARSE_MIN_SIZE:
+        reason = f'auto：未知量 {size} < {AUTO_SPARSE_MIN_SIZE}，稠密矩阵的固定开销更小'
+        method = 'dense'
+    elif density > AUTO_SPARSE_MAX_DENSITY:
+        reason = (f'auto：稀疏度 {density:.3f} > {AUTO_SPARSE_MAX_DENSITY}'
+                  '（多端口模块依赖密集，稀疏分组扰动接近稠密）')
+        method = 'dense'
+    else:
+        reason = (f'auto：未知量 {size} ≥ {AUTO_SPARSE_MIN_SIZE} 且稀疏度 {density:.3f} '
+                  f'≤ {AUTO_SPARSE_MAX_DENSITY}')
+        method = 'sparse'
+    return HydraulicMethodChoice('auto', method, size, nnz, density, reason)
 
 
 def _python_runners(network: CompiledNetwork):
@@ -206,11 +317,13 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
     same units as every other mass balance (a tank pressure unknown would need a 1e-14 Pa tolerance).
     """
     n_nodes = len(network.node_keys)
+    solve_started = time.perf_counter()
     dt_s, tank_old = storage_step[:2] if storage_step is not None else (None, {})
     tanks = [node for node in sorted(network.storage) if node in tank_old]
     fixed = {node: value for node, value in network.fixed_pressures.items() if node not in tank_old}
     unknown = [n for n in range(n_nodes) if n not in fixed and n not in tank_old]
     options = network.project.solver
+    counters = SolveCounters() if options.hydraulic_diagnostics else None
     m = len(network.branches)
     density, viscosity = reference_properties(network)
     rho_n, mu_n, rho_ref, mu_ref = reference_arrays(network)
@@ -250,6 +363,11 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
                 iteration_id=iteration_id, time_s=time_s, trial_ports=ports, readonly_state=runner.state)
         responses = python_runners.evaluate(requests) if hasattr(python_runners, 'evaluate') else {
             key: python_runners[key].evaluate(request) for key, request in requests.items()}
+        if counters is not None:
+            # 批量 Worker 一个分片一次 RPC，逐实例 Worker 每个实例一次 RPC：两种单位分开记账。
+            batched = hasattr(python_runners, 'evaluate')
+            counters.rpc_batches += 1 if batched else len(requests)
+            counters.rpc_instances += len(requests)
         for instance_id, runner in python_runners.items():
             instance = network.instances[instance_id]
             definition = network.modules[instance.module_id]
@@ -283,7 +401,7 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
     def unpack_rates(vector):
         return {node: float(rate) for node, rate in zip(tanks, vector[len(unknown):len(unknown) + len(tanks)])}
 
-    def physical_residual(vector):
+    def physical_residual_values(vector):
         pressures, flows = unpack(vector)
         runtime_relations = evaluate_python_relations(pressures) if python_runners else {}
         drops, balance, closed = [], np.zeros(n_nodes), []
@@ -312,6 +430,18 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
         storage_balance = [balance[node] - rates[node] for node in tanks]
         return np.asarray(drops), np.concatenate((balance[unknown], storage_balance)), closed, constraints
 
+    if counters is None:
+        # 开关关闭时保持原来的调用路径：不做逐调用计时，也不做任何额外记账。
+        physical_residual = physical_residual_values
+    else:
+        def physical_residual(vector):
+            started = time.perf_counter()
+            try:
+                return physical_residual_values(vector)
+            finally:
+                counters.residual_calls += 1
+                counters.timing_s['residual'] = counters.timing_s.get('residual', 0.) + (time.perf_counter() - started)
+
     def residual(vector):
         drops, balance, _, constraints = physical_residual(vector)
         _, flows = unpack(vector)
@@ -321,6 +451,20 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
         return np.concatenate((scaled, balance))
 
     size = len(unknown) + len(tanks) + m
+    requested = options.hydraulic_method
+    pattern_csr = None
+    nnz = size * size
+    if requested != 'dense':
+        # 显式 sparse 与 auto 都需要模式；稠密路径不构建，避免给显式请求增加无关开销。
+        pattern_csr = jacobian_pattern(network, unknown, tanks, python_runners)
+        nnz = int(pattern_csr.nnz)
+    choice = choose_hydraulic_method(requested, size, nnz)
+    method, reason = choice.effective, choice.reason
+    if method != 'sparse':
+        pattern_csr = None
+    if counters is not None:
+        counters.problem_size = size
+        counters.jacobian_nnz = nnz
     # A loop held only by tanks has no fixed pressure left; start from the tanks' current pressures.
     level = list(fixed.values()) or [network.storage[node].pressure(tank_old[node].mass_kg) for node in tanks]
     cold = np.concatenate((np.full(len(unknown), np.mean(level) / PRESSURE_SCALE), np.zeros(len(tanks)), np.full(m, .1)))
@@ -335,28 +479,20 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
         start = cold
 
     def attempt(vector):
+        started = time.perf_counter()
+        if counters is not None:
+            counters.solver_attempts += 1
         sparse_options = {}
-        if options.hydraulic_method == 'sparse':
-            node_columns = {node: column for column, node in enumerate(unknown + tanks)}
-            pattern = lil_matrix((size, size), dtype=int)
-            for idx, branch in enumerate(network.branches):
-                dependencies = {branch.start_node, branch.end_node}
-                if branch.instance_id in python_runners:
-                    definition = network.modules[network.instances[branch.instance_id].module_id]
-                    dependencies.update(network.port_nodes[f'{branch.instance_id}:{p.id}'] for p in definition.ports)
-                for node in dependencies:
-                    if node in node_columns:
-                        pattern[idx, node_columns[node]] = 1
-                pattern[idx, len(node_columns) + idx] = 1
-                for node in (branch.start_node, branch.end_node):
-                    if node in node_columns:
-                        pattern[m + node_columns[node], len(node_columns) + idx] = 1
-            for node in tanks:
-                pattern[m + node_columns[node], node_columns[node]] = 1
-            sparse_options = {'jac_sparsity': pattern.tocsr(), 'tr_solver': 'lsmr',
+        if method == 'sparse':
+            sparse_options = {'jac_sparsity': pattern_csr, 'tr_solver': 'lsmr',
                               'tr_options': {'atol': 1e-13, 'btol': 1e-13, 'maxiter': max(100, size*4)}}
         result = least_squares(residual, vector, max_nfev=options.max_iterations, xtol=1e-12, ftol=1e-12, gtol=1e-12, x_scale='jac', **sparse_options)
-        drops, balance, closed, constraints = physical_residual(result.x)
+        if counters is not None:
+            counters.nfev += int(result.nfev)
+            counters.njev += int(getattr(result, 'njev', 0) or 0)
+            # least_squares 的墙钟包含残差与 Jacobian 扰动，和 timing_s['residual'] 重叠，不能相加。
+            counters.timing_s['least_squares'] = counters.timing_s.get('least_squares', 0.) + (time.perf_counter() - started)
+        drops, balance, closed, constraints = physical_residual_values(result.x)
         pressure_error = float(np.max(np.abs(drops), initial=0))
         mass_error = max(float(np.max(np.abs(balance), initial=0)), max(map(abs, closed), default=0.))
         ok = result.success and pressure_error <= options.pressure_tolerance_pa and mass_error <= options.mass_tolerance_kg_s
@@ -365,6 +501,14 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
     result, drops, balance, closed, constraints, ok = attempt(start)
     if warm_start and not ok:
         # A warm start is only a hint: fall back to the cold guess before reporting non-convergence.
+        result, drops, balance, closed, constraints, ok = attempt(cold)
+    if not ok and choice.requested == 'auto' and method == 'sparse':
+        # S1：auto 的稀疏选择只允许一次可诊断回退。不放宽容差、不做无限重试；
+        # 回退结果仍然要过同一个收敛门（下方统一检查），失败就如实报错。
+        method, pattern_csr = 'dense', None
+        reason = f'{reason}；稀疏求解未收敛，已回退 dense（容差未放宽）'
+        if counters is not None:
+            counters.method_fallback = 'dense'
         result, drops, balance, closed, constraints, ok = attempt(cold)
     pressures, flows = unpack(result.x)
     # Zero-flow and forced-flow relations do not determine a pressure difference.
@@ -396,9 +540,25 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
             q = flow / (params.get('density_kg_m3') or float(rho_b[idx])) * 3600
             if q < -1e-8 or q > params['head_curve'][-1][0] * params['speed_ratio'] + 1e-8:
                 raise ValueError(f'{branch.instance_id} 工作点 {q:.6g} m³/h 超出泵曲线范围；反向流和曲线外工况尚未支持')
+    counters_result = None
+    if counters is not None:
+        counters.module_evaluations = iteration_id
+        # 真实残差调用 − SciPy 基础 nfev = 被旧 iterations 字段漏掉的 Jacobian 扰动调用。
+        counters.perturbation_calls = max(0, counters.residual_calls - counters.nfev)
+        counters.jacobian_evaluations = counters.njev
+        if not counters.jacobian_nnz:
+            # 稠密路径没有显式稀疏模式：Jacobian 非零元数按满阵计。
+            counters.jacobian_nnz = counters.problem_size ** 2
+        if hasattr(python_runners, 'request_count'):
+            counters.worker_requests = int(python_runners.request_count)
+        elif isinstance(python_runners, dict):
+            counters.worker_requests = sum(int(getattr(runner, 'request_count', 0)) for runner in python_runners.values())
+        counters.timing_s['solve_total'] = time.perf_counter() - solve_started
+        counters_result = counters.as_dict()
     return HydraulicResult(pressures, flows, int(result.nfev), pressure_error, mass_error, density, viscosity,
                            module_variables.copy(), module_diagnostics.copy(), rho_b, mu_b, dict(final_relations),
-                           np.array(result.x, copy=True), unpack_rates(result.x))
+                           np.array(result.x, copy=True), unpack_rates(result.x), counters_result,
+                           requested, method, reason, size, nnz)
 
 
 def solve_hydraulics(network: CompiledNetwork, runners=None, time_s=0., **options) -> HydraulicResult:
@@ -712,12 +872,13 @@ def snapshot(network, result, time_s=0., warning=None):
         raise RuntimeErrorBase(f'模块输出不能覆盖网络求解变量：{sorted(conflicts)}')
     variables.update(hydraulic.module_variables)
     metrics = {'pressure_residual_pa': hydraulic.pressure_residual, 'mass_residual_kg_s': hydraulic.mass_residual,
-               'iterations': hydraulic.iterations, 'node_count': len(network.node_keys), 'branch_count': len(network.branches)}
+               'iterations': hydraulic.iterations, 'node_count': len(network.node_keys), 'branch_count': len(network.branches),
+               'matrix_size': hydraulic.matrix_size, 'matrix_nnz': hydraulic.matrix_nnz}
     if thermal is not None:
         metrics.update({'thermal_iterations': thermal.iterations, 'coupling_iterations': coupling,
                         'energy_residual_w': thermal.energy_residual_w, 'reference_heat_w': thermal.reference_heat_w})
     return RunFrame(status='converged', valid=True, time_s=time_s, variables=variables, diagnostics=diagnostics,
-                    metrics=metrics)
+                    metrics=metrics, solve_counters=hydraulic.counters)
 
 
 def cell_variables(network: CompiledNetwork, result: NetworkResult, service):

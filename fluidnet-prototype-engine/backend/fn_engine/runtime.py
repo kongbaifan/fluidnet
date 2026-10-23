@@ -243,6 +243,8 @@ class WorkerProcess:
         self._stderr_thread: threading.Thread | None = None
         self._closed = False
         self._finalized = False
+        # B0 观测器：这一 Worker 实际收发的 RPC 数（含 initialize/parameters/commit_step）。
+        self.request_count = 0
 
     def _ensure_process(self):
         if self.process is not None:
@@ -322,6 +324,7 @@ class WorkerProcess:
         return line
 
     def _request(self, payload: dict[str, Any]) -> dict[str, Any]:
+        self.request_count += 1
         self._ensure_process()
         assert self.process and self.process.stdin
         try:

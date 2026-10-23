@@ -6315,6 +6315,18 @@
             "type": "object",
             "title": "Metrics"
           },
+          "solve_counters": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Solve Counters"
+          },
           "full": {
             "type": "boolean",
             "title": "Full",
@@ -7002,10 +7014,16 @@
             "type": "string",
             "enum": [
               "dense",
-              "sparse"
+              "sparse",
+              "auto"
             ],
             "title": "Hydraulic Method",
             "default": "dense"
+          },
+          "hydraulic_diagnostics": {
+            "type": "boolean",
+            "title": "Hydraulic Diagnostics",
+            "default": false
           },
           "module_parallelism": {
             "type": "integer",
@@ -7018,11 +7036,93 @@
             "type": "boolean",
             "title": "Batch Modules",
             "default": true
+          },
+          "time_step": {
+            "$ref": "#/components/schemas/TimeStepOptions"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "title": "SolverOptions"
+      },
+      "TimeStepOptions": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": false
+          },
+          "mass_atol_kg": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Mass Atol Kg",
+            "default": 1e-09
+          },
+          "energy_atol_j": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Energy Atol J",
+            "default": 0.001
+          },
+          "temperature_atol_k": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Temperature Atol K",
+            "default": 1e-05
+          },
+          "rtol": {
+            "type": "number",
+            "maximum": 1.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Rtol",
+            "default": 1e-06
+          },
+          "min_internal_step_s": {
+            "type": "number",
+            "maximum": 60.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Min Internal Step S",
+            "default": 0.001
+          },
+          "max_internal_step_s": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 3600.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Internal Step S"
+          },
+          "safety": {
+            "type": "number",
+            "maximum": 1.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Safety",
+            "default": 0.9
+          },
+          "growth_factor": {
+            "type": "number",
+            "maximum": 10.0,
+            "exclusiveMinimum": 1.0,
+            "title": "Growth Factor",
+            "default": 2.0
+          },
+          "shrink_factor": {
+            "type": "number",
+            "exclusiveMaximum": 1.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Shrink Factor",
+            "default": 0.5
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "TimeStepOptions",
+        "description": "Euler 时间步误差控制（A0；计划 §12.1）。\n\n默认关闭，关闭时按 `SolverOptions.dynamic_step_s` 固定步长推进，旧项目与旧默认完全不变。\n开启后每次整步试算都要用两个半步做局部截断误差估计；容差按单位分开，不用一个裸数混合 kg/J/K。"
       },
       "UnitSpec": {
         "properties": {
