@@ -3321,6 +3321,8 @@
     }
   ],
   "solver": {
+    "module_mixed_jacobian": false,
+    "module_cache": false,
     "pressure_tolerance_pa": 0.1,
     "mass_tolerance_kg_s": 1e-07,
     "max_iterations": 80,

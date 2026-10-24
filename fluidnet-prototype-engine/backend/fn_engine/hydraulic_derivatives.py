@@ -1,8 +1,9 @@
 """内置水力关系的解析导数（J0/J1）。
 
 `solver` 从本模块导入**数值**函数（`pipe_drop`、`pump_head`、`branch_drop_value`），
-本模块同时提供对应的 `*_and_slope` 版本供解析 Jacobian 使用——公式只有一份，
-不存在“值一套、导数另一套”的漂移风险。
+本模块同时提供对应的 `*_and_slope` 版本供解析 Jacobian 使用。
+MOD-S1 将标量阻力计算与管道基础项提取到 fn_sdk._hydraulic_core；引擎保留历史入口、
+常数及运算顺序，作者通过 fn_sdk.hydraulics 的校验入口使用同一计算，不在残差热路径重复校验。
 
 分段约定的显式说明
 ------------------
@@ -19,6 +20,8 @@ from __future__ import annotations
 
 import math
 
+from fn_sdk import _hydraulic_core as _shared
+
 GRAVITY = 9.80665
 # Reference values at 250 kPa / 20 °C（历史公开默认值；与项目配置的物性服务无关）。
 RHO_WATER = 998.2752462838249
@@ -26,12 +29,12 @@ MU_WATER = 1.0015503944484675e-3
 
 
 def _pipe_area(diameter: float) -> float:
-    return math.pi * diameter ** 2 / 4
+    return _shared.pipe_area(diameter)
 
 
 def haaland_friction(roughness: float, diameter: float, reynolds: float) -> float:
     """Haaland 湍流摩阻系数（与历史实现完全一致）。"""
-    return (-1.8 * math.log10((roughness / diameter / 3.7) ** 1.11 + 6.9 / reynolds)) ** -2
+    return _shared.haaland_friction(roughness, diameter, reynolds)
 
 
 def _haaland_slope(roughness: float, diameter: float, reynolds: float, friction: float) -> float:
@@ -44,21 +47,12 @@ def _haaland_slope(roughness: float, diameter: float, reynolds: float, friction:
 
 def _pipe_terms(params, density: float, viscosity: float):
     length, diameter = params['length_m'], params['diameter_m']
-    area = _pipe_area(diameter)
-    return length, diameter, area, 32 * viscosity * length / (density * area * diameter ** 2)
+    return _shared.pipe_terms(length, diameter, density, viscosity)
 
 
 def pipe_drop(params, flow, density=RHO_WATER, viscosity=MU_WATER) -> float:
     """值版本（历史语义：不含高差项，`solver.pipe_drop` 直接复用）。"""
-    length, diameter, area, coef = _pipe_terms(params, density, viscosity)
-    reynolds = abs(flow) * diameter / (viscosity * area)
-    laminar = coef * flow
-    if reynolds <= 2300:
-        return laminar
-    friction = haaland_friction(params['roughness_m'], diameter, reynolds)
-    turbulent = friction * length / diameter * flow * abs(flow) / (2 * density * area ** 2)
-    blend = min(1., (reynolds - 2300) / 1700)
-    return laminar * (1 - blend) + turbulent * blend
+    return _shared.pipe_drop(params['length_m'], params['diameter_m'], params['roughness_m'], flow, density, viscosity)
 
 
 def pipe_drop_and_slope(params, flow, density=RHO_WATER, viscosity=MU_WATER) -> tuple[float, float]:
@@ -116,8 +110,7 @@ def branch_drop_value(model: str, params: dict, flow: float, density: float, vis
     """单条内置支路的压降（不含两端压力项），与历史 `branch_drop` 完全一致。"""
     if model == 'valve':
         kv = params['kv_m3_h'] * params['opening_ratio']
-        volume = flow / density * 3600
-        return 100000 * (density / 1000) * volume * abs(volume) / kv ** 2 + density * GRAVITY * params.get('height_m', 0)
+        return _shared.valve_drop(kv, flow, density) + density * GRAVITY * params.get('height_m', 0)
     if model == 'pipe':
         return pipe_drop(params, flow, density, viscosity) + density * GRAVITY * params.get('height_m', 0)
     if model == 'pump_curve':
@@ -125,8 +118,7 @@ def branch_drop_value(model: str, params: dict, flow: float, density: float, vis
             raise ValueError('停泵阻力模型尚未定义，转速必须大于零')
         return -density * GRAVITY * pump_head(params['head_curve'], flow / density * 3600, params['speed_ratio'])
     if model == 'resistance':
-        area = _pipe_area(params['diameter_m'])
-        return params['loss_coefficient'] * flow * abs(flow) / (2 * density * area ** 2)
+        return _shared.resistance_drop(params['diameter_m'], params['loss_coefficient'], flow, density)
     raise ValueError(f'未注册的支路模型：{model}')
 
 

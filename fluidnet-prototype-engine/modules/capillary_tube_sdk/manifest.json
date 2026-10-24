@@ -1,0 +1,199 @@
+{
+  "schema_version": 2,
+  "id": "capillary_tube",
+  "name": "毛细管",
+  "version": 2,
+  "category": "倍思鹿参考模块",
+  "description": "毛细管/毛细节流阀的单相液体近似：按细长圆管阻力关系注册水力支路，输出流通面积、平均流速并累计通过质量。",
+  "ports": [
+    {
+      "id": "in0",
+      "label": "入口",
+      "domain": "fluid",
+      "direction": "in",
+      "required": true,
+      "circuit": "fluid"
+    },
+    {
+      "id": "out0",
+      "label": "出口",
+      "domain": "fluid",
+      "direction": "out",
+      "required": true,
+      "circuit": "fluid"
+    }
+  ],
+  "parameters": [
+    {
+      "id": "diameter_m",
+      "label": "毛细管内径",
+      "value_type": "number",
+      "default": 0.0015,
+      "unit": {
+        "quantity": "length",
+        "canonical_unit": "m",
+        "display_unit": "mm",
+        "display_scale": 0.001,
+        "display_offset": 0.0
+      },
+      "minimum": 0.0001,
+      "maximum": 0.05,
+      "runtime": false,
+      "writable": true
+    },
+    {
+      "id": "length_m",
+      "label": "毛细管长度",
+      "value_type": "number",
+      "default": 1.5,
+      "unit": {
+        "quantity": "length",
+        "canonical_unit": "m",
+        "display_unit": "m",
+        "display_scale": 1.0,
+        "display_offset": 0.0
+      },
+      "minimum": 0.0,
+      "maximum": 100.0,
+      "runtime": false,
+      "writable": true
+    },
+    {
+      "id": "roughness_m",
+      "label": "绝对粗糙度",
+      "value_type": "number",
+      "default": 1.5e-06,
+      "unit": {
+        "quantity": "length",
+        "canonical_unit": "m",
+        "display_unit": "mm",
+        "display_scale": 0.001,
+        "display_offset": 0.0
+      },
+      "minimum": 0.0,
+      "maximum": 0.001,
+      "runtime": false,
+      "writable": true
+    },
+    {
+      "id": "density_kg_m3",
+      "label": "参考密度",
+      "value_type": "number",
+      "default": 998.2,
+      "unit": {
+        "quantity": "density",
+        "canonical_unit": "kg/m³",
+        "display_unit": "kg/m³",
+        "display_scale": 1.0,
+        "display_offset": 0.0
+      },
+      "minimum": 1.0,
+      "maximum": null,
+      "runtime": false,
+      "writable": true
+    },
+    {
+      "id": "viscosity_pa_s",
+      "label": "动力黏度",
+      "value_type": "number",
+      "default": 0.001,
+      "unit": {
+        "quantity": "dynamic_viscosity",
+        "canonical_unit": "Pa·s",
+        "display_unit": "mPa·s",
+        "display_scale": 0.001,
+        "display_offset": 0.0
+      },
+      "minimum": 0.0,
+      "maximum": null,
+      "runtime": false,
+      "writable": true
+    }
+  ],
+  "variables": [
+    {
+      "id": "flow_area_m2",
+      "label": "流通面积",
+      "quantity": "area",
+      "unit": {
+        "quantity": "area",
+        "canonical_unit": "m²",
+        "display_unit": "m²",
+        "display_scale": 1.0,
+        "display_offset": 0.0
+      },
+      "source": "derived",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": null,
+      "port_id": null
+    },
+    {
+      "id": "mean_velocity_m_s",
+      "label": "平均流速",
+      "quantity": "velocity",
+      "unit": {
+        "quantity": "velocity",
+        "canonical_unit": "m/s",
+        "display_unit": "m/s",
+        "display_scale": 1.0,
+        "display_offset": 0.0
+      },
+      "source": "derived",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": null,
+      "port_id": null
+    },
+    {
+      "id": "state.throughput_kg",
+      "label": "累计通过质量",
+      "quantity": "mass",
+      "unit": {
+        "quantity": "mass",
+        "canonical_unit": "kg",
+        "display_unit": "kg",
+        "display_scale": 1.0,
+        "display_offset": 0.0
+      },
+      "source": "state",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": null,
+      "port_id": null
+    }
+  ],
+  "channels": [
+    {
+      "id": "main",
+      "name": "主通路",
+      "input_port": "in0",
+      "output_port": "out0",
+      "relation": "resistance",
+      "solver_model": "pipe",
+      "enabled": true
+    }
+  ],
+  "solver_model": "generic",
+  "state_model": null,
+  "thermal_model": null,
+  "source_format": "python-v1",
+  "runtime": "python",
+  "entrypoint": "module:Module",
+  "content_hash": "1a31eb76389e8564420ff14744f5960beefc6fdd36e82b407606abed5be771e8",
+  "definition_hash": "b6489af65cebd9c3ccc046f7b4f3670b7ffc5299ddb05cce5c48d2a18afc0b19",
+  "bank_names": [
+    "额定工况",
+    "部分负荷",
+    "调试备份"
+  ],
+  "sdk": {
+    "api_version": "0.4.0",
+    "capabilities": [
+      "net.pipe",
+      "observe.v1",
+      "state.transactions.v1"
+    ],
+    "state_contract_version": 1
+  }
+}

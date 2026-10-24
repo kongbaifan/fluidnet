@@ -1,0 +1,155 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "phase": {
+      "default": "manual",
+      "enum": [
+        "manual",
+        "initialize",
+        "evaluate",
+        "thermal",
+        "observe",
+        "jacobian",
+        "commit_step",
+        "finalize"
+      ],
+      "title": "Phase",
+      "type": "string"
+    },
+    "time_s": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Time S"
+    },
+    "run_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Run Id"
+    },
+    "instance_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Instance Id"
+    },
+    "request_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Request Id"
+    },
+    "step_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Step Id"
+    },
+    "iteration_id": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Iteration Id"
+    },
+    "dt_s": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Dt S"
+    },
+    "accepted_time_s": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Accepted Time S"
+    },
+    "port_data": {
+      "default": "unavailable",
+      "enum": [
+        "unavailable",
+        "trial",
+        "converged"
+      ],
+      "title": "Port Data",
+      "type": "string"
+    },
+    "channel_data": {
+      "default": "unavailable",
+      "enum": [
+        "unavailable",
+        "hydraulic_trial",
+        "converged"
+      ],
+      "title": "Channel Data",
+      "type": "string"
+    },
+    "state_data": {
+      "default": "unavailable",
+      "enum": [
+        "unavailable",
+        "initial",
+        "input_copy",
+        "candidate",
+        "module_committed"
+      ],
+      "title": "State Data",
+      "type": "string"
+    }
+  },
+  "title": "ModuleExecutionInfo",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

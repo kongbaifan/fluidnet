@@ -37,7 +37,7 @@ def merge_project(workspace, document):
     return data
 
 
-def upgrade_project(project: Project, target: ModuleDefinition):
+def upgrade_project(project: Project, target: ModuleDefinition, migration=None):
     old = next((m for m in project.modules if m.id == target.id), None)
     if old is None or old.runtime != 'python':
         raise ValueError('项目未绑定该 Python 模块')
@@ -62,6 +62,19 @@ def upgrade_project(project: Project, target: ModuleDefinition):
               'to_hashes': package_ref(target).model_dump(mode='json'),
               'source_before': old.source.get('runtime', ''), 'source_after': target.source.get('runtime', ''),
               'changes': changes, 'compatible': not reasons, 'reasons': reasons, 'module': target.model_dump(mode='json')}
+    if migration is not None:
+        from .migrations import migrate_project
+        try:
+            candidate, references = migrate_project(project, target, migration)
+            network = compile_project(candidate)
+            errors = [d for d in network.diagnostics + validate_scenarios(candidate, network.modules) if d.severity == 'error']
+            if errors:
+                raise ValueError('；'.join(d.message for d in errors))
+            result.update(compatible=True, reasons=[], project=candidate.model_dump(mode='json'),
+                references=references, migration=migration.model_dump(mode='json') if hasattr(migration,'model_dump') else migration)
+        except ValueError as error:
+            result.update(compatible=False, reasons=[str(error)])
+        return result
     if reasons:
         return result
     candidate = project.model_copy(deep=True)
