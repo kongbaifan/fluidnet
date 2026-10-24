@@ -84,4 +84,13 @@ try{
   mkdirSync('artifacts/module-system/98dadd5/MOD-E4',{recursive:true});
   await page.screenshot({path:'artifacts/module-system/98dadd5/MOD-E4/workflow.png',fullPage:true});
   console.log(JSON.stringify({results,errors},null,2));
+}catch(error){
+  // CI-only failures need the dialog state: thrown onSubmit text or HTML validation that blocked submit.
+  const dialog=await page.evaluate(()=>{const f=document.getElementById('dialog-form');if(!f)return null;
+    return {title:document.getElementById('dialog-title')?.textContent,error:document.getElementById('dialog-error')?.textContent,
+      invalid:[...f.elements].filter(e=>e.willValidate&&!e.checkValidity()).map(e=>({name:e.name,value:e.value,message:e.validationMessage})),
+      preview:document.getElementById('parameter-engine-preview')?.textContent,toast:document.getElementById('toast')?.textContent};}).catch(()=>null);
+  console.error(JSON.stringify({browser:browser.version(),results,errors,dialog}));
+  mkdirSync('artifacts',{recursive:true});await page.screenshot({path:'artifacts/module-workflow-failure.png',fullPage:true}).catch(()=>{});
+  throw error;
 }finally{await browser.close();await server.close();}
