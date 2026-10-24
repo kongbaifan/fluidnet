@@ -46,11 +46,14 @@ try{
   await page.goto(base+'/#modules');await page.locator('[data-module-id="programmable_valve"] [data-action="module-example"]').click();
   await page.locator('[data-action="save"]').first().click();await expect(page.locator('[data-save-status]')).not.toContainText('正在保存');
   const state=await page.evaluate(()=>JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1'))),id=state.activeProject;
-  const release=await api('/modules/programmable_valve/versions/1');const module=release.module;module.content_hash=null;module.definition_hash=null;module.parameters.push({id:'gain',label:'新增增益',value_type:'number',default:2.0});
-  await api('/modules/versions',{module,expected_latest_version:1,release_notes:'兼容增加参数'});
-  await page.locator('[data-action="wf-upgrades"]').click();await page.locator('[data-action="wf-module-versions"]').click();await page.locator('[data-action="wf-preview-upgrade"][data-version="2"]').click();await expect(page.getByRole('dialog')).toContainText('兼容检查通过');await page.screenshot({path:'artifacts/workflows-upgrade.png',fullPage:true});await page.getByRole('dialog').locator('button[type="submit"]').click();await expect(page.locator('#toast')).toContainText('模块版本已更新并保存');
-  const upgraded=await api('/projects/'+id);expect(upgraded.document.project.moduleSnapshots.programmable_valve.version).toBe(2);expect(upgraded.document.project.pages[0].nodes.find(n=>n.id==='V1').params.gain).toBe(2);
-  await manage(id);await page.locator('[data-action="wf-history"]').click();await page.locator(`[data-action="wf-restore"][data-revision="${upgraded.revision-1}"]`).click();await page.getByRole('dialog').locator('button[type="submit"]').click();await expect.poll(async()=> (await api('/projects/'+id)).document.project.moduleSnapshots.programmable_valve.version).toBe(1);
-  expect(errors).toEqual([]);console.log(JSON.stringify({project:id,baseline,throttled,upgrade:'v1 -> v2 -> v1',errors}));
+  // Seeds may already ship several versions (e.g. SDK v2); upgrade from the pinned one to a fresh latest.
+  const pinned=state.projects.find(p=>p.id===id).moduleSnapshots.programmable_valve.version;
+  const latest=Math.max(...(await api('/modules/programmable_valve/versions')).versions.map(v=>Number(v.package.version.split('.')[0]))),next=latest+1;
+  const release=await api('/modules/programmable_valve/versions/'+pinned);const module=release.module;module.content_hash=null;module.definition_hash=null;module.parameters.push({id:'gain',label:'新增增益',value_type:'number',default:2.0});
+  await api('/modules/versions',{module,expected_latest_version:latest,release_notes:'兼容增加参数'});
+  await page.locator('[data-action="wf-upgrades"]').click();await page.locator('[data-action="wf-module-versions"]').click();await page.locator(`[data-action="wf-preview-upgrade"][data-version="${next}"]`).click();await expect(page.getByRole('dialog')).toContainText('兼容检查通过');await page.screenshot({path:'artifacts/workflows-upgrade.png',fullPage:true});await page.getByRole('dialog').locator('button[type="submit"]').click();await expect(page.locator('#toast')).toContainText('模块版本已更新并保存');
+  const upgraded=await api('/projects/'+id);expect(upgraded.document.project.moduleSnapshots.programmable_valve.version).toBe(next);expect(upgraded.document.project.pages[0].nodes.find(n=>n.id==='V1').params.gain).toBe(2);
+  await manage(id);await page.locator('[data-action="wf-history"]').click();await page.locator(`[data-action="wf-restore"][data-revision="${upgraded.revision-1}"]`).click();await page.getByRole('dialog').locator('button[type="submit"]').click();await expect.poll(async()=> (await api('/projects/'+id)).document.project.moduleSnapshots.programmable_valve.version).toBe(pinned);
+  expect(errors).toEqual([]);console.log(JSON.stringify({project:id,baseline,throttled,upgrade:`v${pinned} -> v${next} -> v${pinned}`,errors}));
 }catch(error){mkdirSync('artifacts',{recursive:true});await page.screenshot({path:'artifacts/workflows-failure.png',fullPage:true});console.error(errors);throw error;}
 finally{await browser.close();await fixture.close();}

@@ -25,7 +25,7 @@ window.createModelingWorkflows = function (ui) {
     ui.replaceState(next);ui.dirty(ui.project());ui.persist();ui.render();
   }
   function manage(p){
-    openDialog('管理项目',p.name,`<div class="stack"><p>项目修订 ${state().projectRevisions?.[p.id]||'尚未保存'}</p><div class="row wrap">${btn('wf-save','保存此项目','Save',`data-id="${p.id}"`,'primary')}${btn('wf-rename','重命名','Pencil',`data-id="${p.id}"`)}${btn('wf-export','导出此项目','Download',`data-id="${p.id}"`)}${btn('wf-history','项目修订','History',`data-id="${p.id}"`)}${btn('wf-upgrades','模块版本','Box',`data-id="${p.id}"`)}${btn('wf-scenarios','工况','SlidersHorizontal',`data-id="${p.id}"`)}${btn('wf-delete','删除项目','Trash2',`data-id="${p.id}"`)}</div></div>`);
+    openDialog('管理项目',p.name,`<div class="stack"><p>项目修订 ${state().projectRevisions?.[p.id]||'尚未保存'}</p><div class="row wrap">${btn('wf-save','保存此项目','Save',`data-id="${p.id}"`,'primary')}${btn('wf-rename','重命名','Pencil',`data-id="${p.id}"`)}${btn('wf-export','导出此项目','Download',`data-id="${p.id}"`)}${btn('wf-history','项目修订','History',`data-id="${p.id}"`)}${btn('wf-upgrades','模块版本','Box',`data-id="${p.id}"`)}${btn('create-composite','封装设备组','Network')}${btn('wf-scenarios','工况','SlidersHorizontal',`data-id="${p.id}"`)}${btn('wf-delete','删除项目','Trash2',`data-id="${p.id}"`)}</div></div>`);
   }
   function scenarioList(p){
     openDialog('项目工况',p.name,`<div class="stack">${btn('wf-new-scenario','新建工况','Plus',`data-id="${p.id}"`,'primary')}<p>覆盖值使用参数面板的显示单位，基础模型参数保持独立。</p>${(p.scenarios||[]).map(s=>`<div class="row spread"><span>${esc(s.name)} · ${Object.keys(s.overrides).length} 个设备</span><div class="row">${btn('wf-edit-scenario','编辑','Pencil',`data-id="${p.id}" data-scenario="${esc(s.id)}"`)}${btn('wf-copy-scenario','复制','Copy',`data-id="${p.id}" data-scenario="${esc(s.id)}"`)}${btn('wf-delete-scenario','删除','Trash2',`data-id="${p.id}" data-scenario="${esc(s.id)}"`)}</div></div>`).join('')||'<p>暂无工况，运行时使用基础模型。</p>'}</div>`,null,'',true);
@@ -62,11 +62,11 @@ window.createModelingWorkflows = function (ui) {
   }
   async function moduleVersions(p,id){
     idle(p);const result=await engine().moduleReleases(id),bound=p.moduleSnapshots[id];
-    openDialog('选择模块版本',`${p.name} · ${id} 当前 v${bound.version}`,`<div class="stack">${result.versions.map(v=>`<div class="row spread"><span>v${esc(v.package.version)} · ${esc(v.release_notes||'示例版本')}</span>${btn('wf-preview-upgrade','预览变更','Eye',`data-id="${p.id}" data-module="${id}" data-version="${parseInt(v.package.version)}" ${parseInt(v.package.version)===bound.version?'disabled':''}`)}</div>`).join('')}</div>`);
+    openDialog('选择模块版本',`${p.name} · ${id} 当前 v${bound.version}`,`<div class="stack">${result.versions.map(v=>`<div class="row spread"><span>v${esc(v.package.version)} · ${esc(v.release_notes||'示例版本')}</span>${btn('wf-preview-upgrade','预览变更','Eye',`data-id="${p.id}" data-module="${id}" data-version="${parseInt(v.package.version)}" ${parseInt(v.package.version)===bound.version?'disabled':''}`)}</div>`).join('')}<label class="field"><span>显式映射 JSON（可留空）</span><textarea id="wf-migration-json" aria-label="显式迁移映射" placeholder="参数、端口、通路和变量映射"></textarea></label></div>`);
   }
-  async function previewUpgrade(p,id,version){
+  async function previewUpgrade(p,id,version,migration=null){
     idle(p);const original=JSON.stringify(engine().projectDocument(p));
-    const result=await engine().previewUpgrade(p,id,version);
+    const result=await engine().previewUpgrade(p,id,version,migration);
     if(original!==JSON.stringify(engine().projectDocument(p)))throw Error('项目已发生变化，请重新预览');
     upgradePlan={original,result,document:result.compatible?engine().upgradeDocument(p,result):null};
     openDialog('模块版本变更预览',`${id} · v${result.from_version} → v${result.to_version}`,`<div class="stack"><p>${result.compatible?'兼容检查通过；应用前保存当前项目修订。':'此变更不兼容，保留当前项目。'}</p>${result.reasons.map(r=>`<div class="notice">${esc(r)}</div>`).join('')}<p>源码哈希：${esc(result.from_hashes.content_hash)} → ${esc(result.to_hashes.content_hash)}</p><p>定义哈希：${esc(result.from_hashes.definition_hash)} → ${esc(result.to_hashes.definition_hash)}</p>${result.changes.map(c=>`<details><summary>${esc(c.field+'.'+c.id)}</summary><pre class="code-preview">${esc(JSON.stringify({原定义:c.before,新定义:c.after},null,2))}</pre></details>`).join('')}<details><summary>查看源码前后版本</summary><h4>原版本</h4><pre class="code-preview">${esc(result.source_before)}</pre><h4>目标版本</h4><pre class="code-preview">${esc(result.source_after)}</pre></details></div>`,result.compatible?()=>{
@@ -131,7 +131,7 @@ window.createModelingWorkflows = function (ui) {
       case 'wf-remove-override':delete scenarioDraft.value.overrides[d.node][d.param];if(!Object.keys(scenarioDraft.value.overrides[d.node]).length)delete scenarioDraft.value.overrides[d.node];document.getElementById('wf-overrides').innerHTML=overrideRows();break;
       case 'wf-upgrades':{idle(p);engine().pinProject(p);const modules=Object.values(p.moduleSnapshots||{}).filter(m=>m.runtime==='python');openDialog('项目模块版本',p.name,`<div class="stack">${modules.map(m=>`<div class="row spread"><span>${esc(m.name)} · 绑定 v${m.version}</span>${btn('wf-module-versions','查看可用版本','Box',`data-id="${p.id}" data-module="${esc(m.id)}"`)}</div>`).join('')||'<p>此项目没有绑定 Python 模块。</p>'}</div>`);break;}
       case 'wf-module-versions':await moduleVersions(p,d.module);break;
-      case 'wf-preview-upgrade':await previewUpgrade(p,d.module,Number(d.version));break;
+      case 'wf-preview-upgrade':{const text=document.getElementById('wf-migration-json')?.value.trim();await previewUpgrade(p,d.module,Number(d.version),text?JSON.parse(text):null);break;}
       case 'wf-refresh-runs':await engine().refreshArchives();ui.render();break;
       case 'wf-compare':{const a=document.getElementById('wf-compare-a').value,b=document.getElementById('wf-compare-b').value;if(!a||!b||a===b)throw Error('请选择两次不同的已完成运行');const data=await engine().comparison(a,b);if(data.some(v=>v.record.status!=='completed'))throw Error('只支持已完成运行');if(data[0].record.request.project.id!==data[1].record.request.project.id)throw Error('请选择同一项目的两次运行');comparison=data;document.getElementById('wf-comparison-result').innerHTML=comparisonResult();break;}
     }
@@ -147,5 +147,5 @@ window.createModelingWorkflows = function (ui) {
   return {action,comparisonMarkup,
     projectActions:p=>btn('wf-manage','管理','Settings2',`data-id="${p.id}"`,'small'),
     projectToolbar:()=>btn('wf-server-projects','服务器项目','FolderOpen')+btn('wf-import','导入单项目','Upload'),
-    scenarioToolbar:p=>`<label class="row gap-6"><span>工况</span><select data-wf-scenario data-id="${p.id}" aria-label="运行工况">${option('','基础模型',p.activeScenarioId||'')}${(p.scenarios||[]).map(s=>option(s.id,s.name,p.activeScenarioId)).join('')}</select></label>${btn('wf-scenarios','编辑工况','SlidersHorizontal',`data-id="${p.id}"`)}${btn('wf-upgrades','模块版本','Box',`data-id="${p.id}"`)}`};
+    scenarioToolbar:p=>`<label class="row gap-6"><span>工况</span><select data-wf-scenario data-id="${p.id}" aria-label="运行工况">${option('','基础模型',p.activeScenarioId||'')}${(p.scenarios||[]).map(s=>option(s.id,s.name,p.activeScenarioId)).join('')}</select></label>${btn('wf-scenarios','编辑工况','SlidersHorizontal',`data-id="${p.id}"`)}${btn('wf-upgrades','模块版本','Box',`data-id="${p.id}"`)}${btn('create-composite','封装设备组','Network')}`};
 };

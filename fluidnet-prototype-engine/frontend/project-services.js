@@ -120,8 +120,8 @@ window.createProjectServices = function ({request, ui, normalize, health, authHe
     const receipt=await request('/projects/'+encodeURIComponent(id)+'/delete',{expected_revision:projectRevisions[id]});
     projectReceipt(id,receipt);return receipt;
   }
-  async function previewUpgrade(owner,id,version) {
-    return request('/project-upgrades/preview',{project:await normalize(owner),module_id:id,target_version:version});
+  async function previewUpgrade(owner,id,version,migration=null) {
+    return request('/project-upgrades/preview',{project:await normalize(owner),module_id:id,target_version:version,migration});
   }
   function upgradeDocument(owner,preview) {
     const document=projectDocument(owner),snapshot={...moduleFromManifest(clone(preview.module)),frozen:true};
@@ -131,9 +131,44 @@ window.createProjectServices = function ({request, ui, normalize, health, authHe
     const display=values=>Object.fromEntries(preview.module.parameters.map(p=>[p.id,p.unit?values[p.id]/p.unit.display_scale+p.unit.display_offset:clone(values[p.id])]));
     for(const pg of document.project.pages)for(const n of pg.nodes)if(n.moduleId===snapshot.id){
       const node=canonical.get(n.id);n.params=display(node.parameters);n.draft=display(node.draft_parameters);n.package=node.package;
-      for(const bank of n.variableState?.banks||[])for(const spec of preview.module.parameters){
-        const k='param:'+spec.id;if(!(k in bank))bank[k]=clone(n.params[spec.id]);
+      for(const [index,bank] of (n.variableState?.banks || []).entries()){
+        for(const key of Object.keys(bank))if(key.startsWith('param:'))delete bank[key];
+        const values=display(node.banks[index]?.values || node.parameters);
+        for(const spec of preview.module.parameters)bank['param:'+spec.id]=clone(values[spec.id]);
       }
+      for(const [field,values] of [['values',n.params],['draft',n.draft]])if(n.variableState?.[field]){
+        for(const key of Object.keys(n.variableState[field]))if(key.startsWith('param:'))delete n.variableState[field][key];
+        for(const [key,value] of Object.entries(values))n.variableState[field]['param:'+key]=clone(value);
+      }
+    }
+    const affected=new Set(owner.pages.flatMap(pg=>pg.nodes).filter(n=>n.moduleId===snapshot.id).map(n=>n.id));
+    const migration=preview.migration || {};
+    const reference=key=>{
+      const dot=key.indexOf('.');if(dot<0||!affected.has(key.slice(0,dot)))return key;
+      const id=key.slice(0,dot),suffix=key.slice(dot+1);
+      if(suffix in (migration.variables || {}))return id+'.'+migration.variables[suffix];
+      const parts=suffix.split('.');if(parts[0]==='param')parts[1]=migration.parameters?.[parts[1]] || parts[1];else parts[0]=migration.ports?.[parts[0]] || migration.channels?.[parts[0]] || parts[0];
+      return id+'.'+parts.join('.');
+    };
+    for(const pg of document.project.pages)for(const edge of pg.edges){
+      if(affected.has(edge[1]))edge[2]=migration.ports?.[edge[2]] || edge[2];
+      if(affected.has(edge[3]))edge[4]=migration.ports?.[edge[4]] || edge[4];
+    }
+    document.project.scenarios=clone(preview.project.scenarios);
+    for(const scenario of document.project.scenarios || [])for(const id of affected)if(scenario.overrides[id])scenario.overrides[id]=display(scenario.overrides[id]);
+    document.project.controllers=clone(preview.project.controllers);
+    document.project.controlScripts=clone(preview.project.control_scripts);
+    const control=preview.project.control_scripts.find(script=>script.id==='control');
+    if(control){document.project.control=control.source;document.project.controlInputs=control.inputs.join('\n');document.project.controlOutputs=control.outputs.join('\n');document.project.controlLanguage='python';document.project.controlEnabled=control.enabled;}
+    for(const chart of document.charts || []){
+      if(chart.canonicalKey)chart.canonicalKey=reference(chart.canonicalKey);
+      if(chart.identifier)chart.identifier=reference(chart.identifier);
+      if(affected.has(chart.nodeId) && chart.variableId){const old=chart.variableId;chart.variableId=migration.variables?.[old] || old;chart.sampleKey=chart.nodeId+':'+chart.variableId;}
+    }
+    for(const model of document.models || [])if(model.moduleId===snapshot.id){
+      const before=owner.moduleSnapshots[snapshot.id].manifest.parameters;
+      const values={};for(const spec of before){const target=migration.parameters?.[spec.id] ?? (preview.module.parameters.some(p=>p.id===spec.id)?spec.id:null);if(target&&spec.id in model.params){const canonical=spec.unit?(model.params[spec.id]-spec.unit.display_offset)*spec.unit.display_scale:model.params[spec.id];const conversion=migration.unit_conversions?.[spec.id];values[target]=conversion?canonical*conversion.scale+conversion.offset:canonical;}}
+      model.params=display(Object.fromEntries(preview.module.parameters.map(p=>[p.id,p.id in values?values[p.id]:p.default])));model.sourceModuleVersion=preview.to_version;
     }
     document.project.run=ui.emptyRun();return document;
   }

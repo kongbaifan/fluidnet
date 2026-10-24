@@ -15,7 +15,7 @@ try {
   await page.goto(fixture.base+'/#modules');
   await expect(page.locator('#app-header')).toContainText(/v\d+\.\d+\.\d+/);
   const card=page.locator('[data-module-id="programmable_valve"]');
-  await expect(card).toContainText('Python · v1');
+  await expect(card).toContainText('Python · v2');
   await card.locator('[data-action="test-module"]').click();
   await expect(page.locator('h1')).toHaveText('独立验证台');
   await expect(page.locator('[data-bench-param="opening_ratio"]')).toHaveValue('0.8');
