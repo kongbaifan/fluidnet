@@ -18,6 +18,38 @@ env:
   PYTHONUTF8: '1'
 
 jobs:
+  module-sdk:
+    name: module SDK (Python 3.11, strict)
+    runs-on: windows-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: fluidnet-prototype-engine
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: SDK 轻依赖（无需安装引擎）
+        run: python -m pip install pytest==8.4.1 pytest-cov==7.1.0 mypy==2.3.0 ruff==0.16.0
+      - name: SDK 与示例严格类型门
+        run: python -m mypy --config-file mypy-sdk.ini
+      - name: SDK lint
+        run: python -m ruff check backend/fn_sdk examples/module_sdk tests/test_module_sdk.py tests/test_module_sdk_hydraulics.py tests/test_module_sdk_thermal.py
+      - name: SDK 独立测试与覆盖率
+        env:
+          COVERAGE_FILE: artifacts/module-sdk.coverage
+        run: |
+          New-Item -ItemType Directory -Force artifacts | Out-Null
+          python -m pytest -q tests/test_module_sdk.py tests/test_module_sdk_hydraulics.py tests/test_module_sdk_thermal.py --cov=fn_sdk --cov-report=term-missing --cov-report=xml:artifacts/module-sdk-coverage.xml
+      - name: SDK 覆盖率证据
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: module-sdk-coverage
+          path: fluidnet-prototype-engine/artifacts/module-sdk-coverage.xml
+          if-no-files-found: ignore
+
   backend:
     name: backend (Python 3.11)
     runs-on: windows-latest

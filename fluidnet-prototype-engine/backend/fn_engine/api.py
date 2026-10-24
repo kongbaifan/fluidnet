@@ -1,4 +1,5 @@
 from __future__ import annotations
+from .models import ModuleTemplateRequest,ModuleGroupRequest,ModuleTestSuiteRequest,ModuleTestSuiteResponse
 
 import asyncio
 import logging
@@ -160,6 +161,8 @@ def shape_history(history: list[RunFrame], request: RunRequest, project: Project
 
 
 def diagnostic(error):
+    if getattr(error, 'diagnostics', None):
+        return error.diagnostics[0]
     if isinstance(error, CompilationError):
         return error.diagnostic
     if isinstance(error, PropertyError):
@@ -342,7 +345,10 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
             result = session.scripts[script.id].pending[0]
             return {**result, 'content_hash': script.content_hash, 'time_s': 0., 'applied': False}
         except ValueError as error:
-            raise HTTPException(422, detail=diagnostic(error).model_dump(mode='json')) from error
+            detail = diagnostic(error).model_dump(mode='json')
+            if getattr(error, 'replay', None) is not None:
+                detail['replay'] = getattr(error,'replay')
+            raise HTTPException(422, detail=detail) from error
         finally:
             if session:
                 session.close()
@@ -419,7 +425,7 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
         project_idle(request.project.id)
         try:
             target = store.get(request.module_id, request.target_version).module
-            return upgrade_project(request.project, target)
+            return upgrade_project(request.project, target, request.migration)
         except KeyError:
             raise HTTPException(404, detail='模块版本不存在')
         except ValueError as error:
@@ -456,6 +462,8 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
         for definition in definitions:
             payload = definition.model_dump(mode='json')
             payload['package'] = package_ref(definition) if definition.runtime == 'python' else None
+            if definition.runtime == 'python':
+                payload['validation_evidence'] = store.release(definition).validation_evidence
             items.append(payload)
         return {'modules': items}
 
@@ -486,10 +494,34 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
         except ModuleVersionConflict as error:
             raise HTTPException(409, detail={'code':'MODULE_VERSION_CONFLICT','message':str(error)}) from error
         except ModuleSaveInvalid as error:
-            raise HTTPException(422, detail={'code':'MODULE_SAVE_INVALID','message':str(error),
-                                           'diagnostics':[d.model_dump(mode='json') for d in error.diagnostics]}) from error
+            detail={'code':'MODULE_SAVE_INVALID','message':str(error),
+                    'diagnostics':[d.model_dump(mode='json') for d in error.diagnostics]}
+            if error.replay is not None:
+                detail['replay']=getattr(error,'replay')
+            raise HTTPException(422,detail=detail) from error
         except OSError as error:
             raise HTTPException(500, detail={'code':'MODULE_STORAGE_ERROR','message':'模块版本写入失败,请检查存储目录权限和剩余空间'}) from error
+
+    @app.post('/api/v1/modules/composites/from-group', response_model=ModuleDefinition,
+              responses=protected_error_responses(422, 'INTERNAL_ERROR'))
+    def composite_from_group(request: ModuleGroupRequest):
+        from .composites import module_from_group
+        try:
+            return module_from_group(request.project,request.instance_ids,request.id,request.name)
+        except ValueError as error:
+            raise HTTPException(422,detail=str(error)) from error
+
+    @app.post('/api/v1/modules/from-template', response_model=ModuleDefinition,
+              responses=protected_error_responses(422, 'INTERNAL_ERROR'))
+    def module_from_template(request: ModuleTemplateRequest):
+        from .module_templates import create_template
+        return create_template(request.template, request.id, request.name, request.category)
+
+    @app.post('/api/v1/modules/test-suite', response_model=ModuleTestSuiteResponse,
+              responses=protected_error_responses(422, 'MODULE_WORKER_IO_ERROR', 'INTERNAL_ERROR'))
+    def test_module_suite(request: ModuleTestSuiteRequest):
+        from .module_testing import run_module_suite
+        return run_module_suite(request)
 
     @app.post('/api/v1/modules/test', response_model=ModuleTestResponse,
               responses=protected_error_responses(422, 'MODULE_WORKER_IO_ERROR', 'INTERNAL_ERROR'))
@@ -498,7 +530,10 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
         try:
             return run_module_test(request)
         except ValueError as error:
-            raise HTTPException(422, detail=diagnostic(error).model_dump(mode='json')) from error
+            detail=diagnostic(error).model_dump(mode='json')
+            if getattr(error,'replay',None) is not None:
+                detail['replay']=getattr(error,'replay')
+            raise HTTPException(422,detail=detail) from error
         except Exception as error:
             # Worker/solver boundary faults must not escape as an opaque 500;
             # the caller gets an actionable status plus the original message.

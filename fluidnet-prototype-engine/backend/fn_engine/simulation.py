@@ -4,6 +4,8 @@ from __future__ import annotations
 from collections import deque
 import dataclasses
 import math
+import json
+from copy import copy, deepcopy
 
 import numpy as np
 
@@ -11,6 +13,8 @@ from . import solver as s
 from .compiler import CompilationError, runtime_parameter, validated_parameters
 from .controllers import PID
 from .models import Diagnostic, PIDController
+from .module_execution import mark_module_accepted
+from .module_diagnostics import merge_diagnostics
 from .properties import property_service
 from .control import ScriptControl
 from .timestep import TimeStepConfig, ensure_supported
@@ -45,6 +49,10 @@ class SimulationSession:
         self.controllers = {}
         self.scripts = {}
         self.script_owners = {key: script.id for script in network.project.control_scripts if script.enabled for key in script.outputs}
+        for public, destinations in network.composite_maps.get('parameters',{}).items():
+            if public in self.script_owners:
+                for target,parameter in destinations:
+                    self.script_owners[f'{target}.param.{parameter}'] = self.script_owners[public]
         self.service = property_service(network.project.fluid)
         # 困液定容容积（I0–I4）：初态即“关阀捕获”的 accepted state；M/U 在此冻结，之后只有热量收支。
         self.trapped = tr.initial_states(network)
@@ -61,6 +69,8 @@ class SimulationSession:
         self.diagnostics = []
         self.view = network
         self.closed = False
+        self._control_base = None
+        self.last_accepted_frame = None
 
     @property
     def done(self):
@@ -88,7 +98,10 @@ class SimulationSession:
                 if missing:
                     raise CompilationError('CONTROL_INPUT_UNKNOWN', f'{script.id} 输入不存在：{sorted(missing)}')
                 self.diagnostics.extend(Diagnostic.model_validate(d) for d in runner.start(values))
-            return self.publish()
+            frame = self.publish()
+            self.last_accepted_frame = frame
+            mark_module_accepted(self.runners, self.time)
+            return frame
         except BaseException:
             self.close()
             raise
@@ -153,6 +166,13 @@ class SimulationSession:
         return True
 
     def set_parameter(self, instance_id, parameter_id, value, controlled=False):
+        destinations = getattr(self.network,'composite_maps',{}).get('parameters',{}).get(f'{instance_id}.param.{parameter_id}')
+        if destinations:
+            self._check_script_owner(f'{instance_id}.param.{parameter_id}')
+            candidates = {target:self._candidate_parameters(target,{parameter:value},controlled) for target,parameter in destinations}
+            if any(self._apply_parameters(target,parameters) for target,parameters in candidates.items()):
+                self.revision += 1
+            return
         if self._apply_parameters(instance_id, self._candidate_parameters(instance_id, {parameter_id: value}, controlled)):
             self.revision += 1
 
@@ -191,6 +211,13 @@ class SimulationSession:
         parameters, controllers = {}, {}
         for key, value in values.items():
             self._check_script_owner(key, script_id)
+            destinations = getattr(self.network,'composite_maps',{}).get('parameters',{}).get(key)
+            if destinations:
+                for target,parameter in destinations:
+                    if parameter in parameters.get(target,{}):
+                        raise CompilationError('MODULE_PARAMETER_CONFLICT','公开参数和内部参数写入同一目标')
+                    parameters.setdefault(target,{})[parameter] = value
+                continue
             parts = key.split('.')
             if len(parts) == 3 and parts[0] == 'controller' and parts[1] in self.controllers:
                 controllers.setdefault(parts[1], {})[parts[2]] = value
@@ -227,6 +254,36 @@ class SimulationSession:
             if pid.next_s <= self.time + 1e-10:
                 pid.sample(self.time, variables)
             self.set_parameter(pid.config.instance_id, pid.config.parameter_id, pid.output, controlled=True)
+
+    def _capture_control(self):
+        fields = ('state', 'pending', 'next_s', 'last_s', 'samples', 'last_values')
+        return {'parameters': deepcopy(self.network.parameters), 'revision': self.revision,
+            'controllers': deepcopy(self.controllers), 'diagnostics': list(self.diagnostics),
+            'scripts': {key: {field: deepcopy(getattr(script, field)) for field in fields}
+                        for key, script in self.scripts.items()},
+            'closed': [branch.closed for branch in self.network.branches],
+            'storage': deepcopy(self.network.storage), 'trapped': deepcopy(self.network.trapped)}
+
+    def _rollback_control(self):
+        base = self._control_base
+        if base is None:
+            return
+        changed = {key for key, value in base['parameters'].items() if value != self.network.parameters[key]}
+        self.network.parameters = base['parameters']
+        self.revision, self.controllers, self.diagnostics = base['revision'], base['controllers'], base['diagnostics']
+        self.network.storage, self.network.trapped = base['storage'], base['trapped']
+        for branch, closed in zip(self.network.branches, base['closed'], strict=True):
+            branch.closed = closed
+        for key, fields in base['scripts'].items():
+            for field, value in fields.items():
+                setattr(self.scripts[key], field, value)
+        self._control_base = None
+        for key in changed & self.runners.keys():
+            try:
+                self.runners[key].update_parameters(self.network.parameters[key])
+            except Exception:
+                worker = getattr(self.runners[key], 'worker', self.runners[key])
+                worker.close(force=True)
 
     def _view(self):
         view = s._step_network(self.network, self.tanks, self.service) if self.stateful else self.network
@@ -276,6 +333,7 @@ class SimulationSession:
         result = s.solve_network(view, self.runners, self.time + h, warm=warm,
             service=self.service if view.project.solver.thermal else None,
             storage_step=(h, self.tanks, self.cells) if self.stateful else None)
+        result.parameter_revision=self.revision
         tanks = s.tank_states_from(view, result, self.tanks, h) if view.storage else {}
         cells = dict(result.thermal.cell_enthalpies) if result.thermal else {}
         # 封闭容积没有边界质量交换：失败/越界在 _trial 内抛出，绝不会留下半提交状态。
@@ -290,16 +348,43 @@ class SimulationSession:
         return view, result, tanks, cells, trapped
 
     def _accept(self, h, view, result, tanks, cells, trapped):
-        values, diagnostics = s._commit_modules(self.network, self.runners, result, self.time + h, h)
-        for runner in self.scripts.values():
-            if runner.pending:
-                self.diagnostics.extend(Diagnostic.model_validate(d) for d in runner.pending[0].get('diagnostics', []))
-                runner.accept()
-        self.time += h
-        self.view, self.result, self.tanks, self.cells = view, result, tanks, cells
-        self.trapped, self.trapped_ledgers = trapped
-        self.committed.update(values)
-        self.diagnostics.extend(diagnostics)
+        transaction = None
+        try:
+            if getattr(result,'parameter_revision',None) is not None and result.parameter_revision != self.revision:
+                raise CompilationError('MODULE_PARAMETER_REVISION_CONFLICT','试算之后参数修订已变化，旧结果不能接受')
+            values, diagnostics, transaction = s._commit_modules(self.network, self.runners, result, self.time + h, h)
+            # Preview the complete frame and script acceptance on copies before promotion.
+            preview = copy(self)
+            preview.time = self.time + h
+            preview.view, preview.result, preview.tanks, preview.cells = view, result, tanks, cells
+            preview.trapped, preview.trapped_ledgers = trapped
+            preview.committed = self.committed | values
+            preview.diagnostics = merge_diagnostics(self.diagnostics, diagnostics)
+            preview.scripts = {key: copy(script) for key, script in self.scripts.items()}
+            for script in preview.scripts.values():
+                if script.pending:
+                    preview.diagnostics = merge_diagnostics(preview.diagnostics,
+                        [Diagnostic.model_validate(d) for d in script.pending[0].get('diagnostics', [])])
+                    script.accept()
+            frame = preview.snapshot()
+            if not frame.valid or any(item.severity == 'error' for item in frame.diagnostics):
+                raise CompilationError('MODULE_FRAME_INVALID', '候选帧包含错误，子步未接受')
+            json.dumps(frame.model_dump(mode='json'), allow_nan=False)
+            transaction.validate()
+        except Exception:
+            if transaction is not None:
+                transaction.discard()
+            self._rollback_control()
+            raise
+        transaction.promote()
+        for field in ('time', 'view', 'result', 'tanks', 'cells', 'trapped', 'trapped_ledgers', 'committed', 'diagnostics'):
+            setattr(self, field, getattr(preview, field))
+        for key, script in self.scripts.items():
+            for field in ('state', 'pending', 'next_s', 'last_s', 'samples', 'last_values'):
+                setattr(script, field, getattr(preview.scripts[key], field))
+        self._control_base = None
+        self.last_accepted_frame = frame
+        transaction.synchronize()
 
     def snapshot(self):
         frame = s._with_states(self.view, s.snapshot(self.view, self.result, self.time, self.warning), self.result, self.tanks, self.service)
@@ -325,7 +410,8 @@ class SimulationSession:
             frame.variables.update(runner.variables())
         frame.sequence = self.sequence
         frame.parameter_revision = self.revision
-        return frame
+        from .composites import map_frame
+        return map_frame(self.network,frame)
 
     def publish(self):
         frame = self.snapshot()
@@ -336,6 +422,24 @@ class SimulationSession:
         return frame
 
     def advance(self):
+        try:
+            return self._advance()
+        except Exception as error:
+            self._rollback_control()
+            if self.last_accepted_frame is not None and self.frames and self.time > self.frames[-1].time_s:
+                frames = list(self.frames) + [self.last_accepted_frame]
+                diagnostic=getattr(error,'diagnostic',None)
+                code=getattr(error,'code',diagnostic.code if diagnostic else 'STEP_EXECUTION_FAILED')
+                failure=s.SolveFailed(code,str(error),frames=frames)
+                if getattr(error,'diagnostics',None):
+                    failure.diagnostics=error.diagnostics
+                    failure.diagnostic=error.diagnostics[0]
+                elif diagnostic is not None:
+                    failure.diagnostic=diagnostic
+                raise failure from error
+            raise
+
+    def _advance(self):
         if not self.frames:
             return self.initialize()
         if self.done:
@@ -343,6 +447,7 @@ class SimulationSession:
         # Frame times are index·dt (no accumulated rounding), so a continuous run never drifts.
         target = (self.index + 1) * self.dt if self.duration is None else min((self.index + 1) * self.dt, self.duration)
         while target - self.time > 1e-12 * max(1., target):
+            self._control_base = self._capture_control()
             self._control()
             h = min([target - self.time] + [p.next_s - self.time for p in self.controllers.values()]
                     + [script.next_s - self.time for script in self.scripts.values()])

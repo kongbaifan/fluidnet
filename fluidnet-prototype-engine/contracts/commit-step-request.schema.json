@@ -12,9 +12,65 @@
           "default": 0.0,
           "title": "Pressure Drop Pa",
           "type": "number"
+        },
+        "heat_w": {
+          "default": 0.0,
+          "title": "Heat W",
+          "type": "number"
         }
       },
       "title": "ChannelState",
+      "type": "object"
+    },
+    "ModuleRequestContext": {
+      "additionalProperties": false,
+      "description": "Optional transport metadata; callback phase/time are derived from the action itself.",
+      "properties": {
+        "request_id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+          "title": "Request Id",
+          "type": "string"
+        },
+        "step_id": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Step Id"
+        },
+        "accepted_time_s": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Accepted Time S"
+        },
+        "port_data": {
+          "default": "trial",
+          "enum": [
+            "trial",
+            "converged"
+          ],
+          "title": "Port Data",
+          "type": "string"
+        }
+      },
+      "required": [
+        "request_id"
+      ],
+      "title": "ModuleRequestContext",
       "type": "object"
     },
     "PortState": {
@@ -167,6 +223,17 @@
       },
       "title": "Converged Channels",
       "type": "object"
+    },
+    "context": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ModuleRequestContext"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     }
   },
   "required": [

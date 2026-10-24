@@ -37,7 +37,7 @@ window.createEngineClient = function (ui) {
     if (!response.ok) {
       const detail = data.detail;
       const error = Error(typeof detail === 'string' ? detail : Array.isArray(detail) ? detail.map(x => x.loc.join('.') + '：' + x.msg).join('；') : detail?.message || JSON.stringify(detail));
-      error.status = response.status; error.code = detail?.code; throw error;
+      error.status = response.status; error.code = detail?.code; error.detail = detail; throw error;
     }
     return data;
   }
@@ -162,7 +162,7 @@ window.createEngineClient = function (ui) {
   }
   function manifestPayload(m) {
     if (m.manifest) {
-      const {package:ref, ...definition} = m.manifest;
+      const {package:ref, validation_evidence:evidence, ...definition} = m.manifest;
       if (m.frozen) return clone(definition);
       let contract = {};
       if (m.contractDraft !== undefined) {
@@ -180,7 +180,7 @@ window.createEngineClient = function (ui) {
     }
     return m;
   }
-  const contractFields = ['name','category','description','entrypoint','solver_model','state_model','thermal_model','ports','channels','parameters','variables','bank_names'];
+  const contractFields = ['schema_version','sdk','applicability','hydraulic_dependencies','dependency_mode','pure_evaluate','composite','name','category','description','entrypoint','solver_model','state_model','thermal_model','ports','channels','parameters','variables','bank_names'];
   function contractText(m) {
     if (m.contractDraft !== undefined) return m.contractDraft;
     const definition=manifestPayload(m);
@@ -222,11 +222,12 @@ window.createEngineClient = function (ui) {
       const before=JSON.stringify(definition);
       ui.moduleOutput(m,'正在校验契约、Python 语法和生命周期入口…');
       const result=await request('/modules/validate',definition);
+      m.authoringDiagnostics=result.diagnostics;
       if (before!==JSON.stringify(manifestPayload(m))) { ui.moduleOutput(m,'校验期间草稿已变化，请重新校验当前内容。'); return false; }
       ui.moduleOutput(m,result.valid ? '✓ Pydantic 契约与默认值通过\n✓ Python 语法通过\n✓ Worker 入口与四阶段方法通过\n'+(definition.source.design ? '✓ design.py 的 design(ctx) 通过\n' : '')+'下一步：独立验证算法或保存新版本。' :result.diagnostics.map(d=>`${d.field || d.code}：${d.message}`).join('\n'));
       if (apply && result.valid) { applyManifest(m,definition); ui.dirty(m); ui.render(); }
       return result.valid;
-    } catch(error) { ui.moduleOutput(m,'校验失败：'+error.message); return false; }
+    } catch(error) { m.authoringDiagnostics=error.detail?.diagnostics || (error.detail?.source_line ? [error.detail] : []); m.authoringReplay=error.detail?.replay; ui.moduleOutput(m,'校验失败：'+error.message); return false; }
   }
   // design.py on one library-value set. Returns display-unit proposals; the caller confirms.
   async function runDesign(m, bank) {
@@ -262,7 +263,7 @@ window.createEngineClient = function (ui) {
     m.saving=true; ui.render();
     try {
       const definition=manifestPayload(m), before=JSON.stringify(definition);
-      const test={};
+      const test=clone(m.testConditions || {});
       // Test the declared defaults on every save; prior bench results cannot authorize changed code.
       const bench=ui.state().bench;
       if (bench?.moduleId===m.id) Object.assign(test,{inlet_pressure_pa:bench.boundary.inlet*1000,outlet_pressure_pa:bench.boundary.outlet*1000,temperature_k:bench.boundary.temperature+273.15,dt_s:bench.run.step,duration_s:bench.run.step});
@@ -277,7 +278,7 @@ window.createEngineClient = function (ui) {
       await versions(m);
       if (!ui.persist()) { ui.message(`后端 v${release.module.version} 已保存，浏览器草稿存储失败（存储空间不足），请导出原型；内存中的修改未丢失。`,true); return; }
       ui.message(`模块 v${release.module.version} 已保存；已有项目版本保持绑定。`);
-    } catch(error) { ui.moduleOutput(m,'版本未保存：'+error.message); ui.message('版本保存失败，草稿已保留。',true); }
+    } catch(error) { m.authoringDiagnostics=error.detail?.diagnostics || (error.detail?.source_line ? [error.detail] : []);m.authoringReplay=error.detail?.replay;ui.moduleOutput(m,'版本未保存：'+error.message); ui.message('版本保存失败，草稿已保留。',true); }
     finally { m.saving=false; ui.render(); }
   }
   function newModule(id,name,category,baseId) {
@@ -287,6 +288,19 @@ window.createEngineClient = function (ui) {
     const m=moduleFromManifest(definition); m.latestVersion=0; m.dirty=true;
     ui.parameterDefinitions[m.kind]=m.parameterDefs;
     return m;
+  }
+  async function newTemplate(id,name,category,template) {
+    const definition=await request('/modules/from-template',{id,name,category,template});
+    const m=moduleFromManifest(definition);m.latestVersion=0;m.dirty=true;
+    m.template=template;ui.parameterDefinitions[m.kind]=m.parameterDefs;
+    if(template==='pump')m.testConditions={inlet_pressure_pa:120000,outlet_pressure_pa:250000};
+    if(template==='heat_exchanger')m.testConditions={channel_boundaries:{hot:{inlet_temperature_k:320,outlet_temperature_k:320},cold:{inlet_temperature_k:290,outlet_temperature_k:290}}};
+    return m;
+  }
+  async function newComposite(owner,ids,id,name) {
+    const definition=await request('/modules/composites/from-group',{project:await normalize(owner),instance_ids:ids,id,name});
+    const m=moduleFromManifest(definition);m.latestVersion=0;m.dirty=true;
+    ui.parameterDefinitions[m.kind]=m.parameterDefs;return m;
   }
   function updateContractItem(m,section,oldId,item) {
     const definition=manifestPayload(m), list=definition[section] || [];
@@ -428,6 +442,7 @@ window.createEngineClient = function (ui) {
     run.parameterKey = ui.parameterKey(owner);
   }
   async function command(scope, action, projectId) {
+    if (!health && initializing) await initializing;
     if (scope !== 'bench' && health?.capabilities?.live_runs) {
       const owner = ui.state().projects.find(p => p.id === (projectId || ui.state().activeProject));
       if (owner && (owner.solver.mode === 'dynamic' || owner.run.live || action === 'step')) return liveCommand(owner, action);
@@ -621,7 +636,11 @@ window.createEngineClient = function (ui) {
     }
     catch (error) { diagnostics([{message:error.message,severity:'error'}]); }
   }
-  async function init(forceWorkspace=false) {
+  // Run commands read `health` to choose live vs. legacy paths; a click right after page load
+  // must wait for init, or a paused live run would be replaced by a fresh POST /runs.
+  let initializing=null;
+  function init(forceWorkspace=false) { return initializing=initialize(forceWorkspace); }
+  async function initialize(forceWorkspace) {
     try {
       const probe = await request('/health');
       if (probe.auth?.required && !sessionStorage.getItem(TOKEN_KEY)) { health = probe; askToken('此计算服务要求访问令牌。'); return; }
@@ -777,5 +796,5 @@ window.createEngineClient = function (ui) {
     owner.run.parameterKey=ui.parameterKey(owner);ui.persist();ui.render();
   }
   const services=window.createProjectServices({request,ui,normalize,health:()=>health,authHeaders,pinProject,moduleFromManifest});
-  return {...services,command,tick,validate,init,applyParameters,loadOverview,authHeaders,signOut:()=>{sessionStorage.removeItem(TOKEN_KEY);location.reload();},overview:id=>overviews.get(id),circuits:id=>circuitsByProject.get(id)||[],confirmedCommand,portValue,observation,manifestPayload,contractText,checkModule,saveModule,runDesign,versions,loadVersion,newModule,updateContractItem,bindModule,pinProject,moduleForInsert,get catalog(){return catalog;},get health(){return health;}};
+  return {...services,command,tick,validate,init,applyParameters,loadOverview,authHeaders,signOut:()=>{sessionStorage.removeItem(TOKEN_KEY);location.reload();},overview:id=>overviews.get(id),circuits:id=>circuitsByProject.get(id)||[],confirmedCommand,portValue,observation,manifestPayload,contractText,checkModule,saveModule,runDesign,versions,loadVersion,newModule,newTemplate,newComposite,updateContractItem,bindModule,pinProject,moduleForInsert,get catalog(){return catalog;},get health(){return health;}};
 };

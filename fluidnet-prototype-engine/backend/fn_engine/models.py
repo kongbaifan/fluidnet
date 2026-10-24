@@ -1,109 +1,18 @@
 from __future__ import annotations
 
-from enum import Enum
 import math
-from typing import Annotated, Any, Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+from fn_sdk import CallbackPhase, ChannelDataKind, PortDataKind, StateDataKind
 
-Identifier = Annotated[str, Field(pattern=r"^[A-Za-z][A-Za-z0-9_-]{0,80}$")]
-
-
-class StrictModel(BaseModel):
-    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
-
-
-class Domain(str, Enum):
-    fluid = "fluid"
-    thermal = "thermal"
-    # Lumped refrigeration-station streams: no pressure node of their own (see ALGORITHM.md).
-    refrigerant = "refrigerant"
-    info = "info"
-    power = "power"
-    mech = "mech"
-
-
-class Direction(str, Enum):
-    in_ = "in"
-    out = "out"
-    bidirectional = "bidirectional"
-
-
-class UnitSpec(StrictModel):
-    quantity: str
-    canonical_unit: str
-    display_unit: str
-    display_scale: float = Field(default=1.0, gt=0)
-    display_offset: float = 0.0
-
-    def to_canonical(self, value: float) -> float:
-        return (float(value) - self.display_offset) * self.display_scale
-
-    def from_canonical(self, value: float) -> float:
-        return float(value) / self.display_scale + self.display_offset
-
-
-class ParameterSpec(StrictModel):
-    id: Identifier
-    label: str
-    value_type: Literal["number", "boolean", "text", "curve"] = "number"
-    default: Any
-    unit: UnitSpec | None = None
-    minimum: float | None = None
-    maximum: float | None = None
-    runtime: bool = False
-    writable: bool = True
-
-    @model_validator(mode="after")
-    def validate_default(self):
-        if self.minimum is not None and self.maximum is not None and self.minimum > self.maximum:
-            raise ValueError("参数最小值不能大于最大值")
-        if self.value_type == "number":
-            if isinstance(self.default, bool) or not isinstance(self.default, (int, float)) or not math.isfinite(self.default):
-                raise ValueError("数值参数默认值必须是有限数值")
-            if self.minimum is not None and self.default < self.minimum or self.maximum is not None and self.default > self.maximum:
-                raise ValueError("参数默认值超出声明范围")
-        elif self.value_type == "boolean" and not isinstance(self.default, bool):
-            raise ValueError("布尔参数默认值必须是布尔值")
-        elif self.value_type == "text" and not isinstance(self.default, str):
-            raise ValueError("文本参数默认值必须是字符串")
-        elif self.value_type == "curve":
-            if not isinstance(self.default, list) or not all(isinstance(row, list) and len(row) == 2 and all(isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v) for v in row) for row in self.default):
-                raise ValueError("曲线默认值必须是有限数值点对数组")
-        if self.value_type != "number" and self.unit is not None:
-            raise ValueError("仅数值参数可以声明单位换算")
-        return self
-
-
-class PortSpec(StrictModel):
-    id: Identifier
-    label: str
-    domain: Domain = Domain.fluid
-    direction: Direction = Direction.bidirectional
-    required: bool = True
-    circuit: str = "fluid"
-
-
-class ChannelSpec(StrictModel):
-    id: Identifier
-    name: str
-    input_port: str
-    output_port: str
-    relation: Literal["resistance", "pump_curve", "pressure_source", "heat_transfer", "signal"]
-    solver_model: str
-    enabled: bool = True
-
-
-class VariableSpec(StrictModel):
-    id: str
-    label: str
-    quantity: str
-    unit: UnitSpec | None = None
-    source: Literal["parameter", "port", "state", "derived", "system"]
-    writable: bool = False
-    sampleable: bool = True
-    parameter_id: str | None = None
-    port_id: str | None = None
+from ._module_schema_v1 import (
+    ChannelSpec as ChannelSpec, Direction as Direction, Domain as Domain,
+    Identifier, ModuleDefinitionV1, ModuleFieldsV1, ParameterSpec as ParameterSpec,
+    PortSpec as PortSpec, StrictModel, UnitSpec as UnitSpec, VariableSpec as VariableSpec,
+)
+from ._module_schema_v2 import ModuleDefinitionV2, ModuleSDKRequirements
+from ._module_schema_v3 import ModuleDefinitionV3, ModuleApplicability, CompositeDefinition
 
 
 class FluidConfig(StrictModel):
@@ -199,6 +108,32 @@ class NetworkRelation(StrictModel):
         return self
 
 
+class ModuleRequestContext(StrictModel):
+    """Optional transport metadata; callback phase/time are derived from the action itself."""
+
+    request_id: Identifier
+    step_id: Identifier | None = None
+    accepted_time_s: float | None = Field(default=None, ge=0)
+    port_data: Literal['trial', 'converged'] = 'trial'
+
+
+class ModuleExecutionInfo(StrictModel):
+    model_config = ConfigDict(frozen=True)
+
+    phase: CallbackPhase = 'manual'
+    time_s: float | None = Field(default=None, ge=0)
+    run_id: str | None = None
+    instance_id: str | None = None
+    request_id: str | None = None
+    step_id: str | None = None
+    iteration_id: int | None = Field(default=None, ge=0)
+    dt_s: float | None = Field(default=None, gt=0)
+    accepted_time_s: float | None = Field(default=None, ge=0)
+    port_data: PortDataKind = 'unavailable'
+    channel_data: ChannelDataKind = 'unavailable'
+    state_data: StateDataKind = 'unavailable'
+
+
 class InitializeRequest(StrictModel):
     run_id: Identifier
     instance_id: Identifier
@@ -208,6 +143,8 @@ class InitializeRequest(StrictModel):
     # Fluid per port where it differs from `fluid` (a module spanning two circuits); ctx.fluid_at(port).
     port_fluids: dict[str, FluidConfig] = Field(default_factory=dict)
     initial_state: dict[str, Any] = Field(default_factory=dict)
+    cache_enabled: bool = Field(default=False, exclude_if=lambda value: value is False)
+    context: ModuleRequestContext | None = Field(default=None, exclude_if=lambda value: value is None)
 
 
 class EvaluateRequest(StrictModel):
@@ -217,17 +154,47 @@ class EvaluateRequest(StrictModel):
     time_s: float = Field(ge=0)
     trial_ports: dict[Identifier, PortState] = Field(default_factory=dict)
     readonly_state: dict[str, Any] = Field(default_factory=dict)
+    state_revision: int | None = Field(default=None,ge=0,exclude_if=lambda value:value is None)
+    context: ModuleRequestContext | None = Field(default=None, exclude_if=lambda value: value is None)
 
 
 class EvaluateResponse(StrictModel):
     relations: list[NetworkRelation] = Field(default_factory=list)
     variables: dict[str, float | int | str | bool | None] = Field(default_factory=dict)
     diagnostics: list["Diagnostic"] = Field(default_factory=list)
+    accessed_ports: list[Identifier] = Field(default_factory=list, exclude_if=lambda value: not value)
+    cache_hit: bool = Field(default=False, exclude_if=lambda value: value is False)
 
 
 class ChannelState(StrictModel):
     mass_flow_kg_s: float = 0.0
     pressure_drop_pa: float = 0.0
+    heat_w: float = Field(default=0.0, exclude_if=lambda value: value == 0)
+
+
+class ModulePhaseRequest(StrictModel):
+    run_id: Identifier
+    instance_id: Identifier
+    time_s: float = Field(ge=0)
+    ports: dict[Identifier, PortState] = Field(default_factory=dict)
+    channels: dict[Identifier, ChannelState] = Field(default_factory=dict)
+    context: ModuleRequestContext | None = Field(default=None, exclude_if=lambda value: value is None)
+
+
+class ModuleThermalResponse(StrictModel):
+    heat_w: dict[Identifier, float] = Field(default_factory=dict)
+    diagnostics: list['Diagnostic'] = Field(default_factory=list)
+
+
+class ModuleRelationDerivative(StrictModel):
+    flow_slope_pa_per_kg_s: float
+    port_pressure_derivatives: dict[Identifier, float] = Field(default_factory=dict)
+    smooth: bool = True
+
+
+class ModuleDerivativeResponse(StrictModel):
+    derivatives: dict[Identifier, ModuleRelationDerivative]
+    diagnostics: list['Diagnostic'] = Field(default_factory=list)
 
 
 class CommitStepRequest(StrictModel):
@@ -237,6 +204,7 @@ class CommitStepRequest(StrictModel):
     dt_s: float = Field(gt=0)
     converged_ports: dict[Identifier, PortState] = Field(default_factory=dict)
     converged_channels: dict[Identifier, ChannelState] = Field(default_factory=dict)
+    context: ModuleRequestContext | None = Field(default=None, exclude_if=lambda value: value is None)
 
 
 class CommitStepResponse(StrictModel):
@@ -245,54 +213,54 @@ class CommitStepResponse(StrictModel):
     diagnostics: list["Diagnostic"] = Field(default_factory=list)
 
 
-class ModuleDefinition(StrictModel):
-    schema_version: Literal[1] = 1
-    id: Identifier
-    name: str
-    version: int = Field(default=1, ge=1)
-    category: str = "自定义模块"
-    description: str = ""
-    ports: list[PortSpec] = Field(default_factory=list)
-    parameters: list[ParameterSpec] = Field(default_factory=list)
-    variables: list[VariableSpec] = Field(default_factory=list)
-    channels: list[ChannelSpec] = Field(default_factory=list)
-    solver_model: str = "generic"
-    state_model: str | None = None
-    thermal_model: str | None = None
-    source_format: str = "python-v1"
-    source: dict[str, str | list[str]] = Field(default_factory=dict)
-    runtime: Literal["builtin", "python"] = "builtin"
-    entrypoint: str = ""
-    content_hash: str | None = Field(default=None, pattern=r"^[a-fA-F0-9]{64}$")
-    definition_hash: str | None = Field(default=None, pattern=r"^[a-fA-F0-9]{64}$")
-    package_path: str | None = None
-    bank_names: list[str] = Field(default_factory=lambda: ["额定工况", "部分负荷", "调试备份"])
+class ModuleStepCandidate(StrictModel):
+    candidate_id: Identifier
+    step_id: Identifier
+    base_revision: int = Field(ge=0)
+    time_s: float = Field(ge=0)
+    result: CommitStepResponse
+    content_hash: str = Field(pattern=r'^[a-f0-9]{64}$')
+    definition_hash: str = Field(pattern=r'^[a-f0-9]{64}$')
 
-    @model_validator(mode="after")
-    def validate_definition(self):
-        port_ids = [p.id for p in self.ports]
-        parameter_ids = [p.id for p in self.parameters]
-        variable_ids = [v.id for v in self.variables]
-        if len(port_ids) != len(set(port_ids)):
-            raise ValueError(f"模块 {self.id} 的端口 ID 重复")
-        if len(parameter_ids) != len(set(parameter_ids)):
-            raise ValueError(f"模块 {self.id} 的参数 ID 重复")
-        if len(variable_ids) != len(set(variable_ids)):
-            raise ValueError(f"模块 {self.id} 的变量 ID 重复")
-        if len(self.channels) != len({c.id for c in self.channels}):
-            raise ValueError(f"模块 {self.id} 的通路 ID 重复")
-        ports = set(port_ids)
-        for channel in self.channels:
-            if channel.input_port not in ports or channel.output_port not in ports:
-                raise ValueError(f"模块 {self.id} 的通路引用了不存在的端口")
-            if channel.input_port == channel.output_port:
-                raise ValueError("通路两端不能是同一端口")
-        for variable in self.variables:
-            if variable.port_id and variable.port_id not in ports:
-                raise ValueError("变量引用了不存在的端口")
-            if variable.parameter_id and variable.parameter_id not in parameter_ids:
-                raise ValueError("变量引用了不存在的参数")
-        return self
+
+class ModuleDefinition(ModuleFieldsV1):
+    """Schema-dispatched module facade; v1 never receives SDK default fields."""
+
+    schema_version: Literal[1, 2, 3] = 1
+    sdk: ModuleSDKRequirements | None = Field(default=None, exclude_if=lambda value: value is None)
+    applicability: ModuleApplicability | None = Field(default=None, exclude_if=lambda value: value is None)
+    hydraulic_dependencies: dict[Identifier, list[Identifier]] | None = Field(default=None, exclude_if=lambda value: value is None)
+    dependency_mode: Literal['conservative','tracked'] | None = Field(default=None, exclude_if=lambda value: value is None)
+    pure_evaluate: bool | None = Field(default=None, exclude_if=lambda value: value is None)
+    composite: CompositeDefinition | None = Field(default=None, exclude_if=lambda value: value is None)
+    model_config = ConfigDict(json_schema_extra={"allOf": [{
+        "if": {"properties": {"schema_version": {"enum": [2, 3]}}, "required": ["schema_version"]},
+        "then": {"required": ["sdk", "runtime"], "properties": {"sdk": {"type": "object"}, "runtime": {"const": "python"}}},
+        "else": {"not": {"required": ["sdk"]}},
+    }, {
+        'if': {'properties': {'schema_version': {'const': 3}}, 'required': ['schema_version']},
+        'then': {'properties': {'applicability': {'type':'object'}, 'hydraulic_dependencies': {'type':'object'},
+                                'dependency_mode': {'type':'string'}, 'pure_evaluate': {'type':'boolean'}}},
+        'else': {'not': {'anyOf': [{'required':[name]} for name in
+            ['applicability','hydraulic_dependencies','dependency_mode','pure_evaluate','composite']]}}
+    }]})
+
+    @model_validator(mode="before")
+    @classmethod
+    def parse_contract_schema(cls, data):
+        if not isinstance(data, dict):
+            return data
+        # Catalog response subclasses have presentation-only fields outside the contract.
+        fields = set(ModuleDefinitionV3.model_fields)
+        core = {key: value for key, value in data.items() if key in fields}
+        schema = core.get("schema_version", 1)
+        parser = {1: ModuleDefinitionV1, 2: ModuleDefinitionV2, 3: ModuleDefinitionV3}.get(schema) if isinstance(schema, (int, float)) else None
+        if parser is None:
+            raise ValueError(f"不支持的模块合同 schema_version：{schema}")
+        if schema == 1:
+            core.setdefault("runtime", cls.model_fields["runtime"].default)
+        parsed = parser.model_validate(core).model_dump(mode="python")
+        return {**data, **parsed}
 
 
 class Position(StrictModel):
@@ -413,6 +381,8 @@ class TimeStepOptions(StrictModel):
 
 
 class SolverOptions(StrictModel):
+    module_mixed_jacobian: bool = False
+    module_cache: bool = False
     pressure_tolerance_pa: float = Field(default=1.0, gt=0)
     mass_tolerance_kg_s: float = Field(default=1e-8, gt=0)
     max_iterations: int = Field(default=80, ge=1, le=500)
@@ -630,10 +600,28 @@ class ProjectDeleteRequest(StrictModel):
     expected_revision: int = Field(ge=0)
 
 
+class CanonicalUnitConversion(StrictModel):
+    from_unit: str
+    to_unit: str
+    scale: float = Field(gt=0)
+    offset: float = 0.
+
+
+class ModuleMigration(StrictModel):
+    parameters: dict[Identifier, Identifier | None] = Field(default_factory=dict)
+    ports: dict[Identifier, Identifier | None] = Field(default_factory=dict)
+    channels: dict[Identifier, Identifier | None] = Field(default_factory=dict)
+    variables: dict[str, str | None] = Field(default_factory=dict)
+    defaults: dict[Identifier, Any] = Field(default_factory=dict)
+    unit_conversions: dict[Identifier, CanonicalUnitConversion] = Field(default_factory=dict)
+    script_sources: dict[Identifier, str] = Field(default_factory=dict)
+
+
 class ProjectUpgradeRequest(StrictModel):
     project: Project
     module_id: Identifier
     target_version: int = Field(ge=1)
+    migration: ModuleMigration | None = None
 
 
 class RunRequest(StrictModel):
@@ -686,6 +674,17 @@ class Diagnostic(StrictModel):
     severity: Literal["info", "warning", "error"] = "error"
     instance_id: str | None = None
     field: str | None = None
+    module_id: str | None = Field(default=None, exclude_if=lambda value: value is None)
+    module_version: int | None = Field(default=None, exclude_if=lambda value: value is None)
+    phase: str | None = Field(default=None, exclude_if=lambda value: value is None)
+    time_s: float | None = Field(default=None, exclude_if=lambda value: value is None)
+    source_file: str | None = Field(default=None, exclude_if=lambda value: value is None)
+    source_line: int | None = Field(default=None, exclude_if=lambda value: value is None)
+    channel_id: str | None = Field(default=None, exclude_if=lambda value: value is None)
+    source_path: str | None = Field(default=None, exclude_if=lambda value: value is None)
+    occurrences: int = Field(default=1, ge=1, exclude_if=lambda value: value == 1)
+    first_time_s: float | None = Field(default=None, exclude_if=lambda value: value is None)
+    last_time_s: float | None = Field(default=None, exclude_if=lambda value: value is None)
 
 
 class RunFrame(StrictModel):
@@ -720,6 +719,14 @@ class ModuleManifest(ModuleDefinition):
     runtime: Literal["builtin", "python"] = "python"
 
 
+class ChannelTestBoundary(StrictModel):
+    inlet_pressure_pa: float = Field(default=250000., gt=0)
+    outlet_pressure_pa: float = Field(default=120000., gt=0)
+    inlet_temperature_k: float = Field(default=293.15, gt=0)
+    outlet_temperature_k: float = Field(default=293.15, gt=0)
+    fluid: FluidConfig = Field(default_factory=FluidConfig)
+
+
 class ModuleTestConditions(StrictModel):
     parameters: dict[str, Any] = Field(default_factory=dict)
     fluid: FluidConfig = Field(default_factory=FluidConfig)
@@ -728,6 +735,8 @@ class ModuleTestConditions(StrictModel):
     temperature_k: float = Field(default=293.15, gt=0)
     duration_s: float = Field(default=0.1, gt=0, le=60)
     dt_s: float = Field(default=0.1, gt=0, le=60)
+    channel_boundaries: dict[Identifier, ChannelTestBoundary] = Field(default_factory=dict)
+    property_coupling: Literal['reference','node'] = 'reference'
 
     @model_validator(mode="after")
     def limit_frames(self):
@@ -740,6 +749,36 @@ class ModuleTestRequest(ModuleTestConditions):
     module: ModuleDefinition
 
 
+class ModuleTestCase(StrictModel):
+    id: Identifier
+    conditions: ModuleTestConditions = Field(default_factory=ModuleTestConditions)
+
+
+class ModuleTestSuiteRequest(StrictModel):
+    module: ModuleDefinition
+    cases: list[ModuleTestCase] = Field(min_length=1, max_length=64)
+
+    @model_validator(mode='after')
+    def unique_cases(self):
+        if len({case.id for case in self.cases}) != len(self.cases):
+            raise ValueError('测试组合 ID 重复')
+        return self
+
+
+class ModuleTemplateRequest(StrictModel):
+    template: Literal['resistance', 'pump', 'heat_exchanger', 'managed_state']
+    id: Identifier
+    name: str = Field(min_length=1, max_length=80)
+    category: str = '自定义模块'
+
+
+class ModuleGroupRequest(StrictModel):
+    project: Project
+    instance_ids: list[Identifier] = Field(min_length=1,max_length=100)
+    id: Identifier
+    name: str = Field(min_length=1,max_length=80)
+
+
 class ModuleTestResponse(StrictModel):
     module_id: str
     content_hash: str
@@ -748,6 +787,23 @@ class ModuleTestResponse(StrictModel):
     committed: CommitStepResponse
     frame: RunFrame
     history: list[RunFrame] = Field(default_factory=list)
+
+
+class ModuleTestCaseResult(StrictModel):
+    id: Identifier
+    passed: bool
+    input_hash: str
+    level: Literal['L3'] = 'L3'
+    result: ModuleTestResponse | None = None
+    diagnostics: list[Diagnostic] = Field(default_factory=list)
+
+
+class ModuleTestSuiteResponse(StrictModel):
+    module_id: str
+    content_hash: str
+    definition_hash: str
+    passed: bool
+    cases: list[ModuleTestCaseResult]
 
 
 class ModuleDesignRequest(StrictModel):
@@ -795,11 +851,24 @@ class ModuleSaveRequest(StrictModel):
     test: ModuleTestConditions = Field(default_factory=ModuleTestConditions)
 
 
+class ModuleValidationEvidence(StrictModel):
+    level: Literal['L1','L2','L3','L4','external']
+    status: Literal['passed','failed','pending']
+    source: str
+    content_hash: str
+    definition_hash: str
+    input_hash: str
+    engine_version: str
+    sdk_version: str
+    tolerances: dict[str, float] = Field(default_factory=dict)
+
+
 class ModuleVersionInfo(StrictModel):
     package: ModulePackageRef
     created_at: str | None = None
     release_notes: str = ""
     tested: bool = False
+    validation_evidence: list[ModuleValidationEvidence] = Field(default_factory=list)
 
 
 class ModuleVersionResponse(ModuleVersionInfo):
@@ -826,7 +895,7 @@ class RunStatus(StrictModel):
     lag_s: float = 0.0
 
 
-class ErrorDetail(StrictModel):
+class ErrorDetail(Diagnostic):
     """结构化错误 `detail`：服务端主动抛出的 code/message，可带诊断与定位字段。"""
     code: str
     message: str
@@ -834,6 +903,7 @@ class ErrorDetail(StrictModel):
     keys: list[str] = Field(default_factory=list)
     instance_id: str | None = None
     field: str | None = None
+    replay: dict[str, Any] | None = Field(default=None, exclude_if=lambda value: value is None)
 
 
 class ValidationIssue(BaseModel):
@@ -932,6 +1002,7 @@ class CatalogResponse(StrictModel):
 
 
 class ModuleCatalogItem(ModuleDefinition):
+    validation_evidence: list[ModuleValidationEvidence] = Field(default_factory=list)
     package: ModulePackageRef | None = None
 
 
@@ -1128,6 +1199,8 @@ class ProjectUpgradeResponse(StrictModel):
     reasons: list[str] = Field(default_factory=list)
     module: ModuleDefinition
     project: Project | None = None
+    references: list[str] = Field(default_factory=list)
+    migration: ModuleMigration | None = None
 
 
 class RunSummary(StrictModel):

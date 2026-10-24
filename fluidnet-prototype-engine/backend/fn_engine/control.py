@@ -6,15 +6,7 @@ import traceback
 
 from .models import ControlScript, Diagnostic, FluidConfig, ModuleDefinition
 from .runtime import WorkerProcess, ModuleRuntimeTimeout
-
-
-def checked_state(state):
-    if not isinstance(state, dict):
-        raise ValueError('ctx.state 必须为字典')
-    text = json.dumps(state, ensure_ascii=False, allow_nan=False)
-    if len(text.encode('utf-8')) > 65536:
-        raise ValueError('ctx.state 超过 64 KiB')
-    return json.loads(text)
+from .module_state import checked_state
 
 
 class ControlContext:
@@ -141,6 +133,17 @@ def validate_scripts(project, modules, instances):
         except SyntaxError as error:
             raise CompilationError('CONTROL_SYNTAX', f'{script.id} 第 {error.lineno} 行：{error.msg}') from error
         for key in script.outputs:
+            destinations = getattr(project,'_composite_maps',{}).get('parameters',{}).get(key)
+            if destinations:
+                for instance_id,parameter_id in destinations:
+                    concrete = f'{instance_id}.param.{parameter_id}'
+                    if concrete in owners or concrete in targets:
+                        raise CompilationError('CONTROL_TARGET_CONFLICT',f'{key} 与内部控制目标 {concrete} 冲突')
+                    instance = instances[instance_id]
+                    runtime_parameter(instance,modules[instance.module_id],parameter_id)
+                    owners[concrete] = script.id
+                owners[key] = script.id
+                continue
             if key in owners or key in targets:
                 raise CompilationError('CONTROL_TARGET_CONFLICT', f'{key} 已由 {owners.get(key, "PID")} 控制')
             parts = key.split('.')

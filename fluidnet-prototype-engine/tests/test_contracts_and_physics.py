@@ -309,7 +309,7 @@ def api_http_routes():
 def test_every_api_route_has_response_model_or_whitelist():
     routes=api_http_routes()
     # 冷库 A 增加运行报告（CSV/HTML/对照）与机组工作点 4 条路由。
-    assert len(routes)==41,f'HTTP 路由数量变化：{len(routes)}'
+    assert len(routes)==44,f'HTTP 路由数量变化：{len(routes)}'
     missing=[f'{sorted(route.methods)} {route.path}' for route in routes
              if route.response_model is None and route.path not in RESPONSE_MODEL_EXCEPTIONS]
     assert missing==[],f'以下路由缺少 response_model 且不在白名单：{missing}'

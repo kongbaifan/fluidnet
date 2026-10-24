@@ -1,0 +1,39 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "template": {
+      "enum": [
+        "resistance",
+        "pump",
+        "heat_exchanger",
+        "managed_state"
+      ],
+      "title": "Template",
+      "type": "string"
+    },
+    "id": {
+      "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+      "title": "Id",
+      "type": "string"
+    },
+    "name": {
+      "maxLength": 80,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "category": {
+      "default": "自定义模块",
+      "title": "Category",
+      "type": "string"
+    }
+  },
+  "required": [
+    "template",
+    "id",
+    "name"
+  ],
+  "title": "ModuleTemplateRequest",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

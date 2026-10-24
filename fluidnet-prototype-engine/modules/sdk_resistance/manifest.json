@@ -1,0 +1,142 @@
+{
+  "schema_version": 2,
+  "id": "sdk_resistance",
+  "name": "SDK 局部阻力",
+  "version": 1,
+  "category": "自定义模块",
+  "description": "通过 Python evaluate 注册阀门阻力关系，并在 commit_step 中累计通过质量。",
+  "ports": [
+    {
+      "id": "in0",
+      "label": "入口",
+      "domain": "fluid",
+      "direction": "in",
+      "required": true,
+      "circuit": "fluid"
+    },
+    {
+      "id": "out0",
+      "label": "出口",
+      "domain": "fluid",
+      "direction": "out",
+      "required": true,
+      "circuit": "fluid"
+    }
+  ],
+  "parameters": [
+    {
+      "id": "diameter_m",
+      "label": "直径 m",
+      "value_type": "number",
+      "default": 0.05,
+      "unit": null,
+      "minimum": 0.001,
+      "maximum": null,
+      "runtime": false,
+      "writable": true
+    },
+    {
+      "id": "loss_coefficient",
+      "label": "K",
+      "value_type": "number",
+      "default": 8.0,
+      "unit": null,
+      "minimum": 0.0,
+      "maximum": null,
+      "runtime": false,
+      "writable": true
+    },
+    {
+      "id": "heat_w",
+      "label": "吸热 W",
+      "value_type": "number",
+      "default": 0.0,
+      "unit": null,
+      "minimum": null,
+      "maximum": null,
+      "runtime": false,
+      "writable": true
+    }
+  ],
+  "variables": [
+    {
+      "id": "loss_coefficient",
+      "label": "K",
+      "quantity": "ratio",
+      "unit": null,
+      "source": "derived",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": null,
+      "port_id": null
+    },
+    {
+      "id": "density_kg_m3",
+      "label": "密度",
+      "quantity": "density",
+      "unit": null,
+      "source": "derived",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": null,
+      "port_id": null
+    },
+    {
+      "id": "state.throughput_kg",
+      "label": "累计质量",
+      "quantity": "mass",
+      "unit": null,
+      "source": "state",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": null,
+      "port_id": null
+    },
+    {
+      "id": "state.commit_count",
+      "label": "提交次数",
+      "quantity": "count",
+      "unit": null,
+      "source": "state",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": null,
+      "port_id": null
+    }
+  ],
+  "channels": [
+    {
+      "id": "main",
+      "name": "主通路",
+      "input_port": "in0",
+      "output_port": "out0",
+      "relation": "resistance",
+      "solver_model": "valve",
+      "enabled": true
+    }
+  ],
+  "solver_model": "valve",
+  "state_model": null,
+  "thermal_model": null,
+  "source_format": "python-v1",
+  "runtime": "python",
+  "entrypoint": "module:Module",
+  "content_hash": "639c2504038655936529a1c2f61467a1e0194eec39fcd64f4df5c1888728f4db",
+  "definition_hash": "54560f8fe818f63ca7d1bd91532a6c80bea194748f668ae63433ab79fecf208b",
+  "bank_names": [
+    "额定工况",
+    "部分负荷",
+    "调试备份"
+  ],
+  "sdk": {
+    "api_version": "0.5.0",
+    "capabilities": [
+      "context.execution.v1",
+      "hydraulic.signed_start.v1",
+      "lifecycle.v1",
+      "net.resistance",
+      "state.json.v1"
+    ],
+    "state_contract_version": 1
+  }
+}

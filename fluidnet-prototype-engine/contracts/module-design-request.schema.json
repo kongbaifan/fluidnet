@@ -52,6 +52,187 @@
       "title": "ChannelSpec",
       "type": "object"
     },
+    "CompositeChild": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "module_id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+          "title": "Module Id",
+          "type": "string"
+        },
+        "version": {
+          "minimum": 1,
+          "title": "Version",
+          "type": "integer"
+        },
+        "content_hash": {
+          "anyOf": [
+            {
+              "pattern": "^[a-f0-9]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Content Hash"
+        },
+        "definition_hash": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Definition Hash",
+          "type": "string"
+        },
+        "parameters": {
+          "additionalProperties": true,
+          "title": "Parameters",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "module_id",
+        "version",
+        "definition_hash"
+      ],
+      "title": "CompositeChild",
+      "type": "object"
+    },
+    "CompositeConnection": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/CompositeEndpoint"
+        },
+        "target": {
+          "$ref": "#/$defs/CompositeEndpoint"
+        }
+      },
+      "required": [
+        "id",
+        "source",
+        "target"
+      ],
+      "title": "CompositeConnection",
+      "type": "object"
+    },
+    "CompositeDefinition": {
+      "additionalProperties": false,
+      "properties": {
+        "children": {
+          "items": {
+            "$ref": "#/$defs/CompositeChild"
+          },
+          "maxItems": 100,
+          "minItems": 1,
+          "title": "Children",
+          "type": "array"
+        },
+        "modules": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "maxItems": 100,
+          "title": "Modules",
+          "type": "array"
+        },
+        "connections": {
+          "items": {
+            "$ref": "#/$defs/CompositeConnection"
+          },
+          "maxItems": 500,
+          "title": "Connections",
+          "type": "array"
+        },
+        "external_ports": {
+          "patternProperties": {
+            "^[A-Za-z][A-Za-z0-9_-]{0,80}$": {
+              "$ref": "#/$defs/CompositeEndpoint"
+            }
+          },
+          "title": "External Ports",
+          "type": "object"
+        },
+        "parameter_maps": {
+          "patternProperties": {
+            "^[A-Za-z][A-Za-z0-9_-]{0,80}$": {
+              "items": {
+                "$ref": "#/$defs/CompositeParameterTarget"
+              },
+              "type": "array"
+            }
+          },
+          "title": "Parameter Maps",
+          "type": "object"
+        },
+        "output_aliases": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Output Aliases",
+          "type": "object"
+        }
+      },
+      "required": [
+        "children",
+        "external_ports"
+      ],
+      "title": "CompositeDefinition",
+      "type": "object"
+    },
+    "CompositeEndpoint": {
+      "additionalProperties": false,
+      "properties": {
+        "instance_id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+          "title": "Instance Id",
+          "type": "string"
+        },
+        "port_id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+          "title": "Port Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "instance_id",
+        "port_id"
+      ],
+      "title": "CompositeEndpoint",
+      "type": "object"
+    },
+    "CompositeParameterTarget": {
+      "additionalProperties": false,
+      "properties": {
+        "instance_id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+          "title": "Instance Id",
+          "type": "string"
+        },
+        "parameter_id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+          "title": "Parameter Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "instance_id",
+        "parameter_id"
+      ],
+      "title": "CompositeParameterTarget",
+      "type": "object"
+    },
     "Direction": {
       "enum": [
         "in",
@@ -119,12 +300,166 @@
       "title": "FluidConfig",
       "type": "object"
     },
-    "ModuleDefinition": {
+    "ModuleApplicability": {
       "additionalProperties": false,
       "properties": {
+        "execution_domains": {
+          "items": {
+            "const": "fluid",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Execution Domains",
+          "type": "array"
+        },
+        "phases": {
+          "items": {
+            "enum": [
+              "liquid",
+              "gas"
+            ],
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Phases",
+          "type": "array"
+        },
+        "fluids": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 64,
+          "title": "Fluids",
+          "type": "array"
+        },
+        "limits": {
+          "items": {
+            "$ref": "#/$defs/ModuleOperatingLimit"
+          },
+          "maxItems": 128,
+          "title": "Limits",
+          "type": "array"
+        },
+        "assumptions": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 32,
+          "title": "Assumptions",
+          "type": "array"
+        }
+      },
+      "title": "ModuleApplicability",
+      "type": "object"
+    },
+    "ModuleDefinition": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "else": {
+            "not": {
+              "required": [
+                "sdk"
+              ]
+            }
+          },
+          "if": {
+            "properties": {
+              "schema_version": {
+                "enum": [
+                  2,
+                  3
+                ]
+              }
+            },
+            "required": [
+              "schema_version"
+            ]
+          },
+          "then": {
+            "properties": {
+              "sdk": {
+                "type": "object"
+              },
+              "runtime": {
+                "const": "python"
+              }
+            },
+            "required": [
+              "sdk",
+              "runtime"
+            ]
+          }
+        },
+        {
+          "else": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "applicability"
+                  ]
+                },
+                {
+                  "required": [
+                    "hydraulic_dependencies"
+                  ]
+                },
+                {
+                  "required": [
+                    "dependency_mode"
+                  ]
+                },
+                {
+                  "required": [
+                    "pure_evaluate"
+                  ]
+                },
+                {
+                  "required": [
+                    "composite"
+                  ]
+                }
+              ]
+            }
+          },
+          "if": {
+            "properties": {
+              "schema_version": {
+                "const": 3
+              }
+            },
+            "required": [
+              "schema_version"
+            ]
+          },
+          "then": {
+            "properties": {
+              "applicability": {
+                "type": "object"
+              },
+              "hydraulic_dependencies": {
+                "type": "object"
+              },
+              "dependency_mode": {
+                "type": "string"
+              },
+              "pure_evaluate": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      ],
+      "description": "Schema-dispatched module facade; v1 never receives SDK default fields.",
+      "properties": {
         "schema_version": {
-          "const": 1,
           "default": 1,
+          "enum": [
+            1,
+            2,
+            3
+          ],
           "title": "Schema Version",
           "type": "integer"
         },
@@ -290,6 +625,88 @@
           },
           "title": "Bank Names",
           "type": "array"
+        },
+        "sdk": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ModuleSDKRequirements"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "applicability": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ModuleApplicability"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "hydraulic_dependencies": {
+          "anyOf": [
+            {
+              "patternProperties": {
+                "^[A-Za-z][A-Za-z0-9_-]{0,80}$": {
+                  "items": {
+                    "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Hydraulic Dependencies"
+        },
+        "dependency_mode": {
+          "anyOf": [
+            {
+              "enum": [
+                "conservative",
+                "tracked"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dependency Mode"
+        },
+        "pure_evaluate": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pure Evaluate"
+        },
+        "composite": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CompositeDefinition"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "required": [
@@ -297,6 +714,102 @@
         "name"
       ],
       "title": "ModuleDefinition",
+      "type": "object"
+    },
+    "ModuleOperatingLimit": {
+      "additionalProperties": false,
+      "properties": {
+        "target": {
+          "enum": [
+            "port",
+            "channel"
+          ],
+          "title": "Target",
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "quantity": {
+          "enum": [
+            "pressure_pa",
+            "temperature_k",
+            "mass_flow_kg_s"
+          ],
+          "title": "Quantity",
+          "type": "string"
+        },
+        "minimum": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Minimum"
+        },
+        "maximum": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Maximum"
+        },
+        "kind": {
+          "default": "envelope",
+          "enum": [
+            "hard",
+            "envelope"
+          ],
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "target",
+        "id",
+        "quantity"
+      ],
+      "title": "ModuleOperatingLimit",
+      "type": "object"
+    },
+    "ModuleSDKRequirements": {
+      "additionalProperties": false,
+      "properties": {
+        "api_version": {
+          "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$",
+          "title": "Api Version",
+          "type": "string"
+        },
+        "capabilities": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)*$",
+            "type": "string"
+          },
+          "title": "Capabilities",
+          "type": "array"
+        },
+        "state_contract_version": {
+          "default": 1,
+          "minimum": 1,
+          "title": "State Contract Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "api_version"
+      ],
+      "title": "ModuleSDKRequirements",
       "type": "object"
     },
     "ParameterSpec": {
