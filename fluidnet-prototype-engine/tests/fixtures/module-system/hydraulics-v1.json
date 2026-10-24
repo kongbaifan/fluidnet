@@ -1,0 +1,476 @@
+{
+  "baseline_commit": "98dadd52ff728af366ef973579894e0000a70eb0",
+  "note": "Captured before MOD-S1 extraction. No expectations regenerated during tests.",
+  "cases": [
+    {
+      "kind": "pipe",
+      "params": {
+        "length_m": 10.0,
+        "diameter_m": 0.05,
+        "roughness_m": 0.0
+      },
+      "flow_kg_s": 0.0,
+      "density_kg_m3": 998.2752462838249,
+      "viscosity_pa_s": 0.0010015503944484675,
+      "pressure_drop_pa": 0.0,
+      "slope_value_pa": 0.0,
+      "slope_pa_per_kg_s": 65.40374003843576
+    },
+    {
+      "kind": "pipe",
+      "params": {
+        "length_m": 10.0,
+        "diameter_m": 0.05,
+        "roughness_m": 0.0
+      },
+      "flow_kg_s": 0.7,
+      "density_kg_m3": 998.2752462838249,
+      "viscosity_pa_s": 0.17825353626292273,
+      "pressure_drop_pa": 8148.280513797308,
+      "slope_value_pa": 8148.280513797308,
+      "slope_pa_per_kg_s": 11640.400733996155
+    },
+    {
+      "kind": "pipe",
+      "params": {
+        "length_m": 10.0,
+        "diameter_m": 0.05,
+        "roughness_m": 0.0
+      },
+      "flow_kg_s": -0.7,
+      "density_kg_m3": 998.2752462838249,
+      "viscosity_pa_s": 0.17825353626292273,
+      "pressure_drop_pa": -8148.280513797308,
+      "slope_value_pa": -8148.280513797308,
+      "slope_pa_per_kg_s": 11640.400733996155
+    },
+    {
+      "kind": "pipe",
+      "params": {
+        "length_m": 10.0,
+        "diameter_m": 0.05,
+        "roughness_m": 0.0
+      },
+      "flow_kg_s": 0.7,
+      "density_kg_m3": 998.2752462838249,
+      "viscosity_pa_s": 0.007750153750561858,
+      "pressure_drop_pa": 354.2730658172743,
+      "slope_value_pa": 354.2730658172743,
+      "slope_pa_per_kg_s": 1014.6185042851143
+    },
+    {
+      "kind": "pipe",
+      "params": {
+        "length_m": 10.0,
+        "diameter_m": 0.05,
+        "roughness_m": 0.0
+      },
+      "flow_kg_s": -0.7,
+      "density_kg_m3": 998.2752462838249,
+      "viscosity_pa_s": 0.007750153750561858,
+      "pressure_drop_pa": -354.2730658172743,
+      "slope_value_pa": -354.2730658172743,
+      "slope_pa_per_kg_s": 1014.6185042851143
+    },
+    {
+      "kind": "pipe",
+      "params": {
+        "length_m": 10.0,
+        "diameter_m": 0.05,
+        "roughness_m": 0.0
+      },
+      "flow_kg_s": 0.7,
+      "density_kg_m3": 998.2752462838249,
+      "viscosity_pa_s": 0.0056588424210451665,
+      "pressure_drop_pa": 407.13225121871744,
+      "slope_value_pa": 407.13225121871744,
+      "slope_pa_per_kg_s": 1634.801582719811
+    },
+    {
+      "kind": "pipe",
+      "params": {
+        "length_m": 10.0,
+        "diameter_m": 0.05,
+        "roughness_m": 0.0
+      },
+      "flow_kg_s": -0.7,
+      "density_kg_m3": 998.2752462838249,
+      "viscosity_pa_s": 0.0056588424210451665,
+      "pressure_drop_pa": -407.13225121871744,
+      "slope_value_pa": -407.13225121871744,
+      "slope_pa_per_kg_s": 1634.801582719811
+    },
+    {
+      "kind": "pipe",
+      "params": {
+        "length_m": 10.0,
+        "diameter_m": 0.05,
+        "roughness_m": 0.0
+      },
+      "flow_kg_s": 0.7,
+      "density_kg_m3": 998.2752462838249,
+      "viscosity_pa_s": 0.004456338406573068,
+      "pressure_drop_pa": 514.6511179696586,
+      "slope_value_pa": 514.6511179696586,
+      "slope_pa_per_kg_s": 1239.3236726149332
+    },
+    {
+      "kind": "pipe",
+      "params": {
+        "length_m": 10.0,
+        "diameter_m": 0.05,
+        "roughness_m": 0.0
+      },
+      "flow_kg_s": -0.7,
+      "density_kg_m3": 998.2752462838249,
+      "viscosity_pa_s": 0.004456338406573068,
+      "pressure_drop_pa": -514.6511179696586,
+      "slope_value_pa": -514.6511179696586,
+      "slope_pa_per_kg_s": 1239.3236726149332
+    },
+    {
+      "kind": "pipe",
+      "params": {
+        "length_m": 10.0,
+        "diameter_m": 0.05,
+        "roughness_m": 0.0
+      },
+      "flow_kg_s": 0.7,
+      "density_kg_m3": 998.2752462838249,
+      "viscosity_pa_s": 7.13014145051691e-05,
+      "pressure_drop_pa": 189.05339526673677,
+      "slope_value_pa": 189.05339526673677,
+      "slope_pa_per_kg_s": 488.6981606343949
+    },
+    {
+      "kind": "pipe",
+      "params": {
+        "length_m": 10.0,
+        "diameter_m": 0.05,
+        "roughness_m": 0.0
+      },
+      "flow_kg_s": -0.7,
+      "density_kg_m3": 998.2752462838249,
+      "viscosity_pa_s": 7.13014145051691e-05,
+      "pressure_drop_pa": -189.05339526673677,
+      "slope_value_pa": -189.05339526673677,
+      "slope_pa_per_kg_s": 488.6981606343949
+    },
+    {
+      "kind": "pipe",
+      "params": {
+        "length_m": 10.0,
+        "diameter_m": 0.05,
+        "roughness_m": 4.5e-05
+      },
+      "flow_kg_s": 0.0,
+      "density_kg_m3": 998.2752462838249,
+      "viscosity_pa_s": 0.0010015503944484675,
+      "pressure_drop_pa": 0.0,
+      "slope_value_pa": 0.0,
+      "slope_pa_per_kg_s": 65.40374003843576
+    },
+    {
+      "kind": "pipe",
+      "params": {
+        "length_m": 10.0,
+        "diameter_m": 0.05,
+        "roughness_m": 4.5e-05
+      },
+      "flow_kg_s": 0.7,
+      "density_kg_m3": 998.2752462838249,
+      "viscosity_pa_s": 0.17825353626292273,
+      "pressure_drop_pa": 8148.280513797308,
+      "slope_value_pa": 8148.280513797308,
+      "slope_pa_per_kg_s": 11640.400733996155
+    },
+    {
+      "kind": "pipe",
+      "params": {
+        "length_m": 10.0,
+        "diameter_m": 0.05,
+        "roughness_m": 4.5e-05
+      },
+      "flow_kg_s": -0.7,
+      "density_kg_m3": 998.2752462838249,
+      "viscosity_pa_s": 0.17825353626292273,
+      "pressure_drop_pa": -8148.280513797308,
+      "slope_value_pa": -8148.280513797308,
+      "slope_pa_per_kg_s": 11640.400733996155
+    },
+    {
+      "kind": "pipe",
+      "params": {
+        "length_m": 10.0,
+        "diameter_m": 0.05,
+        "roughness_m": 4.5e-05
+      },
+      "flow_kg_s": 0.7,
+      "density_kg_m3": 998.2752462838249,
+      "viscosity_pa_s": 0.007750153750561858,
+      "pressure_drop_pa": 354.2730658172743,
+      "slope_value_pa": 354.2730658172743,
+      "slope_pa_per_kg_s": 1027.8518449718595
+    },
+    {
+      "kind": "pipe",
+      "params": {
+        "length_m": 10.0,
+        "diameter_m": 0.05,
+        "roughness_m": 4.5e-05
+      },
+      "flow_kg_s": -0.7,
+      "density_kg_m3": 998.2752462838249,
+      "viscosity_pa_s": 0.007750153750561858,
+      "pressure_drop_pa": -354.2730658172743,
+      "slope_value_pa": -354.2730658172743,
+      "slope_pa_per_kg_s": 1027.8518449718595
+    },
+    {
+      "kind": "pipe",
+      "params": {
+        "length_m": 10.0,
+        "diameter_m": 0.05,
+        "roughness_m": 4.5e-05
+      },
+      "flow_kg_s": 0.7,
+      "density_kg_m3": 998.2752462838249,
+      "viscosity_pa_s": 0.0056588424210451665,
+      "pressure_drop_pa": 411.1213765546878,
+      "slope_value_pa": 411.1213765546878,
+      "slope_pa_per_kg_s": 1670.1526353563045
+    },
+    {
+      "kind": "pipe",
+      "params": {
+        "length_m": 10.0,
+        "diameter_m": 0.05,
+        "roughness_m": 4.5e-05
+      },
+      "flow_kg_s": -0.7,
+      "density_kg_m3": 998.2752462838249,
+      "viscosity_pa_s": 0.0056588424210451665,
+      "pressure_drop_pa": -411.1213765546878,
+      "slope_value_pa": -411.1213765546878,
+      "slope_pa_per_kg_s": 1670.1526353563045
+    },
+    {
+      "kind": "pipe",
+      "params": {
+        "length_m": 10.0,
+        "diameter_m": 0.05,
+        "roughness_m": 4.5e-05
+      },
+      "flow_kg_s": 0.7,
+      "density_kg_m3": 998.2752462838249,
+      "viscosity_pa_s": 0.004456338406573068,
+      "pressure_drop_pa": 523.6523214997673,
+      "slope_value_pa": 523.6523214997673,
+      "slope_pa_per_kg_s": 1271.627654072021
+    },
+    {
+      "kind": "pipe",
+      "params": {
+        "length_m": 10.0,
+        "diameter_m": 0.05,
+        "roughness_m": 4.5e-05
+      },
+      "flow_kg_s": -0.7,
+      "density_kg_m3": 998.2752462838249,
+      "viscosity_pa_s": 0.004456338406573068,
+      "pressure_drop_pa": -523.6523214997673,
+      "slope_value_pa": -523.6523214997673,
+      "slope_pa_per_kg_s": 1271.627654072021
+    },
+    {
+      "kind": "pipe",
+      "params": {
+        "length_m": 10.0,
+        "diameter_m": 0.05,
+        "roughness_m": 4.5e-05
+      },
+      "flow_kg_s": 0.7,
+      "density_kg_m3": 998.2752462838249,
+      "viscosity_pa_s": 7.13014145051691e-05,
+      "pressure_drop_pa": 257.9375379641523,
+      "slope_value_pa": 257.9375379641523,
+      "slope_pa_per_kg_s": 718.856893996426
+    },
+    {
+      "kind": "pipe",
+      "params": {
+        "length_m": 10.0,
+        "diameter_m": 0.05,
+        "roughness_m": 4.5e-05
+      },
+      "flow_kg_s": -0.7,
+      "density_kg_m3": 998.2752462838249,
+      "viscosity_pa_s": 7.13014145051691e-05,
+      "pressure_drop_pa": -257.9375379641523,
+      "slope_value_pa": -257.9375379641523,
+      "slope_pa_per_kg_s": 718.856893996426
+    },
+    {
+      "kind": "valve",
+      "params": {
+        "kv_m3_h": 12.0,
+        "opening_ratio": 0.6,
+        "height_m": 1.5
+      },
+      "flow_kg_s": 0.0,
+      "density_kg_m3": 998.2752462838249,
+      "viscosity_pa_s": 0.0010015503944484675,
+      "pressure_drop_pa": 14684.603915953907,
+      "slope_value_pa": 14684.603915953907,
+      "slope_pa_per_kg_s": 0.0
+    },
+    {
+      "kind": "valve",
+      "params": {
+        "kv_m3_h": 12.0,
+        "opening_ratio": 0.6,
+        "height_m": 1.5
+      },
+      "flow_kg_s": 0.0001,
+      "density_kg_m3": 998.2752462838249,
+      "viscosity_pa_s": 0.0010015503944484675,
+      "pressure_drop_pa": 14684.60416638584,
+      "slope_value_pa": 14684.60416638584,
+      "slope_pa_per_kg_s": 5.008638668155881
+    },
+    {
+      "kind": "valve",
+      "params": {
+        "kv_m3_h": 12.0,
+        "opening_ratio": 0.6,
+        "height_m": 1.5
+      },
+      "flow_kg_s": 0.7,
+      "density_kg_m3": 998.2752462838249,
+      "viscosity_pa_s": 0.0010015503944484675,
+      "pressure_drop_pa": 26955.768652935814,
+      "slope_value_pa": 26955.768652935818,
+      "slope_pa_per_kg_s": 35060.470677091165
+    },
+    {
+      "kind": "valve",
+      "params": {
+        "kv_m3_h": 12.0,
+        "opening_ratio": 0.6,
+        "height_m": 1.5
+      },
+      "flow_kg_s": -0.7,
+      "density_kg_m3": 998.2752462838249,
+      "viscosity_pa_s": 0.0010015503944484675,
+      "pressure_drop_pa": 2413.4391789719994,
+      "slope_value_pa": 2413.4391789719975,
+      "slope_pa_per_kg_s": 35060.470677091165
+    },
+    {
+      "kind": "valve",
+      "params": {
+        "kv_m3_h": 12.0,
+        "opening_ratio": 0.6,
+        "height_m": 1.5
+      },
+      "flow_kg_s": 3.0,
+      "density_kg_m3": 998.2752462838249,
+      "viscosity_pa_s": 0.0010015503944484675,
+      "pressure_drop_pa": 240073.3439829686,
+      "slope_value_pa": 240073.34398296854,
+      "slope_pa_per_kg_s": 150259.16004467642
+    },
+    {
+      "kind": "valve",
+      "params": {
+        "kv_m3_h": 12.0,
+        "opening_ratio": 0.6,
+        "height_m": 1.5
+      },
+      "flow_kg_s": -3.0,
+      "density_kg_m3": 998.2752462838249,
+      "viscosity_pa_s": 0.0010015503944484675,
+      "pressure_drop_pa": -210704.1361510608,
+      "slope_value_pa": -210704.1361510607,
+      "slope_pa_per_kg_s": 150259.16004467642
+    },
+    {
+      "kind": "resistance",
+      "params": {
+        "diameter_m": 0.05,
+        "loss_coefficient": 8.0
+      },
+      "flow_kg_s": 0.0,
+      "density_kg_m3": 998.2752462838249,
+      "viscosity_pa_s": 0.0010015503944484675,
+      "pressure_drop_pa": 0.0,
+      "slope_value_pa": 0.0,
+      "slope_pa_per_kg_s": 0.0
+    },
+    {
+      "kind": "resistance",
+      "params": {
+        "diameter_m": 0.05,
+        "loss_coefficient": 8.0
+      },
+      "flow_kg_s": 0.0001,
+      "density_kg_m3": 998.2752462838249,
+      "viscosity_pa_s": 0.0010015503944484675,
+      "pressure_drop_pa": 1.0393214941068001e-05,
+      "slope_value_pa": 1.0393214941068003e-05,
+      "slope_pa_per_kg_s": 0.20786429882136004
+    },
+    {
+      "kind": "resistance",
+      "params": {
+        "diameter_m": 0.05,
+        "loss_coefficient": 8.0
+      },
+      "flow_kg_s": 0.7,
+      "density_kg_m3": 998.2752462838249,
+      "viscosity_pa_s": 0.0010015503944484675,
+      "pressure_drop_pa": 509.267532112332,
+      "slope_value_pa": 509.267532112332,
+      "slope_pa_per_kg_s": 1455.05009174952
+    },
+    {
+      "kind": "resistance",
+      "params": {
+        "diameter_m": 0.05,
+        "loss_coefficient": 8.0
+      },
+      "flow_kg_s": -0.7,
+      "density_kg_m3": 998.2752462838249,
+      "viscosity_pa_s": 0.0010015503944484675,
+      "pressure_drop_pa": -509.267532112332,
+      "slope_value_pa": -509.267532112332,
+      "slope_pa_per_kg_s": 1455.05009174952
+    },
+    {
+      "kind": "resistance",
+      "params": {
+        "diameter_m": 0.05,
+        "loss_coefficient": 8.0
+      },
+      "flow_kg_s": 3.0,
+      "density_kg_m3": 998.2752462838249,
+      "viscosity_pa_s": 0.0010015503944484675,
+      "pressure_drop_pa": 9353.893446961201,
+      "slope_value_pa": 9353.893446961203,
+      "slope_pa_per_kg_s": 6235.9289646408015
+    },
+    {
+      "kind": "resistance",
+      "params": {
+        "diameter_m": 0.05,
+        "loss_coefficient": 8.0
+      },
+      "flow_kg_s": -3.0,
+      "density_kg_m3": 998.2752462838249,
+      "viscosity_pa_s": 0.0010015503944484675,
+      "pressure_drop_pa": -9353.893446961201,
+      "slope_value_pa": -9353.893446961203,
+      "slope_pa_per_kg_s": 6235.9289646408015
+    }
+  ]
+}
