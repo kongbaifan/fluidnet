@@ -40,3 +40,16 @@ def test_export_with_auto_keeps_auto_after_save_and_restart():
     again = Project.model_validate(json.loads(project.model_dump_json()))
     assert again.solver.hydraulic_method == 'auto'
     assert SolverOptions.model_validate({'hydraulic_method': 'auto'}).hydraulic_method == 'auto'
+
+
+def test_mixed_jacobian_only_for_exports_that_request_it():
+    raw = _export()
+    if isinstance(raw, dict) and 'activeProject' in raw:
+        raw['activeProject'] = None
+    assert normalize_prototype_export(raw).solver.module_mixed_jacobian is False
+    assert Project(id='legacy', name='legacy').solver.module_mixed_jacobian is False
+    for project in raw['projects']:
+        project.setdefault('solver', {})['moduleMixedJacobian'] = True
+    project = normalize_prototype_export(raw)
+    assert project.solver.module_mixed_jacobian is True
+    assert Project.model_validate(json.loads(project.model_dump_json())).solver.module_mixed_jacobian is True

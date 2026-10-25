@@ -14,6 +14,10 @@ from fn_engine.bridge import normalize_prototype_export
 from fn_engine.models import (
     CommitStepRequest, CommitStepResponse, ControlPreviewResponse, EvaluateRequest, EvaluateResponse,
     FluidConfig, HealthResponse, ModuleDefinition, ModulePackageRef, ModuleTestRequest,
+    ModuleExecutionInfo, ModuleRequestContext,
+    ModuleStepCandidate, ModuleTestSuiteRequest, ModuleTestSuiteResponse,
+    ModulePhaseRequest, ModuleThermalResponse,
+    ModuleDerivativeResponse,ModuleTemplateRequest,ModuleGroupRequest,ModuleValidationEvidence,ModuleMigration,
     ModuleTestResponse, NetworkRelation, PortState, Project, ProjectDeleteResponse,
     ProjectDetailResponse, ProjectListResponse, ProjectRevisionsResponse, ProjectRestoreResponse,
     ProjectSaveResponse, ProjectUpgradeResponse, RunCreateResponse, RunDeleteResponse,
@@ -27,6 +31,9 @@ from fn_engine.models import (
 )
 from fn_engine.compiler import compile_project
 from fn_engine.solver import solve_steady
+from fn_engine._module_schema_v1 import ModuleDefinitionV1
+from fn_engine._module_schema_v2 import ModuleDefinitionV2
+from fn_engine._module_schema_v3 import ModuleDefinitionV3
 
 root=Path(__file__).resolve().parents[1]
 output=root/'contracts'
@@ -34,6 +41,14 @@ output=root/'contracts'
 # 合同文件清单的唯一来源：schema 名与生成顺序都由这里给出，测试直接导入 models，避免名单漂移。
 models = [
     ('module', ModuleDefinition), ('project', Project), ('run-request', RunRequest), ('run-frame', RunFrame),
+    ('module-v1', ModuleDefinitionV1), ('module-v2', ModuleDefinitionV2),
+    ('module-v3', ModuleDefinitionV3),
+    ('module-request-context', ModuleRequestContext), ('module-execution-info', ModuleExecutionInfo),
+    ('module-step-candidate', ModuleStepCandidate),
+    ('module-test-suite-request', ModuleTestSuiteRequest), ('module-test-suite-response', ModuleTestSuiteResponse),
+    ('module-phase-request', ModulePhaseRequest), ('module-thermal-response', ModuleThermalResponse),
+    ('module-derivative-response',ModuleDerivativeResponse),('module-template-request',ModuleTemplateRequest),
+    ('module-group-request',ModuleGroupRequest),('module-validation-evidence',ModuleValidationEvidence),('module-migration',ModuleMigration),
     ('fluid-config', FluidConfig), ('module-package-ref', ModulePackageRef),
     ('port-state', PortState), ('network-relation', NetworkRelation),
     ('evaluate-request', EvaluateRequest), ('evaluate-response', EvaluateResponse),

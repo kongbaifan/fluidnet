@@ -139,8 +139,11 @@ const defaultsFor = id => Object.fromEntries((PARAM_DEFS[id]||[]).map(f=>[f[0],f
 // Full parameter model for Python modules: numbers drive the numeric quick controls,
 // while boolean/text/curve keep their own editors instead of being forced into a number input.
 function manifestParamSpecs(manifest) {
-  return (manifest?.parameters || []).map(p => ({id:p.id, label:p.label, value_type:p.value_type || 'number',
-    unit:p.unit || null, minimum:p.minimum ?? null, maximum:p.maximum ?? null, default:clone(p.default)}));
+  return (manifest?.parameters || []).map(p => {
+    const display=value=>value==null?null:p.value_type==='number'&&p.unit?value/p.unit.display_scale+p.unit.display_offset:clone(value);
+    return {id:p.id,label:p.label,value_type:p.value_type || 'number',unit:p.unit || null,
+      minimum:display(p.minimum),maximum:display(p.maximum),default:display(p.default),writable:p.writable!==false,runtime:!!p.runtime};
+  });
 }
 function manifestParamDefaults(manifest) {
   return Object.fromEntries(manifestParamSpecs(manifest).map(p => [p.id, clone(p.default)]));
@@ -215,7 +218,7 @@ def step(ctx, dt_s):
 def finalize(ctx):
     pass
 `;}
-function makeProject(id,name,description,page){return {id,name,description,pages:[page],activePage:'main',modified:'示例项目',medium:'water',run:emptyRun(),solver:{duration:30,dt:.1,massAtol:1e-7,pressureAtol:.1,maxIter:80,mode:'dynamic',hydraulicMethod:'auto'},control:controlTemplate(),controlLanguage:'python',controlEnabled:false,controlInputs:'V1.mass_flow_kg_s',controlOutputs:'V1.param.opening_ratio',dirty:false};}
+function makeProject(id,name,description,page){return {id,name,description,pages:[page],activePage:'main',modified:'示例项目',medium:'water',run:emptyRun(),solver:{duration:30,dt:.1,massAtol:1e-7,pressureAtol:.1,maxIter:80,mode:'dynamic',hydraulicMethod:'auto',moduleMixedJacobian:true},control:controlTemplate(),controlLanguage:'python',controlEnabled:false,controlInputs:'V1.mass_flow_kg_s',controlOutputs:'V1.param.opening_ratio',dirty:false};}
 
 function initialState(){
   const modules=MODULE_SPECS.map(makeModule);
@@ -499,19 +502,25 @@ function editContractItem(section,id) {
   const type=spec.value_type || 'number';
   const defaultText=spec.default === undefined ? '' : type==='curve' ? JSON.stringify(spec.default) : String(spec.default);
   const unitField=field('unit','规范单位（留空表示无单位）',spec.unit?.canonical_unit || '');
-  const body=`<div class="fields">${field('id','标识',spec.id || (parameter?'gain':'gain_output'),'required maxlength="81"')}${field('label','中文名称',spec.label || '校正系数','required')}${parameter ? selectField('value_type','参数类型',[['number','数值'],['boolean','布尔'],['text','文本'],['curve','曲线']],type)+field('default','默认值',defaultText,'required')+unitField+field('minimum','最小值（可留空，仅数值）',spec.minimum ?? '','type="number" step="any"')+field('maximum','最大值（可留空，仅数值）',spec.maximum ?? '','type="number" step="any"') : unitField+selectField('source','来源',[['derived','ctx.var 计算输出'],['state','ctx.state 状态输出']],spec.source || 'derived')+field('quantity','物理量',spec.quantity || 'ratio','required')}</div>`;
+  const displayFields=unitField+field('display_unit','显示单位',spec.unit?.display_unit || '')+field('display_scale','显示值到引擎值的倍率',spec.unit?.display_scale ?? 1,'type="number" step="any" required')+field('display_offset','显示偏移（显示值 = 引擎值 / 倍率 + 偏移）',spec.unit?.display_offset ?? 0,'type="number" step="any" required')+field('quantity','物理量',spec.unit?.quantity || spec.quantity || 'custom','required');
+  const body=`<div class="fields">${field('id','标识',spec.id || (parameter?'gain':'gain_output'),'required maxlength="81"')}${field('label','中文名称',spec.label || '校正系数','required')}${parameter ? selectField('value_type','参数类型',[['number','数值'],['boolean','布尔'],['text','文本'],['curve','曲线']],type)+field('default','默认值（引擎单位）',defaultText,'required')+displayFields+field('display_value','显示默认值（填写后换算到引擎单位）','','type="number" step="any"')+field('minimum','最小值（引擎单位，仅数值）',spec.minimum ?? '','type="number" step="any"')+field('maximum','最大值（引擎单位，仅数值）',spec.maximum ?? '','type="number" step="any"')+selectField('runtime','允许运行中修改',[['false','否'],['true','是']],String(spec.runtime || false))+selectField('writable','参数可写',[['true','是'],['false','否']],String(spec.writable !== false)) : displayFields+selectField('source','来源',[['derived','ctx.var 计算输出'],['state','ctx.state 状态输出']],spec.source || 'derived')}</div><output id="parameter-engine-preview" class="notice"></output>`;
   const hint=parameter?'默认值按类型填写：数值写 1.5；布尔写 true 或 false；文本直接填写；曲线写 JSON 点对数组，例如 [[0, 20], [1, 10]]。':'保存到当前草稿，版本保存时由后端重新校验。四种参数类型都可在设备面板调整。';
   openDialog(parameter?'编辑参数':'编辑输出变量','保存到当前草稿，版本保存时由后端重新校验。'+hint,body,data=>{
     if(!(parameter?/^[A-Za-z][A-Za-z0-9_-]{0,80}$/:/^[A-Za-z][A-Za-z0-9_.-]{0,80}$/).test(data.id)) throw Error('标识格式不合法');
     const item={...spec,id:data.id,label:data.label};
     const unit=data.unit.trim();
-    item.unit=unit ? spec.unit?.canonical_unit===unit ? spec.unit : {quantity:parameter?'custom':data.quantity,canonical_unit:unit,display_unit:unit,display_scale:1,display_offset:0} : null;
+    const scale=Number(data.display_scale),offset=Number(data.display_offset);
+    if(!Number.isFinite(scale)||scale<=0||!Number.isFinite(offset))throw Error('单位倍率必须为有限正数，偏移必须有限。');
+    item.unit=unit ? {quantity:data.quantity,canonical_unit:unit,display_unit:data.display_unit.trim() || unit,display_scale:scale,display_offset:offset} : null;
     if(parameter) {
       item.value_type=data.value_type;
+      item.runtime=data.runtime==='true';item.writable=data.writable==='true';
+      if(item.runtime&&!item.writable)throw Error('运行中修改需要参数可写。');
       if(data.value_type==='number') {
         item.minimum=data.minimum===''?null:Number(data.minimum);item.maximum=data.maximum===''?null:Number(data.maximum);
         if(item.minimum!==null && item.maximum!==null && item.minimum>item.maximum) throw Error('最小值不能大于最大值');
-        item.default=numeric(data.default,item.minimum ?? -1e12,item.maximum ?? 1e12);
+        const engineDefault=data.display_value!=='' ? (Number(data.display_value)-offset)*scale : Number(data.default);
+        item.default=numeric(engineDefault,item.minimum ?? -1e12,item.maximum ?? 1e12);
       } else {
         item.minimum=null;item.maximum=null;item.unit=null;
         if(data.value_type==='boolean') { const text=String(data.default).trim().toLowerCase(); if(!['true','false'].includes(text)) throw Error('布尔默认值只能是 true 或 false'); item.default=text==='true'; }
@@ -522,6 +531,12 @@ function editContractItem(section,id) {
     engine.updateContractItem(m,section,id,item);
   },'应用到草稿');
 }
+document.addEventListener('input',event=>{
+  const form=event.target.closest('#dialog-form'),output=form?.querySelector('#parameter-engine-preview');
+  if(!output)return;
+  const fields=Object.fromEntries(new FormData(form)),value=fields.display_value!=='' && fields.display_value!==undefined ? (Number(fields.display_value)-Number(fields.display_offset))*Number(fields.display_scale) : Number(fields.default);
+  output.textContent=Number.isFinite(value)?`引擎默认值预览：${value} ${fields.unit || ''}`:'请输入有效的显示值与单位换算。';
+});
 function renderModuleContract() {
   const m=mod();
   if(m.runtime!=='python') return '<div class="notice">请选择 Python 模块。</div>';
@@ -533,18 +548,47 @@ function renderModuleContract() {
       <div class="notice">${icon('Info')}<span>编辑 JSON 后点击“校验并应用契约”同步到图形和参数面板。保存版本会重新校验当前契约及代码，并使用参数默认值进行独立试算。</span></div>
       <textarea data-module-contract aria-label="模块契约 JSON" spellcheck="false" style="width:100%;min-height:440px;font-family:monospace;line-height:1.6;white-space:pre;tab-size:2">${esc(engine.contractText(m))}</textarea>
       <label class="field"><span>版本备注</span><textarea data-release-notes aria-label="版本备注" maxlength="2000" rows="2" placeholder="说明算法、参数或端口的变化">${esc(m.releaseNotes || '')}</textarea></label>
-      <pre id="module-output" class="code-output" role="status" style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(m.authoringOutput || '尚未校验。保存后按模块 ID 自动递增版本，旧版本永久保留。')}</pre></div></section>
+      <pre id="module-output" class="code-output" role="status" style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(m.authoringOutput || '尚未校验。保存后按模块 ID 自动递增版本，旧版本永久保留。')}</pre>${renderAuthoringDiagnostics(m)}</div></section>
     <section class="panel"><div class="panel-head"><h2>后端版本记录</h2>${btn('module-versions','刷新版本','RefreshCw','','small')}</div><div class="table-wrap"><table><thead><tr><th>版本</th><th>保存时间</th><th>备注与契约哈希</th><th>验证</th><th></th></tr></thead><tbody>${(m.versions || []).map(v=>`<tr><td>v${esc(v.package.version)}</td><td>${esc(v.created_at ? new Date(v.created_at).toLocaleString() : '内置示例')}</td><td>${esc(v.release_notes || '—')}<small class="mono" title="${esc(v.package.definition_hash || v.package.content_hash)}">${esc((v.package.definition_hash || v.package.content_hash).slice(0,16))}</small></td><td>${v.tested?'Worker 试算通过':'示例包'}</td><td>${btn('load-module-version','载入为草稿','History',`data-version="${Number(v.package.version.split('.')[0])}"`,'small')}</td></tr>`).join('') || '<tr><td colspan="5">点击刷新读取版本记录；尚未保存的新模块没有版本。</td></tr>'}</tbody></table></div></section>
   </div>`;
 }
 function renderCode() {
   const variables=mod().variables.filter(v=>v.origin==='parameter'||v.display);
-  if (mod().runtime === 'python') return `<div class="module-code-page"><div class="notice">${icon('Info')}<span>module.py：编辑四阶段生命周期。design.py：可选，由库值计算派生参数，随版本保存。参数、端口和输出变量在“契约与版本”中定义。</span>${btn('editor-tab','契约与版本','FileJson','data-value="contract"','small')}</div><div class="module-code-grid python">${renderCodePane('runtime')}${renderDesignSourcePane()}</div><pre class="code-output" role="status" id="code-output">${esc(mod().authoringOutput || '尚未校验。检查结构将调用后端语法与入口校验。')}</pre></div>`;
+  if (mod().runtime === 'python') return `<div class="module-code-page"><div class="notice">${icon('Info')}<span>module.py：编辑四阶段生命周期。design.py：可选，由库值计算派生参数，随版本保存。参数、端口和输出变量在“契约与版本”中定义。</span>${btn('editor-tab','契约与版本','FileJson','data-value="contract"','small')}</div><div class="module-code-grid python">${renderCodePane('runtime')}${renderDesignSourcePane()}</div><pre class="code-output" role="status" id="code-output">${esc(mod().authoringOutput || '尚未校验。检查结构将调用后端语法与入口校验。')}</pre>${renderAuthoringDiagnostics(mod())}</div>`;
   return `<div class="module-code-page">
     <div class="module-code-tools"><label>插入位置<select data-code-target aria-label="变量插入位置">${[['runtime','运行代码'],['header','公共代码'],['design','当前设计函数']].map(([key,label])=>option(key,label,ui.codeKind)).join('')}</select></label><label class="code-variable-picker">变量<select data-code-variable aria-label="选择插入变量" ${variables.length?'':'disabled'}>${variables.map(v=>option(v.name,`${v.name} · ${v.label}`,ui.codeVariable||variables[0]?.name)).join('')||option('','无可用变量','')}</select></label>${btn('insert-code-variable','插入到光标','Plus',variables.length?'':'disabled','small')}<span class="push muted">Python</span></div>
     <div class="module-code-grid">${renderCodePane('runtime')}${renderCodePane('header')}${renderCodePane('design')}</div>
     <div class="code-output" role="status" id="code-output"><strong>检查与调用输出</strong>\n${esc(ui.compileOutput)}</div>
   </div>`;
+}
+function renderAuthoringDiagnostics(m) {
+  return `<div id="authoring-diagnostics" class="stack">${(m.authoringDiagnostics || []).map(d=>`<div class="row">${d.source_line ? btn('module-error-line',`${d.source_file || 'module.py'}:${d.source_line}`,'ArrowRight',`data-line="${d.source_line}" data-file="${esc(d.source_file || 'module.py')}"`,'small') : ''}<span>${esc(d.message)}${d.occurrences > 1 ? ` ×${d.occurrences}` : ''}</span></div>`).join('')}${m.authoringReplay ? btn('export-module-replay','导出错误重放输入','Download','','small') : ''}${m.manifest?.composite ? btn('view-composite','查看组合展开','Network','','small') : ''}${btn('module-test-suite','运行测试组合','ListChecks','','small')}${btn('cancel-module-suite','取消测试','Square','','small')}</div>`;
+}
+function moduleEvidenceSummary(m) {
+  const definition=m.publishedManifest || m.manifest;
+  if(!definition)return '';
+  const records=(m.manifest?.validation_evidence || m.versions?.[0]?.validation_evidence || []).filter(e=>e.definition_hash===definition.definition_hash && e.content_hash===definition.content_hash);
+  const names={L1:'接口',L2:'单模块逻辑',L3:'网络',L4:'独立解析',external:'外部标定'};
+  const evidence=records.length?records.map(e=>`${names[e.level]}${e.status==='passed'?'验证通过':e.status==='failed'?'验证失败':'待数据'}`).join(' · '):'验证证据未登记';
+  const scope=definition.applicability;
+  return `<p class="muted">${esc((m.dirty?'发布版本：':'')+evidence)}${scope?`<br>${esc(scope.phases.join('／')+'；'+scope.assumptions.join('；'))}`:''}</p>`;
+}
+async function runAuthoringSuite(m) {
+  ui.moduleSuiteAbort?.abort();
+  const controller=new AbortController(); ui.moduleSuiteAbort=controller;
+  const definition=engine.manifestPayload(m), before=JSON.stringify(definition);
+  const conditions={duration_s:.2,dt_s:.1,inlet_pressure_pa:250000,outlet_pressure_pa:120000};
+  const cases=[{id:'forward',conditions},{id:'reverse',conditions:{...conditions,inlet_pressure_pa:120000,outlet_pressure_pa:250000}},{id:'zero',conditions:{...conditions,outlet_pressure_pa:250000}}];
+  if(definition.parameters.some(p=>p.id==='opening_ratio')) cases.push({id:'closed',conditions:{...conditions,parameters:{opening_ratio:0}}});
+  m.authoringOutput='正在逐项执行正向、反向、零流和参数边界测试…';render();
+  try {
+    const response=await fetch('/api/v1/modules/test-suite',{method:'POST',headers:{'Content-Type':'application/json',...engine.authHeaders()},body:JSON.stringify({module:definition,cases}),signal:controller.signal});
+    const data=await response.json(); if(!response.ok)throw Error(data.detail?.message || JSON.stringify(data.detail));
+    if(before!==JSON.stringify(engine.manifestPayload(m)))throw Error('测试期间草稿已变化，请重新验证。');
+    m.authoringDiagnostics=data.cases.flatMap(c=>c.diagnostics);
+    m.authoringOutput=data.cases.map(c=>`${c.passed?'✓':'✗'} ${c.id} · ${c.level}${c.passed?' 通过':' 失败：'+c.diagnostics.map(d=>d.message).join('；')}`).join('\n');
+  } catch(error){m.authoringOutput=error.name==='AbortError'?'测试已取消，草稿已保留。':'测试失败：'+error.message;}
+  finally{if(ui.moduleSuiteAbort===controller){ui.moduleSuiteAbort=null;render();const output=document.getElementById('module-output') || document.getElementById('code-output');output?.insertAdjacentHTML('afterend',renderAuthoringDiagnostics(m));}}
 }
 function renderChannels(){const m=mod();const first=m.channels[0],a=m.ports.find(p=>p.id===first?.input),b=m.ports.find(p=>p.id===first?.output);return `<div class="editor-table-section"><div class="section-title"><div><h2>定义设备内部通路</h2><p class="muted" style="font-size:12px;margin-top:6px">将同一物理通道的入口与出口关联；变量的通道列随绑定更新。</p></div>${btn('add-channel','新增通路','Plus','','primary')}</div><div class="panel table-wrap"><table class="channel-table"><thead><tr><th>通路名称</th><th>入口</th><th>出口</th><th>关系类型</th><th>启用</th><th></th></tr></thead><tbody>${m.channels.map(c=>`<tr><td><input class="cell-input" data-channel-id="${c.id}" data-channel-field="name" aria-label="${c.id} 通路名称" value="${esc(c.name)}"></td><td><select data-channel-id="${c.id}" data-channel-field="input" aria-label="${c.id} 入口">${option('','选择入口',c.input)}${m.ports.filter(p=>p.direction==='in').map(p=>option(p.id,p.name+' · '+p.label,c.input)).join('')}</select></td><td><select data-channel-id="${c.id}" data-channel-field="output" aria-label="${c.id} 出口">${option('','选择出口',c.output)}${m.ports.filter(p=>p.direction==='out').map(p=>option(p.id,p.name+' · '+p.label,c.output)).join('')}</select></td><td><select data-channel-id="${c.id}" data-channel-field="kind" aria-label="${c.id} 关系类型">${[['resistance','阻力关系'],['pressure','压差关系'],['flow','指定流量'],['signal','信号映射']].map(([k,v])=>option(k,v,c.kind)).join('')}</select></td><td><label class="check-label"><input type="checkbox" data-channel-id="${c.id}" data-channel-field="enabled" aria-label="启用 ${c.name}" ${c.enabled?'checked':''}>启用</label></td><td>${ibtn('delete-channel','删除 '+c.name,'Trash2',`data-id="${c.id}"`)}</td></tr>`).join('')||'<tr><td colspan="6">此模块尚未设置内部通路。</td></tr>'}</tbody></table></div><div class="row spread" style="margin:14px 0 20px"><small class="muted">类型相同的端口才能组成通路；每个端口只绑定一条启用通路。</small>${btn('check-channels','检查通路','ListChecks','','small')}</div><div id="channel-feedback"></div><div class="channel-diagram"><div class="stack" style="gap:5px;text-align:center"><span class="mono">${a?esc(a.name):'入口'}</span><small class="muted">${a?esc(a.label):'选择端口'}</small></div><span class="channel-link"></span><div class="channel-box"><strong>${esc(m.name)}</strong><small class="muted" style="display:block;margin-top:4px">${first?esc(first.name):'内部关系'}</small></div><span class="channel-link"></span><div class="stack" style="gap:5px;text-align:center"><span class="mono">${b?esc(b.name):'出口'}</span><small class="muted">${b?esc(b.label):'选择端口'}</small></div></div></div>`;}
 function renderNodesPage(){const domain=DOMAINS[ui.nodeDomain];return `<div class="page-shell">${heading('节点与端口定义','按物理类型组织接口，明确变量含义与连接规则。',btn('nav','返回模块库','ChevronLeft','data-route="modules"'))}<div class="split-view"><aside class="side-nav"><div class="side-caption">接口领域</div>${Object.entries(DOMAINS).map(([k,d])=>`<button data-action="node-domain" data-value="${k}" class="${k===ui.nodeDomain?'active':''}">${icon(d.icon)}${d.label}端口</button>`).join('')}</aside><div class="stack"><section class="panel"><div class="panel-head"><div class="row"><span class="object-icon">${icon(domain.icon)}</span><div><h2>${domain.label}端口</h2><small class="muted">${ui.nodeDomain==='fluid'?'状态量、流量与工质组成':'接口与变量定义示例'}</small></div></div>${badge(ui.nodeDomain==='fluid'?'液态水场景':'接口预留',ui.nodeDomain==='fluid'?'good':'warn')}</div><div class="table-wrap"><table><thead><tr><th>变量后缀</th><th>中文名称</th><th>单位</th><th>说明</th></tr></thead><tbody>${(ui.nodeDomain==='fluid'?[['FLOW','质量流量','kg/s','沿端口约定方向记录，可表达反向流动'],['PRE','绝对压力','MPa','与求解器约定之间显式换算'],['ENTHALPY','比焓','kJ/kg','能量输运状态量'],['TEMP','温度','°C','工程显示单位'],['VOLUME','密度','kg/m³','参考命名对应密度，不能当作比容'],['Q','干度','—','相态描述；当前水网范围不扩展两相求解'],['X','质量组分','—','与 FORM 工质顺序对应']]:ui.nodeDomain==='info'?[['VALUE','信号数值','自定义','根据物理量定义单位'],['QUALITY','数据质量','—','有效、过期或缺失状态']]:ui.nodeDomain==='power'?[['VOLTAGE','电压','V','电气接口的定义示例'],['CURRENT','电流','A','当前原型不提供电网计算']]:[['SPEED','转速','r/min','机械接口的定义示例'],['TORQUE','转矩','N·m','当前原型不提供机械求解']]).map(row=>`<tr>${row.map((v,i)=>`<td${i===0?' class="mono"':''}>${v}</td>`).join('')}</tr>`).join('')}</tbody></table></div></section><section class="panel"><div class="panel-head"><h3>连接规则</h3></div><div class="panel-body stack"><div class="row">${icon('CheckCircle2')}同一内部通路的两端类型一致</div><div class="row">${icon('CheckCircle2')}端口拥有稳定标识，显示名称可以独立编辑</div><div class="row">${icon('CheckCircle2')}一个项目端口对应一条连接，分支使用连接节点</div><div class="row">${icon('CheckCircle2')}类型与单位定义供变量表、图形、型号和曲线共用</div></div></section>${btn('edit-module','在模块中配置端口','ArrowRight',`data-id="${ui.nodeDomain==='fluid'?'valve':'pid'}"`,'primary')}</div></div></div>`;}
@@ -1189,7 +1233,7 @@ function renderModules() {
       ${ui.category === '倍思鹿参考模块' ? `<div class="notice module-reference-note">${icon('Info')}<span>来自倍思鹿参考实现，L1/L2/L3 验证状态见文档。</span></div>` : ''}
       ${ui.category !== '全部模块' ? `<div class="module-group-context"><div class="grow"><h2>${esc(ui.category)}</h2><small>${custom ? '自建分组' : '内置分类'} · ${members.length} 个模块</small></div>${custom ? btn('rename-module-group', '重命名', 'Pencil', `data-value="${esc(ui.category)}"`, 'small') + btn('delete-module-group', '删除分组', 'Trash2', `data-value="${esc(ui.category)}" ${members.length ? 'disabled title="请先将组内模块移到其他分组"' : ''}`, 'small') : ''}</div>` : ''}
       <div class="filterbar"><label class="search">${icon('Search')}<input data-filter="moduleSearch" aria-label="搜索模块" placeholder="名称或模块标识" value="${esc(ui.moduleSearch)}"></label><span class="push muted">${list.length} 个模块</span><div class="segmented" role="group" aria-label="模块库视图">${[['cards', '卡片视图', 'Grid2X2'], ['list', '紧凑列表', 'List']].map(([value, label, glyph]) => `<button data-action="module-view" data-value="${value}" aria-label="${label}" title="${label}" aria-pressed="${ui.moduleView === value}" class="${ui.moduleView === value ? 'active' : ''}">${icon(glyph)}</button>`).join('')}</div>${btn('compile-preview', '批量检查预览', 'CheckCheck', '', 'small')}</div>
-      <div id="module-results" class="module-grid${ui.moduleView === 'list' ? ' module-compact-list' : ''}">${list.map(m => `<article class="module-card" data-module-id="${m.id}"><div class="row module-card-title"><span class="object-icon">${icon(m.icon)}</span><div class="grow"><h3>${esc(m.name)}</h3><small class="muted mono">${esc(m.code)}</small></div>${isReferenceModule(m) ? badge('参考模块', 'good') : ''}${badge(m.runtime === 'python' ? (m.publishedManifest ? 'Python · v'+m.publishedManifest.version : 'Python · 未发布') + (m.dirty?' · 有草稿':'') : '内置 · v'+m.version,m.runtime === 'python' ? 'blue' : '')}</div><button class="module-group-chip" data-action="move-module-group" data-id="${m.id}" aria-label="调整 ${esc(m.name)} 的分组" title="调整所属分组">${icon('Folder')}<span>${esc(m.category)}</span>${icon('ChevronDown')}</button><p>${esc(m.description)}</p><div class="stat-line"><span>${(m.parameters || PARAM_DEFS[m.kind] || []).length} 个参数</span><span>${m.ports.length} 个端口</span><span>${m.channels.length} 条通路</span><span>${m.variables.length} 个变量</span></div><div class="card-footer">${isReferenceModule(m) ? btn('module-doc', '说明', 'BookOpen', `data-id="${m.id}"`, 'small') : ''}${btn('edit-module', '编辑模块', 'Pencil', `data-id="${m.id}"`, 'small')}${m.runtime === 'python' ? btn('test-module','独立验证','CheckCheck',`data-id="${m.id}"`,'small') + btn('module-example','管网算例','Network',`data-id="${m.id}"`,'small') : ''}<span class="push"></span>${ibtn('insert-module', '插入项目 ' + m.name, 'Plus', `data-id="${m.id}"`)}</div></article>`).join('') || (blankGroup ? empty('分组已建好，添加第一个模块', '可在此分组中新建模块，也可从“全部模块”的模块卡片调整所属分组。', btn('new-module', '在此分组新建模块', 'Plus', '', 'primary')) : empty('没有匹配的模块', '尝试其他分类或关键词。'))}</div>
+      <div id="module-results" class="module-grid${ui.moduleView === 'list' ? ' module-compact-list' : ''}">${list.map(m => `<article class="module-card" data-module-id="${m.id}"><div class="row module-card-title"><span class="object-icon">${icon(m.icon)}</span><div class="grow"><h3>${esc(m.name)}</h3><small class="muted mono">${esc(m.code)}</small></div>${isReferenceModule(m) ? badge('参考模块', 'good') : ''}${badge(m.runtime === 'python' ? (m.publishedManifest ? 'Python · v'+m.publishedManifest.version : 'Python · 未发布') + (m.dirty?' · 有草稿':'') : '内置 · v'+m.version,m.runtime === 'python' ? 'blue' : '')}</div><button class="module-group-chip" data-action="move-module-group" data-id="${m.id}" aria-label="调整 ${esc(m.name)} 的分组" title="调整所属分组">${icon('Folder')}<span>${esc(m.category)}</span>${icon('ChevronDown')}</button><p>${esc(m.description)}</p>${moduleEvidenceSummary(m)}<div class="stat-line"><span>${(m.parameters || PARAM_DEFS[m.kind] || []).length} 个参数</span><span>${m.ports.length} 个端口</span><span>${m.channels.length} 条通路</span><span>${m.variables.length} 个变量</span></div><div class="card-footer">${isReferenceModule(m) ? btn('module-doc', '说明', 'BookOpen', `data-id="${m.id}"`, 'small') : ''}${btn('edit-module', '编辑模块', 'Pencil', `data-id="${m.id}"`, 'small')}${m.runtime === 'python' ? btn('test-module','独立验证','CheckCheck',`data-id="${m.id}"`,'small') + btn('module-example','管网算例','Network',`data-id="${m.id}"`,'small') : ''}<span class="push"></span>${ibtn('insert-module', '插入项目 ' + m.name, 'Plus', `data-id="${m.id}"`)}</div></article>`).join('') || (blankGroup ? empty('分组已建好，添加第一个模块', '可在此分组中新建模块，也可从“全部模块”的模块卡片调整所属分组。', btn('new-module', '在此分组新建模块', 'Plus', '', 'primary')) : empty('没有匹配的模块', '尝试其他分类或关键词。'))}</div>
     </div></div></div>`;
 }
 
@@ -1426,7 +1470,9 @@ function renderDialog(focus = false) {
   if (!modal) { layer.innerHTML = ''; return; }
   if (!focus && layer.firstElementChild) return;
   layer.innerHTML = `<div class="dialog-backdrop"><form class="dialog${modal.wide ? ' wide' : ''}" id="dialog-form" role="dialog" aria-modal="true" aria-labelledby="dialog-title"><header class="dialog-head"><div class="grow"><h2 id="dialog-title">${esc(modal.title)}</h2><p>${esc(modal.description)}</p></div>${ibtn('close-dialog', '关闭弹窗', 'X')}</header><div class="dialog-body"><div id="dialog-error" class="dialog-error" role="alert" hidden></div>${modal.body}</div><footer class="dialog-footer">${btn('close-dialog', modal.onSubmit ? '取消' : '关闭')}${modal.onSubmit ? `<button class="btn primary" type="submit">${esc(modal.submitLabel)}</button>` : ''}</footer></form></div>`;
-  if (focus) requestAnimationFrame(() => (layer.querySelector('input:not([type=hidden]),select,textarea') || layer.querySelector('button'))?.focus());
+  // Initial focus runs a frame later; skip it once the user (or a test) has already focused a
+  // field in this dialog, otherwise fast typing lands in the first field instead.
+  if (focus) requestAnimationFrame(() => { if (!layer.contains(document.activeElement)) (layer.querySelector('input:not([type=hidden]),select,textarea') || layer.querySelector('button'))?.focus(); });
 }
 function closeDialog() {
   const returnFocus = modal?.returnFocus;
@@ -1622,7 +1668,21 @@ async function setBench(id, params) {
 }
 function createModuleExample(id) {
   const m=engine.moduleForInsert(id), channel=m.channels.find(c=>c.enabled);
-  if (m.ports.length !== 2 || m.channels.filter(c=>c.enabled).length !== 1) throw Error('此算例需要双端口单通路模块。');
+  if (m.ports.length !== 2 || m.channels.filter(c=>c.enabled).length !== 1) {
+    const channels=m.channels.filter(c=>c.enabled),used=channels.flatMap(c=>[c.input,c.output]);
+    if(!channels.length||new Set(used).size!==used.length||used.length!==m.ports.length)throw Error('此模块使用共享端口，请在项目画布连接实际拓扑。');
+    const draft=state.modules.find(module=>module.id===id),node=makeInstance('V1',m.id,m.name,540,220,manifestParamDefaults(m.manifest));
+    const pg={id:'main',name:'多通路模块验收',zoom:1,pan:[0,0],nodes:[node],edges:[]};
+    channels.forEach((c,index)=>{
+      const condition=draft?.testConditions?.channel_boundaries?.[c.id] || {};
+      const a='B'+(index*2+1),b='B'+(index*2+2),temperature=c.id.includes('hot')?320:290;
+      pg.nodes.push(makeInstance(a,'source',c.name+'入口',130,120+index*230,{pressure:(condition.inlet_pressure_pa || 250000)/1000,temperature:(condition.inlet_temperature_k || temperature)-273.15}));
+      pg.nodes.push(makeInstance(b,'source',c.name+'出口',890,120+index*230,{pressure:(condition.outlet_pressure_pa || 120000)/1000,temperature:(condition.outlet_temperature_k || temperature)-273.15}));
+      pg.edges.push(['in'+index,a,'out0','V1',c.input],['out'+index,'V1',c.output,b,'out0']);
+    });
+    const p=makeProject(uid('project'),m.name+' · 多通路验收','各通路独立边界',pg);p.moduleSnapshots={[m.id]:clone(m)};
+    p.solver.duration=1;p.solver.dt=.1;state.projects.push(p);normalizeState();markDirty(p);openProject(p.id);return;
+  }
   if (state.projects.length >= 20) throw Error('项目数量已达到上限。');
   const params=Object.fromEntries((m.parameterDefs || PARAM_DEFS[m.kind] || []).map(f=>[f[0],f[6]]));
   const pg={id:'main',name:'模块管网验收',zoom:1,pan:[0,0],nodes:[
@@ -1631,6 +1691,10 @@ function createModuleExample(id) {
     makeInstance('V1',m.id,m.name,630,225,params),
     makeInstance('B2','source','出口压力',900,225,{pressure:120})],
     edges:[['e1','B1','out0','L1','in0'],['e2','L1','out0','V1',channel.input],['e3','V1',channel.output,'B2','out0']]};
+  const conditions=state.modules.find(module=>module.id===id)?.testConditions;
+  if(conditions?.inlet_pressure_pa)pg.nodes[0].params.pressure=conditions.inlet_pressure_pa/1000;
+  if(conditions?.outlet_pressure_pa)pg.nodes[3].params.pressure=conditions.outlet_pressure_pa/1000;
+  pg.nodes[0].draft=clone(pg.nodes[0].params);pg.nodes[3].draft=clone(pg.nodes[3].params);
   const p=makeProject(uid('project'),m.name+' · 管网验收','压力源 → 管道 → Python 模块 → 出口',pg);
   if(m.frozen) p.moduleSnapshots={[m.id]:clone(m)};
   p.solver.duration=1; p.solver.dt=.1;
@@ -2002,16 +2066,42 @@ function handleAction(action, el) {
     case 'delete-module-group': removeModuleGroup(d.value); break;
     case 'move-module-group': moveModuleGroup(id); break;
     case 'new-module':
-      openDialog('新建算法模块', '使用已有设备定义作为编辑起点，端口与变量随后可修改。', `<div class="fields">${field('name', '模块名称', '自定义调节阀', 'required maxlength="40"')}${field('code', '模块标识', 'CUSTOM_VALVE', 'required pattern="[A-Za-z_][A-Za-z0-9_]*" maxlength="48"')}${selectField('base', 'Python 模板', state.modules.filter(m=>m.runtime==='python').map(m=>[m.id,m.name]), 'programmable_valve')}${selectField('category', '所属分组', moduleGroupNames().map(name => [name, name]), ui.route === 'modules' && ui.category !== '全部模块' ? ui.category : '自定义模块')}</div>`, data => {
+      openDialog('新建算法模块', '选择设备模板生成可运行代码；随后可配置端口、通路和参数。', `<div class="fields">${field('name', '模块名称', '自定义调节阀', 'required maxlength="40"')}${field('code', '模块标识', 'CUSTOM_VALVE', 'required pattern="[A-Za-z_][A-Za-z0-9_]*" maxlength="48"')}${selectField('base', 'Python 模板', [['template:resistance','两端口局部阻力'],['template:pump','泵／风机'],['template:heat_exchanger','双侧换热'],['template:managed_state','受管理状态'],...state.modules.filter(m=>m.runtime==='python').map(m=>[m.id,m.name])], 'programmable_valve')}${selectField('category', '所属分组', moduleGroupNames().map(name => [name, name]), ui.route === 'modules' && ui.category !== '全部模块' ? ui.category : '自定义模块')}</div>`, async data => {
         if (!isIdentifier(data.code) || state.modules.some(m => m.code === data.code)) throw Error('模块标识需合法且唯一。');
         if (state.modules.length >= 64) throw Error('已达到原型模块数量上限。');
         if (!moduleGroupNames().includes(data.category)) throw Error('请选择已有分组。');
         if (!data.name.trim()) throw Error('请输入模块名称。');
         if (!/^[A-Za-z][A-Za-z0-9_]{0,47}$/.test(data.code) || state.modules.some(m=>m.id===data.code.toLowerCase())) throw Error('模块标识需以字母开头且唯一。');
-        const m=engine.newModule(data.code.toLowerCase(),data.name.trim(),data.category,data.base); state.modules.push(m); markDirty(m); openEditor(m.id,'code');
+        const m=data.base.startsWith('template:') ? await engine.newTemplate(data.code.toLowerCase(),data.name.trim(),data.category,data.base.slice(9)) : engine.newModule(data.code.toLowerCase(),data.name.trim(),data.category,data.base); state.modules.push(m); markDirty(m); openEditor(m.id,'code');
       }, '创建模块'); break;
     case 'edit-contract-item': editContractItem(d.section,id); break;
     case 'save-module-version': engine.saveModule(mod()); break;
+    case 'create-composite': {
+      const choices=activePage().nodes.filter(n=>moduleOf(n).manifest?.solver_model!=='pressure_source' && moduleOf(n).kind!=='source');
+      openDialog('封装设备组','选择设备，生成带精确子版本绑定的组合草稿。',`<div class="fields">${field('id','组合标识','custom_group','required pattern="[A-Za-z][A-Za-z0-9_]*"')}${field('name','组合名称','设备组','required')}</div><div class="stack">${choices.map(n=>`<label class="check-label"><input name="node_${n.id}" type="checkbox" ${ui.selectedNode===n.id?'checked':''}>${esc(n.id+' · '+n.name)}</label>`).join('')}</div>`,async data=>{
+        const ids=choices.filter(n=>data['node_'+n.id]).map(n=>n.id);
+        if(!ids.length)throw Error('请选择至少一个设备。');
+        if(state.modules.some(m=>m.id===data.id))throw Error('组合标识已存在。');
+        const m=await engine.newComposite(project(),ids,data.id,data.name);state.modules.push(m);markDirty(m);openEditor(m.id,'contract');
+      },'生成组合草稿');break;
+    }
+    case 'view-composite': {
+      const definition=engine.manifestPayload(mod());
+      const describe=(module,depth=0)=>depth>8?'超出深度限制':(module.composite?.children || []).map(child=>{
+        const nested=module.composite.modules.find(m=>m.id===child.module_id && m.version===child.version);
+        return `<li>${esc(child.id)} · ${esc(child.module_id)} v${child.version}<small class="mono">${esc(child.definition_hash.slice(0,16))}</small>${nested?.composite?`<ul>${describe(nested,depth+1)}</ul>`:''}</li>`;
+      }).join('');
+      openDialog('查看组合展开',definition.name,`<ul>${describe(definition)}</ul><pre class="code-preview">${esc(JSON.stringify(definition.composite.external_ports,null,2))}</pre>`);break;
+    }
+    case 'module-error-line': {
+      openEditor(mod().id,'code');
+      const editor=document.getElementById(d.file==='design.py'?'module-code-design':'module-code'), line=Math.max(1,Number(d.line));
+      if(editor){const lines=editor.value.split('\n'), start=lines.slice(0,line-1).reduce((sum,text)=>sum+text.length+1,0);editor.focus();editor.setSelectionRange(start,start+(lines[line-1]?.length || 0));editor.scrollTop=(line-1)*parseFloat(getComputedStyle(editor).lineHeight);}
+      break;
+    }
+    case 'export-module-replay': downloadFile(`${mod().id}-replay.json`,JSON.stringify(mod().authoringReplay,null,2)); break;
+    case 'module-test-suite': runAuthoringSuite(mod()); break;
+    case 'cancel-module-suite': ui.moduleSuiteAbort?.abort(); break;
     case 'validate-module-contract': engine.checkModule(mod(),true); break;
     case 'module-versions': engine.versions(mod()); break;
     case 'load-module-version': engine.loadVersion(mod(),Number(d.version)); break;
@@ -2517,7 +2607,7 @@ const chartRegistry = new Map();
 engine = window.createEngineClient({state:()=>state, project, parameterKey:projectParameterKey, moduleOf,
   persist:()=>persistLocal(),
   restoreWorkspace,validateWorkspace:validateImport,archives:receiveArchives,showArchive,
-  moduleOutput:(m,text)=>{m.authoringOutput=text;if(m.id===state.selectedModule){const el=document.getElementById('module-output') || document.getElementById('code-output');if(el)el.textContent=text;}},
+  moduleOutput:(m,text)=>{m.authoringOutput=text;if(m.id===state.selectedModule){const el=document.getElementById('module-output') || document.getElementById('code-output');if(el){el.textContent=text;document.getElementById('authoring-diagnostics')?.remove();el.insertAdjacentHTML('afterend',renderAuthoringDiagnostics(m));}}},
   parameterDefinitions:PARAM_DEFS, emptyRun, render:()=>retainFocus(), refresh:refreshLive,
   message:msg, diagnostics:showDiagnostics, dirty:markDirty,
   askToken:(reason,done)=>openDialog('输入访问令牌',reason+'令牌由服务端管理员用 python -m fn_engine token create 生成，只保存在当前浏览器标签页。',

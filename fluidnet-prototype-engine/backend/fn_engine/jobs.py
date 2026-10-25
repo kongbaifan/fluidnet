@@ -458,6 +458,12 @@ class RunManager:
                 return
             job.finishing = True
             pending_frames = [f for f in session.frames if f.sequence > job.last_sequence] if session else []
+            accepted_fault=False
+            if isinstance(error,SolveFailed):
+                for frame in error.frames:
+                    if frame.sequence > job.last_sequence and not any(existing.sequence==frame.sequence for existing in pending_frames):
+                        pending_frames.append(frame)
+                        accepted_fault=True
         publish_error = None
         if session:
             # Event-boundary frames may have been accepted just before SolveFailed.
@@ -488,8 +494,13 @@ class RunManager:
                 extra_events.append(self._event_data(job, 'command', key, 'rejected', '运行已结束'))
             if error:
                 diagnostic = getattr(error, 'diagnostic', DiagnosticError(error))
-                frame = RunFrame(status='failed', valid=False, time_s=session.time if session else 0.,
-                                 diagnostics=[diagnostic]).model_dump(mode='json')
+                if accepted_fault and job.record.get('frame'):
+                    accepted=RunFrame.model_validate(job.record['frame'])
+                    frame=accepted.model_copy(update={'status':'failed','valid':False,
+                        'diagnostics':[*accepted.diagnostics,diagnostic]}).model_dump(mode='json')
+                else:
+                    frame = RunFrame(status='failed', valid=False, time_s=session.time if session else 0.,
+                                     diagnostics=[diagnostic]).model_dump(mode='json')
             else:
                 frame = job.record.get('frame')
                 if frame:
@@ -703,4 +714,6 @@ class RunManager:
 
 def DiagnosticError(error):
     from .models import Diagnostic
+    if getattr(error,'diagnostics',None):
+        return error.diagnostics[0]
     return Diagnostic(code=getattr(error, 'code', 'SOLVER_ERROR'), message=str(error))

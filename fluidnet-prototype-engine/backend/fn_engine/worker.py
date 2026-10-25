@@ -11,7 +11,7 @@ from contextlib import redirect_stdout, redirect_stderr
 # （stdout 只走 JSON RPC，保持协议不变），startup_report 动作也能读回。
 _STARTED_AT = time.perf_counter()
 
-from .models import CommitStepRequest, EvaluateRequest, InitializeRequest, ModuleDefinition
+from .models import CommitStepRequest, EvaluateRequest, InitializeRequest, ModuleDefinition, ModuleRequestContext
 
 _IMPORTS_READY_AT = time.perf_counter()
 _FIRST_REQUEST_AT: float | None = None
@@ -86,9 +86,10 @@ def main():
             return {key: dispatch(item) for key, item in message['items'].items()}
         if action == 'finalize':
             errors = []
-            for runner in runners.values():
+            for key, runner in runners.items():
                 try:
-                    runner.finalize()
+                    context = message.get('contexts', {}).get(key)
+                    runner.finalize(ModuleRequestContext.model_validate(context) if context is not None else None)
                 except Exception as error:
                     errors.append(str(error))
             if errors:
@@ -114,9 +115,10 @@ def main():
             definition = ModuleDefinition.model_validate(message['definition'])
             request = InitializeRequest.model_validate(message['request'])
             runner = InProcessModuleRunner(definition, request.parameters, request.fluid, request.initial_state,
-                                           request.port_fluids)
+                                           request.port_fluids, run_id=request.run_id, instance_id=request.instance_id,
+                                           cache_enabled=request.cache_enabled)
             runners[key] = runner
-            return {'state': runner.initialize()}
+            return {'state': runner.initialize(request.context)}
         if runner is None:
             raise ValueError('Worker 尚未初始化')
         if action == 'parameters':
@@ -126,6 +128,19 @@ def main():
             return runner.evaluate(EvaluateRequest.model_validate(message['request'])).model_dump(mode='json')
         if action == 'commit_step':
             return runner.commit_step(CommitStepRequest.model_validate(message['request'])).model_dump(mode='json')
+        if action == 'prepare_step':
+            return runner.prepare_step(CommitStepRequest.model_validate(message['request']),
+                base_revision=message['base_revision'], authoritative_state=message['state']).model_dump(mode='json')
+        if action == 'synchronize_state':
+            from .models import ModuleStepCandidate
+            runner.synchronize_state(ModuleStepCandidate.model_validate(message['candidate']))
+            return {'ok': True, 'revision': runner.state_revision}
+        if action == 'discard_candidate':
+            runner.discard_candidate()
+            return {'ok': True}
+        if action in ('thermal', 'observe', 'jacobian'):
+            from .models import ModulePhaseRequest
+            return runner.phase_call(action, ModulePhaseRequest.model_validate(message['request'])).model_dump(mode='json')
         raise ValueError(f'未知 Worker 操作：{action}')
 
     for line in sys.stdin:
@@ -138,7 +153,11 @@ def main():
             if message.get('action') == 'finalize':
                 break
         except Exception as error:
-            sys.stdout.write(json.dumps({'error': str(error)}, ensure_ascii=False) + '\n')
+            failure = {'error': str(error), 'code': getattr(error, 'code', 'MODULE_RUNTIME_ERROR'),
+                'diagnostics': [item.model_dump(mode='json') for item in getattr(error, 'diagnostics', [])]}
+            if getattr(error, 'replay', None) is not None:
+                failure['replay'] = error.replay
+            sys.stdout.write(json.dumps(failure, ensure_ascii=False, allow_nan=False) + '\n')
             sys.stdout.flush()
 
 

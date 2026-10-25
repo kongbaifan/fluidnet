@@ -193,7 +193,7 @@ def initial_guess(network: CompiledNetwork, service) -> list[FluidState]:
 
 def solve_thermal(network: CompiledNetwork, service, pressures, flows,
                   relations: dict[tuple[str, str], NetworkRelation] | None = None,
-                  shaft_power_w=None, initial_enthalpies=None, storage_step=None) -> ThermalResult:
+                  shaft_power_w=None, initial_enthalpies=None, storage_step=None, module_heat=None) -> ThermalResult:
     """Solve node enthalpies for fixed pressures and flows.
 
     Tank nodes (network.storage) are held at their boundary state unless `storage_step` =
@@ -326,7 +326,7 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
         else:
             diagnostics.append(Diagnostic(code='THERMAL_EXCHANGER_NO_FLOW', severity='info', instance_id=instance_id,
                                           message=f'{instance_id} 至少一侧无流量，本次不交换热量'))
-    nonlinear = (bool(exchangers) or any(pipe_ua[j] > 0 for j in flowing)
+    nonlinear = (module_heat is not None or bool(exchangers) or any(pipe_ua[j] > 0 for j in flowing)
                  or any(storage[node].heat_loss_ua_w_k > 0 for node in finite)
                  or any(pipe_cells[j] > 0 for j in flowing))
 
@@ -334,7 +334,7 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
     edges = [(upstream[j], downstream[j]) for j in flowing]
     for _, a, b, _ in exchangers:
         edges += [(upstream[a], downstream[b]), (upstream[b], downstream[a])]
-    adjacency = [[] for _ in range(n)]
+    adjacency: list[list[int]] = [[] for _ in range(n)]
     for u, v in edges:
         adjacency[u].append(v)
 
@@ -447,6 +447,13 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
         return slope, offset, cells, mass
 
     def relations_for(states, h):
+        if module_heat is not None:
+            from .module_diagnostics import merge_diagnostics
+            powers, messages = module_heat(states, heat.copy())
+            for j, branch in enumerate(branches):
+                if (branch.instance_id, branch.channel_id) in powers:
+                    heat[j] = powers[(branch.instance_id, branch.channel_id)]
+            diagnostics[:] = merge_diagnostics(diagnostics, messages)
         weights = [{upstream[j]: 1.0} for j in range(m)]
         consts = np.zeros(m)
         chains.clear()
@@ -552,10 +559,23 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
         if not nonlinear:
             h = candidate
             break
+        assert states is not None  # Nonlinear iterations always evaluate node states above.
         change = max((abs(candidate[k] - h[k]) / (states[k].specific_heat_j_kg_k or 4180.0) for k in range(n)), default=0.0)
         if change < options.thermal_tolerance_k:
-            h = candidate
-            break
+            if module_heat is not None:
+                used_heat = heat.copy()
+                final_states = node_states(candidate)
+                final_weights, final_consts = relations_for(final_states, candidate)
+                heat_ok = np.all(np.abs(heat - used_heat) <= 1e-6 + 1e-6 * np.maximum(np.abs(heat), np.abs(used_heat)))
+                check = solve_linear(final_weights, final_consts, storage_terms(final_states, candidate))
+                defect = max((abs(check[k] - candidate[k]) / (final_states[k].specific_heat_j_kg_k or 4180.)
+                              for k in range(n)), default=0.)
+                if heat_ok and defect <= options.thermal_tolerance_k:
+                    h, weights, consts = candidate, final_weights, final_consts
+                    break
+            else:
+                h = candidate
+                break
         delta = candidate - h
         if acceleration == 'none' or iterations == 1:
             # 旧行为：首轮直接取新值，之后固定 0.7/0.3 阻尼（旧项目默认路径不变）。
@@ -577,6 +597,16 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
                 h = trial
     else:
         raise ThermalError('THERMAL_NOT_CONVERGED', f'热力迭代 {options.max_thermal_iterations} 次未收敛，请检查换热与散热参数')
+
+    if module_heat is not None:
+        used_heat = heat.copy()
+        final_states = node_states(h)
+        weights, consts = relations_for(final_states, h)
+        check = solve_linear(weights, consts, storage_terms(final_states, h))
+        defect = max((abs(check[k] - h[k]) / (final_states[k].specific_heat_j_kg_k or 4180.) for k in range(n)), default=0.)
+        heat_ok = np.all(np.abs(heat - used_heat) <= 1e-6 + 1e-6 * np.maximum(np.abs(heat), np.abs(used_heat)))
+        if not heat_ok or defect > options.thermal_tolerance_k:
+            raise ThermalError('MODULE_THERMAL_DEFECT', '最终热回调热流或固定点缺陷超过容差，拒绝结果')
 
     if acceleration != 'none' and nonlinear:
         # 未经加速伪装的方程残差复核：在最终 h 上做一次纯 Picard 评估，

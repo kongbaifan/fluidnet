@@ -1,0 +1,149 @@
+{
+  "schema_version": 2,
+  "id": "programmable_valve",
+  "name": "可编程阀门（SDK）",
+  "version": 2,
+  "category": "自定义模块",
+  "description": "通过 Python evaluate 注册阀门阻力关系，并在 commit_step 中累计通过质量。",
+  "ports": [
+    {
+      "id": "in0",
+      "label": "入口",
+      "domain": "fluid",
+      "direction": "in",
+      "required": true,
+      "circuit": "fluid"
+    },
+    {
+      "id": "out0",
+      "label": "出口",
+      "domain": "fluid",
+      "direction": "out",
+      "required": true,
+      "circuit": "fluid"
+    }
+  ],
+  "parameters": [
+    {
+      "id": "opening_ratio",
+      "label": "阀门开度",
+      "value_type": "number",
+      "default": 0.8,
+      "unit": null,
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "runtime": false,
+      "writable": true
+    },
+    {
+      "id": "kv_m3_h",
+      "label": "流量系数 Kv",
+      "value_type": "number",
+      "default": 16.0,
+      "unit": null,
+      "minimum": 0.001,
+      "maximum": null,
+      "runtime": false,
+      "writable": true
+    }
+  ],
+  "variables": [
+    {
+      "id": "density_kg_m3",
+      "label": "参考密度",
+      "quantity": "density",
+      "unit": {
+        "quantity": "density",
+        "canonical_unit": "kg/m³",
+        "display_unit": "kg/m³",
+        "display_scale": 1.0,
+        "display_offset": 0.0
+      },
+      "source": "derived",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": null,
+      "port_id": null
+    },
+    {
+      "id": "opening_ratio",
+      "label": "有效开度",
+      "quantity": "ratio",
+      "unit": {
+        "quantity": "ratio",
+        "canonical_unit": "1",
+        "display_unit": "%",
+        "display_scale": 0.01,
+        "display_offset": 0.0
+      },
+      "source": "derived",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": null,
+      "port_id": null
+    },
+    {
+      "id": "state.throughput_kg",
+      "label": "累计通过质量",
+      "quantity": "mass",
+      "unit": {
+        "quantity": "mass",
+        "canonical_unit": "kg",
+        "display_unit": "kg",
+        "display_scale": 1.0,
+        "display_offset": 0.0
+      },
+      "source": "state",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": null,
+      "port_id": null
+    },
+    {
+      "id": "state.commit_count",
+      "label": "已接受时间步",
+      "quantity": "count",
+      "unit": null,
+      "source": "state",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": null,
+      "port_id": null
+    }
+  ],
+  "channels": [
+    {
+      "id": "main",
+      "name": "主通路",
+      "input_port": "in0",
+      "output_port": "out0",
+      "relation": "resistance",
+      "solver_model": "valve",
+      "enabled": true
+    }
+  ],
+  "solver_model": "valve",
+  "state_model": null,
+  "thermal_model": null,
+  "source_format": "python-v1",
+  "runtime": "python",
+  "entrypoint": "module:Module",
+  "content_hash": "3b8a1cd01b354756b85a7654957fcb91f26bcf3783358f40ee3c2adb19b7bf66",
+  "definition_hash": "b637b193585e7ebbf177abff5d6003aae64094df6e56e994bc0079e63cc1584f",
+  "bank_names": [
+    "额定工况",
+    "部分负荷",
+    "调试备份"
+  ],
+  "sdk": {
+    "api_version": "0.5.0",
+    "capabilities": [
+      "context.execution.v1",
+      "hydraulic.signed_start.v1",
+      "lifecycle.v1",
+      "net.valve",
+      "state.json.v1"
+    ],
+    "state_contract_version": 1
+  }
+}

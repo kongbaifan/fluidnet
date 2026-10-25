@@ -1,0 +1,130 @@
+{
+  "$defs": {
+    "CanonicalUnitConversion": {
+      "additionalProperties": false,
+      "properties": {
+        "from_unit": {
+          "title": "From Unit",
+          "type": "string"
+        },
+        "to_unit": {
+          "title": "To Unit",
+          "type": "string"
+        },
+        "scale": {
+          "exclusiveMinimum": 0,
+          "title": "Scale",
+          "type": "number"
+        },
+        "offset": {
+          "default": 0.0,
+          "title": "Offset",
+          "type": "number"
+        }
+      },
+      "required": [
+        "from_unit",
+        "to_unit",
+        "scale"
+      ],
+      "title": "CanonicalUnitConversion",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "parameters": {
+      "patternProperties": {
+        "^[A-Za-z][A-Za-z0-9_-]{0,80}$": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "title": "Parameters",
+      "type": "object"
+    },
+    "ports": {
+      "patternProperties": {
+        "^[A-Za-z][A-Za-z0-9_-]{0,80}$": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "title": "Ports",
+      "type": "object"
+    },
+    "channels": {
+      "patternProperties": {
+        "^[A-Za-z][A-Za-z0-9_-]{0,80}$": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "title": "Channels",
+      "type": "object"
+    },
+    "variables": {
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "title": "Variables",
+      "type": "object"
+    },
+    "defaults": {
+      "patternProperties": {
+        "^[A-Za-z][A-Za-z0-9_-]{0,80}$": {}
+      },
+      "title": "Defaults",
+      "type": "object"
+    },
+    "unit_conversions": {
+      "patternProperties": {
+        "^[A-Za-z][A-Za-z0-9_-]{0,80}$": {
+          "$ref": "#/$defs/CanonicalUnitConversion"
+        }
+      },
+      "title": "Unit Conversions",
+      "type": "object"
+    },
+    "script_sources": {
+      "patternProperties": {
+        "^[A-Za-z][A-Za-z0-9_-]{0,80}$": {
+          "type": "string"
+        }
+      },
+      "title": "Script Sources",
+      "type": "object"
+    }
+  },
+  "title": "ModuleMigration",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

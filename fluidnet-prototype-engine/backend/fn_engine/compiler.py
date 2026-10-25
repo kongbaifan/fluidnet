@@ -76,6 +76,7 @@ class TankState:
 
 @dataclass
 class CompiledNetwork:
+    composite_maps: dict = field(default_factory=dict, kw_only=True)
     project: Project
     modules: dict[str, ModuleDefinition]
     instances: dict[str, ModuleInstance]
@@ -264,6 +265,10 @@ def check_fluid_conditions(instance_id: str, params: dict, solver_model: str, se
     if solver_model != 'pressure_source':
         return
     pressure, temperature = params.get('pressure_pa'), params.get('temperature_k')
+    if not isinstance(pressure, (int, float)) or isinstance(pressure, bool) or not math.isfinite(pressure):
+        raise CompilationError('PARAMETER_INVALID', f'{instance_id}.pressure_pa 必须是有限数值', instance_id, 'pressure_pa')
+    if not isinstance(temperature, (int, float)) or isinstance(temperature, bool) or not math.isfinite(temperature):
+        raise CompilationError('PARAMETER_INVALID', f'{instance_id}.temperature_k 必须是有限数值', instance_id, 'temperature_k')
     if limits['p_max_pa'] is not None and pressure > limits['p_max_pa']:
         raise CompilationError('PARAMETER_RANGE', f'{instance_id}.pressure_pa = {pressure:g} Pa 超出 {name} 的最高压力 '
                                f'{limits["p_max_pa"]:g} Pa', instance_id, 'pressure_pa')
@@ -354,6 +359,8 @@ def _compile_trapped(project, modules, parameters, nodes, branches, fixed, fixed
 
 
 def compile_project(project: Project) -> CompiledNetwork:
+    from .composites import expand_composites
+    project, composite_maps = expand_composites(project)
     used = {instance.module_id for instance in project.instances}
     used_domains = {port.domain for module in project.modules if module.id in used for port in module.ports}
     if Domain.thermal in used_domains or Domain.refrigerant in used_domains:
@@ -388,6 +395,11 @@ def compile_project(project: Project) -> CompiledNetwork:
         if definition.runtime != 'python' and (definition.solver_model not in supported or not state_ok):
             raise CompilationError('MODEL_NOT_SUPPORTED', f'{inst.id} 的模型 {definition.state_model or definition.solver_model} 尚未实现；不能生成替代计算结果', inst.id)
         if definition.runtime == 'python':
+            from .module_contracts import ModuleCompatibilityError, check_module_compatibility
+            try:
+                check_module_compatibility(definition)
+            except ModuleCompatibilityError as error:
+                raise CompilationError(error.code, str(error), inst.id, error.field) from error
             if not definition.entrypoint:
                 raise CompilationError('MODULE_ENTRYPOINT_MISSING', f'{inst.id} 的 Python 模块没有入口', inst.id)
             source = definition.source.get('runtime', '') if definition.source else ''
@@ -448,7 +460,10 @@ def compile_project(project: Project) -> CompiledNetwork:
         if modules[inst.module_id].runtime == 'builtin':
             check_fluid_conditions(inst.id, parameters[inst.id], modules[inst.module_id].solver_model, service_of(inst.id),
                                    project.solver.thermal)
-    branches, fixed, fixed_temperatures, storage = [], {}, {}, {}
+    branches: list[CompiledBranch] = []
+    fixed: dict[int, float] = {}
+    fixed_temperatures: dict[int, float] = {}
+    storage: dict[int, StorageSpec] = {}
     for inst in project.instances:
         definition, params = modules[inst.module_id], parameters[inst.id]
         if definition.solver_model == 'pressure_source':
@@ -514,9 +529,20 @@ def compile_project(project: Project) -> CompiledNetwork:
         diagnostics.append(Diagnostic(code='MULTIPLE_FLUIDS', severity='info',
                                       message=f'项目包含 {len(circuit_fluids)} 个回路，回路工质：{names}（项目工质 '
                                       f'{project.fluid.fluid}）；各回路物性独立计算'))
-    return CompiledNetwork(project, modules, instances, parameters, nodes, roots, branches, fixed, diagnostics,
+    network = CompiledNetwork(project, modules, instances, parameters, nodes, roots, branches, fixed, diagnostics,
                            fixed_temperatures, [components.find(n) for n in range(len(roots))], storage,
                            node_circuit, circuit_fluids, circuit_sources, mixed, trapped=trapped)
+    network.composite_maps = composite_maps or getattr(project,'_composite_maps',{})
+    from .module_scope import check_scope_configuration
+    for key, instance in instances.items():
+        definition = modules[instance.module_id]
+        fluid, port_fluids = instance_fluids(network, key)
+        try:
+            for config in [fluid, *port_fluids.values()]:
+                check_scope_configuration(definition, config)
+        except ValueError as error:
+            raise CompilationError('MODULE_SCOPE_UNSUPPORTED', str(error), key) from error
+    return network
 
 
 def runtime_parameter(instance, definition, parameter_id):
@@ -598,7 +624,7 @@ def circuit_info(network: CompiledNetwork) -> list[dict]:
         from .refrigeration.station import station_circuits
         return station_circuits(network)
     count = len(network.circuit_fluids) or 1
-    ports = [[] for _ in range(count)]
+    ports: list[list[str]] = [[] for _ in range(count)]
     for key, node in network.port_nodes.items():
         ports[network.node_circuit[node] if network.node_circuit else 0].append(key)
     return [{'id': i, 'fluid': network.circuit_fluids[i] if network.circuit_fluids else network.project.fluid,

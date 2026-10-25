@@ -1,7 +1,8 @@
-# 门禁：倍思鹿参考模块包（modules/）+ 项目控制脚本模板（examples/control_templates/）
+# 门禁：倍思鹿参考模块包、项目控制模板与公共 SDK 数学工具
 # 这些测试只依赖 pydantic / pytest / ruff，不需要 scipy 或 CoolProp：
 #   - 模块包验证到 L1 契约 + L2 逻辑（InProcessModuleRunner）
 #   - 控制模板用 ControlRunner 直接执行
+#   - SDK 数学工具只依赖标准库，严格类型门由主 ci.yml 的 module-sdk job 执行
 # 完整的 L3 联网测试由主 ci.yml 的 backend job（全量依赖）覆盖，这里只做快速反馈。
 name: bsl-modules
 
@@ -11,6 +12,25 @@ on:
     paths:
       - 'fluidnet-prototype-engine/modules/**'
       - 'fluidnet-prototype-engine/examples/control_templates/**'
+      - 'fluidnet-prototype-engine/backend/fn_sdk/**'
+      - 'fluidnet-prototype-engine/backend/fn_engine/_module_schema_v*.py'
+      - 'fluidnet-prototype-engine/backend/fn_engine/module_contracts.py'
+      - 'fluidnet-prototype-engine/backend/fn_engine/module_*.py'
+      - 'fluidnet-prototype-engine/backend/fn_engine/composites.py'
+      - 'fluidnet-prototype-engine/backend/fn_engine/migrations.py'
+      - 'fluidnet-prototype-engine/backend/fn_engine/module_execution.py'
+      - 'fluidnet-prototype-engine/backend/fn_engine/runtime.py'
+      - 'fluidnet-prototype-engine/backend/fn_engine/worker.py'
+      - 'fluidnet-prototype-engine/backend/fn_engine/models.py'
+      - 'fluidnet-prototype-engine/examples/module_sdk/**'
+      - 'fluidnet-prototype-engine/tests/test_module_sdk*.py'
+      - 'fluidnet-prototype-engine/tests/test_module_*.py'
+      - 'fluidnet-prototype-engine/examples/module_templates/**'
+      - 'fluidnet-prototype-engine/tests/test_module_execution.py'
+      - 'fluidnet-prototype-engine/tests/fixtures/module-system/hydraulics-v1.json'
+      - 'fluidnet-prototype-engine/tests/fixtures/module-system/*snapshots.json'
+      - 'fluidnet-prototype-engine/tests/fixtures/module-system/module-v1.schema.json'
+      - 'fluidnet-prototype-engine/pyproject.toml'
       - 'fluidnet-prototype-engine/tests/test_bsl_modules*.py'
       - 'fluidnet-prototype-engine/tests/test_control_templates.py'
       - 'fluidnet-prototype-engine/scripts/extract_baselu_cases.py'
@@ -19,6 +39,25 @@ on:
     paths:
       - 'fluidnet-prototype-engine/modules/**'
       - 'fluidnet-prototype-engine/examples/control_templates/**'
+      - 'fluidnet-prototype-engine/backend/fn_sdk/**'
+      - 'fluidnet-prototype-engine/backend/fn_engine/_module_schema_v*.py'
+      - 'fluidnet-prototype-engine/backend/fn_engine/module_contracts.py'
+      - 'fluidnet-prototype-engine/backend/fn_engine/module_*.py'
+      - 'fluidnet-prototype-engine/backend/fn_engine/composites.py'
+      - 'fluidnet-prototype-engine/backend/fn_engine/migrations.py'
+      - 'fluidnet-prototype-engine/backend/fn_engine/module_execution.py'
+      - 'fluidnet-prototype-engine/backend/fn_engine/runtime.py'
+      - 'fluidnet-prototype-engine/backend/fn_engine/worker.py'
+      - 'fluidnet-prototype-engine/backend/fn_engine/models.py'
+      - 'fluidnet-prototype-engine/examples/module_sdk/**'
+      - 'fluidnet-prototype-engine/tests/test_module_sdk*.py'
+      - 'fluidnet-prototype-engine/tests/test_module_*.py'
+      - 'fluidnet-prototype-engine/examples/module_templates/**'
+      - 'fluidnet-prototype-engine/tests/test_module_execution.py'
+      - 'fluidnet-prototype-engine/tests/fixtures/module-system/hydraulics-v1.json'
+      - 'fluidnet-prototype-engine/tests/fixtures/module-system/*snapshots.json'
+      - 'fluidnet-prototype-engine/tests/fixtures/module-system/module-v1.schema.json'
+      - 'fluidnet-prototype-engine/pyproject.toml'
       - 'fluidnet-prototype-engine/tests/test_bsl_modules*.py'
       - 'fluidnet-prototype-engine/tests/test_control_templates.py'
       - 'fluidnet-prototype-engine/scripts/extract_baselu_cases.py'
@@ -48,12 +87,12 @@ jobs:
       - name: 安装测试依赖
         run: |
           python -m pip install --disable-pip-version-check pydantic==2.13.4 pytest==8.4.1 ruff==0.16.0
-      - name: ruff lint（模块 + 控制模板 + 测试 + 提取脚本）
+      - name: ruff lint（模块 + 控制模板 + SDK + 测试 + 提取脚本）
         run: |
-          python -m ruff check modules examples/control_templates tests/test_bsl_modules.py tests/test_bsl_modules_p1.py tests/test_bsl_modules_p2.py tests/test_control_templates.py scripts/extract_baselu_cases.py
-      - name: 模块与控制模板回归
+          python -m ruff check modules examples/control_templates backend/fn_sdk examples/module_sdk backend/fn_engine/_module_schema_v1.py backend/fn_engine/_module_schema_v2.py backend/fn_engine/module_contracts.py backend/fn_engine/module_execution.py tests/test_bsl_modules.py tests/test_bsl_modules_p1.py tests/test_bsl_modules_p2.py tests/test_control_templates.py tests/test_module_sdk_hydraulics.py tests/test_module_sdk_contracts.py tests/test_module_execution.py tests/test_module_sdk_thermal.py tests/test_module_diagnostics.py backend/fn_engine/_module_schema_v3.py scripts/extract_baselu_cases.py
+      - name: 模块、控制模板与 SDK 数学回归
         run: |
-          python -m pytest -q tests/test_bsl_modules.py tests/test_bsl_modules_p1.py tests/test_bsl_modules_p2.py tests/test_control_templates.py
+          python -m pytest -q tests/test_bsl_modules.py tests/test_bsl_modules_p1.py tests/test_bsl_modules_p2.py tests/test_control_templates.py tests/test_module_sdk_hydraulics.py tests/test_module_sdk_contracts.py tests/test_module_execution.py tests/test_module_sdk_thermal.py tests/test_module_diagnostics.py
 
   package:
     name: package module kit

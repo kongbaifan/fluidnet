@@ -481,9 +481,9 @@ class StationSession(ThermalSession):
             self._check_vessels(result_mid)
             x_fine, result_fine = self._solve(x_mid, half)
             self._check_vessels(result_fine)
-        except devices.DeviceRangeError as error:
+        except devices.DeviceRangeError as range_error:
             self._jacobian, self._cache = saved
-            raise TrialFailure(str(error)) from error
+            raise TrialFailure(str(range_error)) from range_error
         error = self._error_estimate(x, x_full, x_fine, result_full, result_fine)
         payload = None
         if error.norm <= 1.:

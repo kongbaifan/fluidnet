@@ -61,6 +61,8 @@ def run_in_worker(definition, parameters, fluid):
     """Worker side of the `design` action."""
     from .models import FluidConfig, ModuleDefinition
     module = ModuleDefinition.model_validate(definition)
+    from .module_contracts import check_module_compatibility
+    check_module_compatibility(module)
     callback = load_design(design_source(module))
     ctx = DesignContext(parameters, FluidConfig.model_validate(fluid), {p.id for p in module.parameters})
     try:

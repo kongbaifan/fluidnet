@@ -73,8 +73,10 @@ try {
   await page.locator('#dialog-form [name="code"]').fill('AUTHORING_VALVE');
   await submitDialog();
   const source=await page.locator('#module-code').inputValue();
-  const algorithm=source.replace('kv=ctx.parameter("kv_m3_h")','kv=ctx.parameter("kv_m3_h") * ctx.parameter("gain")')
-    .replace('        ctx.var("opening_ratio"','        ctx.var("gain", ctx.parameter("gain"))\n        ctx.var("opening_ratio"');
+  const algorithm=source.replace(/kv=ctx.parameter\((['"])kv_m3_h\1\)/,'kv=ctx.parameter("kv_m3_h") * ctx.parameter("gain")')
+    .replace(/kv=kv(?=,)/,'kv=kv * ctx.parameter("gain")')
+    .replace(/( {8})ctx.var\((['"])opening_ratio\2/,'$1ctx.var("gain", ctx.parameter("gain"))\n$1ctx.var($2opening_ratio$2');
+  expect(algorithm).not.toBe(source);
   await page.locator('#module-code').fill(algorithm);
   await tab('attributes');
   await page.locator('[data-action="edit-contract-item"][data-section="parameters"]').filter({hasText:'新增参数'}).click();

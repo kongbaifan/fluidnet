@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from threading import Lock
 
+from .module_contracts import contract_model
 from .models import (ModuleDefinition, ModulePackageRef, ModuleSaveRequest,
                      ModuleTestRequest, ModuleVersionInfo, ModuleVersionResponse)
 from .runtime import design_source, module_content_hash, module_definition_hash, module_source
@@ -62,8 +63,9 @@ class ModuleVersionConflict(ValueError):
 
 
 class ModuleSaveInvalid(ValueError):
-    def __init__(self, diagnostics):
+    def __init__(self, diagnostics, replay=None):
         self.diagnostics = diagnostics
+        self.replay = replay
         super().__init__("；".join(d.message for d in diagnostics))
 
 
@@ -84,7 +86,7 @@ class ModuleStore:
         return list(definitions.values())
 
     def latest(self) -> list[ModuleDefinition]:
-        latest = {}
+        latest: dict[str, ModuleDefinition] = {}
         for module in self.definitions():
             if module.id not in latest or module.version > latest[module.id].version:
                 latest[module.id] = module
@@ -101,9 +103,38 @@ class ModuleStore:
         return self.release(module)
 
     def release(self, module: ModuleDefinition) -> ModuleVersionResponse:
+        if module.package_path is None:
+            raise ValueError('模块版本缺少包路径')
         receipt_path = Path(module.package_path) / "release.json"
         receipt = json.loads(receipt_path.read_text(encoding="utf-8")) if receipt_path.exists() else {}
+        evidence_directory = Path(module.package_path) / 'evidence'
+        evidence = list(receipt.get('validation_evidence', []))
+        if evidence_directory.is_dir():
+            evidence.extend(json.loads(path.read_text(encoding='utf-8')) for path in sorted(evidence_directory.glob('*.json')))
+        receipt['validation_evidence'] = evidence
         return ModuleVersionResponse(module=module, package=package_ref(module), **receipt)
+
+    def add_evidence(self, module_id, version, evidence):
+        module = self.get(module_id, version).module
+        if (evidence.content_hash, evidence.definition_hash) != (module.content_hash, module.definition_hash):
+            raise ValueError('验证证据与模块双哈希不匹配')
+        directory = self.root / f'module-{module_id}' / f'v{version}' / 'evidence'
+        if not directory.parent.exists():
+            raise ValueError('种子模块只读；请先保存本地版本后添加证据')
+        payload = evidence.model_dump_json(indent=2) + '\n'
+        digest = hashlib.sha256(payload.encode('utf-8')).hexdigest()
+        with self.lock:
+            directory.mkdir(exist_ok=True)
+            target = directory / f'{digest}.json'
+            if not target.exists():
+                with tempfile.NamedTemporaryFile(mode='w',encoding='utf-8',suffix='.pending',dir=directory,delete=False) as stream:
+                    pending=Path(stream.name)
+                    stream.write(payload);stream.flush();os.fsync(stream.fileno())
+                try:
+                    os.rename(pending,target)
+                finally:
+                    if pending.exists():pending.unlink()
+        return self.get(module_id, version)
 
     def save(self, request: ModuleSaveRequest) -> ModuleVersionResponse:
         from .bench import run_module_test
@@ -132,23 +163,31 @@ class ModuleStore:
             try:
                 test_result = run_module_test(ModuleTestRequest(module=module, **request.test.model_dump()))
             except ValueError as error:
-                raise ModuleSaveInvalid([Diagnostic(code=getattr(error, "code", "MODULE_TEST_FAILED"), message=str(error))]) from error
+                raise ModuleSaveInvalid(getattr(error,'diagnostics',[]) or
+                    [Diagnostic(code=getattr(error, "code", "MODULE_TEST_FAILED"), message=str(error))],replay=getattr(error,'replay',None)) from error
             missing = [v.id for v in module.variables if v.source in {'derived', 'state'} and f'D1.{v.id}' not in test_result.frame.variables]
             if missing:
                 raise ModuleSaveInvalid([Diagnostic(code='MODULE_OUTPUT_MISSING', message=f'试算未返回已声明输出：{missing}', field='variables')])
             receipt = {"created_at": datetime.now(timezone.utc).isoformat(), "release_notes": request.release_notes,
                        "tested": True, "test_conditions": request.test.model_dump(mode="json"),
                        "test_result": test_result.model_dump(mode="json")}
+            conditions = json.dumps(request.test.model_dump(mode='json'), sort_keys=True, ensure_ascii=False,
+                                    separators=(',', ':'), allow_nan=False).encode('utf-8')
+            receipt['validation_evidence'] = [{'level':'L3', 'status':'passed', 'source':'engine module bench',
+                'content_hash':module.content_hash, 'definition_hash':module.definition_hash,
+                'input_hash':hashlib.sha256(conditions).hexdigest(), 'engine_version':'0.5.0',
+                'sdk_version':module.sdk.api_version if module.sdk else 'legacy-v1',
+                'tolerances':{'pressure_pa':1., 'mass_flow_kg_s':1e-8}}]
             parent = self.root / f"module-{module.id}"
             target = parent / f"v{module.version}"
             parent.mkdir(parents=True, exist_ok=True)
             with tempfile.TemporaryDirectory(prefix=".pending-", dir=parent) as pending:
                 temporary = Path(pending)
-                manifest = module.model_dump(mode="json", exclude={"source", "package_path"})
+                manifest = contract_model(module).model_dump(mode="json", exclude={"source", "package_path"})
                 (temporary / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-                (temporary / "module.py").write_text(module.source["runtime"], encoding="utf-8", newline="")
-                if "design" in module.source:
-                    (temporary / "design.py").write_text(module.source["design"], encoding="utf-8", newline="")
+                (temporary / "module.py").write_text(runtime, encoding="utf-8", newline="")
+                if design.strip():
+                    (temporary / "design.py").write_text(design, encoding="utf-8", newline="")
                 (temporary / "release.json").write_text(json.dumps(receipt, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
                 try:
                     os.rename(temporary, target)

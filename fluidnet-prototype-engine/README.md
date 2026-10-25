@@ -173,13 +173,13 @@ docs/                架构、字段、算法、接口、模块套件与发布�
 ## 验证
 
 ```powershell
-python -m pytest -q --cov=fn_engine     # 532 项；覆盖率 90.77%，门禁 85%
+python -m pytest -q --cov=fn_engine     # 全量回归，覆盖率门禁 85%
 python -m ruff check backend tests scripts modules examples/control_templates
-python -m mypy                          # advisory：当前 40 个已知错误，不阻塞 CI
+python -m mypy                          # 当前检查范围已清零，CI 阻塞；未注解函数体仍逐步纳入
 python scripts/generate_contracts.py --check
 ```
 
-浏览器验证使用 Node 和 Playwright；`npm run test:browser` 依次运行 14 个脚本（含旧存档迁移、冷库 A/B 案例与模块目录 UI），各脚本使用临时端口与隔离的模块/工作区目录，无需预先启动服务：
+浏览器验证使用 Node 和 Playwright；`npm run test:browser` 依次运行 15 个脚本（含旧存档迁移、冷库 A/B 案例与模块开发工作流），各脚本使用临时端口与隔离的模块/工作区目录，无需预先启动服务：
 
 ```powershell
 npm install

@@ -40,6 +40,74 @@
       "title": "ModulePackageRef",
       "type": "object"
     },
+    "ModuleValidationEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "level": {
+          "enum": [
+            "L1",
+            "L2",
+            "L3",
+            "L4",
+            "external"
+          ],
+          "title": "Level",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "passed",
+            "failed",
+            "pending"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "content_hash": {
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "definition_hash": {
+          "title": "Definition Hash",
+          "type": "string"
+        },
+        "input_hash": {
+          "title": "Input Hash",
+          "type": "string"
+        },
+        "engine_version": {
+          "title": "Engine Version",
+          "type": "string"
+        },
+        "sdk_version": {
+          "title": "Sdk Version",
+          "type": "string"
+        },
+        "tolerances": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Tolerances",
+          "type": "object"
+        }
+      },
+      "required": [
+        "level",
+        "status",
+        "source",
+        "content_hash",
+        "definition_hash",
+        "input_hash",
+        "engine_version",
+        "sdk_version"
+      ],
+      "title": "ModuleValidationEvidence",
+      "type": "object"
+    },
     "ModuleVersionInfo": {
       "additionalProperties": false,
       "properties": {
@@ -67,6 +135,13 @@
           "default": false,
           "title": "Tested",
           "type": "boolean"
+        },
+        "validation_evidence": {
+          "items": {
+            "$ref": "#/$defs/ModuleValidationEvidence"
+          },
+          "title": "Validation Evidence",
+          "type": "array"
         }
       },
       "required": [
