@@ -187,4 +187,6 @@ def normalize_prototype_export(data: dict[str, Any]) -> Project:
         solver=SolverOptions(pressure_tolerance_pa=solver.get('pressureAtol',1.),mass_tolerance_kg_s=solver.get('massAtol',1e-8),
                              max_iterations=solver.get('maxIter',80),dynamic_step_s=min(10., solver.get('dt',.1)) if thermal else solver.get('dt',.1),
                              # S2：原型导出文件缺 hydraulicMethod 时按旧行为 dense；新建项目由前端显式写 auto。
-                             hydraulic_method=solver.get('hydraulicMethod','dense'))))
+                             hydraulic_method=solver.get('hydraulicMethod','dense'),
+                             # 缺 moduleMixedJacobian 时保持关闭；新建项目由前端显式写 true（见 ENGINEERING_ACCEPTANCE.md）。
+                             module_mixed_jacobian=bool(solver.get('moduleMixedJacobian',False)))))

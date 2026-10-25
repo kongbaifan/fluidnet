@@ -218,7 +218,7 @@ def step(ctx, dt_s):
 def finalize(ctx):
     pass
 `;}
-function makeProject(id,name,description,page){return {id,name,description,pages:[page],activePage:'main',modified:'示例项目',medium:'water',run:emptyRun(),solver:{duration:30,dt:.1,massAtol:1e-7,pressureAtol:.1,maxIter:80,mode:'dynamic',hydraulicMethod:'auto'},control:controlTemplate(),controlLanguage:'python',controlEnabled:false,controlInputs:'V1.mass_flow_kg_s',controlOutputs:'V1.param.opening_ratio',dirty:false};}
+function makeProject(id,name,description,page){return {id,name,description,pages:[page],activePage:'main',modified:'示例项目',medium:'water',run:emptyRun(),solver:{duration:30,dt:.1,massAtol:1e-7,pressureAtol:.1,maxIter:80,mode:'dynamic',hydraulicMethod:'auto',moduleMixedJacobian:true},control:controlTemplate(),controlLanguage:'python',controlEnabled:false,controlInputs:'V1.mass_flow_kg_s',controlOutputs:'V1.param.opening_ratio',dirty:false};}
 
 function initialState(){
   const modules=MODULE_SPECS.map(makeModule);
