@@ -16,6 +16,24 @@ from fn_engine.models import ControlScript
 from acceptance_cases import parallel
 
 
+def child_processes(process):
+    """Split live children into fn_engine Workers and everything else.
+
+    A hidden background launch (PowerShell `Start-Process -WindowStyle Hidden`, scheduled task)
+    gives python a `conhost.exe` child that lives until python exits. Counting it as a Worker made
+    the 2026-10-15 24 h run report 「停止后仍残留 Worker」 while no Worker was left.
+    """
+    workers, others = [], []
+    for child in process.children(recursive=True):
+        try:
+            if not child.is_running():
+                continue
+            (workers if 'fn_engine.worker' in ' '.join(child.cmdline()) else others).append(child)
+        except (psutil.Error, OSError):
+            continue
+    return workers, others
+
+
 def run(hours, directory, case='hydraulic'):
     directory.mkdir(parents=True, exist_ok=True)
     if (directory/'progress.json').exists():
@@ -95,15 +113,16 @@ def finalize(ctx): pass
                     backup=client.post('/api/v1/workspace/backup',json={});backup.raise_for_status()
                     (directory/'latest-backup.zip').write_bytes(backup.content)
                     next_backup=elapsed+300
-                children=process.children(recursive=True)
-                memory=process.memory_info().rss+sum(c.memory_info().rss for c in children if c.is_running())
+                workers,others=child_processes(process)
+                memory=process.memory_info().rss+sum(c.memory_info().rss for c in workers+others if c.is_running())
                 history=client.get(f'/api/v1/runs/{run_id}/history').json()
                 if len(history['rows'])>100:raise RuntimeError('历史窗口越界')
                 if record['frame'] and record['frame']['metrics'].get('mass_residual_kg_s',0)>1e-6:
                     raise RuntimeError('质量守恒残差超限')
                 if record['frame'] and abs(record['frame']['metrics'].get('energy_residual_j',0))>100.:
                     raise RuntimeError('能量账本残差超限')
-                report['samples'].append({'elapsed_s':elapsed,'rss_bytes':memory,'workers':len(children),
+                report['samples'].append({'elapsed_s':elapsed,'rss_bytes':memory,'workers':len(workers),
+                    'other_children':sorted(c.name() for c in others),
                     'total_rows':record['total_rows'],'history_rows':len(history['rows']),
                     'storage':client.get('/api/v1/workspace/storage').json()})
                 save();time.sleep(min(30,max(.1,hours*3600-(time.monotonic()-started))))
@@ -121,8 +140,14 @@ def finalize(ctx): pass
             baseline=sum(samples[:10])/len(samples[:10]);report['warm_rss_bytes']=baseline
             report['peak_warm_rss_bytes']=max(samples)
             if max(samples)>baseline+max(64*1024**2,baseline*.25):raise RuntimeError('预热后内存增长超出验收阈值')
-        report['workers_after_stop']=len(process.children(recursive=True))
-        if report['workers_after_stop']:raise RuntimeError('停止后仍残留 Worker')
+        # Workers exit asynchronously after terminate(); give them the same grace as the tests.
+        deadline=time.monotonic()+30
+        workers,others=child_processes(process)
+        while workers and time.monotonic()<deadline:
+            time.sleep(.05);workers,others=child_processes(process)
+        report['workers_after_stop']=len(workers)
+        report['other_children_after_stop']=sorted(c.name() for c in others)
+        if workers:raise RuntimeError('停止后仍残留 Worker：'+'; '.join(' '.join(c.cmdline()) for c in workers))
         report['status']='completed'
     except BaseException as error:
         report['status']='failed';report['errors'].append(str(error));raise

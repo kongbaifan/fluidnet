@@ -84,6 +84,16 @@ python scripts/soak_workspace.py --status --output $soak.directory
 - 前一轮 `artifacts/soak-24h-20261015-141022` 在 63 分 20.75 秒后中断（3905 帧、189 次命令，进程已不存在），同样不计通过。
 - 重新验收需排除休眠影响、确认采样连续，并验证停止后 Worker 数为 0 与归档可重读；重跑前不要沿用本轮结论。
 
+### 「停止后仍残留 Worker」重新诊断（2026-10-25）
+
+结论：**这是计数误报，不是 Worker 泄漏。** 本轮仍不计通过（采样空洞未解决），但重跑前要修的是计数方式，不是 Worker 回收。
+
+- 该轮的 1787 个样本里 `workers` **从第一个样本起就恒为 3**，直到结束；直接在终端启动的各次短程运行（`soak-short-*`、`soak-resume-smoke-*`）都是 2，即阀门模块与控制脚本各 1 个 Worker。多出的 1 个并非运行中累积出来的。
+- 该轮由 PowerShell 隐藏窗口后台启动（`artifacts/active-soak.json`）。这种启动方式会给 python 进程挂一个 `conhost.exe` 控制台宿主子进程，存活到 python 退出为止。旧脚本用 `psutil.Process().children(recursive=True)` 的总数当 Worker 数，于是运行中是 2 + 1 = 3，停止后两个 Worker 正常退出，只剩 conhost，被记为 `workers_after_stop=1`。
+- 复现（2026-10-25，当时的 master `ee880c8`）：同样用 `Start-Process -WindowStyle Hidden` 启动 0.005 h 短程运行，旧脚本得到 `workers=3`、`status=failed`、`workers_after_stop=1`，与该轮特征一致；修正后的脚本得到 `workers=2`、`other_children=['conhost.exe']`、`status=completed`、`workers_after_stop=0`。
+- 回收路径另有回归测试 `tests/test_worker_reclaim_soak.py`：按 soak 顺序压缩执行 5 轮暂停/单步/继续 + 在线备份 + 停止 + 重开应用，检查除 conhost 外没有任何子进程残留；在当前代码、9e7e46d 之前和该轮 24 h 所用代码（ad24738）上都通过。
+- `scripts/soak_workspace.py` 现在只把命令行含 `fn_engine.worker` 的子进程计为 Worker，其他子进程按名称写入 `other_children` / `other_children_after_stop`，只作记录；停止后给 Worker 30 秒退出时间，仍有残留时报错并列出其命令行。
+
 ## 批量写入与锁范围（2026-10-18，v0.4.10）
 
 调研报告 P1 指出的问题：`jobs.py` 的全局 `wake` 锁覆盖了每帧 SQLite 事务与 Worker RPC，磁盘慢或 Worker 卡死时所有 API 调用一起停顿（实测慢盘 50 ms/次时快照 p95 约 58.6 ms、卡死 finalize 500 ms 时快照最长 515.8 ms）。本轮只改 `backend/fn_engine/jobs.py`（`storage.py`/`runtime.py` 未改：`save_run` 本就支持一次事务写多行，Worker close 只需移出锁），交付「锁外异步落盘 + 有界批量 + Worker RPC 锁外」，更大重构（跨运行合并事务、overview 增量落盘）列为后续项。
