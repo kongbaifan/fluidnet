@@ -361,17 +361,18 @@ def _parse_fluid(config: FluidConfig) -> FluidKey:
         if refprop_root() is None:
             _configure_refprop()  # raises PROPERTY_BACKEND_UNSUPPORTED with the install hint
         if "&" in name:
-            parts, fractions = [], []
+            parts: list[str] = []
+            component_fractions: list[float] = []
             for part in name.split("&"):
                 part = part.strip()
                 if not part.endswith("]") or part.count("[") != 1:
                     raise PropertyError("PROPERTY_RANGE", f"工质 {text} 的混合物写法应为 A[0.3]&B[0.7]")
                 component, raw = part[:-1].split("[", 1)
                 parts.append(component.strip())
-                fractions.extend(_fractions(text, raw, "组分比例"))
-            if len(fractions) != len(parts) or not all(parts) or abs(sum(fractions) - 1.0) > 1e-6:
+                component_fractions.extend(_fractions(text, raw, "组分比例"))
+            if len(component_fractions) != len(parts) or not all(parts) or abs(sum(component_fractions) - 1.0) > 1e-6:
                 raise PropertyError("PROPERTY_RANGE", f"工质 {text} 的组分比例之和必须为 1")
-            return backend, "&".join(parts), tuple(fractions), config.reference
+            return backend, "&".join(parts), tuple(component_fractions), config.reference
         if "[" in name:
             raise PropertyError("COMPOSITION_UNSUPPORTED", f"{text}：REFPROP 纯质不写比例；混合物写 A[0.3]&B[0.7] 或预定义的 名称.MIX")
         if not name:

@@ -25,12 +25,15 @@ def level_run(client, **changes):
 
 
 def step(client, run_id):
+    sequence = client.get('/api/v1/runs/' + run_id).json()['frame']['sequence']
     key = client.post(f'/api/v1/runs/{run_id}/command', json={'action': 'step'}).json()['command_id']
     for _ in range(500):
         events = client.get(f'/api/v1/runs/{run_id}/events').json()['events']
         if any(e.get('command_id') == key and e.get('command_status') == 'applied' for e in events):
             record = client.get('/api/v1/runs/' + run_id).json()
-            if record['status'] == 'paused':
+            # The receipt acknowledges scheduling; the paused run can still expose
+            # its old frame while advance() is executing outside the manager lock.
+            if record['status'] == 'paused' and record['frame']['sequence'] > sequence:
                 return record
         time.sleep(.01)
     pytest.fail('step not applied')

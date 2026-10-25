@@ -86,7 +86,7 @@ class ModuleStore:
         return list(definitions.values())
 
     def latest(self) -> list[ModuleDefinition]:
-        latest = {}
+        latest: dict[str, ModuleDefinition] = {}
         for module in self.definitions():
             if module.id not in latest or module.version > latest[module.id].version:
                 latest[module.id] = module
@@ -185,9 +185,9 @@ class ModuleStore:
                 temporary = Path(pending)
                 manifest = contract_model(module).model_dump(mode="json", exclude={"source", "package_path"})
                 (temporary / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-                (temporary / "module.py").write_text(module.source["runtime"], encoding="utf-8", newline="")
-                if "design" in module.source:
-                    (temporary / "design.py").write_text(module.source["design"], encoding="utf-8", newline="")
+                (temporary / "module.py").write_text(runtime, encoding="utf-8", newline="")
+                if design.strip():
+                    (temporary / "design.py").write_text(design, encoding="utf-8", newline="")
                 (temporary / "release.json").write_text(json.dumps(receipt, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
                 try:
                     os.rename(temporary, target)

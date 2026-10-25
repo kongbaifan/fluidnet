@@ -597,13 +597,14 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
             history, status = [], 'failed'
             frame = RunFrame(status='failed',valid=False,time_s=0,diagnostics=[diagnostic(error)])
         events = [{'type':status, 'time_s':float(frame.time_s)}]
+        history_rows = [f.model_dump(mode='json') for f in history]
         record = {'id':run_id,'status':status,'mode':request.mode,'request':request.model_dump(mode='json'),
-                  'frame':frame.model_dump(mode='json'),'history':[f.model_dump(mode='json') for f in history],
+                  'frame':frame.model_dump(mode='json'),'history':history_rows,
                   'events':events, 'total_rows':len(history)}
         if archive:
-            stride = 1 if len(record['history']) <= OVERVIEW_POINTS else 2
-            archive.save_run(record, list(enumerate(record['history'])), len(record['history']), 2001,
-                             {'rows': record['history'][::stride], 'stride': stride})
+            stride = 1 if len(history_rows) <= OVERVIEW_POINTS else 2
+            archive.save_run(record, list(enumerate(history_rows)), len(history_rows), 2001,
+                             {'rows': history_rows[::stride], 'stride': stride})
         with lock:
             runs[run_id] = record
             while len(runs) > RUN_RETENTION:

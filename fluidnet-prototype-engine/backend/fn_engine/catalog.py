@@ -115,6 +115,7 @@ def builtin_catalog() -> list[ModuleDefinition]:
                     definition.variables.append(definition.variables[-1].model_copy(update={'id':suffix}))
         for param in definition.parameters:
             if param.value_type == 'number':
+                assert param.unit is not None, '内置数值参数必须声明单位'
                 definition.variables.append(VariableSpec(id=f'param.{param.id}',label=param.label,quantity=param.unit.quantity,
                     unit=param.unit,source='parameter',parameter_id=param.id))
         if definition.solver_model == 'pipe':
@@ -202,8 +203,10 @@ def thermal_catalog() -> list[ModuleDefinition]:
             VariableSpec(id='state.cooling_energy_j', label='累计冷量', source='state', quantity='energy',
                          unit=UnitSpec(quantity='energy', canonical_unit='J', display_unit='kWh', display_scale=3600000))])
     for definition in (room, source):
-        definition.variables.extend(VariableSpec(id='param.' + p.id, label=p.label, source='parameter',
-            parameter_id=p.id, quantity=p.unit.quantity, unit=p.unit) for p in definition.parameters)
+        for p in definition.parameters:
+            assert p.unit is not None, '内置冷库参数必须声明单位'
+            definition.variables.append(VariableSpec(id='param.' + p.id, label=p.label, source='parameter',
+                parameter_id=p.id, quantity=p.unit.quantity, unit=p.unit))
     return [room, source]
 
 

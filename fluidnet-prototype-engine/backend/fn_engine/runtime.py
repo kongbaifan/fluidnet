@@ -14,9 +14,11 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Any
 from collections.abc import Mapping
+from fn_sdk import DiagnosticSeverity, RelationKind
 
 from .module_contracts import check_module_compatibility, definition_hash
 from .module_execution import InvocationState
+from .module_performance import ParentEvaluateCache
 from .module_diagnostics import exception_diagnostic, merge_diagnostics, MAX_MESSAGE_CHARS
 from .models import (
     CommitStepRequest,
@@ -76,7 +78,7 @@ class NetworkBuilder:
     def __init__(self):
         self.relations: list[NetworkRelation] = []
 
-    def _add(self, kind: str, channel: str, parameters: dict[str, Any]):
+    def _add(self, kind: RelationKind, channel: str, parameters: dict[str, Any]):
         self.relations.append(NetworkRelation(relation_id=channel, kind=kind, channel=channel, parameters=parameters))
 
     # heat_w is heat added to the fluid in this channel (W, negative = removed);
@@ -155,12 +157,12 @@ class ModuleContext:
     def var(self, name: str, value: Any):
         self.variables[name] = value
 
-    def diagnostic(self, code: str, message: str, severity: str = "warning"):
+    def diagnostic(self, code: str, message: str, severity: DiagnosticSeverity = "warning"):
         self.diagnostics = merge_diagnostics(self.diagnostics, [Diagnostic(code=code,
             message=message[:MAX_MESSAGE_CHARS], severity=severity, instance_id=self.execution.instance_id,
             phase=self.phase, time_s=self.time_s)])
 
-    def log(self, message: str, level: str = 'info'):
+    def log(self, message: str, level: DiagnosticSeverity = 'info'):
         self.diagnostic('MODULE_LOG', str(message), level)
 
     def heat(self, channel: str, heat_w: float):
@@ -206,6 +208,8 @@ def _load_module(definition: ModuleDefinition):
     source = module_source(definition)
     name = f"fluidnet_user_{definition.id}_{definition.version}"
     spec = importlib.util.spec_from_loader(name, loader=None)
+    if spec is None:
+        raise RuntimeErrorBase(f'无法为模块 {definition.id} 创建加载描述')
     module = importlib.util.module_from_spec(spec)
     try:
         exec(compile(source, f"<{definition.id}>", "exec"), module.__dict__)
@@ -496,6 +500,7 @@ class WorkerProcess:
         self._accepted_candidate = None
         self.cache_enabled = cache_enabled
         self.execution = InvocationState(run_id, instance_id or definition.id)
+        self._parent_cache = ParentEvaluateCache()
         self._invocations: dict[str, InvocationState] = {}
         self._definitions:dict[str,ModuleDefinition] = {}
         self.timeout_s = timeout_s
@@ -593,20 +598,31 @@ class WorkerProcess:
         try:
             return self._request_impl(payload)
         except RuntimeErrorBase as error:
-            if not error.diagnostics:
-                request = payload.get('request', {})
-                action = payload.get('action')
-                instance = request.get('instance_id', payload.get('instance_id', self.execution.instance_id))
-                info = ModuleExecutionInfo(phase='commit_step' if action == 'prepare_step' else
-                    action if action in {'initialize', 'evaluate', 'commit_step', 'finalize'} else 'manual',
-                    instance_id=instance, time_s=request.get('time_s'))
-                definition = self._definitions.get(payload.get('instance_id','default'),self.definition)
-                error.diagnostics = [exception_diagnostic(error, definition, info)]
-            else:
-                request=payload.get('request',{})
-                error.diagnostics=[diagnostic.model_copy(update={'instance_id':request.get('instance_id',payload.get('instance_id',self.execution.instance_id)),
-                    'phase':payload.get('action') if diagnostic.phase=='load' else diagnostic.phase}) if diagnostic.instance_id is None else diagnostic
-                    for diagnostic in error.diagnostics]
+            self._annotate_request_error(error, payload)
+            raise
+
+    def _annotate_request_error(self, error: RuntimeErrorBase, payload: dict[str, Any]) -> None:
+        if not error.diagnostics:
+            request = payload.get('request', {})
+            action = payload.get('action')
+            instance = request.get('instance_id', payload.get('instance_id', self.execution.instance_id))
+            info = ModuleExecutionInfo(phase='commit_step' if action == 'prepare_step' else
+                action if action in {'initialize', 'evaluate', 'commit_step', 'finalize'} else 'manual',
+                instance_id=instance, time_s=request.get('time_s'))
+            definition = self._definitions.get(payload.get('instance_id','default'),self.definition)
+            error.diagnostics = [exception_diagnostic(error, definition, info)]
+        else:
+            request=payload.get('request',{})
+            error.diagnostics=[diagnostic.model_copy(update={'instance_id':request.get('instance_id',payload.get('instance_id',self.execution.instance_id)),
+                'phase':payload.get('action') if diagnostic.phase=='load' else diagnostic.phase}) if diagnostic.instance_id is None else diagnostic
+                for diagnostic in error.diagnostics]
+
+    def _check_cache_process(self, request: EvaluateRequest, instance_id: str = 'default') -> None:
+        try:
+            self._ensure_process()
+        except RuntimeErrorBase as error:
+            self._annotate_request_error(error, {'action': 'evaluate', 'instance_id': instance_id,
+                                                'request': request.model_dump(mode='json')})
             raise
 
     def _request_impl(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -637,6 +653,7 @@ class WorkerProcess:
         return response
 
     def initialize(self):
+        self._parent_cache.clear()
         self._invocations['default'] = self.execution
         self._definitions['default'] = self.definition
         request = InitializeRequest(run_id=self.execution.run_id, instance_id=self.execution.instance_id,
@@ -653,6 +670,7 @@ class WorkerProcess:
     def update_parameters(self, parameters):
         self._request({'action': 'parameters', 'parameters': parameters})
         self.parameters = dict(parameters)
+        self._parent_cache.clear()
 
     def validate_entrypoint(self):
         return self._request({"action": "validate", "definition": self.definition.model_dump(mode="json")})
@@ -662,7 +680,20 @@ class WorkerProcess:
         current = request.model_copy(update={"readonly_state": {} if compact else deepcopy(self.state),
             'state_revision':self.state_revision if compact else None,
             "context": request.context if request.context is not None else self.execution.context()})
-        return EvaluateResponse.model_validate(self._request({"action": "evaluate", "request": current.model_dump(mode="json")}))
+        key = self._parent_cache.key(current) if compact else None
+        if key is not None:
+            self._check_cache_process(current)  # Keep failure diagnostics even without an RPC.
+            cached = self._parent_cache.get(key)
+            if cached is not None:
+                return cached
+        response = EvaluateResponse.model_validate(self._request({"action": "evaluate", "request": current.model_dump(mode="json")}))
+        if key is not None:
+            self._parent_cache.remember(key, response)
+        return response
+
+    @property
+    def parent_cache_hits(self):
+        return self._parent_cache.hits
 
     def commit_step(self, request: CommitStepRequest, channels: dict[str, ChannelResult] | None = None):
         candidate=self.prepare_step(request,channels)

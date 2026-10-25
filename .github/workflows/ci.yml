@@ -1,4 +1,4 @@
-# CI 门禁：后端引擎（ruff + mypy advisory + pytest/覆盖率 + 契约一致性）与前端（语法检查 + 浏览器冒烟）。
+# CI 门禁：后端引擎（ruff + mypy + pytest/覆盖率 + 契约一致性）与前端（语法检查 + 浏览器冒烟）。
 # 仓库根只是外壳，实际工程在 fluidnet-prototype-engine/ 下，所有命令统一在该目录执行。
 name: ci
 
@@ -71,10 +71,8 @@ jobs:
       # 阻塞门禁：pyflakes + 语法错误，规则集见 ruff.toml。
       - name: ruff lint
         run: python -m ruff check backend tests scripts modules examples/control_templates
-      # 类型检查目前为 advisory（宽松模式，基线 40 errors / 10 files，见 mypy.ini），
-      # 不阻塞合并；后续按模块收紧后再改为阻塞门禁。
-      - name: mypy（advisory，暂不阻塞）
-        continue-on-error: true
+      # 当前范围已清零并阻塞回归；未注解函数体的覆盖仍按模块逐步收紧。
+      - name: mypy 类型检查
         run: python -m mypy
       # 覆盖率 floor 配置在 pyproject.toml [tool.coverage.report].fail_under，
       # 低于 floor 时 pytest 以非零退出码失败。

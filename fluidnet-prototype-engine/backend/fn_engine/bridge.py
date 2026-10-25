@@ -173,7 +173,7 @@ def normalize_prototype_export(data: dict[str, Any]) -> Project:
     diagnostics.append(Diagnostic(code='THERMAL_SCOPE' if thermal else 'HYDRAULIC_SCOPE', severity='info',
         message='库房热系统按已应用参数计算热平衡；热端口不传递工质压力或质量流量' if thermal else
         '按已应用参数与所选工况计算各回路工质的水力与端口焓、温度；动态状态按隐式 Euler 积分，Python 模块及项目控制在独立 Worker 执行'))
-    return Project(id=raw['id'], name=raw.get('name','原型项目'), description=raw.get('description',''),
+    return Project.model_validate(dict(id=raw['id'], name=raw.get('name','原型项目'), description=raw.get('description',''),
         fluid=FluidConfig(fluid=fluid_text or PROTOTYPE_MEDIA[medium], reference=reference),
         modules=list(definitions.values()),instances=instances,connections=connections,import_diagnostics=diagnostics,
         controllers=raw.get('controllers', []),
@@ -187,4 +187,4 @@ def normalize_prototype_export(data: dict[str, Any]) -> Project:
         solver=SolverOptions(pressure_tolerance_pa=solver.get('pressureAtol',1.),mass_tolerance_kg_s=solver.get('massAtol',1e-8),
                              max_iterations=solver.get('maxIter',80),dynamic_step_s=min(10., solver.get('dt',.1)) if thermal else solver.get('dt',.1),
                              # S2：原型导出文件缺 hydraulicMethod 时按旧行为 dense；新建项目由前端显式写 auto。
-                             hydraulic_method=solver.get('hydraulicMethod','dense')))
+                             hydraulic_method=solver.get('hydraulicMethod','dense'))))

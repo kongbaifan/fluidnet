@@ -5,6 +5,7 @@ from .models import InitializeRequest, EvaluateResponse, ModuleStepCandidate, Mo
 from .compiler import instance_fluids
 from .module_contracts import check_module_compatibility
 from .module_execution import InvocationState, new_identity
+from .module_performance import ParentEvaluateCache
 from .runtime import WorkerProcess, module_content_hash, module_definition_hash
 
 
@@ -14,6 +15,7 @@ class Handle:
         self.state = {}
         self.state_revision = 0
         self._accepted_candidate = None
+        self._parent_cache = ParentEvaluateCache()
         self.execution = InvocationState(run_id, self.id)
         worker._invocations[self.id] = self.execution
         worker._definitions[self.id] = definition
@@ -27,6 +29,7 @@ class Handle:
 
     def update_parameters(self, parameters):
         self.worker._request({'action':'parameters','instance_id':self.id,'parameters':parameters})
+        self._parent_cache.clear()
 
     def commit_step(self, request, channels=None):
         from .module_state import checked_state
@@ -88,6 +91,8 @@ class BatchRunners(dict):
 
     def evaluate(self, requests):
         batches={worker:{} for worker in self.workers}
+        responses, cache_keys = {}, {}
+        checked_workers = set()
         for key,request in requests.items():
             handle=self[key]
             definition=handle.worker._definitions[key]
@@ -95,12 +100,34 @@ class BatchRunners(dict):
                 request=request.model_copy(update={'readonly_state':{},'state_revision':handle.state_revision})
             if request.context is None:
                 request=request.model_copy(update={'context':self[key].execution.context()})
+            if handle.worker.cache_enabled and definition.pure_evaluate:
+                if handle.worker not in checked_workers:
+                    handle.worker._check_cache_process(request, key)
+                    checked_workers.add(handle.worker)
+                cache_key = handle._parent_cache.key(request)
+                if cache_key is not None:
+                    cache_keys[key] = cache_key
+                    cached = handle._parent_cache.get(cache_key)
+                    if cached is not None:
+                        responses[key] = cached
+                        continue
             batches[self[key].worker][key]={'action':'evaluate','instance_id':key,'request':request.model_dump(mode='json')}
         def execute(item):
             worker,items=item
             return worker._request({'action':'batch','items':items})
-        results=list(self.pool.map(execute,batches.items())) if self.pool else [execute(item) for item in batches.items()]
-        return {key:EvaluateResponse.model_validate(value) for result in results for key,value in result.items()}
+        pending = [(worker, items) for worker, items in batches.items() if items]
+        results=list(self.pool.map(execute,pending)) if self.pool else [execute(item) for item in pending]
+        for result in results:
+            for key, value in result.items():
+                response = EvaluateResponse.model_validate(value)
+                if key in cache_keys:
+                    self[key]._parent_cache.remember(cache_keys[key], response)
+                responses[key] = response
+        return responses
+
+    @property
+    def parent_cache_hits(self):
+        return sum(handle._parent_cache.hits for handle in self.values())
 
     @property
     def request_count(self):

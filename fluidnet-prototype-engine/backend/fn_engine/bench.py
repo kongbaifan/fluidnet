@@ -8,7 +8,7 @@ from .catalog import catalog_map
 from .compiler import compile_project
 from .models import (
     CommitStepRequest, Connection, CircuitFluid, Domain, Endpoint, EvaluateRequest, ModuleDefinition,
-    ModuleInstance, ModuleTestRequest, ModuleTestResponse, Project,
+    ModuleInstance, ModuleTestRequest, ModuleTestResponse, Project, RunFrame,
 )
 from .properties import property_service
 from .runtime import ChannelResult, RuntimeErrorBase, WorkerProcess, module_content_hash
@@ -90,7 +90,8 @@ def run_module_test(request: ModuleTestRequest) -> ModuleTestResponse:
     try:
         initial_state = deepcopy(runner.initialize())
         service = property_service(request.fluid) if project.solver.thermal else None
-        history, previous = [], None
+        history: list[RunFrame] = []
+        previous = None
         from .module_transactions import ModuleStepTransaction
         for index in range(math.ceil(request.duration_s / request.dt_s) + 1):
             time_s = min(index * request.dt_s, request.duration_s)

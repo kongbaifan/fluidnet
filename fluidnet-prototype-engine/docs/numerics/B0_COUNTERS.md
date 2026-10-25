@@ -22,18 +22,19 @@
 | `perturbation_calls` | 次 | `residual_calls - nfev`，即旧指标漏掉的 Jacobian 扰动调用 |
 | `solver_attempts` | 次 | `least_squares` 启动次数（温启动失败后的冷启动重试会计入） |
 | `rpc_batches` | 次 | 模块 evaluate 的 RPC 批次数 |
-| `rpc_instances` | 次 | 模块 evaluate 的实例次数 |
+| `rpc_instances` | 次 | 实际 evaluate RPC 内的实例次数（不含父进程缓存命中） |
+| `parent_cache_hits` | 次 | 父进程直接复用的模块实例结果数，不发生 RPC |
 | `worker_requests` | 次 | 相关 Worker 实际收发的 RPC 总数（含 initialize/parameters/commit_step） |
 | `module_evaluations` | 次 | 模块 evaluate 轮数（原 `iteration_id`） |
 | `timing_s` | s | 分项墙钟：`residual`、`least_squares`、`solve_total` |
 
 ## 3. 两种 RPC 单位必须分开
 
-- 批量 Worker（`batch_modules=True` 且 Python 实例 >1）：一次 `evaluate` 里每个分片只发**一个**
-  `batch` RPC，`rpc_batches` 记 1、`rpc_instances` 记请求实例数。
+- 批量 Worker（`batch_modules=True` 且 Python 实例 >1）：一次 `evaluate` 里每个有未命中实例的分片发**一个**
+  `batch` RPC，`rpc_batches` 记非空分片数、`rpc_instances` 记这些分片实际发送的实例数。
 - 逐实例 Worker：每个实例一次 RPC，`rpc_batches == rpc_instances`。
 
-比较跨配置的“RPC 次数”时只能用 `rpc_batches`，否则批量模式会被高估为逐实例次数。
+比较跨配置的“RPC 次数”使用 `rpc_batches`。2026-10-25 起按实际非空分片统计，多分片一次求值可能产生多个 RPC；全部命中父进程缓存时记 0。`worker_requests` 保留 Worker 生命周期累计值，跨帧比较时取差值。
 
 ## 4. 计时口径
 

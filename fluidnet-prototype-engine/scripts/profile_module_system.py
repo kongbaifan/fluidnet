@@ -1,6 +1,7 @@
 """Fixed cold-5/hot-7 A/B profiles of small/medium/large mixed fluid networks."""
 import argparse
 import ctypes
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -59,11 +60,17 @@ def project(size,shards,optimized):
     return p
 
 
-def measure(size,shards,optimized,hot):
+MODES = {'baseline': (False, False), 'cache': (True, False),
+         'jacobian': (False, True), 'both': (True, True)}
+
+
+def measure(size,shards,optimized,hot,*,mode=None):
     from fn_engine.compiler import compile_project
     from fn_engine.solver import _python_runners,_close_runners,solve_network
     from fn_engine.runtime import WorkerProcess,module_content_hash,module_definition_hash
     started=time.perf_counter();p=project(size,shards,optimized)
+    mode = mode or ('both' if optimized else 'baseline')
+    p.solver.module_cache, p.solver.module_mixed_jacobian = MODES[mode]
     at=time.perf_counter();network=compile_project(p);compile_s=time.perf_counter()-at
     trace={'requests':0,'request_s':0.,'serialize_s':0.,'instance_evaluations':0,'cache_hits':0}
     original=WorkerProcess._request
@@ -78,6 +85,10 @@ def measure(size,shards,optimized,hot):
         return response
     WorkerProcess._request=request
     runners={};stop=threading.Event();peak=[rss(os.getpid())]
+    def snapshot():
+        hits = (runners.parent_cache_hits if hasattr(runners, 'parent_cache_hits') else
+                sum(getattr(runner, 'parent_cache_hits', 0) for runner in runners.values()))
+        return {**trace, 'parent_cache_hits': hits}
     def memory():
         while not stop.wait(.025):
             workers=getattr(runners,'workers',list(runners.values()))
@@ -91,14 +102,16 @@ def measure(size,shards,optimized,hot):
         if hot:
             solve_network(network,runners,warm=warm) # warm-up excluded
             for _ in range(7):
-                before=dict(trace);at=time.perf_counter();warm=solve_network(network,runners,warm=warm)
+                before=snapshot();at=time.perf_counter();warm=solve_network(network,runners,warm=warm)
                 samples.append({'wall_s':time.perf_counter()-at,'pressure_residual_pa':warm.hydraulic.pressure_residual,
                     'mass_residual_kg_s':warm.hydraulic.mass_residual,'flow_kg_s':float(warm.hydraulic.flows[0]),
-                    'counters':warm.hydraulic.counters,'rpc':{key:trace[key]-before[key] for key in trace}})
+                    'counters':warm.hydraulic.counters,'rpc':{key:value-before[key] for key,value in snapshot().items()}})
         module=next(m for m in p.modules if m.runtime=='python')
-        return {'size':size,'shards':shards,'optimized':optimized,'compile_s':compile_s,'initialization_s':initialization_s,
+        return {'size':size,'shards':shards,'optimized':mode=='both','mode':mode,
+            'cache_enabled':p.solver.module_cache,'mixed_jacobian_enabled':p.solver.module_mixed_jacobian,
+            'compile_s':compile_s,'initialization_s':initialization_s,
             'first_s':first_s,'first_available_s':first_available_s,'peak_tree_rss_bytes':peak[0],
-            'trace':trace,'hot_samples':samples,'content_hash':module_content_hash(module),'definition_hash':module_definition_hash(module),
+            'trace':snapshot(),'hot_samples':samples,'content_hash':module_content_hash(module),'definition_hash':module_definition_hash(module),
             'project':p.model_dump(mode='json'),'passed':warm.hydraulic.pressure_residual<=1 and warm.hydraulic.mass_residual<=1e-8}
     finally:
         stop.set();thread.join(timeout=1);_close_runners(runners);WorkerProcess._request=original
@@ -108,38 +121,51 @@ def main():
     parser=argparse.ArgumentParser();parser.add_argument('--output',default='artifacts/module-system/98dadd5/MOD-P5')
     parser.add_argument('--worker',action='store_true');parser.add_argument('--size',type=int,default=4)
     parser.add_argument('--shards',type=int,default=1);parser.add_argument('--optimized',action='store_true')
+    parser.add_argument('--mode', choices=MODES)
+    parser.add_argument('--ablation', action='store_true', help='Measure each switch separately as well as both.')
+    parser.add_argument('--hot-only', action='store_true', help='Diagnostic hot runs; excludes cold-start acceptance.')
+    parser.add_argument('--sizes', type=int, nargs='+', default=[4,16,40])
+    parser.add_argument('--shard-counts', type=int, nargs='+', default=[1,2])
     args=parser.parse_args()
     if args.worker:
-        print(json.dumps(measure(args.size,args.shards,args.optimized,False)));return
+        print(json.dumps(measure(args.size,args.shards,args.optimized,False,mode=args.mode)));return
     target=Path(args.output).resolve()
     if not target.is_relative_to((ROOT/'artifacts/module-system').resolve()) or target.exists():
         raise ValueError('性能证据必须写入新的 artifacts/module-system 目录')
     target.mkdir(parents=True)
     rows=[]
-    for size in [4,16,40]:
-        for shards in [1,2]:
-            for optimized in [False,True]:
+    for size in args.sizes:
+        for shards in args.shard_counts:
+            for mode in (MODES if args.ablation else ['baseline','both']):
+                optimized = mode == 'both'
                 cold=[]
-                for sample in range(5):
-                    command=[sys.executable,__file__,'--worker','--size',str(size),'--shards',str(shards)]+(['--optimized'] if optimized else [])
+                for sample in range(0 if args.hot_only else 5):
+                    command=[sys.executable,__file__,'--worker','--size',str(size),'--shards',str(shards),'--mode',mode]
                     start=time.perf_counter();result=subprocess.run(command,cwd=ROOT,capture_output=True,text=True,encoding='utf-8')
                     if result.returncode:raise RuntimeError(result.stderr)
                     record=json.loads(result.stdout);record['process_wall_s']=time.perf_counter()-start;cold.append(record)
-                hot=measure(size,shards,optimized,True)
-                row={'size':size,'shards':shards,'optimized':optimized,'cold_samples':cold,'hot':hot,
-                    'cold_median_s':statistics.median(r['process_wall_s'] for r in cold),
+                hot=measure(size,shards,optimized,True,mode=mode)
+                row={'size':size,'shards':shards,'optimized':optimized,'mode':mode,'cold_samples':cold,'hot':hot,
+                    'cold_median_s':statistics.median(r['process_wall_s'] for r in cold) if cold else None,
                     'hot_median_s':statistics.median(r['wall_s'] for r in hot['hot_samples']),
                     'failures':sum(not r['passed'] for r in cold)+sum(r['pressure_residual_pa']>1 or r['mass_residual_kg_s']>1e-8 for r in hot['hot_samples'])}
-                (target/f'{size}-{shards}-{int(optimized)}.json').write_text(json.dumps(row,ensure_ascii=False,indent=2),encoding='utf-8')
-                rows.append(row);print(json.dumps({key:row[key] for key in ['size','shards','optimized','cold_median_s','hot_median_s','failures']}),flush=True)
+                label = mode if args.ablation else str(int(optimized))
+                (target/f'{size}-{shards}-{label}.json').write_text(json.dumps(row,ensure_ascii=False,indent=2),encoding='utf-8')
+                rows.append(row);print(json.dumps({key:row[key] for key in ['size','shards','mode','cold_median_s','hot_median_s','failures']}),flush=True)
     comparisons=[]
-    for base,optimized in zip(rows[::2],rows[1::2],strict=True):
+    for optimized in (row for row in rows if row['mode'] != 'baseline'):
+        base = next(row for row in rows if row['mode']=='baseline' and
+                    (row['size'],row['shards'])==(optimized['size'],optimized['shards']))
         gain=1-optimized['hot_median_s']/base['hot_median_s']
-        comparisons.append({'size':base['size'],'shards':base['shards'],'hot_improvement':gain,'target_met':gain>=.2,
+        comparisons.append({'size':base['size'],'shards':base['shards'],'mode':optimized['mode'],'hot_improvement':gain,'target_met':gain>=.2,
             'equivalent_flow':abs(base['hot']['hot_samples'][-1]['flow_kg_s']-optimized['hot']['hot_samples'][-1]['flow_kg_s'])<=1e-8+1e-6*abs(base['hot']['hot_samples'][-1]['flow_kg_s'])})
     summary={'environment':{'python':sys.version,'platform':platform.platform(),'processor':platform.processor(),'threads':1},
-        'protocol':{'cold':5,'hot':7,'warmup':1,'timing_overlap':'RPC includes serialization/worker execution; not additive to solve wall time'},
+        'protocol':{'cold':0 if args.hot_only else 5,'hot':7,'warmup':1,
+                    'ablation':args.ablation,'timing_overlap':'RPC includes serialization/worker execution; not additive to solve wall time'},
         'comparisons':comparisons,'defaults_enabled':False,'reason':'Optional optimizations remain off pending workload benefit and review.'}
+    summary['source_sha256'] = {path:hashlib.sha256((ROOT/path).read_bytes()).hexdigest() for path in (
+        'backend/fn_engine/solver.py', 'backend/fn_engine/runtime.py', 'backend/fn_engine/batch.py',
+        'backend/fn_engine/module_performance.py', 'scripts/profile_module_system.py')}
     (target/'report.json').write_text(json.dumps(summary,ensure_ascii=False,indent=2),encoding='utf-8')
 
 

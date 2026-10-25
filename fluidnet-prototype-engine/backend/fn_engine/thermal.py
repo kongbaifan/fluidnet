@@ -334,7 +334,7 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
     edges = [(upstream[j], downstream[j]) for j in flowing]
     for _, a, b, _ in exchangers:
         edges += [(upstream[a], downstream[b]), (upstream[b], downstream[a])]
-    adjacency = [[] for _ in range(n)]
+    adjacency: list[list[int]] = [[] for _ in range(n)]
     for u, v in edges:
         adjacency[u].append(v)
 
@@ -559,6 +559,7 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
         if not nonlinear:
             h = candidate
             break
+        assert states is not None  # Nonlinear iterations always evaluate node states above.
         change = max((abs(candidate[k] - h[k]) / (states[k].specific_heat_j_kg_k or 4180.0) for k in range(n)), default=0.0)
         if change < options.thermal_tolerance_k:
             if module_heat is not None:

@@ -22,7 +22,7 @@ def main():
         '--cov-report=term-missing','--cov-report=xml:'+str(target/'coverage.xml')],False),
         ('ruff',[sys.executable,'-m','ruff','check','backend','tests','scripts','modules','examples'],False),
         ('sdk-mypy',[sys.executable,'-m','mypy','--config-file','mypy-sdk.ini'],False),
-        ('backend-mypy',[sys.executable,'-m','mypy'],True),
+        ('backend-mypy',[sys.executable,'-m','mypy'],False),
         ('contracts',[sys.executable,'scripts/generate_contracts.py','--check'],False)]
     if args.frontend:
         commands += [('frontend-check',['cmd','/c','npm','run','check'],False),('browser',['cmd','/c','npm','run','test:browser'],False)]

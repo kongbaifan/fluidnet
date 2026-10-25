@@ -265,6 +265,10 @@ def check_fluid_conditions(instance_id: str, params: dict, solver_model: str, se
     if solver_model != 'pressure_source':
         return
     pressure, temperature = params.get('pressure_pa'), params.get('temperature_k')
+    if not isinstance(pressure, (int, float)) or isinstance(pressure, bool) or not math.isfinite(pressure):
+        raise CompilationError('PARAMETER_INVALID', f'{instance_id}.pressure_pa 必须是有限数值', instance_id, 'pressure_pa')
+    if not isinstance(temperature, (int, float)) or isinstance(temperature, bool) or not math.isfinite(temperature):
+        raise CompilationError('PARAMETER_INVALID', f'{instance_id}.temperature_k 必须是有限数值', instance_id, 'temperature_k')
     if limits['p_max_pa'] is not None and pressure > limits['p_max_pa']:
         raise CompilationError('PARAMETER_RANGE', f'{instance_id}.pressure_pa = {pressure:g} Pa 超出 {name} 的最高压力 '
                                f'{limits["p_max_pa"]:g} Pa', instance_id, 'pressure_pa')
@@ -456,7 +460,10 @@ def compile_project(project: Project) -> CompiledNetwork:
         if modules[inst.module_id].runtime == 'builtin':
             check_fluid_conditions(inst.id, parameters[inst.id], modules[inst.module_id].solver_model, service_of(inst.id),
                                    project.solver.thermal)
-    branches, fixed, fixed_temperatures, storage = [], {}, {}, {}
+    branches: list[CompiledBranch] = []
+    fixed: dict[int, float] = {}
+    fixed_temperatures: dict[int, float] = {}
+    storage: dict[int, StorageSpec] = {}
     for inst in project.instances:
         definition, params = modules[inst.module_id], parameters[inst.id]
         if definition.solver_model == 'pressure_source':
@@ -617,7 +624,7 @@ def circuit_info(network: CompiledNetwork) -> list[dict]:
         from .refrigeration.station import station_circuits
         return station_circuits(network)
     count = len(network.circuit_fluids) or 1
-    ports = [[] for _ in range(count)]
+    ports: list[list[str]] = [[] for _ in range(count)]
     for key, node in network.port_nodes.items():
         ports[network.node_circuit[node] if network.node_circuit else 0].append(key)
     return [{'id': i, 'fluid': network.circuit_fluids[i] if network.circuit_fluids else network.project.fluid,

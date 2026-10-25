@@ -44,7 +44,18 @@ JSON 状态上限为 64 KiB、32 层、16384 个值；只接受字符串键、JS
 
 缺声明或 conservative 模式依赖全部端口；tracked 模式跟踪公开端口读取，越声明读取拒绝，保留保守默认。声明不是对任意 Python 全部分支的形式证明。
 
-module_mixed_jacobian 与 module_cache 默认关闭。混合矩阵使用内置解析行与模块完整残差差分行；可选声明导数与同工况差分验证，不符、非光滑或无声明时保留差分。缓存仅用于明确的 pure_evaluate，精确键包含输入、时间、状态修订、参数、工质及双哈希；读取请求身份的回调不缓存，不对浮点分桶。
+module_mixed_jacobian 与 module_cache 默认关闭。混合矩阵使用内置解析行与模块完整残差差分行；模块列按完整端口依赖或受检查的声明分组扰动，稀疏求解不创建完整稠密矩阵。可选声明导数仍与同工况差分验证，不符、非光滑或无声明时保留差分。
+
+缓存仅用于明确的 pure_evaluate，不对浮点分桶。Worker 的精确键包含输入、时间、状态修订、参数、工质及双哈希；读取请求身份的回调不缓存。父进程只保存 Worker 已返回 `cache_hit=true` 的结果，后续相同请求可直接复用而省去 RPC；每次返回独立深拷贝，仍检查 Worker 存活。父进程缓存绑定初始化时的模块版本/双哈希及工质，重新初始化或更新参数时清空；时间、完整端口数据、运行/实例和接受状态修订改变时失效。每实例最多 64 项，单项输入键和结果各不超过 16 KiB。失败候选不改变接受修订，不会污染缓存。
+
+性能验证可运行 `python scripts/profile_module_system.py --output artifacts/module-system/<新目录> --ablation`，分别记录默认、仅缓存、仅混合求导和两者开启；默认每组冷启动 5 次、热态预热后 7 次。`--hot-only` 只作热态诊断，不作为冷启动验收。`rpc.parent_cache_hits` 和实际请求计数分别报告，不能把父进程命中算作 Worker 调用。实测与边界见 [性能修复记录](results/PERFORMANCE_REPAIR.md)。
+
+验证目标工程后，可在编译前显式选择优化路径：
+
+```python
+project.solver.module_mixed_jacobian = True
+project.solver.module_cache = True  # 仅对声明 pure_evaluate 的模块生效
+```
 
 hydraulic.signed_start.v1 是新 SDK 被动模块的可选能力：固定边界时按压差选择正、反、零流启动值。旧合同保留原启动路径。主动泵曲线保持自己的工作点和方向限制。
 
