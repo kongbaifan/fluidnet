@@ -747,8 +747,17 @@ window.createEngineClient = function (ui) {
   async function liveCommand(owner, action) {
     try {
       if(owner.run.live && owner.run.runId) {
-        await confirmedCommand(owner,{action:action==='run'?'resume':action});
-        return;
+        try {
+          await confirmedCommand(owner,{action:action==='run'?'resume':action});
+          return;
+        } catch(error) {
+          // A saved or reloaded page can still hold a run that finished meanwhile; sync its
+          // final state, then 运行/单步 start a new run instead of failing on the stale id.
+          if(error.code!=='RUN_ALREADY_FINISHED') throw error;
+          await pollLive(owner);
+          owner.run.live=false; owner.run.runId=null; ui.persist();
+          if(action==='pause'||action==='stop') { ui.render(); return; }
+        }
       }
       if(action==='pause'||action==='stop') return;
       if(pending.has(owner.id)) return;
