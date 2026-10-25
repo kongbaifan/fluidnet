@@ -1470,7 +1470,9 @@ function renderDialog(focus = false) {
   if (!modal) { layer.innerHTML = ''; return; }
   if (!focus && layer.firstElementChild) return;
   layer.innerHTML = `<div class="dialog-backdrop"><form class="dialog${modal.wide ? ' wide' : ''}" id="dialog-form" role="dialog" aria-modal="true" aria-labelledby="dialog-title"><header class="dialog-head"><div class="grow"><h2 id="dialog-title">${esc(modal.title)}</h2><p>${esc(modal.description)}</p></div>${ibtn('close-dialog', '关闭弹窗', 'X')}</header><div class="dialog-body"><div id="dialog-error" class="dialog-error" role="alert" hidden></div>${modal.body}</div><footer class="dialog-footer">${btn('close-dialog', modal.onSubmit ? '取消' : '关闭')}${modal.onSubmit ? `<button class="btn primary" type="submit">${esc(modal.submitLabel)}</button>` : ''}</footer></form></div>`;
-  if (focus) requestAnimationFrame(() => (layer.querySelector('input:not([type=hidden]),select,textarea') || layer.querySelector('button'))?.focus());
+  // Initial focus runs a frame later; skip it once the user (or a test) has already focused a
+  // field in this dialog, otherwise fast typing lands in the first field instead.
+  if (focus) requestAnimationFrame(() => { if (!layer.contains(document.activeElement)) (layer.querySelector('input:not([type=hidden]),select,textarea') || layer.querySelector('button'))?.focus(); });
 }
 function closeDialog() {
   const returnFocus = modal?.returnFocus;
