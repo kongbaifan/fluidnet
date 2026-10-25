@@ -48,7 +48,7 @@ module_mixed_jacobian 与 module_cache 默认关闭。混合矩阵使用内置�
 
 缓存仅用于明确的 pure_evaluate，不对浮点分桶。Worker 的精确键包含输入、时间、状态修订、参数、工质及双哈希；读取请求身份的回调不缓存。父进程只保存 Worker 已返回 `cache_hit=true` 的结果，后续相同请求可直接复用而省去 RPC；每次返回独立深拷贝，仍检查 Worker 存活。父进程缓存绑定初始化时的模块版本/双哈希及工质，重新初始化或更新参数时清空；时间、完整端口数据、运行/实例和接受状态修订改变时失效。每实例最多 64 项，单项输入键和结果各不超过 16 KiB。失败候选不改变接受修订，不会污染缓存。
 
-性能验证可运行 `python scripts/profile_module_system.py --output artifacts/module-system/<新目录> --ablation`，分别记录默认、仅缓存、仅混合求导和两者开启；默认每组冷启动 5 次、热态预热后 7 次。`--hot-only` 只作热态诊断，不作为冷启动验收。`rpc.parent_cache_hits` 和实际请求计数分别报告，不能把父进程命中算作 Worker 调用。实测与边界见 [性能修复记录](results/PERFORMANCE_REPAIR.md)。
+性能验证可运行 `python scripts/profile_module_system.py --output artifacts/module-system/<新目录> --ablation`，分别记录默认、仅缓存、仅混合求导和两者开启；默认每组冷启动 5 次、热态预热后 7 次。`--hot-only` 只作热态诊断，不作为冷启动验收。`rpc.parent_cache_hits` 和实际请求计数分别报告，不能把父进程命中算作 Worker 调用。实测与边界见 [性能修复记录](results/PERFORMANCE_REPAIR.md)。工程案例开关对照用 `python scripts/engineering_acceptance.py --output artifacts/engineering/<新目录>`，结果见 [工程案例对照](results/ENGINEERING_ACCEPTANCE.md)。
 
 验证目标工程后，可在编译前显式选择优化路径：
 
