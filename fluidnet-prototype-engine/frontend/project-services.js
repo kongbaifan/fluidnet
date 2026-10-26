@@ -5,13 +5,8 @@ window.createProjectServices = function ({request, ui, normalize, health, authHe
   let saves = Promise.resolve();
   let projectRevisions={...(ui.state().projectRevisions||{})};
   const clone=value=>JSON.parse(JSON.stringify(value));
-  function script(owner) {
-    if (owner.controlLanguage !== 'python') throw Error('请先将旧脚本迁移为 Python，再启用控制。');
-    const names = value => [...new Set((value || '').split(/[\s,，]+/).filter(Boolean))];
-    return {id:'control', language:'python', enabled:!!owner.controlEnabled, source:owner.control,
-      sample_s:Number(owner.controlConfig.period)/1000, inputs:names(owner.controlInputs), outputs:names(owner.controlOutputs)};
-  }
-  function prepare(owner) { owner.controlScripts = owner.controlEnabled ? [script(owner)] : []; }
+  const controls = window.FluidNetControls;
+  function prepare(owner) { controls.normalize(owner); }
   async function loadWorkspace(force=false) {
     if (!health()?.capabilities?.persistent_workspace) return;
     const remote = await request('/workspace');
@@ -43,10 +38,12 @@ window.createProjectServices = function ({request, ui, normalize, health, authHe
     return job;
   }
   async function previewControl(owner) {
-    const definition=script(owner);
+    const definition=controls.selectedScript(owner);
     // Preview must also work for preserved legacy text after selecting Python,
     // without requiring that the control be enabled on the project.
-    const project=await normalize({...owner,controlEnabled:false});
+    const candidate=clone(owner);
+    candidate.controlPrograms.forEach(program=>program.enabled=false);
+    const project=await normalize(candidate);
     return request('/controls/preview',{project,script:definition});
   }
   async function refreshArchives() {
@@ -157,9 +154,7 @@ window.createProjectServices = function ({request, ui, normalize, health, authHe
     document.project.scenarios=clone(preview.project.scenarios);
     for(const scenario of document.project.scenarios || [])for(const id of affected)if(scenario.overrides[id])scenario.overrides[id]=display(scenario.overrides[id]);
     document.project.controllers=clone(preview.project.controllers);
-    document.project.controlScripts=clone(preview.project.control_scripts);
-    const control=preview.project.control_scripts.find(script=>script.id==='control');
-    if(control){document.project.control=control.source;document.project.controlInputs=control.inputs.join('\n');document.project.controlOutputs=control.outputs.join('\n');document.project.controlLanguage='python';document.project.controlEnabled=control.enabled;}
+    controls.replaceScripts(document.project,preview.project.control_scripts);
     for(const chart of document.charts || []){
       if(chart.canonicalKey)chart.canonicalKey=reference(chart.canonicalKey);
       if(chart.identifier)chart.identifier=reference(chart.identifier);

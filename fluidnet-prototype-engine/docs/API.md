@@ -250,13 +250,29 @@ POST /runs 对类型正确但编译或求解失败的请求仍创建可查询的
 
 ## 独立验证台契约
 
-`ModuleTestRequest` 接收完整 Python `module`、规范单位 `parameters`、入口/出口绝对压力、温度、`duration_s` 和 `dt_s`。测试夹具为每条启用通路各建一组入口/出口压力边界，所有入口共用 `inlet_pressure_pa`、所有出口共用 `outlet_pressure_pa`；多通路模块因此一次求解全部通路。
+`ModuleTestRequest` 接收完整 Python `module`、规范单位 `parameters`、入口/出口绝对压力、温度、`duration_s` 和 `dt_s`。测试夹具为每条启用通路各建一组入口/出口压力边界；未覆盖的通路使用通用压力和温度，`channel_boundaries` 可独立指定各通路的压力、温度与工质。存在某通路覆盖时，该通路使用 `ChannelTestBoundary` 的显式值或默认值。多通路模块在同一个网络中求解。
 
 后端使用相同编译器和求解器建立测试网络。先采样 t=0，不提交状态；随后每个收敛时间步提交一次，最后不足整步时使用实际 dt。`ctx.channel(id)` 因此获得真实质量流量与压降。
 
 响应包含初始 `state`、最终 `evaluation`、最终 `committed`、最后 `frame` 和全部 `history`。变量使用 `D1.*` 路径，状态使用 `D1.state.*`。失败返回 422/detail Diagnostic；没有伪造的收敛残差。
 
 Worker RPC 超时默认 10 秒，超时返回 `MODULE_RUNTIME_TIMEOUT` 并终止进程；源码异常或缺失通路返回 `MODULE_RUNTIME_ERROR`。所有完成/失败路径都回收 Worker。通信显式使用 UTF-8，模块 print 不进入 JSON 通道。
+
+`POST /api/v1/modules/test-suite` 接收 `module` 和 1–64 项 `cases`。每项包含唯一 `id`、`conditions` 和可选 `assertions`，例如：
+
+```json
+{
+  "id": "forward",
+  "conditions": {"inlet_pressure_pa": 250000, "outlet_pressure_pa": 120000},
+  "assertions": [
+    {"key": "D1.in0.pressure_pa", "expected": 250000, "absolute_tolerance": 0.01, "relative_tolerance": 0}
+  ]
+}
+```
+
+断言使用最终帧和规范单位，要求 `abs(actual-expected) <= max(absolute_tolerance, relative_tolerance*abs(expected))`。预期值必须是有限数值，容差必须有限且非负，同一工况不可重复声明变量键。每项最多 256 条断言。响应回显预期值与容差，并包含 `actual`、`absolute_error`、`allowed_error`、`passed`、`status`、`message`；变量缺失、非数值和求解失败均明确报告。数值误差超过浮点表示范围时返回 `null` 并给出说明，比较本身保留精确判定。
+
+全部结果帧有效且全部断言通过才判工况通过，所有工况通过才判组合通过。任一工况失败仍执行后续工况；未设置断言时兼容旧行为及输入哈希，有断言时 `input_hash` 同时绑定边界、参数和断言。请求字段不合法返回 422；非有限 JSON 输入的错误详情以可序列化文本表示，不会转成服务器 500。
 
 ## 变量接口（v0.4.6）
 
@@ -281,6 +297,8 @@ Worker RPC 超时默认 10 秒，超时返回 `MODULE_RUNTIME_TIMEOUT` 并终止
 ## Python 控制与持久工作区
 
 `Project.control_scripts` 为 `ControlScript[]`，原型归一化从 `controlScripts` 读取。脚本包含 id、language=`python`、source、enabled（默认 false）、sample_s（0.001–60，默认 0.1）、inputs/outputs（各最多 256）、timeout_s（0.1–30，默认 5）和源码 SHA-256 `content_hash`。哈希由服务端生成；携带不匹配哈希会返回 422。最多 16 个脚本，只有启用的脚本参与校验/执行。启用脚本要求动态运行，稳态返回 `CONTROL_DYNAMIC_REQUIRED`。
+
+浏览器工作区使用 `controlPrograms` 保留各脚本编辑信息，选择项为 `selectedControlId`；原有 `control*` 字段保留所选脚本的编辑投影。运行和归一化导出全部 Python 脚本到 `controlScripts`，旧语言文本及禁用的空源码草稿只随工作区保存。首次打开旧单脚本或已有多脚本项目会迁入列表；模块升级按 ID 更新运行合同，保留未参与运行投影的草稿。切换所选脚本不改变计算输入，修改源码后清除旧哈希并由后端重新计算。
 
 `POST /controls/preview` 将目标脚本放入独立临时会话，在 t=0 完成 initialize 和一次 step，校验并返回拟写入值；不修改原型项目，不产生运行档案。生命周期均为同步 Python 函数，`step(ctx,dt_s)` 第一次 dt_s=0，之后为实际仿真采样间隔。ctx.time_s、ctx.read、ctx.write、ctx.state、ctx.log 可用；state 必须为有限值 JSON 字典且不超过 64 KiB。读写只能使用声明键，写入先整批校验，再交给运行参数/PID 接口；PID 目标和不同脚本的直接写目标不能重叠。运行帧增加 `script.<id>.samples/last_time_s/content_hash/state.<标量键>`。
 

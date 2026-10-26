@@ -6262,6 +6262,140 @@
         ],
         "title": "ModuleTemplateRequest"
       },
+      "ModuleTestAssertion": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "pattern": "^\\S+$",
+            "title": "Key"
+          },
+          "expected": {
+            "type": "number",
+            "title": "Expected"
+          },
+          "absolute_tolerance": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Absolute Tolerance",
+            "default": 0.0
+          },
+          "relative_tolerance": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Relative Tolerance",
+            "default": 0.0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "key",
+          "expected"
+        ],
+        "title": "ModuleTestAssertion",
+        "description": "An author's expected final-frame value, expressed in canonical units."
+      },
+      "ModuleTestAssertionResult": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "pattern": "^\\S+$",
+            "title": "Key"
+          },
+          "expected": {
+            "type": "number",
+            "title": "Expected"
+          },
+          "absolute_tolerance": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Absolute Tolerance",
+            "default": 0.0
+          },
+          "relative_tolerance": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Relative Tolerance",
+            "default": 0.0
+          },
+          "actual": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actual"
+          },
+          "absolute_error": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Absolute Error"
+          },
+          "allowed_error": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allowed Error"
+          },
+          "passed": {
+            "type": "boolean",
+            "title": "Passed"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "passed",
+              "outside_tolerance",
+              "missing",
+              "non_numeric",
+              "non_finite",
+              "not_evaluated"
+            ],
+            "title": "Status"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "key",
+          "expected",
+          "passed",
+          "status"
+        ],
+        "title": "ModuleTestAssertionResult"
+      },
       "ModuleTestCase": {
         "properties": {
           "id": {
@@ -6271,6 +6405,14 @@
           },
           "conditions": {
             "$ref": "#/components/schemas/ModuleTestConditions"
+          },
+          "assertions": {
+            "items": {
+              "$ref": "#/components/schemas/ModuleTestAssertion"
+            },
+            "type": "array",
+            "maxItems": 256,
+            "title": "Assertions"
           }
         },
         "additionalProperties": false,
@@ -6317,6 +6459,13 @@
             },
             "type": "array",
             "title": "Diagnostics"
+          },
+          "assertions": {
+            "items": {
+              "$ref": "#/components/schemas/ModuleTestAssertionResult"
+            },
+            "type": "array",
+            "title": "Assertions"
           }
         },
         "additionalProperties": false,

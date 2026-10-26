@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { launchEngine } from './browser-server.mjs';
+import { verifyParameterBatches } from './browser-parameter-batch.mjs';
 
 // End-to-end run control: stopping a *background* dynamic run must reach the
 // backend, the record must end `cancelled`, and the page must stop replaying.
@@ -145,12 +146,14 @@ try {
   const shown = tankRun.history.find(row => !row.partial)?.variableValues['TK1:runtime:state.level_m'];
   expect(shown).toBeCloseTo(2, 6);
 
+  const parameterBatches = await verifyParameterBatches(browser, base);
+
   mkdirSync('artifacts', { recursive: true });
   await page.screenshot({ path: 'artifacts/run-control.png', fullPage: true });
   expect(errors).toEqual([]);
   console.log(JSON.stringify({ runId, finalStatus: final.status, timeS: final.frame.time_s, rows: history.total_rows,
     rowsAfterStop: rowsAtStop, timeAfterStop: afterStop.time, events: afterStop.events,
-    trendRows: trendHistory.total_rows, partialRows: trendHistory.rows.filter(row => row.full === false).length, errors }, null, 2));
+    trendRows: trendHistory.total_rows, partialRows: trendHistory.rows.filter(row => row.full === false).length, parameterBatches, errors }, null, 2));
 } catch (error) {
   mkdirSync('artifacts', { recursive: true }); await page.screenshot({ path: 'artifacts/run-control-failure.png', fullPage: true });
   console.error('Browser errors:', errors, 'Server:', serverLog.slice(-2500)); throw error;

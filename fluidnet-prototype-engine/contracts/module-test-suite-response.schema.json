@@ -278,6 +278,108 @@
       "title": "EvaluateResponse",
       "type": "object"
     },
+    "ModuleTestAssertionResult": {
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^\\S+$",
+          "title": "Key",
+          "type": "string"
+        },
+        "expected": {
+          "title": "Expected",
+          "type": "number"
+        },
+        "absolute_tolerance": {
+          "default": 0.0,
+          "minimum": 0,
+          "title": "Absolute Tolerance",
+          "type": "number"
+        },
+        "relative_tolerance": {
+          "default": 0.0,
+          "minimum": 0,
+          "title": "Relative Tolerance",
+          "type": "number"
+        },
+        "actual": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Actual"
+        },
+        "absolute_error": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Absolute Error"
+        },
+        "allowed_error": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Allowed Error"
+        },
+        "passed": {
+          "title": "Passed",
+          "type": "boolean"
+        },
+        "status": {
+          "enum": [
+            "passed",
+            "outside_tolerance",
+            "missing",
+            "non_numeric",
+            "non_finite",
+            "not_evaluated"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "message": {
+          "default": "",
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "expected",
+        "passed",
+        "status"
+      ],
+      "title": "ModuleTestAssertionResult",
+      "type": "object"
+    },
     "ModuleTestCaseResult": {
       "additionalProperties": false,
       "properties": {
@@ -316,6 +418,13 @@
             "$ref": "#/$defs/Diagnostic"
           },
           "title": "Diagnostics",
+          "type": "array"
+        },
+        "assertions": {
+          "items": {
+            "$ref": "#/$defs/ModuleTestAssertionResult"
+          },
+          "title": "Assertions",
           "type": "array"
         }
       },

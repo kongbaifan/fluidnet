@@ -236,6 +236,7 @@ function initialState(){
 
 const root=document.getElementById('fn-studio');
 const page=document.getElementById('page');
+const controls=window.FluidNetControls;
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const icon=name=>ICONS[name]||ICONS.Box;
 const number=(n,d=2)=>n !== null && n !== undefined && Number.isFinite(Number(n))?Number(n).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d}):'—';
@@ -562,7 +563,16 @@ function renderCode() {
   </div>`;
 }
 function renderAuthoringDiagnostics(m) {
-  return `<div id="authoring-diagnostics" class="stack">${(m.authoringDiagnostics || []).map(d=>`<div class="row">${d.source_line ? btn('module-error-line',`${d.source_file || 'module.py'}:${d.source_line}`,'ArrowRight',`data-line="${d.source_line}" data-file="${esc(d.source_file || 'module.py')}"`,'small') : ''}<span>${esc(d.message)}${d.occurrences > 1 ? ` ×${d.occurrences}` : ''}</span></div>`).join('')}${m.authoringReplay ? btn('export-module-replay','导出错误重放输入','Download','','small') : ''}${m.manifest?.composite ? btn('view-composite','查看组合展开','Network','','small') : ''}${btn('module-test-suite','运行测试组合','ListChecks','','small')}${btn('cancel-module-suite','取消测试','Square','','small')}</div>`;
+  return `<div id="authoring-diagnostics" class="stack">${(m.authoringDiagnostics || []).map(d=>`<div class="row">${d.source_line ? btn('module-error-line',`${d.source_file || 'module.py'}:${d.source_line}`,'ArrowRight',`data-line="${d.source_line}" data-file="${esc(d.source_file || 'module.py')}"`,'small') : ''}<span>${esc(d.message)}${d.occurrences > 1 ? ` ×${d.occurrences}` : ''}</span></div>`).join('')}${m.authoringReplay ? btn('export-module-replay','导出错误重放输入','Download','','small') : ''}${m.manifest?.composite ? btn('view-composite','查看组合展开','Network','','small') : ''}${btn('configure-module-tests','配置工况与预期值','Settings2','','small')}${btn('module-test-suite','运行测试组合','ListChecks',ui.moduleSuiteAbort?'disabled':'','small')}${btn('cancel-module-suite','取消测试','Square',ui.moduleSuiteAbort?'':'disabled','small')}</div>`;
+}
+function configureAuthoringSuite(m) {
+  const definition=engine.manifestPayload(m);
+  let editor;
+  openDialog('模块测试组合','为每个工况设置边界、参数和结果预期。配置随工作区保存。', '<div id="module-suite-editor"></div>',()=>{
+    m.authoringTestCases=editor.read();m.authoringOutput='测试配置已更新，请运行测试组合。';m.authoringDiagnostics=[];
+    markDirty();render();
+  },'保存测试配置',true);
+  editor=window.ModuleTestEditor.mount(document.getElementById('module-suite-editor'),window.ModuleTestEditor.cases(m,definition),definition);
 }
 function moduleEvidenceSummary(m) {
   const definition=m.publishedManifest || m.manifest;
@@ -577,18 +587,16 @@ async function runAuthoringSuite(m) {
   ui.moduleSuiteAbort?.abort();
   const controller=new AbortController(); ui.moduleSuiteAbort=controller;
   const definition=engine.manifestPayload(m), before=JSON.stringify(definition);
-  const conditions={duration_s:.2,dt_s:.1,inlet_pressure_pa:250000,outlet_pressure_pa:120000};
-  const cases=[{id:'forward',conditions},{id:'reverse',conditions:{...conditions,inlet_pressure_pa:120000,outlet_pressure_pa:250000}},{id:'zero',conditions:{...conditions,outlet_pressure_pa:250000}}];
-  if(definition.parameters.some(p=>p.id==='opening_ratio')) cases.push({id:'closed',conditions:{...conditions,parameters:{opening_ratio:0}}});
-  m.authoringOutput='正在逐项执行正向、反向、零流和参数边界测试…';render();
+  const cases=window.ModuleTestEditor.cases(m,definition), casesBefore=JSON.stringify(cases);
+  m.authoringOutput=`正在执行 ${cases.length} 个工况及预期值检查…`;render();
   try {
     const response=await fetch('/api/v1/modules/test-suite',{method:'POST',headers:{'Content-Type':'application/json',...engine.authHeaders()},body:JSON.stringify({module:definition,cases}),signal:controller.signal});
     const data=await response.json(); if(!response.ok)throw Error(data.detail?.message || JSON.stringify(data.detail));
-    if(before!==JSON.stringify(engine.manifestPayload(m)))throw Error('测试期间草稿已变化，请重新验证。');
+    if(before!==JSON.stringify(engine.manifestPayload(m)) || casesBefore!==JSON.stringify(window.ModuleTestEditor.cases(m,definition)))throw Error('测试期间草稿或测试配置已变化，请重新验证。');
     m.authoringDiagnostics=data.cases.flatMap(c=>c.diagnostics);
-    m.authoringOutput=data.cases.map(c=>`${c.passed?'✓':'✗'} ${c.id} · ${c.level}${c.passed?' 通过':' 失败：'+c.diagnostics.map(d=>d.message).join('；')}`).join('\n');
+    m.authoringOutput=window.ModuleTestEditor.summary(data);
   } catch(error){m.authoringOutput=error.name==='AbortError'?'测试已取消，草稿已保留。':'测试失败：'+error.message;}
-  finally{if(ui.moduleSuiteAbort===controller){ui.moduleSuiteAbort=null;render();const output=document.getElementById('module-output') || document.getElementById('code-output');output?.insertAdjacentHTML('afterend',renderAuthoringDiagnostics(m));}}
+  finally{if(ui.moduleSuiteAbort===controller){ui.moduleSuiteAbort=null;render();}}
 }
 function renderChannels(){const m=mod();const first=m.channels[0],a=m.ports.find(p=>p.id===first?.input),b=m.ports.find(p=>p.id===first?.output);return `<div class="editor-table-section"><div class="section-title"><div><h2>定义设备内部通路</h2><p class="muted" style="font-size:12px;margin-top:6px">将同一物理通道的入口与出口关联；变量的通道列随绑定更新。</p></div>${btn('add-channel','新增通路','Plus','','primary')}</div><div class="panel table-wrap"><table class="channel-table"><thead><tr><th>通路名称</th><th>入口</th><th>出口</th><th>关系类型</th><th>启用</th><th></th></tr></thead><tbody>${m.channels.map(c=>`<tr><td><input class="cell-input" data-channel-id="${c.id}" data-channel-field="name" aria-label="${c.id} 通路名称" value="${esc(c.name)}"></td><td><select data-channel-id="${c.id}" data-channel-field="input" aria-label="${c.id} 入口">${option('','选择入口',c.input)}${m.ports.filter(p=>p.direction==='in').map(p=>option(p.id,p.name+' · '+p.label,c.input)).join('')}</select></td><td><select data-channel-id="${c.id}" data-channel-field="output" aria-label="${c.id} 出口">${option('','选择出口',c.output)}${m.ports.filter(p=>p.direction==='out').map(p=>option(p.id,p.name+' · '+p.label,c.output)).join('')}</select></td><td><select data-channel-id="${c.id}" data-channel-field="kind" aria-label="${c.id} 关系类型">${[['resistance','阻力关系'],['pressure','压差关系'],['flow','指定流量'],['signal','信号映射']].map(([k,v])=>option(k,v,c.kind)).join('')}</select></td><td><label class="check-label"><input type="checkbox" data-channel-id="${c.id}" data-channel-field="enabled" aria-label="启用 ${c.name}" ${c.enabled?'checked':''}>启用</label></td><td>${ibtn('delete-channel','删除 '+c.name,'Trash2',`data-id="${c.id}"`)}</td></tr>`).join('')||'<tr><td colspan="6">此模块尚未设置内部通路。</td></tr>'}</tbody></table></div><div class="row spread" style="margin:14px 0 20px"><small class="muted">类型相同的端口才能组成通路；每个端口只绑定一条启用通路。</small>${btn('check-channels','检查通路','ListChecks','','small')}</div><div id="channel-feedback"></div><div class="channel-diagram"><div class="stack" style="gap:5px;text-align:center"><span class="mono">${a?esc(a.name):'入口'}</span><small class="muted">${a?esc(a.label):'选择端口'}</small></div><span class="channel-link"></span><div class="channel-box"><strong>${esc(m.name)}</strong><small class="muted" style="display:block;margin-top:4px">${first?esc(first.name):'内部关系'}</small></div><span class="channel-link"></span><div class="stack" style="gap:5px;text-align:center"><span class="mono">${b?esc(b.name):'出口'}</span><small class="muted">${b?esc(b.label):'选择端口'}</small></div></div></div>`;}
 function renderNodesPage(){const domain=DOMAINS[ui.nodeDomain];return `<div class="page-shell">${heading('节点与端口定义','按物理类型组织接口，明确变量含义与连接规则。',btn('nav','返回模块库','ChevronLeft','data-route="modules"'))}<div class="split-view"><aside class="side-nav"><div class="side-caption">接口领域</div>${Object.entries(DOMAINS).map(([k,d])=>`<button data-action="node-domain" data-value="${k}" class="${k===ui.nodeDomain?'active':''}">${icon(d.icon)}${d.label}端口</button>`).join('')}</aside><div class="stack"><section class="panel"><div class="panel-head"><div class="row"><span class="object-icon">${icon(domain.icon)}</span><div><h2>${domain.label}端口</h2><small class="muted">${ui.nodeDomain==='fluid'?'状态量、流量与工质组成':'接口与变量定义示例'}</small></div></div>${badge(ui.nodeDomain==='fluid'?'液态水场景':'接口预留',ui.nodeDomain==='fluid'?'good':'warn')}</div><div class="table-wrap"><table><thead><tr><th>变量后缀</th><th>中文名称</th><th>单位</th><th>说明</th></tr></thead><tbody>${(ui.nodeDomain==='fluid'?[['FLOW','质量流量','kg/s','沿端口约定方向记录，可表达反向流动'],['PRE','绝对压力','MPa','与求解器约定之间显式换算'],['ENTHALPY','比焓','kJ/kg','能量输运状态量'],['TEMP','温度','°C','工程显示单位'],['VOLUME','密度','kg/m³','参考命名对应密度，不能当作比容'],['Q','干度','—','相态描述；当前水网范围不扩展两相求解'],['X','质量组分','—','与 FORM 工质顺序对应']]:ui.nodeDomain==='info'?[['VALUE','信号数值','自定义','根据物理量定义单位'],['QUALITY','数据质量','—','有效、过期或缺失状态']]:ui.nodeDomain==='power'?[['VOLTAGE','电压','V','电气接口的定义示例'],['CURRENT','电流','A','当前原型不提供电网计算']]:[['SPEED','转速','r/min','机械接口的定义示例'],['TORQUE','转矩','N·m','当前原型不提供机械求解']]).map(row=>`<tr>${row.map((v,i)=>`<td${i===0?' class="mono"':''}>${v}</td>`).join('')}</tr>`).join('')}</tbody></table></div></section><section class="panel"><div class="panel-head"><h3>连接规则</h3></div><div class="panel-body stack"><div class="row">${icon('CheckCircle2')}同一内部通路的两端类型一致</div><div class="row">${icon('CheckCircle2')}端口拥有稳定标识，显示名称可以独立编辑</div><div class="row">${icon('CheckCircle2')}一个项目端口对应一条连接，分支使用连接节点</div><div class="row">${icon('CheckCircle2')}类型与单位定义供变量表、图形、型号和曲线共用</div></div></section>${btn('edit-module','在模块中配置端口','ArrowRight',`data-id="${ui.nodeDomain==='fluid'?'valve':'pid'}"`,'primary')}</div></div></div>`;}
@@ -710,15 +718,15 @@ document.addEventListener('change',async event=>{
 });
 function controlLiveValues(p=project()){
   const values=p.run.history.at(-1)?.canonical||{}, keys=new Set((p.controlOutputs||'').split(/[\s,，]+/));
-  return JSON.stringify(Object.fromEntries(Object.entries(values).filter(([key])=>keys.has(key)||key.startsWith('script.control.'))),null,2);
+  return JSON.stringify(Object.fromEntries(Object.entries(values).filter(([key])=>keys.has(key)||key.startsWith(`script.${p.selectedControlId}.`))),null,2);
 }
-function renderControls(){const p=project();return `<div class="page-shell">${heading('项目控制逻辑','Python 脚本按仿真时间采样，在下一接受子步应用参数。',btn('control-template','载入示例','FileCode2')+btn('preview-control','预览一个周期','StepForward','','primary')+btn('save','保存脚本','Save'))}${pidPanel(p)}<details open><summary>Python 控制脚本</summary><div class="connection-layout"><aside class="stack"><section class="panel"><div class="panel-head"><h3>控制程序</h3>${badge(p.controlLanguage==='python'?'Python':'旧脚本待迁移',p.controlLanguage==='python'?'good':'warn')}</div><div class="panel-body stack">
+function renderControls(){const p=project(),programs=controls.normalize(p),selected=controls.current(p);return `<div class="page-shell">${heading('项目控制逻辑','按脚本组织控制策略；修改会在下次新运行生效。',btn('control-template','载入示例','FileCode2',selected?'':'disabled')+btn('preview-control','预览一个周期','StepForward',selected?'':'disabled','primary')+btn('save','保存脚本','Save'))}${pidPanel(p)}<section class="panel" style="margin-bottom:20px"><div class="panel-head"><h2>控制脚本</h2>${badge(programs.length+' / '+controls.MAX_PROGRAMS)}<span class="push"></span>${btn('add-control-program','新建脚本','Plus',programs.length>=controls.MAX_PROGRAMS?'disabled':'','small')}${btn('remove-control-program','删除所选脚本','Trash2',selected?`data-id="${esc(selected.id)}"`:'disabled','small')}</div><div class="panel-body">${programs.length?`<label class="field"><span>当前脚本</span><select data-control-program aria-label="选择控制脚本">${programs.map(program=>option(program.id,`${program.name} · ${program.id} · ${program.language!=='python'?'待迁移':program.enabled?'已启用':'未启用'}`,p.selectedControlId)).join('')}</select></label>`:'<p>尚无控制脚本。新建脚本后可编辑、预览并单独启用。</p>'}</div></section>${selected?`<details open><summary>编辑 ${esc(selected.id)}</summary><div class="connection-layout"><aside class="stack"><section class="panel"><div class="panel-head"><h3>控制程序</h3>${badge(p.controlLanguage==='python'?'Python':'旧脚本待迁移',p.controlLanguage==='python'?'good':'warn')}</div><div class="panel-body stack">
   <label class="check-label"><input type="checkbox" data-control-enabled ${p.controlEnabled?'checked':''} ${p.controlLanguage!=='python'?'disabled':''}>启用 Python 控制（下次新运行生效）</label>
   <label class="field"><span>脚本语言</span><select data-control-language aria-label="脚本语言">${option('python','Python',p.controlLanguage)}${p.controlLanguage!=='python'?option('legacy','旧脚本文本（待迁移）',p.controlLanguage):''}</select></label>
-  <label class="field"><span>名称</span><input value="${esc(p.controlConfig.name)}" aria-label="控制程序名称" data-control-name></label><label class="field"><span>控制周期</span><div class="field-unit"><input type="number" value="${p.controlConfig.period}" min="1" max="60000" step="1" data-control-setting="period" aria-label="控制周期"><span>ms</span></div></label></div></section>
+  <label class="field"><span>名称</span><input value="${esc(p.controlConfig.name)}" aria-label="控制程序名称" data-control-name></label><label class="field"><span>控制周期</span><div class="field-unit"><input type="number" value="${p.controlConfig.period}" min="1" max="60000" step="1" data-control-setting="period" aria-label="控制周期"><span>ms</span></div></label><label class="field"><span>执行超时</span><div class="field-unit"><input type="number" value="${p.controlTimeout}" min="0.1" max="30" step="0.1" data-control-timeout aria-label="控制执行超时"><span>s</span></div></label></div></section>
   <section class="panel"><div class="panel-head"><h3>输入与输出（引擎单位）</h3></div><div class="panel-body stack"><label class="field"><span>声明输入，一行一个</span><textarea data-control-inputs aria-label="控制输入">${esc(p.controlInputs)}</textarea></label><label class="field"><span>声明输出，一行一个</span><textarea data-control-outputs aria-label="控制输出">${esc(p.controlOutputs)}</textarea></label><small>例如 V1.mass_flow_kg_s、V1.param.opening_ratio；PID 设定值为 controller.ID.setpoint。开度 0–1，温度 K，压力 Pa。</small></div></section>
   <div class="notice">${icon('Info')}<span>${p.controlLanguage==='python'?'initialize(ctx) → step(ctx, dt_s) → finalize(ctx)。ctx.read / ctx.write 只访问声明的变量；ctx.state 保存脚本状态。预览真实执行一个周期，返回拟写入值；新建动态运行才会应用。':'已保留旧脚本文本。请手动迁移或载入 Python 示例，再选择 Python 并启用。'}</span></div></aside>
-  <div class="panel"><div class="code-toolbar">${icon('FileCode2')}<span class="mono">${esc(p.id)} / control.${p.controlLanguage==='python'?'py':'txt'}</span><span class="push"></span>${badge(p.controlEnabled?'下次动态运行启用':'未启用')}</div><div class="code-editor" style="height:365px;min-height:300px"><div class="code-lines" aria-hidden="true">${p.control.split('\n').map((_,i)=>i+1).join('\n')}</div><textarea id="control-code" data-control-code spellcheck="false" aria-label="项目控制脚本" wrap="off">${esc(p.control)}</textarea></div><div class="code-output" id="control-output" role="status">${esc(ui.controlOutput)}</div><div class="panel-body"><h3>当前运行的控制值</h3><pre class="code-preview" id="control-live">${esc(controlLiveValues(p))}</pre></div></div></div></details></div>`;}
+  <div class="panel"><div class="code-toolbar">${icon('FileCode2')}<span class="mono">${esc(p.id)} / ${esc(selected.id)}.${p.controlLanguage==='python'?'py':'txt'}</span><span class="push"></span>${badge(p.controlEnabled?'下次动态运行启用':'未启用')}</div><div class="code-editor" style="height:365px;min-height:300px"><div class="code-lines" aria-hidden="true">${p.control.split('\n').map((_,i)=>i+1).join('\n')}</div><textarea id="control-code" data-control-code spellcheck="false" aria-label="项目控制脚本" wrap="off">${esc(p.control)}</textarea></div><div class="code-output" id="control-output" role="status">${esc(ui.controlOutput)}</div><div class="panel-body"><h3>当前运行的控制值</h3><pre class="code-preview" id="control-live">${esc(controlLiveValues(p))}</pre></div></div></div></details>`:''}</div>`;}
 
 function connectionVariableRows(){return projectVariables().filter(v=>(v.id+v.name+v.device).toLowerCase().includes(ui.connectionSearch.toLowerCase())).map(v=>`<tr><td><span class="mono">${v.id}</span><small>${esc(v.device)} · ${v.name}</small></td><td class="num mono">${number(v.value,3)}</td><td>${v.unit}</td><td>${badge(v.writable?'可设置':'只读',v.writable?'warn':'')}</td><td>${badge('示例','blue')}</td><td><div class="row gap-6">${ibtn('copy-var','复制变量标识','Copy',`data-value="${v.id}"`)}${ibtn('add-specific-curve','加入曲线','Activity',`data-id="${v.id}" data-label="${esc(v.device+' · '+v.name)}"`)}</div></td></tr>`).join('');}
 function renderConnections(){return `<div class="page-shell">${heading('数据与外部对接','统一查找变量，配置接口、串口与消息观察。',badge('接口调用已接入 · 串口与绑定为演示','warn')+btn('save','保存对接配置','Save'))}<section class="panel"><nav class="tabs" aria-label="数据对接页面">${[['variables','变量浏览','Table2'],['api','接口调用','Braces'],['serial','串口配置','Plug'],['bindings','变量绑定','Cable'],['messages','消息中心','MessageSquare']].map(([k,v,i])=>`<button data-action="connection-tab" data-value="${k}" class="${ui.connectionTab===k?'active':''}">${icon(i)}${v}</button>`).join('')}</nav><div class="panel-body">${connectionContent()}</div></section></div>`;}
@@ -981,7 +989,7 @@ function networkViewBox(pg) {
 }
 
 function projectParameterKey(owner = project()) {
-  return JSON.stringify({scenarios:owner.scenarios||[],events:owner.events||[],activeScenarioId:owner.activeScenarioId||'',medium:owner.medium,fluid:owner.fluid,circuitFluids:owner.circuitFluids,controls:[owner.control,owner.controlEnabled,owner.controlLanguage,owner.controlInputs,owner.controlOutputs,owner.controlConfig], solver: owner.solver, modules: state.modules.filter(m => owner.pages.some(pg => pg.nodes.some(n => n.moduleId === m.id))).map(m => ({id:m.id,kind:m.kind,version:m.version,ports:m.ports,channels:m.channels})), pages: owner.pages.map(pg => ({
+  return JSON.stringify({scenarios:owner.scenarios||[],events:owner.events||[],activeScenarioId:owner.activeScenarioId||'',medium:owner.medium,fluid:owner.fluid,circuitFluids:owner.circuitFluids,controls:controls.key(owner), solver: owner.solver, modules: state.modules.filter(m => owner.pages.some(pg => pg.nodes.some(n => n.moduleId === m.id))).map(m => ({id:m.id,kind:m.kind,version:m.version,ports:m.ports,channels:m.channels})), pages: owner.pages.map(pg => ({
     nodes: pg.nodes.map(n => ({ id: n.id, moduleId: n.moduleId, params: n.params, values: n.variableState?.values })),
     edges: pg.edges,
   })) });
@@ -1971,6 +1979,7 @@ function validateImport(data) {
   if (data.format === 'fluidnet-prototype-models') return;
   if (!Array.isArray(data.projects) || !data.projects.length || data.projects.length > 20 || !unique(data.projects.map(p => p.id)) || !data.bench || !data.charts || !Array.isArray(data.records) || !Array.isArray(data.messages) || !Array.isArray(data.connectors) || !Number.isInteger(data.serial)) throw Error('项目、测试或运行数据不完整。');
   for (const p of data.projects) {
+    controls.normalize(p);
     if (!safeId(p.id) || typeof p.name !== 'string' || !p.solver || !Array.isArray(p.pages) || !p.pages.length || p.pages.length > 8 || !p.run?.values || !Array.isArray(p.run.history) || !Array.isArray(p.run.events) || typeof p.control !== 'string') throw Error('项目结构不合法。');
     const ids = p.pages.flatMap(pg => pg.nodes?.map(n => n.id) || []); if (!unique(ids)) throw Error('项目设备标识重复。');
     for (const pg of p.pages) {
@@ -2100,6 +2109,7 @@ function handleAction(action, el) {
       break;
     }
     case 'export-module-replay': downloadFile(`${mod().id}-replay.json`,JSON.stringify(mod().authoringReplay,null,2)); break;
+    case 'configure-module-tests': configureAuthoringSuite(mod()); break;
     case 'module-test-suite': runAuthoringSuite(mod()); break;
     case 'cancel-module-suite': ui.moduleSuiteAbort?.abort(); break;
     case 'validate-module-contract': engine.checkModule(mod(),true); break;
@@ -2226,10 +2236,19 @@ function handleAction(action, el) {
       addChartVariable(v.id); break;
     }
     case 'remove-chart-var': state.charts.extra = state.charts.extra.filter(v => v.id !== id || v.projectId !== project().id); markDirty(); render(); break;
-    case 'control-template': confirmChange('载入 Python 控制示例','替换脚本、输入和输出声明，启用状态保持关闭；示例要求存在 V1 阀门。',()=>{const p=project();p.control=controlTemplate();p.controlLanguage='python';p.controlEnabled=false;p.controlInputs='V1.mass_flow_kg_s';p.controlOutputs='V1.param.opening_ratio';markDirty(p);render();});break;
+    case 'add-control-program': {
+      const p=project(),programs=controls.normalize(p);let suffix=1;
+      while(programs.some(program=>program.id==='control_'+suffix))suffix++;
+      openDialog('新建控制脚本','脚本各自保存输入输出、采样周期和状态。',field('id','脚本标识','control_'+suffix,'required maxlength="81"')+field('name','脚本名称','控制程序 '+suffix,'required maxlength="80"'),data=>{
+        controls.add(p,data.id.trim(),data.name.trim());ui.controlOutput='控制脚本尚未预览。';markDirty(p);render();
+      },'新建');break;
+    }
+    case 'remove-control-program': {const p=project(),id=d.id;confirmChange('删除控制脚本',`删除 ${id}；当前运行仍使用启动时的脚本快照。`,()=>{controls.remove(p,id);ui.controlOutput='控制脚本尚未预览。';markDirty(p);render();});break;}
+    case 'control-template': confirmChange('载入 Python 控制示例','替换所选脚本、输入和输出声明，启用状态保持关闭；示例要求存在 V1 阀门。',()=>{const p=project();controls.update(p,{source:controlTemplate(),language:'python',enabled:false,inputs:['V1.mass_flow_kg_s'],outputs:['V1.param.opening_ratio']});markDirty(p);render();});break;
     case 'preview-control': {
+      const owner=project(),scriptId=owner.selectedControlId;
       ui.controlOutput='正在执行一个控制周期…';document.getElementById('control-output').textContent=ui.controlOutput;
-      engine.previewControl(project()).then(result=>{ui.controlOutput='预览成功（未应用到项目）\n'+JSON.stringify(result,null,2);const el=document.getElementById('control-output');if(el)el.textContent=ui.controlOutput;}).catch(error=>{ui.controlOutput='预览失败：'+error.message;const el=document.getElementById('control-output');if(el)el.textContent=ui.controlOutput;msg(error.message,true);});break;
+      engine.previewControl(owner).then(result=>{if(project()!==owner||owner.selectedControlId!==scriptId)return;ui.controlOutput='预览成功（未应用到项目）\n'+JSON.stringify(result,null,2);const el=document.getElementById('control-output');if(el)el.textContent=ui.controlOutput;}).catch(error=>{if(project()!==owner||owner.selectedControlId!==scriptId)return;ui.controlOutput='预览失败：'+error.message;const el=document.getElementById('control-output');if(el)el.textContent=ui.controlOutput;msg(error.message,true);});break;
     }
 
     case 'api-example': ui.apiKind = d.value; apiPreview(d.value); root.querySelectorAll('[data-action="api-example"]').forEach(e => e.classList.toggle('active', e.dataset.value === d.value)); break;
@@ -2318,9 +2337,9 @@ function handleInput(el) {
     if (lines) { lines.textContent = value.split('\n').map((_, i) => i + 1).join('\n'); lines.scrollTop = el.scrollTop; }
     markDirty(mod()); return;
   }
-  if ('controlCode' in d) { project().control = value; el.previousElementSibling.textContent = value.split('\n').map((_, i) => i + 1).join('\n'); markDirty(project()); return; }
-  if ('controlInputs' in d || 'controlOutputs' in d) {project()['controlInputs' in d?'controlInputs':'controlOutputs']=value;markDirty(project());return;}
-  if ('controlName' in d) { project().controlConfig.name = value; markDirty(project()); return; }
+  if ('controlCode' in d) { controls.update(project(),{source:value}); el.previousElementSibling.textContent = value.split('\n').map((_, i) => i + 1).join('\n'); markDirty(project()); return; }
+  if ('controlInputs' in d || 'controlOutputs' in d) {controls.update(project(),{['controlInputs' in d?'inputs':'outputs']:controls.names(value)});markDirty(project());return;}
+  if ('controlName' in d) { controls.update(project(),{name:value}); markDirty(project()); return; }
   if (d.varNote) { mod().variables.find(v => v.id === d.varNote).note = value; markDirty(mod()); return; }
   if (d.instanceParam) {
     if (d.paramType === 'curve') return;  // curve drafts validate on change, not on every keystroke
@@ -2405,9 +2424,11 @@ function handleChange(el) {
     const bounds = { duration: [1, 86400], dt: [.01, 60], massAtol: [1e-12, 1], pressureAtol: [1e-12, 100000], maxIter: [5, 500] };
     project().solver[d.solverField] = (d.solverField === 'mode' || d.solverField === 'hydraulicMethod') ? value : numeric(value, ...bounds[d.solverField], d.solverField === 'maxIter'); markDirty(project());
   }
-  else if ('controlEnabled' in d) { project().controlEnabled=el.checked;markDirty(project()); }
-  else if ('controlLanguage' in d) {project().controlLanguage=value;project().controlEnabled=false;markDirty(project());}
-  else if (d.controlSetting) { project().controlConfig[d.controlSetting] = d.controlSetting === 'period' ? numeric(value, 1, 60000, true) : value; markDirty(project()); redraw = false; }
+  else if ('controlProgram' in d) { controls.select(project(),value);ui.controlOutput='控制脚本尚未预览。';persistLocal(); }
+  else if ('controlEnabled' in d) { controls.update(project(),{enabled:el.checked});markDirty(project()); }
+  else if ('controlLanguage' in d) {controls.update(project(),{language:value,enabled:false});markDirty(project());}
+  else if (d.controlSetting) { controls.update(project(),{sample_s:numeric(value,1,60000,true)/1000});markDirty(project());redraw=false; }
+  else if ('controlTimeout' in d) { controls.update(project(),{timeout_s:numeric(value,.1,30)});markDirty(project());redraw=false; }
   else if (d.connectorField) { state.connectors.find(c => c.id === d.connectorId)[d.connectorField] = value; markDirty(); }
   else if ('bindingIndex' in d) { const b = bindingsForProject()[Number(d.bindingIndex)], v = projectVariables().find(v => v.id === value); if (b.direction === 'write' && !v.writable) throw Error('外部写入只能绑定可设置参数。'); b.variable = v.id; b.unit = v.unit; markDirty(project()); }
   else redraw = false;
@@ -2586,10 +2607,7 @@ function normalizeState() {
   for (const p of state.projects) {
     p.scenarios ||= [];p.activeScenarioId ||= '';
     engine.pinProject(p,true);
-    p.controlLanguage ||= /(^|\n)\s*def (initialize|step)\(/.test(p.control||'')?'python':'legacy';
-    if(p.controlLanguage!=='python')p.controlEnabled=false;
-    p.controlInputs ||= '';p.controlOutputs ||= '';
-    p.controlConfig ||= { name: '供水温度调节', when: 'accepted', period: 100, input: p.pages.flatMap(pg => pg.nodes).some(n => n.id === 'P1') ? 'P1.OUT_TEMP' : '', output: p.pages.flatMap(pg => pg.nodes).some(n => n.id === 'V1') ? 'V1.OPENING' : '' };
+    controls.normalize(p);
     if (!p.run || typeof p.run !== 'object') p.run = emptyRun();
     if (p.run.source !== 'engine') p.run = emptyRun();
     if (p.run.status === 'solving') p.run.status = 'ready';

@@ -13,6 +13,8 @@ from pathlib import Path
 from threading import Lock
 
 from fastapi import FastAPI, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse, Response
 from starlette.background import BackgroundTask
@@ -213,6 +215,20 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
                     archive.close()
 
     app = FastAPI(title='FluidNet Prototype Engine', version=__version__, lifespan=lifespan)
+    @app.exception_handler(RequestValidationError)
+    async def request_validation_error(request: Request, error: RequestValidationError):
+        # Rejected JSON numbers (including overflow such as 1e999) must not make
+        # the validation response itself fail strict JSON serialization.
+        def finite_detail(value):
+            if isinstance(value, float) and not math.isfinite(value):
+                return str(value)
+            if isinstance(value, dict):
+                return {key: finite_detail(item) for key, item in value.items()}
+            if isinstance(value, list):
+                return [finite_detail(item) for item in value]
+            return value
+        detail = jsonable_encoder(error.errors(), custom_encoder={ValueError: str, TypeError: str})
+        return JSONResponse(status_code=422, content={'detail': finite_detail(detail)})
     @app.exception_handler(StorageError)
     async def storage_error(_request, error):
         return JSONResponse(status_code=507, content={'detail': {'code': 'STORAGE_FAILED', 'message': str(error)}})

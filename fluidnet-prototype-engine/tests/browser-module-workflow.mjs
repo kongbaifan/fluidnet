@@ -1,6 +1,8 @@
 import {chromium,expect} from '@playwright/test';
 import {mkdirSync} from 'node:fs';
 import {testServer} from './browser-server.mjs';
+import {exerciseModuleAssertions} from './browser-module-assertions.mjs';
+import {exerciseModuleAssertionBoundaries} from './browser-module-assertion-boundaries.mjs';
 
 const server=await testServer();
 const browser=await chromium.launch({channel:'msedge',headless:true});
@@ -61,6 +63,8 @@ try{
       original.frame.variables['V1.main.mass_flow_kg_s'] ?? original.frame.variables['V1.hot.mass_flow_kg_s'],7);
     results.push({template,version:release.module.version,reloadRecomputed:true});
   }
+  await exerciseModuleAssertionBoundaries(page,server.base);
+  await exerciseModuleAssertions(page,server.base,'workflow_managed_state');
   await page.locator('.rail-link[data-route="modules"]').click();
   await page.locator('[data-module-id="workflow_managed_state"] [data-action="edit-module"]').click();
   await page.locator('[data-action="editor-tab"][data-value="code"]').first().click();

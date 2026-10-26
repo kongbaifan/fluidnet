@@ -796,12 +796,14 @@ window.createEngineClient = function (ui) {
       const id=bindings?.[key] || key, spec=definition.parameters.find(p=>p.id===id);
       if(!spec?.runtime || !spec.writable) throw Error(`${spec?.label || key} 不能在运行中修改，请停止后应用。`);
       const canonical=spec.unit ? (Number(value)-spec.unit.display_offset)*spec.unit.display_scale : value;
-      return {key,value,id,canonical};
+      return {key,value:clone(value),id,canonical:clone(canonical)};
     });
-    for(const edit of edits) {
-      await confirmedCommand(owner,{action:'set',instance_id:node.id,parameter_id:edit.id,value:edit.canonical});
-      node.params[edit.key]=clone(edit.value);
-    }
+    if (!edits.length) return;
+    // One device-panel apply is one frame-boundary transaction. Keep every draft
+    // and applied value intact until the whole batch has been acknowledged.
+    await confirmedCommand(owner,{action:'write',values:Object.fromEntries(edits.map(edit=>[
+      `${node.id}.param.${edit.id}`,edit.canonical]))});
+    Object.assign(node.params,Object.fromEntries(edits.map(edit=>[edit.key,edit.value])));
     owner.run.parameterKey=ui.parameterKey(owner);ui.persist();ui.render();
   }
   const services=window.createProjectServices({request,ui,normalize,health:()=>health,authHeaders,pinProject,moduleFromManifest});

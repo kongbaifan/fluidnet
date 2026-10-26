@@ -16,7 +16,7 @@ from ..control import validate_scripts
 from ..models import Diagnostic, Domain, Project, RunFrame
 from ..properties import PropertyError, property_service
 from ..solver import SolveFailed
-from ..timestep import TimeStepExhausted, TrialFailure, normalized_error
+from ..timestep import TrialFailure, normalized_error
 from . import devices
 from .schedule import EPS, apply_set_variable, check_set_variable, check_unique
 from .session import ThermalSession
@@ -324,6 +324,9 @@ SPECIFIC_ENERGY_SCALE = 1e5  # J/kg; vessel energies are compared per unit of st
 class StationSession(ThermalSession):
     """Implicit Euler on vessel (M, U) and room temperatures; control and publishing as in A1."""
 
+    _segment_fields: tuple[str, ...] = ('masses', 'energies', 'temperatures', 'counters',
+                                       'energy_residual_j', 'frame_residual_j', 'event_index', 'events_applied',
+                                       '_controlled', '_jacobian', '_cache', 'last_trial')
     TOLERANCE = 1e-10
     MAX_ITERATIONS = 12
     MAX_HALVINGS = 6
@@ -350,6 +353,7 @@ class StationSession(ThermalSession):
                               + [1.] * len(self.temperatures))
         self._jacobian = None
         self._cache = None
+        self._controlled = False
 
     # --- state vector -------------------------------------------------------------------------
     def _vector(self, masses, energies, temperatures):
@@ -506,22 +510,32 @@ class StationSession(ThermalSession):
         return None, error
 
     def _integrate_adaptive(self, step):
-        """冷库 B：在输出/控制/日程边界截断后的每个 segment 内做误差接受控制。"""
+        """Keep error-accepted states and ledgers local until the complete segment succeeds."""
+        masses, energies, temperatures = self.masses, self.energies, self.temperatures
+        counters = dict(self.counters)
+        residual, frame_residual = self.energy_residual_j, self.frame_residual_j
+        caches = self._jacobian, self._cache, self.last_trial
+
         def trial(h):
-            x = self._vector(self.masses, self.energies, self.temperatures)
+            x = self._vector(masses, energies, temperatures)
             return self._trial_doubling(x, h)
 
         def accept(payload, h, error):
-            self.masses, self.energies, self.temperatures = self._unpack(payload['x'])
+            nonlocal masses, energies, temperatures, residual, frame_residual
+            masses, energies, temperatures = self._unpack(payload['x'])
             for key, energy in payload['counters'].items():
-                self.counters[key] = self.counters.get(key, 0.) + energy
-            self.energy_residual_j += payload['residual']
-            self.frame_residual_j += payload['residual']
+                counters[key] = counters.get(key, 0.) + energy
+            residual += payload['residual']
+            frame_residual += payload['residual']
 
         try:
-            self.march.march(segment=step, trial=trial, accept=accept, time=self.time)
-        except TimeStepExhausted as error:
-            raise SolveFailed(error.code, str(error), None, list(self.frames)) from error
+            self._march_adaptive(step, trial, accept)
+        except Exception:
+            self._jacobian, self._cache, self.last_trial = caches
+            raise
+        self.masses, self.energies, self.temperatures = masses, energies, temperatures
+        self.counters = counters
+        self.energy_residual_j, self.frame_residual_j = residual, frame_residual
 
     def initialize(self):
         if not self.frames and self.duration is not None:
@@ -541,19 +555,20 @@ class StationSession(ThermalSession):
             target = min(target, self.duration)
         events = self.network.events
         while target - self.time > 1e-12 * max(1., target):
-            while self.event_index < len(events) and events[self.event_index].time_s <= self.time + EPS:
-                apply_set_variable(self, events[self.event_index])
-                self.event_index += 1
-                self.events_applied += 1
-            self._control()
-            upcoming = [e.time_s - self.time for e in events[self.event_index:self.event_index + 1]]
-            limit = self.timestep.max_step_s if self.timestep.enabled else self.network.project.solver.dynamic_step_s
-            step = min([target - self.time, limit, *upcoming]
-                       + [pid.next_s - self.time for pid in self.controllers.values()]
-                       + [script.next_s - self.time for script in self.scripts.values()])
-            if step <= 0:
-                raise CompilationError('THERMAL_STEP_INVALID', '制冷站控制时钟未推进')
-            self._advance_heat(step)
+            with self._segment_transaction():
+                while self.event_index < len(events) and events[self.event_index].time_s <= self.time + EPS:
+                    apply_set_variable(self, events[self.event_index])
+                    self.event_index += 1
+                    self.events_applied += 1
+                self._control()
+                upcoming = [e.time_s - self.time for e in events[self.event_index:self.event_index + 1]]
+                limit = self.timestep.max_step_s if self.timestep.enabled else self.network.project.solver.dynamic_step_s
+                step = min([target - self.time, limit, *upcoming]
+                           + [pid.next_s - self.time for pid in self.controllers.values()]
+                           + [script.next_s - self.time for script in self.scripts.values()])
+                if step <= 0:
+                    raise CompilationError('THERMAL_STEP_INVALID', '制冷站控制时钟未推进')
+                self._advance_heat(step)
         self.time = target
         self.index += 1
         return self.publish()

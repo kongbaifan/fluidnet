@@ -749,9 +749,25 @@ class ModuleTestRequest(ModuleTestConditions):
     module: ModuleDefinition
 
 
+class ModuleTestAssertion(StrictModel):
+    """An author's expected final-frame value, expressed in canonical units."""
+
+    key: str = Field(min_length=1, max_length=256, pattern=r'^\S+$')
+    expected: float = Field(strict=True)
+    absolute_tolerance: float = Field(default=0., ge=0, strict=True)
+    relative_tolerance: float = Field(default=0., ge=0, strict=True)
+
+
 class ModuleTestCase(StrictModel):
     id: Identifier
     conditions: ModuleTestConditions = Field(default_factory=ModuleTestConditions)
+    assertions: list[ModuleTestAssertion] = Field(default_factory=list, max_length=256)
+
+    @model_validator(mode='after')
+    def unique_assertions(self):
+        if len({assertion.key for assertion in self.assertions}) != len(self.assertions):
+            raise ValueError('测试断言变量键重复')
+        return self
 
 
 class ModuleTestSuiteRequest(StrictModel):
@@ -789,6 +805,15 @@ class ModuleTestResponse(StrictModel):
     history: list[RunFrame] = Field(default_factory=list)
 
 
+class ModuleTestAssertionResult(ModuleTestAssertion):
+    actual: float | int | str | bool | None = None
+    absolute_error: float | None = None
+    allowed_error: float | None = None
+    passed: bool
+    status: Literal['passed', 'outside_tolerance', 'missing', 'non_numeric', 'non_finite', 'not_evaluated']
+    message: str = ''
+
+
 class ModuleTestCaseResult(StrictModel):
     id: Identifier
     passed: bool
@@ -796,6 +821,7 @@ class ModuleTestCaseResult(StrictModel):
     level: Literal['L3'] = 'L3'
     result: ModuleTestResponse | None = None
     diagnostics: list[Diagnostic] = Field(default_factory=list)
+    assertions: list[ModuleTestAssertionResult] = Field(default_factory=list)
 
 
 class ModuleTestSuiteResponse(StrictModel):

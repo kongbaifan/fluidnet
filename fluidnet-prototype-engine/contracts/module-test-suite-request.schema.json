@@ -846,6 +846,41 @@
       "title": "ModuleSDKRequirements",
       "type": "object"
     },
+    "ModuleTestAssertion": {
+      "additionalProperties": false,
+      "description": "An author's expected final-frame value, expressed in canonical units.",
+      "properties": {
+        "key": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^\\S+$",
+          "title": "Key",
+          "type": "string"
+        },
+        "expected": {
+          "title": "Expected",
+          "type": "number"
+        },
+        "absolute_tolerance": {
+          "default": 0.0,
+          "minimum": 0,
+          "title": "Absolute Tolerance",
+          "type": "number"
+        },
+        "relative_tolerance": {
+          "default": 0.0,
+          "minimum": 0,
+          "title": "Relative Tolerance",
+          "type": "number"
+        }
+      },
+      "required": [
+        "key",
+        "expected"
+      ],
+      "title": "ModuleTestAssertion",
+      "type": "object"
+    },
     "ModuleTestCase": {
       "additionalProperties": false,
       "properties": {
@@ -856,6 +891,14 @@
         },
         "conditions": {
           "$ref": "#/$defs/ModuleTestConditions"
+        },
+        "assertions": {
+          "items": {
+            "$ref": "#/$defs/ModuleTestAssertion"
+          },
+          "maxItems": 256,
+          "title": "Assertions",
+          "type": "array"
         }
       },
       "required": [
