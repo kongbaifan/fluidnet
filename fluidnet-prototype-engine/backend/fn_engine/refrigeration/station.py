@@ -77,16 +77,19 @@ def compile_station(project):
     instances = {i.id: i for i in project.instances}
     if not instances:
         raise CompilationError('EMPTY_NETWORK', '项目没有设备')
-    registered = {}
+    registered: dict[str, list] = {}
     for definition in (*refrigeration_catalog(), *thermal_catalog()):
-        registered.setdefault(definition.solver_model, definition)
+        registered.setdefault(definition.solver_model, []).append(definition)
     parameters, kinds, ports = {}, {}, {}
     for instance in project.instances:
         definition = modules[instance.module_id]
-        reference = registered.get(definition.solver_model)
-        if reference is None or definition.runtime != 'builtin' or definition.solver_model == 'ideal_cold_source':
+        references = registered.get(definition.solver_model)
+        if not references or definition.runtime != 'builtin' or definition.solver_model == 'ideal_cold_source':
             raise CompilationError('REFRIGERATION_MODEL_UNSUPPORTED',
                                    '制冷站只能由制冷站设备与库房热节点组成（不能混入流体设备、理想冷源或 Python 模块）', instance.id)
+        # One solver model may register several port layouts (e.g. multi-inlet vessels). Prefer the
+        # definition with the same module ID; otherwise the contract check below reports the mismatch.
+        reference = next((item for item in references if item.id == definition.id), references[0])
         expected = {(p.id, p.domain, p.direction, p.circuit) for p in reference.ports}
         if definition.channels or definition.state_model != reference.state_model or \
                 {(p.id, p.domain, p.direction, p.circuit) for p in definition.ports} != expected:
@@ -148,7 +151,13 @@ def compile_station(project):
     # Pressure levels: stream nodes joined through pass-through devices.
     levels = DisjointSet({nodes.find(key) for key in stream})
     for iid, kind in kinds.items():
-        for left, right in PASS_THROUGH.get(kind, ()):
+        if kind == 'saturated_vessel':
+            # Every stream port of a vessel sits on its single pressure level, whatever the layout
+            # (the multi-inlet variants add in2/in3 beyond the registered four-port layout).
+            pairs = [('in0', key[1]) for key in stream if key[0] == iid and key[1] != 'in0']
+        else:
+            pairs = PASS_THROUGH.get(kind, ())
+        for left, right in pairs:
             levels.union(nodes.find((iid, left)), nodes.find((iid, right)))
     level_vessel = {}
     for iid, kind in kinds.items():

@@ -22,6 +22,21 @@
           "title": "Thermal Coupling",
           "type": "boolean"
         },
+        "dual_thermal_coupling": {
+          "default": false,
+          "title": "Dual Thermal Coupling",
+          "type": "boolean"
+        },
+        "heater": {
+          "default": false,
+          "title": "Heater",
+          "type": "boolean"
+        },
+        "multi_inlet_vessels": {
+          "default": false,
+          "title": "Multi Inlet Vessels",
+          "type": "boolean"
+        },
         "cold_room_ideal_source": {
           "default": false,
           "title": "Cold Room Ideal Source",

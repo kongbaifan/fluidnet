@@ -1091,6 +1091,12 @@ class RefpropInfo(StrictModel):
 
 class HealthCapabilities(StrictModel):
     thermal_coupling: bool = False
+    # Two immersed coils bound to one saturated vessel (contract limit is two).
+    dual_thermal_coupling: bool = False
+    # Built-in ideal electric heater in the single-phase fluid network.
+    heater: bool = False
+    # Saturated vessels with up to four stream inlets (`hp_receiver_multi`, `lp_drum_multi`).
+    multi_inlet_vessels: bool = False
     cold_room_ideal_source: bool = False
     refrigeration_station: bool = False
     # Case A: storage room + goods, unit cooler, single-stage cycle, schedule events and reports.

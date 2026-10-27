@@ -391,7 +391,7 @@ def compile_project(project: Project) -> CompiledNetwork:
     diagnostics = list(project.import_diagnostics)
     parameters, port_keys = {}, []
     supported = {'pressure_source', 'junction', 'valve', 'pipe', 'pump_curve', 'heat_exchanger', 'tank',
-                 'closed_volume'}
+                 'closed_volume', 'heater'}
     # Built-in state models and the solver model each one belongs to.
     state_models = {'open_tank': 'tank', 'closed_volume': 'closed_volume'}
     service = fluid_service(project)
@@ -507,7 +507,7 @@ def compile_project(project: Project) -> CompiledNetwork:
         if covered != {p.id for p in definition.ports}:
             raise CompilationError('CHANNEL_COVERAGE', f'{inst.id} 存在未绑定到有效通路的端口', inst.id)
         for ch in channels:
-            expected = 'resistance' if definition.solver_model == 'heat_exchanger' else definition.solver_model
+            expected = 'resistance' if definition.solver_model in ('heat_exchanger', 'heater') else definition.solver_model
             relation = 'pump_curve' if expected == 'pump_curve' else 'resistance'
             if definition.runtime != 'python' and (ch.solver_model != expected or ch.relation != relation):
                 raise CompilationError('CHANNEL_MODEL_INVALID', f'{inst.id}.{ch.id} 未注册的通路关系 {ch.solver_model}/{ch.relation}', inst.id, ch.id)

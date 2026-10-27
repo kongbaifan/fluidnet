@@ -303,6 +303,15 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
         elif definition.runtime == 'builtin' and definition.solver_model == 'heat_exchanger':
             kinds[j] = 'exchanger'
             exchanger_branches.setdefault(branch.instance_id, []).append(j)
+        elif definition.runtime == 'builtin' and definition.solver_model == 'heater':
+            # Constant electric heat into the stream. No storage: a stagnant heater would have to
+            # raise the temperature of an unmodelled mass, so it is rejected like module heat.
+            kinds[j] = 'heater'
+            heat[j] = float(params.get('heat_input_w', 0.0) or 0.0)
+            if heat[j] != 0.0 and weight[j] <= flow_eps:
+                raise ThermalError('NO_FLOW_HEAT', f'{branch.instance_id}.{branch.channel_id} 通路流量为零却声明了 '
+                                   f'{heat[j]:g} W 的热量；无热容通路不能在零流量下持续加热或冷却',
+                                   branch.instance_id, branch.channel_id)
         elif branch.solver_model == 'pipe':
             kinds[j] = 'pipe'
             pipe_ua[j] = float(params.get('heat_loss_ua_w_k', 0.0) or 0.0)
@@ -495,6 +504,9 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
             elif kinds[j] == 'module':
                 # Python pump/compressor relations carry shaft work in `shaft`; heat_w is extra heat.
                 c += (heat[j] + shaft[j]) / w
+            elif kinds[j] == 'heater':
+                # Constant heat per unit mass: h_out = h_in + Q/w (declared in the classification pass).
+                c += heat[j] / w
             consts[j] = c
         for _, a, b, ua in exchangers:
             na, nb = upstream[a], upstream[b]

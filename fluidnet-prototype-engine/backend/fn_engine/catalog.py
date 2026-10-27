@@ -79,6 +79,16 @@ def builtin_catalog() -> list[ModuleDefinition]:
                 number('heat_input_w', '加热功率（负值为冷却）', 0., 'power', 'W', runtime=True),
                 number('heat_loss_ua_w_k', '散热能力 UA（0 为绝热）', 0., 'conductance', 'W/K', minimum=0.),
                 number('ambient_temperature_k', '环境温度', 293.15, 'temperature', 'K', '°C', minimum=1.0, offset=-273.15)]),
+        # 电加热器：理想加热段，把声明功率全部加入流经流体；无热容、无相变，
+        # 零流量时拒绝加热（与 Python 模块的 heat_w 语义一致）。水力按局部阻力处理，
+        # loss_coefficient=0 表示不产生附加压降。
+        ModuleDefinition(id='heater', name='电加热器', category='热力设备', solver_model='heater',
+            description='理想加热段：heat_input_w 全部进入流体，按质量流量折算比焓升；'
+                        '无储热，零流量时拒绝加热；loss_coefficient=0 时不产生附加压降。',
+            ports=ports('in0', 'out0'), channels=[channel('ch0', 'resistance')], parameters=[
+                number('heat_input_w', '加热功率（负值为冷却）', 1000., 'power', 'W', 'kW', 1000., runtime=True),
+                number('loss_coefficient', '局部阻力系数 K', 0., 'ratio', '1', minimum=0.),
+                number('diameter_m', '水力等效内径', .04, 'length', 'm', 'mm', .001, .001)]),
     ]
     for definition in definitions:
         for port in definition.ports:
@@ -377,14 +387,14 @@ def _switch(label='启停（1 运行 / 0 停机）'):
 
 def refrigeration_catalog() -> list[ModuleDefinition]:
     """Case-B lumped refrigeration-station devices; the fluid comes from each port's circuit."""
-    def vessel(id, name, description, defaults, required):
+    def vessel(id, name, description, defaults, required, extra_inlets=0):
         volume, height, temperature, level = defaults
+        labels = ['进液/进气', '进液/进气 2'] + [f'进液/进气 {i + 1}' for i in range(2, 2 + extra_inlets)]
         return ModuleDefinition(id=id, name=name, category='制冷站设备', solver_model='saturated_vessel',
             state_model='saturated_vessel', description=description,
-            ports=[_stream('in0', '进液/进气', Direction.in_, 'in0' in required),
-                   _stream('in1', '进液/进气 2', Direction.in_, 'in1' in required),
-                   _stream('vapor', '气相出口', Direction.out, 'vapor' in required),
-                   _stream('liquid', '液相出口', Direction.out, 'liquid' in required)],
+            ports=[_stream(f'in{i}', label, Direction.in_, f'in{i}' in required) for i, label in enumerate(labels)]
+                  + [_stream('vapor', '气相出口', Direction.out, 'vapor' in required),
+                     _stream('liquid', '液相出口', Direction.out, 'liquid' in required)],
             parameters=[number('volume_m3', '容积', volume, 'volume', 'm³', minimum=.001),
                         number('height_m', '液位换算高度（立式等截面）', height, 'length', 'm', minimum=.01),
                         _celsius('temperature_k', '初始饱和温度', temperature),
@@ -415,6 +425,13 @@ def refrigeration_catalog() -> list[ModuleDefinition]:
     co2_drum = vessel('pumped_drum', '泵供液储液器',
         '载冷侧饱和两相集总容器：冷风机湿回气进入，vapor 去复叠冷凝侧，liquid 供液泵。',
         (3., 2., 247.15, .4), {'in0', 'vapor', 'liquid'})
+    receiver_multi = vessel('hp_receiver_multi', '高压贮液器（多支路）',
+        '同一饱和容器的四个进口：可接入多台冷凝器或回气支路；vapor/liquid 为气相、液相出口。'
+        '集总模型只有一个压力等级，多出口同相态没有额外物理意义，分支请用集管。',
+        (3., 2., 308.15, .62), {'in0', 'liquid'}, extra_inlets=2)
+    lp_drum_multi = vessel('lp_drum_multi', '低压循环桶（多支路）',
+        '同一饱和容器的四个进口：可接入多路回气或供液支路；vapor/liquid 为气相、液相出口。',
+        (4., 2., 243.15, .4), {'in0', 'vapor'}, extra_inlets=2)
     compressor = ModuleDefinition(id='refrigerant_compressor', name='压缩机（强制流量）', category='制冷站设备',
         solver_model='refrigerant_compressor', description='吸气为吸气容器的饱和气；流量由排量、载量和容积效率决定，'
             '排气压力取排气侧容器压力。电机损耗排向机房，不进入制冷剂。',
@@ -503,7 +520,8 @@ def refrigeration_catalog() -> list[ModuleDefinition]:
         solver_model='refrigerant_header', description='汇流/分流节点：同一压力等级内的多台设备经集管连到一个容器端口。',
         ports=[_stream(f'in{i}', f'汇入 {i + 1}', Direction.in_, False) for i in range(4)]
               + [_stream(f'out{i}', f'分出 {i + 1}', Direction.out, False) for i in range(4)])
-    definitions = [receiver, lp_drum, co2_drum, compressor, condenser, valve, cascade, pump, cooler, header]
+    definitions = [receiver, lp_drum, co2_drum, receiver_multi, lp_drum_multi, compressor, condenser, valve, cascade,
+                   pump, cooler, header]
     for definition in definitions:
         definition.variables.extend(VariableSpec(id='param.' + p.id, label=p.label, source='parameter',
             parameter_id=p.id, quantity=p.unit.quantity, unit=p.unit) for p in definition.parameters)
