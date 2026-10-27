@@ -280,6 +280,8 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
     pipe_cells, cell_volume, cell_wall = [0] * m, np.zeros(m), np.zeros(m)
     cell_old = (storage_step[2] if storage_step is not None and len(storage_step) > 2 else None) or {}
     exchanger_branches: dict[str, list[int]] = {}
+    # Set only by the explicit cross-domain coordinator for its storage-free immersed coil.
+    saturated_coils = getattr(network, 'saturated_coils', {})
     for j, branch in enumerate(branches):
         instance = network.instances[branch.instance_id]
         definition = network.modules[instance.module_id]
@@ -288,7 +290,10 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
         height = float((relation.parameters if relation else params).get('height_m', 0.0) or 0.0)
         # Potential energy: rising along the flow converts enthalpy into elevation.
         gravity[j] = -GRAVITY * height * (1.0 if flows[j] >= 0 else -1.0)
-        if relation is not None:
+        if (branch.instance_id, branch.channel_id) in saturated_coils:
+            kinds[j] = 'saturated_coil'
+            pipe_ua[j], ambient_t[j] = saturated_coils[(branch.instance_id, branch.channel_id)]
+        elif relation is not None:
             kinds[j] = 'module'
             heat[j] = float(relation.parameters.get('heat_w', 0.0) or 0.0)
             if heat[j] != 0.0 and weight[j] <= flow_eps:
@@ -350,7 +355,8 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
 
     # A lossy pipe relaxes towards ambient, which also fixes the level of a closed loop it sits in.
     # Tanks fix their own enthalpy (held state or stored energy), so loops through them are well posed.
-    seeds = set(supply) | set(storage) | {downstream[j] for j in flowing if kinds[j] == 'pipe' and pipe_ua[j] > 0}
+    seeds = set(supply) | set(storage) | {downstream[j] for j in flowing
+                                        if kinds[j] in ('pipe', 'saturated_coil') and pipe_ua[j] > 0}
     pins: dict[int, float] = {}
     reach = reachable(seeds)
     while True:
@@ -464,6 +470,14 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
                 chains[j] = (cells, mass)
                 weights[j] = {up: a}
                 c += offset
+            elif kinds[j] == 'saturated_coil' and pipe_ua[j] > 0:
+                # The phase-change side is isothermal. Linearize the single-phase
+                # upstream temperature, without flashing that fluid at refrigerant Tsat.
+                cp = states[up].specific_heat_j_kg_k
+                a = math.exp(-pipe_ua[j] / (w * cp))
+                weights[j] = {up: a}
+                offset = states[up].temperature_k - h[up] / cp
+                c += (1.0 - a) * cp * (ambient_t[j] - offset)
             elif kinds[j] == 'pipe' and pipe_ua[j] > 0:
                 cp = states[up].specific_heat_j_kg_k
                 a = math.exp(-pipe_ua[j] / (w * cp))
@@ -562,7 +576,7 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
         assert states is not None  # Nonlinear iterations always evaluate node states above.
         change = max((abs(candidate[k] - h[k]) / (states[k].specific_heat_j_kg_k or 4180.0) for k in range(n)), default=0.0)
         if change < options.thermal_tolerance_k:
-            if module_heat is not None:
+            if module_heat is not None or saturated_coils:
                 used_heat = heat.copy()
                 final_states = node_states(candidate)
                 final_weights, final_consts = relations_for(final_states, candidate)
@@ -598,7 +612,7 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
     else:
         raise ThermalError('THERMAL_NOT_CONVERGED', f'热力迭代 {options.max_thermal_iterations} 次未收敛，请检查换热与散热参数')
 
-    if module_heat is not None:
+    if module_heat is not None or saturated_coils:
         used_heat = heat.copy()
         final_states = node_states(h)
         weights, consts = relations_for(final_states, h)
@@ -606,7 +620,8 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
         defect = max((abs(check[k] - h[k]) / (final_states[k].specific_heat_j_kg_k or 4180.) for k in range(n)), default=0.)
         heat_ok = np.all(np.abs(heat - used_heat) <= 1e-6 + 1e-6 * np.maximum(np.abs(heat), np.abs(used_heat)))
         if not heat_ok or defect > options.thermal_tolerance_k:
-            raise ThermalError('MODULE_THERMAL_DEFECT', '最终热回调热流或固定点缺陷超过容差，拒绝结果')
+            raise ThermalError('COUPLED_THERMAL_DEFECT' if saturated_coils else 'MODULE_THERMAL_DEFECT',
+                               '最终换热关系或固定点缺陷超过容差，拒绝结果')
 
     if acceleration != 'none' and nonlinear:
         # 未经加速伪装的方程残差复核：在最终 h 上做一次纯 Picard 评估，

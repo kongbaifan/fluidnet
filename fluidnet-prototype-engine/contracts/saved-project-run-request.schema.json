@@ -1,0 +1,125 @@
+{
+  "additionalProperties": false,
+  "description": "Run a persisted project snapshot; the server supplies its actual revision.",
+  "properties": {
+    "mode": {
+      "default": "steady",
+      "enum": [
+        "steady",
+        "dynamic"
+      ],
+      "title": "Mode",
+      "type": "string"
+    },
+    "duration_s": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0,
+          "maximum": 604800,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": 60,
+      "title": "Duration S"
+    },
+    "dt_s": {
+      "default": 0.1,
+      "exclusiveMinimum": 0,
+      "maximum": 60,
+      "title": "Dt S",
+      "type": "number"
+    },
+    "selected_variables": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 64,
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Selected Variables"
+    },
+    "scenario_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Scenario Id"
+    },
+    "history": {
+      "default": "full",
+      "enum": [
+        "full",
+        "trend"
+      ],
+      "title": "History",
+      "type": "string"
+    },
+    "trend_variables": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 256,
+      "title": "Trend Variables",
+      "type": "array"
+    },
+    "execution_mode": {
+      "default": "fast",
+      "enum": [
+        "fast",
+        "realtime"
+      ],
+      "title": "Execution Mode",
+      "type": "string"
+    },
+    "speed_ratio": {
+      "default": 1.0,
+      "exclusiveMinimum": 0,
+      "maximum": 100,
+      "title": "Speed Ratio",
+      "type": "number"
+    },
+    "start_paused": {
+      "default": false,
+      "title": "Start Paused",
+      "type": "boolean"
+    },
+    "history_window": {
+      "default": 2001,
+      "maximum": 20001,
+      "minimum": 10,
+      "title": "History Window",
+      "type": "integer"
+    },
+    "revision": {
+      "anyOf": [
+        {
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Revision"
+    }
+  },
+  "title": "SavedProjectRunRequest",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

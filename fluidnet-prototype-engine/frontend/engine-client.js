@@ -385,6 +385,7 @@ window.createEngineClient = function (ui) {
     portKey('P1','out0','pressure_pa'); portKey('P1','out0','temperature_k');
     for (const binding of ui.state().charts?.extra || []) {
       if (binding.projectId !== owner.id) continue;
+      if (binding.canonicalKey) { keys.add(binding.canonicalKey); continue; }
       const n = nodes.get(binding.nodeId);
       if (n && binding.variableId) {
         const v = ui.moduleOf(n)?.variables?.find(x => x.id === binding.variableId);
@@ -436,6 +437,7 @@ window.createEngineClient = function (ui) {
   }
   function applyRow(owner,row) {
     const run = owner.run;
+    if(!run.chartBindings)run.chartBindings=clone((ui.state().charts?.extra||[]).filter(binding=>binding.projectId===owner.id));
     run.time = row.t;
     run.values = {q:row.q,a:row.a,b:row.b,pressure:row.pressure,temperature:row.temperature};
     run.history.push(row);

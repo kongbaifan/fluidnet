@@ -17,6 +17,11 @@
     "HealthCapabilities": {
       "additionalProperties": false,
       "properties": {
+        "thermal_coupling": {
+          "default": false,
+          "title": "Thermal Coupling",
+          "type": "boolean"
+        },
         "cold_room_ideal_source": {
           "default": false,
           "title": "Cold Room Ideal Source",
@@ -213,6 +218,14 @@
       "title": "Status",
       "type": "string"
     },
+    "mode": {
+      "enum": [
+        "studio",
+        "headless"
+      ],
+      "title": "Mode",
+      "type": "string"
+    },
     "version": {
       "title": "Version",
       "type": "string"
@@ -257,6 +270,7 @@
   },
   "required": [
     "status",
+    "mode",
     "version",
     "solver",
     "capabilities",

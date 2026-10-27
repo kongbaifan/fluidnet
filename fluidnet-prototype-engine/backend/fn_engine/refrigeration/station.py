@@ -369,10 +369,13 @@ class StationSession(ThermalSession):
         return masses, energies, temperatures
 
     def _flux(self, x):
-        result = evaluate(self.network, self.services, *self._unpack(x))
+        result = self._evaluate(*self._unpack(x))
         rate = [r for v in self.network.vessels for r in (result['dm'][v], result['du'][v])] + \
                [result['dt'][r] for r in self.temperatures]
         return np.array(rate) / self.scale, result
+
+    def _evaluate(self, masses, energies, temperatures):
+        return evaluate(self.network, self.services, masses, energies, temperatures)
 
     def _derivative(self, x, base):
         jac = np.empty((len(x), len(x)))
@@ -606,7 +609,7 @@ class StationSession(ThermalSession):
                tuple(self.temperatures.values()))
         if self._cache is None or self._cache[0] != key:
             try:
-                self._cache = key, evaluate(self.network, self.services, self.masses, self.energies, self.temperatures)
+                self._cache = key, self._evaluate(self.masses, self.energies, self.temperatures)
             except devices.DeviceRangeError as error:
                 raise SolveFailed(error.code, f't={self.time:g}s {error}', error.instance_id, list(self.frames)) from error
         return self._cache[1]
@@ -636,7 +639,8 @@ class StationSession(ThermalSession):
         for (iid, key) in self._powers(result):
             values[f'{iid}.state.{key}'] = self.counters.get((iid, key), 0.)
         for iid, parameters in network.parameters.items():
-            values.update({f'{iid}.param.{key}': value for key, value in parameters.items()})
+            values.update({f'{iid}.param.{key}': value for key, value in parameters.items()
+                           if isinstance(value, (int, float, bool, str))})
         for pid in self.controllers.values():
             values.update(pid.variables())
         for script in self.scripts.values():

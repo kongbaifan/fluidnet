@@ -471,6 +471,16 @@ class CircuitFluid(StrictModel):
     fluid: FluidConfig
 
 
+class ThermalCoupling(StrictModel):
+    """A storage-free single-phase coil immersed in a saturated refrigerant vessel."""
+
+    id: Identifier
+    fluid_instance_id: Identifier
+    fluid_channel_id: Identifier = 'ch0'
+    refrigerant_vessel_id: Identifier
+    ua_w_k: float = Field(ge=0)
+
+
 class Project(StrictModel):
     schema_version: Literal[1] = 1
     id: str
@@ -487,6 +497,8 @@ class Project(StrictModel):
     controllers: list[PIDController] = Field(default_factory=list)
     control_scripts: list[ControlScript] = Field(default_factory=list, max_length=16)
     circuit_fluids: list[CircuitFluid] = Field(default_factory=list, max_length=64)
+    thermal_couplings: list[ThermalCoupling] = Field(default_factory=list, max_length=2,
+                                                   exclude_if=lambda value: not value)
     # Load/operation schedule; only cold-store projects execute it (others reject a non-empty list).
     events: list[ScheduleEvent] = Field(default_factory=list, max_length=500)
 
@@ -501,6 +513,13 @@ class Project(StrictModel):
         if any(i.module_id not in module_ids for i in self.instances):
             raise ValueError("实例引用了不存在的模块")
         instance_map = {i.id: i for i in self.instances}
+        if len({c.id for c in self.thermal_couplings}) != len(self.thermal_couplings):
+            raise ValueError('热耦合关系 ID 重复')
+        if len({(c.fluid_instance_id, c.fluid_channel_id) for c in self.thermal_couplings}) != len(self.thermal_couplings):
+            raise ValueError('同一液体通路只能绑定一条热耦合关系')
+        for coupling in self.thermal_couplings:
+            if coupling.fluid_instance_id not in instance_map or coupling.refrigerant_vessel_id not in instance_map:
+                raise ValueError('热耦合引用了不存在的设备')
         if len({c.id for c in self.controllers}) != len(self.controllers):
             raise ValueError('控制器 ID 重复')
         if len({c.id for c in self.control_scripts}) != len(self.control_scripts):
@@ -624,15 +643,14 @@ class ProjectUpgradeRequest(StrictModel):
     migration: ModuleMigration | None = None
 
 
-class RunRequest(StrictModel):
-    project: Project
+class RunOptions(StrictModel):
+    """Shared scheduling and result-selection options for both run entry points."""
     mode: Literal["steady", "dynamic"] = "steady"
     # None runs a background dynamic session until it is stopped.
     duration_s: float | None = Field(default=60, gt=0, le=604800)
     dt_s: float = Field(default=0.1, gt=0, le=60)
     selected_variables: list[str] | None = Field(default=None, max_length=64)
     scenario_id: str | None = None
-    project_revision: int | None = Field(default=None, ge=1)
     # 'trend' keeps every variable only on key frames (first, last, every K-th; ≤ ~51 in total)
     # and only trend_variables plus module state on the others. Dynamic runs only.
     history: Literal["full", "trend"] = "full"
@@ -655,6 +673,16 @@ class RunRequest(StrictModel):
         if self.mode != "dynamic" or self.duration_s is None:
             return None
         return math.ceil(self.duration_s / self.dt_s - 1e-9) + 1
+
+
+class RunRequest(RunOptions):
+    project: Project
+    project_revision: int | None = Field(default=None, ge=1)
+
+
+class SavedProjectRunRequest(RunOptions):
+    """Run a persisted project snapshot; the server supplies its actual revision."""
+    revision: int | None = Field(default=None, ge=1)
 
 
 class RunCommand(StrictModel):
@@ -1062,6 +1090,7 @@ class RefpropInfo(StrictModel):
 
 
 class HealthCapabilities(StrictModel):
+    thermal_coupling: bool = False
     cold_room_ideal_source: bool = False
     refrigeration_station: bool = False
     # Case A: storage room + goods, unit cooler, single-stage cycle, schedule events and reports.
@@ -1097,6 +1126,7 @@ class HealthAuth(StrictModel):
 class HealthResponse(StrictModel):
     """`GET /health`：版本、能力标志与全局上限。"""
     status: str
+    mode: Literal['studio', 'headless']
     version: str
     solver: str
     supported_domains: list[str] = Field(default_factory=list)

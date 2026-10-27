@@ -967,6 +967,115 @@
         }
       }
     },
+    "/api/v1/projects/{project_id}/runs": {
+      "post": {
+        "summary": "Run Saved Project",
+        "operationId": "run_saved_project_api_v1_projects__project_id__runs_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SavedProjectRunRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunStatus"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "资源不存在（运行记录、项目修订、模块版本、示例或工作区修订）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "请求体或计算结果校验失败；RUN_LIMIT：后台运行数量达到上限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "持久存储未启用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "STORAGE_FAILED：工作区存储故障（磁盘空间或目录权限）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/projects/{project_id}/revisions": {
       "get": {
         "summary": "Project Revisions",
@@ -1432,6 +1541,21 @@
             "schema": {
               "type": "string",
               "title": "Name"
+            }
+          },
+          {
+            "name": "topology",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "single",
+                "parallel",
+                "independent"
+              ],
+              "type": "string",
+              "default": "single",
+              "title": "Topology"
             }
           }
         ],
@@ -4778,6 +4902,11 @@
       },
       "HealthCapabilities": {
         "properties": {
+          "thermal_coupling": {
+            "type": "boolean",
+            "title": "Thermal Coupling",
+            "default": false
+          },
           "cold_room_ideal_source": {
             "type": "boolean",
             "title": "Cold Room Ideal Source",
@@ -4917,6 +5046,14 @@
             "type": "string",
             "title": "Status"
           },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "studio",
+              "headless"
+            ],
+            "title": "Mode"
+          },
           "version": {
             "type": "string",
             "title": "Version"
@@ -4963,6 +5100,7 @@
         "type": "object",
         "required": [
           "status",
+          "mode",
           "version",
           "solver",
           "capabilities",
@@ -7277,6 +7415,14 @@
             "maxItems": 64,
             "title": "Circuit Fluids"
           },
+          "thermal_couplings": {
+            "items": {
+              "$ref": "#/components/schemas/ThermalCoupling"
+            },
+            "type": "array",
+            "maxItems": 2,
+            "title": "Thermal Couplings"
+          },
           "events": {
             "items": {
               "$ref": "#/components/schemas/ScheduleEvent"
@@ -8330,9 +8476,6 @@
       },
       "RunRequest": {
         "properties": {
-          "project": {
-            "$ref": "#/components/schemas/Project"
-          },
           "mode": {
             "type": "string",
             "enum": [
@@ -8389,18 +8532,6 @@
             ],
             "title": "Scenario Id"
           },
-          "project_revision": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "minimum": 1.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Project Revision"
-          },
           "history": {
             "type": "string",
             "enum": [
@@ -8445,6 +8576,21 @@
             "minimum": 10.0,
             "title": "History Window",
             "default": 2001
+          },
+          "project": {
+            "$ref": "#/components/schemas/Project"
+          },
+          "project_revision": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Revision"
           }
         },
         "additionalProperties": false,
@@ -8602,6 +8748,127 @@
           "name"
         ],
         "title": "RunSummary"
+      },
+      "SavedProjectRunRequest": {
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "steady",
+              "dynamic"
+            ],
+            "title": "Mode",
+            "default": "steady"
+          },
+          "duration_s": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 604800.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration S",
+            "default": 60
+          },
+          "dt_s": {
+            "type": "number",
+            "maximum": 60.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Dt S",
+            "default": 0.1
+          },
+          "selected_variables": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Variables"
+          },
+          "scenario_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scenario Id"
+          },
+          "history": {
+            "type": "string",
+            "enum": [
+              "full",
+              "trend"
+            ],
+            "title": "History",
+            "default": "full"
+          },
+          "trend_variables": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 256,
+            "title": "Trend Variables"
+          },
+          "execution_mode": {
+            "type": "string",
+            "enum": [
+              "fast",
+              "realtime"
+            ],
+            "title": "Execution Mode",
+            "default": "fast"
+          },
+          "speed_ratio": {
+            "type": "number",
+            "maximum": 100.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Speed Ratio",
+            "default": 1.0
+          },
+          "start_paused": {
+            "type": "boolean",
+            "title": "Start Paused",
+            "default": false
+          },
+          "history_window": {
+            "type": "integer",
+            "maximum": 20001.0,
+            "minimum": 10.0,
+            "title": "History Window",
+            "default": 2001
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "SavedProjectRunRequest",
+        "description": "Run a persisted project snapshot; the server supplies its actual revision."
       },
       "Scenario": {
         "properties": {
@@ -8916,6 +9183,46 @@
         "additionalProperties": false,
         "type": "object",
         "title": "SolverOptions"
+      },
+      "ThermalCoupling": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+            "title": "Id"
+          },
+          "fluid_instance_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+            "title": "Fluid Instance Id"
+          },
+          "fluid_channel_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+            "title": "Fluid Channel Id",
+            "default": "ch0"
+          },
+          "refrigerant_vessel_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+            "title": "Refrigerant Vessel Id"
+          },
+          "ua_w_k": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Ua W K"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "fluid_instance_id",
+          "refrigerant_vessel_id",
+          "ua_w_k"
+        ],
+        "title": "ThermalCoupling",
+        "description": "A storage-free single-phase coil immersed in a saturated refrigerant vessel."
       },
       "TimeStepOptions": {
         "properties": {

@@ -55,6 +55,21 @@ def parameter_map(kind, params, definition):
             for key,value in params.items()}
 
 
+def prototype_fluid(raw: dict[str, Any]) -> FluidConfig:
+    """Preserve imported property settings while honoring Studio's visible selectors."""
+    config = deepcopy(raw.get('fluidConfig', {}))
+    if not isinstance(config, dict):
+        raise ValueError('fluidConfig 必须为工质配置对象')
+    medium = raw.get('medium', 'water')
+    fluid_text = str(raw.get('fluid', config.get('fluid')) or '').strip()
+    if not fluid_text and medium not in PROTOTYPE_MEDIA:
+        raise ValueError(f'不支持的介质 {medium}；可选：{"、".join(PROTOTYPE_MEDIA)}')
+    reference = raw.get('fluidReference', config.get('reference', 'mass'))
+    if reference not in ('mass', 'mole'):
+        raise ValueError('fluidReference 只能是 mass 或 mole')
+    return FluidConfig.model_validate(config | {'fluid': fluid_text or PROTOTYPE_MEDIA[medium], 'reference': reference})
+
+
 def normalize_prototype_export(data: dict[str, Any]) -> Project:
     if data.get('format') != 'fluidnet-studio-prototype':
         raise ValueError('需要包含项目的 fluidnet-studio-prototype 导出文件')
@@ -65,14 +80,7 @@ def normalize_prototype_export(data: dict[str, Any]) -> Project:
     raw = next((p for p in projects if p.get('id') == active_id), None)
     if raw is None:
         raise ValueError('activeProject 引用了不存在的项目')
-    medium = raw.get('medium', 'water')
-    # An explicit fluid string (e.g. REFPROP::R407C.MIX) overrides the preset medium.
-    fluid_text = str(raw.get('fluid') or '').strip()
-    if not fluid_text and medium not in PROTOTYPE_MEDIA:
-        raise ValueError(f'不支持的介质 {medium}；可选：{"、".join(PROTOTYPE_MEDIA)}')
-    reference = raw.get('fluidReference', 'mass')
-    if reference not in ('mass', 'mole'):
-        raise ValueError('fluidReference 只能是 mass 或 mole')
+    fluid = prototype_fluid(raw)
     catalog = catalog_map()
     raw_modules = data.get('modules', [])
     if len({m['id'] for m in raw_modules}) != len(raw_modules):
@@ -170,23 +178,30 @@ def normalize_prototype_export(data: dict[str, Any]) -> Project:
             entry['events'] = deepcopy(scenario['events'])
         scenarios.append(entry)
     thermal = any(p.domain.value in ('thermal', 'refrigerant') for definition in definitions.values() for p in definition.ports)
-    diagnostics.append(Diagnostic(code='THERMAL_SCOPE' if thermal else 'HYDRAULIC_SCOPE', severity='info',
-        message='库房热系统按已应用参数计算热平衡；热端口不传递工质压力或质量流量' if thermal else
+    couplings = deepcopy(raw.get('thermalCouplings', []))
+    diagnostics.append(Diagnostic(code='THERMAL_COUPLING_SCOPE' if couplings else 'THERMAL_SCOPE' if thermal else 'HYDRAULIC_SCOPE', severity='info',
+        message='单相回路与饱和制冷剂容器通过盘管交换热量；两侧质量和压力网络保持独立' if couplings else
+        '库房热系统按已应用参数计算热平衡；热端口不传递工质压力或质量流量' if thermal else
         '按已应用参数与所选工况计算各回路工质的水力与端口焓、温度；动态状态按隐式 Euler 积分，Python 模块及项目控制在独立 Worker 执行'))
+    # Keep canonical options from imported cases; visible Studio controls override
+    # their own fields without dropping other solver settings on save/reload.
+    solver_options = deepcopy(raw.get('solverOptions', {}))
+    solver_options.update(
+        pressure_tolerance_pa=solver.get('pressureAtol', solver_options.get('pressure_tolerance_pa', 1.)),
+        mass_tolerance_kg_s=solver.get('massAtol', solver_options.get('mass_tolerance_kg_s', 1e-8)),
+        max_iterations=solver.get('maxIter', solver_options.get('max_iterations', 80)),
+        dynamic_step_s=solver.get('dynamicStep', solver_options.get('dynamic_step_s',
+            min(10., solver.get('dt', .1)) if thermal else solver.get('dt', .1))),
+        hydraulic_method=solver.get('hydraulicMethod', solver_options.get('hydraulic_method', 'dense')),
+        module_mixed_jacobian=bool(solver.get('moduleMixedJacobian', solver_options.get('module_mixed_jacobian', False))))
     return Project.model_validate(dict(id=raw['id'], name=raw.get('name','原型项目'), description=raw.get('description',''),
-        fluid=FluidConfig(fluid=fluid_text or PROTOTYPE_MEDIA[medium], reference=reference),
+        fluid=fluid,
         modules=list(definitions.values()),instances=instances,connections=connections,import_diagnostics=diagnostics,
         controllers=raw.get('controllers', []),
         control_scripts=raw.get('controlScripts', []),
+        thermal_couplings=couplings,
         scenarios=scenarios,
         events=deepcopy(raw.get('events', [])),
-        circuit_fluids=[{'id': c['id'], 'anchor': c['anchor'],
-                         'fluid': {'fluid': (c.get('fluid') or '').strip() or PROTOTYPE_MEDIA[c.get('medium', 'water')],
-                                   'reference': c.get('fluidReference', 'mass')}}
+        circuit_fluids=[{'id': c['id'], 'anchor': c['anchor'], 'fluid': prototype_fluid(c)}
                         for c in raw.get('circuitFluids', [])],
-        solver=SolverOptions(pressure_tolerance_pa=solver.get('pressureAtol',1.),mass_tolerance_kg_s=solver.get('massAtol',1e-8),
-                             max_iterations=solver.get('maxIter',80),dynamic_step_s=min(10., solver.get('dt',.1)) if thermal else solver.get('dt',.1),
-                             # S2：原型导出文件缺 hydraulicMethod 时按旧行为 dense；新建项目由前端显式写 auto。
-                             hydraulic_method=solver.get('hydraulicMethod','dense'),
-                             # 缺 moduleMixedJacobian 时保持关闭；新建项目由前端显式写 true（见 ENGINEERING_ACCEPTANCE.md）。
-                             module_mixed_jacobian=bool(solver.get('moduleMixedJacobian',False)))))
+        solver=SolverOptions.model_validate(solver_options)))

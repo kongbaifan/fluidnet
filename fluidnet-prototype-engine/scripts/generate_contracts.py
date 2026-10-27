@@ -21,7 +21,7 @@ from fn_engine.models import (
     ModuleTestResponse, NetworkRelation, PortState, Project, ProjectDeleteResponse,
     ProjectDetailResponse, ProjectListResponse, ProjectRevisionsResponse, ProjectRestoreResponse,
     ProjectSaveResponse, ProjectUpgradeResponse, RunCreateResponse, RunDeleteResponse,
-    RunEventsResponse, RunFrame, RunHistoryResponse, RunListResponse, RunRequest, RunStatus,
+    RunEventsResponse, RunFrame, RunHistoryResponse, RunListResponse, RunRequest, RunStatus, SavedProjectRunRequest,
     ErrorResponse, ValidationResponse,
     ModuleSaveRequest, ModuleVersionResponse, ModuleVersionsResponse,
     ModuleDesignRequest, ModuleDesignResponse, UnitWorkpointRequest, UnitWorkpointResponse,
@@ -41,6 +41,7 @@ output=root/'contracts'
 # 合同文件清单的唯一来源：schema 名与生成顺序都由这里给出，测试直接导入 models，避免名单漂移。
 models = [
     ('module', ModuleDefinition), ('project', Project), ('run-request', RunRequest), ('run-frame', RunFrame),
+    ('saved-project-run-request', SavedProjectRunRequest),
     ('module-v1', ModuleDefinitionV1), ('module-v2', ModuleDefinitionV2),
     ('module-v3', ModuleDefinitionV3),
     ('module-request-context', ModuleRequestContext), ('module-execution-info', ModuleExecutionInfo),

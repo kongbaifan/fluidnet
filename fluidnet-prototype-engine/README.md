@@ -22,6 +22,8 @@ python -m venv .venv
 
 使用现有环境时可执行 `python -m pip install -r requirements.txt`，再执行 `python -m fn_engine serve --port 8798 --open`。本版本以源码/可编辑安装运行，不提供可独立分发的前端 wheel 包。
 
+只启动计算服务可用 `python -m fn_engine serve --headless --data-dir .runtime/workspace`。第三方通过 `POST /api/v1/projects/{project_id}/runs` 启动已保存项目，支持固定修订与工况；完整启停、订阅和变量写入示例见 [Python / JavaScript 客户端](examples/external_clients/README.md)。
+
 ## 对外开放与访问令牌
 
 运行项目和模块验证台会在 Worker 子进程中执行用户的 Python 代码。子进程不是操作系统级沙箱，所以服务默认只监听 127.0.0.1，本机访问不需要令牌。要让其他机器（三维界面、数字孪生、PLC 网关）调用，先创建令牌再开放监听：
@@ -48,6 +50,8 @@ python -m fn_engine serve --host 0.0.0.0 --port 8798 --cors-origin http://twin.l
 初始算例的 A 路质量流量约为 **3.582677 kg/s**。A 路开度从 80% 改为 40% 后，A 路约为 **2.346313 kg/s**。这是内置参数下的回归算例，示例泵曲线不是厂家标定数据。默认 `property_coupling='reference'` 下热力层不改变水力结果，这两个值与接入热力层之前完全一致。
 
 “双侧换热机组”示例（UA = 2000 W/K）中，热侧 65.002 → 62.741 °C，冷侧 25.002 → 27.307 °C，换热量约 75.4 kW。
+
+项目页还可创建“氨制冷站与二次液体回路”热耦合案例：制冷剂容器与水／乙二醇循环通过浸没盘管联算，支持稳态平衡、动态扰动、工况、保存重载与曲线。自己的项目也可从建模页“建立热耦合”选择管段和容器、编辑或重绑定一条关系；指标与曲线跟随实际配置，删除端点有影响提示并支持撤销。默认 30% 乙二醇设计点盘管换热约 **16.05 kW**；操作、模型边界和变量见 [热耦合说明](docs/THERMAL_COUPLING.md)。
 
 ## Python 项目控制与可靠保存
 

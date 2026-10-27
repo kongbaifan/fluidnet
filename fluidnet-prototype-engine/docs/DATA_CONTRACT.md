@@ -20,6 +20,8 @@
 | `Scenario` | id, name, overrides | 按实例 ID 提供规范参数覆盖；本次运行使用副本 |
 | `Project` | modules, instances, connections, scenarios, selected_variables, solver | 一次可独立计算和复现的项目 |
 | `RunRequest` | project, mode, duration_s, dt_s, scenario_id, selected_variables, history, trend_variables | 创建一次运行；变量选择与历史瘦身（`history='trend'`）不影响物理求解 |
+| `SavedProjectRunRequest` | revision?, mode, duration_s, dt_s, scenario_id, selected_variables, history, trend_variables | 按路径项目 ID 启动已保存文档，服务端归一化并固定实际修订；运行选项与 `RunRequest` 共用 `RunOptions` |
+| `ThermalCoupling` | id, fluid_instance_id, fluid_channel_id, refrigerant_vessel_id, ua_w_k | `Project.thermal_couplings` 内的浸没盘管合同，首版最多一条，UA ≥ 0；两侧压力/质量网络分离，只交换热量，详见 [热耦合说明](THERMAL_COUPLING.md) |
 | `RunCommand` | action, instance_id, parameter_id, value | 后台运行控制请求;仅 pause/resume/stop 生效 |
 | `RunFrame` | status, valid, time_s, variables, diagnostics, metrics, full | 一个时刻的结果与质量证据；`full=false` 表示瘦身历史中只含曲线变量的帧 |
 | `FluidConfig` | backend, fluid, composition, phase_policy | 物性服务选择和单相约束；`fluid` 可带后端前缀与质量分数，如 `INCOMP::MEG[0.3]` |

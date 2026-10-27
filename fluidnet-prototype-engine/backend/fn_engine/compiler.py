@@ -361,8 +361,15 @@ def _compile_trapped(project, modules, parameters, nodes, branches, fixed, fixed
 def compile_project(project: Project) -> CompiledNetwork:
     from .composites import expand_composites
     project, composite_maps = expand_composites(project)
+    if project.thermal_couplings:
+        from .refrigeration.coupling import compile_coupled_project
+        return compile_coupled_project(project)
     used = {instance.module_id for instance in project.instances}
     used_domains = {port.domain for module in project.modules if module.id in used for port in module.ports}
+    if Domain.fluid in used_domains and Domain.refrigerant in used_domains:
+        raise CompilationError('COUPLED_RELATION_MISSING',
+            '项目同时包含单相流体网络与制冷站，但尚未建立热耦合；请选择液体管段和饱和制冷剂容器建立关系',
+            field='thermal_couplings')
     if Domain.thermal in used_domains or Domain.refrigerant in used_domains:
         from .refrigeration.cold_store import check_event_conflicts, compile_cold_store, uses_cold_store
         if uses_cold_store(project):
@@ -618,6 +625,9 @@ def validate_project(project: Project) -> list[Diagnostic]:
 
 def circuit_info(network: CompiledNetwork) -> list[dict]:
     """Fluid circuits of a compiled network (one entry for a single-fluid project)."""
+    if getattr(network, 'execution_domain', None) == 'coupled':
+        from .refrigeration.coupling import coupled_circuits
+        return coupled_circuits(network)
     if getattr(network, 'execution_domain', None) in ('thermal', 'cold_store'):
         return []
     if getattr(network, 'execution_domain', None) == 'refrigeration':

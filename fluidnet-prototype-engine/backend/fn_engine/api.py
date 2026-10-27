@@ -11,6 +11,7 @@ from collections import OrderedDict
 from contextlib import asynccontextmanager
 from pathlib import Path
 from threading import Lock
+from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.encoders import jsonable_encoder
@@ -39,6 +40,7 @@ from .models import (
     ModuleTestResponse,
     ModuleCatalogResponse,
     Project,
+    ProjectDocument,
     ProjectDeleteResponse,
     ProjectDetailResponse,
     ProjectListResponse,
@@ -49,6 +51,7 @@ from .models import (
     RunCommand,
     RunFrame,
     RunRequest,
+    SavedProjectRunRequest,
     RunStatus,
     RunRecordResponse,
     RunCreateResponse,
@@ -262,7 +265,8 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
     @app.get('/api/v1/health', response_model=HealthResponse,
               responses=error_responses('INTERNAL_ERROR'))
     def health():
-        return {'status':'ok','version':__version__,'solver':'declarative-fluid-v1','supported_domains':['fluid', 'thermal', 'refrigerant'],
+        return {'status':'ok','mode':'studio' if frontend_root else 'headless',
+                'version':__version__,'solver':'declarative-fluid-v1','supported_domains':['fluid', 'thermal', 'refrigerant'],
                 'capabilities':{'steady_hydraulics':True,'quasi_steady_series':True,'thermal':True,
                                 'property_coupling':['reference','node'],'tank_state':True,
                                 'time_integration':'implicit_euler',
@@ -271,6 +275,7 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
                                 'continuous_runs':True,'variables_api':True,'run_stream':True,
                                 'python_controls':True,'persistent_workspace':archive is not None,
                                 'cold_room_ideal_source':True,'refrigeration_station':True,'cold_store_cycle':True,
+                                'thermal_coupling':True,
                                 # REFPROP 运行时发现（环境变量/捆绑目录/系统安装）；不加载 DLL。
                                 'refprop':refprop_info()},
                 'max_frames':2001,'run_retention':RUN_RETENTION,'history_window_max':20001,'overview_points':OVERVIEW_POINTS,
@@ -393,6 +398,25 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
         except KeyError:
             raise HTTPException(404, detail='项目或修订不存在')
 
+    @app.post('/api/v1/projects/{project_id}/runs', status_code=202, response_model=RunStatus,
+              responses=protected_error_responses(404, 422, 503, 'RUN_LIMIT', 'STORAGE_FAILED', 'INTERNAL_ERROR'))
+    def run_saved_project(project_id: str, request: SavedProjectRunRequest):
+        try:
+            saved = require_archive().project(project_id, request.revision)
+        except KeyError:
+            raise HTTPException(404, detail='项目或修订不存在') from None
+        try:
+            document = ProjectDocument.model_validate(saved['document'])
+            if document.project['id'] != project_id:
+                raise ValueError('保存文档与路径项目 ID 不一致')
+            project = normalize_prototype_export({'format':'fluidnet-studio-prototype', 'schema':1,
+                'activeProject':project_id, 'projects':[document.project], 'modules':document.modules})
+            run_request = RunRequest(project=project, project_revision=saved['revision'],
+                                     **request.model_dump(exclude={'revision'}))
+        except (ValueError, KeyError, TypeError, AttributeError, IndexError) as error:
+            raise HTTPException(422, detail=str(error)) from error
+        return submit_background(run_request)
+
     @app.get('/api/v1/projects/{project_id}/revisions', response_model=ProjectRevisionsResponse,
               responses=protected_error_responses(503, 'STORAGE_FAILED', 'INTERNAL_ERROR'))
     def project_revisions(project_id: str):
@@ -454,9 +478,12 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
 
     @app.get('/api/v1/examples/{name}', response_model=Project,
              responses=protected_error_responses(404, 'INTERNAL_ERROR'))
-    def example(name: str):
+    def example(name: str, topology: Literal['single', 'parallel', 'independent'] = 'single'):
         from .examples import pid_example
         try:
+            if name == 'thermal-coupling':
+                from .refrigeration.coupling_examples import thermal_coupling_example
+                return thermal_coupling_example(topology=topology)
             if name == 'cold-storage':
                 from .refrigeration.examples import ideal_room_example
                 return ideal_room_example()
@@ -627,17 +654,20 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
                 runs.popitem(last=False)
         return record
 
+    def submit_background(request: RunRequest):
+        try:
+            run_id = manager.submit(request)
+        except ValueError as error:
+            raise HTTPException(422, detail={'code':'RUN_LIMIT', 'message':str(error)}) from error
+        return JSONResponse(status_code=202, content=RunStatus(run_id=run_id,status='queued',mode=request.mode).model_dump(mode='json'))
+
     @app.post('/api/v1/runs',status_code=201, response_model=RunCreateResponse,
               responses={202: {'model': RunStatus, 'description': '后台运行已受理（background=true）'},
                          **protected_error_responses('RUN_LIMIT', 'RUN_TOO_LONG', 'MODULE_WORKER_IO_ERROR', 'INTERNAL_ERROR')})
     def run(request: RunRequest, background: bool = Query(False)):
-        run_id = uuid.uuid4().hex
         if background:
-            try:
-                run_id = manager.submit(request)
-            except ValueError as error:
-                raise HTTPException(422, detail={'code':'RUN_LIMIT', 'message':str(error)}) from error
-            return JSONResponse(status_code=202, content=RunStatus(run_id=run_id,status='queued',mode=request.mode).model_dump(mode='json'))
+            return submit_background(request)
+        run_id = uuid.uuid4().hex
         frames = request.frame_count()
         if request.mode == 'dynamic' and (frames is None or frames > 2001):
             raise HTTPException(422, detail={'code':'RUN_TOO_LONG', 'message':'同步运行一次返回全部帧，最多 2001 帧且必须设定时长；'

@@ -1156,6 +1156,9 @@ def _with_states(network, frame: RunFrame, result: NetworkResult, tanks: dict[in
 
 
 def solve_steady(network):
+    if getattr(network, 'execution_domain', None) == 'coupled':
+        from .refrigeration.coupling import solve_coupled_steady
+        return solve_coupled_steady(network)
     if getattr(network, 'execution_domain', None) == 'thermal':
         from .refrigeration.session import solve_thermal_steady
         return solve_thermal_steady(network)
@@ -1205,7 +1208,7 @@ def has_state(network: CompiledNetwork) -> bool:
 
 
 def solve_dynamic(network, duration_s, dt_s):
-    if getattr(network, 'execution_domain', None) in ('thermal', 'refrigeration', 'cold_store'):
+    if getattr(network, 'execution_domain', None) in ('thermal', 'refrigeration', 'cold_store', 'coupled'):
         from .sessions import create_session
         session = create_session(network, duration_s, dt_s)
         try:

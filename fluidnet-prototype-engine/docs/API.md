@@ -6,8 +6,8 @@
 
 | 方法与路径 | 请求 | 返回模型与内容 | 错误响应（`detail.code`） |
 | --- | --- | --- | --- |
-| GET /api/v1/health | 无 | `HealthResponse`：版本（0.5.0）、`supported_domains`（`fluid`、`thermal`）、能力标志（含 `thermal`、`property_coupling`、`tank_state`、`live_runs`、`pid`、`runtime_parameters`、`continuous_step`、`continuous_runs`、`variables_api`、`run_stream`、`python_controls`、`persistent_workspace`、`cold_room_ideal_source`，以及 `refprop: {installed,source,path,version}`）、`auth.required`、同步运行 2001 帧上限、`history_window_max`、`overview_points`、20 次记录保留数 | 500 `INTERNAL_ERROR`（health 不受令牌限制） |
-| GET /api/v1/examples/{name} | `level`、`temperature` 或 `cold-storage` | `Project`：内置 PID 示例，或冷库 A1 库房 + 理想冷源示例 Project | 404（未知示例）；401/403 |
+| GET /api/v1/health | 无 | `HealthResponse`：版本（0.5.0）、`mode`（`studio` 或 `headless`）、`supported_domains`（`fluid`、`thermal`、`refrigerant`）、能力标志（含 `thermal`、`property_coupling`、`tank_state`、`live_runs`、`pid`、`runtime_parameters`、`continuous_step`、`continuous_runs`、`variables_api`、`run_stream`、`python_controls`、`persistent_workspace`、`cold_room_ideal_source`，以及 `refprop: {installed,source,path,version}`）、`auth.required`、同步运行 2001 帧上限、`history_window_max`、`overview_points`、20 次记录保留数 | 500 `INTERNAL_ERROR`（health 不受令牌限制） |
+| GET /api/v1/examples/{name} | `level`、`temperature`、`cold-storage`、`cold-storage-room`、`cold-storage-nh3co2` 或 `thermal-coupling` | `Project`：内置 PID、冷库或制冷站与二次液体回路示例；热耦合范围见 [说明](THERMAL_COUPLING.md) | 404（未知示例）；401/403 |
 | GET /api/v1/workspace | 可选 revision | `WorkspaceResponse`：完整原型工作区、revision、saved_at、project_revisions；未保存时 data=null | 404（修订不存在）、503（持久存储未启用）、507 `STORAGE_FAILED`；401/403 |
 | POST /api/v1/workspace | data、expected_revision | `WorkspaceSaveResponse`：已落盘修订、时间与项目修订映射 | 409 `WORKSPACE_CONFLICT`、503、507 `STORAGE_FAILED`；401/403 |
 | GET /api/v1/workspace/revisions | 无 | `WorkspaceRevisionsResponse`：最近 5 个修订元数据 | 503、507；401/403 |
@@ -28,6 +28,7 @@
 | POST /api/v1/projects/validate | Project | `ValidationResponse`：valid、diagnostics 和 circuits（各回路的工质、来源、端口）；检查失败时 valid=false、circuits 为空 | 422（请求体校验）；401/403 |
 | POST /api/v1/solve | Project | `RunFrame`：同步稳态 RunFrame | 422（计算失败或 `MODULE_WORKER_IO_ERROR`）、500 `INTERNAL_ERROR`；401/403 |
 | POST /api/v1/runs | RunRequest | **201** `RunCreateResponse`（run_id、status、frame、total_rows）。`?background=true` 改返回 **202** `RunStatus`（queued、frame 为 null，frame 由状态接口补） | 422 `RUN_LIMIT`/`RUN_TOO_LONG`、500；401/403 |
+| POST /api/v1/projects/{project_id}/runs | SavedProjectRunRequest：可选 revision、scenario_id 和运行选项 | **202** `RunStatus`：服务端固定已保存项目快照并创建后台运行，返回 run_id、queued | 404（项目或修订不存在）、422（文档/选项错误或 `RUN_LIMIT`）、503（持久存储未启用）、507 `STORAGE_FAILED`、500；401/403 |
 | GET /api/v1/runs/{run_id} | 无 | `RunRecordResponse`：状态、请求快照、最后一帧与事件，不重复携带整段历史（历史由 /history 提供） | 404（记录不存在或已被保留上限淘汰，detail 为固定字符串）、507；401/403 |
 | GET /api/v1/runs/{run_id}/history | offset≥0, 1≤limit≤2001（绝对帧序号） | `RunHistoryResponse`：rows、total_rows（已发布帧数）、offset（实际起点）、first_offset（窗口内最早帧）、truncated（请求的 offset 已移出窗口） | 404、507；401/403 |
 | GET /api/v1/runs/{run_id}/overview | 无 | `RunOverviewResponse`：全程抽稀 rows（每 stride 帧一行加最新帧，只含曲线变量和状态，无诊断）、stride、total_rows | 404、507；401/403 |
@@ -285,6 +286,32 @@ Worker RPC 超时默认 10 秒，超时返回 `MODULE_RUNTIME_TIMEOUT` 并终止
   - 被 PID 绑定的参数一律拒绝直接写入，手动模式也一样（手动时 PID 每个子步写 manual_output，外部写入会被覆盖）；请改控制器字段。
   - `wait_s` > 0 时等到命令 applied 或 rejected 再返回（最多 10 秒），否则立即返回 `accepted` 回执，与 `/command` 相同；暂停的会话也会处理写入。底层是新的 RunCommand `action="write"`、`values`。
 - 推送：`WS /runs/{id}/stream?keys=…` 在每个新发布的帧推送一条 `{"type":"frame","status","time_s","sequence","parameter_revision","values"}`。客户端慢时跳过中间帧而不排队，`sequence` 体现跳过的帧；运行结束发 `{"type":"end","status":…}` 并关闭。未知运行关闭码 4404，未知变量 4422，令牌无效 4401。只有后台运行可以订阅。
+
+## 无界面服务与已保存项目运行
+
+`python -m fn_engine serve --headless --data-dir .runtime/workspace` 启动无界面服务，`health.mode` 为 `headless`，前端 `/`、`/studio.js` 返回 404；REST、WebSocket、`/docs`、`/openapi.json`、令牌、跨域和工作区行为保持一致。普通 `serve` 的模式为 `studio`；`--headless` 与 `--open` 互斥。嵌入调用 `create_app(data_root=...)` 不传前端目录时也是无界面模式。
+
+第三方可先用 `GET /api/v1/projects` 查询已保存项目，再调用 `POST /api/v1/projects/{project_id}/runs`。示例请求：
+
+```json
+{
+  "revision": 2,
+  "scenario_id": "throttle",
+  "mode": "dynamic",
+  "duration_s": null,
+  "dt_s": 0.1,
+  "start_paused": true,
+  "execution_mode": "realtime"
+}
+```
+
+`revision` 省略或为 null 时读取提交瞬间的最新保存修订；`scenario_id` 可省略。其余字段与 `RunRequest` 共用 `RunOptions`，默认 `mode=steady`，需要连续运行时显式传 `mode=dynamic,duration_s=null`。请求始终走后台运行，成功受理为 HTTP 202；随后通过现有 `/runs/{id}`、`/command`、`/variables` 和 `/stream` 接口查询和控制。
+
+服务端读取单项目文档并完成显示单位归一化，固定该修订的模块和控制脚本快照，使用已应用参数。编辑器的 `draft` 值不进入计算。运行记录中的 `request.project_revision` 来自实际读取的修订，客户端不能传入 `project` 或 `project_revision` 替换它；并发保存不会改变已捕获的运行快照。编译或求解失败（包括未知工况）沿用后台任务语义：请求可受理为 202，随后记录变为 `failed`，原因见 `frame.diagnostics`。
+
+该 POST 在认证启用时需要 control 令牌；只读令牌返回 403。未启用工作区返回 503，项目或修订缺失返回 404，无法归一化的保存文档返回 422 且不创建运行。停止并正常关闭服务后，重启可查询该运行的归档和项目修订；原仿真跨重启续算仍未实现。
+
+可直接运行的 [Python 和 JavaScript 客户端](../examples/external_clients/README.md) 包含令牌设置、按修订启动、订阅变量、写变量、暂停/继续和停止流程。变量仍使用完整规范键，值为规范单位。
 
 ## 访问控制（v0.4.6）
 
