@@ -46,11 +46,12 @@ def humidity_ratio_from_relative(temperature_k: float, pressure_pa: float, relat
 
 
 def relative_humidity(temperature_k: float, pressure_pa: float, humidity_ratio: float) -> float:
-    """由含湿量求相对湿度（0–1）。"""
-    saturation = saturation_humidity_ratio(temperature_k, pressure_pa)
-    if not saturation or saturation == float("inf"):
+    """由含湿量求相对湿度（0–1）：RH = p_v / p_sat(T)，p_v = p·w/(0.622+w)。"""
+    saturation = saturation_pressure_pa(temperature_k)
+    if saturation <= 0.0:
         return 0.0
-    return min(max(humidity_ratio / saturation, 0.0), 1.0)
+    vapor_pressure = pressure_pa * humidity_ratio / (0.622 + humidity_ratio)
+    return min(max(vapor_pressure / saturation, 0.0), 1.0)
 
 
 def dew_point_k(temperature_k: float, pressure_pa: float, humidity_ratio: float) -> float:

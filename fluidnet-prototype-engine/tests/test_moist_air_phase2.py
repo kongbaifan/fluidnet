@@ -184,6 +184,32 @@ def test_mixing_two_airstreams_mixes_humidity_by_mass():
     assert values["J1.in0.humidity_ratio_kg_kg"] == pytest.approx(mixed, rel=1e-6)
 
 
+def test_parallel_moist_branches_with_more_branches_than_nodes():
+    """回归：支路数 m 大于节点数 n 时，逐支路含湿量数组不能按节点数分配。"""
+    catalog = catalog_map()
+    junction = catalog["junction"]
+    junction.ports = [junction.ports[0].model_copy(update={"id": f"p{i}"}) for i in range(5)]
+    junction.variables = []
+    ducts = [{"length_m": 5.0, "duct_width_m": width, "duct_height_m": width} for width in (0.3, 0.4, 0.5)]
+    instances = [boundary("B1", PA + 200.0, 293.15, 0.010), boundary("B2", PA, 293.15, 0.010),
+                 ModuleInstance(id="J1", module_id="junction", name="分风"),
+                 ModuleInstance(id="J2", module_id="junction", name="汇风")]
+    instances += [ModuleInstance(id=f"D{i}", module_id="duct", name=f"支路 {i}", parameters=ducts[i - 1])
+                  for i in (1, 2, 3)]
+    connections = [link("b1", ("B1", "out0"), ("J1", "p0")),
+                   link("b2", ("J2", "p0"), ("B2", "out0"))]
+    for i in (1, 2, 3):
+        connections += [link(f"i{i}", ("J1", f"p{i}"), (f"D{i}", "in0")),
+                        link(f"o{i}", (f"D{i}", "out0"), ("J2", f"p{i}"))]
+    project = Project(id="moist-parallel", name="并联湿空气支路",
+                      fluid=AIR_MOIST, modules=[catalog["source"], catalog["duct"], junction],
+                      instances=instances, connections=connections,
+                      solver=SolverOptions(moist_air=True))
+    values = solve_steady(compile_project(project)).variables
+    for i in (1, 2, 3):
+        assert values[f"D{i}.out0.humidity_ratio_kg_kg"] == pytest.approx(0.010, rel=1e-9)
+
+
 def test_moist_air_mode_is_explicit_and_validated():
     catalog = catalog_map()
     with pytest.raises(CompilationError, match='moist_air'):

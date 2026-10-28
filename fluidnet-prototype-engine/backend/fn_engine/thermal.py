@@ -443,17 +443,19 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
     # 湿空气模式的含湿量输运：与焓相同的迎风质量加权，源项来自表冷器/加湿器。
     # 含湿量关系不依赖温度，因此先独立求解一次，再在焓迭代中作为已知量使用。
     coil_moisture: dict[int, dict] = {}
-    branch_humidity_out = humidity.copy()
+    branch_humidity_out = np.array([humidity[upstream[j]] for j in range(m)])
     humidifier_moisture_kg_s = 0.0
-    if moist:
+
+    def solve_humidity_once(current):
         rows, cols, values, rhs = [], [], [], np.zeros(n)
         for node in fixed:
-            rows.append(node); cols.append(node); values.append(1.0); rhs[node] = humidity[node]
+            rows.append(node); cols.append(node); values.append(1.0); rhs[node] = current[node]
         for node in sorted(held):
             if node in fixed:
                 continue
-            rows.append(node); cols.append(node); values.append(1.0); rhs[node] = humidity[node]
+            rows.append(node); cols.append(node); values.append(1.0); rhs[node] = current[node]
         a_w, c_w = np.ones(m), np.zeros(m)
+        coil_state, injected = {}, 0.0
         for j in flowing:
             kind = kinds[j]
             parameters = network.parameters[branches[j].instance_id]
@@ -461,14 +463,14 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
                 adp = float(parameters['coil_surface_temperature_k'])
                 bf = float(parameters['bypass_factor'])
                 w_sat = _moist.saturation_humidity_ratio(adp, float(pressures[downstream[j]]))
-                wet = humidity[upstream[j]] > w_sat
+                wet = current[upstream[j]] > w_sat
                 if wet:
                     a_w[j], c_w[j] = bf, (1.0 - bf) * w_sat
-                coil_moisture[j] = {'wet': wet, 'w_sat': w_sat, 'adp': adp, 'bf': bf}
+                coil_state[j] = {'wet': wet, 'w_sat': w_sat, 'adp': adp, 'bf': bf}
             elif kind == 'humidifier':
                 delta = float(parameters.get('moisture_addition_kg_kg', 0.0) or 0.0)
                 a_w[j], c_w[j] = 1.0, delta
-                humidifier_moisture_kg_s += weight[j] * delta
+                injected += weight[j] * delta
         for j in flowing:
             up, down = upstream[j], downstream[j]
             if down in fixed or down in held:
@@ -480,12 +482,19 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
         try:
             with warnings.catch_warnings():
                 warnings.simplefilter('error', MatrixRankWarning)
-                solved_humidity = np.atleast_1d(spsolve(matrix, rhs))
+                solved = np.atleast_1d(spsolve(matrix, rhs))
         except (MatrixRankWarning, RuntimeError) as error:
             raise ThermalError('MOISTURE_REFERENCE_MISSING', '含湿量方程欠约束：检查边界含湿量与风管回路') from error
-        if not np.all(np.isfinite(solved_humidity)):
+        if not np.all(np.isfinite(solved)):
             raise ThermalError('MOISTURE_NOT_FINITE', '含湿量方程没有有限解')
-        humidity = np.maximum(solved_humidity, 0.0)
+        return np.maximum(solved, 0.0), a_w, c_w, coil_state, injected
+
+    if moist:
+        # 干湿分区取决于入口含湿量，两遍迭代让串联盘管的湿工况判定与上游解一致。
+        a_w = np.ones(m)
+        c_w = np.zeros(m)
+        for _pass in range(2):
+            humidity, a_w, c_w, coil_moisture, humidifier_moisture_kg_s = solve_humidity_once(humidity)
         for j in flowing:
             branch_humidity_out[j] = a_w[j] * humidity[upstream[j]] + c_w[j]
 
