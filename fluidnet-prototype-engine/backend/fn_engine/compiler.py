@@ -102,6 +102,8 @@ class CompiledNetwork:
     # 困液定容容积（I0–I4）：节点 -> 配置。节点同时出现在 fixed_pressures/fixed_temperatures 里，
     # 作为编译期与首帧的初态压力/温度参考；动态步用积分状态覆盖它们。
     trapped: dict[int, TrappedSpec] = field(default_factory=dict)
+    # 湿空气模式：固定压力节点的边界含湿量（kg 水/kg 干空气）；放在末尾以保持位置参数向后兼容。
+    fixed_humidities: dict[int, float] = field(default_factory=dict)
 
     def fluid_at(self, node: int) -> FluidConfig:
         return self.circuit_fluids[self.node_circuit[node]] if self.mixed else self.project.fluid
@@ -391,7 +393,14 @@ def compile_project(project: Project) -> CompiledNetwork:
     diagnostics = list(project.import_diagnostics)
     parameters, port_keys = {}, []
     supported = {'pressure_source', 'junction', 'valve', 'pipe', 'duct', 'pump_curve', 'heat_exchanger', 'tank',
-                 'closed_volume', 'heater'}
+                 'closed_volume', 'heater', 'cooling_coil', 'humidifier'}
+    # 湿空气网络只接受空气单相与内置风侧元件（Python 模块按干空气近似参与）。
+    moist = project.solver.moist_air
+    moist_models = {'pressure_source', 'junction', 'valve', 'pipe', 'duct', 'heater', 'cooling_coil', 'humidifier'}
+    if moist:
+        fluid_name = (project.fluid.fluid or '').split('::')[-1]
+        if project.fluid.phase_policy != 'gas' or fluid_name != 'Air':
+            raise CompilationError('MOIST_AIR_FLUID_REQUIRED', '湿空气模式要求 fluid=Air 且 phase_policy=gas')
     # Built-in state models and the solver model each one belongs to.
     state_models = {'open_tank': 'tank', 'closed_volume': 'closed_volume'}
     service = fluid_service(project)
@@ -401,6 +410,12 @@ def compile_project(project: Project) -> CompiledNetwork:
             definition.solver_model != 'tank'
         if definition.runtime != 'python' and (definition.solver_model not in supported or not state_ok):
             raise CompilationError('MODEL_NOT_SUPPORTED', f'{inst.id} 的模型 {definition.state_model or definition.solver_model} 尚未实现；不能生成替代计算结果', inst.id)
+        if definition.solver_model in ('cooling_coil', 'humidifier') and not moist:
+            raise CompilationError('MOIST_AIR_REQUIRED', f'{inst.id} 的 {definition.solver_model} 需要 SolverOptions.moist_air=True',
+                                   inst.id)
+        if moist and definition.runtime != 'python' and definition.solver_model not in moist_models:
+            raise CompilationError('MOIST_AIR_MODEL_UNSUPPORTED', f'{inst.id} 的模型 {definition.solver_model} 不适用于湿空气网络',
+                                   inst.id)
         if definition.runtime == 'python':
             from .module_contracts import ModuleCompatibilityError, check_module_compatibility
             try:
@@ -476,6 +491,7 @@ def compile_project(project: Project) -> CompiledNetwork:
     branches: list[CompiledBranch] = []
     fixed: dict[int, float] = {}
     fixed_temperatures: dict[int, float] = {}
+    fixed_humidities: dict[int, float] = {}
     storage: dict[int, StorageSpec] = {}
     for inst in project.instances:
         definition, params = modules[inst.module_id], parameters[inst.id]
@@ -493,6 +509,20 @@ def compile_project(project: Project) -> CompiledNetwork:
                                        'temperature_k')
             fixed[node] = value
             fixed_temperatures.setdefault(node, temperature)
+            if moist:
+                humidity = float(params.get('humidity_ratio_kg_kg', 0.0) or 0.0)
+                if humidity < 0.0 or humidity > 0.2:
+                    raise CompilationError('PARAMETER_RANGE', f'{inst.id}.humidity_ratio_kg_kg 超出 0–0.2 kg/kg',
+                                           inst.id, 'humidity_ratio_kg_kg')
+                from .moist_air import saturation_humidity_ratio
+                if humidity > saturation_humidity_ratio(temperature, value):
+                    raise CompilationError('AIR_HUMIDITY_SUPERSATURATED',
+                                           f'{inst.id} 的边界含湿量 {humidity:.5g} 超过该温度压力下的饱和含湿量', inst.id,
+                                           'humidity_ratio_kg_kg')
+                if node in fixed_humidities and not math.isclose(fixed_humidities[node], humidity, rel_tol=0, abs_tol=1e-9):
+                    raise CompilationError('BOUNDARY_HUMIDITY_CONFLICT', f'{inst.id} 与同节点边界的含湿量不同', inst.id,
+                                           'humidity_ratio_kg_kg')
+                fixed_humidities.setdefault(node, humidity)
             continue
         if definition.solver_model == 'tank':
             node = nodes[f'{inst.id}:{definition.ports[0].id}']
@@ -513,7 +543,8 @@ def compile_project(project: Project) -> CompiledNetwork:
         if covered != {p.id for p in definition.ports}:
             raise CompilationError('CHANNEL_COVERAGE', f'{inst.id} 存在未绑定到有效通路的端口', inst.id)
         for ch in channels:
-            expected = 'resistance' if definition.solver_model in ('heat_exchanger', 'heater') else definition.solver_model
+            expected = 'resistance' if definition.solver_model in ('heat_exchanger', 'heater', 'cooling_coil', 'humidifier') \
+                else definition.solver_model
             relation = 'pump_curve' if expected == 'pump_curve' else 'resistance'
             if definition.runtime != 'python' and (ch.solver_model != expected or ch.relation != relation):
                 raise CompilationError('CHANNEL_MODEL_INVALID', f'{inst.id}.{ch.id} 未注册的通路关系 {ch.solver_model}/{ch.relation}', inst.id, ch.id)
@@ -544,7 +575,8 @@ def compile_project(project: Project) -> CompiledNetwork:
                                       f'{project.fluid.fluid}）；各回路物性独立计算'))
     network = CompiledNetwork(project, modules, instances, parameters, nodes, roots, branches, fixed, diagnostics,
                            fixed_temperatures, [components.find(n) for n in range(len(roots))], storage,
-                           node_circuit, circuit_fluids, circuit_sources, mixed, trapped=trapped)
+                           node_circuit, circuit_fluids, circuit_sources, mixed, trapped=trapped,
+                           fixed_humidities=fixed_humidities)
     network.composite_maps = composite_maps or getattr(project,'_composite_maps',{})
     from .module_scope import check_scope_configuration
     for key, instance in instances.items():

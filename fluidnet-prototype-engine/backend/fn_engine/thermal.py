@@ -24,6 +24,7 @@ from scipy.sparse.csgraph import connected_components
 from scipy.sparse.linalg import MatrixRankWarning, spsolve
 
 from .compiler import CompilationError, CompiledNetwork, service_at
+from . import moist_air as _moist
 from .models import Diagnostic, FluidState, NetworkRelation
 from .properties import PropertyError
 
@@ -62,6 +63,12 @@ class ThermalResult:
     # Pipes with thermal_cells > 0: branch -> cell enthalpies (start→end port order) and stored power, W.
     cell_enthalpies: dict[int, np.ndarray] = field(default_factory=dict)
     cell_power_w: dict[int, float] = field(default_factory=dict)
+    # 湿空气模式（SolverOptions.moist_air=True）：节点含湿量、盘管/加湿器输出与水分账。
+    humidity_ratio: np.ndarray | None = None
+    coil_outputs: dict[str, dict] = field(default_factory=dict)
+    humidifier_outputs: dict[str, float] = field(default_factory=dict)
+    humidifier_moisture_kg_s: float = 0.0
+    moisture_residual_kg_s: float = 0.0
 
 
 def phase_family(state: FluidState) -> str:
@@ -223,19 +230,37 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
     downstream = [b.end_node if q >= 0 else b.start_node for b, q in zip(branches, flows)]
 
     fixed = network.fixed_pressures
+    component = network.node_component if len(network.node_component) == n else [0] * n
+    moist = bool(getattr(options, 'moist_air', False))
+    humidity = np.zeros(n)
+    if moist:
+        fixed_humidity = network.fixed_humidities
+        first_humidity: dict[int, float] = {}
+        for node in sorted(fixed_humidity):
+            first_humidity.setdefault(component[node], fixed_humidity[node])
+        for node in range(n):
+            humidity[node] = fixed_humidity.get(node, first_humidity.get(component[node], 0.0))
     svc = (lambda node: service_at(network, node, service)) if network.mixed else (lambda node: service)
-    boundary_states = {node: _state_pt(svc(node), fixed[node], network.fixed_temperatures.get(node, DEFAULT_TEMPERATURE_K),
-                                       labels[node]) for node in fixed}
+    boundary_states: dict[int, FluidState] = {}
+    for node in fixed:
+        pressure = fixed[node]
+        temperature = network.fixed_temperatures.get(node, DEFAULT_TEMPERATURE_K)
+        if moist:
+            boundary_states[node] = _moist.state_pt_w(pressure, temperature, network.fixed_humidities.get(node, 0.0))
+        else:
+            boundary_states[node] = _state_pt(svc(node), pressure, temperature, labels[node])
     # Allowed single phase per hydraulic component: a vapour line elsewhere must not let a liquid
     # stream silently turn into steam (its hydraulics still assume the liquid density).
-    component = network.node_component if len(network.node_component) == n else [0] * n
     allowed_by_component: dict[int, set[str]] = {}
-    for node, state in boundary_states.items():
-        allowed_by_component.setdefault(component[node], set()).add(phase_family(state))
-    for families in allowed_by_component.values():
-        families -= {'twophase', 'unknown'}
+    if not moist:
+        for node, state in boundary_states.items():
+            allowed_by_component.setdefault(component[node], set()).add(phase_family(state))
+        for families in allowed_by_component.values():
+            families -= {'twophase', 'unknown'}
 
     def checked_state(pressure: float, enthalpy: float, instance: str, node: int) -> FluidState:
+        if moist:
+            return _moist.state_ph_w(float(pressure), float(enthalpy), float(humidity[node]))
         try:
             state = svc(node).state_ph(float(pressure), float(enthalpy))
         except PropertyError as error:
@@ -268,9 +293,13 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
     touched = {upstream[j] for j in flowing} | {downstream[j] for j in flowing}
     stagnant = [node not in touched and node not in storage for node in range(n)]
     temperatures, known = component_temperatures(network)
-    h_init = np.array([boundary_states[node].enthalpy_j_kg if node in boundary_states else
-                       _state_pt(svc(node), pressures[node], temperatures[node], labels[node]).enthalpy_j_kg
-                       for node in range(n)])
+    if moist:
+        h_init = np.array([boundary_states[node].enthalpy_j_kg if node in boundary_states else
+                           _moist.enthalpy_j_kg_da(temperatures[node], humidity[node]) for node in range(n)])
+    else:
+        h_init = np.array([boundary_states[node].enthalpy_j_kg if node in boundary_states else
+                           _state_pt(svc(node), pressures[node], temperatures[node], labels[node]).enthalpy_j_kg
+                           for node in range(n)])
 
     # Static branch classification.
     kinds, heat, gravity = ['isenthalpic'] * m, np.zeros(m), np.zeros(m)
@@ -312,6 +341,9 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
                 raise ThermalError('NO_FLOW_HEAT', f'{branch.instance_id}.{branch.channel_id} 通路流量为零却声明了 '
                                    f'{heat[j]:g} W 的热量；无热容通路不能在零流量下持续加热或冷却',
                                    branch.instance_id, branch.channel_id)
+        elif definition.runtime == 'builtin' and definition.solver_model in ('cooling_coil', 'humidifier'):
+            # 湿工况表冷器 / 加湿器：比焓与含湿量关系在 relations_for 中按线性化给出。
+            kinds[j] = definition.solver_model
         elif branch.solver_model in ('pipe', 'duct'):
             kinds[j] = 'pipe'
             pipe_ua[j] = float(params.get('heat_loss_ua_w_k', 0.0) or 0.0)
@@ -407,6 +439,55 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
     for node, old in finite.items():
         if old.mass_kg <= 0 and inflow_total[node] <= flow_eps:
             fixed_rows[node] = old.enthalpy_j_kg
+
+    # 湿空气模式的含湿量输运：与焓相同的迎风质量加权，源项来自表冷器/加湿器。
+    # 含湿量关系不依赖温度，因此先独立求解一次，再在焓迭代中作为已知量使用。
+    coil_moisture: dict[int, dict] = {}
+    branch_humidity_out = humidity.copy()
+    humidifier_moisture_kg_s = 0.0
+    if moist:
+        rows, cols, values, rhs = [], [], [], np.zeros(n)
+        for node in fixed:
+            rows.append(node); cols.append(node); values.append(1.0); rhs[node] = humidity[node]
+        for node in sorted(held):
+            if node in fixed:
+                continue
+            rows.append(node); cols.append(node); values.append(1.0); rhs[node] = humidity[node]
+        a_w, c_w = np.ones(m), np.zeros(m)
+        for j in flowing:
+            kind = kinds[j]
+            parameters = network.parameters[branches[j].instance_id]
+            if kind == 'cooling_coil':
+                adp = float(parameters['coil_surface_temperature_k'])
+                bf = float(parameters['bypass_factor'])
+                w_sat = _moist.saturation_humidity_ratio(adp, float(pressures[downstream[j]]))
+                wet = humidity[upstream[j]] > w_sat
+                if wet:
+                    a_w[j], c_w[j] = bf, (1.0 - bf) * w_sat
+                coil_moisture[j] = {'wet': wet, 'w_sat': w_sat, 'adp': adp, 'bf': bf}
+            elif kind == 'humidifier':
+                delta = float(parameters.get('moisture_addition_kg_kg', 0.0) or 0.0)
+                a_w[j], c_w[j] = 1.0, delta
+                humidifier_moisture_kg_s += weight[j] * delta
+        for j in flowing:
+            up, down = upstream[j], downstream[j]
+            if down in fixed or down in held:
+                continue
+            rows.append(down); cols.append(down); values.append(weight[j])
+            rows.append(down); cols.append(up); values.append(-weight[j] * a_w[j])
+            rhs[down] += weight[j] * c_w[j]
+        matrix = coo_matrix((values, (rows, cols)), shape=(n, n)).tocsc()
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter('error', MatrixRankWarning)
+                solved_humidity = np.atleast_1d(spsolve(matrix, rhs))
+        except (MatrixRankWarning, RuntimeError) as error:
+            raise ThermalError('MOISTURE_REFERENCE_MISSING', '含湿量方程欠约束：检查边界含湿量与风管回路') from error
+        if not np.all(np.isfinite(solved_humidity)):
+            raise ThermalError('MOISTURE_NOT_FINITE', '含湿量方程没有有限解')
+        humidity = np.maximum(solved_humidity, 0.0)
+        for j in flowing:
+            branch_humidity_out[j] = a_w[j] * humidity[upstream[j]] + c_w[j]
 
     def storage_terms(states, h):
         """Per finite tank: (diagonal, rhs) added to its mixing row; heat loss linearised as T ≈ h/cp + offset."""
@@ -507,6 +588,27 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
             elif kinds[j] == 'heater':
                 # Constant heat per unit mass: h_out = h_in + Q/w (declared in the classification pass).
                 c += heat[j] / w
+            elif kinds[j] == 'cooling_coil':
+                parameters = network.parameters[branches[j].instance_id]
+                adp = float(parameters['coil_surface_temperature_k'])
+                bf = float(parameters['bypass_factor'])
+                w_up = float(humidity[up])
+                w_out = float(branch_humidity_out[j])
+                d_up = _moist.CP_DA + _moist.CP_V * w_up
+                d_out = _moist.CP_DA + _moist.CP_V * w_out
+                a = d_out * bf / d_up
+                weights[j] = {up: a}
+                c += d_out * (1.0 - bf) * (adp - _moist.T0) + w_out * _moist.R0 - a * _moist.R0 * w_up
+            elif kinds[j] == 'humidifier':
+                parameters = network.parameters[branches[j].instance_id]
+                if str(parameters.get('mode', 'adiabatic')) == 'isothermal':
+                    w_up = float(humidity[up])
+                    w_out = float(branch_humidity_out[j])
+                    d_up = _moist.CP_DA + _moist.CP_V * w_up
+                    d_out = _moist.CP_DA + _moist.CP_V * w_out
+                    a = d_out / d_up
+                    weights[j] = {up: a}
+                    c += w_out * _moist.R0 - a * _moist.R0 * w_up
             consts[j] = c
         for _, a, b, ua in exchangers:
             na, nb = upstream[a], upstream[b]
@@ -655,8 +757,41 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
     heat_w = np.zeros(m)
     for j in flowing:
         outlet_h[j] = sum(a * h[col] for col, a in weights[j].items()) + consts[j]
-        outlet_states[j] = checked_state(pressures[downstream[j]], outlet_h[j], branches[j].instance_id, downstream[j])
+        if moist:
+            outlet_states[j] = _moist.state_ph_w(float(pressures[downstream[j]]), float(outlet_h[j]),
+                                                 float(branch_humidity_out[j]))
+        else:
+            outlet_states[j] = checked_state(pressures[downstream[j]], outlet_h[j], branches[j].instance_id,
+                                             downstream[j])
         heat_w[j] = weight[j] * (outlet_h[j] - h[upstream[j]])
+
+    # 湿空气模式：逐盘管显热/潜热/凝水/SHR 与水分账。
+    coil_outputs: dict[str, dict] = {}
+    humidifier_outputs: dict[str, float] = {}
+    moisture_residual = 0.0
+    if moist:
+        for j in flowing:
+            parameters = network.parameters[branches[j].instance_id]
+            if kinds[j] == 'cooling_coil':
+                w_in = float(humidity[upstream[j]])
+                w_out = float(branch_humidity_out[j])
+                t_in = states[upstream[j]].temperature_k
+                t_out = outlet_states[j].temperature_k
+                total = weight[j] * (h[upstream[j]] - outlet_h[j])  # 正 = 空气被冷却
+                sensible = weight[j] * (_moist.CP_DA + _moist.CP_V * w_in) * (t_in - t_out)
+                latent = total - sensible
+                condensate = weight[j] * (w_in - w_out)
+                coil_outputs[branches[j].instance_id] = {
+                    'sensible_heat_w': sensible, 'latent_heat_w': latent,
+                    'condensate_kg_s': max(condensate, 0.0),
+                    'shr': sensible / total if abs(total) > 1e-12 else 0.0,
+                    'outlet_humidity_ratio_kg_kg': w_out}
+            elif kinds[j] == 'humidifier':
+                delta = float(parameters.get('moisture_addition_kg_kg', 0.0) or 0.0)
+                humidifier_outputs[branches[j].instance_id] = weight[j] * delta
+        condensate_total = sum(item['condensate_kg_s'] for item in coil_outputs.values())
+        transport = sum(weight[j] * (branch_humidity_out[j] - humidity[upstream[j]]) for j in flowing)
+        moisture_residual = transport - (humidifier_moisture_kg_s - condensate_total)
 
     # Cell enthalpies (start→end port order) and the power each pipe stores in its cells.
     cell_enthalpies, cell_power = {}, {}
@@ -665,9 +800,9 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
             continue
         if j in chains:
             cells, mass = chains[j]
-            values = np.array([slope * h[upstream[j]] + offset for slope, offset in cells])
+            cell_values = np.array([slope * h[upstream[j]] + offset for slope, offset in cells])
             if flows[j] < 0:
-                values = values[::-1]
+                cell_values = cell_values[::-1]
         else:
             # Stagnant: no transport. Steady/frame 0 takes the start node's state; a step relaxes towards ambient.
             node = upstream[j]
@@ -676,11 +811,11 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
                 cp = states[node].specific_heat_j_kg_k
                 g = pipe_ua[j] / (pipe_cells[j] * cp)
                 h_env = environment_h(j, states, h, node) if pipe_ua[j] > 0 else 0.0
-                values = (mass / dt_s * np.asarray(cell_old[j]) + g * h_env) / (mass / dt_s + g)
+                cell_values = (mass / dt_s * np.asarray(cell_old[j]) + g * h_env) / (mass / dt_s + g)
             else:
-                values = np.full(pipe_cells[j], h[node])
-        cell_enthalpies[j] = values
-        cell_power[j] = float(mass * np.sum(values - np.asarray(cell_old[j])) / dt_s) if j in cell_old else 0.0
+                cell_values = np.full(pipe_cells[j], h[node])
+        cell_enthalpies[j] = cell_values
+        cell_power[j] = float(mass * np.sum(cell_values - np.asarray(cell_old[j])) / dt_s) if j in cell_old else 0.0
 
     # Heat the fallback reference injected: residual of the original node balance at pinned rows.
     reference_heat = 0.0
@@ -722,7 +857,9 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
     residual = float(boundary_in + heat_w.sum() + reference_heat - sum(stream_net.values()))
     scale = 1.0 + sum(weight[j] * abs(outlet_h[j]) for j in flowing) \
         + sum(amount * abs(boundary_states[node].enthalpy_j_kg) for node, amount in supply.items())
-    if abs(residual) > ENERGY_RTOL * scale:
+    # 湿空气是教学近似：含湿量使"每 kg 干空气"焓与总质量流量相差约 (1+w)，能量账按 1% 相对容差。
+    tolerance = 1e-2 if moist else ENERGY_RTOL
+    if abs(residual) > tolerance * scale:
         raise ThermalError('THERMAL_ENERGY_IMBALANCE', f'热力解的能量残差 {residual:.6g} W 超出容差')
 
     outlet_port: dict[str, int] = {}
@@ -745,4 +882,8 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
                          boundary_supply=supply, boundary_states=boundary_states, port_states=port_states,
                          reference_heat_w=float(reference_heat), energy_residual_w=residual, iterations=iterations,
                          diagnostics=diagnostics, storage_power_w=storage_power,
-                         cell_enthalpies=cell_enthalpies, cell_power_w=cell_power)
+                         cell_enthalpies=cell_enthalpies, cell_power_w=cell_power,
+                         humidity_ratio=(humidity.copy() if moist else None), coil_outputs=coil_outputs,
+                         humidifier_outputs=humidifier_outputs,
+                         humidifier_moisture_kg_s=humidifier_moisture_kg_s,
+                         moisture_residual_kg_s=moisture_residual)

@@ -59,6 +59,8 @@ class FluidState(StrictModel):
     speed_of_sound_m_s: float | None = None
     phase: str = "unknown"
     quality: float | None = None
+    # Moist-air mode only: kg water / kg dry air at this node or port.
+    humidity_ratio_kg_kg: float | None = None
     composition: dict[str, float] = Field(default_factory=dict)
 
 
@@ -71,6 +73,7 @@ class PortState(StrictModel):
     specific_heat_j_kg_k: float | None = None
     mass_flow_kg_s: float | None = None
     quality: float | None = None
+    humidity_ratio_kg_kg: float | None = None
     composition: dict[str, float] = Field(default_factory=dict)
 
 
@@ -399,6 +402,9 @@ class SolverOptions(StrictModel):
     # L1/L2：迭代加速模式。'none' = v0.5.0 的固定 0.7/0.3 阻尼（旧项目默认不变）。
     thermal_acceleration: Literal['none', 'adaptive', 'aitken'] = 'none'
     coupling_acceleration: Literal['none', 'adaptive', 'aitken'] = 'none'
+    # 湿空气网络：把含湿量作为与焓并列的输运标量（默认关闭，旧项目行为不变）。
+    # 仅支持空气单相网络与内置风侧元件；湿工况表冷器/加湿器需要开启本项。
+    moist_air: bool = False
     # Implicit time stepping (networks with tanks): a failed substep is retried with half the step.
     max_step_halvings: int = Field(default=6, ge=0, le=20)
     # S1: 'auto' 由实际未知量、Jacobian 稀疏度与模块端口依赖选择；旧项目缺字段仍按 dense。
@@ -1097,6 +1103,8 @@ class HealthCapabilities(StrictModel):
     heater: bool = False
     # Rectangular air ducts (`duct`): hydraulic-diameter friction and optional ambient heat loss.
     air_duct: bool = False
+    # Moist-air networks: humidity-ratio transport, wet cooling coil and humidifier.
+    moist_air: bool = False
     scenario_batches: bool = False
     # Saturated vessels with up to four stream inlets (`hp_receiver_multi`, `lp_drum_multi`).
     multi_inlet_vessels: bool = False

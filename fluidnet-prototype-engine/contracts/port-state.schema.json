@@ -97,6 +97,18 @@
       "default": null,
       "title": "Quality"
     },
+    "humidity_ratio_kg_kg": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Humidity Ratio Kg Kg"
+    },
     "composition": {
       "additionalProperties": {
         "type": "number"

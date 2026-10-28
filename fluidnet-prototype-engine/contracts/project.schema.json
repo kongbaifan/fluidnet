@@ -1771,6 +1771,11 @@
           "title": "Coupling Acceleration",
           "type": "string"
         },
+        "moist_air": {
+          "default": false,
+          "title": "Moist Air",
+          "type": "boolean"
+        },
         "max_step_halvings": {
           "default": 6,
           "maximum": 20,

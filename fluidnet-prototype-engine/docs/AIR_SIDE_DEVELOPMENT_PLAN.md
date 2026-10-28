@@ -4,7 +4,7 @@
 
 2026-10-28 范围确认：**本次做到 Phase 2**（湿空气、湿工况、AHU 设备套件、房间湿负荷、冷却塔水耗），并包含**风侧结果视图**；Phase 3（VAV/静压控制）与 Phase 4（课程封装）本次不做，但保留在工作包中供后续评估。教学拓扑确认包含 AHU/新风机组，因此湿工况盘管与 AHU 套件优先于通用房间湿负荷。
 
-**2026-10-28 实施状态：Phase 0 与 Phase 1 已完成**（可行性见第 9 节，干工况风管网络见第 10 节），下一步进入 Phase 2。
+**2026-10-28 实施状态：Phase 0、Phase 1 与 Phase 2a 已完成**（可行性见第 9 节，干工况风管见第 10 节，湿空气/湿工况见第 11 节）；Phase 2b（房间湿负荷、冷却塔水耗、结果视图）尚未实施。
 
 ## 1. 目标与非目标
 
@@ -237,3 +237,21 @@ python -m pytest tests/test_air_duct_phase0.py tests/test_air_duct_phase1.py -q 
 ```
 
 **边界（本轮不做）：** 湿空气含湿量输运与湿工况盘管（Phase 2）；风阀静压控制/VAV（Phase 3）；风口射流、气流组织、噪声与 CFD；矩形风管层流段用圆管等效（仅工程近似，已在文档标注）。
+
+## 11. Phase 2a 实施记录（2026-10-28）
+
+湿空气与湿工况已接通，验收汇总见[Phase 2a 验收](AIR_SIDE_PHASE2A_ACCEPTANCE.md)。
+
+| 项 | 内容 |
+| --- | --- |
+| 湿空气物性 | `backend/fn_engine/moist_air.py`：Magnus 饱和压力、含湿量/相对湿度/露点、湿空气焓与温度互算、混合物密度与比热（教学近似） |
+| 模式开关 | `SolverOptions.moist_air`（默认关闭）；编译期要求 `fluid=Air`、`phase_policy=gas`，并校验边界含湿量不超过饱和值 |
+| 含湿量输运 | 热力层把 w 作为与焓并列的标量：与流量迎风混合、边界固定、逐端口输出 `humidity_ratio_kg_kg` / `relative_humidity`；水分账 `metrics.moisture_residual_kg_s` |
+| 湿工况表冷器 | 内置 `cooling_coil`：旁通系数法 `T_out=T_adp+BF·(T_in−T_adp)`；湿工况 `w_out=w_sat(T_adp)+BF·(w_in−w_sat)`；输出显热、潜热、凝水、SHR |
+| 加湿器 | 内置 `humidifier`：`adiabatic` 等焓加湿（温度下降）与 `isothermal` 等温加湿（补入蒸汽焓） |
+| 测试 | `tests/test_moist_air_phase2.py` 8 项：物性与 CoolProp `HAPropsSI` 对照、风管含湿量守恒、湿/干工况表冷器、两种加湿器、两股空气混合、模式校验 |
+| 能力标志 | health 新增 `moist_air`，契约重新生成（75 个文件一致） |
+
+**教学近似（明确边界）：** 湿空气焓按每 kg 干空气计，而水力流量为湿空气质量流量，能量账放宽容差到 1% 相对；饱和压力用 Magnus 近似（与 CoolProp 湿空气查询差约 2%，测试内对照）；未建模翅片凝水滞留、除湿再热、风机湿空气密度修正。
+
+**Phase 2b（未做）：** 房间含湿量动态状态、新风/渗透/散湿负荷、冷却塔水耗与逼近度、风侧结果视图（变量清单/报告/Studio 面板）。

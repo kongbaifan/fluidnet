@@ -37,6 +37,11 @@
           "title": "Air Duct",
           "type": "boolean"
         },
+        "moist_air": {
+          "default": false,
+          "title": "Moist Air",
+          "type": "boolean"
+        },
         "scenario_batches": {
           "default": false,
           "title": "Scenario Batches",

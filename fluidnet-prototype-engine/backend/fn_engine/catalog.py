@@ -18,13 +18,22 @@ def channel(id, model, inlet='in0', outlet='out0'):
                        relation='pump_curve' if model == 'pump_curve' else 'resistance', solver_model=model)
 
 
+def _moist_var(id, label, quantity, unit, display=None, scale=1., offset=0.):
+    """风侧内置设备的派生变量（湿空气模式输出）。"""
+    return VariableSpec(id=id, label=label, quantity=quantity, source='derived',
+                        unit=UnitSpec(quantity=quantity, canonical_unit=unit, display_unit=display or unit,
+                                      display_scale=scale, display_offset=offset))
+
+
 def builtin_catalog() -> list[ModuleDefinition]:
     definitions = [
         ModuleDefinition(id='source', name='压力边界', category='边界与节点', solver_model='pressure_source',
             ports=ports('out0'), parameters=[
                 number('pressure_pa', '绝对压力', 201325.0, 'pressure', 'Pa', 'kPa', 1000.0, 1.0),
                 # The usable range depends on the fluid; the compiler checks it against the property service.
-                number('temperature_k', '边界温度', 293.15, 'temperature', 'K', '°C', minimum=1.0, offset=-273.15)]),
+                number('temperature_k', '边界温度', 293.15, 'temperature', 'K', '°C', minimum=1.0, offset=-273.15),
+                # 仅湿空气模式使用（SolverOptions.moist_air=True）；干工质网络忽略该参数。
+                number('humidity_ratio_kg_kg', '边界含湿量（湿空气模式）', 0., 'ratio', '1', minimum=0., maximum=.2)]),
         ModuleDefinition(id='junction', name='连接节点', category='边界与节点', solver_model='junction',
             ports=[p.model_copy(update={'required': False}) for p in ports('in0', 'out0', 'out1')],
             parameters=[number('elevation_m', '标高（当前仅支持零标高）', 0.0, 'length', 'm', minimum=0, maximum=0)]),
@@ -60,6 +69,33 @@ def builtin_catalog() -> list[ModuleDefinition]:
                 number('roughness_m', '绝对粗糙度', .00015, 'length', 'm', 'mm', .001, 0.),
                 number('heat_loss_ua_w_k', '散热能力 UA（0 为绝热）', 0., 'conductance', 'W/K', minimum=0.),
                 number('ambient_temperature_k', '环境温度', 293.15, 'temperature', 'K', '°C', minimum=1., offset=-273.15)]),
+        # 湿工况表冷器（旁通系数法）：出口温度/含湿量由盘管表面温度（机器露点）与旁通系数确定；
+        # 需 SolverOptions.moist_air=True。显热/潜热/凝水/SHR 由求解器输出。
+        ModuleDefinition(id='cooling_coil', name='湿工况表冷器', category='热力设备', solver_model='cooling_coil',
+            description='旁通系数法表冷器：T_out = T_adp + BF·(T_in − T_adp)；湿工况 w_out = w_sat(T_adp) + BF·(w_in − w_sat)；'
+                        '输出显热、潜热、凝水量与 SHR。需开启湿空气模式。',
+            ports=ports('in0', 'out0'), channels=[channel('ch0', 'resistance')], parameters=[
+                number('coil_surface_temperature_k', '盘管表面温度（机器露点）', 285.15, 'temperature', 'K', '°C',
+                       minimum=1., offset=-273.15),
+                number('bypass_factor', '旁通系数 BF', .15, 'ratio', '1', minimum=0., maximum=1.),
+                number('loss_coefficient', '局部阻力系数 K', 0., 'ratio', '1', minimum=0.),
+                number('diameter_m', '水力等效内径', .4, 'length', 'm', 'mm', .001, .001)],
+            variables=[_moist_var('sensible_heat_w', '显热换热量', 'power', 'W', 'kW', 1000.),
+                       _moist_var('latent_heat_w', '潜热换热量', 'power', 'W', 'kW', 1000.),
+                       _moist_var('condensate_kg_s', '凝水量', 'mass_flow', 'kg/s'),
+                       _moist_var('shr', '显热比 SHR', 'ratio', '1')]),
+        # 加湿器：adiabatic 等焓加湿（温度下降），isothermal 等温加湿（补入蒸汽焓）。
+        ModuleDefinition(id='humidifier', name='加湿器', category='热力设备', solver_model='humidifier',
+            description='加湿器：mode=adiabatic 等焓加湿（温度下降），isothermal 等温加湿（补入蒸汽焓）；'
+                        'moisture_addition_kg_kg 为每 kg 干空气的加湿量。需开启湿空气模式。',
+            ports=ports('in0', 'out0'), channels=[channel('ch0', 'resistance')], parameters=[
+                ParameterSpec(id='mode', label='加湿模式（adiabatic / isothermal）', value_type='text',
+                              default='adiabatic'),
+                number('moisture_addition_kg_kg', '加湿量（kg 水/kg 干空气）', .002, 'ratio', '1',
+                       minimum=0., maximum=.05),
+                number('loss_coefficient', '局部阻力系数 K', 0., 'ratio', '1', minimum=0.),
+                number('diameter_m', '水力等效内径', .4, 'length', 'm', 'mm', .001, .001)],
+            variables=[_moist_var('moisture_addition_kg_s', '加湿量（质量流量）', 'mass_flow', 'kg/s')]),
         ModuleDefinition(id='exchanger', name='双侧换热器（水力）', category='热力设备', solver_model='heat_exchanger',
             thermal_model='epsilon_ntu', ports=ports('in0', 'out0', 'in1', 'out1'),
             channels=[channel('ch0', 'resistance'), channel('ch1', 'resistance', 'in1', 'out1')], parameters=[

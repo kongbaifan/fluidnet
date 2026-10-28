@@ -1093,6 +1093,17 @@ def snapshot(network, result, time_s=0., warning=None):
         if state is not None:
             for name in PORT_THERMAL_FIELDS:
                 variables[f'{prefix}.{name}'] = getattr(state, name)
+            humidity = getattr(state, 'humidity_ratio_kg_kg', None)
+            if humidity is not None:
+                variables[f'{prefix}.humidity_ratio_kg_kg'] = humidity
+                from .moist_air import relative_humidity
+                variables[f'{prefix}.relative_humidity'] = relative_humidity(
+                    state.temperature_k, state.pressure_pa, humidity)
+    if thermal is not None and (thermal.coil_outputs or thermal.humidifier_outputs):
+        for instance_id, values in thermal.coil_outputs.items():
+            variables.update({f'{instance_id}.{key}': value for key, value in values.items()})
+        for instance_id, value in thermal.humidifier_outputs.items():
+            variables[f'{instance_id}.moisture_addition_kg_s'] = value
     for inst, params in network.parameters.items():
         variables.update({f'{inst}.param.{k}': v for k,v in params.items() if isinstance(v, (float,int))})
     conflicts = variables.keys() & hydraulic.module_variables.keys()
@@ -1105,6 +1116,9 @@ def snapshot(network, result, time_s=0., warning=None):
     if thermal is not None:
         metrics.update({'thermal_iterations': thermal.iterations, 'coupling_iterations': coupling,
                         'energy_residual_w': thermal.energy_residual_w, 'reference_heat_w': thermal.reference_heat_w})
+        if thermal.humidity_ratio is not None:
+            metrics.update({'moisture_residual_kg_s': thermal.moisture_residual_kg_s,
+                            'humidifier_moisture_kg_s': thermal.humidifier_moisture_kg_s})
     summary = {'requested_method': hydraulic.requested_method, 'effective_method': hydraulic.effective_method,
                'method_reason': hydraulic.method_reason, 'matrix_size': hydraulic.matrix_size,
                'matrix_nnz': hydraulic.matrix_nnz, 'jacobian_mode': hydraulic.jacobian_mode,
