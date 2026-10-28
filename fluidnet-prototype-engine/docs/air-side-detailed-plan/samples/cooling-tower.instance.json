@@ -1,0 +1,15 @@
+{
+  "id": "CT1", "module_id": "cooling_tower_moist", "name": "湿空气冷却塔",
+  "parameters": {
+    "air_temperature_k": 303.15,
+    "air_pressure_pa": 101325,
+    "air_humidity_ratio_kg_kg": 0.014,
+    "air_volume_flow_m3_s": 3,
+    "contact_effectiveness": 0.7,
+    "cycles_of_concentration": 3,
+    "drift_fraction": 0.0002,
+    "makeup_temperature_k": 293.15,
+    "loss_coefficient": 2,
+    "diameter_m": 0.05
+  }
+}

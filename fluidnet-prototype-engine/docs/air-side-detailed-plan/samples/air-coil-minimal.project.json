@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "id": "air-coil-minimal",
+  "name": "湿盘管最小算例",
+  "description": "规定入口状态、盘管表面温度和旁通系数；冷源为外部规定条件",
+  "fluid": {"backend": "coolprop", "fluid": "Air", "phase_policy": "gas"},
+  "solver": {
+    "thermal": true,
+    "moist_air": true,
+    "property_coupling": "node",
+    "hydraulic_method": "dense",
+    "analytic_jacobian": false,
+    "moist_air_options": {"contract_version": 1, "property_backend": "coolprop_ha"}
+  },
+  "modules": [
+    {
+      "schema_version": 1,
+      "id": "source",
+      "name": "压力边界",
+      "version": 2,
+      "runtime": "builtin",
+      "solver_model": "pressure_source",
+      "ports": [{"id": "out0", "label": "边界端口", "domain": "fluid", "direction": "bidirectional"}],
+      "parameters": [
+        {"id": "pressure_pa", "label": "绝对压力", "default": 101325, "minimum": 60000, "maximum": 120000, "runtime": true,
+          "unit": {"quantity": "pressure", "canonical_unit": "Pa", "display_unit": "kPa", "display_scale": 1000}},
+        {"id": "temperature_k", "label": "温度", "default": 293.15, "minimum": 253.15, "maximum": 333.15, "runtime": true,
+          "unit": {"quantity": "temperature", "canonical_unit": "K", "display_unit": "°C", "display_offset": -273.15}},
+        {"id": "humidity_ratio_kg_kg", "label": "含湿量", "default": 0.008, "minimum": 0, "maximum": 0.05, "runtime": true,
+          "unit": {"quantity": "humidity_ratio", "canonical_unit": "kg/kg_da", "display_unit": "g/kg_da", "display_scale": 0.001}}
+      ]
+    },
+    {
+      "schema_version": 1,
+      "id": "cooling_coil",
+      "name": "湿工况表冷器",
+      "version": 1,
+      "runtime": "builtin",
+      "solver_model": "cooling_coil",
+      "ports": [
+        {"id": "in0", "label": "入口", "domain": "fluid", "direction": "in"},
+        {"id": "out0", "label": "出口", "domain": "fluid", "direction": "out"}
+      ],
+      "channels": [{"id": "ch0", "name": "空气通路", "input_port": "in0", "output_port": "out0", "relation": "resistance", "solver_model": "resistance"}],
+      "parameters": [
+        {"id": "coil_surface_temperature_k", "label": "机器露点", "default": 285.15, "minimum": 273.15, "maximum": 323.15, "runtime": true,
+          "unit": {"quantity": "temperature", "canonical_unit": "K", "display_unit": "°C", "display_offset": -273.15}},
+        {"id": "bypass_factor", "label": "旁通系数", "default": 0.15, "minimum": 0, "maximum": 1, "runtime": true,
+          "unit": {"quantity": "ratio", "canonical_unit": "1", "display_unit": "1"}},
+        {"id": "loss_coefficient", "label": "阻力系数", "default": 2, "minimum": 0,
+          "unit": {"quantity": "ratio", "canonical_unit": "1", "display_unit": "1"}},
+        {"id": "diameter_m", "label": "截面直径", "default": 0.4, "minimum": 0.001, "maximum": 10,
+          "unit": {"quantity": "length", "canonical_unit": "m", "display_unit": "mm", "display_scale": 0.001}}
+      ]
+    }
+  ],
+  "instances": [
+    {"id": "B1", "module_id": "source", "name": "入口边界", "position": {"x": 120, "y": 240},
+      "parameters": {"pressure_pa": 101425, "temperature_k": 303.15, "humidity_ratio_kg_kg": 0.014}},
+    {"id": "C1", "module_id": "cooling_coil", "name": "表冷器", "position": {"x": 420, "y": 240},
+      "parameters": {"coil_surface_temperature_k": 285.15, "bypass_factor": 0.15, "loss_coefficient": 2, "diameter_m": 0.4}},
+    {"id": "B2", "module_id": "source", "name": "出口压力边界", "position": {"x": 720, "y": 240},
+      "parameters": {"pressure_pa": 101325, "temperature_k": 293.15, "humidity_ratio_kg_kg": 0.008}}
+  ],
+  "connections": [
+    {"id": "e1", "source": {"instance_id": "B1", "port_id": "out0"}, "target": {"instance_id": "C1", "port_id": "in0"}},
+    {"id": "e2", "source": {"instance_id": "C1", "port_id": "out0"}, "target": {"instance_id": "B2", "port_id": "out0"}}
+  ],
+  "selected_variables": ["C1.out0.temperature_k", "C1.out0.relative_humidity", "C1.condensate_kg_s", "C1.cooling_load_w"]
+}

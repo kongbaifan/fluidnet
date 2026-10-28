@@ -1,0 +1,17 @@
+{
+  "id": "R1", "module_id": "air_room", "name": "单区房间",
+  "parameters": {
+    "volume_m3": 100,
+    "initial_temperature_k": 299.15,
+    "initial_humidity_ratio_kg_kg": 0.010,
+    "initial_pressure_pa": 101325,
+    "additional_heat_capacity_j_k": 1000000,
+    "envelope_ua_w_k": 100,
+    "outdoor_temperature_k": 308.15,
+    "outdoor_humidity_ratio_kg_kg": 0.014,
+    "infiltration_dry_air_kg_s": 0.01,
+    "sensible_load_w": 1000,
+    "moisture_load_kg_s": 0.0001,
+    "moisture_source_temperature_k": 307.15
+  }
+}

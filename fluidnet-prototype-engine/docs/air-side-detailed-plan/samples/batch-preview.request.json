@@ -1,0 +1,15 @@
+{
+  "revision": 7,
+  "sweep": {
+    "instance_id": "C1",
+    "parameter_id": "coil_surface_temperature_k",
+    "values": [8.0, 10.0, 12.0, 14.0]
+  },
+  "variables": [
+    "C1.out0.temperature_k",
+    "C1.out0.relative_humidity",
+    "C1.condensate_kg_s",
+    "C1.cooling_load_w"
+  ],
+  "options": {"mode": "steady", "duration_s": 60, "dt_s": 1}
+}
