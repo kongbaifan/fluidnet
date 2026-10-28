@@ -1,3 +1,4 @@
+import {FHD_CONTEXT, FHD_VIEWPORT, captureFhd} from './browser-viewport.mjs';
 import {chromium, expect} from '@playwright/test';
 import {mkdirSync, mkdtempSync} from 'node:fs';
 import {join} from 'node:path';
@@ -10,7 +11,7 @@ const browser=await chromium.launch({channel:'msedge',headless:true});
 let launched,base,context,page;
 async function start(){
   launched=await launchEngine({args:['--data-dir',join(dir,'data')],env:{FLUIDNET_MODULE_STORE:join(dir,'modules')}});
-  base=launched.base;context=await browser.newContext({viewport:{width:1700,height:1150}});
+  base=launched.base;context=await browser.newContext({...FHD_CONTEXT});
   page=await context.newPage();page.on('pageerror',error=>errors.push(error.message));
   page.on('response',response=>{responses.push([new URL(response.url()).pathname,response.status()]);if(responses.length>30)responses.shift();});
   await page.goto(base+'/#projects');
@@ -158,11 +159,11 @@ try{
   expect(independentRun.record.frame.variables['WP1.mass_flow_kg_s']).toBeCloseTo(independentRun.record.frame.variables['coupling.HX1.mass_flow_kg_s'],8);
   expect(independentRun.record.frame.variables['WP2.mass_flow_kg_s']).toBeCloseTo(independentRun.record.frame.variables['coupling.HX2.mass_flow_kg_s'],8);
   await save();mkdirSync('artifacts',{recursive:true});
-  await page.screenshot({path:'artifacts/dual-thermal-coupling.png',fullPage:true});
-  await page.setViewportSize({width:1366,height:768});await openRelation('HX2');
+  await captureFhd(page, 'artifacts/dual-thermal-coupling.png');
+  await page.setViewportSize(FHD_VIEWPORT);await openRelation('HX2');
   await expect(dialog().getByLabel('液体管段',{exact:true})).toBeInViewport();
   await expect(dialog().locator('button[type="submit"]')).toBeInViewport();
-  await page.screenshot({path:'artifacts/dual-thermal-editor-1366.png',fullPage:true});await closeDialog();
+  await captureFhd(page, 'artifacts/dual-thermal-editor-1080p.png');await closeDialog();
   await launched.stop();await context.close();await start();
   await page.locator(`.project-preview[data-id="${independent.id}"]`).click();
   const replay=await run();expect(replay.record.frame.variables).toEqual(independentRun.record.frame.variables);
@@ -172,5 +173,5 @@ try{
   console.log(JSON.stringify({projects:[parallel.id,copy.id,independent.id],totalHeat:independentRun.record.frame.metrics.coupling_heat_w,errors}));
 }catch(error){
   console.error(error,errors,responses,await page?.locator('#toast').textContent().catch(()=>''),launched?.log());process.exitCode=1;
-  mkdirSync('artifacts',{recursive:true});await page?.screenshot({path:'artifacts/dual-thermal-failure.png',fullPage:true}).catch(()=>{});
+  mkdirSync('artifacts',{recursive:true});await captureFhd(page, 'artifacts/dual-thermal-failure.png').catch(()=>{});
 }finally{await browser.close();await launched?.stop();}

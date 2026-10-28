@@ -1,3 +1,4 @@
+import {FHD_CONTEXT, captureFhd} from './browser-viewport.mjs';
 import { chromium, expect } from '@playwright/test';
 import { createHash } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
@@ -5,7 +6,7 @@ import { testServer } from './browser-server.mjs';
 
 const fixture = await testServer(), base = fixture.base;
 const browser = await chromium.launch({channel: 'msedge', headless: true});
-const page = await browser.newPage({viewport: {width: 1600, height: 1100}});
+const page = await browser.newPage({...FHD_CONTEXT});
 const errors = []; page.on('pageerror', error => errors.push(error.message));
 const storageKey = 'fluidnet-prototype-engine-v1';
 const longId = 'alpha_' + 'a'.repeat(75); // Maximum valid backend Identifier length: 81.
@@ -206,7 +207,7 @@ try {
   console.log(JSON.stringify({scripts: 2, importedIdLength: longId.length, runId, capacity: capacity.count, errors}));
 } catch (error) {
   mkdirSync('artifacts', {recursive: true});
-  await page.screenshot({path: 'artifacts/control-programs-failure.png', fullPage: true}).catch(() => {});
+  await captureFhd(page, 'artifacts/control-programs-failure.png').catch(() => {});
   throw error;
 } finally {
   if (runId) await api(`/runs/${runId}/command`, {action: 'stop'}).catch(() => {});

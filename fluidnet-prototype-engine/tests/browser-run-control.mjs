@@ -1,3 +1,4 @@
+import {FHD_CONTEXT, captureFhd} from './browser-viewport.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdirSync, mkdtempSync } from 'node:fs';
 import { join } from 'node:path';
@@ -18,7 +19,7 @@ async function startServer() {
 async function stopServer() { if (launched) await launched.stop(); }
 
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
-const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+const page = await browser.newPage({ ...FHD_CONTEXT });
 const errors = []; page.on('pageerror', e => errors.push(e.message));
 // studio.js is an IIFE, so the page's live state is not reachable from evaluate();
 // `保存` is the app's own way of flushing it to localStorage.
@@ -149,12 +150,12 @@ try {
   const parameterBatches = await verifyParameterBatches(browser, base);
 
   mkdirSync('artifacts', { recursive: true });
-  await page.screenshot({ path: 'artifacts/run-control.png', fullPage: true });
+  await captureFhd(page, 'artifacts/run-control.png');
   expect(errors).toEqual([]);
   console.log(JSON.stringify({ runId, finalStatus: final.status, timeS: final.frame.time_s, rows: history.total_rows,
     rowsAfterStop: rowsAtStop, timeAfterStop: afterStop.time, events: afterStop.events,
     trendRows: trendHistory.total_rows, partialRows: trendHistory.rows.filter(row => row.full === false).length, parameterBatches, errors }, null, 2));
 } catch (error) {
-  mkdirSync('artifacts', { recursive: true }); await page.screenshot({ path: 'artifacts/run-control-failure.png', fullPage: true });
+  mkdirSync('artifacts', { recursive: true }); await captureFhd(page, 'artifacts/run-control-failure.png');
   console.error('Browser errors:', errors, 'Server:', serverLog.slice(-2500)); throw error;
 } finally { await browser.close(); await stopServer(); }

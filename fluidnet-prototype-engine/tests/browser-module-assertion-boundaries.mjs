@@ -1,3 +1,4 @@
+import {FHD_CONTEXT} from './browser-viewport.mjs';
 import {chromium, expect} from '@playwright/test';
 import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -137,7 +138,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1
   const server = await testServer();
   const browser = await chromium.launch({channel:'msedge',headless:true});
   try {
-    const page = await browser.newPage({viewport:{width:1600,height:1000}});
+    const page = await browser.newPage({...FHD_CONTEXT});
     const errors = []; page.on('pageerror', error => errors.push(error.message));
     await page.goto(server.base+'/#modules');
     await exerciseModuleAssertionBoundaries(page,server.base);

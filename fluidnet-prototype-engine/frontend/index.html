@@ -198,7 +198,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 #fn-studio .selected-properties dt { color:var(--muted); }
 #fn-studio .selected-properties dd { margin:0;overflow-wrap:anywhere; }
 #fn-studio .canvas-column { display:flex;flex-direction:column;min-width:0;min-height:0; }
-#fn-studio .canvas-bar { display:flex;align-items:center;gap:10px;padding:0 12px;min-height:43px;background:var(--soft);border-bottom:1px solid var(--border);flex-wrap:wrap; }
+/* 换行工具栏保留实际高度，避免后面的画布覆盖操作按钮。 */
+#fn-studio .canvas-bar { display:flex;align-items:center;gap:10px;padding:0 12px;min-height:43px;flex-shrink:0;background:var(--soft);border-bottom:1px solid var(--border);flex-wrap:wrap; }
 #fn-studio .canvas-pages { display:flex;align-items:center;gap:3px; }
 #fn-studio .canvas-pages button { padding:11px 10px 9px;color:var(--muted);font-size:12px;border-bottom:2px solid transparent; }
 #fn-studio .canvas-pages button.active { border-color:var(--orange);color:var(--accent);background:var(--surface); }
@@ -767,6 +768,47 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   #fn-studio .canvas-inspection { bottom:44px;max-height:74px;overflow:hidden; }
 }
 
+#fn-studio .batch-page { max-width:none; }
+#fn-studio .batch-layout { display:grid;grid-template-columns:370px minmax(0,1fr);gap:20px;align-items:start; }
+#fn-studio .batch-config { position:sticky;top:0;max-height:calc(100dvh - 225px);overflow:hidden;display:flex;flex-direction:column; }
+#fn-studio .batch-config>.panel-head { flex:none; }
+#fn-studio .batch-config .panel-body { padding:18px;overflow:auto;min-height:0; }
+#fn-studio .batch-config .stack { gap:10px; }
+#fn-studio .batch-config-footer { flex:none;padding:12px 18px;border-top:1px solid var(--border);background:var(--soft); }
+#fn-studio .batch-config-footer .btn { width:100%; }
+#fn-studio .batch-form { padding:0;margin:0;border:0;min-width:0; }
+#fn-studio .batch-form .field select,#fn-studio .batch-form .field input { width:100%;min-width:0; }
+#fn-studio .batch-form .fields { gap:10px; }
+#fn-studio .batch-source-label { font-size:12px;overflow-wrap:anywhere; }
+#fn-studio .batch-unit { font-size:12px;color:var(--muted); }
+#fn-studio .batch-range { display:grid;grid-template-columns:1fr 1fr 90px;gap:8px; }
+#fn-studio .batch-filter { width:100%;min-width:0; }
+#fn-studio .batch-choices { max-height:175px;overflow:auto;border:1px solid var(--border);border-radius:6px;padding:7px; }
+#fn-studio .batch-check { display:flex;align-items:flex-start;gap:8px;padding:5px 2px;font-size:12px;cursor:pointer; }
+#fn-studio .batch-check input { width:14px;height:14px;flex:none;margin-top:2px;accent-color:var(--orange); }
+#fn-studio .batch-check span { min-width:0;overflow-wrap:anywhere; }
+#fn-studio .batch-check small { display:block;color:var(--muted);font-size:10px;margin-top:2px; }
+#fn-studio .batch-results { min-width:0;display:flex;flex-direction:column;gap:18px; }
+#fn-studio .batch-empty { padding:20px;color:var(--muted);font-size:13px;text-align:center; }
+#fn-studio .batch-empty p { margin-top:7px; }
+#fn-studio .batch-table-scroll { overflow:auto;max-height:330px;border:1px solid var(--border);border-radius:6px; }
+#fn-studio .batch-table-scroll .data-table { margin:0; }
+#fn-studio .batch-table-scroll th { position:sticky;top:0;background:var(--soft);z-index:1;white-space:nowrap; }
+#fn-studio .batch-result-table th small,#fn-studio .batch-result-table td small { display:block;font-weight:400;color:var(--muted); }
+#fn-studio .batch-result-table td { white-space:nowrap;vertical-align:top;font-variant-numeric:tabular-nums; }
+#fn-studio .batch-result-table td[data-batch-value] { text-align:right; }
+#fn-studio .batch-model-note { color:var(--muted);font-size:12px; }
+#fn-studio .batch-result-table .batch-diagnostic { min-width:180px;max-width:360px;white-space:normal;color:var(--red);font-size:11px; }
+#fn-studio .batch-diagnostic .batch-warning { color:var(--accent); }
+#fn-studio .batch-diagnostic details p { margin-top:6px; }
+#fn-studio .batch-comparison { display:flex;flex-direction:column;gap:12px; }
+#fn-studio .batch-series-choices { display:flex;flex-wrap:wrap;gap:4px 18px;max-height:95px;overflow:auto; }
+#fn-studio .batch-plot { display:block;width:100%;height:280px; }
+#fn-studio .batch-plot text { fill:var(--muted);font-size:11px; }
+#fn-studio .batch-legend { display:flex;flex-wrap:wrap;gap:8px 16px;font-size:11px;color:var(--muted); }
+#fn-studio .batch-legend i { display:inline-block;width:16px;height:3px;margin-right:6px;vertical-align:middle; }
+#fn-studio .batch-provenance { font-size:12px;color:var(--muted);overflow-wrap:anywhere; }
+#fn-studio .batch-provenance p { margin-top:8px; }
 </style>
 </head>
 <body>
@@ -786,6 +828,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   <script src="engine-client.js"></script>
   <script src="modeling-workflows.js"></script>
   <script src="cold-storage.js"></script>
+  <script src="scenario-batches.js"></script>
 <script src="studio.js"></script>
 </body>
 </html>

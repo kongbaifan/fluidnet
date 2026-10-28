@@ -1,0 +1,192 @@
+{
+  "$defs": {
+    "BatchRunOptions": {
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "default": "steady",
+          "enum": [
+            "steady",
+            "dynamic"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "duration_s": {
+          "default": 60.0,
+          "exclusiveMinimum": 0,
+          "maximum": 604800,
+          "title": "Duration S",
+          "type": "number"
+        },
+        "dt_s": {
+          "default": 0.1,
+          "exclusiveMinimum": 0,
+          "maximum": 60,
+          "title": "Dt S",
+          "type": "number"
+        }
+      },
+      "title": "BatchRunOptions",
+      "type": "object"
+    },
+    "ParameterSweep": {
+      "additionalProperties": false,
+      "properties": {
+        "instance_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Instance Id",
+          "type": "string"
+        },
+        "parameter_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Parameter Id",
+          "type": "string"
+        },
+        "values": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "number"
+              },
+              "maxItems": 20,
+              "minItems": 1,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Values"
+        },
+        "range": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SweepRange"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "instance_id",
+        "parameter_id"
+      ],
+      "title": "ParameterSweep",
+      "type": "object"
+    },
+    "SweepRange": {
+      "additionalProperties": false,
+      "properties": {
+        "start": {
+          "title": "Start",
+          "type": "number"
+        },
+        "stop": {
+          "title": "Stop",
+          "type": "number"
+        },
+        "count": {
+          "maximum": 20,
+          "minimum": 2,
+          "title": "Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "start",
+        "stop",
+        "count"
+      ],
+      "title": "SweepRange",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "revision": {
+      "anyOf": [
+        {
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Revision"
+    },
+    "sweep": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ParameterSweep"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "scenario_ids": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 20,
+      "title": "Scenario Ids",
+      "type": "array"
+    },
+    "variables": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 16,
+      "minItems": 1,
+      "title": "Variables",
+      "type": "array"
+    },
+    "options": {
+      "$ref": "#/$defs/BatchRunOptions"
+    },
+    "request_id": {
+      "maxLength": 96,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+      "title": "Request Id",
+      "type": "string"
+    },
+    "preview_hash": {
+      "anyOf": [
+        {
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Preview Hash"
+    },
+    "name": {
+      "default": "批量工况",
+      "maxLength": 120,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    }
+  },
+  "required": [
+    "variables",
+    "request_id"
+  ],
+  "title": "BatchCreateRequest",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

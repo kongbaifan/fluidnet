@@ -1,3 +1,4 @@
+import {FHD_CONTEXT, captureFhd} from './browser-viewport.mjs';
 import { chromium, expect } from '@playwright/test';
 import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
@@ -26,7 +27,7 @@ const dir = mkdtempSync(join(tmpdir(), 'fluidnet-archive-migration-'));
 const launched = await launchEngine({ args: ['--data-dir', join(dir, 'data')], env: { FLUIDNET_MODULE_STORE: join(dir, 'modules') } });
 const base = launched.base;
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
-const context = await browser.newContext({ viewport: { width: 1700, height: 1100 }, acceptDownloads: true });
+const context = await browser.newContext({ ...FHD_CONTEXT, acceptDownloads: true });
 const page = await context.newPage();
 const errors = [];
 page.on('pageerror', e => errors.push(e.message));
@@ -233,7 +234,7 @@ try {
   expect(sha256File(oldArchivePath), '落盘的旧存档证据不应变化').toBe(oldArchiveHash);
 
   // 11. 全新浏览器上下文（无任何本地草稿）从服务器恢复：证明迁移结果已持久化，而不只是浏览器内存。
-  const fresh = await browser.newContext({ viewport: { width: 1700, height: 1100 } });
+  const fresh = await browser.newContext({ ...FHD_CONTEXT });
   const freshPage = await fresh.newPage();
   freshPage.on('pageerror', e => errors.push(e.message));
   await freshPage.goto(base + '/#projects');
@@ -252,7 +253,7 @@ try {
   expect(sha256File(originalExportPath)).toBe(originalExportHash);
   expect(errors).toEqual([]);
 
-  await page.screenshot({ path: join(artifacts, 'archive-migration.png'), fullPage: true });
+  await captureFhd(page, join(artifacts, 'archive-migration.png'));
   const result = {
     projectCount: { oldArchive: oldArchive.projects.length, serverBaseline: baseline.data.projects.length, afterImport: migrated.projects.length, afterRestore: restored.projects.length },
     module: { id: 'programmable_valve', contentHash, definitionHash },
@@ -266,7 +267,7 @@ try {
   console.log(JSON.stringify(result, null, 2));
 } catch (error) {
   mkdirSync(artifacts, { recursive: true });
-  await page.screenshot({ path: join(artifacts, 'archive-migration-failure.png'), fullPage: true }).catch(() => {});
+  await captureFhd(page, join(artifacts, 'archive-migration-failure.png')).catch(() => {});
   console.error('Browser errors:', errors, 'Server:', launched.log().slice(-2500));
   throw error;
 } finally {

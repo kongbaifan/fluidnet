@@ -10,6 +10,10 @@ import sys
 from pathlib import Path
 
 from fn_engine.api import create_app
+from fn_engine.batch_models import (
+    BatchCreateRequest, BatchCurveResponse, BatchDeleteResponse, BatchDetailResponse,
+    BatchListResponse, BatchPlanRequest, BatchPreviewResponse, BatchSetupResponse,
+)
 from fn_engine.bridge import normalize_prototype_export
 from fn_engine.models import (
     CommitStepRequest, CommitStepResponse, ControlPreviewResponse, EvaluateRequest, EvaluateResponse,
@@ -40,6 +44,10 @@ output=root/'contracts'
 
 # 合同文件清单的唯一来源：schema 名与生成顺序都由这里给出，测试直接导入 models，避免名单漂移。
 models = [
+    ('batch-plan-request', BatchPlanRequest), ('batch-create-request', BatchCreateRequest),
+    ('batch-setup-response', BatchSetupResponse), ('batch-preview-response', BatchPreviewResponse),
+    ('batch-detail-response', BatchDetailResponse), ('batch-list-response', BatchListResponse),
+    ('batch-curve-response', BatchCurveResponse), ('batch-delete-response', BatchDeleteResponse),
     ('module', ModuleDefinition), ('project', Project), ('run-request', RunRequest), ('run-frame', RunFrame),
     ('saved-project-run-request', SavedProjectRunRequest),
     ('module-v1', ModuleDefinitionV1), ('module-v2', ModuleDefinitionV2),

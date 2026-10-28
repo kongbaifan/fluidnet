@@ -32,6 +32,11 @@
           "title": "Heater",
           "type": "boolean"
         },
+        "scenario_batches": {
+          "default": false,
+          "title": "Scenario Batches",
+          "type": "boolean"
+        },
         "multi_inlet_vessels": {
           "default": false,
           "title": "Multi Inlet Vessels",

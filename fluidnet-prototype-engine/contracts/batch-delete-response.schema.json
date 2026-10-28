@@ -1,0 +1,20 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "deleted": {
+      "title": "Deleted",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "id",
+    "deleted"
+  ],
+  "title": "BatchDeleteResponse",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

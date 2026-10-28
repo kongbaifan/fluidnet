@@ -23,7 +23,7 @@ python -m fn_engine serve --data-dir "artifacts/restored-workspace" --open
 
 备份文件和恢复目录都必须使用尚不存在的目标。模块存储单独配置时，备份与启动可传 `--module-dir "模块目录"`。优先级为显式 `--module-dir` → 工作区已有 `module-packages/` → `FLUIDNET_MODULE_STORE` → 项目默认 `.runtime/module-packages/`。恢复的同 ID/版本模块优先于软件附带的示例版本，保留备份时的双哈希。
 
-ZIP 使用格式版本 1；SQLite `user_version=1`。清单逐文件记录大小和 SHA-256，恢复同时验证数据库完整性、外键、修订号以及 Python 模块的源码/定义哈希。校验过程不执行模块源码。暂未提供跨数据库格式版本升级。
+ZIP 使用格式版本 1；当前 SQLite `user_version=3`。恢复接受数据库版本 1、2、3，旧版本在首次打开时自动迁移到版本 3，保留项目、运行及修订；版本 3 增加的批次快照、结果和曲线也随数据库备份。清单逐文件记录大小和 SHA-256，恢复同时验证数据库完整性、外键、修订号以及 Python 模块的源码/定义哈希。校验过程不执行模块源码。
 
 页面/API 上传限制为 256 MiB；更大的 ZIP 使用 CLI。所有恢复限制解压后不超过 2 GiB、条目数不超过 10000。数据库与模块文件全部校验成功后才发布恢复目录。
 

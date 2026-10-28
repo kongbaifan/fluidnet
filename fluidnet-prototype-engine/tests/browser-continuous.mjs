@@ -1,3 +1,4 @@
+import {FHD_CONTEXT, captureFhd} from './browser-viewport.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdirSync, mkdtempSync } from 'node:fs';
 import { join } from 'node:path';
@@ -17,7 +18,7 @@ async function stopServer() { if (launched) await launched.stop(); }
 const record = async id => (await page.request.get(base + '/api/v1/runs/' + id)).json();
 
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
-const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+const page = await browser.newPage({ ...FHD_CONTEXT });
 const errors = []; page.on('pageerror', e => errors.push(e.message));
 
 try {
@@ -51,6 +52,6 @@ try {
   expect(errors).toEqual([]);
   console.log(JSON.stringify({ runId, status: final.status, rows: final.total_rows, timeS: final.frame.time_s, overviewRows: data.rows.length, errors }));
 } catch (error) {
-  mkdirSync('artifacts', { recursive: true }); await page.screenshot({ path: 'artifacts/continuous-failure.png', fullPage: true });
+  mkdirSync('artifacts', { recursive: true }); await captureFhd(page, 'artifacts/continuous-failure.png');
   console.error(serverLog.slice(-1000), errors); throw error;
 } finally { await browser.close(); await stopServer(); }

@@ -1,3 +1,4 @@
+import {FHD_CONTEXT, captureFhd} from './browser-viewport.mjs';
 import {testServer} from './browser-server.mjs';
 import {chromium,expect} from '@playwright/test';
 import {mkdirSync,mkdtempSync,readFileSync} from 'node:fs';
@@ -6,7 +7,7 @@ import {join} from 'node:path';
 
 const fixture=await testServer(),base=fixture.base;
 const browser=await chromium.launch({channel:'msedge',headless:true});
-const page=await browser.newPage({viewport:{width:1700,height:1100}}),errors=[];
+const page=await browser.newPage({...FHD_CONTEXT}),errors=[];
 page.on('pageerror',e=>errors.push(e.message));
 const api=async(path,body)=>{const response=await fetch(base+'/api/v1'+path,{method:body===undefined?'GET':'POST',headers:{'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)});if(!response.ok)throw Error(await response.text());return response.json();};
 const close=async()=>{if(await page.getByRole('dialog').count())await page.getByRole('dialog').locator('[data-action="close-dialog"]').first().click();};
@@ -35,7 +36,7 @@ try{
   expect((await api('/runs/'+baseline)).frame.variables['V1.mass_flow_kg_s']).toBeGreaterThan(throttledRecord.frame.variables['V1.mass_flow_kg_s']);
   expect((await api('/projects/water-net')).document.project.pages[0].nodes.find(n=>n.id==='V1').params.opening).toBe(80);
   await page.goto(base+'/#curves');await page.locator('[data-action="wf-refresh-runs"]').click();await page.getByLabel('运行 A',{exact:true}).selectOption(baseline);await page.getByLabel('运行 B',{exact:true}).selectOption(throttled);await page.locator('[data-action="wf-compare"]').click();await expect(page.locator('[data-comparison-series]')).toHaveCount(2);for(const curve of await page.locator('[data-comparison-series]').all())await expect(curve).toHaveAttribute('d',/L/);await expect(page.locator('#wf-comparison-result')).toContainText('节流 25%');
-  mkdirSync('artifacts',{recursive:true});await page.screenshot({path:'artifacts/workflows-comparison.png',fullPage:true});
+  mkdirSync('artifacts',{recursive:true});await captureFhd(page, 'artifacts/workflows-comparison.png');
 
   await manage('water-net');const download=page.waitForEvent('download');await page.locator('[data-action="wf-export"]').click();const file=await download,path=join(mkdtempSync(join(tmpdir(),'fluidnet-project-')),'project.json');await file.saveAs(path);expect(JSON.parse(readFileSync(path)).project.scenarios).toHaveLength(1);
   await close();await page.locator('[data-action="wf-import"]').click();await page.getByLabel('单项目文件').setInputFiles(path);await page.getByRole('dialog').locator('button[type="submit"]').click();await expect(page.locator('#toast')).toContainText('项目已导入');
@@ -51,9 +52,9 @@ try{
   const latest=Math.max(...(await api('/modules/programmable_valve/versions')).versions.map(v=>Number(v.package.version.split('.')[0]))),next=latest+1;
   const release=await api('/modules/programmable_valve/versions/'+pinned);const module=release.module;module.content_hash=null;module.definition_hash=null;module.parameters.push({id:'gain',label:'新增增益',value_type:'number',default:2.0});
   await api('/modules/versions',{module,expected_latest_version:latest,release_notes:'兼容增加参数'});
-  await page.locator('[data-action="wf-upgrades"]').click();await page.locator('[data-action="wf-module-versions"]').click();await page.locator(`[data-action="wf-preview-upgrade"][data-version="${next}"]`).click();await expect(page.getByRole('dialog')).toContainText('兼容检查通过');await page.screenshot({path:'artifacts/workflows-upgrade.png',fullPage:true});await page.getByRole('dialog').locator('button[type="submit"]').click();await expect(page.locator('#toast')).toContainText('模块版本已更新并保存');
+  await page.locator('[data-action="wf-upgrades"]').click();await page.locator('[data-action="wf-module-versions"]').click();await page.locator(`[data-action="wf-preview-upgrade"][data-version="${next}"]`).click();await expect(page.getByRole('dialog')).toContainText('兼容检查通过');await captureFhd(page, 'artifacts/workflows-upgrade.png');await page.getByRole('dialog').locator('button[type="submit"]').click();await expect(page.locator('#toast')).toContainText('模块版本已更新并保存');
   const upgraded=await api('/projects/'+id);expect(upgraded.document.project.moduleSnapshots.programmable_valve.version).toBe(next);expect(upgraded.document.project.pages[0].nodes.find(n=>n.id==='V1').params.gain).toBe(2);
   await manage(id);await page.locator('[data-action="wf-history"]').click();await page.locator(`[data-action="wf-restore"][data-revision="${upgraded.revision-1}"]`).click();await page.getByRole('dialog').locator('button[type="submit"]').click();await expect.poll(async()=> (await api('/projects/'+id)).document.project.moduleSnapshots.programmable_valve.version).toBe(pinned);
   expect(errors).toEqual([]);console.log(JSON.stringify({project:id,baseline,throttled,upgrade:`v${pinned} -> v${next} -> v${pinned}`,errors}));
-}catch(error){mkdirSync('artifacts',{recursive:true});await page.screenshot({path:'artifacts/workflows-failure.png',fullPage:true});console.error(errors);throw error;}
+}catch(error){mkdirSync('artifacts',{recursive:true});await captureFhd(page, 'artifacts/workflows-failure.png');console.error(errors);throw error;}
 finally{await browser.close();await fixture.close();}

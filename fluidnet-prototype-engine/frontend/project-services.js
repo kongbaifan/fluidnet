@@ -169,6 +169,18 @@ window.createProjectServices = function ({request, ui, normalize, health, authHe
   }
   return {prepare,previewControl,loadWorkspace,saveWorkspace,refreshArchives,openArchive,deleteArchive,
     projectDocument,saveProject,restoreProject,deleteProject,previewUpgrade,upgradeDocument,
+    batchOptions:(id,revision)=>request('/projects/'+encodeURIComponent(id)+'/batch-options?revision='+revision),
+    previewBatch:(id,body)=>request('/projects/'+encodeURIComponent(id)+'/batches/preview',body),
+    createBatch:(id,body)=>request('/projects/'+encodeURIComponent(id)+'/batches',body),
+    listBatches:(projectId,offset=0)=>request('/batches?'+new URLSearchParams({offset,...(projectId?{project_id:projectId}:{})})),
+    readBatch:id=>request('/batches/'+encodeURIComponent(id)),
+    startBatch:id=>request('/batches/'+encodeURIComponent(id)+'/start',{}),
+    cancelBatch:id=>request('/batches/'+encodeURIComponent(id)+'/cancel',{}),
+    deleteBatch:id=>request('/batches/'+encodeURIComponent(id)+'/delete',{}),
+    batchCurve:(id,item,key)=>request('/batches/'+encodeURIComponent(id)+'/items/'+encodeURIComponent(item)+'/curve?'+new URLSearchParams({key})),
+    stopBatchRun:id=>request('/runs/'+encodeURIComponent(id)+'/command',{action:'stop',command_id:crypto.randomUUID()}),
+    exportBatch:async id=>{const response=await fetch('/api/v1/batches/'+encodeURIComponent(id)+'/export',{headers:authHeaders()});
+      if(!response.ok){const result=await response.json();throw Error(result.detail?.message||result.detail||'导出失败');}return response.blob();},
     projectHistory:id=>request('/projects/'+encodeURIComponent(id)+'/revisions'),
     listProjects:()=>request('/projects'),readProject:async id=>{const result=await request('/projects/'+encodeURIComponent(id));projectRevisions[id]=result.revision;ui.state().projectRevisions={...projectRevisions};return result;},
     validateCandidate:async owner=>request('/projects/validate',await normalize(owner)),

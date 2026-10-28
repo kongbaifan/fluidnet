@@ -288,28 +288,37 @@ RESPONSE_MODEL_EXCEPTIONS={
     '/api/v1/runs/{run_id}/report.csv': 'text/csv 下载（冷库运行曲线数据）',
     '/api/v1/runs/{run_id}/report.html': 'text/html 下载（冷库运行报告）',
     '/api/v1/runs/compare/report.html': 'text/html 下载（两次运行对照报告）',
+    '/api/v1/batches/{batch_id}/export': 'text/csv 下载（批次比较表）',
 }
 # 白名单路由的成功响应媒体类型。
 EXCEPTION_MEDIA={'/api/v1/workspace/backup': 'application/zip', '/api/v1/runs/{run_id}/report.csv': 'text/csv',
-                 '/api/v1/runs/{run_id}/report.html': 'text/html', '/api/v1/runs/compare/report.html': 'text/html'}
+                 '/api/v1/runs/{run_id}/report.html': 'text/html', '/api/v1/runs/compare/report.html': 'text/html',
+                 '/api/v1/batches/{batch_id}/export': 'text/csv'}
 # 运行时由 api.py 写进 detail.code 的静态错误码；诊断码（编译/求解/物性）另行透传，见 errors.DIAGNOSTIC_CODES。
 EXPECTED_ERROR_CODES={
     'AUTH_REQUIRED', 'AUTH_SCOPE', 'RUN_NOT_FOUND', 'PROJECT_CONFLICT', 'WORKSPACE_CONFLICT',
     'MODULE_VERSION_CONFLICT', 'RUN_ALREADY_FINISHED', 'COMMAND_ID_CONFLICT', 'NO_FRAME',
     'MODULE_SAVE_INVALID', 'MODULE_WORKER_IO_ERROR', 'RUN_LIMIT', 'RUN_TOO_LONG',
     'VARIABLE_UNKNOWN', 'MODULE_STORAGE_ERROR', 'INTERNAL_ERROR', 'STORAGE_FAILED',
+    'BATCH_NOT_FOUND', 'BATCH_CONFLICT', 'BATCH_INVALID',
 }
 
 
 def api_http_routes():
-    return [route for route in create_app().routes
-            if isinstance(route, APIRoute) and route.path.startswith(API_PREFIX)]
+    def walk(routes):
+        for route in routes:
+            if isinstance(route, APIRoute) and route.path.startswith(API_PREFIX):
+                yield route
+            included = getattr(route, 'original_router', None)
+            if included is not None:
+                yield from walk(included.routes)
+    return list(walk(create_app().routes))
 
 
 def test_every_api_route_has_response_model_or_whitelist():
     routes=api_http_routes()
-    # 冷库 A 增加运行报告（CSV/HTML/对照）与机组工作点 4 条路由。
-    assert len(routes)==45,f'HTTP 路由数量变化：{len(routes)}'
+    # 批量工况增加 10 条路由；包括 FastAPI 保留在 included router 中的路由。
+    assert len(routes)==55,f'HTTP 路由数量变化：{len(routes)}'
     missing=[f'{sorted(route.methods)} {route.path}' for route in routes
              if route.response_model is None and route.path not in RESPONSE_MODEL_EXCEPTIONS]
     assert missing==[],f'以下路由缺少 response_model 且不在白名单：{missing}'

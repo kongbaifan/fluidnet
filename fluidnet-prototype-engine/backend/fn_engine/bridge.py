@@ -29,6 +29,7 @@ PARAMETER_BINDINGS = {
              'cells':'thermal_cells', 'wallHeat':'wall_heat_capacity_j_k'},
     'junction': {'elevation':'elevation_m'},
     'exchanger': {'ua':'ua_w_k', 'loss':'loss_coefficient', 'diameter':'diameter_m'},
+    'heater': {'power':'heat_input_w', 'loss':'loss_coefficient', 'diameter':'diameter_m'},
     'tank': {'level':'level_m', 'area':'area_m2', 'height':'height_m', 'surface':'surface_pressure_pa',
              'temperature':'temperature_k', 'heater':'heat_input_w', 'heatLoss':'heat_loss_ua_w_k',
              'ambient':'ambient_temperature_k'},
@@ -131,7 +132,7 @@ def normalize_prototype_export(data: dict[str, Any]) -> Project:
             if 'channels' in original:
                 if kind in {'source','junction','tank'} and original['channels']:
                     raise ValueError(f'{module_id} 当前模型不允许额外通路')
-                model = 'resistance' if kind == 'exchanger' else definition.solver_model
+                model = 'resistance' if definition.solver_model in {'heat_exchanger', 'heater'} else definition.solver_model
                 definition.channels = [ChannelSpec(id=c['id'], name=c.get('name',c['id']), input_port=c['input'], output_port=c['output'],
                     relation='pump_curve' if model == 'pump_curve' else c.get('kind','resistance'), solver_model=model, enabled=c.get('enabled',True)) for c in original['channels']]
             # Port/variable IDs must remain compatible with the registered model in this version.

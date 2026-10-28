@@ -1,3 +1,4 @@
+import {FHD_CONTEXT, FHD_VIEWPORT, captureFhd} from './browser-viewport.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -19,7 +20,7 @@ async function start() {
   launched = await launchEngine({args: ['--data-dir', join(dir, 'data')],
     env: {FLUIDNET_MODULE_STORE: join(dir, 'modules')}});
   base = launched.base;
-  context = await browser.newContext({viewport: {width: 1700, height: 1150}});
+  context = await browser.newContext({...FHD_CONTEXT});
   page = await context.newPage();
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(base + '/#projects');
@@ -300,7 +301,7 @@ try {
   const beforeRestart = await run();
   await save();
   mkdirSync('artifacts', {recursive: true});
-  await page.screenshot({path: 'artifacts/thermal-coupling-modeling.png', fullPage: true});
+  await captureFhd(page, 'artifacts/thermal-coupling-modeling.png');
 
   await launched.stop(); await context.close(); await start();
   await page.locator(`.project-preview[data-id="${fixture.project.id}"]`).click();
@@ -312,12 +313,12 @@ try {
   expect(stored.document.project.thermalCouplings).toEqual(beforeRestart.body.project.thermal_couplings);
   const saved = await api(`/projects/${fixture.project.id}/runs`, {mode: 'dynamic', duration_s: 2, dt_s: 1, scenario_id: 'rated'});
   expect((await finished(saved.run_id)).frame.variables).toEqual(beforeRestart.record.frame.variables);
-  await page.setViewportSize({width: 1366, height: 768});
+  await page.setViewportSize(FHD_VIEWPORT);
   await openEditor();
   await expect(editor().getByLabel('液体管段', {exact: true})).toBeInViewport();
   await expect(editor().getByLabel('饱和制冷剂容器', {exact: true})).toBeInViewport();
   await expect(editor().locator('button[type="submit"]')).toBeInViewport();
-  await page.screenshot({path: 'artifacts/thermal-coupling-editor-1366.png', fullPage: true});
+  await captureFhd(page, 'artifacts/thermal-coupling-editor-1080p.png');
   await closeDialog();
   expect(errors).toEqual([]);
   console.log(JSON.stringify({projectId: fixture.project.id, couplingId,
@@ -326,7 +327,7 @@ try {
   console.error(error, errors, launched?.log());
   process.exitCode = 1;
   mkdirSync('artifacts', {recursive: true});
-  await page?.screenshot({path: 'artifacts/thermal-coupling-modeling-failure.png', fullPage: true}).catch(() => {});
+  await captureFhd(page, 'artifacts/thermal-coupling-modeling-failure.png').catch(() => {});
 } finally {
   await browser.close();
   await launched?.stop();

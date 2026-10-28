@@ -124,7 +124,7 @@ def restore_workspace(source, destination):
                 if connection.execute('PRAGMA integrity_check').fetchone()[0] != 'ok':
                     raise ValueError('数据库完整性检查未通过')
                 database_version = connection.execute('PRAGMA user_version').fetchone()[0]
-                if database_version not in (1, 2):
+                if database_version not in (1, 2, 3):
                     raise ValueError('不支持的数据库版本')
                 for table, columns in (('workspace', 'revision,saved_at,data'),
                                        ('runs', 'id,updated,record,overview'), ('frames', 'run_id,idx,data')):

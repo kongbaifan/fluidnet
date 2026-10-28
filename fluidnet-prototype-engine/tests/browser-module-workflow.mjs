@@ -1,3 +1,4 @@
+import {FHD_CONTEXT, captureFhd} from './browser-viewport.mjs';
 import {chromium,expect} from '@playwright/test';
 import {mkdirSync} from 'node:fs';
 import {testServer} from './browser-server.mjs';
@@ -6,7 +7,7 @@ import {exerciseModuleAssertionBoundaries} from './browser-module-assertion-boun
 
 const server=await testServer();
 const browser=await chromium.launch({channel:'msedge',headless:true});
-const page=await browser.newPage({viewport:{width:1600,height:1000}});
+const page=await browser.newPage({...FHD_CONTEXT});
 const errors=[];page.on('pageerror',error=>errors.push(error.message));
 const results=[];
 try{
@@ -86,7 +87,7 @@ try{
   expect(versions.versions).toHaveLength(1);
   expect(errors).toEqual([]);
   mkdirSync('artifacts/module-system/98dadd5/MOD-E4',{recursive:true});
-  await page.screenshot({path:'artifacts/module-system/98dadd5/MOD-E4/workflow.png',fullPage:true});
+  await captureFhd(page, 'artifacts/module-system/98dadd5/MOD-E4/workflow.png');
   console.log(JSON.stringify({results,errors},null,2));
 }catch(error){
   // CI-only failures need the dialog state: thrown onSubmit text or HTML validation that blocked submit.
@@ -95,6 +96,6 @@ try{
       invalid:[...f.elements].filter(e=>e.willValidate&&!e.checkValidity()).map(e=>({name:e.name,value:e.value,message:e.validationMessage})),
       preview:document.getElementById('parameter-engine-preview')?.textContent,toast:document.getElementById('toast')?.textContent};}).catch(()=>null);
   console.error(JSON.stringify({browser:browser.version(),results,errors,dialog}));
-  mkdirSync('artifacts',{recursive:true});await page.screenshot({path:'artifacts/module-workflow-failure.png',fullPage:true}).catch(()=>{});
+  mkdirSync('artifacts',{recursive:true});await captureFhd(page, 'artifacts/module-workflow-failure.png').catch(()=>{});
   throw error;
 }finally{await browser.close();await server.close();}

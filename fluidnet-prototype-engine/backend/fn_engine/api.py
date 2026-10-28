@@ -200,6 +200,9 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
     lock = Lock()
     archive = WorkspaceStore(data_root) if data_root is not None else None
     manager = RunManager(apply_scenario, archive)
+    from .batch_api import batch_router
+    from .batches import BatchService
+    batch_service = BatchService(archive, manager) if archive is not None else None
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
@@ -209,6 +212,11 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
         try:
             yield
         finally:
+            if batch_service is not None:
+                try:
+                    batch_service.close()
+                except Exception:  # pragma: no cover - defensive teardown
+                    logger.exception('FluidNet batch service shutdown failed')
             try:
                 manager.close()
             except Exception:  # pragma: no cover - defensive teardown
@@ -218,6 +226,7 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
                     archive.close()
 
     app = FastAPI(title='FluidNet Prototype Engine', version=__version__, lifespan=lifespan)
+    app.include_router(batch_router(batch_service))
     @app.exception_handler(RequestValidationError)
     async def request_validation_error(request: Request, error: RequestValidationError):
         # Rejected JSON numbers (including overflow such as 1e999) must not make
@@ -274,6 +283,7 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
                                 'module_versions':True,'run_control':True,'live_runs':True,'pid':True,'runtime_parameters':True,'continuous_step':True,
                                 'continuous_runs':True,'variables_api':True,'run_stream':True,
                                 'python_controls':True,'persistent_workspace':archive is not None,
+                                'scenario_batches':archive is not None,
                                 'cold_room_ideal_source':True,'refrigeration_station':True,'cold_store_cycle':True,
                                 'thermal_coupling':True,'dual_thermal_coupling':True,'heater':True,
                                 'multi_inlet_vessels':True,

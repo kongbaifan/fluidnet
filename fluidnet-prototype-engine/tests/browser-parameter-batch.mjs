@@ -1,3 +1,4 @@
+import {FHD_CONTEXT} from './browser-viewport.mjs';
 import { chromium, expect } from '@playwright/test';
 import { pathToFileURL } from 'node:url';
 import { testServer } from './browser-server.mjs';
@@ -6,7 +7,7 @@ import { testServer } from './browser-server.mjs';
 // server-invalid second draft reach the adapter without HTML range validation
 // masking the rejection path. The run and all writes use the production API.
 export async function verifyParameterBatches(browser, base) {
-  const page = await browser.newPage();
+  const page = await browser.newPage({...FHD_CONTEXT});
   const commands = [], errors = [];
   page.on('pageerror', error => errors.push(error.message));
   page.on('request', request => {

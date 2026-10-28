@@ -1,3 +1,4 @@
+import {FHD_CONTEXT, captureFhd} from './browser-viewport.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdirSync, mkdtempSync } from 'node:fs';
 import { join } from 'node:path';
@@ -16,7 +17,7 @@ async function startServer() {
 async function stopServer() { if (launched) await launched.stop(); }
 
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
-const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+const page = await browser.newPage({ ...FHD_CONTEXT });
 const errors = []; page.on('pageerror', e => errors.push(e.message));
 
 try {
@@ -54,11 +55,11 @@ try {
   expect(frame.variables['HX1.in1.density_kg_m3']).toBeGreaterThan(1020);
   expect(frame.variables['HX1.in0.density_kg_m3']).toBeLessThan(1000);
   await page.locator('[data-action="run-project"][data-command="stop"]').first().click();
-  mkdirSync('artifacts', { recursive: true }); await page.screenshot({ path: 'artifacts/multifluid.png', fullPage: true });
+  mkdirSync('artifacts', { recursive: true }); await captureFhd(page, 'artifacts/multifluid.png');
   expect(errors).toEqual([]);
   console.log(JSON.stringify({ circuits: validation.circuits.map(c => [c.fluid.fluid, c.ports.length]),
     cold: frame.variables['HX1.in1.density_kg_m3'], hot: frame.variables['HX1.in0.density_kg_m3'], errors }));
 } catch (error) {
-  mkdirSync('artifacts', { recursive: true }); await page.screenshot({ path: 'artifacts/multifluid-failure.png', fullPage: true });
+  mkdirSync('artifacts', { recursive: true }); await captureFhd(page, 'artifacts/multifluid-failure.png');
   console.error(serverLog.slice(-1000), errors); throw error;
 } finally { await browser.close(); await stopServer(); }

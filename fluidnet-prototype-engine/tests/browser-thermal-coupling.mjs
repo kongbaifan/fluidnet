@@ -1,3 +1,4 @@
+import {FHD_CONTEXT, captureFhd} from './browser-viewport.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdirSync, mkdtempSync } from 'node:fs';
 import { join } from 'node:path';
@@ -11,7 +12,7 @@ let launched,base,context,page;
 async function start(){
   launched=await launchEngine({args:['--data-dir',join(dir,'data')],env:{FLUIDNET_MODULE_STORE:join(dir,'modules')}});
   base=launched.base;
-  context=await browser.newContext({viewport:{width:1700,height:1150}});
+  context=await browser.newContext({...FHD_CONTEXT});
   page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));
   await page.goto(base+'/#projects');
   await expect(page.locator('.rail-link[data-route="projects"]')).toBeVisible();
@@ -80,7 +81,7 @@ try{
   expect(changed.record.frame.variables['WL1.param.ambient_temperature_k']).toBeCloseTo(313.15,8);
   await save();
   mkdirSync('artifacts',{recursive:true});
-  await page.screenshot({path:'artifacts/thermal-coupling-run.png',fullPage:true});
+  await captureFhd(page, 'artifacts/thermal-coupling-run.png');
   await launched.stop();await context.close();await start();
   await page.locator(`.project-preview[data-id="${id}"]`).click();
   await expect(page.locator('.thermal-coupling')).toBeVisible();
@@ -96,5 +97,5 @@ try{
 }catch(error){
   console.error(error);process.exitCode=1;
   mkdirSync('artifacts',{recursive:true});
-  await page?.screenshot({path:'artifacts/thermal-coupling-failure.png',fullPage:true}).catch(()=>{});
+  await captureFhd(page, 'artifacts/thermal-coupling-failure.png').catch(()=>{});
 }finally{await browser.close();await launched?.stop();}

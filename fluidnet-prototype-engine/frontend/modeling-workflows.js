@@ -147,5 +147,5 @@ window.createModelingWorkflows = function (ui) {
   return {action,comparisonMarkup,
     projectActions:p=>btn('wf-manage','管理','Settings2',`data-id="${p.id}"`,'small'),
     projectToolbar:()=>btn('wf-server-projects','服务器项目','FolderOpen')+btn('wf-import','导入单项目','Upload'),
-    scenarioToolbar:p=>`<label class="row gap-6"><span>工况</span><select data-wf-scenario data-id="${p.id}" aria-label="运行工况">${option('','基础模型',p.activeScenarioId||'')}${(p.scenarios||[]).map(s=>option(s.id,s.name,p.activeScenarioId)).join('')}</select></label>${btn('wf-scenarios','编辑工况','SlidersHorizontal',`data-id="${p.id}"`)}${btn('wf-upgrades','模块版本','Box',`data-id="${p.id}"`)}${btn('create-composite','封装设备组','Network')}`};
+    scenarioToolbar:p=>`<label class="row gap-6"><span>工况</span><select data-wf-scenario data-id="${p.id}" aria-label="运行工况">${option('','基础模型',p.activeScenarioId||'')}${(p.scenarios||[]).map(s=>option(s.id,s.name,p.activeScenarioId)).join('')}</select></label>${btn('wf-scenarios','编辑工况','SlidersHorizontal',`data-id="${p.id}"`)}${btn('wf-upgrades','模块版本','Box',`data-id="${p.id}"`)}${btn('nav','批量工况','ListChecks','data-route="batches"')}${btn('create-composite','封装设备组','Network')}`};
 };
