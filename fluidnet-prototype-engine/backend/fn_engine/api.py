@@ -286,6 +286,7 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
                                 'scenario_batches':archive is not None,
                                 'cold_room_ideal_source':True,'refrigeration_station':True,'cold_store_cycle':True,
                                 'thermal_coupling':True,'dual_thermal_coupling':True,'heater':True,
+                                'air_duct':True,
                                 'multi_inlet_vessels':True,
                                 # REFPROP 运行时发现（环境变量/捆绑目录/系统安装）；不加载 DLL。
                                 'refprop':refprop_info()},

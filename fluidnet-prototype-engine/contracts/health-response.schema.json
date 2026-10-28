@@ -32,6 +32,11 @@
           "title": "Heater",
           "type": "boolean"
         },
+        "air_duct": {
+          "default": false,
+          "title": "Air Duct",
+          "type": "boolean"
+        },
         "scenario_batches": {
           "default": false,
           "title": "Scenario Batches",

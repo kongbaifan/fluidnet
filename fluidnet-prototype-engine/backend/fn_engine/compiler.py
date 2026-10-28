@@ -254,7 +254,7 @@ def check_fluid_conditions(instance_id: str, params: dict, solver_model: str, se
     limits, name = service.limits(), service.fluid
     span = f'{limits["t_min_k"] - 273.15:.2f}…{limits["t_max_k"] - 273.15:.2f} °C'
     checks = [('temperature_k', params.get('temperature_k'))] if solver_model in ('pressure_source', 'tank') else []
-    if solver_model in ('pipe', 'tank'):
+    if solver_model in ('pipe', 'duct', 'tank'):
         checks.append(('ambient_temperature_k', params.get('ambient_temperature_k')))
     for key, temperature in checks:
         if not isinstance(temperature, (int, float)) or isinstance(temperature, bool):
@@ -390,7 +390,7 @@ def compile_project(project: Project) -> CompiledNetwork:
         raise CompilationError('EMPTY_NETWORK', '项目没有设备')
     diagnostics = list(project.import_diagnostics)
     parameters, port_keys = {}, []
-    supported = {'pressure_source', 'junction', 'valve', 'pipe', 'pump_curve', 'heat_exchanger', 'tank',
+    supported = {'pressure_source', 'junction', 'valve', 'pipe', 'duct', 'pump_curve', 'heat_exchanger', 'tank',
                  'closed_volume', 'heater'}
     # Built-in state models and the solver model each one belongs to.
     state_models = {'open_tank': 'tank', 'closed_volume': 'closed_volume'}
@@ -467,6 +467,12 @@ def compile_project(project: Project) -> CompiledNetwork:
         if modules[inst.module_id].runtime == 'builtin':
             check_fluid_conditions(inst.id, parameters[inst.id], modules[inst.module_id].solver_model, service_of(inst.id),
                                    project.solver.thermal)
+            if modules[inst.module_id].solver_model == 'duct':
+                width, height = parameters[inst.id]['duct_width_m'], parameters[inst.id]['duct_height_m']
+                ratio = max(width, height) / min(width, height)
+                if ratio > 8.:
+                    diagnostics.append(Diagnostic(code='DUCT_ASPECT_RATIO', severity='warning', instance_id=inst.id,
+                        message=f'{inst.id} 断面宽高比 {ratio:.1f} 超过 8；水力直径近似误差增大，建议拆分风管或改用等效直径'))
     branches: list[CompiledBranch] = []
     fixed: dict[int, float] = {}
     fixed_temperatures: dict[int, float] = {}

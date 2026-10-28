@@ -48,6 +48,18 @@ def builtin_catalog() -> list[ModuleDefinition]:
                 # 0 keeps the algebraic pipe of 0.3; N > 0 adds N well-mixed cells of fluid + wall capacity.
                 number('thermal_cells', '热容分段数（0 为无热惯性）', 0, 'count', '1', minimum=0, maximum=50),
                 number('wall_heat_capacity_j_k', '管壁热容', 0., 'heat_capacity', 'J/K', 'kJ/K', 1000., 0.)]),
+        # 矩形风管：沿程阻力按水力直径 Dh=2WH/(W+H) 与 Haaland 湍流摩擦计算，可选向环境散热；
+        # 断面参数用 duct_width_m / duct_height_m，避免与 pipe 的高差 height_m 混淆。
+        ModuleDefinition(id='duct', name='风管', category='管道与阻力', solver_model='duct',
+            description='矩形风管：沿程阻力按水力直径与 Haaland 湍流摩擦计算，可选向环境散热；'
+                        '无储热、无局部阻力（弯头/三通/变径等用 duct_fitting 模块）。',
+            ports=ports('in0', 'out0'), channels=[channel('ch0', 'duct')], parameters=[
+                number('length_m', '风管长度', 10., 'length', 'm', minimum=.001),
+                number('duct_width_m', '断面宽', .4, 'length', 'm', 'mm', .001, .01),
+                number('duct_height_m', '断面高', .4, 'length', 'm', 'mm', .001, .01),
+                number('roughness_m', '绝对粗糙度', .00015, 'length', 'm', 'mm', .001, 0.),
+                number('heat_loss_ua_w_k', '散热能力 UA（0 为绝热）', 0., 'conductance', 'W/K', minimum=0.),
+                number('ambient_temperature_k', '环境温度', 293.15, 'temperature', 'K', '°C', minimum=1., offset=-273.15)]),
         ModuleDefinition(id='exchanger', name='双侧换热器（水力）', category='热力设备', solver_model='heat_exchanger',
             thermal_model='epsilon_ntu', ports=ports('in0', 'out0', 'in1', 'out1'),
             channels=[channel('ch0', 'resistance'), channel('ch1', 'resistance', 'in1', 'out1')], parameters=[

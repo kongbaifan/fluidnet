@@ -1095,6 +1095,8 @@ class HealthCapabilities(StrictModel):
     dual_thermal_coupling: bool = False
     # Built-in ideal electric heater in the single-phase fluid network.
     heater: bool = False
+    # Rectangular air ducts (`duct`): hydraulic-diameter friction and optional ambient heat loss.
+    air_duct: bool = False
     scenario_batches: bool = False
     # Saturated vessels with up to four stream inlets (`hp_receiver_multi`, `lp_drum_multi`).
     multi_inlet_vessels: bool = False

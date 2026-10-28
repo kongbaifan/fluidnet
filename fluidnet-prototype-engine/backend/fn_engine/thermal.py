@@ -312,7 +312,7 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
                 raise ThermalError('NO_FLOW_HEAT', f'{branch.instance_id}.{branch.channel_id} 通路流量为零却声明了 '
                                    f'{heat[j]:g} W 的热量；无热容通路不能在零流量下持续加热或冷却',
                                    branch.instance_id, branch.channel_id)
-        elif branch.solver_model == 'pipe':
+        elif branch.solver_model in ('pipe', 'duct'):
             kinds[j] = 'pipe'
             pipe_ua[j] = float(params.get('heat_loss_ua_w_k', 0.0) or 0.0)
             pipe_cells[j] = int(params.get('thermal_cells', 0) or 0)

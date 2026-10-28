@@ -474,7 +474,7 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
 
     # Python module rows retain full relation dependencies, using grouped sparse
     # differences; the built-in equations and continuity rows use analytic slopes.
-    analytic_models = {'valve', 'pipe', 'pump_curve', 'resistance'}
+    analytic_models = {'valve', 'pipe', 'duct', 'pump_curve', 'resistance'}
     if python_runners:
         builtins_supported = all(branch.instance_id in python_runners or branch.solver_model in analytic_models for branch in network.branches)
         analytic_supported = options.module_mixed_jacobian and options.analytic_jacobian and builtins_supported
