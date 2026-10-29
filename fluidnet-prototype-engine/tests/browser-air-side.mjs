@@ -54,7 +54,7 @@ try {
   writeFileSync('artifacts/air-prototype.json',JSON.stringify({format:'fluidnet-studio-prototype',...saved},null,2));
   await page.reload();
   await expect(page.getByRole('button',{name:'运行计算',exact:true})).toBeEnabled({timeout:15000});
-  await page.getByRole('button',{name:'运行计算',exact:true}).click();
+  await runAir();
   await page.getByRole('button',{name:'风量与状态',exact:true}).click();
   await expect(page.locator('[data-air-value="Coil.out0.humidity_ratio_kg_kg"]')).not.toHaveText('—',{timeout:30000});
   // 修改真实盘管参数，过期保护和新运行比较。
@@ -110,6 +110,7 @@ try {
     writeFileSync('artifacts/air-examples/'+name+'.prototype.json',JSON.stringify(exported,null,2));
     if(name==='ahu-room')expect(record.frame.variables['Room.state.moisture_added_kg']).toBeCloseTo(.0004,8);
     if(name==='cooling-tower-moist') {
+      await expect(page.locator('.air-summary')).toContainText('水侧质量残差');
       await page.getByRole('button',{name:'设备与水耗',exact:true}).click();
       await expect(page.locator('.air-device-grid')).toContainText('补水');
       await captureFhd(page,'artifacts/air-tower.png');

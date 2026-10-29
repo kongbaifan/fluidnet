@@ -444,7 +444,7 @@ window.createEngineClient = function (ui) {
     run.parameterKey = ui.parameterKey(owner);
   }
   async function command(scope, action, projectId) {
-    if (!health && initializing) await initializing;
+    if (initializing) await initializing;
     if (scope !== 'bench' && health?.capabilities?.live_runs) {
       const owner = ui.state().projects.find(p => p.id === (projectId || ui.state().activeProject));
       if (owner && (owner.solver.mode === 'dynamic' || owner.run.live || action === 'step')) return liveCommand(owner, action);
@@ -809,5 +809,5 @@ window.createEngineClient = function (ui) {
     owner.run.parameterKey=ui.parameterKey(owner);ui.persist();ui.render();
   }
   const services=window.createProjectServices({request,ui,normalize,health:()=>health,authHeaders,pinProject,moduleFromManifest});
-  return {...services,request,normalize,moduleFromManifest,command,tick,validate,init,applyParameters,loadOverview,authHeaders,signOut:()=>{sessionStorage.removeItem(TOKEN_KEY);location.reload();},overview:id=>overviews.get(id),circuits:id=>circuitsByProject.get(id)||[],confirmedCommand,portValue,observation,manifestPayload,contractText,checkModule,saveModule,runDesign,versions,loadVersion,newModule,newTemplate,newComposite,updateContractItem,bindModule,pinProject,moduleForInsert,get catalog(){return catalog;},get health(){return health;}};
+  return {...services,request,normalize,moduleFromManifest,whenReady:()=>initializing || Promise.resolve(),command,tick,validate,init,applyParameters,loadOverview,authHeaders,signOut:()=>{sessionStorage.removeItem(TOKEN_KEY);location.reload();},overview:id=>overviews.get(id),circuits:id=>circuitsByProject.get(id)||[],confirmedCommand,portValue,observation,manifestPayload,contractText,checkModule,saveModule,runDesign,versions,loadVersion,newModule,newTemplate,newComposite,updateContractItem,bindModule,pinProject,moduleForInsert,get catalog(){return catalog;},get health(){return health;}};
 };

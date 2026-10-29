@@ -46,6 +46,8 @@ window.createAirSideUI = function (ui) {
     controller?.abort();controller=new AbortController();const signal=controller.signal,ticket=++model.epoch;
     model.signature=signature;model.loading=true;model.error='';
     try {
+      await engine().whenReady();
+      if(project()!==p || !active()){model.signature='';return;}
       const catalogPromise=runId ? engine().request(`/runs/${encodeURIComponent(runId)}/air-variables`,undefined,signal)
         : engine().normalize(p,signal).then(body=>engine().request('/air/variables/preview',body,signal));
       const [record,catalog,grid,runs]=await Promise.all([
@@ -75,11 +77,12 @@ window.createAirSideUI = function (ui) {
     return [...map.values()].filter(p=>(!selected.length||selected.includes(p.id))&&(!model.search||p.key.toLowerCase().includes(model.search.toLowerCase())));
   }
   function distribution() {
-    const headers=[['mass_flow_kg_s','湿空气流量','kg/s'],['dry_air_mass_flow_kg_s','干空气流量','kg_da/s'],
+    const wet=model.record?.air_metadata ? model.record.air_metadata.continuity_basis==='dry_air' : project().solverOptions?.moist_air;
+    const headers=wet?[['mass_flow_kg_s','湿空气流量','kg/s'],['dry_air_mass_flow_kg_s','干空气流量','kg_da/s'],
       ['temperature_k','温度','°C'],['relative_humidity','相对湿度','%'],['humidity_ratio_kg_kg','含湿量','g/kg_da'],
-      ['enthalpy_j_kg_dry_air','比焓','kJ/kg_da']];
+      ['enthalpy_j_kg_dry_air','比焓','kJ/kg_da']]:[['mass_flow_kg_s','水侧流量','kg/s'],['pressure_pa','绝对压力','kPa'],['temperature_k','水温','°C'],['enthalpy_j_kg','水侧比焓','kJ/kg']];
     return `<div class="air-table-wrap"><table><thead><tr><th>设备 · 端口</th>${headers.map(([,label,unit])=>`<th>${label}<small>${unit}</small></th>`).join('')}</tr></thead><tbody>${ports().map(p=>
-      `<tr data-air-port="${esc(p.key)}"><th>${esc(p.id)}<small>${esc(p.port)}</small></th>${headers.map(([suffix])=>`<td data-air-value="${esc(p.key+'.'+suffix)}">${esc(display(p.key+'.'+suffix))}</td>`).join('')}</tr>`).join('')}</tbody></table></div><p class="air-footnote">端口流量以流入设备为正。加湿、除湿设备进出口的湿空气总流量可以不同；干空气流量保持守恒。</p>`;
+      `<tr data-air-port="${esc(p.key)}"><th>${esc(p.id)}<small>${esc(p.port)}</small></th>${headers.map(([suffix])=>`<td data-air-value="${esc(p.key+'.'+suffix)}">${esc(display(p.key+'.'+suffix))}</td>`).join('')}</tr>`).join('')}</tbody></table></div><p class="air-footnote">${wet?'端口流量以流入设备为正。加湿、除湿设备进出口的湿空气总流量可以不同；干空气流量保持守恒。':'此表为冷却塔水侧端口。空气为设备内部规定流股，其温湿度与水耗见“设备与水耗”。'}</p>`;
   }
   function psychrometrics() {
     if(!model.grid)return '<p class="muted">正在读取湿空气状态图网格…</p>';
@@ -114,16 +117,17 @@ window.createAirSideUI = function (ui) {
   function markup(p) {
     const v=view(p),tabs=[['distribution','风量与状态'],['psychrometrics','湿空气状态图'],['moisture','设备与水耗'],['compare','运行对比']];
     const enabled=supported(),air=isAir(p),record=model.record, frame=record?.frame;
+    const wet=record?.air_metadata ? record.air_metadata.continuity_basis==='dry_air' : p.solverOptions?.moist_air;
     const selected=model.selectedRunId || '',source=record ? `${record.id.slice(0,12)} · 帧 ${frame?.sequence??'—'} · 参数修订 ${frame?.parameter_revision??'—'}`:'尚未运行';
     const ids=[...new Set(model.catalog.map(d=>d.instance_id).filter(id=>id!=='metrics'))];
     const content={distribution,psychrometrics,moisture,compare:comparison};
-    return `<div class="page-shell air-page" id="air-page">${ui.heading('风系统','风量分配、热湿状态与水耗，从同一次运行查看。',btn('air-create','创建风侧示例','Plus',enabled?'':'disabled','primary')+btn('air-config','湿空气设置','Settings2',enabled?'':'disabled')+(p.solverOptions?.moist_air&&!p.solverOptions?.moist_air_options?btn('air-migrate','升级旧项目','ArrowUpRight'):'')+btn('air-humidity','相对湿度换算','Droplets',air?'':'disabled')+btn('nav','批量方案','ListChecks','data-route="batches"'))}
+    return `<div class="page-shell air-page" id="air-page">${ui.heading('风系统','风量分配、热湿状态与水耗，从同一次运行查看。',btn('air-create','创建风侧示例','Plus',enabled?'':'disabled','primary')+btn('air-config','湿空气设置','Settings2',enabled?'':'disabled')+(p.solverOptions?.moist_air&&!p.solverOptions?.moist_air_options?btn('air-migrate','升级旧项目','ArrowUpRight'):'')+btn('air-humidity','相对湿度换算','Droplets',p.solverOptions?.moist_air?'':'disabled')+btn('nav','批量方案','ListChecks','data-route="batches"'))}
       <div class="air-toolbar"><label class="field"><span>当前项目</span><select data-air-project aria-label="风侧当前项目">${state().projects.map(item=>option(item.id,item.name,p.id)).join('')}</select></label><label class="field"><span>结果来源</span><select data-air-source aria-label="风侧结果来源">${option('','当前运行',selected)}${model.runs.map(r=>option(r.id,`${r.name} · ${r.id.slice(0,8)}`,selected)).join('')}</select></label><span class="push"></span>${btn('air-run','运行计算','Play',air&&!model.creating?'':'disabled','primary')}${btn('air-stop','停止','Square',p.run.live?'':'disabled')}${btn('air-save','保存项目','Save')}${btn('nav','编辑拓扑','Network','data-route="workbench"')}</div>
       ${!enabled?'<p class="notice">请连接支持风侧合同 1 的计算服务。</p>':''}${!air?'<div class="air-empty"><h2>从一个可复算的风系统开始</h2><p>选择盘管、混合箱、完整空气处理机组、房间或冷却塔示例，再调整设备参数。</p></div>':''}
       ${air?`<div class="air-provenance ${stale(p)?'is-stale':''}" data-air-provenance><strong>${stale(p)?'参数或拓扑已改变，当前结果已过期':model.selectedRunId?'正在查看历史运行':'当前运行结果'}</strong><span>${esc(source)}${frame?' · '+frame.time_s+' s':''}</span>${record?.air_metadata?`<small>CoolProp ${esc(record.air_metadata.property_version)} · ${esc(record.status)} · ${esc(record.air_metadata.project_snapshot_hash.slice(0,16))}</small>`:''}</div>
       ${record?.status==='failed'?'<p class="notice">运行失败，保留最后有效帧；请查看诊断后调整参数。</p>':''}
       ${model.error?`<p role="alert" class="notice">${esc(model.error)}</p>`:''}
-      <div class="air-summary"><div><span>端口状态</span><strong>${ports().length}</strong><small>按实际设备生成</small></div><div><span>干空气质量残差</span><strong>${display('metrics.dry_air_mass_residual_kg_s')}</strong><small>kg_da/s</small></div><div><span>水分残差</span><strong>${display('metrics.moisture_residual_kg_s')}</strong><small>kg/s</small></div><div><span>能量残差</span><strong>${display('metrics.energy_residual_w')}</strong><small>kW</small></div></div>
+      <div class="air-summary"><div><span>端口状态</span><strong>${ports().length}</strong><small>按实际设备生成</small></div><div><span>${wet?'干空气质量残差':'水侧质量残差'}</span><strong>${display(wet?'metrics.dry_air_mass_residual_kg_s':'metrics.mass_residual_kg_s')}</strong><small>${wet?'kg_da/s':'kg/s'}</small></div><div><span>${wet?'水分残差':'补水合计'}</span><strong>${wet?display('metrics.moisture_residual_kg_s'):frame?display('water.makeup',Object.entries(frame.variables).filter(([key])=>key.split('.').length===2&&key.endsWith('.makeup_kg_s')).reduce((sum,[,value])=>sum+value,0)):'—'}</strong><small>kg/s</small></div><div><span>能量残差</span><strong>${display('metrics.energy_residual_w')}</strong><small>kW</small></div></div>
       <section class="panel air-results"><div class="air-results-head"><div class="segmented">${tabs.map(([key,label])=>btn('air-tab',label,'',`data-value="${key}" aria-pressed="${v.active_tab===key}"`,v.active_tab===key?'active':'')).join('')}</div><span class="push"></span>${model.loading?'<span class="muted">读取中…</span>':''}${btn('air-report','CSV','Download',`data-format="csv" ${record?'':'disabled'}`,'small')}${btn('air-report','HTML 报告','FileText',`data-format="html" ${record?'':'disabled'}`,'small')}</div>
       ${v.active_tab==='distribution'?`<div class="air-filters"><label class="field"><span>筛选设备</span><select data-air-device aria-label="筛选风侧设备">${option('','全部设备',v.selected_instance_ids[0]||'')}${ids.map(id=>option(id,id,v.selected_instance_ids[0])).join('')}</select></label><label class="field"><span>检索端口</span><input data-air-search aria-label="检索风侧端口" value="${esc(model.search)}" placeholder="设备或端口编号"></label></div>`:''}
       ${(content[v.active_tab]||distribution)()}</section><p class="air-footnote">湿盘管为外部规定冷源；房间使用固定有效干空气存量；冷却塔为空气规定流股的教学模型。</p>`:''}</div>`;
@@ -134,6 +138,7 @@ window.createAirSideUI = function (ui) {
     if(state().projects.length>=20)throw Error('最多保存 20 个项目');
     model.creating=true;ui.render();
     try {
+    await engine().whenReady();
     const canonical=await engine().request('/examples/'+name),snapshots={};
     for(const definition of canonical.modules){
       const m=engine().moduleFromManifest(definition);m.frozen=definition.runtime==='python';
@@ -162,7 +167,8 @@ window.createAirSideUI = function (ui) {
   function configure() {
     const p=project();if(p.solverOptions?.moist_air&&!p.solverOptions?.moist_air_options)throw Error('请先使用“升级旧项目”查看迁移预览。');if(p.run.live&&['running','paused','solving'].includes(p.run.status))throw Error('请先停止运行再修改物理配置');
     ui.openDialog('湿空气设置','含湿量是保存和计算的唯一湿度输入。湿空气采用 Air 气相、节点物性耦合。',
-      `<label class="check-label"><input name="enabled" type="checkbox" ${p.solverOptions?.moist_air?'checked':''}>启用湿空气（Air 气相）</label>${field('pressure','状态图参考压力 / kPa',view(p).reference_pressure_pa/1000,'type="number" min="60" max="120" step="any"')}${field('duration','动态运行时长 / s',p.solver.duration,'type="number" min="1" max="86400"')}${field('dt','时间步长 / s',p.solver.dt,'type="number" min="0.01" max="60" step="any"')}<label class="field"><span>运行模式</span><select name="mode">${option('steady','稳态',p.solver.mode)}${option('dynamic','动态',p.solver.mode)}</select></label>`,data=>{
+      `<label class="check-label"><input name="enabled" type="checkbox" ${p.solverOptions?.moist_air?'checked':''}>启用湿空气（Air 气相）</label>${field('pressure','状态图参考压力 / kPa',view(p).reference_pressure_pa/1000,'type="number" min="60" max="120" step="any"')}${field('duration','动态运行时长 / s',p.solver.duration,'type="number" min="1" max="86400"')}${field('dt','时间步长 / s',p.solver.dt,'type="number" min="0.01" max="60" step="any"')}<label class="field"><span>运行模式</span><select name="mode">${!['steady','dynamic'].includes(p.solver.mode)?option(p.solver.mode,'未知模式：'+p.solver.mode,p.solver.mode):''}${option('steady','稳态',p.solver.mode)}${option('dynamic','动态',p.solver.mode)}</select></label>`,data=>{
+        if(![data.pressure,data.duration,data.dt].every(value=>String(value).trim()&&Number.isFinite(Number(value)))||Number(data.pressure)<60||Number(data.pressure)>120||Number(data.duration)<1||Number(data.duration)>86400||Number(data.dt)<.01||Number(data.dt)>60||!['steady','dynamic'].includes(data.mode))throw Error('请填写合法的压力、时长、步长和运行模式。');
         const enabled=!!data.enabled;p.solverOptions={...p.solverOptions,moist_air:enabled,moist_air_options:enabled?{contract_version:1}:null};
         if(enabled){p.medium='air';p.fluid='Air';p.fluidConfig={backend:'coolprop',fluid:'Air',phase_policy:'gas',composition:{},reference:'mass'};
           Object.assign(p.solverOptions,{thermal:true,property_coupling:'node',series_compression:false,hydraulic_blocks:false,module_mixed_jacobian:false,thermal_acceleration:'none',coupling_acceleration:'none'});p.solver.moduleMixedJacobian=false;}
@@ -199,7 +205,7 @@ window.createAirSideUI = function (ui) {
   }
   async function migrateLegacy() {
     const p=project(),key=ui.projectKey(p);
-    if(p.run.live)throw Error('请先停止旧运行再迁移');
+    if(p.run.live&&['running','paused','solving'].includes(p.run.status))throw Error('请先停止旧运行再迁移');
     const canonical=await engine().normalize(p);
     const preview=await engine().request('/air/migrations/preview',{project:canonical,upgrade_official_modules:true});
     const backup=clone(engine().projectDocument(p));
