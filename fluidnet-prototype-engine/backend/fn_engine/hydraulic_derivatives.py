@@ -153,6 +153,10 @@ def pump_head_and_slope(curve, flow_m3_h: float, speed: float) -> tuple[float, f
 
 def branch_drop_value(model: str, params: dict, flow: float, density: float, viscosity: float) -> float:
     """单条内置支路的压降（不含两端压力项），与历史 `branch_drop` 完全一致。"""
+    if model == 'air_filter':
+        q = flow/density
+        k = params['clean_pressure_drop_pa']*(1+(params['loaded_drop_multiplier']-1)*params['loading_ratio'])/params['rated_volume_flow_m3_s']**2
+        return k*q*abs(q)
     if model == 'valve':
         kv = params['kv_m3_h'] * params['opening_ratio']
         return _shared.valve_drop(kv, flow, density) + density * GRAVITY * params.get('height_m', 0)
@@ -172,6 +176,9 @@ def branch_drop_value(model: str, params: dict, flow: float, density: float, vis
 def branch_drop_and_slope(model: str, params: dict, flow: float, density: float,
                           viscosity: float) -> tuple[float, float]:
     """单条内置支路的压降与其对 q 的导数。"""
+    if model == 'air_filter':
+        k = params['clean_pressure_drop_pa']*(1+(params['loaded_drop_multiplier']-1)*params['loading_ratio'])/(params['rated_volume_flow_m3_s']*density)**2
+        return k*flow*abs(flow),2*k*abs(flow)
     if model == 'valve':
         kv = params['kv_m3_h'] * params['opening_ratio']
         volume_coef = 3600. / density

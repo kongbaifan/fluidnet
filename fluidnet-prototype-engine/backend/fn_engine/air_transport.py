@@ -21,6 +21,8 @@ def _initial(network, service, warm):
         raise CompilationError('MOISTURE_REFERENCE_MISSING','湿空气网络缺少入口状态')
     # 初值只是迭代种子；不得把它当成实际水分/能量源。
     initial = [boundary.get(n,seeds[0]) for n in range(len(network.node_keys))]
+    for node,spec in network.air_rooms.items():
+        initial[node] = spec.initial_state
     return initial
 
 
@@ -112,6 +114,9 @@ def solve_air_transport(network, hydraulic, previous, service, runners, time_s, 
                     heat = float(params.get('heat_input_w',0)) if kind == 'heater' else 0.
                     if relation:
                         heat += relation.parameters.get('heat_w',0.)
+                        if relation.kind == 'pump':
+                            # 沿用现有风机边界：进入空气的是水力功，轴/电功单独报告。
+                            heat += (float(p[down[j]])-float(p[up[j]]))*mass[j]*(1+inlet.humidity_ratio_kg_kg)/inlet.density_kg_m3
                     heat += extra_heat.get((b.instance_id,b.channel_id),0.)
                     ua = params.get('heat_loss_ua_w_k',0.)
                     if ua and mass[j]:
@@ -164,10 +169,36 @@ def solve_air_transport(network, hydraulic, previous, service, runners, time_s, 
         raise CompilationError('THERMAL_NOT_CONVERGED','热湿联合固定点未收敛')
     diagnostics.extend(heat_diagnostics)
     outputs = {b.instance_id:d.outputs for b,d in zip(branches,devices) if d.outputs}
+    from .solver import port_mass_flows
+    port_flows = port_mass_flows(network,flows)
+    for inst in network.instances.values():
+        kind = network.modules[inst.module_id].solver_model
+        if kind in ('air_mixing_box','air_room'):
+            inlet_ports = ('fresh_in','return_in') if kind == 'air_mixing_box' else ('supply_in',)
+            outlet_port = 'supply_out' if kind == 'air_mixing_box' else 'return_out'
+            inputs = [port_flows.get(f'{inst.id}:{name}',0.) for name in inlet_ports]
+            output = port_flows.get(f'{inst.id}:{outlet_port}',0.)
+            if any(q < -o.flow_zero_tolerance_kg_s for q in inputs) or output > o.flow_zero_tolerance_kg_s:
+                raise CompilationError('AIR_REVERSE_FLOW_UNSUPPORTED',f'{inst.id} 不支持反向流动',inst.id)
+            if kind == 'air_mixing_box':
+                outputs[inst.id] = {'fresh_air_fraction':inputs[0]/sum(inputs) if sum(inputs)>o.flow_zero_tolerance_kg_s else None,
+                                   'dry_air_mass_residual_kg_s':sum(inputs)+output}
     for b,d in zip(branches,devices):
         if d.outputs.get('limited'):
             diagnostics.append(Diagnostic(code='HUMIDIFIER_SATURATION_LIMITED',severity='warning',instance_id=b.instance_id,
                                            message='加湿量已按饱和极限限制，输出实际水量和补热量'))
+    for j,b in enumerate(branches):
+        params = network.parameters[b.instance_id]
+        area = (params['duct_width_m']*params['duct_height_m'] if 'duct_width_m' in params
+                else math.pi*params['diameter_m']**2/4 if 'diameter_m' in params else None)
+        if area:
+            inlet = states[up[j]]
+            velocity = mass[j]*(1+inlet.humidity_ratio_kg_kg)/inlet.density_kg_m3/area
+            if velocity > 100:
+                raise CompilationError('AIR_VELOCITY_UNSUPPORTED',f'{b.instance_id} 实际速度 {velocity:.1f} m/s 超出低速模型范围',b.instance_id)
+            if velocity > 30:
+                diagnostics.append(Diagnostic(code='AIR_VELOCITY_HIGH',severity='warning',instance_id=b.instance_id,
+                                              message=f'实际风速 {velocity:.1f} m/s 超过推荐的 30 m/s'))
     water_terms, energy_terms = [], []
     for node,q in boundary_supply.items():
         stream = boundary_states[node] if q > 0 else states[node]

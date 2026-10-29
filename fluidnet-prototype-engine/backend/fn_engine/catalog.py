@@ -138,6 +138,9 @@ def builtin_catalog() -> list[ModuleDefinition]:
                 number('loss_coefficient', '局部阻力系数 K', 0., 'ratio', '1', minimum=0.),
                 number('diameter_m', '水力等效内径', .04, 'length', 'm', 'mm', .001, .001)]),
     ]
+    from .air_catalog import air_catalog, upgrade_air_catalog
+    upgrade_air_catalog(definitions)
+    definitions.extend(air_catalog())
     for definition in definitions:
         for port in definition.ports:
             # Thermal entries are None when SolverOptions.thermal is off.

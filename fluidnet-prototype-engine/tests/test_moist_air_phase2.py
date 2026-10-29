@@ -105,7 +105,7 @@ def test_wet_coil_cools_dehumidifies_and_reports_latent_load():
     values = frame.variables
     mass_flow = values["C1.dry_air_mass_flow_kg_s"]
     w_in, w_out = values["C1.in0.humidity_ratio_kg_kg"], values["C1.out0.humidity_ratio_kg_kg"]
-    t_in, t_out = values["C1.in0.temperature_k"], values["C1.out0.temperature_k"]
+    t_out = values["C1.out0.temperature_k"]
 
     expected_h_out = .15*values['C1.in0.enthalpy_j_kg_dry_air'] + .85*HAPropsSI('H','T',285.15,'P',PA,'R',1.)
     expected_t_out = HAPropsSI('T','P',PA,'H',expected_h_out,'W',.15*w_in+.85*HAPropsSI('W','T',285.15,'P',PA,'R',1.))
