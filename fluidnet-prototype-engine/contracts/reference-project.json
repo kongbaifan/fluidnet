@@ -43,7 +43,7 @@
           },
           "minimum": 1.0,
           "maximum": null,
-          "runtime": false,
+          "runtime": true,
           "writable": true
         },
         {
@@ -60,7 +60,7 @@
           },
           "minimum": 1.0,
           "maximum": null,
-          "runtime": false,
+          "runtime": true,
           "writable": true
         },
         {
@@ -77,7 +77,7 @@
           },
           "minimum": 0.0,
           "maximum": 0.2,
-          "runtime": false,
+          "runtime": true,
           "writable": true
         }
       ],

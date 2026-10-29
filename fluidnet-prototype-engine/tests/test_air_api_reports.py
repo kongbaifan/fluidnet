@@ -62,3 +62,42 @@ def test_batch_choices_and_authentication(tmp_path):
         assert client.get('/api/v1/air/psychrometric-grid').status_code==401
         assert client.get('/api/v1/air/psychrometric-grid',headers={'Authorization':'Bearer '+read}).status_code==200
         assert client.post('/api/v1/air/properties',json={},headers={'Authorization':'Bearer '+read}).status_code==403
+
+
+def test_websocket_rest_and_report_share_parameter_revision(tmp_path):
+    from test_continuous import wait
+    with TestClient(create_app(data_root=tmp_path)) as client:
+        created=client.post('/api/v1/runs?background=true',json={'project':air_example('air-coil-wet').model_dump(mode='json'),
+            'mode':'dynamic','duration_s':1.,'dt_s':1.,'start_paused':True}).json()
+        rid=created['run_id']
+        wait(client,rid,lambda r:r['status']=='paused')
+        with client.websocket_connect(f'/api/v1/runs/{rid}/stream?keys=Coil.condensate_kg_s') as socket:
+            initial=socket.receive_json()
+            assert initial['type']=='frame'
+            response=client.post(f'/api/v1/runs/{rid}/variables',json={'values':{'Coil.param.bypass_factor':.5},'wait_s':1.})
+            assert response.status_code==200,response.text
+            assert client.post(f'/api/v1/runs/{rid}/command',json={'action':'step'}).status_code==200
+            record=wait(client,rid,lambda r:r['status']=='completed')
+            message=socket.receive_json()
+            while message['type']=='frame' and message['time_s']<1.:
+                message=socket.receive_json()
+            assert message['type']=='frame'
+            rest=client.get(f'/api/v1/runs/{rid}/variables?keys=Coil.condensate_kg_s').json()
+            assert message['sequence']==rest['sequence']==record['frame']['sequence']
+            assert message['parameter_revision']==rest['parameter_revision']==1
+            assert message['values']==rest['values']
+        rows=list(csv.DictReader(StringIO(client.get(f'/api/v1/runs/{rid}/report.csv').content.decode('utf-8-sig'))))
+        last=[row for row in rows if row['变量键']=='Coil.condensate_kg_s' and float(row['时间(s)'])==1.][0]
+        assert float(last['规范数值'])==pytest.approx(rest['values']['Coil.condensate_kg_s'],rel=1e-10)
+
+
+def test_trimmed_history_keeps_exact_accumulator(tmp_path):
+    from test_continuous import wait
+    with TestClient(create_app(data_root=tmp_path)) as client:
+        rid=client.post('/api/v1/runs?background=true',json={'project':air_example('air-coil-wet').model_dump(mode='json'),
+            'mode':'dynamic','duration_s':12.,'dt_s':1.,'history_window':10,'history':'trend'}).json()['run_id']
+        record=wait(client,rid,lambda r:r['status']=='completed')
+        assert client.get(f'/api/v1/runs/{rid}/history').json()['truncated']
+        values=record['frame']['variables']
+        assert values['Coil.state.condensate_kg']==pytest.approx(values['Coil.condensate_kg_s']*12,rel=1e-6)
+        assert '抽稀概览' in client.get(f'/api/v1/runs/{rid}/report.html').text

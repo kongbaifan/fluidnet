@@ -180,7 +180,11 @@ class SimulationSession:
             if any(self._apply_parameters(target,parameters) for target,parameters in candidates.items()):
                 self.revision += 1
             return
-        if self._apply_parameters(instance_id, self._candidate_parameters(instance_id, {parameter_id: value}, controlled)):
+        candidate = self._candidate_parameters(instance_id, {parameter_id: value}, controlled)
+        if self.network.project.solver.moist_air:
+            from .air_compile import validate_air_parameters
+            validate_air_parameters(self.network,{instance_id:candidate})
+        if self._apply_parameters(instance_id, candidate):
             self.revision += 1
 
     def _candidate_controller(self, controller_id, values):
@@ -544,7 +548,8 @@ def run_dynamic(network, duration_s, dt_s):
             session.advance()
         return session.frames
     except CompilationError as error:
-        if session.frames and error.diagnostic.code.startswith('CONTROL_'):
+        from .air_variables import is_air_project
+        if session.frames and (error.diagnostic.code.startswith('CONTROL_') or is_air_project(network.project)):
             raise s.SolveFailed(error.diagnostic.code, str(error), frames=list(session.frames)) from error
         raise
     finally:

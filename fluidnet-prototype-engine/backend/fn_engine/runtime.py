@@ -71,11 +71,6 @@ class _LazyPropertyService:
         return self._service
 
     def __getattr__(self, name):
-        if name in ('state_ptw','state_phw','humidity_from_rh','saturated_state'):
-            from .moist_air import MoistAirService
-            if '_air_service' not in self.__dict__:
-                self._air_service = MoistAirService()
-            return getattr(self._air_service,name)
         return getattr(self._get(), name)
 
 
@@ -606,7 +601,7 @@ class WorkerProcess:
     def _request(self, payload: dict[str, Any]) -> dict[str, Any]:
         from .module_contracts import air_request_payload
         if payload.get('action') == 'batch':
-            payload = {**payload, 'items': {key: air_request_payload(self._definitions[key], value)
+            payload = {**payload, 'items': {key: air_request_payload(self._definitions.get(key,self.definition), value)
                                            for key,value in payload['items'].items()}}
         else:
             key = payload.get('instance_id', payload.get('request', {}).get('instance_id'))

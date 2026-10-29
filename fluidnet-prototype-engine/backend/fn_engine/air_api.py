@@ -8,7 +8,7 @@ from .air_models import AirPropertyRequest
 from .air_variables import collect_air_variables, is_air_project
 from .compiler import CompilationError, compile_project
 from .errors import protected_error_responses
-from .models import AirGridResponse, AirPropertyResponse, AirVariableCatalogResponse, Project
+from .models import AirGridResponse, AirMigrationRequest, AirMigrationResponse, AirPropertyResponse, AirVariableCatalogResponse, Project
 from .moist_air import AirPropertyError, MoistAirService
 
 
@@ -34,6 +34,14 @@ def psychrometric_grid(pressure,low,high,maximum,version):
 
 def register_air_routes(app,get_run):
     errors=protected_error_responses(422,'INTERNAL_ERROR')
+
+    @app.post('/api/v1/air/migrations/preview',response_model=AirMigrationResponse,responses=errors)
+    def migration(request:AirMigrationRequest):
+        from .migrations import preview_air_migration
+        try:
+            return preview_air_migration(request.project,request.upgrade_official_modules)
+        except ValueError as error:
+            raise HTTPException(422,detail={'code':'AIR_MIGRATION_INVALID','message':str(error)}) from error
 
     @app.post('/api/v1/air/properties',response_model=AirPropertyResponse,responses=errors)
     def properties(request:AirPropertyRequest):

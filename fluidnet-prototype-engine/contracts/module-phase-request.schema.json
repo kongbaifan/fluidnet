@@ -3,6 +3,42 @@
     "ChannelState": {
       "additionalProperties": false,
       "properties": {
+        "dry_air_mass_flow_kg_s": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dry Air Mass Flow Kg S"
+        },
+        "inlet_mass_flow_kg_s": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Inlet Mass Flow Kg S"
+        },
+        "outlet_mass_flow_kg_s": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Outlet Mass Flow Kg S"
+        },
         "mass_flow_kg_s": {
           "default": 0.0,
           "title": "Mass Flow Kg S",
@@ -160,6 +196,30 @@
           "default": null,
           "title": "Mass Flow Kg S"
         },
+        "dry_air_mass_flow_kg_s": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dry Air Mass Flow Kg S"
+        },
+        "water_vapor_mass_flow_kg_s": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Water Vapor Mass Flow Kg S"
+        },
         "quality": {
           "anyOf": [
             {
@@ -183,6 +243,66 @@
           ],
           "default": null,
           "title": "Humidity Ratio Kg Kg"
+        },
+        "relative_humidity": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Relative Humidity"
+        },
+        "enthalpy_j_kg_dry_air": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Enthalpy J Kg Dry Air"
+        },
+        "specific_heat_j_kg_dry_air_k": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Specific Heat J Kg Dry Air K"
+        },
+        "dew_point_k": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dew Point K"
+        },
+        "wet_bulb_k": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Wet Bulb K"
         },
         "composition": {
           "additionalProperties": {

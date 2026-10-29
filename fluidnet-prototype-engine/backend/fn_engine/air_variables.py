@@ -121,6 +121,10 @@ def collect_air_variables(project):
                 value_type=parameter.value_type,quantity=parameter.unit.quantity if parameter.unit else parameter.value_type,
                 unit=parameter.unit,source='parameter',writable=parameter.runtime and parameter.writable,
                 mass_basis='dry_air' if parameter.unit and 'kg_da' in parameter.unit.canonical_unit else 'none')
+            if parameter.id.endswith('humidity_ratio_kg_kg') or parameter.id=='moisture_addition_kg_kg':
+                result[key].quantity='humidity_ratio'
+                result[key].mass_basis='dry_air'
+                result[key].unit=UnitSpec(quantity='humidity_ratio',canonical_unit='kg/kg_da',display_unit='g/kg_da',display_scale=.001)
     for name,kind in {'energy_residual_w':'power','moisture_residual_kg_s':'water_flow',
                       'dry_air_mass_residual_kg_s':'dry_flow','air_transport_iterations':'count'}.items():
         if project.solver.moist_air or name=='energy_residual_w':

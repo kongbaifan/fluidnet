@@ -36,6 +36,20 @@ def test_closed_room_constant_moisture_is_exact():
     assert exc.value.code == 'AIR_ROOM_NO_STEADY_STATE'
 
 
+def test_zero_ventilation_room_in_real_network_accumulates_moisture():
+    project=room_project()
+    next(i for i in project.instances if i.id=='B1').parameters['pressure_pa']=PA
+    session=SimulationSession(compile_project(project),2.,1.)
+    try:
+        initial=session.initialize()
+        session.advance();final=session.advance()
+        assert final.variables['D1.dry_air_mass_flow_kg_s']==pytest.approx(0,abs=1e-12)
+        assert final.variables['Room.state.water_vapor_mass_kg']-initial.variables['Room.state.water_vapor_mass_kg']==pytest.approx(.0002,abs=1e-9)
+        assert abs(final.metrics['moisture_residual_kg_s'])<1e-9
+    finally:
+        session.close()
+
+
 def test_ventilated_room_matches_backward_euler_moisture():
     params=room_parameters();spec=build_spec('R',params);service=MoistAirService()
     supply=service.state_ptw(PA,293.15,.006)
@@ -83,3 +97,33 @@ def test_runtime_boundary_batch_is_atomic():
         assert frame.variables['B1.out0.temperature_k']==pytest.approx(283.15)
     finally:
         session.close()
+
+
+def test_halving_room_step_converges_to_independent_exponential():
+    import math
+    params=room_parameters();spec=build_spec('R',params);service=MoistAirService()
+    supply=service.state_ptw(PA,293.15,.006);flow=1.2;duration=400.
+    equilibrium=.006+params['moisture_load_kg_s']/flow
+    exact=equilibrium+(.010-equilibrium)*math.exp(-flow*duration/spec.dry_air_mass_kg)
+    errors=[]
+    for dt in (40.,20.,10.):
+        old=spec.initial_state
+        for _ in range(int(duration/dt)):
+            old=evaluate_room(spec,params,PA,flow,flow*supply.enthalpy_j_kg_dry_air,flow*.006,old,dt,service).state
+        errors.append(abs(old.humidity_ratio_kg_kg-exact))
+    assert 1.7<errors[0]/errors[1]<2.3
+    assert 1.7<errors[1]/errors[2]<2.3
+
+
+def test_failed_later_step_keeps_accepted_history(monkeypatch):
+    from fn_engine.solver import SolveFailed,solve_dynamic
+    original=SimulationSession._trial
+    def fail_later(self,h):
+        if self.time>=1.:
+            raise CompilationError('AIR_ROOM_STATE_INFEASIBLE','模拟不可行热湿状态')
+        return original(self,h)
+    monkeypatch.setattr(SimulationSession,'_trial',fail_later)
+    with pytest.raises(SolveFailed) as exc:
+        solve_dynamic(compile_project(room_project()),2.,1.)
+    assert [frame.time_s for frame in exc.value.frames]==[0.,1.]
+    assert exc.value.frames[-1].variables['Room.state.moisture_added_kg']==pytest.approx(.0001)

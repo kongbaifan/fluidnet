@@ -1,0 +1,166 @@
+{
+  "$defs": {
+    "UnitSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "quantity": {
+          "title": "Quantity",
+          "type": "string"
+        },
+        "canonical_unit": {
+          "title": "Canonical Unit",
+          "type": "string"
+        },
+        "display_unit": {
+          "title": "Display Unit",
+          "type": "string"
+        },
+        "display_scale": {
+          "default": 1.0,
+          "exclusiveMinimum": 0,
+          "title": "Display Scale",
+          "type": "number"
+        },
+        "display_offset": {
+          "default": 0.0,
+          "title": "Display Offset",
+          "type": "number"
+        }
+      },
+      "required": [
+        "quantity",
+        "canonical_unit",
+        "display_unit"
+      ],
+      "title": "UnitSpec",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "key": {
+      "title": "Key",
+      "type": "string"
+    },
+    "label": {
+      "title": "Label",
+      "type": "string"
+    },
+    "instance_id": {
+      "title": "Instance Id",
+      "type": "string"
+    },
+    "port_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Port Id"
+    },
+    "channel_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Channel Id"
+    },
+    "value_type": {
+      "default": "number",
+      "enum": [
+        "number",
+        "boolean",
+        "text"
+      ],
+      "title": "Value Type",
+      "type": "string"
+    },
+    "quantity": {
+      "title": "Quantity",
+      "type": "string"
+    },
+    "unit": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/UnitSpec"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "mass_basis": {
+      "default": "none",
+      "enum": [
+        "none",
+        "mixture",
+        "dry_air",
+        "water"
+      ],
+      "title": "Mass Basis",
+      "type": "string"
+    },
+    "source": {
+      "default": "derived",
+      "enum": [
+        "parameter",
+        "port",
+        "state",
+        "derived",
+        "system"
+      ],
+      "title": "Source",
+      "type": "string"
+    },
+    "writable": {
+      "default": false,
+      "title": "Writable",
+      "type": "boolean"
+    },
+    "nullable": {
+      "default": false,
+      "title": "Nullable",
+      "type": "boolean"
+    },
+    "available_in": {
+      "default": [
+        "steady",
+        "dynamic"
+      ],
+      "items": {
+        "enum": [
+          "steady",
+          "dynamic"
+        ],
+        "type": "string"
+      },
+      "title": "Available In",
+      "type": "array"
+    },
+    "contract_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Contract Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "key",
+    "label",
+    "instance_id",
+    "quantity"
+  ],
+  "title": "AirVariableDescriptor",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

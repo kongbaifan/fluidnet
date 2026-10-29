@@ -60,7 +60,6 @@ class AirGridRequest(StrictModel):
     pressure_pa: float = Field(default=101325, ge=60000, le=120000)
     temperature_min_k: float = Field(default=273.15, ge=253.15, le=333.15)
     temperature_max_k: float = Field(default=323.15, ge=253.15, le=333.15)
-    points: int = Field(default=41, ge=2, le=101)
     humidity_max_kg_kg: float = Field(default=.03,gt=0,le=.05)
 
 

@@ -1,0 +1,404 @@
+{
+  "$defs": {
+    "AirVariableDescriptor": {
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "instance_id": {
+          "title": "Instance Id",
+          "type": "string"
+        },
+        "port_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Port Id"
+        },
+        "channel_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Channel Id"
+        },
+        "value_type": {
+          "default": "number",
+          "enum": [
+            "number",
+            "boolean",
+            "text"
+          ],
+          "title": "Value Type",
+          "type": "string"
+        },
+        "quantity": {
+          "title": "Quantity",
+          "type": "string"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/UnitSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "mass_basis": {
+          "default": "none",
+          "enum": [
+            "none",
+            "mixture",
+            "dry_air",
+            "water"
+          ],
+          "title": "Mass Basis",
+          "type": "string"
+        },
+        "source": {
+          "default": "derived",
+          "enum": [
+            "parameter",
+            "port",
+            "state",
+            "derived",
+            "system"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "writable": {
+          "default": false,
+          "title": "Writable",
+          "type": "boolean"
+        },
+        "nullable": {
+          "default": false,
+          "title": "Nullable",
+          "type": "boolean"
+        },
+        "available_in": {
+          "default": [
+            "steady",
+            "dynamic"
+          ],
+          "items": {
+            "enum": [
+              "steady",
+              "dynamic"
+            ],
+            "type": "string"
+          },
+          "title": "Available In",
+          "type": "array"
+        },
+        "contract_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Contract Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "key",
+        "label",
+        "instance_id",
+        "quantity"
+      ],
+      "title": "AirVariableDescriptor",
+      "type": "object"
+    },
+    "Diagnostic": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "severity": {
+          "default": "error",
+          "enum": [
+            "info",
+            "warning",
+            "error"
+          ],
+          "title": "Severity",
+          "type": "string"
+        },
+        "instance_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Instance Id"
+        },
+        "field": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Field"
+        },
+        "module_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Module Id"
+        },
+        "module_version": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Module Version"
+        },
+        "phase": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Phase"
+        },
+        "time_s": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Time S"
+        },
+        "source_file": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source File"
+        },
+        "source_line": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Line"
+        },
+        "channel_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Channel Id"
+        },
+        "source_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Path"
+        },
+        "occurrences": {
+          "default": 1,
+          "minimum": 1,
+          "title": "Occurrences",
+          "type": "integer"
+        },
+        "first_time_s": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "First Time S"
+        },
+        "last_time_s": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Time S"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "title": "Diagnostic",
+      "type": "object"
+    },
+    "UnitSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "quantity": {
+          "title": "Quantity",
+          "type": "string"
+        },
+        "canonical_unit": {
+          "title": "Canonical Unit",
+          "type": "string"
+        },
+        "display_unit": {
+          "title": "Display Unit",
+          "type": "string"
+        },
+        "display_scale": {
+          "default": 1.0,
+          "exclusiveMinimum": 0,
+          "title": "Display Scale",
+          "type": "number"
+        },
+        "display_offset": {
+          "default": 0.0,
+          "title": "Display Offset",
+          "type": "number"
+        }
+      },
+      "required": [
+        "quantity",
+        "canonical_unit",
+        "display_unit"
+      ],
+      "title": "UnitSpec",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "contract_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Contract Version",
+      "type": "integer"
+    },
+    "project_id": {
+      "title": "Project Id",
+      "type": "string"
+    },
+    "run_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Run Id"
+    },
+    "project_revision": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Project Revision"
+    },
+    "variables": {
+      "items": {
+        "$ref": "#/$defs/AirVariableDescriptor"
+      },
+      "title": "Variables",
+      "type": "array"
+    },
+    "diagnostics": {
+      "items": {
+        "$ref": "#/$defs/Diagnostic"
+      },
+      "title": "Diagnostics",
+      "type": "array"
+    }
+  },
+  "required": [
+    "project_id",
+    "variables"
+  ],
+  "title": "AirVariableCatalogResponse",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

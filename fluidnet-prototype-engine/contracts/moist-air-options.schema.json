@@ -1,0 +1,80 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "contract_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Contract Version",
+      "type": "integer"
+    },
+    "property_backend": {
+      "const": "coolprop_ha",
+      "default": "coolprop_ha",
+      "title": "Property Backend",
+      "type": "string"
+    },
+    "humidity_tolerance_kg_kg": {
+      "default": 1e-08,
+      "exclusiveMinimum": 0,
+      "maximum": 0.001,
+      "title": "Humidity Tolerance Kg Kg",
+      "type": "number"
+    },
+    "max_iterations": {
+      "default": 60,
+      "maximum": 500,
+      "minimum": 1,
+      "title": "Max Iterations",
+      "type": "integer"
+    },
+    "relaxation": {
+      "default": 0.7,
+      "exclusiveMinimum": 0,
+      "maximum": 1,
+      "title": "Relaxation",
+      "type": "number"
+    },
+    "moisture_atol_kg_s": {
+      "default": 1e-09,
+      "exclusiveMinimum": 0,
+      "title": "Moisture Atol Kg S",
+      "type": "number"
+    },
+    "moisture_rtol": {
+      "default": 1e-06,
+      "exclusiveMinimum": 0,
+      "maximum": 0.001,
+      "title": "Moisture Rtol",
+      "type": "number"
+    },
+    "energy_atol_w": {
+      "default": 0.001,
+      "exclusiveMinimum": 0,
+      "title": "Energy Atol W",
+      "type": "number"
+    },
+    "energy_rtol": {
+      "default": 1e-06,
+      "exclusiveMinimum": 0,
+      "maximum": 0.001,
+      "title": "Energy Rtol",
+      "type": "number"
+    },
+    "flow_zero_tolerance_kg_s": {
+      "default": 1e-10,
+      "exclusiveMinimum": 0,
+      "maximum": 1e-06,
+      "title": "Flow Zero Tolerance Kg S",
+      "type": "number"
+    },
+    "supersaturation_policy": {
+      "const": "error",
+      "default": "error",
+      "title": "Supersaturation Policy",
+      "type": "string"
+    }
+  },
+  "title": "MoistAirOptions",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

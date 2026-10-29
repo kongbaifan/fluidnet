@@ -66,3 +66,24 @@ def test_old_module_is_rejected_before_wet_execution_and_filtered_for_old_rpc():
     output=air_request_payload(module,payload)
     assert output['request']['trial_ports']['p']=={'pressure_pa':101325.}
     assert output['request']['readonly_state']==payload['request']['readonly_state']
+
+
+def test_standalone_bench_uses_same_wet_protocol():
+    from fn_engine.bench import run_module_test
+    from fn_engine.models import ModuleTestRequest
+    project=protocol_project()
+    result=run_module_test(ModuleTestRequest(module=project.modules[-1],fluid=project.fluid,
+        inlet_pressure_pa=PA+100,outlet_pressure_pa=PA,temperature_k=293.15,
+        moist_air=True,moist_air_options={'contract_version':1},property_coupling='node',duration_s=.1,dt_s=.1))
+    assert result.frame.variables['D1.state.steps']==1
+
+
+def test_forced_module_flow_is_public_mixture_mass():
+    from fn_engine.solver import solve_steady
+    project=protocol_project();module=project.modules[-1]
+    module.sdk.capabilities.append('net.compressor')
+    module.source['runtime']=SOURCE.replace("ctx.net.resistance(channel='ch0',diameter_m=.4,loss_coefficient=4.)",
+                                          "ctx.net.compressor(channel='ch0',forced_mass_flow_kg_s=1.008)")
+    values=solve_steady(compile_project(project)).variables
+    assert values['Probe.mass_flow_kg_s']==pytest.approx(1.008,rel=1e-8)
+    assert values['Probe.dry_air_mass_flow_kg_s']==pytest.approx(1.,rel=1e-8)

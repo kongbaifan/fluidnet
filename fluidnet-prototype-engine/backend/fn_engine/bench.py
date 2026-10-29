@@ -11,9 +11,27 @@ from .models import (
     ModuleInstance, ModuleTestRequest, ModuleTestResponse, Project, RunFrame,
 )
 from .properties import property_service
-from .runtime import ChannelResult, RuntimeErrorBase, WorkerProcess, module_content_hash
+from .runtime import RuntimeErrorBase, WorkerProcess, module_content_hash
 from .module_execution import mark_module_accepted, set_module_step
-from .solver import snapshot, solve_network
+from .solver import channel_state, snapshot, solve_network
+
+
+def _air_conditions(project,request):
+    project.solver.moist_air=request.moist_air
+    project.solver.moist_air_options=request.moist_air_options
+    project.solver.property_coupling=request.property_coupling
+    if not request.moist_air:
+        return
+    for instance in project.instances:
+        if instance.module_id=='bench_boundary':
+            instance.parameters['humidity_ratio_kg_kg']=request.humidity_ratio_kg_kg
+    for index,channel in enumerate(request.module.channels,start=1):
+        boundary=request.channel_boundaries.get(channel.id)
+        if boundary:
+            for iid,value in ((f'B{index}',boundary.inlet_humidity_ratio_kg_kg),(f'S{index}',boundary.outlet_humidity_ratio_kg_kg)):
+                instance=next((i for i in project.instances if i.id==iid),None)
+                if instance:
+                    instance.parameters['humidity_ratio_kg_kg']=value
 
 
 def bench_channels(module: ModuleDefinition) -> list:
@@ -60,6 +78,7 @@ def run_module_test(request: ModuleTestRequest) -> ModuleTestResponse:
         project = Project(id='module-test',name=module.name,fluid=request.fluid,modules=[boundary,module],instances=instances,
                           connections=connections,circuit_fluids=circuits)
         project.solver.property_coupling=request.property_coupling
+        _air_conditions(project,request)
         return _test_composite(request,compile_project(project))
     # Every enabled channel gets its own pair of pressure boundaries, so a module with
     # two fluid sides is exercised as one network instead of one channel at a time.
@@ -83,6 +102,7 @@ def run_module_test(request: ModuleTestRequest) -> ModuleTestResponse:
     project = Project(id='module-test', name=module.name, fluid=request.fluid, modules=[boundary, module],
         instances=instances, connections=connections, circuit_fluids=circuits)
     project.solver.property_coupling=request.property_coupling
+    _air_conditions(project,request)
     network = compile_project(project)
     from .compiler import instance_fluids
     fluid, port_fluids = instance_fluids(network, 'D1')
@@ -116,10 +136,8 @@ def run_module_test(request: ModuleTestRequest) -> ModuleTestResponse:
                 committed = transaction.prepare('D1',CommitStepRequest(run_id=runner.execution.run_id,instance_id='D1',time_s=time_s,
                     dt_s=time_s-history[-1].time_s,converged_ports=ports,
                     context=runner.execution.context(),
-                    converged_channels={channel.id:ChannelResult(
-                        mass_flow_kg_s=float(frame.variables[f'D1.{channel.id}.mass_flow_kg_s']),
-                        pressure_drop_pa=float(frame.variables[f'D1.{channel.id}.pressure_drop_pa']),
-                        heat_w=float(frame.variables.get(f'D1.{channel.id}.heat_w', 0.))) for channel in channels}),None)
+                    converged_channels={branch.channel_id:channel_state(network,network_result,j)
+                                        for j,branch in enumerate(network.branches) if branch.instance_id=='D1'}),None)
                 frame.variables.update({f'D1.state.{k}':v for k,v in committed.state.items()
                                         if isinstance(v,(float,int,str,bool)) or v is None})
                 if (frame.variables.keys() - result.module_variables.keys()) & {f'D1.{k}' for k in committed.variables}:

@@ -50,3 +50,40 @@ def test_legacy_contract_requires_explicit_migration():
     with pytest.raises(CompilationError) as exc:
         compile_project(project)
     assert exc.value.diagnostic.code == 'AIR_CONTRACT_VERSION_REQUIRED'
+
+
+def test_zero_flow_heater_is_rejected_without_fake_flow():
+    c=catalog_map()
+    project=air_project([boundary('A'),boundary('Z'),ModuleInstance(id='H',module_id='heater',name='零流加热',
+                        parameters={'diameter_m':.4,'loss_coefficient':2.,'heat_input_w':100.})],
+        [link('a',('A','out0'),('H','in0')),link('z',('H','out0'),('Z','out0'))],[c['source'],c['heater']])
+    with pytest.raises(CompilationError) as exc:
+        solve_steady(compile_project(project))
+    assert exc.value.diagnostic.code=='ZERO_FLOW_HEAT_INPUT'
+
+
+@pytest.mark.parametrize('speed',[.8,1.2])
+def test_new_fan_curve_uses_actual_volume_and_density(speed):
+    import numpy as np
+    from fn_engine.air_examples import air_example
+    project=air_example('ahu-wet')
+    next(i for i in project.instances if i.id=='Fan').parameters['speed_ratio']=speed
+    values=solve_steady(compile_project(project)).variables
+    volume=values['Fan.volume_flow_m3_h']
+    rise=np.interp(volume/speed,[0,2000,4000,5000],[300,250,120,0])*speed**2
+    assert values['Fan.pressure_rise_pa']==pytest.approx(rise,rel=2e-6)
+    assert volume/3600==pytest.approx(values['Fan.mass_flow_kg_s']/values['Fan.in0.density_kg_m3'],rel=1e-8)
+
+
+def test_circulating_air_without_actual_boundary_supply_has_no_humidity_reference():
+    from pathlib import Path
+    from fn_engine.packages import load_module_package
+    c=catalog_map();fan=load_module_package(Path(__file__).resolve().parents[1]/'modules/fan')
+    project=air_project([boundary('A'),ModuleInstance(id='J',module_id='junction',name='参考节点'),
+        ModuleInstance(id='F',module_id='fan',name='循环风机'),ModuleInstance(id='D',module_id='duct',name='回风管')],
+        [link('a',('A','out0'),('J','in0')),link('b',('J','out0'),('F','in0')),
+         link('c',('F','out0'),('D','in0')),link('d',('D','out0'),('J','out1'))],
+        [c['source'],c['junction'],c['duct'],fan])
+    with pytest.raises(CompilationError) as exc:
+        solve_steady(compile_project(project))
+    assert exc.value.diagnostic.code=='MOISTURE_REFERENCE_MISSING'

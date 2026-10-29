@@ -114,7 +114,7 @@ def solve_air_transport(network, hydraulic, previous, service, runners, time_s, 
                     heat = float(params.get('heat_input_w',0)) if kind == 'heater' else 0.
                     if relation:
                         heat += relation.parameters.get('heat_w',0.)
-                        if relation.kind == 'pump':
+                        if relation.kind in ('pump','compressor'):
                             # 沿用现有风机边界：进入空气的是水力功，轴/电功单独报告。
                             heat += (float(p[down[j]])-float(p[up[j]]))*mass[j]*(1+inlet.humidity_ratio_kg_kg)/inlet.density_kg_m3
                     heat += extra_heat.get((b.instance_id,b.channel_id),0.)
@@ -126,6 +126,8 @@ def solve_air_transport(network, hydraulic, previous, service, runners, time_s, 
                         target = service.state_ptw(pressure,tout,inlet.humidity_ratio_kg_kg)
                         heat += mass[j]*(target.enthalpy_j_kg_dry_air-inlet.enthalpy_j_kg_dry_air)
                     device = evaluate_pass_through(inlet,mass[j],pressure,heat,service)
+                if mass[j] == 0:
+                    device.outlet_state = states[down[j]]
                 devices.append(device)
             except AirPropertyError as error:
                 raise CompilationError(error.code,f'{b.instance_id}：{error}',b.instance_id) from error
@@ -168,6 +170,9 @@ def solve_air_transport(network, hydraulic, previous, service, runners, time_s, 
     else:
         raise CompilationError('THERMAL_NOT_CONVERGED','热湿联合固定点未收敛')
     diagnostics.extend(heat_diagnostics)
+    if any(value == 0 for value in mass):
+        diagnostics.append(Diagnostic(code='AIR_STAGNANT_STATE',severity='info',
+            message='零流量通路保留各端节点初态或已接受状态，不产生水分和热量输运'))
     outputs = {b.instance_id:d.outputs for b,d in zip(branches,devices) if d.outputs}
     for inst in network.instances.values():
         if network.modules[inst.module_id].solver_model == 'air_filter':

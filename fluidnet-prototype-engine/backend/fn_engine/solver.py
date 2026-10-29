@@ -421,7 +421,8 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
                 closed.append(float(flow))
             elif relation is not None and relation.kind == 'compressor':
                 drops.append(0.)
-                closed.append(float(flow) - relation.parameters['forced_mass_flow_kg_s'])
+                forced = relation.parameters['forced_mass_flow_kg_s']
+                closed.append(float(flow) - forced/mixture_factor(idx,forced))
             else:
                 drops.append(pressures[branch.start_node] - pressures[branch.end_node] - branch_drop(
                     network, branch, float(flow)*mixture_factor(idx, flow), float(rho_b[idx]), float(mu_b[idx]), relation))
@@ -433,7 +434,8 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
             if branch.closed or (relation and relation.kind == 'valve' and relation.parameters['opening_ratio'] == 0):
                 constraints[idx] = flows[idx]
             elif relation and relation.kind == 'compressor':
-                constraints[idx] = flows[idx] - relation.parameters['forced_mass_flow_kg_s']
+                forced = relation.parameters['forced_mass_flow_kg_s']
+                constraints[idx] = flows[idx] - forced/mixture_factor(idx,forced)
         rates = unpack_rates(vector)
         storage_balance = [balance[node] - rates[node] for node in tanks]
         return np.asarray(drops), np.concatenate((balance[unknown], storage_balance)), closed, constraints
@@ -610,6 +612,10 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
     # A loop held only by tanks has no fixed pressure left; start from the tanks' current pressures.
     level = list(fixed.values()) or [network.storage[node].pressure(tank_old[node].mass_kg) for node in tanks]
     cold = np.concatenate((np.full(len(unknown), np.mean(level) / PRESSURE_SCALE), np.zeros(len(tanks)), np.full(m, .1)))
+    if (air_mass_factors is not None and not python_runners and max(level)-min(level)<1e-10
+            and all(b.solver_model!='pump_curve' and not network.parameters[b.instance_id].get('height_m',0.)
+                    for b in network.branches)):
+        cold[len(node_columns):] = 0.
     # New passive SDK modules can explicitly opt into a signed fixed-boundary seed.
     # Old saved contracts retain their original initialization and fallback path.
     for index,branch in enumerate(network.branches):

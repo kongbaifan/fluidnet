@@ -14,6 +14,8 @@ from fn_engine.batch_models import (
     BatchCreateRequest, BatchCurveResponse, BatchDeleteResponse, BatchDetailResponse,
     BatchListResponse, BatchPlanRequest, BatchPreviewResponse, BatchSetupResponse,
 )
+from fn_engine.air_models import AirPropertyRequest, AirGridRequest, AirVariableDescriptor, MoistAirOptions
+from fn_engine.models import AirPropertyResponse, AirGridResponse, AirVariableCatalogResponse, AirMigrationRequest, AirMigrationResponse, RunRecordResponse
 from fn_engine.bridge import normalize_prototype_export
 from fn_engine.models import (
     CommitStepRequest, CommitStepResponse, ControlPreviewResponse, EvaluateRequest, EvaluateResponse,
@@ -44,6 +46,11 @@ output=root/'contracts'
 
 # 合同文件清单的唯一来源：schema 名与生成顺序都由这里给出，测试直接导入 models，避免名单漂移。
 models = [
+    ('moist-air-options',MoistAirOptions), ('air-property-request',AirPropertyRequest),
+    ('air-property-response',AirPropertyResponse), ('air-grid-request',AirGridRequest),
+    ('air-grid-response',AirGridResponse), ('air-variable-descriptor',AirVariableDescriptor),
+    ('air-variable-catalog-response',AirVariableCatalogResponse), ('air-migration-request',AirMigrationRequest),
+    ('air-migration-response',AirMigrationResponse), ('run-record-response',RunRecordResponse),
     ('batch-plan-request', BatchPlanRequest), ('batch-create-request', BatchCreateRequest),
     ('batch-setup-response', BatchSetupResponse), ('batch-preview-response', BatchPreviewResponse),
     ('batch-detail-response', BatchDetailResponse), ('batch-list-response', BatchListResponse),

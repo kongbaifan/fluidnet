@@ -776,9 +776,14 @@ class ChannelTestBoundary(StrictModel):
     inlet_temperature_k: float = Field(default=293.15, gt=0)
     outlet_temperature_k: float = Field(default=293.15, gt=0)
     fluid: FluidConfig = Field(default_factory=FluidConfig)
+    inlet_humidity_ratio_kg_kg: float = Field(default=.008,ge=0,le=.05,exclude_if=lambda v:v==.008)
+    outlet_humidity_ratio_kg_kg: float = Field(default=.008,ge=0,le=.05,exclude_if=lambda v:v==.008)
 
 
 class ModuleTestConditions(StrictModel):
+    moist_air: bool = Field(default=False,exclude_if=lambda v:not v)
+    moist_air_options: MoistAirOptions | None = Field(default=None,exclude_if=lambda v:v is None)
+    humidity_ratio_kg_kg: float = Field(default=.008,ge=0,le=.05,exclude_if=lambda v:v==.008)
     parameters: dict[str, Any] = Field(default_factory=dict)
     fluid: FluidConfig = Field(default_factory=FluidConfig)
     inlet_pressure_pa: float = Field(default=250000.0, gt=0)
@@ -1130,6 +1135,19 @@ class AirGridResponse(StrictModel):
     humidity_max_kg_kg: float
     lines: list[PsychrometricLine]
     diagnostics: list[Diagnostic] = Field(default_factory=list)
+
+
+class AirMigrationRequest(StrictModel):
+    project: Project
+    upgrade_official_modules: bool = False
+
+
+class AirMigrationResponse(StrictModel):
+    original_project: Project
+    project: Project
+    changes: list[str]
+    valid: bool
+    diagnostics: list[Diagnostic]
 
 
 class RefpropInfo(StrictModel):
