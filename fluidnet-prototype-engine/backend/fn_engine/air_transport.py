@@ -169,6 +169,9 @@ def solve_air_transport(network, hydraulic, previous, service, runners, time_s, 
         raise CompilationError('THERMAL_NOT_CONVERGED','热湿联合固定点未收敛')
     diagnostics.extend(heat_diagnostics)
     outputs = {b.instance_id:d.outputs for b,d in zip(branches,devices) if d.outputs}
+    for inst in network.instances.values():
+        if network.modules[inst.module_id].solver_model == 'air_filter':
+            outputs[inst.id] = {'loading_ratio':network.parameters[inst.id]['loading_ratio']}
     from .solver import port_mass_flows
     port_flows = port_mass_flows(network,flows)
     for inst in network.instances.values():

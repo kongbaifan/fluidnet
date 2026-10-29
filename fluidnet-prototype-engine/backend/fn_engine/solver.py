@@ -834,6 +834,7 @@ def build_port_states(network: CompiledNetwork, hydraulic: HydraulicResult,
             if network.project.solver.moist_air:
                 dry = flows.get(key, 0.)
                 w = thermal.port_states[key].humidity_ratio_kg_kg
+                assert w is not None
                 states[key] = states[key].model_copy(update={'dry_air_mass_flow_kg_s':dry,
                     'water_vapor_mass_flow_kg_s':dry*w, 'mass_flow_kg_s':dry*(1+w)})
         else:
@@ -1132,7 +1133,7 @@ def snapshot(network, result, time_s=0., warning=None):
         for instance_id, value in thermal.humidifier_outputs.items():
             variables[f'{instance_id}.moisture_addition_kg_s'] = value
     for inst, params in network.parameters.items():
-        variables.update({f'{inst}.param.{k}': v for k,v in params.items() if isinstance(v, (float,int))})
+        variables.update({f'{inst}.param.{k}': v for k,v in params.items() if isinstance(v, (float,int,str,bool))})
     conflicts = variables.keys() & hydraulic.module_variables.keys()
     if conflicts:
         raise RuntimeErrorBase(f'模块输出不能覆盖网络求解变量：{sorted(conflicts)}')

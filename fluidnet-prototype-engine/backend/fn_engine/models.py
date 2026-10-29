@@ -11,7 +11,7 @@ from ._module_schema_v1 import (
     Identifier, ModuleDefinitionV1, ModuleFieldsV1, ParameterSpec as ParameterSpec,
     PortSpec as PortSpec, StrictModel, UnitSpec as UnitSpec, VariableSpec as VariableSpec,
 )
-from .air_models import MoistAirOptions
+from .air_models import AirVariableDescriptor, MoistAirOptions, PsychrometricLine
 from ._module_schema_v2 import ModuleDefinitionV2, ModuleSDKRequirements
 from ._module_schema_v3 import ModuleDefinitionV3, ModuleApplicability, CompositeDefinition
 
@@ -1102,6 +1102,34 @@ class RunRecordResponse(StrictModel):
     lag_s: float = 0.0
     persisted_at: str | None = None
     persisted_rows: int = 0
+    air_metadata: dict | None = None
+
+
+class AirVariableCatalogResponse(StrictModel):
+    contract_version: Literal[1] = 1
+    project_id: str
+    run_id: str | None = None
+    project_revision: int | None = None
+    variables: list[AirVariableDescriptor]
+    diagnostics: list[Diagnostic] = Field(default_factory=list)
+
+
+class AirPropertyResponse(StrictModel):
+    contract_version: Literal[1] = 1
+    property_backend: Literal['coolprop_ha'] = 'coolprop_ha'
+    property_version: str
+    state: FluidState
+    diagnostics: list[Diagnostic] = Field(default_factory=list)
+
+
+class AirGridResponse(StrictModel):
+    contract_version: Literal[1] = 1
+    pressure_pa: float
+    temperature_min_k: float
+    temperature_max_k: float
+    humidity_max_kg_kg: float
+    lines: list[PsychrometricLine]
+    diagnostics: list[Diagnostic] = Field(default_factory=list)
 
 
 class RefpropInfo(StrictModel):
@@ -1113,6 +1141,14 @@ class RefpropInfo(StrictModel):
 
 
 class HealthCapabilities(StrictModel):
+    moist_air_contract_version: Literal[1] | None = None
+    wet_cooling_coil: bool = False
+    air_humidifier: bool = False
+    ahu_components: bool = False
+    air_room: bool = False
+    cooling_tower_moist: bool = False
+    air_variable_catalog: bool = False
+    air_reports: bool = False
     thermal_coupling: bool = False
     # Two immersed coils bound to one saturated vessel (contract limit is two).
     dual_thermal_coupling: bool = False

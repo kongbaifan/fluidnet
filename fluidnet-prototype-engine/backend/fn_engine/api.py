@@ -286,7 +286,9 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
                                 'scenario_batches':archive is not None,
                                 'cold_room_ideal_source':True,'refrigeration_station':True,'cold_store_cycle':True,
                                 'thermal_coupling':True,'dual_thermal_coupling':True,'heater':True,
-                                'air_duct':True,'moist_air':True,
+                                'air_duct':True,'moist_air':True,'moist_air_contract_version':1,
+                                'wet_cooling_coil':True,'air_humidifier':True,'ahu_components':True,
+                                'air_room':True,'cooling_tower_moist':True,'air_variable_catalog':True,'air_reports':True,
                                 'multi_inlet_vessels':True,
                                 # REFPROP 运行时发现（环境变量/捆绑目录/系统安装）；不加载 DLL。
                                 'refprop':refprop_info()},
@@ -492,7 +494,10 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
              responses=protected_error_responses(404, 'INTERNAL_ERROR'))
     def example(name: str, topology: Literal['single', 'parallel', 'independent'] = 'single'):
         from .examples import pid_example
+        from .air_examples import AIR_EXAMPLES, air_example
         try:
+            if name in AIR_EXAMPLES:
+                return air_example(name)
             if name == 'thermal-coupling':
                 from .refrigeration.coupling_examples import thermal_coupling_example
                 return thermal_coupling_example(topology=topology)
@@ -656,6 +661,8 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
         record = {'id':run_id,'status':status,'mode':request.mode,'request':request.model_dump(mode='json'),
                   'frame':frame.model_dump(mode='json'),'history':history_rows,
                   'events':events, 'total_rows':len(history)}
+        from .air_variables import make_air_metadata
+        record['air_metadata'] = make_air_metadata(request.project)
         if archive:
             stride = 1 if len(history_rows) <= OVERVIEW_POINTS else 2
             archive.save_run(record, list(enumerate(history_rows)), len(history_rows), 2001,
@@ -811,6 +818,9 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
         rows = [row.model_dump(mode='json') if hasattr(row, 'model_dump') else row for row in rows]
         if not rows:
             raise HTTPException(409, detail={'code': 'NO_FRAME', 'message': '运行没有可用帧'})
+        if record.get('air_metadata'):
+            # 风侧报告使用运行时冻结的目录和实际帧，不编译当前设备版本、不重新求解。
+            return record, rows, None, decimated
         request = RunRequest.model_validate(record['request'])
         try:
             network = compile_project(apply_scenario(request.project, request.scenario_id))
@@ -831,7 +841,7 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
         if a == b:
             raise HTTPException(422, detail='请选择两次不同的运行')
         left, right = report_inputs(a), report_inputs(b)
-        if left[2].execution_domain != 'cold_store' or right[2].execution_domain != 'cold_store':
+        if getattr(left[2],'execution_domain',None) != 'cold_store' or getattr(right[2],'execution_domain',None) != 'cold_store':
             raise HTTPException(422, detail={'code': 'REPORT_UNSUPPORTED', 'message': '策略对照报告目前只支持冷库 A 案例'})
         if len(left[2].chains) != len(right[2].chains):
             raise HTTPException(422, detail='两次运行的库房数量不同，无法对照')
@@ -843,7 +853,10 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
                         **protected_error_responses(404, 409, 422, 'STORAGE_FAILED', 'INTERNAL_ERROR')})
     def run_report_csv(run_id: str):
         from .refrigeration.report import run_csv, station_csv
-        record, rows, network, _ = report_inputs(run_id)
+        record, rows, network, decimated = report_inputs(run_id)
+        if record.get('air_metadata'):
+            from .air_report import csv_report
+            return report_download(csv_report(record,rows,decimated),f'air-{run_id[:8]}.csv','text/csv; charset=utf-8')
         content = station_csv(rows, network) if network.execution_domain == 'refrigeration' else run_csv(rows, network)
         return report_download(content, f'cold-store-{run_id[:8]}.csv', 'text/csv; charset=utf-8')
 
@@ -853,6 +866,9 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
     def run_report_html(run_id: str):
         from .refrigeration.report import run_report, station_report
         record, rows, network, decimated = report_inputs(run_id)
+        if record.get('air_metadata'):
+            from .air_report import html_report
+            return report_download(html_report(record,rows,decimated),f'air-{run_id[:8]}.html','text/html; charset=utf-8')
         content = (station_report if network.execution_domain == 'refrigeration' else run_report)(record, rows, network)
         if decimated:
             content = content.replace('<h1>冷库运行报告</h1>', '<h1>冷库运行报告</h1><p><strong>历史窗口不含全部帧，曲线与峰值使用抽稀概览；'
@@ -977,6 +993,8 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
         except (WebSocketDisconnect, RuntimeError):
             return
 
+    from .air_api import register_air_routes
+    register_air_routes(app,get_run)
     if frontend_root:
         app.mount('/',StaticFiles(directory=str(Path(frontend_root)),html=True),name='frontend')
     return app

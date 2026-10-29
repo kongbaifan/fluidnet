@@ -194,6 +194,8 @@ class RunManager:
         self.archive = _ArchiveWriter(self, storage) if storage is not None else None
 
     def submit(self, request, *, run_id=None):
+        from .air_variables import make_air_metadata
+        air_metadata = make_air_metadata(request.project)
         with self.wake:
             if self.closed:
                 raise ValueError('运行服务已关闭')
@@ -204,6 +206,7 @@ class RunManager:
                 raise ValueError('运行标识已存在')
             record = {'id': run_id, 'status': 'queued', 'mode': request.mode,
                 'request': request.model_dump(mode='json'), 'frame': None, 'history': [], 'events': [{'type': 'queued', 'time_s': 0.}]}
+            record['air_metadata'] = air_metadata
             job = Job(request.model_copy(deep=True), record)
         # Durable before the scheduler can see the job; one small write per run is fine.
         self._persist(job)

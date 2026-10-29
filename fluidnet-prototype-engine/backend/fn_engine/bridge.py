@@ -21,7 +21,7 @@ PROTOTYPE_MEDIA = {
 
 # Prototype parameter names -> canonical contract names. Conversion comes from UnitSpec.
 PARAMETER_BINDINGS = {
-    'source': {'pressure':'pressure_pa', 'temperature':'temperature_k'},
+    'source': {'pressure':'pressure_pa', 'temperature':'temperature_k', 'humidity_ratio_kg_kg':'humidity_ratio_kg_kg'},
     'pump': {'speed':'speed_ratio', 'efficiency':'efficiency_ratio', 'head_curve':'head_curve'},
     'valve': {'opening':'opening_ratio', 'kv':'kv_m3_h'},
     'pipe': {'length':'length_m', 'diameter':'diameter_m', 'roughness':'roughness_m',
@@ -38,11 +38,19 @@ PARAMETER_BINDINGS = {
        for definition in (*thermal_catalog(), *cold_store_catalog(), *refrigeration_catalog())},
 }
 
+# 新风侧设备使用合同参数 ID；UI 值仍按 UnitSpec 显示单位保存。
+for _air_definition in catalog_map().values():
+    if _air_definition.id in ('duct','cooling_coil','humidifier','air_mixing_box','air_filter','air_room','cooling_tower_moist'):
+        PARAMETER_BINDINGS[_air_definition.id] = {p.id:p.id for p in _air_definition.parameters}
+
 
 def parameter_map(kind, params, definition):
     # Python module packages own their canonical contract IDs. Built-in
     # prototype modules still use the legacy UI names and bindings below.
-    names = {key: key for key in params} if definition.runtime == 'python' else PARAMETER_BINDINGS[kind]
+    names = {key: key for key in params} if definition.runtime == 'python' else {
+        **{p.id:p.id for p in definition.parameters}, **PARAMETER_BINDINGS[kind]}
+    if len({names.get(key,key) for key in params}) != len(params):
+        raise ValueError(f'{kind} 同时使用同一参数的旧名和合同名，请保留一种写法')
     unknown = params.keys() - names.keys()
     if unknown:
         raise ValueError(f'{kind} 不支持参数 {sorted(unknown)}')
@@ -130,9 +138,9 @@ def normalize_prototype_export(data: dict[str, Any]) -> Project:
                     required=p.get('required', registered[p['id']].required if p['id'] in registered else True),
                     circuit=p.get('circuit', registered[p['id']].circuit if p['id'] in registered else 'main')) for p in original['ports']]
             if 'channels' in original:
-                if kind in {'source','junction','tank'} and original['channels']:
+                if kind in {'source','junction','tank','air_mixing_box','air_room'} and original['channels']:
                     raise ValueError(f'{module_id} 当前模型不允许额外通路')
-                model = 'resistance' if definition.solver_model in {'heat_exchanger', 'heater'} else definition.solver_model
+                model = 'resistance' if definition.solver_model in {'heat_exchanger', 'heater','cooling_coil','humidifier','cooling_tower_moist'} else definition.solver_model
                 definition.channels = [ChannelSpec(id=c['id'], name=c.get('name',c['id']), input_port=c['input'], output_port=c['output'],
                     relation='pump_curve' if model == 'pump_curve' else c.get('kind','resistance'), solver_model=model, enabled=c.get('enabled',True)) for c in original['channels']]
             # Port/variable IDs must remain compatible with the registered model in this version.

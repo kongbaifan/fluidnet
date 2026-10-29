@@ -1,7 +1,7 @@
 """风侧合同：物理配置与展示元数据共用明确的质量基准。"""
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from ._module_schema_v1 import StrictModel, UnitSpec
 
@@ -33,15 +33,27 @@ class AirVariableDescriptor(StrictModel):
     source: Literal['parameter', 'port', 'state', 'derived', 'system'] = 'derived'
     writable: bool = False
     nullable: bool = False
-    available_in: list[Literal['steady', 'dynamic']] = Field(default_factory=lambda: ['steady', 'dynamic'])
+    available_in: list[Literal['steady', 'dynamic']] = Field(default=['steady', 'dynamic'])
     contract_version: Literal[1] = 1
 
 
 class AirPropertyRequest(StrictModel):
-    pressure_pa: float = Field(default=101325, ge=60000, le=120000)
-    temperature_k: float = Field(ge=253.15, le=333.15)
+    input_mode: Literal['ptw','ptrh','phw']
+    pressure_pa: float = Field(ge=60000, le=120000)
+    temperature_k: float | None = Field(default=None,ge=253.15, le=333.15)
     humidity_ratio_kg_kg: float | None = Field(default=None, ge=0, le=.05)
     relative_humidity: float | None = Field(default=None, ge=0, le=1)
+    enthalpy_j_kg_dry_air: float | None = None
+
+    @model_validator(mode='after')
+    def inputs_match_mode(self):
+        expected={'ptw':{'temperature_k','humidity_ratio_kg_kg'},'ptrh':{'temperature_k','relative_humidity'},
+                  'phw':{'enthalpy_j_kg_dry_air','humidity_ratio_kg_kg'}}[self.input_mode]
+        actual={name for name in ('temperature_k','humidity_ratio_kg_kg','relative_humidity','enthalpy_j_kg_dry_air')
+                if getattr(self,name) is not None}
+        if actual != expected:
+            raise ValueError(f'{self.input_mode} 必须且只能提供 {sorted(expected)}')
+        return self
 
 
 class AirGridRequest(StrictModel):
@@ -49,3 +61,14 @@ class AirGridRequest(StrictModel):
     temperature_min_k: float = Field(default=273.15, ge=253.15, le=333.15)
     temperature_max_k: float = Field(default=323.15, ge=253.15, le=333.15)
     points: int = Field(default=41, ge=2, le=101)
+    humidity_max_kg_kg: float = Field(default=.03,gt=0,le=.05)
+
+
+class PsychrometricPoint(StrictModel):
+    temperature_k: float
+    humidity_ratio_kg_kg: float
+
+
+class PsychrometricLine(StrictModel):
+    relative_humidity: float
+    segments: list[list[PsychrometricPoint]]

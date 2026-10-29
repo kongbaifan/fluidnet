@@ -76,6 +76,11 @@ def observation_choices(project: Project) -> list[BatchVariable]:
             key = 'metrics.' + suffix
             result[key] = BatchVariable(key=key, label=label, unit=UnitSpec(
                 quantity='energy' if unit == 'J' else 'power', canonical_unit=unit, display_unit=display, display_scale=scale))
+    from .air_variables import collect_air_variables, is_air_project
+    if is_air_project(project):
+        for descriptor in collect_air_variables(project):
+            if descriptor.value_type == 'number' and descriptor.unit is not None:
+                result[descriptor.key] = BatchVariable(key=descriptor.key,label=descriptor.label,unit=descriptor.unit)
     return list(result.values())
 
 
