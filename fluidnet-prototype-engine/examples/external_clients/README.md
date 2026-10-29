@@ -63,3 +63,9 @@ Invoke-RestMethod ($env:FLUIDNET_URL + '/api/v1/runs/' + $runId) -Headers $heade
 2026-10-27 已按用户决定取消 M3 打包与发版，以及变量别名、源码环境真实服务联调、24 小时稳定性验证、工程算例校核这条后续任务链；不再将它们列为剩余待办、前置条件或验收门槛。本文保留已有客户端及已完成联调的使用说明，新的开发方向尚未确定。
 
 接口、错误响应与快照语义详见 [API 文档](../../docs/API.md#无界面服务与已保存项目运行)。
+
+## 风系统
+
+现有 Python/JavaScript 客户端可直接驱动已保存的风侧动态项目。设置 `FLUIDNET_PROJECT_ID` 为项目 ID，`FLUIDNET_VARIABLES` 使用实际键，例如 `Coil.condensate_kg_s,Room.state.relative_humidity`；`FLUIDNET_WRITE_VALUES` 可写 `Room.param.moisture_load_kg_s` 等运行参数。含湿量使用 kg/kg_da、温度使用 K，不能发送页面的显示值。
+
+变量目录先调用 `/runs/{run_id}/air-variables`，报告使用原 `/runs/{run_id}/report.csv` / `report.html`。同一 sequence 和 parameter_revision 的 REST/WS/报告数值一致。完整示例和质量基准见 [风侧使用说明](../../docs/AIR_SIDE_USER_GUIDE.md)。
