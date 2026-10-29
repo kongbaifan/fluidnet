@@ -362,3 +362,25 @@ Worker RPC 超时默认 10 秒，超时返回 `MODULE_RUNTIME_TIMEOUT` 并终止
 `document` 是格式为 `fluidnet-project`、schema=1 的单项目交换文档，含原型 project、固定模块快照 modules、关联 models 和 charts。路径中的 `project_id` 必须与文档一致。expected_revision 使用各项目独立修订号，冲突返回 409 `PROJECT_CONFLICT`，成功保存会在同一事务中更新项目历史和完整工作区。项目保存、恢复、删除和模块升级预览在项目有活动运行时返回 409。
 
 升级预览不写入项目。前端应用时先保存原修订，再保存升级文档；已归档运行继续使用原快照。`RunRequest.project_revision` 为可选正整数元数据，前端仅在当前模型与已保存状态一致时填写。原型工况 overrides 经归一化转换为规范参数和单位，所选工况通过 `scenario_id` 提交。
+
+## 风侧合同 1
+
+客户端检查 `health.capabilities.moist_air_contract_version == 1`。细分能力为 `wet_cooling_coil`、`air_humidifier`、`ahu_components`、`air_room`、`cooling_tower_moist`、`air_variable_catalog`、`air_reports`；这些能力不替代模块自己的 SDK 协商。
+
+| 方法与路径（/api/v1） | 用途 |
+| --- | --- |
+| POST `/air/properties` | `input_mode=ptw/ptrh/phw`，查询完整湿空气状态与实际物性版本 |
+| GET `/air/psychrometric-grid` | 压力、温度范围与含湿量上限下的 10 条 RH 背景线，每条最多 161 点 |
+| POST `/air/variables/preview` | 完整 Project → 中文变量目录、单位、质量基准、可写性；不启动 Worker |
+| GET `/runs/{run_id}/air-variables` | 创建运行时冻结的变量目录 |
+| POST `/air/migrations/preview` | `{project, upgrade_official_modules}` → 原项目、候选项目、变化和诊断；不写工作区 |
+
+新增查询 POST 仍要求 control 权限，GET/WS 使用 read 权限。物性/项目语义错误为 422；旧运行无风侧元数据时目录返回 409 `AIR_METADATA_UNAVAILABLE`。旧湿空气项目需先迁移，不能静默改变既有焓/质量语义。
+
+`RunRecordResponse.air_metadata` 保存合同/引擎/物性版本、项目摘要、冻结目录与模型假设。旧档案该字段为 null。既有 `report.csv`/`report.html` 路径按该元数据生成风侧报告，不重新编译或求解项目。
+
+```json
+{"input_mode":"ptrh","pressure_pa":101325,"temperature_k":299.15,"relative_humidity":0.5}
+```
+
+完整对象见 `contracts/air-*.schema.json`、`contracts/moist-air-options.schema.json` 及 OpenAPI。六个名称可通过 `/examples/{name}` 获取，见[示例目录](../examples/air-side/README.md)。操作与质量基准见[风侧使用说明](AIR_SIDE_USER_GUIDE.md)。

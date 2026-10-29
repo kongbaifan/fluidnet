@@ -278,3 +278,25 @@ Python 项目控制脚本已接通采样执行和独立 Worker；串口演示、
 
 
 本轮补充：`storage.py` 持久化完整工作区（最近 5 修订）、请求/最新帧/事件、最近窗口和全程抽稀；`control.py` 由 `worker.py` 调度 initialize/step/finalize，SimulationSession 在下一接受子步提交控制状态。前端新增 project-services.js，提供工作区版本冲突检测、控制预览和运行归档查看。具体合同见 API.md 与 DATA_CONTRACT.md。
+
+## 风侧合同 1 的实际调用链（2026-10-29）
+
+湿空气仍是 fluid 执行域。编译器复用既有节点/支路映射并调用 `air_compile`；`solver._solve_network` 调度 `air_transport.solve_air_network`，在水力与 h/w 输运之间反馈物性。`air_devices`、`air_room` 和 `cooling_tower_moist` 只返回候选值；`air_ledger` 随 `SimulationSession._accept` 一次提交累计量。
+
+```mermaid
+flowchart LR
+  UI["Studio 风系统页 / 外部客户端"] --> API["api.py + air_api.py"]
+  API --> C["compiler.py + air_compile.py"]
+  C --> S["solver.py / air_transport.py"]
+  S <--> P["CoolProp 湿空气服务"]
+  S --> D["盘管 / 加湿器 / 房间 / 冷却塔"]
+  S --> W["原 Worker 四阶段协议"]
+  D --> A["SimulationSession 接受子步"]
+  A --> L["air_ledger 累计量"]
+  A --> F["同一 RunFrame"]
+  F --> DB["RunManager / SQLite 归档"]
+  DB --> R["冻结变量目录 / CSV / HTML"]
+  R --> UI
+```
+
+运行创建时固定 `air_metadata`（物性版本、质量基准、项目摘要、变量目录与假设），沿用现有 JSON 存储事务。报告直接读取已保存的帧和目录，不执行编译或数值求解。新旧模块通过 SDK 0.6.0 能力声明区分，旧 RPC 过滤新增字段。详细行为及验证见 [风侧实施验收](AIR_SIDE_IMPLEMENTATION_ACCEPTANCE.md)。

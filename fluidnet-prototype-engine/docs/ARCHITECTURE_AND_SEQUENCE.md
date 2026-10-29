@@ -261,3 +261,25 @@ sequenceDiagram
 - 图中组件均按源码核对：域分派见 [compiler.py](../backend/fn_engine/compiler.py)，调度与线程见 [jobs.py](../backend/fn_engine/jobs.py)，会话工厂见 [sessions.py](../backend/fn_engine/sessions.py)，联算见 [coupling.py](../backend/fn_engine/refrigeration/coupling.py)。
 - 本文件为 Mermaid 文本，GitHub / GitLab / VS Code 可直接渲染；需要 PNG/SVG 时可用 `@mermaid-js/mermaid-cli` 导出。
 - 架构细节（启动、并发、存储、契约）仍以 [ARCHITECTURE_MAP](ARCHITECTURE_MAP.md) 与 [API](API.md)、[数据合同](DATA_CONTRACT.md) 为准。
+
+## 风侧合同 1 的实际调用链（2026-10-29）
+
+湿空气仍是 fluid 执行域。编译器复用既有节点/支路映射并调用 `air_compile`；`solver._solve_network` 调度 `air_transport.solve_air_network`，在水力与 h/w 输运之间反馈物性。`air_devices`、`air_room` 和 `cooling_tower_moist` 只返回候选值；`air_ledger` 随 `SimulationSession._accept` 一次提交累计量。
+
+```mermaid
+flowchart LR
+  UI["Studio 风系统页 / 外部客户端"] --> API["api.py + air_api.py"]
+  API --> C["compiler.py + air_compile.py"]
+  C --> S["solver.py / air_transport.py"]
+  S <--> P["CoolProp 湿空气服务"]
+  S --> D["盘管 / 加湿器 / 房间 / 冷却塔"]
+  S --> W["原 Worker 四阶段协议"]
+  D --> A["SimulationSession 接受子步"]
+  A --> L["air_ledger 累计量"]
+  A --> F["同一 RunFrame"]
+  F --> DB["RunManager / SQLite 归档"]
+  DB --> R["冻结变量目录 / CSV / HTML"]
+  R --> UI
+```
+
+运行创建时固定 `air_metadata`（物性版本、质量基准、项目摘要、变量目录与假设），沿用现有 JSON 存储事务。报告直接读取已保存的帧和目录，不执行编译或数值求解。新旧模块通过 SDK 0.6.0 能力声明区分，旧 RPC 过滤新增字段。详细行为及验证见 [风侧实施验收](AIR_SIDE_IMPLEMENTATION_ACCEPTANCE.md)。

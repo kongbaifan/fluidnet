@@ -124,3 +124,11 @@ python -m pytest -q tests/test_module_sdk.py tests/test_module_sdk_hydraulics.py
 独立 `module-sdk` CI job 使用轻依赖运行 SDK lint、严格类型检查及公共数学函数测试/独立覆盖率；后端 job 在全量环境执行实际宿主签名、Worker、网络和旧公式回放。SDK 覆盖率不代表全部物理工况或协议分支覆盖率。旧压差驱动反向冷启动/等压工况限制见 [S0 执行证据](results/S0.md)，S1 的范围和实测结果见 [S1 执行证据](results/S1.md)。
 
 `bsl-modules` 轻依赖门禁还覆盖 schema 冻结、哈希和 SDK 声明校验；实际保存/Worker/设计接入见 [S2 执行证据](results/S2.md)。
+
+## SDK 0.6.0：湿空气透传
+
+新增 `air.properties.v1` 和 `air.pass_through.v1`。`ctx.fluid`/`fluid_at` 增加 `state_ptw`、`state_phw`、`humidity_from_rh`、`saturated_state`。公共比焓和比热仍按混合物计，显式 `_dry_air` 字段按干空气计；完整字段见 `PortState`/`ChannelState` 合同。
+
+`evaluate`、`thermal`、`observe`、`commit_step` 及独立验证台都传递相同湿空气状态。通路 `mass_flow_kg_s` 是实际入口总质量流量，另有 `dry_air_mass_flow_kg_s` 和入口/出口总质量字段。透传模块不能改变 w；湿空气源汇暂使用内置设备。旧 Worker 请求只发送历史字段，不因新增 null 字段而解析失败。
+
+官方 `fan`、`duct_fitting`、`duct_damper`、`air_vent` 新版本为 2，旧版本在 `history/v1/`。旧项目不自动切换到新源码；迁移预览只升级与已知旧哈希匹配的官方版本。
