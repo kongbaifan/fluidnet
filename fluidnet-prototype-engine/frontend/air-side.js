@@ -98,9 +98,9 @@ window.createAirSideUI = function (ui) {
   }
   function moisture() {
     const groups=new Map();
-    for(const v of model.catalog){if(v.port_id||v.channel_id||!['state','derived'].includes(v.source)||v.instance_id==='metrics')continue;
+    for(const v of model.catalog){if(v.port_id||v.channel_id||!['state','derived'].includes(v.source)||v.instance_id==='metrics'||/(^|\.)(inlet|outlet)_pressure_pa$/.test(v.key)||model.record?.mode&&!v.available_in.includes(model.record.mode))continue;
       if(!groups.has(v.instance_id))groups.set(v.instance_id,[]);groups.get(v.instance_id).push(v);}
-    return `<div class="air-device-grid">${[...groups].map(([id,variables])=>`<section class="air-device"><h3>${esc(id)}</h3>${variables.map(v=>`<div><span>${esc(v.label.replace(/^.* · /,''))}</span><strong>${esc(display(v.key))} <small>${esc(v.unit?.display_unit||'')}</small></strong></div>`).join('')}</section>`).join('')}</div>`;
+    return `<div class="air-device-grid">${[...groups].map(([id,variables])=>`<section class="air-device"><h3>${esc(id)}</h3>${variables.map(v=>`<div><span>${esc(v.label.replace(/^.* · /,''))}</span><strong>${esc(display(v.key))} <small>${esc(v.unit?.display_unit==='1'?'':v.unit?.display_unit||'')}</small></strong></div>`).join('')}</section>`).join('')}</div>`;
   }
   function curveSvg() {
     const series=model.curves, values=series.flatMap(s=>s.points.map(p=>p[1]));

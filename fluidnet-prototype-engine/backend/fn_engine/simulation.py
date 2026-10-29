@@ -84,6 +84,7 @@ class SimulationSession:
             self.runners = s._python_runners(self.network)
             initial_view = dataclasses.replace(self.network,air_room_step=(0.,self.air_rooms)) if self.air_rooms else self.network
             self.result = s.solve_network(initial_view, self.runners, 0., service=self.service if self.network.project.solver.thermal else None)
+            self.air_rooms = {node:item.state for node,item in getattr(self.result.thermal,'air_room_results',{}).items()}
             self.cells = dict(self.result.thermal.cell_enthalpies) if self.result.thermal else {}
             # Targets and limits were checked by compile_project (validate_controllers).
             for config in self.network.project.controllers:

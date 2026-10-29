@@ -30,7 +30,10 @@ def evaluate_tower(inlet,water_flow_kg_s,parameters,water_service,outlet_pressur
         'evaporation_kg_s':0.,'drift_kg_s':0.,'blowdown_kg_s':0.,'makeup_kg_s':0.,
         'achieved_concentration_ratio':None,'water_residual_kg_s':0.,'energy_residual_w':0.}
     if m <= 1e-10 or p['air_volume_flow_m3_s']==0 or p['contact_effectiveness']==0:
-        return TowerResult(water_service.state_ph(pressure,inlet.enthalpy_j_kg),bypass)
+        outlet=water_service.state_ph(pressure,inlet.enthalpy_j_kg)
+        bypass['water_outlet_temperature_k']=outlet.temperature_k
+        bypass['approach_k']=outlet.temperature_k-air.wet_bulb_k
+        return TowerResult(outlet,bypass)
     if air.wet_bulb_k >= inlet.temperature_k:
         raise AirPropertyError('TOWER_OPERATING_POINT_INFEASIBLE','入口空气湿球不低于进水温度，无法冷却')
     dry_air=p['air_volume_flow_m3_s']*air.density_kg_m3/(1+air.humidity_ratio_kg_kg)

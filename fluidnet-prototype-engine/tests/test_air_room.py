@@ -99,6 +99,23 @@ def test_runtime_boundary_batch_is_atomic():
         session.close()
 
 
+def test_initial_room_state_and_first_step_energy_match_published_frames():
+    from fn_engine.moist_air import vapor_enthalpy
+    session=SimulationSession(compile_project(room_project()),1.,1.)
+    try:
+        initial=session.initialize().variables
+        node=next(iter(session.air_rooms))
+        assert session.air_rooms[node].pressure_pa==pytest.approx(session.result.hydraulic.pressures[node],abs=1e-9)
+        final=session.advance().variables
+        incoming=sum(final[f'Room.{port}.dry_air_mass_flow_kg_s']*final[f'Room.{port}.enthalpy_j_kg_dry_air']
+                     for port in ('supply_in','return_out'))
+        loads=(final['Room.sensible_load_w']+final['Room.moisture_load_kg_s']*vapor_enthalpy(307.15)
+               +final['Room.envelope_heat_w']+final['Room.infiltration_heat_w'])
+        assert final['Room.state.stored_energy_j']-initial['Room.state.stored_energy_j']==pytest.approx(incoming+loads,abs=.01)
+    finally:
+        session.close()
+
+
 def test_halving_room_step_converges_to_independent_exponential():
     import math
     params=room_parameters();spec=build_spec('R',params);service=MoistAirService()

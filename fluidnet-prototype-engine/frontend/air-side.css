@@ -46,3 +46,6 @@
 #fn-studio .air-legend span { display:flex; align-items:center; gap:6px; }
 #fn-studio .air-legend i { width:18px; height:3px; display:inline-block; }
 #fn-studio[data-theme="dark"] .air-empty,#fn-studio[data-theme="dark"] .air-provenance { background:#20393e; color:#c2e8e8; }
+
+#fn-studio .air-device:only-child { grid-column:1 / -1; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px 30px; }
+#fn-studio .air-device:only-child h3 { grid-column:1 / -1; }

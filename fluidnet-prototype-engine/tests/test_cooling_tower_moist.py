@@ -40,6 +40,8 @@ def test_bypass_and_infeasible_states():
     service,inlet,p=setup_tower()
     assert evaluate_tower(inlet,0.,p,service).outputs['makeup_kg_s']==0
     assert evaluate_tower(inlet,3.,p|{'air_volume_flow_m3_s':0.},service).outputs['heat_rejected_w']==0
+    bypass=evaluate_tower(inlet,3.,p|{'air_volume_flow_m3_s':0.},service,101325.)
+    assert bypass.outputs['water_outlet_temperature_k']==pytest.approx(bypass.outlet_state.temperature_k,abs=1e-9)
     with pytest.raises(AirPropertyError):
         evaluate_tower(service.state_pt(101325.,290.15),3.,p,service)
     with pytest.raises(AirPropertyError):
