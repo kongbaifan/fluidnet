@@ -16,7 +16,7 @@ from .hydraulics import (
 )
 from .thermal import heat_exchanger_effectiveness
 
-SDK_API_VERSION: Final[str] = '0.5.0'
+SDK_API_VERSION: Final[str] = '0.6.0'
 
 __all__ = [
     'heat_exchanger_effectiveness',

@@ -797,10 +797,9 @@ def port_mass_flows(network: CompiledNetwork, flows) -> dict[str, float]:
 
 
 def _fluid_port(state: FluidState, pressure=None, mass_flow=None) -> PortState:
-    return PortState(pressure_pa=float(state.pressure_pa if pressure is None else pressure), temperature_k=state.temperature_k,
-                     enthalpy_j_kg=state.enthalpy_j_kg, density_kg_m3=state.density_kg_m3,
-                     viscosity_pa_s=state.viscosity_pa_s, specific_heat_j_kg_k=state.specific_heat_j_kg_k,
-                     mass_flow_kg_s=mass_flow, quality=state.quality)
+    values = state.model_dump(include=set(PortState.model_fields))
+    values.update(pressure_pa=float(state.pressure_pa if pressure is None else pressure), mass_flow_kg_s=mass_flow)
+    return PortState(**values)
 
 
 def build_port_states(network: CompiledNetwork, hydraulic: HydraulicResult,

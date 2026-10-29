@@ -20,7 +20,27 @@ SDK_CAPABILITIES['0.4.0'] = SDK_CAPABILITIES['0.3.0'] | {
     'context.log.v1', 'thermal.v1', 'observe.v1', 'thermal.conservative.v1', 'state.transactions.v1'}
 SDK_CAPABILITIES['0.5.0'] = SDK_CAPABILITIES['0.4.0'] | {'hydraulic.derivatives.v1', 'composite.v1', 'evaluate.pure.v1'}
 SDK_CAPABILITIES['0.5.0'] = SDK_CAPABILITIES['0.5.0'] | {'hydraulic.signed_start.v1'}
+SDK_CAPABILITIES['0.6.0'] = SDK_CAPABILITIES['0.5.0'] | {'air.properties.v1', 'air.pass_through.v1'}
 STATE_CONTRACT_VERSIONS = frozenset({1})
+
+
+def air_request_payload(definition, payload):
+    """旧协议仅过滤状态字段，不碰用户参数、state 或自定义变量。"""
+    if definition.sdk and 'air.pass_through.v1' in definition.sdk.capabilities:
+        return payload
+    extra = {'humidity_ratio_kg_kg', 'relative_humidity', 'enthalpy_j_kg_dry_air',
+             'specific_heat_j_kg_dry_air_k', 'dew_point_k', 'wet_bulb_k',
+             'dry_air_mass_flow_kg_s', 'water_vapor_mass_flow_kg_s',
+             'inlet_mass_flow_kg_s', 'outlet_mass_flow_kg_s'}
+    result = dict(payload)
+    if 'request' in result:
+        request = dict(result['request'])
+        for name in ('trial_ports', 'converged_ports', 'ports', 'channels', 'converged_channels'):
+            if name in request:
+                request[name] = {key: {k:v for k,v in value.items() if k not in extra}
+                                 for key,value in request[name].items()}
+        result['request'] = request
+    return result
 
 
 class ModuleCompatibilityError(ValueError):

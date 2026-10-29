@@ -11,6 +11,7 @@ from ._module_schema_v1 import (
     Identifier, ModuleDefinitionV1, ModuleFieldsV1, ParameterSpec as ParameterSpec,
     PortSpec as PortSpec, StrictModel, UnitSpec as UnitSpec, VariableSpec as VariableSpec,
 )
+from .air_models import MoistAirOptions
 from ._module_schema_v2 import ModuleDefinitionV2, ModuleSDKRequirements
 from ._module_schema_v3 import ModuleDefinitionV3, ModuleApplicability, CompositeDefinition
 
@@ -60,7 +61,12 @@ class FluidState(StrictModel):
     phase: str = "unknown"
     quality: float | None = None
     # Moist-air mode only: kg water / kg dry air at this node or port.
-    humidity_ratio_kg_kg: float | None = None
+    humidity_ratio_kg_kg: float | None = Field(default=None, exclude_if=lambda v: v is None)
+    relative_humidity: float | None = Field(default=None, exclude_if=lambda v: v is None)
+    enthalpy_j_kg_dry_air: float | None = Field(default=None, exclude_if=lambda v: v is None)
+    specific_heat_j_kg_dry_air_k: float | None = Field(default=None, exclude_if=lambda v: v is None)
+    dew_point_k: float | None = Field(default=None, exclude_if=lambda v: v is None)
+    wet_bulb_k: float | None = Field(default=None, exclude_if=lambda v: v is None)
     composition: dict[str, float] = Field(default_factory=dict)
 
 
@@ -72,8 +78,15 @@ class PortState(StrictModel):
     viscosity_pa_s: float | None = None
     specific_heat_j_kg_k: float | None = None
     mass_flow_kg_s: float | None = None
+    dry_air_mass_flow_kg_s: float | None = Field(default=None, exclude_if=lambda v: v is None)
+    water_vapor_mass_flow_kg_s: float | None = Field(default=None, exclude_if=lambda v: v is None)
     quality: float | None = None
-    humidity_ratio_kg_kg: float | None = None
+    humidity_ratio_kg_kg: float | None = Field(default=None, exclude_if=lambda v: v is None)
+    relative_humidity: float | None = Field(default=None, exclude_if=lambda v: v is None)
+    enthalpy_j_kg_dry_air: float | None = Field(default=None, exclude_if=lambda v: v is None)
+    specific_heat_j_kg_dry_air_k: float | None = Field(default=None, exclude_if=lambda v: v is None)
+    dew_point_k: float | None = Field(default=None, exclude_if=lambda v: v is None)
+    wet_bulb_k: float | None = Field(default=None, exclude_if=lambda v: v is None)
     composition: dict[str, float] = Field(default_factory=dict)
 
 
@@ -170,6 +183,9 @@ class EvaluateResponse(StrictModel):
 
 
 class ChannelState(StrictModel):
+    dry_air_mass_flow_kg_s: float | None = Field(default=None, exclude_if=lambda v: v is None)
+    inlet_mass_flow_kg_s: float | None = Field(default=None, exclude_if=lambda v: v is None)
+    outlet_mass_flow_kg_s: float | None = Field(default=None, exclude_if=lambda v: v is None)
     mass_flow_kg_s: float = 0.0
     pressure_drop_pa: float = 0.0
     heat_w: float = Field(default=0.0, exclude_if=lambda value: value == 0)
@@ -405,6 +421,7 @@ class SolverOptions(StrictModel):
     # 湿空气网络：把含湿量作为与焓并列的输运标量（默认关闭，旧项目行为不变）。
     # 仅支持空气单相网络与内置风侧元件；湿工况表冷器/加湿器需要开启本项。
     moist_air: bool = False
+    moist_air_options: MoistAirOptions | None = Field(default=None, exclude_if=lambda v: v is None)
     # Implicit time stepping (networks with tanks): a failed substep is retried with half the step.
     max_step_halvings: int = Field(default=6, ge=0, le=20)
     # S1: 'auto' 由实际未知量、Jacobian 稀疏度与模块端口依赖选择；旧项目缺字段仍按 dense。

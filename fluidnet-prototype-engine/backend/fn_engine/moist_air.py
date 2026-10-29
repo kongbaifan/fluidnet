@@ -1,109 +1,141 @@
-"""湿空气（moist air）教学用物性：含湿量、相对湿度、湿空气焓与温度换算。
+"""CoolProp 湿空气入口：公共比焓按混合物，输运按干空气。
 
-用于 `SolverOptions.moist_air=True` 的空气网络：热力层把含湿量 w 作为与焓并列的
-输运标量；本模块只提供纯函数，不做 EOS 反算（空气按理想气体混合物处理）。
-
-约定：
-* w 为含湿量，kg 水 / kg 干空气；
-* 湿空气比焓按每 kg 干空气计：
-  h = cp_da·(T−T0) + w·(r0 + cp_v·(T−T0))，T0 = 273.15 K；
-* 饱和水蒸气压力用 Magnus 近似（教学用，误差约 0.3%，不替代 CoolProp 湿空气查询）；
-* 密度按理想气体混合物近似：ρ = p·(1+w) / (R_da·T·(1+1.6078·w))。
+水源采用 0 °C 液水工程焓参考；不修改 CoolProp 的全局参考态。
 """
 from __future__ import annotations
 
+import math
+from functools import lru_cache
+
+from CoolProp.CoolProp import HAPropsSI
+
 from .models import FluidState
 
-T0 = 273.15
-CP_DA = 1006.0            # J/(kg_da·K)
-CP_V = 1860.0             # J/(kg_v·K)
-R0 = 2.501e6              # J/kg_v，0 °C 汽化潜热
-R_DA = 287.05             # J/(kg_da·K)
-MU_DA = 1.82e-5           # Pa·s，干空气动力黏度（教学常数）
-WATER_VAPOR_RATIO = 1.6078  # R_da / R_v
+T0, CP_DA, CP_V, R0 = 273.15, 1006., 1860., 2501000.
+AIR_STATE_FIELDS = (
+    'humidity_ratio_kg_kg', 'relative_humidity', 'enthalpy_j_kg_dry_air',
+    'specific_heat_j_kg_dry_air_k', 'dew_point_k', 'wet_bulb_k',
+)
+AIR_FLOW_FIELDS = ('dry_air_mass_flow_kg_s', 'water_vapor_mass_flow_kg_s',
+                   'inlet_mass_flow_kg_s', 'outlet_mass_flow_kg_s')
 
 
-def saturation_pressure_pa(temperature_k: float) -> float:
-    """饱和水蒸气分压（Magnus 近似）。"""
-    celsius = temperature_k - T0
-    return 611.2 * pow(2.718281828459045, 17.62 * celsius / (243.12 + celsius))
+class AirPropertyError(ValueError):
+    def __init__(self, code, message):
+        self.code = code
+        super().__init__(message)
 
 
-def saturation_humidity_ratio(temperature_k: float, pressure_pa: float) -> float:
-    """给定温度与总压下的饱和含湿量。"""
-    saturation = saturation_pressure_pa(temperature_k)
-    if saturation >= pressure_pa:
-        return float("inf")
-    return 0.622 * saturation / (pressure_pa - saturation)
+def _finite(*values):
+    if any(isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) for v in values):
+        raise AirPropertyError('AIR_PROPERTY_RANGE', '湿空气输入必须为有限数值')
 
 
-def humidity_ratio_from_relative(temperature_k: float, pressure_pa: float, relative: float) -> float:
-    """由相对湿度求含湿量；`relative` 取 0–1。"""
-    saturation = saturation_pressure_pa(temperature_k) * min(max(relative, 0.0), 1.0)
-    if saturation >= pressure_pa:
-        return float("inf")
-    return 0.622 * saturation / (pressure_pa - saturation)
+def _pt(pressure, temperature):
+    _finite(pressure, temperature)
+    if not 60000 <= pressure <= 120000 or not 253.15 <= temperature <= 333.15:
+        raise AirPropertyError('AIR_PROPERTY_RANGE', '湿空气适用范围：60–120 kPa、−20–60 °C')
 
 
-def relative_humidity(temperature_k: float, pressure_pa: float, humidity_ratio: float) -> float:
-    """由含湿量求相对湿度（0–1）：RH = p_v / p_sat(T)，p_v = p·w/(0.622+w)。"""
-    saturation = saturation_pressure_pa(temperature_k)
-    if saturation <= 0.0:
-        return 0.0
-    vapor_pressure = pressure_pa * humidity_ratio / (0.622 + humidity_ratio)
-    return min(max(vapor_pressure / saturation, 0.0), 1.0)
+def _ha(output, *args):
+    try:
+        value = float(HAPropsSI(output, *args))
+        if not math.isfinite(value):
+            raise ValueError('非有限物性')
+        return value
+    except (ValueError, RuntimeError) as error:
+        raise AirPropertyError('AIR_PROPERTY_FAILURE', f'湿空气物性查询 {output} 失败：{error}') from error
 
 
-def dew_point_k(temperature_k: float, pressure_pa: float, humidity_ratio: float) -> float:
-    """露点温度（Magnus 反算）。"""
-    import math
-    pressure_vapor = pressure_pa * humidity_ratio / (0.622 + humidity_ratio)
-    if pressure_vapor <= 0.0:
-        return T0
-    log_ratio = math.log(pressure_vapor / 611.2)
-    return T0 + 243.12 * log_ratio / (17.62 - log_ratio)
+def liquid_enthalpy(temperature):
+    return 4180. * (temperature - T0)
 
 
-def enthalpy_j_kg_da(temperature_k: float, humidity_ratio: float) -> float:
-    """湿空气比焓（每 kg 干空气）。"""
-    celsius = temperature_k - T0
-    return CP_DA * celsius + humidity_ratio * (R0 + CP_V * celsius)
+def vapor_enthalpy(temperature):
+    return R0 + CP_V * (temperature - T0)
 
 
-def temperature_from_enthalpy(enthalpy_j_kg_da: float, humidity_ratio: float) -> float:
-    """由湿空气比焓与含湿量反算温度。"""
-    denominator = CP_DA + CP_V * humidity_ratio
-    if denominator <= 0.0:
-        raise ValueError("含湿量无效，无法反算湿空气温度")
-    celsius = (enthalpy_j_kg_da - R0 * humidity_ratio) / denominator
-    return T0 + celsius
+def saturation_humidity_ratio(temperature_k, pressure_pa):
+    _pt(pressure_pa, temperature_k)
+    return _ha('W', 'P', pressure_pa, 'T', temperature_k, 'R', 1.)
 
 
-def mixture_cp_j_kg_k(humidity_ratio: float) -> float:
-    """每 kg 干空气的湿空气定压比热。"""
-    return CP_DA + CP_V * humidity_ratio
+class MoistAirService:
+    """运行内有界精确键缓存；返回副本，避免调用者污染缓存。"""
+    def __init__(self):
+        self._cached_ptw = lru_cache(maxsize=4096)(self._state_ptw)
+
+    def state_ptw(self, pressure_pa, temperature_k, humidity_ratio_kg_kg):
+        _finite(pressure_pa, temperature_k, humidity_ratio_kg_kg)
+        return self._cached_ptw(float(pressure_pa), float(temperature_k), float(humidity_ratio_kg_kg)).model_copy(deep=True)
+
+    def _state_ptw(self, p, t, w):
+        _pt(p, t)
+        if not 0 <= w <= .05:
+            raise AirPropertyError('AIR_PROPERTY_RANGE', '含湿量必须在 0–0.05 kg/kg_da 内')
+        ws = saturation_humidity_ratio(t, p)
+        if w > ws + 1e-11:
+            raise AirPropertyError('AIR_HUMIDITY_SUPERSATURATED', '湿空气状态过饱和；请增加除湿或修正负荷')
+        # 饱和根的浮点舍入只影响 RH 查询；不修改含湿量或焓账本。
+        args = ('P', p, 'T', t, 'W', w)
+        h, cp = _ha('H', *args), _ha('C', *args)
+        rh = 1. if abs(w-ws) <= 1e-11 else _ha('R', *args)
+        return FluidState(pressure_pa=p, temperature_k=t, enthalpy_j_kg=h/(1+w),
+            enthalpy_j_kg_dry_air=h, density_kg_m3=1/_ha('Vha', *args),
+            viscosity_pa_s=_ha('M', *args), specific_heat_j_kg_k=cp/(1+w),
+            specific_heat_j_kg_dry_air_k=cp, humidity_ratio_kg_kg=w, relative_humidity=rh,
+            dew_point_k=None if w == 0 else _ha('D', *args), wet_bulb_k=_ha('B', *args),
+            phase='gas', composition={'Air': 1/(1+w), 'Water': w/(1+w)})
+
+    def state_phw(self, pressure_pa, enthalpy_j_kg_dry_air, humidity_ratio_kg_kg):
+        _finite(pressure_pa, enthalpy_j_kg_dry_air, humidity_ratio_kg_kg)
+        if not 60000 <= pressure_pa <= 120000 or not 0 <= humidity_ratio_kg_kg <= .05:
+            raise AirPropertyError('AIR_PROPERTY_RANGE', '湿空气压力或含湿量超出适用范围')
+        t = _ha('T', 'P', pressure_pa, 'H', enthalpy_j_kg_dry_air, 'W', humidity_ratio_kg_kg)
+        for limit in (253.15, 333.15):
+            if abs(t-limit) < 1e-8:
+                t = limit
+        return self.state_ptw(pressure_pa, t, humidity_ratio_kg_kg)
+
+    def humidity_from_rh(self, pressure_pa, temperature_k, relative_humidity):
+        _pt(pressure_pa, temperature_k)
+        _finite(relative_humidity)
+        if not 0 <= relative_humidity <= 1:
+            raise AirPropertyError('AIR_PROPERTY_RANGE', '相对湿度必须在 0–1 内')
+        return _ha('W', 'P', pressure_pa, 'T', temperature_k, 'R', relative_humidity)
+
+    def saturated_state(self, pressure_pa, temperature_k):
+        return self.state_ptw(pressure_pa, temperature_k, saturation_humidity_ratio(temperature_k, pressure_pa))
 
 
-def density_kg_m3(pressure_pa: float, temperature_k: float, humidity_ratio: float) -> float:
-    """湿空气密度（理想气体混合物近似）。"""
-    return pressure_pa * (1.0 + humidity_ratio) / (R_DA * temperature_k * (1.0 + WATER_VAPOR_RATIO * humidity_ratio))
+# 兼容函数名保留入口；质量基准变更由编译器合同版本门禁保护。
+def state_pt_w(pressure_pa, temperature_k, humidity_ratio):
+    return MoistAirService().state_ptw(pressure_pa, temperature_k, humidity_ratio)
 
 
-def state_ph_w(pressure_pa: float, enthalpy_j_kg_da: float, humidity_ratio: float) -> FluidState:
-    """湿空气状态：由 p、h、w 反求温度（每 kg 干空气口径）。"""
-    temperature = temperature_from_enthalpy(enthalpy_j_kg_da, humidity_ratio)
-    return FluidState(pressure_pa=pressure_pa, temperature_k=temperature, enthalpy_j_kg=enthalpy_j_kg_da,
-                      density_kg_m3=density_kg_m3(pressure_pa, temperature, humidity_ratio),
-                      viscosity_pa_s=MU_DA, specific_heat_j_kg_k=mixture_cp_j_kg_k(humidity_ratio),
-                      phase="gas", quality=None, humidity_ratio_kg_kg=humidity_ratio,
-                      composition={"water": humidity_ratio / (1.0 + humidity_ratio)})
+def state_ph_w(pressure_pa, enthalpy_j_kg_da, humidity_ratio):
+    return MoistAirService().state_phw(pressure_pa, enthalpy_j_kg_da, humidity_ratio)
 
 
-def state_pt_w(pressure_pa: float, temperature_k: float, humidity_ratio: float) -> FluidState:
-    """湿空气状态：由 p、T、w 直接得到。"""
-    return FluidState(pressure_pa=pressure_pa, temperature_k=temperature_k,
-                      enthalpy_j_kg=enthalpy_j_kg_da(temperature_k, humidity_ratio),
-                      density_kg_m3=density_kg_m3(pressure_pa, temperature_k, humidity_ratio),
-                      viscosity_pa_s=MU_DA, specific_heat_j_kg_k=mixture_cp_j_kg_k(humidity_ratio),
-                      phase="gas", quality=None, humidity_ratio_kg_kg=humidity_ratio,
-                      composition={"water": humidity_ratio / (1.0 + humidity_ratio)})
+def humidity_ratio_from_relative(temperature_k, pressure_pa, relative):
+    return MoistAirService().humidity_from_rh(pressure_pa, temperature_k, relative)
+
+
+def relative_humidity(temperature_k, pressure_pa, humidity_ratio):
+    return state_pt_w(pressure_pa, temperature_k, humidity_ratio).relative_humidity
+
+
+def dew_point_k(temperature_k, pressure_pa, humidity_ratio):
+    return state_pt_w(pressure_pa, temperature_k, humidity_ratio).dew_point_k
+
+
+def enthalpy_j_kg_da(temperature_k, humidity_ratio, pressure_pa=101325.):
+    return state_pt_w(pressure_pa, temperature_k, humidity_ratio).enthalpy_j_kg_dry_air
+
+
+def temperature_from_enthalpy(enthalpy_j_kg_da, humidity_ratio, pressure_pa=101325.):
+    return state_ph_w(pressure_pa, enthalpy_j_kg_da, humidity_ratio).temperature_k
+
+
+def density_kg_m3(pressure_pa, temperature_k, humidity_ratio):
+    return state_pt_w(pressure_pa, temperature_k, humidity_ratio).density_kg_m3

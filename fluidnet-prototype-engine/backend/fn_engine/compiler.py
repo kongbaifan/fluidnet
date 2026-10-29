@@ -401,6 +401,12 @@ def compile_project(project: Project) -> CompiledNetwork:
         fluid_name = (project.fluid.fluid or '').split('::')[-1]
         if project.fluid.phase_policy != 'gas' or fluid_name != 'Air':
             raise CompilationError('MOIST_AIR_FLUID_REQUIRED', '湿空气模式要求 fluid=Air 且 phase_policy=gas')
+        if project.solver.moist_air_options is None:
+            raise CompilationError('AIR_CONTRACT_VERSION_REQUIRED', '旧湿空气项目需先预览迁移并确认合同版本 1', field='solver.moist_air_options')
+        if not project.solver.thermal or project.solver.property_coupling != 'node':
+            raise CompilationError('AIR_SOLVER_OPTIONS', '湿空气模式必须启用 thermal=true、property_coupling=node', field='solver')
+    elif project.solver.moist_air_options is not None:
+        raise CompilationError('AIR_SOLVER_OPTIONS', '关闭湿空气模式时 moist_air_options 必须为空', field='solver.moist_air_options')
     # Built-in state models and the solver model each one belongs to.
     state_models = {'open_tank': 'tank', 'closed_volume': 'closed_volume'}
     service = fluid_service(project)

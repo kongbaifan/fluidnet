@@ -595,6 +595,14 @@ class WorkerProcess:
         return line
 
     def _request(self, payload: dict[str, Any]) -> dict[str, Any]:
+        from .module_contracts import air_request_payload
+        if payload.get('action') == 'batch':
+            payload = {**payload, 'items': {key: air_request_payload(self._definitions[key], value)
+                                           for key,value in payload['items'].items()}}
+        else:
+            key = payload.get('instance_id', payload.get('request', {}).get('instance_id'))
+            definition = self._definitions.get(key, self.definition)
+            payload = air_request_payload(definition, payload)
         try:
             return self._request_impl(payload)
         except RuntimeErrorBase as error:
