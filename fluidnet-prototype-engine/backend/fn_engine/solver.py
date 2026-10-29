@@ -287,7 +287,7 @@ def reference_arrays(network: CompiledNetwork) -> tuple[np.ndarray, np.ndarray, 
 
 def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_density=None, branch_viscosity=None,
                       port_base: dict[str, PortState] | None = None, initial=None, storage_step=None,
-                      hooks: frozenset[str] | None = None) -> HydraulicResult:
+                      hooks: frozenset[str] | None = None, air_mass_factors=None) -> HydraulicResult:
     """Solve pressures and branch flows.
 
     With `storage_step` = (dt_s, {node: TankState}) each listed tank is no longer a fixed pressure:
@@ -323,6 +323,9 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
     rho_n, mu_n, rho_ref, mu_ref = reference_arrays(network)
     rho_b = rho_ref if branch_density is None else np.asarray(branch_density, dtype=float)
     mu_b = mu_ref if branch_viscosity is None else np.asarray(branch_viscosity, dtype=float)
+
+    def mixture_factor(idx, flow):
+        return 1. if air_mass_factors is None else float(air_mass_factors[idx, 0 if flow >= 0 else 1])
 
     python_runners = runners
     iteration_id = 0
@@ -421,7 +424,7 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
                 closed.append(float(flow) - relation.parameters['forced_mass_flow_kg_s'])
             else:
                 drops.append(pressures[branch.start_node] - pressures[branch.end_node] - branch_drop(
-                    network, branch, float(flow), float(rho_b[idx]), float(mu_b[idx]), relation))
+                    network, branch, float(flow)*mixture_factor(idx, flow), float(rho_b[idx]), float(mu_b[idx]), relation))
             balance[branch.start_node] -= flow
             balance[branch.end_node] += flow
         constraints = {}
@@ -522,8 +525,9 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
             params = network.parameters[branch.instance_id]
             if branch.solver_model == 'pump_curve' and params['speed_ratio'] <= 0:
                 raise ValueError(f'{branch.instance_id} 停泵阻力模型尚未定义，转速必须大于零')
-            _, slope = branch_drop_and_slope(branch.solver_model, params, float(flow),
+            _, slope = branch_drop_and_slope(branch.solver_model, params, float(flow)*mixture_factor(idx, flow),
                                              float(rho_b[idx]), float(mu_b[idx]))
+            slope *= mixture_factor(idx, flow)
             if branch.start_node in pressure_columns:
                 rows.append(idx); cols.append(pressure_columns[branch.start_node]); data.append(1.0)
             if branch.end_node in pressure_columns:
@@ -811,6 +815,11 @@ def build_port_states(network: CompiledNetwork, hydraulic: HydraulicResult,
         pressure = float(hydraulic.pressures[node])
         if thermal is not None:
             states[key] = _fluid_port(thermal.port_states[key], pressure, flows.get(key))
+            if network.project.solver.moist_air:
+                dry = flows.get(key, 0.)
+                w = thermal.port_states[key].humidity_ratio_kg_kg
+                states[key] = states[key].model_copy(update={'dry_air_mass_flow_kg_s':dry,
+                    'water_vapor_mass_flow_kg_s':dry*w, 'mass_flow_kg_s':dry*(1+w)})
         else:
             instance_id = key.split(':', 1)[0]
             density, viscosity = (reference_properties(network, network.node_circuit[node]) if network.mixed
@@ -893,6 +902,9 @@ def solve_network(network: CompiledNetwork, runners=None, time_s=0., warm: Netwo
 def _solve_network(network, runners, time_s, warm, service, storage_step=None) -> NetworkResult:
     from .module_phases import heat_hook
     options = network.project.solver
+    if options.moist_air:
+        from .air_transport import solve_air_network
+        return solve_air_network(network, runners, time_s, warm, getattr(network, 'air_room_step', None))
     start = warm.hydraulic.solution if warm is not None else None
     if not options.thermal:
         hydraulic = _solve_hydraulics(network, runners, time_s, initial=start, storage_step=storage_step)
@@ -1124,6 +1136,9 @@ def snapshot(network, result, time_s=0., warning=None):
                'jacobian_reason': hydraulic.jacobian_reason}
     frame = RunFrame(status='converged', valid=True, time_s=time_s, variables=variables, diagnostics=diagnostics,
                     metrics=metrics, solve_counters=hydraulic.counters, solve_summary=summary)
+    if network.project.solver.moist_air:
+        from .air_transport import air_frame_values
+        air_frame_values(network, result, frame.variables, frame.metrics, frame.solve_summary)
     from .composites import map_frame
     return map_frame(network,frame)
 

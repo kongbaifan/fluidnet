@@ -34,7 +34,7 @@ def boundary(identifier, pressure=PA, temperature=293.15, humidity=0.008):
 def air_project(instances, connections, modules, *, moist=True):
     return Project(id="moist-air", name="湿空气 Phase 2a", fluid=AIR_MOIST,
                    modules=modules, instances=instances, connections=connections,
-                   solver=SolverOptions(moist_air=moist))
+                   solver=SolverOptions(moist_air=moist, property_coupling='node' if moist else 'reference', moist_air_options={'contract_version':1} if moist else None))
 
 
 def coil_project(coil_parameters, temperature=303.15, humidity=0.015):
@@ -103,11 +103,12 @@ def test_wet_coil_cools_dehumidifies_and_reports_latent_load():
     frame = solve_steady(compile_project(coil_project(
         {"coil_surface_temperature_k": 285.15, "bypass_factor": 0.15, "loss_coefficient": 5.0})))
     values = frame.variables
-    mass_flow = values["C1.mass_flow_kg_s"]
+    mass_flow = values["C1.dry_air_mass_flow_kg_s"]
     w_in, w_out = values["C1.in0.humidity_ratio_kg_kg"], values["C1.out0.humidity_ratio_kg_kg"]
     t_in, t_out = values["C1.in0.temperature_k"], values["C1.out0.temperature_k"]
 
-    expected_t_out = 285.15 + 0.15 * (t_in - 285.15)
+    expected_h_out = .15*values['C1.in0.enthalpy_j_kg_dry_air'] + .85*HAPropsSI('H','T',285.15,'P',PA,'R',1.)
+    expected_t_out = HAPropsSI('T','P',PA,'H',expected_h_out,'W',.15*w_in+.85*HAPropsSI('W','T',285.15,'P',PA,'R',1.))
     expected_w_sat = moist_air.saturation_humidity_ratio(285.15, PA)
     expected_w_out = expected_w_sat + 0.15 * (w_in - expected_w_sat)
     assert t_out == pytest.approx(expected_t_out, abs=1e-6)
@@ -143,9 +144,9 @@ def test_adiabatic_humidifier_keeps_enthalpy_and_lowers_temperature():
     assert values["H1.in0.humidity_ratio_kg_kg"] + 0.003 == pytest.approx(
         values["H1.out0.humidity_ratio_kg_kg"], rel=1e-9)
     assert values["H1.out0.temperature_k"] < values["H1.in0.temperature_k"]
-    assert values["H1.in0.enthalpy_j_kg"] == pytest.approx(values["H1.out0.enthalpy_j_kg"], rel=1e-6)
+    assert values["H1.in0.enthalpy_j_kg_dry_air"] == pytest.approx(values["H1.out0.enthalpy_j_kg_dry_air"], rel=1e-6)
     assert values["H1.moisture_addition_kg_s"] == pytest.approx(
-        values["H1.mass_flow_kg_s"] * 0.003, rel=1e-9)
+        values["H1.dry_air_mass_flow_kg_s"] * 0.003, rel=1e-9)
 
 
 def test_isothermal_humidifier_keeps_temperature_and_adds_enthalpy():
@@ -178,10 +179,11 @@ def test_mixing_two_airstreams_mixes_humidity_by_mass():
          link("e6", ("D3", "out0"), ("B3", "out0"))],
         [catalog["source"], catalog["junction"], catalog["duct"]])
     values = solve_steady(compile_project(project)).variables
-    flow_fresh = values["B1.out0.mass_flow_kg_s"]
-    flow_return = values["B2.out0.mass_flow_kg_s"]
+    flow_fresh = values["B1.out0.dry_air_mass_flow_kg_s"]
+    flow_return = values["B2.out0.dry_air_mass_flow_kg_s"]
     mixed = (flow_fresh * 0.012 + flow_return * 0.006) / (flow_fresh + flow_return)
-    assert values["J1.in0.humidity_ratio_kg_kg"] == pytest.approx(mixed, rel=1e-6)
+    # 入口端口显示真实入流流股，只有出流口显示混合后的状态。
+    assert values["J1.out1.humidity_ratio_kg_kg"] == pytest.approx(mixed, rel=1e-6)
 
 
 def test_parallel_moist_branches_with_more_branches_than_nodes():
@@ -204,7 +206,7 @@ def test_parallel_moist_branches_with_more_branches_than_nodes():
     project = Project(id="moist-parallel", name="并联湿空气支路",
                       fluid=AIR_MOIST, modules=[catalog["source"], catalog["duct"], junction],
                       instances=instances, connections=connections,
-                      solver=SolverOptions(moist_air=True))
+                      solver=SolverOptions(moist_air=True, property_coupling='node', moist_air_options={'contract_version':1}))
     values = solve_steady(compile_project(project)).variables
     for i in (1, 2, 3):
         assert values[f"D{i}.out0.humidity_ratio_kg_kg"] == pytest.approx(0.010, rel=1e-9)
@@ -223,7 +225,7 @@ def test_moist_air_mode_is_explicit_and_validated():
         compile_project(Project(id="wet-water", name="x", fluid=FluidConfig(),
                                 modules=[catalog["source"]],
                                 instances=[boundary("B1")],
-                                solver=SolverOptions(moist_air=True)))
+                                solver=SolverOptions(moist_air=True, property_coupling='node', moist_air_options={'contract_version':1})))
     with pytest.raises(CompilationError, match='饱和'):
         compile_project(air_project(
             [boundary("B1", PA, 293.15, 0.05), boundary("B2", PA, 293.15, 0.008)],

@@ -405,6 +405,15 @@ def compile_project(project: Project) -> CompiledNetwork:
             raise CompilationError('AIR_CONTRACT_VERSION_REQUIRED', '旧湿空气项目需先预览迁移并确认合同版本 1', field='solver.moist_air_options')
         if not project.solver.thermal or project.solver.property_coupling != 'node':
             raise CompilationError('AIR_SOLVER_OPTIONS', '湿空气模式必须启用 thermal=true、property_coupling=node', field='solver')
+        unsupported = [name for name in ('series_compression','hydraulic_blocks','module_mixed_jacobian')
+                       if getattr(project.solver,name)]
+        if project.solver.thermal_acceleration != 'none' or project.solver.coupling_acceleration != 'none':
+            unsupported.append('acceleration')
+        if unsupported:
+            raise CompilationError('AIR_OPTIMIZATION_UNSUPPORTED', f'湿空气暂不支持优化选项：{unsupported}', field='solver')
+        if project.fluid.composition or any(_fluid_identity(entry.fluid) != _fluid_identity(project.fluid)
+                                            for entry in project.circuit_fluids):
+            raise CompilationError('MOIST_AIR_FLUID_REQUIRED','湿空气只允许相同 Air/gas 回路，含湿量不能写入组分')
     elif project.solver.moist_air_options is not None:
         raise CompilationError('AIR_SOLVER_OPTIONS', '关闭湿空气模式时 moist_air_options 必须为空', field='solver.moist_air_options')
     # Built-in state models and the solver model each one belongs to.
@@ -423,6 +432,8 @@ def compile_project(project: Project) -> CompiledNetwork:
             raise CompilationError('MOIST_AIR_MODEL_UNSUPPORTED', f'{inst.id} 的模型 {definition.solver_model} 不适用于湿空气网络',
                                    inst.id)
         if definition.runtime == 'python':
+            if moist and (definition.sdk is None or 'air.pass_through.v1' not in definition.sdk.capabilities):
+                raise CompilationError('MODULE_AIR_CAPABILITY_REQUIRED',f'{inst.id} 需升级为声明湿空气透传能力的模块版本',inst.id)
             from .module_contracts import ModuleCompatibilityError, check_module_compatibility
             try:
                 check_module_compatibility(definition)
@@ -517,10 +528,15 @@ def compile_project(project: Project) -> CompiledNetwork:
             fixed_temperatures.setdefault(node, temperature)
             if moist:
                 humidity = float(params.get('humidity_ratio_kg_kg', 0.0) or 0.0)
-                if humidity < 0.0 or humidity > 0.2:
-                    raise CompilationError('PARAMETER_RANGE', f'{inst.id}.humidity_ratio_kg_kg 超出 0–0.2 kg/kg',
+                if humidity < 0.0 or humidity > 0.05:
+                    raise CompilationError('PARAMETER_RANGE', f'{inst.id}.humidity_ratio_kg_kg 超出 0–0.05 kg/kg_da',
                                            inst.id, 'humidity_ratio_kg_kg')
                 from .moist_air import saturation_humidity_ratio
+                from .moist_air import MoistAirService, AirPropertyError
+                try:
+                    MoistAirService().state_ptw(value, temperature, humidity)
+                except AirPropertyError as error:
+                    raise CompilationError(error.code, str(error), inst.id) from error
                 if humidity > saturation_humidity_ratio(temperature, value):
                     raise CompilationError('AIR_HUMIDITY_SUPERSATURATED',
                                            f'{inst.id} 的边界含湿量 {humidity:.5g} 超过该温度压力下的饱和含湿量', inst.id,
