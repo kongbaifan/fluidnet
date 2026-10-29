@@ -27,7 +27,7 @@ def test_frozen_v1_module_load_export_reload_preserves_original_hashes(sample):
 @pytest.mark.parametrize('sample', SNAPSHOTS['modules'], ids=lambda row: row['id'])
 def test_seed_packages_still_match_frozen_v1_versions(sample):
     directory = 'check_valve_v2' if sample['id'] == 'check_valve' and sample['definition']['version'] == 2 else sample['id']
-    current = load_module_package(ROOT / 'modules' / directory)
+    current = load_module_package(ROOT / 'modules' / directory / 'history' / 'v1' if directory == 'fan' else ROOT / 'modules' / directory)
     assert module_content_hash(current) == sample['content_hash']
     assert module_definition_hash(current) == sample['definition_hash']
 

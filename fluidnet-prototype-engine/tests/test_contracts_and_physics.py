@@ -317,8 +317,8 @@ def api_http_routes():
 
 def test_every_api_route_has_response_model_or_whitelist():
     routes=api_http_routes()
-    # 批量工况增加 10 条路由；包括 FastAPI 保留在 included router 中的路由。
-    assert len(routes)==55,f'HTTP 路由数量变化：{len(routes)}'
+    # 批量工况 10 条、风侧查询/迁移 5 条；包括 included router 中的路由。
+    assert len(routes)==60,f'HTTP 路由数量变化：{len(routes)}'
     missing=[f'{sorted(route.methods)} {route.path}' for route in routes
              if route.response_model is None and route.path not in RESPONSE_MODEL_EXCEPTIONS]
     assert missing==[],f'以下路由缺少 response_model 且不在白名单：{missing}'

@@ -29,7 +29,8 @@ def psat(fluid, t):
 
 def test_catalog_registers_every_station_device_with_canonical_contracts():
     assert set(CATALOG) == {'hp_receiver', 'lp_drum', 'pumped_drum', 'refrigerant_compressor', 'evaporative_condenser',
-                            'expansion_valve', 'cascade_exchanger', 'refrigerant_pump', 'air_cooler', 'refrigerant_header'}
+                            'expansion_valve', 'cascade_exchanger', 'refrigerant_pump', 'air_cooler', 'refrigerant_header',
+                            'hp_receiver_multi', 'lp_drum_multi'}
     assert CATALOG.keys() <= catalog_map().keys()
     for definition in CATALOG.values():
         assert definition.category == '制冷站设备' and definition.runtime == 'builtin'

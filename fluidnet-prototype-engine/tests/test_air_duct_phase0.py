@@ -35,7 +35,7 @@ AIR = FluidConfig(fluid="Air", phase_policy="gas")
 def build_project(*, coupling: str = "reference", with_return: bool = True,
                   fan_parameters: dict | None = None) -> Project:
     catalog = catalog_map()
-    fan = load_module_package(ROOT / "modules" / "fan")
+    fan = load_module_package(ROOT / "modules" / "fan" / "history" / "v1")
     parameters = {"speed_ratio": 1.0}
     parameters.update(fan_parameters or {})
     instances = [
