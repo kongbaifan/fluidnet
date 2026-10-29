@@ -13,6 +13,9 @@ class Module:
 
     def evaluate(self, ctx):
         inlet = ctx.port("in0")
+        outlet = ctx.port("out0")
+        if inlet.pressure_pa is not None and outlet.pressure_pa is not None and outlet.pressure_pa > inlet.pressure_pa:
+            inlet = outlet
         flow_m3_h = max(float(ctx.parameter("nominal_flow_m3_h", 1000.0)), 1e-9)
         drop_pa = max(float(ctx.parameter("nominal_pressure_drop_pa", 50.0)), 1e-6)
         density = max(float(inlet.density_kg_m3 or ctx.parameter("density_kg_m3", 1.2)), 1e-4)

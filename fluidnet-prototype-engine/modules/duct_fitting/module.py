@@ -43,6 +43,9 @@ class Module:
 
     def evaluate(self, ctx):
         inlet = ctx.port("in0")
+        outlet = ctx.port("out0")
+        if inlet.pressure_pa is not None and outlet.pressure_pa is not None and outlet.pressure_pa > inlet.pressure_pa:
+            inlet = outlet
         coefficient = self._loss_coefficient(ctx)
         width = max(float(ctx.parameter("duct_width_m", 0.4)), 1e-3)
         height = max(float(ctx.parameter("duct_height_m", 0.4)), 1e-3)

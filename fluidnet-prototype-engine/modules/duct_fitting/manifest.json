@@ -1,8 +1,8 @@
 {
-  "schema_version": 1,
+  "schema_version": 3,
   "id": "duct_fitting",
   "name": "风管管件",
-  "version": 1,
+  "version": 2,
   "category": "风侧模块",
   "description": "按局部阻力系数 K 换算阀门等效 Kv 的矩形风管管件（弯头/三通/变径/进出口），并累计通过质量。K 为教学默认值，可用 custom 覆盖。",
   "entrypoint": "module:Module",
@@ -125,5 +125,17 @@
     }
   ],
   "solver_model": "generic",
-  "source_format": "python-v1"
+  "source_format": "python-v1",
+  "sdk": {
+    "api_version": "0.6.0",
+    "capabilities": [
+      "lifecycle.v1",
+      "state.json.v1",
+      "properties.v1",
+      "net.valve",
+      "air.properties.v1",
+      "air.pass_through.v1"
+    ],
+    "state_contract_version": 1
+  }
 }

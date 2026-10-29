@@ -1,8 +1,8 @@
 {
-  "schema_version": 1,
+  "schema_version": 3,
   "id": "duct_damper",
   "name": "风阀",
-  "version": 1,
+  "version": 2,
   "category": "风侧模块",
   "description": "风阀：按额定 Kv 与开度特性（线性/等百分比/快开）计算有效 Kv，0% 开度精确关断；开度可在运行中调整。",
   "entrypoint": "module:Module",
@@ -127,5 +127,17 @@
     }
   ],
   "solver_model": "generic",
-  "source_format": "python-v1"
+  "source_format": "python-v1",
+  "sdk": {
+    "api_version": "0.6.0",
+    "capabilities": [
+      "lifecycle.v1",
+      "state.json.v1",
+      "properties.v1",
+      "net.valve",
+      "air.properties.v1",
+      "air.pass_through.v1"
+    ],
+    "state_contract_version": 1
+  }
 }

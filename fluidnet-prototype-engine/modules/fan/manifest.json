@@ -1,8 +1,8 @@
 {
-  "schema_version": 1,
+  "schema_version": 3,
   "id": "fan",
   "name": "风机",
-  "version": 1,
+  "version": 2,
   "category": "倍思鹿参考模块",
   "description": "按风压-风量曲线注册泵曲线关系的风机参考模块：输出风压升、轴功率与电功率并累计能量。",
   "entrypoint": "module:Module",
@@ -29,7 +29,24 @@
       "id": "pressure_curve",
       "label": "风压-风量曲线（流量 m³/h，压力 Pa）",
       "value_type": "curve",
-      "default": [[0, 300], [2000, 250], [4000, 120], [5000, 0]]
+      "default": [
+        [
+          0,
+          300
+        ],
+        [
+          2000,
+          250
+        ],
+        [
+          4000,
+          120
+        ],
+        [
+          5000,
+          0
+        ]
+      ]
     },
     {
       "id": "nominal_flow_m3_h",
@@ -54,7 +71,8 @@
         "quantity": "ratio",
         "canonical_unit": "1",
         "display_unit": "1"
-      }
+      },
+      "runtime": true
     },
     {
       "id": "efficiency",
@@ -107,6 +125,12 @@
         "canonical_unit": "Pa·s",
         "display_unit": "Pa·s"
       }
+    },
+    {
+      "id": "density_mode",
+      "label": "密度折算（state / reference）",
+      "value_type": "text",
+      "default": "state"
     }
   ],
   "variables": [
@@ -180,5 +204,18 @@
     }
   ],
   "solver_model": "generic",
-  "source_format": "python-v1"
+  "source_format": "python-v1",
+  "sdk": {
+    "api_version": "0.6.0",
+    "capabilities": [
+      "lifecycle.v1",
+      "state.json.v1",
+      "properties.v1",
+      "net.pump",
+      "air.properties.v1",
+      "air.pass_through.v1",
+      "observe.v1"
+    ],
+    "state_contract_version": 1
+  }
 }

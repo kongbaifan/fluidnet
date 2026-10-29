@@ -477,7 +477,7 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
 
     # Python module rows retain full relation dependencies, using grouped sparse
     # differences; the built-in equations and continuity rows use analytic slopes.
-    analytic_models = {'valve', 'pipe', 'duct', 'pump_curve', 'resistance'}
+    analytic_models = {'valve', 'pipe', 'duct', 'pump_curve', 'resistance', 'air_filter'}
     if python_runners:
         builtins_supported = all(branch.instance_id in python_runners or branch.solver_model in analytic_models for branch in network.branches)
         analytic_supported = options.module_mixed_jacobian and options.analytic_jacobian and builtins_supported
@@ -782,7 +782,7 @@ def port_mass_flows(network: CompiledNetwork, flows) -> dict[str, float]:
                 progress = True
         for inst in network.instances.values():
             model = network.modules[inst.module_id].solver_model
-            if model not in ('junction', 'tank'):
+            if model not in ('junction', 'tank', 'air_mixing_box', 'air_room'):
                 continue
             keys = [f'{inst.id}:{p.id}' for p in network.modules[inst.module_id].ports]
             connected = {key for pair in pairs for key in pair}
@@ -804,6 +804,22 @@ def _fluid_port(state: FluidState, pressure=None, mass_flow=None) -> PortState:
     values = state.model_dump(include=set(PortState.model_fields))
     values.update(pressure_pa=float(state.pressure_pa if pressure is None else pressure), mass_flow_kg_s=mass_flow)
     return PortState(**values)
+
+
+def channel_state(network, result, index):
+    """试算后的观察和提交共用完整通路流量合同。"""
+    branch = network.branches[index]
+    hydraulic, thermal = result.hydraulic, result.thermal
+    q = float(hydraulic.flows[index])
+    values = {'mass_flow_kg_s':q,
+              'pressure_drop_pa':float(hydraulic.pressures[branch.start_node]-hydraulic.pressures[branch.end_node]),
+              'heat_w':float(thermal.heat_w[index]) if thermal else 0.}
+    if network.project.solver.moist_air:
+        wi = thermal.node_states[thermal.upstream[index]].humidity_ratio_kg_kg
+        wo = thermal.outlet_states[index].humidity_ratio_kg_kg
+        values.update(dry_air_mass_flow_kg_s=q,mass_flow_kg_s=q*(1+wi),
+                      inlet_mass_flow_kg_s=q*(1+wi),outlet_mass_flow_kg_s=q*(1+wo))
+    return ChannelResult(**values)
 
 
 def build_port_states(network: CompiledNetwork, hydraulic: HydraulicResult,
@@ -1232,7 +1248,7 @@ def has_cells(network: CompiledNetwork) -> bool:
 
 def has_state(network: CompiledNetwork) -> bool:
     """True when the dynamic run must integrate states instead of chaining quasi-steady frames."""
-    return bool(network.storage) or has_cells(network)
+    return bool(network.storage) or bool(network.air_rooms) or has_cells(network)
 
 
 def solve_dynamic(network, duration_s, dt_s):
@@ -1282,9 +1298,7 @@ def _commit_modules(network, runners, result: NetworkResult, time_s: float, dt_s
             channels = {}
             for j, (branch, flow) in enumerate(zip(network.branches, hydraulic.flows)):
                 if branch.instance_id == instance_id:
-                    channels[branch.channel_id] = ChannelResult(mass_flow_kg_s=float(flow),
-                        pressure_drop_pa=float(hydraulic.pressures[branch.start_node] - hydraulic.pressures[branch.end_node]),
-                        heat_w=float(result.thermal.heat_w[j]) if result.thermal else 0.)
+                    channels[branch.channel_id] = channel_state(network, result, j)
             committed = transaction.prepare(instance_id, CommitStepRequest(
                 run_id=runner.execution.run_id, instance_id=instance_id, time_s=time_s,
                 dt_s=dt_s, converged_ports=ports, context=runner.execution.context()), channels)

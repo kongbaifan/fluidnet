@@ -24,7 +24,7 @@ KV_CONSTANT = 50912.0
 
 
 def module(name: str):
-    return load_module_package(ROOT / "modules" / name)
+    return load_module_package(ROOT / "modules" / name / "history" / "v1") if name == "fan" else load_module_package(ROOT / "modules" / name)
 
 
 def link(identifier, a, b):

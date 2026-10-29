@@ -71,6 +71,11 @@ class _LazyPropertyService:
         return self._service
 
     def __getattr__(self, name):
+        if name in ('state_ptw','state_phw','humidity_from_rh','saturated_state'):
+            from .moist_air import MoistAirService
+            if '_air_service' not in self.__dict__:
+                self._air_service = MoistAirService()
+            return getattr(self._air_service,name)
         return getattr(self._get(), name)
 
 
@@ -274,10 +279,14 @@ class InProcessModuleRunner:
         if not callback:
             return
         ctx._identity_read = False
+        air_before = {key:port.humidity_ratio_kg_kg for key,port in ports.items()
+                      if port.humidity_ratio_kg_kg is not None}
         try:
             if inspect.iscoroutinefunction(callback):
                 raise ValueError('模块生命周期回调必须是同步函数')
             callback(ctx, *args)
+            if air_before and any(ctx.ports[key].humidity_ratio_kg_kg != w for key,w in air_before.items()):
+                raise RuntimeErrorBase('湿空气透传模块不能改变端口含湿量',code='MODULE_AIR_CAPABILITY_MISMATCH')
         except Exception as error:
             if isinstance(error, RuntimeErrorBase) and error.diagnostics:
                 raise

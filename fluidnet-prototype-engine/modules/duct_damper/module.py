@@ -29,6 +29,9 @@ class Module:
 
     def evaluate(self, ctx):
         inlet = ctx.port("in0")
+        outlet = ctx.port("out0")
+        if inlet.pressure_pa is not None and outlet.pressure_pa is not None and outlet.pressure_pa > inlet.pressure_pa:
+            inlet = outlet
         kv_rated = max(float(ctx.parameter("kv_m3_h", 500.0)), 1e-6)
         opening = min(max(float(ctx.parameter("opening_ratio", 0.5)), 0.0), 1.0)
         density = max(float(inlet.density_kg_m3 or ctx.parameter("density_kg_m3", 1.2)), 1e-4)

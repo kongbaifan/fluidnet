@@ -1,0 +1,184 @@
+{
+  "schema_version": 1,
+  "id": "fan",
+  "name": "风机",
+  "version": 1,
+  "category": "倍思鹿参考模块",
+  "description": "按风压-风量曲线注册泵曲线关系的风机参考模块：输出风压升、轴功率与电功率并累计能量。",
+  "entrypoint": "module:Module",
+  "ports": [
+    {
+      "id": "in0",
+      "label": "入口",
+      "domain": "fluid",
+      "direction": "in",
+      "required": true,
+      "circuit": "fluid"
+    },
+    {
+      "id": "out0",
+      "label": "出口",
+      "domain": "fluid",
+      "direction": "out",
+      "required": true,
+      "circuit": "fluid"
+    }
+  ],
+  "parameters": [
+    {
+      "id": "pressure_curve",
+      "label": "风压-风量曲线（流量 m³/h，压力 Pa）",
+      "value_type": "curve",
+      "default": [[0, 300], [2000, 250], [4000, 120], [5000, 0]]
+    },
+    {
+      "id": "nominal_flow_m3_h",
+      "label": "额定风量",
+      "value_type": "number",
+      "default": 2000.0,
+      "minimum": 0.0,
+      "unit": {
+        "quantity": "volume_flow",
+        "canonical_unit": "m³/h",
+        "display_unit": "m³/h"
+      }
+    },
+    {
+      "id": "speed_ratio",
+      "label": "转速比",
+      "value_type": "number",
+      "default": 1.0,
+      "minimum": 0.05,
+      "maximum": 2.0,
+      "unit": {
+        "quantity": "ratio",
+        "canonical_unit": "1",
+        "display_unit": "1"
+      }
+    },
+    {
+      "id": "efficiency",
+      "label": "风机效率",
+      "value_type": "number",
+      "default": 0.6,
+      "minimum": 0.05,
+      "maximum": 1.0,
+      "unit": {
+        "quantity": "ratio",
+        "canonical_unit": "1",
+        "display_unit": "%",
+        "display_scale": 0.01
+      }
+    },
+    {
+      "id": "motor_efficiency",
+      "label": "电机效率",
+      "value_type": "number",
+      "default": 0.9,
+      "minimum": 0.05,
+      "maximum": 1.0,
+      "unit": {
+        "quantity": "ratio",
+        "canonical_unit": "1",
+        "display_unit": "%",
+        "display_scale": 0.01
+      }
+    },
+    {
+      "id": "air_density_kg_m3",
+      "label": "空气密度",
+      "value_type": "number",
+      "default": 1.2,
+      "minimum": 0.01,
+      "unit": {
+        "quantity": "density",
+        "canonical_unit": "kg/m³",
+        "display_unit": "kg/m³"
+      }
+    },
+    {
+      "id": "air_viscosity_pa_s",
+      "label": "空气动力黏度",
+      "value_type": "number",
+      "default": 1.8e-05,
+      "minimum": 0.0,
+      "unit": {
+        "quantity": "dynamic_viscosity",
+        "canonical_unit": "Pa·s",
+        "display_unit": "Pa·s"
+      }
+    }
+  ],
+  "variables": [
+    {
+      "id": "pressure_rise_pa",
+      "label": "风压升",
+      "quantity": "pressure",
+      "source": "derived",
+      "unit": {
+        "quantity": "pressure",
+        "canonical_unit": "Pa",
+        "display_unit": "Pa"
+      }
+    },
+    {
+      "id": "shaft_power_w",
+      "label": "轴功率",
+      "quantity": "power",
+      "source": "derived",
+      "unit": {
+        "quantity": "power",
+        "canonical_unit": "W",
+        "display_unit": "W"
+      }
+    },
+    {
+      "id": "electric_power_w",
+      "label": "电功率",
+      "quantity": "power",
+      "source": "derived",
+      "unit": {
+        "quantity": "power",
+        "canonical_unit": "W",
+        "display_unit": "W"
+      }
+    },
+    {
+      "id": "state.shaft_energy_j",
+      "label": "累计轴功",
+      "quantity": "energy",
+      "source": "state",
+      "unit": {
+        "quantity": "energy",
+        "canonical_unit": "J",
+        "display_unit": "kJ",
+        "display_scale": 1000.0
+      }
+    },
+    {
+      "id": "state.electric_energy_j",
+      "label": "累计电能",
+      "quantity": "energy",
+      "source": "state",
+      "unit": {
+        "quantity": "energy",
+        "canonical_unit": "J",
+        "display_unit": "kJ",
+        "display_scale": 1000.0
+      }
+    }
+  ],
+  "channels": [
+    {
+      "id": "main",
+      "name": "风道",
+      "input_port": "in0",
+      "output_port": "out0",
+      "relation": "pump_curve",
+      "solver_model": "pump",
+      "enabled": true
+    }
+  ],
+  "solver_model": "generic",
+  "source_format": "python-v1"
+}

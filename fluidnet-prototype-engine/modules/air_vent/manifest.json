@@ -1,8 +1,8 @@
 {
-  "schema_version": 1,
+  "schema_version": 3,
   "id": "air_vent",
   "name": "送/回风口",
-  "version": 1,
+  "version": 2,
   "category": "风侧模块",
   "description": "按额定风量与额定压降折算等效 Kv 的送/回风口（定风量阻力件）；仅作风量分配与阻力教学用，不含射流与气流组织。",
   "entrypoint": "module:Module",
@@ -99,5 +99,17 @@
     }
   ],
   "solver_model": "generic",
-  "source_format": "python-v1"
+  "source_format": "python-v1",
+  "sdk": {
+    "api_version": "0.6.0",
+    "capabilities": [
+      "lifecycle.v1",
+      "state.json.v1",
+      "properties.v1",
+      "net.valve",
+      "air.properties.v1",
+      "air.pass_through.v1"
+    ],
+    "state_contract_version": 1
+  }
 }
