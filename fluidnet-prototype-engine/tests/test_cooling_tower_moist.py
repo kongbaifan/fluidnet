@@ -46,6 +46,15 @@ def test_bypass_and_infeasible_states():
         evaluate_tower(inlet,-1.,p,service)
 
 
+def test_tower_rejects_disabled_thermal_before_starting():
+    from fn_engine.compiler import CompilationError
+    project=air_example('cooling-tower-moist')
+    project.solver.thermal=False
+    with pytest.raises(CompilationError) as exc:
+        compile_project(project)
+    assert exc.value.diagnostic.code=='TOWER_THERMAL_REQUIRED'
+
+
 def test_network_tower_accumulates_only_accepted_steps():
     session=SimulationSession(compile_project(air_example('cooling-tower-moist')),2.,1.)
     try:

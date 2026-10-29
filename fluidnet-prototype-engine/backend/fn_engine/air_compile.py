@@ -24,6 +24,8 @@ def validate_air_parameters(network, overrides=None, check_boundary_conflicts=Tr
             if kind=='air_room':
                 service.state_ptw(params['initial_pressure_pa'],params['outdoor_temperature_k'],params['outdoor_humidity_ratio_kg_kg'])
             if kind=='cooling_tower_moist':
+                if not network.project.solver.thermal:
+                    raise AirPropertyError('TOWER_THERMAL_REQUIRED','湿空气冷却塔需要启用热力计算')
                 config=network.fluid_at(network.port_nodes[f'{inst.id}:in0'])
                 if config.fluid!='Water' or config.phase_policy not in ('liquid','single_phase'):
                     raise AirPropertyError('TOWER_WATER_REQUIRED','湿空气冷却塔水侧只支持液态纯水')
