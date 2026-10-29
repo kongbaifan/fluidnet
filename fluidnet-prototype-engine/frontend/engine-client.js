@@ -128,7 +128,7 @@ window.createEngineClient = function (ui) {
   }
   function moduleFromManifest(manifest) {
     // Catalog icons come from studio.js ICONS; unknown ids intentionally fall back to Box.
-    const icon = {pipe_fitting:'GitBranch',check_valve:'ArrowRightLeft',fan_coil_unit:'Wind',cooling_tower:'Sun',fan:'Wind',pump_variable_speed:'Gauge',capillary_tube:'Minus',valve_equal_percentage:'SlidersHorizontal'}[manifest.id] || 'Box';
+    const icon = {duct:'Wind',cooling_coil:'Snowflake',humidifier:'Droplets',air_mixing_box:'GitMerge',air_filter:'Filter',air_room:'Home',cooling_tower_moist:'Wind',pipe_fitting:'GitBranch',check_valve:'ArrowRightLeft',fan_coil_unit:'Wind',cooling_tower:'Sun',fan:'Wind',pump_variable_speed:'Gauge',capillary_tube:'Minus',valve_equal_percentage:'SlidersHorizontal'}[manifest.id] || 'Box';
     const parameterDefs = (manifest.parameters || []).filter(p => p.value_type === 'number').map(manifestParamDef);
     const ports = (manifest.ports || []).map((p, index) => ({
       id:p.id, name:p.id.toUpperCase(), label:p.label || p.id, direction:p.direction === 'bidirectional' ? (index ? 'out' : 'in') : p.direction,
@@ -651,7 +651,7 @@ window.createEngineClient = function (ui) {
       await services.loadWorkspace(forceWorkspace);
       catalog=data;
       moduleCatalog=packages;
-      for (const manifest of data.modules.filter(m=>m.ports.some(p=>p.domain==='thermal' || p.domain==='refrigerant'))) {
+      for (const manifest of data.modules.filter(m=>m.ports.some(p=>p.domain==='thermal' || p.domain==='refrigerant') || ['duct','cooling_coil','humidifier','air_mixing_box','air_filter','air_room','cooling_tower_moist'].includes(m.id))) {
         let m=ui.state().modules.find(m=>m.id===manifest.id);
         if(!m){m=moduleFromManifest(manifest);ui.state().modules.push(m);}
         ui.parameterDefinitions[m.kind]=manifest.parameters.filter(p=>p.value_type==='number').map(manifestParamDef);
@@ -809,5 +809,5 @@ window.createEngineClient = function (ui) {
     owner.run.parameterKey=ui.parameterKey(owner);ui.persist();ui.render();
   }
   const services=window.createProjectServices({request,ui,normalize,health:()=>health,authHeaders,pinProject,moduleFromManifest});
-  return {...services,command,tick,validate,init,applyParameters,loadOverview,authHeaders,signOut:()=>{sessionStorage.removeItem(TOKEN_KEY);location.reload();},overview:id=>overviews.get(id),circuits:id=>circuitsByProject.get(id)||[],confirmedCommand,portValue,observation,manifestPayload,contractText,checkModule,saveModule,runDesign,versions,loadVersion,newModule,newTemplate,newComposite,updateContractItem,bindModule,pinProject,moduleForInsert,get catalog(){return catalog;},get health(){return health;}};
+  return {...services,request,normalize,moduleFromManifest,command,tick,validate,init,applyParameters,loadOverview,authHeaders,signOut:()=>{sessionStorage.removeItem(TOKEN_KEY);location.reload();},overview:id=>overviews.get(id),circuits:id=>circuitsByProject.get(id)||[],confirmedCommand,portValue,observation,manifestPayload,contractText,checkModule,saveModule,runDesign,versions,loadVersion,newModule,newTemplate,newComposite,updateContractItem,bindModule,pinProject,moduleForInsert,get catalog(){return catalog;},get health(){return health;}};
 };

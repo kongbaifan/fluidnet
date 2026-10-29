@@ -71,6 +71,7 @@ function pythonCodeIssue(source) {
 const STORAGE_KEY = 'fluidnet-prototype-engine-v1';
 let engine = null;
 let workflows = null;
+let airSide = {markup:()=>'',afterRender:()=>{},action:async()=>{},refresh:()=>{}};
 let scenarioBatches = {markup:()=>'',afterRender:()=>{},action:async()=>{}};
 let coldStorage = {markup:()=>'',refresh:()=>{},action:async()=>{},couplingToolbar:()=>'',couplingReferences:()=>[],assertCouplingIdle:()=>{},syncCouplingCharts:()=>{},couplingChartBindings:()=>[]};
 const UI_KEY = STORAGE_KEY + '-ui';
@@ -88,6 +89,7 @@ const PAGE_META = {
   models:['型号','Database','设备型号与版本管理'],
   curves:['曲线','Activity','变量曲线与工况对照'],
   runs:['记录','History','运行记录、参数与导出'],
+  air:['风系统','Wind','风量、热湿状态与水耗'],
   batches:['批量','ListChecks','批量工况、结果存档与方案比较'],
   controls:['控制','Code2','控制逻辑与观察变量'],
   connections:['对接','Plug','变量接口、访问令牌与串口'],
@@ -152,7 +154,7 @@ function manifestParamDefaults(manifest) {
 }
 function deviceParamSpecs(n) {
   const m = moduleOf(n);
-  if (m.runtime === 'python') return manifestParamSpecs(m.manifest);
+  if (m.manifest) return manifestParamSpecs(m.manifest);
   return (PARAM_DEFS[m.kind] || []).map(f => ({id:f[0], label:f[1], value_type:'number',
     unit:f[2] ? {display_unit:f[2]} : null, minimum:f[3], maximum:f[4], default:f[6], display:f[2]}));
 }
@@ -439,13 +441,13 @@ function openProject(id){if(!state.projects.some(p=>p.id===id))return;state.acti
 function openEditor(id,tab='drawing',origin=null){ui.editorOrigin=origin;state.selectedModule=id;ui.editorPort='';ui.moduleTab=['design','header'].includes(tab)?'code':tab;if(['design','header'].includes(tab))ui.codeKind=tab;ui.arrayVar='system:form';navigate('editor');}
 function heading(title,subtitle,actions='',eyebrow=''){return `<div class="page-heading"><div>${eyebrow?`<div class="eyebrow">${eyebrow}</div>`:''}<h1>${title}</h1><p>${subtitle}</p></div><div class="row wrap">${actions}</div></div>`;}
 function renderHeader(){document.getElementById('app-header').innerHTML=`<button class="brand" data-action="nav" data-route="home" aria-label="FluidNet Studio 首页"><span class="brand-mark">${icon('Network')}</span>FluidNet <span class="brand-sub">Studio</span></button><span class="header-rule"></span><button class="project-picker" data-action="project-picker">${icon('FolderOpen')}<span>${esc(project().name)}</span>${icon('ChevronDown')}</button>${badge(engine?.health ? '模块平台 · v' + engine.health.version : '连接计算服务…',engine?.health ? 'good' : 'warn')}<button class="header-search" data-action="page-map" aria-label="页面导航与快捷入口">${icon('Search')}<span>页面与操作</span><kbd>Ctrl K</kbd></button><span class="save-indicator" data-save-status></span>${btn('workspace-tools','备份与恢复','Database')+btn('reload-workspace','载入服务器','FolderOpen','title="载入服务器工作区，当前草稿会先备份到浏览器"')+btn('save','<span>保存原型</span>','Save','title="保存全部项目、模块、型号和界面状态；待应用参数仍需单独应用"','header-save')}${ibtn('theme',ui.theme==='dark'?'切换浅色':'切换深色',ui.theme==='dark'?'Sun':'Moon')}${ibtn('nav','使用指南','CircleHelp','data-route="help"')}`;}
-function renderRail(){const ids=['home','projects','workbench','modules','bench','models','curves','runs','batches','controls','connections'];document.getElementById('app-rail').innerHTML=ids.map(id=>`${id==='modules'||id==='controls'?'<div class="rail-divider"></div>':''}<button type="button" class="rail-link${ui.route===id||ui.route==='editor'&&id==='modules'||ui.route==='nodes'&&id==='modules'?' active':''}" data-action="nav" data-route="${id}" title="${PAGE_META[id][2]}"${ui.route===id?' aria-current="page"':''}>${icon(PAGE_META[id][1])}<span>${PAGE_META[id][0]}</span></button>`).join('')+`<div class="rail-bottom"><div class="rail-divider"></div><button class="rail-link${ui.route==='settings'?' active':''}" data-action="nav" data-route="settings">${icon('Settings2')}<span>设置</span></button></div>`;}
+function renderRail(){const ids=['home','projects','workbench','modules','bench','models','curves','runs','air','batches','controls','connections'];document.getElementById('app-rail').innerHTML=ids.map(id=>`${id==='modules'||id==='controls'?'<div class="rail-divider"></div>':''}<button type="button" class="rail-link${ui.route===id||ui.route==='editor'&&id==='modules'||ui.route==='nodes'&&id==='modules'?' active':''}" data-action="nav" data-route="${id}" title="${PAGE_META[id][2]}"${ui.route===id?' aria-current="page"':''}>${icon(PAGE_META[id][1])}<span>${PAGE_META[id][0]}</span></button>`).join('')+`<div class="rail-bottom"><div class="rail-divider"></div><button class="rail-link${ui.route==='settings'?' active':''}" data-action="nav" data-route="settings">${icon('Settings2')}<span>设置</span></button></div>`;}
 function syncChrome(){
   const save=root.querySelector('[data-save-status]');if(save){save.title=localSaveError||saveError||'';save.classList.toggle('dirty',state.dirty||!!localSaveError);save.innerHTML=`<span class="dot"></span>${localSaveError?'本地草稿保存失败 · 请导出原型':savePhase==='saving'?'正在保存…':savePhase==='error'?'保存失败 · 可重试':state.dirty?'有未保存修改':localSaveTrimmed?'草稿已裁剪保存':state.savedAt?'工作区已保存':'示例已就绪'}`;}
   const run=project().run;const active=state.projects.filter(p=>p.run.status==='running'||p.run.status==='paused');
   document.getElementById('statusbar').innerHTML=`<span class="row gap-6"><span class="dot" style="color:var(--${run.status==='running'?'green':'muted'})"></span>${esc(project().name)} · ${statusText(run)}</span><span class="mono" data-live-time>${clockLabel(run.time)}</span>${active.length?`<button class="task-chip" data-action="tasks">${icon('Activity')} ${active.length} 个运行任务</button>`:''}<span class="optional">${currentProjectPending()?`当前项目 ${currentProjectPending()} 项待应用`:'当前项目参数已生效'}</span><span class="push"></span><button data-action="page-map" class="optional">页面导览</button><span class="prototype-label">单相流体网络 · Python 控制</span>`;syncWorkbenchStatus();
 }
-function render(){root.dataset.theme=ui.theme;renderHeader();renderRail();const views={home:renderHome,projects:renderProjects,workbench:renderWorkbench,modules:renderModules,bench:renderBench,editor:renderEditor,nodes:renderNodesPage,models:renderModels,curves:renderCurves,runs:renderRuns,batches:()=>scenarioBatches.markup(project()),controls:renderControls,connections:renderConnections,settings:renderSettings,help:renderHelp};page.innerHTML=(views[ui.route]||renderHome)();renderFloats();syncChrome();renderDialog(false);requestAnimationFrame(()=>{resizeCharts();restoreChartCursor();if(ui.route==='connections'&&ui.connectionTab==='api')apiPreview();});if(recovery){msg(recovery,true);recovery='';}scenarioBatches.afterRender();}
+function render(){root.dataset.theme=ui.theme;renderHeader();renderRail();const views={home:renderHome,projects:renderProjects,workbench:renderWorkbench,modules:renderModules,bench:renderBench,editor:renderEditor,nodes:renderNodesPage,models:renderModels,curves:renderCurves,runs:renderRuns,air:()=>airSide.markup(project()),batches:()=>scenarioBatches.markup(project()),controls:renderControls,connections:renderConnections,settings:renderSettings,help:renderHelp};page.innerHTML=(views[ui.route]||renderHome)();renderFloats();syncChrome();renderDialog(false);requestAnimationFrame(()=>{resizeCharts();restoreChartCursor();if(ui.route==='connections'&&ui.connectionTab==='api')apiPreview();});if(recovery){msg(recovery,true);recovery='';}scenarioBatches.afterRender();airSide.afterRender();}
 function thumbnail(p){return `<svg viewBox="0 0 1100 470" role="img" aria-label="${esc(p.name)}管网预览">${networkMarkup(p.pages[0],true)}</svg>`;}
 function projectCard(p){return `<article class="project-card"><button class="project-preview" data-action="open-project" data-id="${p.id}" aria-label="打开 ${esc(p.name)}">${thumbnail(p)}${badge(p.id===state.activeProject?'当前项目':'示例','')}</button><div class="project-info"><h3>${esc(p.name)}</h3><div class="meta"><span>${p.pages.length} 张画布</span><span>·</span><span>${p.pages.reduce((s,c)=>s+c.nodes.length,0)} 个设备</span><span>·</span><span>${p.caseId==='cold-room-ideal-v1'?'库房热系统':esc(fluidBadge(p))}</span></div><div class="row spread"><small class="muted">${p.dirty?'草稿有修改':esc(p.modified||'示例项目')}</small><div class="row gap-6">${workflows.projectActions(p)}${ibtn('duplicate-project','复制项目','Copy',`data-id="${p.id}"`)}${btn('open-project','打开','ArrowUpRight',`data-id="${p.id}"`,'small')}</div></div></div></article>`;}
 function renderHome(){return `<div class="page-shell">${heading('工作从这里开始','继续建模，或从一个验证过操作流程的示例开始。',btn('import','导入原型','Upload')+btn('new-project','新建项目','Plus','','primary'),'FLUIDNET WORKSPACE')}${entryPathsMarkup()}<div class="home-main"><div class="stack gap-20"><section><div class="section-title"><h2>最近项目</h2>${btn('nav','全部项目','ChevronRight','data-route="projects"','ghost small')}</div><div class="project-grid">${state.projects.slice(0,3).map(projectCard).join('')}</div></section><section class="panel"><div class="panel-head"><h2>最近使用的模块</h2>${btn('nav','模块库','ArrowUpRight','data-route="modules"','ghost small')}</div>${['valve','pump','exchanger','tank'].map(id=>{const m=mod(id);return `<div class="list-row"><span class="object-icon">${icon(m.icon)}</span><div class="grow"><strong>${m.name}</strong><small>${m.code} · ${m.ports.length} 个端口 · ${m.channels.length} 条内部通路</small></div>${badge('v'+m.version)}${btn('edit-module','编辑定义','Pencil',`data-id="${id}"`,'ghost small')}</div>`;}).join('')}</section></div><aside class="home-aside stack"><section class="panel"><div class="panel-head"><h2>快捷入口</h2>${icon('Grid2X2')}</div><div class="quick-list">${[['new-module','新建算法模块','Box'],['nav','管理设备型号','Database','models'],['nav','查看运行记录','History','runs'],['nav','页面与使用指南','BookOpen','help']].map(([act,label,i,r])=>`<button data-action="${act}" ${r?`data-route="${r}"`:''}>${icon(i)}<span class="grow">${label}</span>${icon('ChevronRight')}</button>`).join('')}</div></section><section class="panel"><div class="panel-head"><h2>消息与任务</h2>${badge('本地原型')}</div><div class="timeline">${state.messages.slice(0,3).map(m=>`<div class="timeline-item"><span class="timeline-point">${icon('CheckCircle2')}</span><div>${esc(m.text)}<small>${m.time} · ${m.kind}</small></div></div>`).join('')}</div></section><section class="panel"><div class="panel-body stack"><div class="row">${icon('Info')}<strong>当前体验范围</strong></div><p class="muted" style="font-size:12px">主系统运行已接入真实水力与热力求解。含水箱或管道热容分段的项目按隐式 Euler 积分液位、水温与管内温度，其余动态为准稳态时间序列。动态运行是可暂停、单步和运行中改参数的会话；「控制」页可配置 PID（Lua 控制脚本尚未接入）。Python 模块支持独立验证与版本保存。</p>${btn('page-map','查看全部页面','LayoutDashboard','','small')}</div></section></aside></div></div>`;}
@@ -1815,6 +1817,7 @@ function pasteDevice() {
 function commandRun(scope, command, projectId) { return engine.command(scope, command, projectId); }
 function refreshLive() {
   coldStorage.refresh(project());
+  airSide.refresh();
   const controlLive=document.getElementById('control-live');if(controlLive)controlLive.textContent=controlLiveValues();
   if (ui.route === 'curves') {
     const run = currentChartRun();
@@ -2081,6 +2084,7 @@ function chooseChartVariables(control = false) {
 function handleAction(action, el) {
   if(action.startsWith('wf-')){workflows.action(action,el).catch(error=>msg(error.message,true));return;}
   if(action.startsWith('batch-')){scenarioBatches.action(action,el).catch(error=>msg(error.message,true));return;}
+  if(action.startsWith('air-')){airSide.action(action,el).catch(error=>msg(error.message,true));return;}
   if(action.startsWith('cs-')){coldStorage.action(action,el).catch(error=>msg(error.message,true));return;}
   const d = el.dataset, id = d.id;
   const changes = { 'editor-tab': 'moduleTab', 'project-filter': 'projectFilter', 'project-view': 'projectView', 'module-category': 'category', 'module-view': 'moduleView', 'model-filter': 'modelFilter', 'bench-tab': 'benchTab', 'run-filter': 'runFilter', 'settings-tab': 'settingsTab', 'connection-tab': 'connectionTab', 'node-domain': 'nodeDomain' };
@@ -2706,6 +2710,9 @@ workflows=window.createModelingWorkflows({state:()=>state,engine:()=>engine,ui:(
 coldStorage=window.createColdStorageUI({state:()=>state,engine:()=>engine,ui:()=>ui,makeInstance,makeProject,project,
   uid,normalizeState,markDirty,persist:()=>persistLocal(),openProject,msg,esc,btn,openDialog,closeDialog,render,fitNetwork,remember,moduleOf,
   download:downloadFile,projectKey:projectParameterKey});
+airSide=window.createAirSideUI({state:()=>state,engine:()=>engine,ui:()=>ui,project,moduleOf,projectKey:projectParameterKey,
+  esc,btn,heading,msg,render,markDirty,persist:()=>persistLocal(),openDialog,closeDialog,makeInstance,makeProject,uid,
+  normalizeState,openProject,navigate,download:downloadFile});
 try { normalizeState(); } catch { state = initialState(); normalizeState(); recovery = '原型记录不完整，已恢复内置示例。'; }
 function routeFromLocation() {
   const route = location.hash.slice(1);

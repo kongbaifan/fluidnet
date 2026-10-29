@@ -1,0 +1,48 @@
+#fn-studio .air-page { max-width:1720px; margin:auto; }
+#fn-studio .air-page .page-heading { margin-bottom:18px; }
+#fn-studio .air-toolbar { display:flex; align-items:end; gap:12px; margin-bottom:18px; }
+#fn-studio .air-toolbar .field { min-width:230px; max-width:350px; }
+#fn-studio .air-empty { padding:75px 50px; background:linear-gradient(120deg,#edf7f8,#f8f5ed); border:1px solid #d8e7e9; border-radius:12px; }
+#fn-studio .air-empty h2 { font-size:27px; color:#155d68; margin-bottom:12px; }
+#fn-studio .air-empty p { max-width:650px; line-height:1.9; color:#55747e; }
+#fn-studio .air-provenance { display:flex; align-items:center; flex-wrap:wrap; gap:10px 22px; padding:12px 16px; background:#edf7f6; color:#245f61; border-left:3px solid #218f8d; border-radius:6px; }
+#fn-studio .air-provenance small { margin-left:auto; font-size:11px; }
+#fn-studio .air-provenance.is-stale { background:#fff5e5; color:#956319; border-color:#dc9b32; }
+#fn-studio .air-summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; margin:18px 0; }
+#fn-studio .air-summary > div { padding:17px 22px; background:var(--surface,#fff); border:1px solid var(--line,#dce6ea); border-radius:9px; display:flex; flex-direction:column; }
+#fn-studio .air-summary span { color:var(--muted); font-size:12px; }
+#fn-studio .air-summary strong { font-size:25px; font-weight:650; margin:6px 0; color:#176d76; font-variant-numeric:tabular-nums; }
+#fn-studio .air-summary small { color:var(--muted); font-size:11px; }
+#fn-studio .air-results { padding:0 18px 16px; }
+#fn-studio .air-results-head { display:flex; align-items:center; flex-wrap:wrap; gap:10px; padding:16px 0; border-bottom:1px solid var(--line,#e2e9ed); }
+#fn-studio .air-filters { display:flex; gap:15px; padding:14px 0; }
+#fn-studio .air-filters .field { width:225px; }
+#fn-studio .air-table-wrap { max-height:415px; overflow:auto; }
+#fn-studio .air-table-wrap table { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
+#fn-studio .air-table-wrap thead { position:sticky; top:0; z-index:1; background:var(--surface,#fff); }
+#fn-studio .air-table-wrap th,#fn-studio .air-table-wrap td { padding:11px 15px; border-bottom:1px solid var(--line,#e2e9ed); text-align:right; }
+#fn-studio .air-table-wrap th:first-child { text-align:left; }
+#fn-studio .air-table-wrap small { display:block; font-size:10px; font-weight:400; color:var(--muted); margin-top:3px; }
+#fn-studio .air-footnote { color:var(--muted); font-size:12px; line-height:1.7; margin:12px 0 0; }
+#fn-studio .air-psych { display:grid; grid-template-columns:minmax(0,1fr) 290px; gap:24px; align-items:start; padding-top:16px; }
+#fn-studio .air-psych svg { width:100%; max-height:420px; font:12px system-ui,sans-serif; color:#55737c; }
+#fn-studio .air-psych svg text { fill:#5c7780; }
+#fn-studio .air-psych aside p { font-size:12px; line-height:1.7; margin:10px 0; }
+#fn-studio .air-point-list { max-height:275px; overflow:auto; }
+#fn-studio .air-point-list > div { padding:8px 0; border-bottom:1px solid var(--line,#e2e9ed); display:flex; flex-direction:column; gap:3px; font-size:12px; }
+#fn-studio .air-point-list span { color:var(--muted); }
+#fn-studio .air-device-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; padding-top:18px; max-height:485px; overflow:auto; }
+#fn-studio .air-device { border:1px solid var(--line,#dce6ea); border-radius:8px; padding:16px; }
+#fn-studio .air-device h3 { padding-bottom:10px; color:#196e77; }
+#fn-studio .air-device > div { display:flex; justify-content:space-between; gap:8px; font-size:12px; padding:6px 0; }
+#fn-studio .air-device span { color:var(--muted); }
+#fn-studio .air-device small { font-weight:400; }
+#fn-studio .air-compare { display:grid; grid-template-columns:340px minmax(0,1fr); gap:30px; padding-top:20px; }
+#fn-studio .air-comparison-input { display:flex; flex-direction:column; gap:12px; }
+#fn-studio .air-run-choices { max-height:220px; overflow:auto; font-size:12px; }
+#fn-studio .air-run-choices label { display:block; padding:7px 0; }
+#fn-studio .air-curve svg { width:100%; max-height:365px; font:12px system-ui,sans-serif; }
+#fn-studio .air-legend { display:flex; flex-wrap:wrap; gap:12px; font-size:12px; }
+#fn-studio .air-legend span { display:flex; align-items:center; gap:6px; }
+#fn-studio .air-legend i { width:18px; height:3px; display:inline-block; }
+#fn-studio[data-theme="dark"] .air-empty,#fn-studio[data-theme="dark"] .air-provenance { background:#20393e; color:#c2e8e8; }
