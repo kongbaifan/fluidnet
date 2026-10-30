@@ -365,6 +365,21 @@ def _compile_trapped(project, modules, parameters, nodes, branches, fixed, fixed
 
 
 def compile_project(project: Project) -> CompiledNetwork:
+    definitions = {module.id:module for module in project.modules}
+    role_instances = [instance for instance in project.instances
+                      if definitions[instance.module_id].execution_role or definitions[instance.module_id].schema_version==4]
+    if role_instances:
+        from .refrigeration_roles import require_throttle_role
+        for instance in role_instances:
+            try:
+                require_throttle_role(definitions[instance.module_id])
+            except ValueError as error:
+                raise CompilationError(getattr(error,'code','MODULE_CONTRACT_INVALID'),str(error),instance.id,
+                                       getattr(error,'field','execution_role')) from error
+        if project.thermal_couplings or project.solver.moist_air or any(
+                port.domain==Domain.fluid for instance in project.instances for port in definitions[instance.module_id].ports):
+            raise CompilationError('MODULE_EXECUTION_DOMAIN_UNSUPPORTED',
+                '制冷作者角色仅支持纯集总制冷站，不能放入流体、湿空气或热耦合项目',role_instances[0].id,'execution_role')
     from .composites import expand_composites
     project, composite_maps = expand_composites(project)
     if project.thermal_couplings:
@@ -379,6 +394,9 @@ def compile_project(project: Project) -> CompiledNetwork:
     if Domain.thermal in used_domains or Domain.refrigerant in used_domains:
         from .refrigeration.cold_store import check_event_conflicts, compile_cold_store, uses_cold_store
         if uses_cold_store(project):
+            if role_instances:
+                raise CompilationError('MODULE_EXECUTION_DOMAIN_UNSUPPORTED',
+                    '制冷作者角色不适用于 A 版冷库执行域',role_instances[0].id,'execution_role')
             network = compile_cold_store(project)
             check_event_conflicts(network)
             return network

@@ -16,6 +16,10 @@
 
 M0–M2 已完成。**M3 已取消，M3B 的后续开发／联调与 M4 的持续运行／工程校核安排也已取消。** 变量别名、源码环境真实服务联调、24 小时稳定性验证、工程算例校核不再列为待办、前置条件或验收门槛。2026-10-27 完成[热耦合建模计划](NEXT_DEVELOPMENT_PLAN.md)首批 TC-1–TC-4 与双盘管，并修复[界面转换与验收遗漏](DEVELOPMENT_COMPLETION_AUDIT.md)。2026-10-28 完成 1080p 基线、批量工况、结果存档与方案比较，见[本轮验收](FHD_BATCH_ACCEPTANCE.md)。下列已注明日期的历史进展保留当时事实，历史未完成项不自动成为当前任务。
 
+## 后续开发建议（2026-10-30）
+
+已编制[自主建模与制冷设备扩展计划](PLATFORM_EXTENSION_PLAN.md)，代码基线为 `802b4c5`。下一阶段建议依次完成现有作者流程补缺、制冷设备扩展合同验证、首类 Python 等焓节流设备及项目/版本闭环，共 8 个工作包。首批 PF-0/PF-1 已完成能力核对、自建模块/组合复用及结果引用修复，见[首批验收](PLATFORM_AUTHORING_ACCEPTANCE.md)；RF-0 已完成[制冷设备角色、接受事务与性能验证](REFRIGERATION_EXTENSION_DESIGN.md)，RF-1 已完成[正式合同、SDK 与编译/Worker 接入](REFRIGERATION_MODULE_CONTRACT.md)。RF-2/RF-3 已接通[正式运行、接受事务、作者模板与验证台](REFRIGERATION_MODULE_EXECUTION.md)。RF-4 已完成[项目版本与结果闭环](REFRIGERATION_PROJECT_ACCEPTANCE.md)，PF-2 已通过[全阶段验收](PLATFORM_EXTENSION_ACCEPTANCE.md)：1723 项后端测试、91.05% 覆盖率、27 个浏览器脚本，本计划八包全部完成。水侧储热和机组启停保留为后置物理与场景方向，原取消任务不恢复。下方旧计划与验收按历史日期保留。
+
 ## 新一轮计划（2026-10-27）
 
 已按用户限定的**前两项**完成[1080p 基线、批量工况与方案比较计划](NEXT_DEVELOPMENT_1080P_PLAN.md)，共 6 个工作包。2026-10-28 定向验收：99 项后端测试、6 项界面合同与 6 个浏览器脚本通过，75 个契约一致；操作见[批量工况说明](SCENARIO_BATCHES.md)，证据见[本轮验收](FHD_BATCH_ACCEPTANCE.md)。DX 蒸发器、真实吸气状态与膨胀阀过热度自调不属于本轮，也不作为自动接续任务。

@@ -1,0 +1,208 @@
+[
+  {
+    "log": "docs/platform-extension/results/pf2/frontend-unit-final.txt",
+    "duration_s": null,
+    "exit_code": 0,
+    "command": "npm run test:ui",
+    "note": "Final tests include sparse scenarios, canonical exchange, mapped selections and frozen report availability.",
+    "passed": 15,
+    "sha256": "c42599164c79edf2c421c9003906861934c91084844bf06bd7aae8587c7fa226"
+  },
+  {
+    "log": "docs/platform-extension/results/pf2/browser-smoke.txt",
+    "duration_s": 11.8745471,
+    "exit_code": 0,
+    "command": "node tests/browser-smoke.mjs",
+    "sha256": "de3f8166d3001b912079fb3e4dd6a423ef77def7cb8a143f681c10c12471bb97"
+  },
+  {
+    "log": "docs/platform-extension/results/pf2/browser-heater.txt",
+    "duration_s": 12.4637463,
+    "exit_code": 0,
+    "command": "node tests/browser-heater.mjs",
+    "sha256": "80803132d33483863f9c5f74a07a691993e8df794a7c0e7d25a6266d0ecaba5e"
+  },
+  {
+    "log": "docs/platform-extension/results/pf2/browser-platform.txt",
+    "duration_s": 14.1172739,
+    "exit_code": 0,
+    "command": "node tests/browser-platform.mjs",
+    "sha256": "27d31255b125fc2297db14fb8a5f85fd6ec1470548233529229ead6a6132f092"
+  },
+  {
+    "log": "docs/platform-extension/results/pf2/browser-authoring.txt",
+    "duration_s": 38.2434907,
+    "exit_code": 0,
+    "command": "node tests/browser-authoring.mjs",
+    "sha256": "8c5be42d8b52e1b35741bec2f81d890aadb98bc7e1c332c162bef4d4730c030e"
+  },
+  {
+    "log": "docs/platform-extension/results/pf2/browser-run-control.txt",
+    "duration_s": 37.2851968,
+    "exit_code": 0,
+    "command": "node tests/browser-run-control.mjs",
+    "sha256": "83731dc46466f1ddb826efcf34a879bb85182bc914aa6352d42ca52f53bd5c83"
+  },
+  {
+    "log": "docs/platform-extension/results/pf2/browser-pid.txt",
+    "duration_s": 12.8487673,
+    "exit_code": 0,
+    "command": "node tests/browser-pid.mjs",
+    "sha256": "d9e15e0811269655f4d1ede212b84d609fa478a4a070c6787096946e6a943df7"
+  },
+  {
+    "log": "docs/platform-extension/results/pf2/browser-continuous.txt",
+    "duration_s": 10.5993083,
+    "exit_code": 0,
+    "command": "node tests/browser-continuous.mjs",
+    "sha256": "202ad942f68351d966f88d1c714e2c51a1b304d6ecff7e59b4c113ffbbcd9063"
+  },
+  {
+    "log": "docs/platform-extension/results/pf2/browser-multifluid.txt",
+    "duration_s": 7.4355186,
+    "exit_code": 0,
+    "command": "node tests/browser-multifluid.mjs",
+    "sha256": "7dd2c7f92da38089d6465b2bfa6c33788b531c56baa10aa237769195a073750e"
+  },
+  {
+    "log": "docs/platform-extension/results/pf2/browser-auth.txt",
+    "duration_s": 8.1728873,
+    "exit_code": 0,
+    "command": "node tests/browser-auth.mjs",
+    "sha256": "e1461af97da0835f3ba2d4c0d8dc7b0fcbc21a66290aa544007ba7d9dd341de6"
+  },
+  {
+    "log": "docs/platform-extension/results/pf2/browser-workspace.txt",
+    "duration_s": 18.7808504,
+    "exit_code": 0,
+    "command": "node tests/browser-workspace.mjs",
+    "sha256": "a9d92866bfe6eb2da735c5e17f912f664043be8564d8322d52c5bcaafa5aa970"
+  },
+  {
+    "log": "docs/platform-extension/results/pf2/browser-control-programs.txt",
+    "duration_s": 28.6712668,
+    "exit_code": 0,
+    "command": "node tests/browser-control-programs.mjs",
+    "sha256": "0ada56fb9e99ae3a2a138cb020a6cf56dc265fa9689dd83cac80b59662be6adb"
+  },
+  {
+    "log": "docs/platform-extension/results/pf2/browser-workflows.txt",
+    "duration_s": 20.7089205,
+    "exit_code": 0,
+    "command": "node tests/browser-workflows.mjs",
+    "sha256": "24db39a1255adf517a87b379aa87d4a8a668fcfdf7599b4fe84e6a56436c5e31"
+  },
+  {
+    "log": "docs/platform-extension/results/pf2/browser-archive-migration.txt",
+    "duration_s": 16.8752759,
+    "exit_code": 0,
+    "command": "node tests/browser-archive-migration.mjs",
+    "sha256": "d853abdb1aa2974b18de6d652926a6402626e9736b498916d8b9d80f71b4eadc"
+  },
+  {
+    "log": "docs/platform-extension/results/pf2/browser-cold-storage.txt",
+    "duration_s": 87.1978385,
+    "exit_code": 0,
+    "command": "node tests/browser-cold-storage.mjs",
+    "sha256": "1c9b29ac63754c47b9b2951aa8ab7c91b4a3ab71e3b64bc7a9b1cf07719dc979"
+  },
+  {
+    "log": "docs/platform-extension/results/pf2/browser-cold-storage-station-recheck.txt",
+    "duration_s": null,
+    "exit_code": 0,
+    "command": "node tests/browser-cold-storage-station.mjs",
+    "first_attempt": {
+      "exit_code": 1,
+      "duration_s": 218.5394689,
+      "log": "docs/platform-extension/results/pf2/browser-cold-storage-station.txt",
+      "sha256": "06fe45357958e7d114e7f29e8ab3897eb1c69c95291e18a2de937f01a7f8a3f8"
+    },
+    "resolution": "Updated the obsolete fixed NH3/CO2 heading assertion to the generic heading; retained checks for the case name and run ID. The full workflow passed on recheck.",
+    "sha256": "5f2b33257dd3a86f475adea6081d0675d572808b0c6119db2630c58b2ef75eb4"
+  },
+  {
+    "log": "docs/platform-extension/results/pf2/browser-module-catalog.txt",
+    "duration_s": 8.1220535,
+    "exit_code": 0,
+    "command": "node tests/browser-module-catalog.mjs",
+    "sha256": "dc2080f08a00abf2246280547f1830f71762b53c5ee3091a6e103e83fc58d53c"
+  },
+  {
+    "log": "docs/platform-extension/results/pf2/browser-module-workflow.txt",
+    "duration_s": 60.5157277,
+    "exit_code": 0,
+    "command": "node tests/browser-module-workflow.mjs",
+    "sha256": "933c4675bf4d516a4936cc858e7ca20811eb9de29f436484a86cd01bd67ba115"
+  },
+  {
+    "log": "docs/platform-extension/results/pf2/browser-thermal-coupling.txt",
+    "duration_s": 19.9262683,
+    "exit_code": 0,
+    "command": "node tests/browser-thermal-coupling.mjs",
+    "sha256": "9b29be644e80a1f094f94d2535eebb69ef4741254caf340311c8ae1703bd28fa"
+  },
+  {
+    "log": "docs/platform-extension/results/pf2/browser-thermal-coupling-modeling.txt",
+    "duration_s": 31.715172,
+    "exit_code": 0,
+    "command": "node tests/browser-thermal-coupling-modeling.mjs",
+    "sha256": "cdda4ca625653c5d10747159a0c9af74323ff12270417dad36d33c94bf5bc59b"
+  },
+  {
+    "log": "docs/platform-extension/results/pf2/browser-dual-thermal-coupling.txt",
+    "duration_s": 31.2475518,
+    "exit_code": 0,
+    "command": "node tests/browser-dual-thermal-coupling.mjs",
+    "sha256": "ca90d5ad88cb331335387daef156ffc1d4fae4e0b214bbb009e738ac65b60b0a"
+  },
+  {
+    "log": "docs/platform-extension/results/pf2/browser-scenario-batches.txt",
+    "duration_s": 24.7888487,
+    "exit_code": 0,
+    "command": "node tests/browser-scenario-batches.mjs",
+    "sha256": "6e5f6049a2619684b3bacb3bc8c9eec16567ba22ad6802dc9a3516358a936b2d"
+  },
+  {
+    "log": "docs/platform-extension/results/pf2/browser-air-side.txt",
+    "duration_s": 33.3178522,
+    "exit_code": 0,
+    "command": "node tests/browser-air-side.mjs",
+    "sha256": "d8b72aa3811a77172f58b88fb1bfe2128ea4db60eb74766250be6c545973b5ee"
+  },
+  {
+    "log": "docs/platform-extension/results/pf2/browser-air-batches.txt",
+    "duration_s": 12.6999706,
+    "exit_code": 0,
+    "command": "node tests/browser-air-batches.mjs",
+    "sha256": "b9fbfa499acc805b2bac97ac701e0331bfe264c83fb6c7246c74e78a1251cb2a"
+  },
+  {
+    "log": "docs/platform-extension/results/pf2/browser-chiller-air-loop.txt",
+    "duration_s": 77.7244129,
+    "exit_code": 0,
+    "command": "node tests/browser-chiller-air-loop.mjs",
+    "sha256": "8cc70d8fad5123bf650786c8078d36922b006cc4672264a14df3b2b070a2a637"
+  },
+  {
+    "log": "docs/platform-extension/results/pf2/browser-platform-authoring.txt",
+    "duration_s": 60.2124542,
+    "exit_code": 0,
+    "command": "node tests/browser-platform-authoring.mjs",
+    "sha256": "5bff621990cdb83be36a46adf99cb56a37649c98482507298f528e09cf0ac816"
+  },
+  {
+    "log": "docs/platform-extension/results/pf2/browser-refrigeration-authoring.txt",
+    "duration_s": 25.7846617,
+    "exit_code": 0,
+    "command": "node tests/browser-refrigeration-authoring.mjs",
+    "sha256": "99fcd07e39243507d08181d960daaf2ed6a6764fc6bc99dd7505ec9dacafa092"
+  },
+  {
+    "command": "node tests/browser-refrigeration-projects.mjs",
+    "exit_code": 0,
+    "duration_s": null,
+    "log": "docs/platform-extension/results/rf4/browser-final.txt",
+    "note": "Final recheck includes UI downloads of old-version HTML and CSV, plus upgrade/rollback, exchange, batch and restart.",
+    "sha256": "b464699df1ff26d8feaaf97b9eb49405bdd8db57ac39660a45b8dfc5fde601cf"
+  }
+]

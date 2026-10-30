@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, MutableMapping, Sequence
 from typing import Literal, Protocol, TypeAlias
+from .refrigeration import RefrigerationContext
 
 ScalarValue: TypeAlias = float | int | str | bool | None
 JSONValue: TypeAlias = ScalarValue | list['JSONValue'] | dict[str, 'JSONValue']
@@ -254,6 +255,8 @@ class ModuleContext(Protocol):
     def fluid(self) -> PropertyService: ...
     @property
     def net(self) -> NetworkBuilder: ...
+    @property
+    def refrigeration(self) -> RefrigerationContext: ...
 
     def parameter(self, name: str, default: JSONValue = None) -> JSONValue: ...
     def port(self, name: str) -> PortState: ...

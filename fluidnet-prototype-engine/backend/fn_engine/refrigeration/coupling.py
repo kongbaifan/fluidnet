@@ -29,6 +29,11 @@ class CompiledCoupled(CompiledStation):
 
 
 def compile_coupled_project(project):
+    definitions = {module.id:module for module in project.modules}
+    for instance in project.instances:
+        if definitions[instance.module_id].execution_role:
+            raise CompilationError('MODULE_EXECUTION_DOMAIN_UNSUPPORTED',
+                '热耦合项目尚不支持制冷作者模块',instance.id,'execution_role')
     if not project.solver.thermal:
         raise CompilationError('COUPLED_THERMAL_REQUIRED', '热耦合需要启用热力计算')
     links = project.thermal_couplings

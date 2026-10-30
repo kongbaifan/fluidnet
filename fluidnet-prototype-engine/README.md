@@ -8,6 +8,8 @@
 
 2026-10-29 新增[冷水机组与房间风水联算](docs/CHILLER_AIR_LOOP.md)：真实水盘管、水冷冷水机组、冷冻水/冷却水独立回路、房间动态和冷却塔水耗。从“风系统 → 创建风侧示例”选择“冷水机组与房间风水联算”；检查状态见[联算验收](docs/CHILLER_AIR_LOOP_ACCEPTANCE.md)。
 
+2026-10-30 后续方案：[自主建模与制冷设备扩展计划](docs/PLATFORM_EXTENSION_PLAN.md)。首批 PF-0/PF-1 已完成能力核对及自主建模流程补缺，见[首批验收](docs/PLATFORM_AUTHORING_ACCEPTANCE.md)；RF-0 已完成[制冷设备接口实验验证](docs/REFRIGERATION_EXTENSION_DESIGN.md)，RF-1 已交付[正式合同、SDK 与编译/Worker 接口](docs/REFRIGERATION_MODULE_CONTRACT.md)。RF-2/RF-3 已接通[整站运行、接受事务与制冷作者验证台](docs/REFRIGERATION_MODULE_EXECUTION.md)，提供线性/等百分比节流模板；RF-4 的[项目、版本和结果闭环](docs/REFRIGERATION_PROJECT_ACCEPTANCE.md)及 [PF-2 全阶段验收](docs/PLATFORM_EXTENSION_ACCEPTANCE.md)已完成：1723 项后端测试、91.05% 覆盖率、27 个浏览器脚本通过。
+
 ## 启动
 
 Python 3.11 或更高版本，在本目录执行：
@@ -136,7 +138,7 @@ python -m fn_engine serve --host 0.0.0.0 --port 8798 --cors-origin http://twin.l
 | 电加热器、止回阀、物性扩展 | 加热器为内置理想加热段（见上表）；止回阀由 Python 模块包 `modules/check_valve` 提供单向，内核级互补条件与开启压差迟滞仍待实现；物性扩展保留原型编辑入口，进入当前求解器时明确拒绝 |
 | 旧 Lua 文本、原型自定义变量、串口演示 | 旧 Lua 文本保留，迁移并校验为 Python 后才能启用；原型自定义变量和串口仅编辑与预览，未接入真实外部连接 |
 | 独立验证台 | 每条启用通路各接独立边界，多通路一起求解；真实边界、Worker 生命周期和状态返回 |
-| 组合设备 | 已展开为普通实例/连接的项目可计算；专用组合定义的递归展开待实现 |
+| 组合设备 | 支持确定性递归展开、子模块版本/双哈希固定及公开端口、参数和变量映射；深度上限 8、展开实例上限 1000。画布封装生成草稿，发布后可插入项目；具体边界见[模块开发指南](docs/modules/DEVELOPMENT_GUIDE.md) |
 | Pydantic 契约 | API、项目、模块包和 Worker 消息使用严格模型；自动生成 JSON Schema/OpenAPI |
 | Python 模块包 | 模块清单驱动 UI；项目与验证台均在独立 Worker 中执行 `initialize/evaluate/commit_step/finalize` |
 | 模块版本保存 | 后端校验、独立试算、原子写入、并发冲突检测；项目绑定源码与契约双哈希 |

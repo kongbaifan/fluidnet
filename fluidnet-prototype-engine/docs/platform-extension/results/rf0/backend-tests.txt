@@ -1,0 +1,10 @@
+........................................................................ [ 59%]
+..................................................                       [100%]
+============================== warnings summary ===============================
+tests/test_rf0_probe.py::test_probe_rejects_incompatible_contracts[port]
+  C:\Users\job steam\AppData\Local\Programs\Python\Python311\Lib\site-packages\pydantic\main.py:475: UserWarning: Pydantic serializer warnings:
+    PydanticSerializationUnexpectedValue(Expected `enum` - serialized value may not be as expected [field_name='domain', input_value='fluid', input_type=str])
+    return self.__pydantic_serializer__.to_python(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+122 passed, 1 warning in 48.73s

@@ -34,7 +34,10 @@ def validate_module_definition(module: ModuleDefinition) -> ValidationResponse:
         if module.definition_hash and module.definition_hash != module_definition_hash(module):
             diagnostics.append(Diagnostic(code="MODULE_DEFINITION_HASH_MISMATCH", message="契约哈希不一致", field="definition_hash"))
         if not any(item.severity == 'error' for item in diagnostics):
-            runner = WorkerProcess(module, {p.id: p.default for p in module.parameters}, FluidConfig())
+            fluids = module.applicability.fluids if module.applicability is not None else []
+            fluid = (FluidConfig(fluid=fluids[0] if fluids else 'Ammonia',
+                                 phase_policy='any') if module.execution_role else FluidConfig())
+            runner = WorkerProcess(module, {p.id: p.default for p in module.parameters}, fluid)
             try:
                 runner.validate_entrypoint()
             finally:

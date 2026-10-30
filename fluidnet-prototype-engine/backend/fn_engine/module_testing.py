@@ -45,7 +45,8 @@ def check_assertion(assertion: ModuleTestAssertion, frame: RunFrame) -> ModuleTe
 def run_module_suite(request: ModuleTestSuiteRequest) -> ModuleTestSuiteResponse:
     cases = []
     for case in request.cases:
-        conditions = case.conditions.model_dump(mode='json')
+        from .refrigeration.bench import effective_test_conditions
+        conditions = effective_test_conditions(request.module,case.conditions).model_dump(mode='json')
         # Preserve hashes for existing suites; asserted cases bind their author-supplied
         # expectations as well as their simulation inputs to the evidence digest.
         inputs = {'conditions': conditions, 'assertions': [item.model_dump(mode='json') for item in case.assertions]} if case.assertions else conditions

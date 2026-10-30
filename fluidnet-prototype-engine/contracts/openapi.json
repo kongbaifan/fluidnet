@@ -8444,7 +8444,8 @@
                 "schema_version": {
                   "enum": [
                     2,
-                    3
+                    3,
+                    4
                   ]
                 }
               },
@@ -8488,6 +8489,13 @@
             "then": {
               "properties": {
                 "applicability": {
+                  "properties": {
+                    "execution_domains": {
+                      "items": {
+                        "const": "fluid"
+                      }
+                    }
+                  },
                   "type": "object"
                 },
                 "hydraulic_dependencies": {
@@ -8504,11 +8512,6 @@
             "else": {
               "not": {
                 "anyOf": [
-                  {
-                    "required": [
-                      "applicability"
-                    ]
-                  },
                   {
                     "required": [
                       "hydraulic_dependencies"
@@ -8532,6 +8535,79 @@
                 ]
               }
             }
+          },
+          {
+            "if": {
+              "properties": {
+                "schema_version": {
+                  "const": 4
+                }
+              },
+              "required": [
+                "schema_version"
+              ]
+            },
+            "then": {
+              "properties": {
+                "execution_role": {
+                  "const": "refrigeration.isenthalpic_throttle.v1"
+                },
+                "applicability": {
+                  "properties": {
+                    "execution_domains": {
+                      "items": {
+                        "const": "refrigeration"
+                      }
+                    }
+                  },
+                  "type": "object"
+                },
+                "solver_model": {
+                  "const": "generic"
+                },
+                "state_model": {
+                  "type": "null"
+                },
+                "thermal_model": {
+                  "type": "null"
+                },
+                "source_format": {
+                  "const": "python-v1"
+                },
+                "channels": {
+                  "maxItems": 0
+                }
+              },
+              "required": [
+                "execution_role"
+              ]
+            },
+            "else": {
+              "not": {
+                "required": [
+                  "execution_role"
+                ]
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "schema_version": {
+                  "enum": [
+                    1,
+                    2
+                  ]
+                }
+              }
+            },
+            "then": {
+              "not": {
+                "required": [
+                  "applicability"
+                ]
+              }
+            }
           }
         ],
         "properties": {
@@ -8540,7 +8616,8 @@
             "enum": [
               1,
               2,
-              3
+              3,
+              4
             ],
             "title": "Schema Version",
             "default": 1
@@ -8719,9 +8796,25 @@
                 "$ref": "#/components/schemas/ModuleApplicability"
               },
               {
+                "$ref": "#/components/schemas/RefrigerationApplicability"
+              },
+              {
                 "type": "null"
               }
-            ]
+            ],
+            "title": "Applicability"
+          },
+          "execution_role": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "refrigeration.isenthalpic_throttle.v1"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Execution Role"
           },
           "hydraulic_dependencies": {
             "anyOf": [
@@ -8827,7 +8920,8 @@
                 "schema_version": {
                   "enum": [
                     2,
-                    3
+                    3,
+                    4
                   ]
                 }
               },
@@ -8871,6 +8965,13 @@
             "then": {
               "properties": {
                 "applicability": {
+                  "properties": {
+                    "execution_domains": {
+                      "items": {
+                        "const": "fluid"
+                      }
+                    }
+                  },
                   "type": "object"
                 },
                 "hydraulic_dependencies": {
@@ -8887,11 +8988,6 @@
             "else": {
               "not": {
                 "anyOf": [
-                  {
-                    "required": [
-                      "applicability"
-                    ]
-                  },
                   {
                     "required": [
                       "hydraulic_dependencies"
@@ -8915,6 +9011,79 @@
                 ]
               }
             }
+          },
+          {
+            "if": {
+              "properties": {
+                "schema_version": {
+                  "const": 4
+                }
+              },
+              "required": [
+                "schema_version"
+              ]
+            },
+            "then": {
+              "properties": {
+                "execution_role": {
+                  "const": "refrigeration.isenthalpic_throttle.v1"
+                },
+                "applicability": {
+                  "properties": {
+                    "execution_domains": {
+                      "items": {
+                        "const": "refrigeration"
+                      }
+                    }
+                  },
+                  "type": "object"
+                },
+                "solver_model": {
+                  "const": "generic"
+                },
+                "state_model": {
+                  "type": "null"
+                },
+                "thermal_model": {
+                  "type": "null"
+                },
+                "source_format": {
+                  "const": "python-v1"
+                },
+                "channels": {
+                  "maxItems": 0
+                }
+              },
+              "required": [
+                "execution_role"
+              ]
+            },
+            "else": {
+              "not": {
+                "required": [
+                  "execution_role"
+                ]
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "schema_version": {
+                  "enum": [
+                    1,
+                    2
+                  ]
+                }
+              }
+            },
+            "then": {
+              "not": {
+                "required": [
+                  "applicability"
+                ]
+              }
+            }
           }
         ],
         "properties": {
@@ -8923,7 +9092,8 @@
             "enum": [
               1,
               2,
-              3
+              3,
+              4
             ],
             "title": "Schema Version",
             "default": 1
@@ -9102,9 +9272,25 @@
                 "$ref": "#/components/schemas/ModuleApplicability"
               },
               {
+                "$ref": "#/components/schemas/RefrigerationApplicability"
+              },
+              {
                 "type": "null"
               }
-            ]
+            ],
+            "title": "Applicability"
+          },
+          "execution_role": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "refrigeration.isenthalpic_throttle.v1"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Execution Role"
           },
           "hydraulic_dependencies": {
             "anyOf": [
@@ -9622,7 +9808,8 @@
               "resistance",
               "pump",
               "heat_exchanger",
-              "managed_state"
+              "managed_state",
+              "refrigeration_throttle"
             ],
             "title": "Template"
           },
@@ -10049,6 +10236,28 @@
       },
       "ModuleTestResponse": {
         "properties": {
+          "execution_domain": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "refrigeration"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Execution Domain"
+          },
+          "refrigeration_evaluation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RefrigerationEvaluateResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "module_id": {
             "type": "string",
             "title": "Module Id"
@@ -11453,6 +11662,103 @@
         ],
         "title": "RefpropInfo",
         "description": "`GET /health` 上报的 REFPROP 运行时发现结果（不加载 DLL）。"
+      },
+      "RefrigerationApplicability": {
+        "properties": {
+          "execution_domains": {
+            "items": {
+              "type": "string",
+              "const": "refrigeration"
+            },
+            "type": "array",
+            "maxItems": 1,
+            "minItems": 1,
+            "title": "Execution Domains"
+          },
+          "fluids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 64,
+            "title": "Fluids"
+          },
+          "assumptions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 32,
+            "title": "Assumptions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "RefrigerationApplicability"
+      },
+      "RefrigerationEvaluateResponse": {
+        "properties": {
+          "flow": {
+            "$ref": "#/components/schemas/RefrigerationThrottleFlow"
+          },
+          "variables": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Variables"
+          },
+          "diagnostics": {
+            "items": {
+              "$ref": "#/components/schemas/Diagnostic"
+            },
+            "type": "array",
+            "title": "Diagnostics"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "flow"
+        ],
+        "title": "RefrigerationEvaluateResponse"
+      },
+      "RefrigerationThrottleFlow": {
+        "properties": {
+          "mass_flow_kg_s": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Mass Flow Kg S"
+          },
+          "effective_kv_m3_h": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Effective Kv M3 H"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "mass_flow_kg_s",
+          "effective_kv_m3_h"
+        ],
+        "title": "RefrigerationThrottleFlow"
       },
       "RunCommand": {
         "properties": {

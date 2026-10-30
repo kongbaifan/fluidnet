@@ -1,0 +1,22 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "mass_flow_kg_s": {
+      "minimum": 0,
+      "title": "Mass Flow Kg S",
+      "type": "number"
+    },
+    "effective_kv_m3_h": {
+      "minimum": 0,
+      "title": "Effective Kv M3 H",
+      "type": "number"
+    }
+  },
+  "required": [
+    "mass_flow_kg_s",
+    "effective_kv_m3_h"
+  ],
+  "title": "RefrigerationThrottleFlow",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

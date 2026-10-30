@@ -85,7 +85,8 @@ try {
   // 3. 报告与 CSV。
   await expect.poll(() => metric('lp-target'), { timeout: 20000 }).toBe('0.1150');
   const report = await downloaded(() => page.locator('[data-action="cs-report"]').click());
-  expect(report).toContain('NH₃/CO₂ 制冷站运行报告'); expect(report).toContain(stepped.id);
+  expect(report).toContain('<h1>制冷站运行报告</h1>');
+  expect(report).toContain('NH₃/CO₂ 两库房冷库'); expect(report).toContain(stepped.id);
   const csv = await downloaded(() => page.locator('[data-action="cs-csv"]').click());
   expect(csv.trim().split(/\r?\n/)).toHaveLength(2882);
 

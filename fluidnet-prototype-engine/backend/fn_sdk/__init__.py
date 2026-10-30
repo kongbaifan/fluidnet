@@ -15,10 +15,12 @@ from .hydraulics import (
     resistance_pressure_drop_pa, valve_pressure_drop_pa, volume_flow_m3_h_to_mass_flow_kg_s,
 )
 from .thermal import heat_exchanger_effectiveness
+from .refrigeration import RefrigerationContext, RefrigerationThrottleInput, RefrigerationThrottleFlow
 
-SDK_API_VERSION: Final[str] = '0.6.0'
+SDK_API_VERSION: Final[str] = '0.7.0'
 
 __all__ = [
+    'RefrigerationContext','RefrigerationThrottleInput','RefrigerationThrottleFlow',
     'heat_exchanger_effectiveness',
     'SDK_API_VERSION', 'CallbackPhase', 'ChannelDataKind', 'ChannelResult', 'CommitResult', 'DeviceModule', 'Diagnostic',
     'DiagnosticSeverity', 'EvaluateResult', 'FluidState', 'JSONValue', 'ModuleContext',

@@ -1,0 +1,8 @@
+{
+  "command": "python -m pytest -q tests/test_refrigeration_projects.py --tb=short",
+  "exit_code": 0,
+  "passed": 2,
+  "duration_s": 22.31,
+  "evidence_type": "summary captured from tool output; both cases also belong to the final PF-2 full run",
+  "summary": "2 passed in 22.31s"
+}

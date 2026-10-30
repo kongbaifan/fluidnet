@@ -400,13 +400,12 @@ function receiveArchives(runs){
 }
 function showArchive(record,overview){
   const source=record.request.project;
+  const overviewBindings=engine.overviewBindings(source);
   const history=overview.rows.map(frame=>({t:frame.time_s,canonical:frame.variables,variables:{},variableValues:{},diagnostics:frame.diagnostics,metrics:frame.metrics,
-    q:frame.variables['P1.mass_flow_kg_s']??null,a:frame.variables['V1.mass_flow_kg_s']??null,b:frame.variables['V2.mass_flow_kg_s']??null,
-    pressure:Number.isFinite(frame.variables['P1.out0.pressure_pa'])?frame.variables['P1.out0.pressure_pa']/1000:null,
-    temperature:Number.isFinite(frame.variables['P1.out0.temperature_k'])?frame.variables['P1.out0.temperature_k']-273.15:null}));
+    ...engine.overviewValues(overviewBindings,frame.variables)}));
   const item={id:record.id,name:source.name,projectName:source.name,projectId:state.projects.find(p=>p.id===source.id)?.id,
     scope:'project',status:record.status,mode:record.mode==='steady'?'稳态':'动态',time:record.frame?.time_s||0,
-    history,events:record.events.map(e=>({t:e.time_s,text:e.message||e.type})),
+    history,overviewBindings,events:record.events.map(e=>({t:e.time_s,text:e.message||e.type})),
     params:Object.fromEntries(source.instances.map(n=>[n.id,n.parameters])),source:'engine',sample:false,
     archive:record,archiveStride:overview.stride,totalRows:overview.total_rows,
     chartBindings:source.thermal_couplings?.length?clone(state.charts.extra.filter(v=>v.projectId===source.id&&!isCouplingChart(v)))
@@ -461,6 +460,11 @@ function routeLine(a,b){const mid=(a.x+b.x)/2;return Math.abs(a.y-b.y)<2?`M ${a.
 function panelRow(run){const history=run?.history||[];for(let i=history.length-1;i>=0;i--)if(!history[i].partial)return history[i];return history.at(-1);}
 function replayingKeyFrame(run){return !!run?.history?.length&&!!run.history.at(-1).partial;}
 function flowFor(n){return panelRow(project().run)?.canonical?.[n.id+'.mass_flow_kg_s'] ?? null;}
+function outletTemperature(n){
+  const port=moduleOf(n).ports.find(port=>port.direction==='out' && port.domain==='fluid');
+  const value=port && panelRow(ownerOfInstance(n).run)?.canonical?.[`${n.id}.${port.id}.temperature_k`];
+  return Number.isFinite(value)?value-273.15:null;
+}
 const CIRCUIT_COLORS=['var(--orange)','#2f80ed','#27ae60','#9b51e0','#eb5757','#f2994a','#219653','#56ccf2'];
 function circuitOfPort(key){const circuits=engine.circuits?.(project().id)||[];return circuits.length>1?circuits.find(c=>c.ports.includes(key)):null;}
 function circuitLabel(c){return `回路 ${c.id+1} · ${c.fluid.fluid}${c.source==='project'?'（项目默认）':' · '+c.source}`;}
@@ -606,7 +610,8 @@ function moduleEvidenceSummary(m) {
   const names={L1:'接口',L2:'单模块逻辑',L3:'网络',L4:'独立解析',external:'外部标定'};
   const evidence=records.length?records.map(e=>`${names[e.level]}${e.status==='passed'?'验证通过':e.status==='failed'?'验证失败':'待数据'}`).join(' · '):'验证证据未登记';
   const scope=definition.applicability;
-  return `<p class="muted">${esc((m.dirty?'发布版本：':'')+evidence)}${scope?`<br>${esc(scope.phases.join('／')+'；'+scope.assumptions.join('；'))}`:''}</p>`;
+  const scopeText=scope ? [definition.execution_role ? '集总制冷站 · 饱和液体等焓节流' : (scope.phases || []).join('／'),...(scope.assumptions || [])].filter(Boolean).join('；') : '';
+  return `<p class="muted">${esc((m.dirty?'发布版本：':'')+evidence)}${scopeText?`<br>${esc(scopeText)}`:''}</p>`;
 }
 async function runAuthoringSuite(m) {
   ui.moduleSuiteAbort?.abort();
@@ -640,20 +645,36 @@ function benchParamFields(m, b) {
   }).join('');
   return numeric + extra;
 }
-function renderBench(){const b=state.bench,m=mod(b.moduleId),run=b.run;return `<div class="page-shell">${heading('独立验证台','用独立边界与参数检查设备；测试不会改变项目实例。',btn('edit-module','编辑模块','Pencil',`data-id="${m.id}"`)+btn('save','保存测试配置','Save'))}<div class="bench-layout"><aside class="stack"><section class="panel"><div class="panel-head"><h3>被测设备</h3>${badge(m.runtime === 'python' ? 'Python Worker · v'+m.version : '请选择 Python 模块','blue')}</div><div class="panel-body stack"><label class="field"><span>模块</span><select data-bench-module aria-label="选择被测模块" ${['running','solving'].includes(run.status)?'disabled':''}>${state.modules.filter(x=>x.runtime === 'python').map(x=>option(x.id,x.name,m.id)).join('')}</select></label>${benchParamFields(m, b)}<small class="muted">参数仅用于此测试副本。</small></div></section><section class="panel"><div class="panel-head"><h3>边界条件</h3></div><div class="panel-body stack">${[['inlet','入口压力','kPa'],['outlet','出口压力','kPa'],['temperature','入口温度','°C']].map(([key,label,unit])=>`<label class="field"><span>${label}</span><div class="field-unit"><input type="number" data-bench-boundary="${key}" step="any" value="${b.boundary[key]}" aria-label="测试${label}" ${['running','solving'].includes(run.status)?'disabled':''}><span>${unit}</span></div></label>`).join('')}<label class="field"><span>时间步长</span><div class="field-unit"><input type="number" data-bench-step ${['running','solving'].includes(run.status)?'disabled':''} value="${run.step}" min=".01" max="10" step=".01"><span>s</span></div></label></div></section></aside><section class="panel"><div class="run-control"><div class="runtime"><span class="dot" style="color:var(--green)"></span><strong>${m.name} · ${statusText(run)}</strong><span class="mono" data-bench-time>${clockLabel(run.time)}</span></div><span class="push"></span>${runControls('bench',run)}</div><div class="bench-schematic"><svg viewBox="0 0 780 180" role="img" aria-label="独立边界与被测设备"><path d="M 145 80 H 620" class="net-line"/><circle cx="145" cy="80" r="25" fill="var(--blue-soft)" stroke="var(--blue)"/><circle cx="620" cy="80" r="25" fill="var(--blue-soft)" stroke="var(--blue)"/><rect x="300" y="48" width="165" height="65" rx="7" fill="var(--surface)" stroke="var(--orange)"/><text x="382" y="84" text-anchor="middle" fill="var(--text)" font-size="15">${esc(m.name)}</text><text x="145" y="85" text-anchor="middle" fill="var(--blue)" font-size="14">P</text><text x="620" y="85" text-anchor="middle" fill="var(--blue)" font-size="14">P</text><text x="145" y="136" text-anchor="middle" fill="var(--muted)" font-size="12">${b.boundary.inlet} kPa</text><text x="620" y="136" text-anchor="middle" fill="var(--muted)" font-size="12">${b.boundary.outlet} kPa</text><text x="382" y="150" text-anchor="middle" fill="var(--muted)" font-size="11">独立网络 · Worker 实际求解</text></svg></div><div class="tabs">${[['results','运行结果'],['curves','趋势曲线'],['events','事件记录']].map(([k,v])=>`<button data-action="bench-tab" data-value="${k}" class="${ui.benchTab===k?'active':''}">${v}</button>`).join('')}</div><div id="bench-results">${benchResults()}</div></section></div></div>`;}
+function renderBench(){const b=state.bench,m=mod(b.moduleId),run=b.run,refrigeration=Boolean(m.manifest?.execution_role);return `<div class="page-shell">${heading('独立验证台','用独立边界与参数检查设备；测试不会改变项目实例。',btn('edit-module','编辑模块','Pencil',`data-id="${m.id}"`)+btn('save','保存测试配置','Save'))}<div class="bench-layout"><aside class="stack"><section class="panel"><div class="panel-head"><h3>被测设备</h3>${badge(m.runtime === 'python' ? 'Python Worker · v'+m.version : '请选择 Python 模块','blue')}</div><div class="panel-body stack"><label class="field"><span>模块</span><select data-bench-module aria-label="选择被测模块" ${['running','solving'].includes(run.status)?'disabled':''}>${state.modules.filter(x=>x.runtime === 'python').map(x=>option(x.id,x.name,m.id)).join('')}</select></label>${benchParamFields(m, b)}<small class="muted">参数仅用于此测试副本。</small></div></section><section class="panel"><div class="panel-head"><h3>边界条件</h3></div><div class="panel-body stack">${refrigeration ? `<p class="muted">入口为饱和液体，温度由压力确定；出口为给定压力的同焓流股。压力均为绝压。</p><label class="field"><span>制冷剂名称</span><input data-bench-fluid value="${esc(b.boundary.fluid || 'Ammonia')}" aria-label="测试制冷剂" ${['running','solving'].includes(run.status)?'disabled':''}></label>` : ''}${[['inlet','入口压力','kPa'],['outlet','出口压力','kPa'],...(!refrigeration ? [['temperature','入口温度','°C']] : [])].map(([key,label,unit])=>`<label class="field"><span>${label}</span><div class="field-unit"><input type="number" data-bench-boundary="${key}" step="any" value="${b.boundary[key]}" aria-label="测试${label}" ${['running','solving'].includes(run.status)?'disabled':''}><span>${unit}</span></div></label>`).join('')}<label class="field"><span>时间步长</span><div class="field-unit"><input type="number" data-bench-step ${['running','solving'].includes(run.status)?'disabled':''} value="${run.step}" min=".01" max="10" step=".01"><span>s</span></div></label></div></section></aside><section class="panel"><div class="run-control"><div class="runtime"><span class="dot" style="color:var(--green)"></span><strong>${m.name} · ${statusText(run)}</strong><span class="mono" data-bench-time>${clockLabel(run.time)}</span></div><span class="push"></span>${runControls('bench',run)}</div><div class="bench-schematic"><svg viewBox="0 0 780 180" role="img" aria-label="独立边界与被测设备"><path d="M 145 80 H 620" class="net-line"/><circle cx="145" cy="80" r="25" fill="var(--blue-soft)" stroke="var(--blue)"/><circle cx="620" cy="80" r="25" fill="var(--blue-soft)" stroke="var(--blue)"/><rect x="300" y="48" width="165" height="65" rx="7" fill="var(--surface)" stroke="var(--orange)"/><text x="382" y="84" text-anchor="middle" fill="var(--text)" font-size="15">${esc(m.name)}</text><text x="145" y="85" text-anchor="middle" fill="var(--blue)" font-size="14">P</text><text x="620" y="85" text-anchor="middle" fill="var(--blue)" font-size="14">P</text><text x="145" y="136" text-anchor="middle" fill="var(--muted)" font-size="12">${b.boundary.inlet} kPa</text><text x="620" y="136" text-anchor="middle" fill="var(--muted)" font-size="12">${b.boundary.outlet} kPa</text><text x="382" y="150" text-anchor="middle" fill="var(--muted)" font-size="11">${refrigeration ? '饱和液体 → 等焓节流 → 定压出口' : '独立网络 · Worker 实际求解'}</text></svg></div><div class="tabs">${[['results','运行结果'],['curves','趋势曲线'],['events','事件记录']].map(([k,v])=>`<button data-action="bench-tab" data-value="${k}" class="${ui.benchTab===k?'active':''}">${v}</button>`).join('')}</div><div id="bench-results">${benchResults()}</div></section></div></div>`;}
 function runControls(scope,run){return `${btn(scope==='bench'?'run-bench':'run-project',run.status==='paused'?'继续':'运行','Play',`data-command="run" ${['running','solving'].includes(run.status)?'disabled':''}`,'run small')}${btn(scope==='bench'?'run-bench':'run-project','暂停','Pause',`data-command="pause" ${run.status==='running'?'':'disabled'}`,'small')}${btn(scope==='bench'?'run-bench':'run-project','单步','StepForward',`data-command="step" ${['running','solving'].includes(run.status)?'disabled':''}`,'small')}${btn(scope==='bench'?'run-bench':'run-project','停止','Square',`data-command="stop" ${['ready','stopped'].includes(run.status)?'disabled':''}`,'small')}`;}
 function benchResults() {
   const b=state.bench,run=b.run,v=run.values,worker=run.worker,m=mod(b.moduleId);
   const benchChannels=(m.manifest?.channels || []).filter(c => c.enabled !== false);
   if (ui.benchTab === 'events') return `<div class="panel-body"><div class="notice">${icon('Info')}显示 Worker 生命周期与后端诊断。</div><div class="log-list">${run.events.slice().reverse().map(e=>`<div class="log-line"><time>${number(e.t,2)} s</time><span>${esc(e.text)}</span></div>`).join('') || empty('还没有测试事件','选择 Python 模块包后运行。')}</div></div>`;
   const table=(title,items)=>`<div class="panel-head"><h3>${title}</h3></div><div class="table-wrap"><table><thead><tr><th>字段</th><th>值</th></tr></thead><tbody>${Object.entries(items || {}).map(([key,value])=>`<tr><td class="mono">${esc(key)}</td><td class="mono">${esc(typeof value === 'object' ? JSON.stringify(value) : value)}</td></tr>`).join('') || '<tr><td colspan="2">尚无返回值</td></tr>'}</tbody></table></div>`;
-  return `<div class="metric-row"><div class="metric"><span>${benchChannels.length > 1 ? '通路合计流量' : '质量流量'}</span><strong data-bench-q>${number(run.history.length ? v.q : null,4)}</strong><small>kg/s · ${benchChannels.length || 1} 条通路</small></div><div class="metric"><span>边界压差</span><strong>${number(b.boundary.inlet-b.boundary.outlet,2)}</strong><small>kPa</small></div><div class="metric"><span>提交次数</span><strong data-bench-commits>${worker ? number(worker.committed.state.commit_count,0) : '—'}</strong><small>commit_step</small></div></div>
-  <div class="chart-panel"><div class="chart-heading"><h3>独立网络流量</h3><span class="push"></span>${badge(worker ? 'Worker 已完成 · v'+worker.version : '等待测试',worker ? 'good' : '')}</div>${chartSvg(run.history,['q'],'bench-chart')}<div class="chart-readout" id="bench-chart-readout">${clockLabel(run.time)} · ${esc(mod(b.moduleId).name)}</div></div>
-  ${ui.benchTab === 'results' ? table('evaluate 变量与物性',worker?.evaluation.variables) + table('commit_step 状态',worker?.committed.state) + table('网络关系',Object.fromEntries((worker?.evaluation.relations || []).map(r=>[r.channel,{kind:r.kind,...r.parameters}]))) : ''}
+  return `<div class="metric-row"><div class="metric"><span>${benchChannels.length > 1 ? '通路合计流量' : '质量流量'}</span><strong data-bench-q>${number(run.history.length ? v.q : null,4)}</strong><small>kg/s · ${m.manifest?.execution_role ? '等焓节流' : (benchChannels.length || 1)+' 条通路'}</small></div><div class="metric"><span>边界压差</span><strong>${number(b.boundary.inlet-b.boundary.outlet,2)}</strong><small>kPa</small></div><div class="metric"><span>提交次数</span><strong data-bench-commits>${worker ? number(worker.committed.state.accepted_segments ?? worker.committed.state.commit_count,0) : '—'}</strong><small>commit_step</small></div></div>
+  <div class="chart-panel"><div class="chart-heading"><h3>${m.manifest?.execution_role ? '节流质量流量' : '独立网络流量'}</h3><span class="push"></span>${badge(worker ? 'Worker 已完成 · v'+worker.version : '等待测试',worker ? 'good' : '')}</div>${chartSvg(run.history,['q'],'bench-chart')}<div class="chart-readout" id="bench-chart-readout">${clockLabel(run.time)} · ${esc(mod(b.moduleId).name)}</div></div>
+  ${ui.benchTab === 'results' ? table('evaluate 变量与物性',worker?.evaluation.variables) + table('commit_step 状态',worker?.committed.state) + (m.manifest?.execution_role ? table('制冷流股',worker?.refrigeration?.flow) : table('网络关系',Object.fromEntries((worker?.evaluation.relations || []).map(r=>[r.channel,{kind:r.kind,...r.parameters}])))) : ''}
   <div class="panel-body stack"><small class="muted mono" style="overflow-wrap:anywhere">${worker ? '内容哈希：'+esc(worker.contentHash) : '运行后返回实际求解流量、模块变量和状态。'}</small><div>${btn('record-bench','保存测试记录','Save','','small')}</div></div>`;
 }
 function currentChartRun(){if(state.charts.source!=='live')return state.records.find(r=>r.id===state.charts.source)||project().run;const run=project().run,overview=state.charts.range==='all'&&run.source==='engine'?engine.overview(run.id):null;return overview?.rows?{...run,history:overview.rows}:run;}
-function renderCurves(){const run=currentChartRun(),history=run.history;return `<div class="page-shell">${heading('曲线与工况对照','从设备变量加入曲线，跟随运行、暂停和单步观察变化。',btn('add-chart-variable','添加观察变量','Plus','','primary')+btn('export','导出曲线','Download','data-format="csv"'))}${workflows.comparisonMarkup()}<div class="filterbar"><label class="field" style="flex-direction:row;align-items:center"><span>数据来源</span><select data-chart-source aria-label="曲线数据来源">${option('live','当前主系统 · '+project().name,state.charts.source)}${state.records.filter(r=>r.history.length).map(r=>option(r.id,r.name+(r.sample?' · 演示记录':' · 计算记录'),state.charts.source)).join('')}</select></label>${state.charts.source==='live'?`<label class="field" style="flex-direction:row;align-items:center"><span>时间范围</span><select data-chart-range aria-label="曲线时间范围">${option('window','最近 2001 帧',state.charts.range)}${option('all','全程（抽稀）',state.charts.range)}</select></label>`:''}<label class="check-label"><input type="checkbox" data-chart-compare ${state.charts.compare?'checked':''}>叠加最近保存的真实工况</label><span class="push"></span>${state.charts.source==='live'?runControls('project',project().run):badge('历史记录','blue')}</div><div class="chart-grid-layout"><section class="panel"><div class="chart-panel"><div class="chart-heading"><h2>管网流量</h2><span class="muted">${esc(state.charts.source==='live'?project().name:run.projectName)}</span><span class="push"></span><div class="chart-legend">${['q','a','b'].map(k=>`<button data-action="toggle-series" data-value="${k}" class="${state.charts.series[k]?'':'off'}" aria-pressed="${state.charts.series[k]}"><span class="series-key ${SERIES[k].color}"></span>${SERIES[k].short}</button>`).join('')}${state.charts.compare?'<span class="muted">┄ 额定基准</span>':''}</div></div><div id="main-chart">${chartSvg(history,['q','a','b'],'main-flow-chart',state.charts.compare)}</div><div class="chart-readout" id="main-flow-chart-readout">${history.length?`${clockLabel(history.at(-1).t)} · 主管 ${number(history.at(-1).q,3)} kg/s`:'还没有当前运行数据。可以运行、单步，或切换到示例历史记录。'}</div></div><div class="chart-variable-list"><span class="badge">P1 · 出口流量</span><span class="badge">V1 · 出口流量</span><span class="badge">V2 · 出口流量</span>${chartBindingsForRun(run).map(v=>`<span class="badge blue">${esc(v.label)}${state.charts.source==='live'?`<button data-action="remove-chart-var" data-id="${esc(v.id)}" aria-label="移除 ${esc(v.label)}">${icon('X')}</button>`:''}</span>`).join('')}</div></section><section class="panel"><div class="chart-panel"><div class="chart-heading"><h3>出口压力</h3><span class="push muted">P1 · kPa</span></div><div id="pressure-chart">${chartSvg(history,['pressure'],'pressure-line')}</div><div class="chart-readout" id="pressure-line-readout">${badge('后端水力结果')}</div></div></section><section class="panel"><div class="chart-panel"><div class="chart-heading"><h3>出口温度（热力算法未接入）</h3><span class="push muted">P1 · °C</span></div><div id="temperature-chart">${chartSvg(history,['temperature'],'temperature-line')}</div><div class="chart-readout" id="temperature-line-readout">${badge('后端水力结果')}</div></div></section></div><div id="extra-charts" class="chart-grid-layout" style="margin-top:18px">${extraChartsMarkup()}</div>${run.events?.length?`<section class="panel" style="margin-top:18px"><div class="panel-head"><h3>本次运行事件</h3></div><div class="log-list">${run.events.slice(-5).map(e=>`<div class="log-line"><time>${number(e.t,1)} s</time><span>${esc(e.text)}</span></div>`).join('')}</div></section>`:''}</div>`;}
+function overviewSeries(run) {
+  const bindings=run.overviewBindings || (run.archive?engine.overviewBindings(run.archive.request.project):engine.overviewBindings(project()));
+  for(const key of ['q','a','b','pressure','temperature']) {
+    const binding=bindings[key];
+    SERIES[key]={...SERIES[key],name:binding?.label || '未绑定',short:binding?.short || '未绑定'};
+  }
+  return bindings;
+}
+function renderCurves(){
+  const run=currentChartRun(),history=run.history,bindings=overviewSeries(run),flowKeys=['q','a','b'].filter(key=>bindings[key]);
+  return `<div class="page-shell">${heading('曲线与工况对照','从设备变量加入曲线，跟随运行、暂停和单步观察变化。',btn('add-chart-variable','添加观察变量','Plus','','primary')+btn('export','导出曲线','Download','data-format="csv"'))}${workflows.comparisonMarkup()}
+    <div class="filterbar"><label class="field" style="flex-direction:row;align-items:center"><span>数据来源</span><select data-chart-source aria-label="曲线数据来源">${option('live','当前主系统 · '+project().name,state.charts.source)}${state.records.filter(r=>r.history.length).map(r=>option(r.id,r.name+(r.sample?' · 演示记录':' · 计算记录'),state.charts.source)).join('')}</select></label>${state.charts.source==='live'?`<label class="field" style="flex-direction:row;align-items:center"><span>时间范围</span><select data-chart-range aria-label="曲线时间范围">${option('window','最近 2001 帧',state.charts.range)}${option('all','全程（抽稀）',state.charts.range)}</select></label>`:''}<label class="check-label"><input type="checkbox" data-chart-compare ${state.charts.compare?'checked':''}>叠加最近保存的真实工况</label><span class="push"></span>${state.charts.source==='live'?runControls('project',project().run):badge('历史记录','blue')}</div>
+    <div class="chart-grid-layout"><section class="panel"><div class="chart-panel"><div class="chart-heading"><h2>管网流量</h2><span class="muted">${esc(state.charts.source==='live'?project().name:run.projectName)}</span><span class="push"></span><div class="chart-legend">${flowKeys.map(k=>`<button data-action="toggle-series" data-value="${k}" class="${state.charts.series[k]?'':'off'}" aria-pressed="${state.charts.series[k]}"><span class="series-key ${SERIES[k].color}"></span>${esc(SERIES[k].short)}</button>`).join('')}</div></div><div id="main-chart">${flowKeys.length?chartSvg(history,flowKeys,'main-flow-chart',state.charts.compare):'<p>请从设备变量添加观察曲线。</p>'}</div><div class="chart-readout" id="main-flow-chart-readout">${history.length&&flowKeys.length?`${clockLabel(history.at(-1).t)} · ${esc(bindings.q.short)} ${number(history.at(-1).q,3)} kg/s`:'还没有当前运行数据。'}</div></div>
+    <div class="chart-variable-list">${flowKeys.map(key=>`<span class="badge">${esc(bindings[key].label)}</span>`).join('')}${chartBindingsForRun(run).map(v=>`<span class="badge blue">${esc(v.label)}${state.charts.source==='live'?`<button data-action="remove-chart-var" data-id="${esc(v.id)}" aria-label="移除 ${esc(v.label)}">${icon('X')}</button>`:''}</span>`).join('')}</div></section>
+    ${['pressure','temperature'].filter(key=>bindings[key]).map(key=>`<section class="panel"><div class="chart-panel"><div class="chart-heading"><h3>${key==='pressure'?'出口压力':'出口温度'}</h3><span class="push muted">${esc(bindings[key].label)} · ${bindings[key].unit}</span></div><div id="${key}-chart">${chartSvg(history,[key],key==='pressure'?'pressure-line':'temperature-line')}</div><div class="chart-readout" id="${key}-line-readout">${badge('后端计算结果')}</div></div></section>`).join('')}</div>
+    <div id="extra-charts" class="chart-grid-layout" style="margin-top:18px">${extraChartsMarkup()}</div>${run.events?.length?`<section class="panel" style="margin-top:18px"><div class="panel-head"><h3>本次运行事件</h3></div><div class="log-list">${run.events.slice(-5).map(e=>`<div class="log-line"><time>${number(e.t,1)} s</time><span>${esc(e.text)}</span></div>`).join('')}</div></section>`:''}</div>`;
+}
 function renderRuns(){
   const list=state.records.filter(r=>ui.runFilter==='all'||r.status===ui.runFilter), selected=list.find(r=>r.id===ui.selectedRecord)||list[0];
   return `<div class="page-shell">${heading('运行记录','服务端自动归档最近 20 次结束运行；长运行保留最近窗口与全程抽稀曲线。',btn('refresh-archives','刷新档案','RefreshCw')+btn('record-project','记录当前运行','Save'))}
@@ -662,7 +683,7 @@ function renderRuns(){
   <div class="model-layout"><section class="panel table-wrap"><table><thead><tr><th>记录名称 / 来源</th><th>模式</th><th>仿真时间</th><th>状态</th><th></th></tr></thead><tbody>${list.map(r=>`<tr><td><button data-action="select-record" data-id="${r.id}"><strong>${esc(r.name)}</strong><small>${esc(r.projectName)} · ${esc(r.id)}</small></button></td><td>${esc(r.mode)}</td><td>${number(r.time,1)} s</td><td>${esc(r.status)}</td><td>${ibtn('select-record','查看运行记录','ChevronRight',`data-id="${r.id}"`)}</td></tr>`).join('')||'<tr><td colspan="5">点击服务端档案以载入曲线及快照。</td></tr>'}</tbody></table></section>
   ${selected?`<aside class="panel"><div class="panel-head"><h2>记录详情</h2>${badge(selected.archive?'服务端归档':selected.sample?'示例记录':'运行快照')}</div><div class="run-details"><dl><dt>项目</dt><dd>${esc(selected.projectName)}</dd><dt>运行标识</dt><dd class="mono">${esc(selected.id)}</dd><dt>仿真时间</dt><dd>${number(selected.time,1)} s</dd><dt>最后落盘</dt><dd>${esc(selected.archive?.persisted_at||'—')}</dd><dt>记录点数</dt><dd>${selected.history.length}${selected.archive?` / 共 ${selected.totalRows} 帧（抽稀间隔 ${selected.archiveStride}）`:''}</dd><dt>状态</dt><dd>${esc(selected.status)}</dd></dl><h3>参数快照</h3><div class="code-preview">${esc(JSON.stringify(selected.params,null,2))}</div>
   ${(selected.archive?.frame?.diagnostics||[]).length?`<div class="notice">${esc(selected.archive.frame.diagnostics.map(d=>d.message).join('；'))}</div>`:''}
-  ${(selected.events||[]).slice(-5).map(e=>`<p>${number(e.t,1)} s · ${esc(e.text)}</p>`).join('')}<div class="stack" style="margin-top:18px">${btn('record-curves','查看该次曲线','Activity',`data-id="${selected.id}" ${selected.history.length?'':'disabled'}`,'primary')}${btn('export','导出记录 JSON','FileJson',`data-format="record" data-id="${selected.id}"`)}${selected.projectId?btn('open-project','打开来源项目','ArrowUpRight',`data-id="${selected.projectId}"`):''}</div></div></aside>`:''}</div></div>`;
+  ${(selected.events||[]).slice(-5).map(e=>`<p>${number(e.t,1)} s · ${esc(e.text)}</p>`).join('')}<div class="stack" style="margin-top:18px">${btn('record-curves','查看该次曲线','Activity',`data-id="${selected.id}" ${selected.history.length?'':'disabled'}`,'primary')}${btn('export','导出记录 JSON','FileJson',`data-format="record" data-id="${selected.id}"`)}${engine.refrigerationReportAvailable(selected.archive)?['html','csv'].map(format=>btn('archive-report',format==='html'?'下载 HTML 报告':'下载报告 CSV','Download',`data-id="${selected.id}" data-format="${format}"`)).join(''):''}${selected.projectId?btn('open-project','打开来源项目','ArrowUpRight',`data-id="${selected.projectId}"`):''}</div></div></aside>`:''}</div></div>`;
 }
 
 document.addEventListener('click',async event=>{
@@ -1085,15 +1106,17 @@ function toggleDeviceDock(id) {
 }
 
 function chartDockChoices() {
-  return [['flow', '主管与 A / B 支路流量'], ['pressure', '泵出口压力'], ['temperature', '泵出口温度']]
+  const bindings=overviewSeries(project().run);
+  return [['flow', '设备流量'], ...['pressure','temperature'].filter(key=>bindings[key]).map(key=>[key,bindings[key].label])]
     .concat(state.charts.extra.filter(v => v.projectId === project().id).map(v => [v.id, v.label]));
 }
 
 function workbenchChartData() {
   const run = project().run;
+  const bindings=overviewSeries(run);
   if (!chartDockChoices().some(([id]) => id === ui.workbenchChart)) ui.workbenchChart = 'flow';
   const key = ui.workbenchChart;
-  if (key === 'flow') return { history: run.history, keys: ['q', 'a', 'b'] };
+  if (key === 'flow') return { history: run.history, keys: ['q', 'a', 'b'].filter(key=>bindings[key]) };
   if (key === 'pressure' || key === 'temperature') return { history: run.history, keys: [key] };
   const variable = state.charts.extra.find(v => v.projectId === project().id && v.id === key);
   const seriesKey = 'extra:' + key;
@@ -1107,7 +1130,7 @@ function parameterEvents() {
 
 function workbenchChartMarkup() {
   const { history, keys } = workbenchChartData();
-  if (history.length < 2) return `<div class="dock-empty">${icon('Activity')}<strong>还没有可观察的曲线</strong><span>点击右侧“运行”或“单步”，这里将同步显示当前项目的示例结果。</span></div>`;
+  if (history.length < 2) return `<div class="dock-empty">${icon('Activity')}<strong>还没有可观察的曲线</strong><span>点击右侧“运行”或“单步”，这里将同步显示当前项目的计算结果。</span></div>`;
   return chartSvg(history, keys, 'workbench-flow-chart', false, { compact: true, events: parameterEvents() });
 }
 
@@ -1122,7 +1145,7 @@ function renderWorkbenchChart() {
   const event = parameterEvents().at(-1);
   return `<section class="workbench-chart" aria-label="同屏曲线">
     <header class="dock-chart-head"><strong>${icon('Activity')} 同屏观察</strong><label class="sr-only" for="workbench-chart-source">同屏观察变量</label><select id="workbench-chart-source" data-workbench-chart>${chartDockChoices().map(([id, label]) => option(id, label, ui.workbenchChart)).join('')}</select><span class="dock-source" title="${esc(project().name)}">当前项目 · 后端水力结果</span><span class="push"></span>${ibtn('full-curves', '打开完整曲线页', 'Maximize2')}${ibtn('toggle-chart', '收起同屏曲线', 'X')}</header>
-    <div class="dock-chart-meta"><span data-result-status></span><div class="chart-legend">${(ui.workbenchChart === 'flow' ? ['q', 'a', 'b'] : []).map(k => `<button data-action="toggle-series" data-value="${k}" aria-pressed="${state.charts.series[k] !== false}" class="${state.charts.series[k] === false ? 'off' : ''}"><span class="series-key ${SERIES[k].color}"></span>${SERIES[k].short}</button>`).join('')}</div></div>
+    <div class="dock-chart-meta"><span data-result-status></span><div class="chart-legend">${(ui.workbenchChart === 'flow' ? workbenchChartData().keys : []).map(k => `<button data-action="toggle-series" data-value="${k}" aria-pressed="${state.charts.series[k] !== false}" class="${state.charts.series[k] === false ? 'off' : ''}"><span class="series-key ${SERIES[k].color}"></span>${SERIES[k].short}</button>`).join('')}</div></div>
     <div id="workbench-chart-plot">${workbenchChartMarkup()}</div>
     <div class="dock-readout"><span id="workbench-flow-chart-readout">${workbenchChartReadout()}</span>${btn('release-cursor', '恢复实时读数', 'RefreshCw', `${ui.pinnedChart === 'workbench-flow-chart' ? '' : 'hidden'}`, 'ghost small')}</div>
     <div class="dock-event" data-workbench-event title="${esc(event?.text || '')}">${event ? `${clockLabel(event.t)} · ${esc(event.text)}` : '点击曲线可固定读数；参数应用时刻会显示为竖向虚线。'}</div>
@@ -1266,7 +1289,7 @@ function renderModules() {
       ${ui.category === '倍思鹿参考模块' ? `<div class="notice module-reference-note">${icon('Info')}<span>来自倍思鹿参考实现，L1/L2/L3 验证状态见文档。</span></div>` : ''}
       ${ui.category !== '全部模块' ? `<div class="module-group-context"><div class="grow"><h2>${esc(ui.category)}</h2><small>${custom ? '自建分组' : '内置分类'} · ${members.length} 个模块</small></div>${custom ? btn('rename-module-group', '重命名', 'Pencil', `data-value="${esc(ui.category)}"`, 'small') + btn('delete-module-group', '删除分组', 'Trash2', `data-value="${esc(ui.category)}" ${members.length ? 'disabled title="请先将组内模块移到其他分组"' : ''}`, 'small') : ''}</div>` : ''}
       <div class="filterbar"><label class="search">${icon('Search')}<input data-filter="moduleSearch" aria-label="搜索模块" placeholder="名称或模块标识" value="${esc(ui.moduleSearch)}"></label><span class="push muted">${list.length} 个模块</span><div class="segmented" role="group" aria-label="模块库视图">${[['cards', '卡片视图', 'Grid2X2'], ['list', '紧凑列表', 'List']].map(([value, label, glyph]) => `<button data-action="module-view" data-value="${value}" aria-label="${label}" title="${label}" aria-pressed="${ui.moduleView === value}" class="${ui.moduleView === value ? 'active' : ''}">${icon(glyph)}</button>`).join('')}</div>${btn('compile-preview', '批量检查预览', 'CheckCheck', '', 'small')}</div>
-      <div id="module-results" class="module-grid${ui.moduleView === 'list' ? ' module-compact-list' : ''}">${list.map(m => `<article class="module-card" data-module-id="${m.id}"><div class="row module-card-title"><span class="object-icon">${icon(m.icon)}</span><div class="grow"><h3>${esc(m.name)}</h3><small class="muted mono">${esc(m.code)}</small></div>${isReferenceModule(m) ? badge('参考模块', 'good') : ''}${badge(m.runtime === 'python' ? (m.publishedManifest ? 'Python · v'+m.publishedManifest.version : 'Python · 未发布') + (m.dirty?' · 有草稿':'') : '内置 · v'+m.version,m.runtime === 'python' ? 'blue' : '')}</div><button class="module-group-chip" data-action="move-module-group" data-id="${m.id}" aria-label="调整 ${esc(m.name)} 的分组" title="调整所属分组">${icon('Folder')}<span>${esc(m.category)}</span>${icon('ChevronDown')}</button><p>${esc(m.description)}</p>${moduleEvidenceSummary(m)}<div class="stat-line"><span>${(m.parameters || PARAM_DEFS[m.kind] || []).length} 个参数</span><span>${m.ports.length} 个端口</span><span>${m.channels.length} 条通路</span><span>${m.variables.length} 个变量</span></div><div class="card-footer">${isReferenceModule(m) ? btn('module-doc', '说明', 'BookOpen', `data-id="${m.id}"`, 'small') : ''}${btn('edit-module', '编辑模块', 'Pencil', `data-id="${m.id}"`, 'small')}${m.runtime === 'python' ? btn('test-module','独立验证','CheckCheck',`data-id="${m.id}"`,'small') + btn('module-example','管网算例','Network',`data-id="${m.id}"`,'small') : ''}<span class="push"></span>${ibtn('insert-module', '插入项目 ' + m.name, 'Plus', `data-id="${m.id}"`)}</div></article>`).join('') || (blankGroup ? empty('分组已建好，添加第一个模块', '可在此分组中新建模块，也可从“全部模块”的模块卡片调整所属分组。', btn('new-module', '在此分组新建模块', 'Plus', '', 'primary')) : empty('没有匹配的模块', '尝试其他分类或关键词。'))}</div>
+      <div id="module-results" class="module-grid${ui.moduleView === 'list' ? ' module-compact-list' : ''}">${list.map(m => `<article class="module-card" data-module-id="${m.id}"><div class="row module-card-title"><span class="object-icon">${icon(m.icon)}</span><div class="grow"><h3>${esc(m.name)}</h3><small class="muted mono">${esc(m.code)}</small></div>${isReferenceModule(m) ? badge('参考模块', 'good') : ''}${badge(m.runtime === 'python' ? (m.publishedManifest ? 'Python · v'+m.publishedManifest.version : 'Python · 未发布') + (m.dirty?' · 有草稿':'') : '内置 · v'+m.version,m.runtime === 'python' ? 'blue' : '')}</div><button class="module-group-chip" data-action="move-module-group" data-id="${m.id}" aria-label="调整 ${esc(m.name)} 的分组" title="调整所属分组">${icon('Folder')}<span>${esc(m.category)}</span>${icon('ChevronDown')}</button><p>${esc(m.description)}</p>${moduleEvidenceSummary(m)}<div class="stat-line"><span>${(m.parameters || PARAM_DEFS[m.kind] || []).length} 个参数</span><span>${m.ports.length} 个端口</span><span>${m.channels.length} 条通路</span><span>${m.variables.length} 个变量</span></div><div class="card-footer">${isReferenceModule(m) ? btn('module-doc', '说明', 'BookOpen', `data-id="${m.id}"`, 'small') : ''}${btn('edit-module', '编辑模块', 'Pencil', `data-id="${m.id}"`, 'small')}${m.runtime === 'python' ? btn('test-module','独立验证','CheckCheck',`data-id="${m.id}"`,'small') + (m.manifest?.execution_role ? '' : btn('module-example','管网算例','Network',`data-id="${m.id}"`,'small')) : ''}<span class="push"></span>${ibtn('insert-module', '插入项目 ' + m.name, 'Plus', `data-id="${m.id}"`)}</div></article>`).join('') || (blankGroup ? empty('分组已建好，添加第一个模块', '可在此分组中新建模块，也可从“全部模块”的模块卡片调整所属分组。', btn('new-module', '在此分组新建模块', 'Plus', '', 'primary')) : empty('没有匹配的模块', '尝试其他分类或关键词。'))}</div>
     </div></div></div>`;
 }
 
@@ -1647,7 +1670,7 @@ function deviceExtraParamRows(n, m) {
 function floatBody(f, n) {
   const m = moduleOf(n), run = project().run;
   if (f.tab === 'variables') return instanceVariablesBody(f, n);
-  if (f.tab === 'results') return `<div class="notice">${icon('Info')}主系统 · ${statusText(run)} · ${clockLabel(run.time)}</div><div class="metric-row"><div class="metric"><span>质量流量 · kg/s</span><strong>${number(flowFor(n), 3)}</strong></div><div class="metric"><span>温度 · °C</span><strong>${number(run.values.temperature, 1)}</strong></div></div>${btn('device-curve', '将流量加入曲线', 'Activity', `data-id="${n.id}"`)}`;
+  if (f.tab === 'results') return `<div class="notice">${icon('Info')}主系统 · ${statusText(run)} · ${clockLabel(run.time)}</div><div class="metric-row"><div class="metric"><span>质量流量 · kg/s</span><strong>${number(flowFor(n), 3)}</strong></div><div class="metric"><span>温度 · °C</span><strong>${number(outletTemperature(n), 1)}</strong></div></div>${btn('device-curve', '将流量加入曲线', 'Activity', `data-id="${n.id}"`)}`;
   if (f.tab === 'connections') return `<div class="stack">${m.ports.map(p => { const pg = project().pages.find(pg => pg.nodes.some(x => x.id === n.id)), edge = pg.edges.find(e => e[1] === n.id && e[2] === p.id || e[3] === n.id && e[4] === p.id); return `<div class="list-row" style="padding:10px 0"><div class="grow"><strong>${esc(p.name)} · ${esc(p.label)}</strong><small>${DOMAINS[p.domain].label} · ${edge ? esc(edge[1] + ' ↔ ' + edge[3]) : '未连接'}</small></div>${edge ? btn('delete-edge', '断开', 'X', `data-id="${edge[0]}"`, 'small') : badge('空闲')}</div>`; }).join('')}</div>`;
   return `<label class="field"><span>设备名称</span><input data-instance-name="${n.id}" value="${esc(n.name)}" aria-label="${n.id} 设备名称" maxlength="50"></label><div class="field" style="margin-top:13px"><span>选择型号 → 进入待应用草稿</span><select data-instance-model="${n.id}" aria-label="${n.id} 设备型号">${option('', '自定义参数', n.draftModelId || n.modelId)}${state.models.filter(v => v.moduleId === m.id && !v.archived).map(v => option(v.id, v.name + ' · v' + v.version, n.draftModelId || n.modelId)).join('')}</select></div><div class="row spread" style="margin-top:12px"><strong>常用参数</strong><span class="badge ${pendingCount(n) ? 'warn' : 'good'}" data-pending-for="${n.id}">${pendingCount(n)} 项待应用</span></div>${paramDefs(n).filter(f => m.variables.find(v => v.param === f[0])?.display !== false).map(f => `<div class="parameter-row${n.draft[f[0]] !== n.params[f[0]] ? ' edited' : ''}"><div class="param-title"><div class="parameter-label-actions"><strong>${f[1]}</strong>${ibtn('device-variables', '查看 ' + f[1] + ' 的全部变量', 'Table2', `data-id="${n.id}" data-variable="param:${f[0]}"`)}</div><small>当前 ${number(n.params[f[0]], f[0] === 'opening' ? 0 : 2)} ${f[2]}</small>${quickFieldMarkup(n, m, f)}</div><input type="number" step="any" min="${f[3]}" max="${f[4]}" data-instance-param="${f[0]}" data-id="${n.id}" value="${n.draft[f[0]]}" aria-label="${n.id} ${f[1]}草稿" ${m.quickParam === f[0] && m.quickType === "display" ? "readonly" : ""}><span class="muted">${f[2]}</span></div>`).join('') || '<p class="muted" style="margin:14px 0">此模块没有常用可调参数。</p>'}${deviceExtraParamRows(n, m)}<div class="row wrap" style="margin-top:16px">${btn('device-definition', '完整模块定义', 'Box', `data-id="${n.id}"`, 'small ghost')}${btn('save-instance-model', '保存为型号', 'Database', `data-id="${n.id}"`, 'small')}</div>`;
 }
@@ -1692,6 +1715,10 @@ async function setBench(id, params) {
   const m = mod(id);
   if(m.contractDraft !== undefined && !await engine.checkModule(m,true)) { msg('契约未通过校验，请先修正。',true); return; }
   state.bench.moduleId = m.id;
+  const conditions=m.testConditions || window.ModuleTestEditor.defaultConditions(m.manifest || {});
+  state.bench.boundary={inlet:(conditions.inlet_pressure_pa ?? 250000)/1000,
+    outlet:(conditions.outlet_pressure_pa ?? 120000)/1000,temperature:(conditions.temperature_k ?? 293.15)-273.15,
+    fluid:conditions.fluid?.fluid || 'Ammonia'};
   state.bench.params = params ? clone(params)
     : m.runtime === 'python' ? manifestParamDefaults(m.manifest)
     : Object.fromEntries((PARAM_DEFS[m.kind] || []).map(f => [f[0], m.values['param:' + f[0]] ?? f[6]]));
@@ -1701,6 +1728,7 @@ async function setBench(id, params) {
 }
 function createModuleExample(id) {
   const m=engine.moduleForInsert(id), channel=m.channels.find(c=>c.enabled);
+  if(m.manifest.execution_role)throw Error('制冷模块请插入集总制冷站，连接上游饱和容器液相出口与下游压力等级。可先使用独立验证台检查开度特性。');
   if (m.ports.length !== 2 || m.channels.filter(c=>c.enabled).length !== 1) {
     const channels=m.channels.filter(c=>c.enabled),used=channels.flatMap(c=>[c.input,c.output]);
     if(!channels.length||new Set(used).size!==used.length||used.length!==m.ports.length)throw Error('此模块使用共享端口，请在项目画布连接实际拓扑。');
@@ -2002,8 +2030,13 @@ function downloadFile(name, text, type = 'application/json') {
 function exportData(format, id) {
   const csvCell = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
   if (format === 'csv') {
-    const h = currentChartRun().history; if (!h.length) throw Error('当前数据来源没有曲线可导出。');
-    downloadFile('fluidnet-curves.csv', '\uFEFF' + [['time_s', 'flow_kg_s', 'a_kg_s', 'b_kg_s', 'pressure_kPa', 'temperature_C'], ...h.map(r => [r.t, r.q, r.a, r.b, r.pressure, r.temperature])].map(r => r.map(csvCell).join(',')).join('\r\n'), 'text/csv'); return;
+    const run=currentChartRun(),h=run.history; if (!h.length) throw Error('当前数据来源没有曲线可导出。');
+    const columns=Object.entries(overviewSeries(run)).map(([key,binding])=>({
+      label:`${binding.key} [${binding.unit}]`,value:row=>row[key]}));
+    columns.push(...chartBindingsForRun(run).map(binding=>({label:`${binding.canonicalKey || binding.identifier || binding.id} [${binding.unit}]`,
+      value:row=>extraVariableValue(row,binding,state.charts.source==='live')})));
+    downloadFile('fluidnet-curves.csv', '\uFEFF' + [['time_s',...columns.map(column=>column.label)],
+      ...h.map(row=>[row.t,...columns.map(column=>column.value(row))])].map(row=>row.map(csvCell).join(',')).join('\r\n'), 'text/csv'); return;
   }
   let data, name;
   if (format === 'record' || format === 'report') { data = state.records.find(r => r.id === (id || ui.selectedRecord)) || state.records[0]; if (!data) throw Error('没有可导出的记录。'); name = data.id; }
@@ -2023,10 +2056,15 @@ function validateImport(data) {
   if (!unique(data.modules.map(m => m.id)) || !unique(data.models.map(m => m.id))) throw Error('模块或型号标识重复。');
   for (const m of data.modules) {
     if (m.manifest) PARAM_DEFS[m.kind] = manifestFields(m.manifest);
-    if (!safeId(m.id) || (!PARAM_DEFS[m.kind] && !m.manifest) || !isIdentifier(m.code) || typeof m.name !== 'string' || !Array.isArray(m.ports) || !Array.isArray(m.variables) || !Array.isArray(m.channels) || !m.values || m.banks?.length !== 3 || m.bankNames?.length !== 3 || !m.source || typeof m.source.runtime !== 'string' || typeof m.source.header !== 'string' || m.source.design?.length !== 3 || m.source.design.some(code => typeof code !== 'string') || (m.designSource !== undefined && typeof m.designSource !== 'string') || !m.drawing) throw Error('模块定义不完整。');
+    // Contract-derived display names may contain '-' and exceed the old editor's
+    // 48-character Python-name limit (e.g. D-24_in0 in a canvas composite).
+    // Keep canonical IDs intact; these display names are never executed as Python.
+    const displayName = value => typeof value === 'string' && (m.manifest
+      ? /^[A-Za-z_][A-Za-z0-9_-]*$/.test(value) : isIdentifier(value));
+    if (!safeId(m.id) || (!PARAM_DEFS[m.kind] && !m.manifest) || !displayName(m.code) || typeof m.name !== 'string' || !Array.isArray(m.ports) || !Array.isArray(m.variables) || !Array.isArray(m.channels) || !m.values || m.banks?.length !== 3 || m.bankNames?.length !== 3 || !m.source || typeof m.source.runtime !== 'string' || typeof m.source.header !== 'string' || m.source.design?.length !== 3 || m.source.design.some(code => typeof code !== 'string') || (m.designSource !== undefined && typeof m.designSource !== 'string') || !m.drawing) throw Error('模块定义不完整。');
     if (m.ports.length > 24 || m.variables.length > 160 || !unique(m.ports.map(p => p.id)) || !unique(m.variables.map(v => v.id))) throw Error('端口 / 变量标识重复或数量超限。');
-    if (m.ports.some(p => !safeId(p.id) || !isIdentifier(p.name) || !DOMAINS[p.domain] || !['in', 'out'].includes(p.direction) || !Number.isFinite(p.x) || !Number.isFinite(p.y))) throw Error('端口定义不合法。');
-    if (m.variables.some(v => !isIdentifier(v.name) || !['int', 'double', 'int[8]', 'double[8]'].includes(v.type) || v.port && !m.ports.some(p => p.id === v.port))) throw Error('变量定义不合法。');
+    if (m.ports.some(p => !safeId(p.id) || !displayName(p.name) || !DOMAINS[p.domain] || !['in', 'out'].includes(p.direction) || !Number.isFinite(p.x) || !Number.isFinite(p.y))) throw Error('端口定义不合法。');
+    if (m.variables.some(v => !displayName(v.name) || !['int', 'double', 'int[8]', 'double[8]'].includes(v.type) || v.port && !m.ports.some(p => p.id === v.port))) throw Error('变量定义不合法。');
     if (!m.variables.some(v => v.id === 'system:form') || !m.variables.some(v => v.id === 'system:mix')) throw Error('模块缺少工质字段。');
     if (!Number.isInteger(m.precision) || m.precision < 0 || m.precision > 8) throw Error('显示精度不合法。');
     numeric(m.drawing.width, 15, 60); numeric(m.drawing.height, 15, 55);
@@ -2120,7 +2158,7 @@ function handleAction(action, el) {
         if (state.projects.length >= 20) throw Error('当前原型最多保存 20 个项目。');
         const name = data.name.trim(); if (!name) throw Error('请输入项目名称。');
         const pg = data.template === 'water' ? waterPage() : data.template === 'heat' ? heatPage() : data.template === 'tank' ? tankPage() : { id: 'main', name: '主系统', nodes: [], edges: [], zoom: 1, pan: [0, 0] };
-        const p = makeProject(uid('project'), name, '', pg); state.projects.push(p); normalizeState(); markDirty(p); openProject(p.id);
+        const p = makeProject(uid('project'), name, '', pg); if (data.template === 'blank' || data.template === 'heat') p.controlPrograms=[]; state.projects.push(p); normalizeState(); markDirty(p); openProject(p.id);
       }, '创建项目'); break;
     case 'duplicate-project': {
       if(state.projects.length>=20)throw Error('最多保存 20 个项目。');
@@ -2145,7 +2183,7 @@ function handleAction(action, el) {
     case 'delete-module-group': removeModuleGroup(d.value); break;
     case 'move-module-group': moveModuleGroup(id); break;
     case 'new-module':
-      openDialog('新建算法模块', '选择设备模板生成可运行代码；随后可配置端口、通路和参数。', `<div class="fields">${field('name', '模块名称', '自定义调节阀', 'required maxlength="40"')}${field('code', '模块标识', 'CUSTOM_VALVE', 'required pattern="[A-Za-z_][A-Za-z0-9_]*" maxlength="48"')}${selectField('base', 'Python 模板', [['template:resistance','两端口局部阻力'],['template:pump','泵／风机'],['template:heat_exchanger','双侧换热'],['template:managed_state','受管理状态'],...state.modules.filter(m=>m.runtime==='python').map(m=>[m.id,m.name])], 'programmable_valve')}${selectField('category', '所属分组', moduleGroupNames().map(name => [name, name]), ui.route === 'modules' && ui.category !== '全部模块' ? ui.category : '自定义模块')}</div>`, async data => {
+      openDialog('新建算法模块', '选择模板后编辑端口、参数和算法。制冷等焓节流模板用于纯集总制冷站，入口须来自饱和容器液相。', `<div class="fields">${field('name', '模块名称', '自定义调节阀', 'required maxlength="40"')}${field('code', '模块标识', 'CUSTOM_VALVE', 'required pattern="[A-Za-z_][A-Za-z0-9_]*" maxlength="48"')}${selectField('base', 'Python 模板', [['template:resistance','两端口局部阻力'],['template:pump','泵／风机'],['template:heat_exchanger','双侧换热'],['template:managed_state','受管理状态'],['template:refrigeration_throttle','制冷等焓节流阀'],...state.modules.filter(m=>m.runtime==='python').map(m=>[m.id,m.name])], 'programmable_valve')}${selectField('category', '所属分组', moduleGroupNames().map(name => [name, name]), ui.route === 'modules' && ui.category !== '全部模块' ? ui.category : '自定义模块')}</div>`, async data => {
         if (!isIdentifier(data.code) || state.modules.some(m => m.code === data.code)) throw Error('模块标识需合法且唯一。');
         if (state.modules.length >= 64) throw Error('已达到原型模块数量上限。');
         if (!moduleGroupNames().includes(data.category)) throw Error('请选择已有分组。');
@@ -2295,6 +2333,7 @@ function handleAction(action, el) {
     case 'record-project': recordRun('project'); break;
     case 'tasks': ui.taskDrawer = !ui.taskDrawer; renderFloats(); break;
     case 'select-record': ui.selectedRecord = id; render(); break;
+    case 'archive-report': engine.exportRunReport(id,d.format).then(blob=>downloadFile('run-'+id+'.'+d.format,blob)).catch(error=>msg(error.message,true)); break;
     case 'record-curves': state.charts.source = id; navigate('curves'); break;
     case 'toggle-series': ui.pinnedChart = null; state.charts.series[d.value] = !state.charts.series[d.value]; markDirty(); render(); break;
     case 'add-chart-variable': chooseChartVariables(); break;
@@ -2483,6 +2522,7 @@ function handleChange(el) {
   else if (d.instanceParam) { setInstanceParamDraft(el); redraw = false; }  // a blur-driven change must not replace the float DOM mid-click
   else if ('benchModule' in d) { setBench(value); return; }
   else if (d.benchParam) { setBenchParam(el); }
+  else if ('benchFluid' in d) { if (['running','solving'].includes(state.bench.run.status)) throw Error('停止测试后编辑工质。'); state.bench.boundary.fluid=value.trim(); markDirty(); }
   else if (d.benchBoundary) { if (state.bench.run.status === 'running') throw Error('暂停后编辑测试边界。'); state.bench.boundary[d.benchBoundary] = numeric(value, d.benchBoundary === 'temperature' ? -273 : .001, 100000); markDirty(); }
   else if ('benchStep' in d) { state.bench.run.step = numeric(value, .01, 10); markDirty(); }
   else if ('chartSource' in d) { ui.pinnedChart = null; state.charts.source = value; markDirty(); }
@@ -2693,6 +2733,7 @@ function normalizeState() {
 }
 const chartRegistry = new Map();
 engine = window.createEngineClient({state:()=>state, project, parameterKey:projectParameterKey, moduleOf,
+  makeProject,
   persist:()=>persistLocal(),
   restoreWorkspace,validateWorkspace:validateImport,archives:receiveArchives,showArchive,
   moduleOutput:(m,text)=>{m.authoringOutput=text;if(m.id===state.selectedModule){const el=document.getElementById('module-output') || document.getElementById('code-output');if(el){el.textContent=text;document.getElementById('authoring-diagnostics')?.remove();el.insertAdjacentHTML('afterend',renderAuthoringDiagnostics(m));}}},

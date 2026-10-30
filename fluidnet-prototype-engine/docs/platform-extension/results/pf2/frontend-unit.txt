@@ -1,0 +1,27 @@
+npm warn Unknown user config "allow-scripts". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+
+> fluidnet-prototype-engine-ui@0.5.0 test:ui
+> node --test tests/thermal-coupling-ui.test.mjs tests/project-overview.test.mjs tests/project-exchange.test.mjs
+
+✔ upgrade retains sparse scenario overrides and other device display units (5.327ms)
+✔ canonical import preserves authored hashes, controls, fluid options, drafts and banks (13.2692ms)
+✔ refrigeration author overview follows the declared role and instance ID (2.129ms)
+✔ imported builtin snapshots do not receive a Python package with null hashes (0.3306ms)
+✔ overview follows device roles and actual custom IDs, with no example-name dependency (0.783ms)
+✔ two-channel historical snapshot uses its own port and channel contract (0.3806ms)
+✔ missing or non-finite samples stay missing and thermal-only projects get no fluid placeholders (1.7112ms)
+✔ saved prototype channel overrides take precedence over the catalog manifest (0.5595ms)
+✔ saved built-in channel overrides determine the legal coil and its persisted binding (6.4023ms)
+✔ a disabled saved channel is excluded even when the catalog channel is enabled (2.4729ms)
+✔ IDs outside the backend contract do not mutate the draft (4.9314ms)
+✔ two independently editable relations retain the first curve IDs and add aggregate bindings (2.513ms)
+✔ editing cannot overwrite another relationship, reuse its pipe, or select a different vessel (2.7478ms)
+✔ removing the selected relation retains the other and removes only obsolete aggregate curves (2.9342ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 14
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 289.6962

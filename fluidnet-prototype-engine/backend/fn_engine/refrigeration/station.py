@@ -6,6 +6,7 @@ Compressors and expansion valves move mass between levels; they and the levels f
 whose fluid comes from `Project.circuit_fluids`. No fluid-network pressure node is created.
 """
 from dataclasses import dataclass, field
+from contextlib import contextmanager
 import math
 
 import numpy as np
@@ -44,6 +45,7 @@ def same_parameter_contract(definition, reference):
 
 @dataclass
 class CompiledStation:
+    refrigeration_modules: dict = field(default_factory=dict,kw_only=True)
     project: Project
     modules: dict
     instances: dict
@@ -80,13 +82,29 @@ def compile_station(project):
     registered: dict[str, list] = {}
     for definition in (*refrigeration_catalog(), *thermal_catalog()):
         registered.setdefault(definition.solver_model, []).append(definition)
-    parameters, kinds, ports = {}, {}, {}
+    parameters, kinds, ports, author_modules = {}, {}, {}, {}
     for instance in project.instances:
         definition = modules[instance.module_id]
+        if definition.execution_role or definition.schema_version==4:
+            from ..refrigeration_roles import require_throttle_role
+            try:
+                require_throttle_role(definition)
+            except ValueError as error:
+                raise CompilationError(getattr(error,'code','MODULE_CONTRACT_INVALID'),str(error),instance.id,
+                                       getattr(error,'field','execution_role')) from error
+            if project.thermal_couplings or project.solver.moist_air:
+                raise CompilationError('MODULE_EXECUTION_DOMAIN_UNSUPPORTED',
+                    '制冷作者角色仅支持纯集总制冷站',instance.id,'execution_role')
+            parameters[instance.id] = validated_parameters(instance,definition)
+            kinds[instance.id] = 'expansion_valve'
+            author_modules[instance.id] = definition.model_copy(deep=True)
+            for port in definition.ports:
+                ports[(instance.id,port.id)] = port
+            continue
         references = registered.get(definition.solver_model)
         if not references or definition.runtime != 'builtin' or definition.solver_model == 'ideal_cold_source':
             raise CompilationError('REFRIGERATION_MODEL_UNSUPPORTED',
-                                   '制冷站只能由制冷站设备与库房热节点组成（不能混入流体设备、理想冷源或 Python 模块）', instance.id)
+                                   '制冷站只能由内置制冷设备、库房热节点或已声明角色的 Python 模块组成', instance.id)
         # One solver model may register several port layouts (e.g. multi-inlet vessels). Prefer the
         # definition with the same module ID; otherwise the contract check below reports the mismatch.
         reference = next((item for item in references if item.id == definition.id), references[0])
@@ -227,6 +245,13 @@ def compile_station(project):
             if not pumps:
                 raise CompilationError('REFRIGERATION_COIL_SUPPLY', f'{iid} 的供液口须直接或经集管连到制冷剂液泵出口', iid, 'in0')
             supply[iid] = pumps
+    for iid,definition in author_modules.items():
+        from ..refrigeration_roles import role_fluid
+        try:
+            role_fluid(definition,vessel_fluids[resolved[(iid,'in0')]])
+        except ValueError as error:
+            raise CompilationError(getattr(error,'code','MODULE_FLUID_UNSUPPORTED'),str(error),iid,
+                                   getattr(error,'field','fluid')) from error
     validate_controllers(project, modules, instances)
     validate_scripts(project, modules, instances)
     check_unique(project.events)
@@ -237,6 +262,7 @@ def compile_station(project):
         check_set_variable(project, modules, instances, event)
     return CompiledStation(project.model_copy(deep=True), modules, instances, parameters, kinds, vessels, circuit_of,
                            fluids, sources, vessel_fluids, resolved, supply, room_coolers,
+                           refrigeration_modules=author_modules,
                            diagnostics=list(project.import_diagnostics),
                            events=sorted(project.events, key=lambda e: e.time_s))
 
@@ -259,8 +285,11 @@ def _device(instance_id, call, *args):
         raise devices.DeviceRangeError(error.code, f'{instance_id}：{error}', instance_id) from error
 
 
-def evaluate(network, services, masses, energies, temperatures):
+def evaluate(network, services, masses, energies, temperatures, *, valve_evaluator=None):
     """Device outputs and the state derivatives (dM/dt, dU/dt per vessel, dT/dt per room) at one state."""
+    if network.refrigeration_modules and valve_evaluator is None:
+        raise CompilationError('REFRIGERATION_MODULE_CONTEXT_REQUIRED',
+            '制冷作者模块需要会话拥有的 Worker 上下文',next(iter(network.refrigeration_modules)))
     p = network.parameters
     vessel = {v: _device(v, devices.vessel_state, services[v], p[v], masses[v], energies[v]) for v in network.vessels}
     dm = dict.fromkeys(network.vessels, 0.)
@@ -280,7 +309,9 @@ def evaluate(network, services, masses, energies, temperatures):
         out[iid] = r
     for iid in by_kind.get('expansion_valve', ()):
         high, low = network.vessel(iid, 'in0'), network.vessel(iid, 'out0')
-        r = _device(iid, devices.valve_flow, services[high], p[iid], vessel[high].pressure_pa, vessel[low].pressure_pa)
+        r = (_device(iid, devices.valve_flow, services[high], p[iid], vessel[high].pressure_pa, vessel[low].pressure_pa)
+             if valve_evaluator is None else
+             valve_evaluator(iid, services[high], p[iid], vessel[high], vessel[low]))
         for v, sign in ((high, -1), (low, 1)):
             dm[v] += sign * r['mass_flow_kg_s']
             du[v] += sign * r['mass_flow_kg_s'] * r['enthalpy_j_kg']
@@ -340,6 +371,17 @@ class StationSession(ThermalSession):
     MAX_ITERATIONS = 12
     MAX_HALVINGS = 6
 
+    def __init__(self, network, duration_s, dt_s, keep=None):
+        super().__init__(network,duration_s,dt_s,keep)
+        self.module_adapter = None
+        self._candidate_time = 0.
+        self._trial_start_time = None
+        self._module_transaction = None
+        if network.refrigeration_modules:
+            from .module_adapter import RefrigerationModules
+            self.module_adapter = RefrigerationModules(network)
+            self.runners = self.module_adapter.runners
+
     def _init_state(self):
         network = self.network
         self.services = {v: property_service(network.vessel_fluids[v]) for v in network.vessels}
@@ -363,6 +405,7 @@ class StationSession(ThermalSession):
         self._jacobian = None
         self._cache = None
         self._controlled = False
+        self.nonlinear_iterations = 0  # attempted Newton iterations, including rejected trials
 
     # --- state vector -------------------------------------------------------------------------
     def _vector(self, masses, energies, temperatures):
@@ -384,7 +427,13 @@ class StationSession(ThermalSession):
         return np.array(rate) / self.scale, result
 
     def _evaluate(self, masses, energies, temperatures):
-        return evaluate(self.network, self.services, masses, energies, temperatures)
+        callback = None if self.module_adapter is None else lambda iid,service,parameters,high,low: \
+            self.module_adapter.evaluate(iid,service,parameters,high,low,self._candidate_time)
+        return evaluate(self.network,self.services,masses,energies,temperatures,valve_evaluator=callback)
+
+    def _solve_at(self, x, h, time_s):
+        self._candidate_time = time_s
+        return self._solve(x,h)
 
     def _derivative(self, x, base):
         jac = np.empty((len(x), len(x)))
@@ -404,6 +453,7 @@ class StationSession(ThermalSession):
             self._jacobian = self._derivative(x, f)
         previous = math.inf
         for _ in range(self.MAX_ITERATIONS):
+            self.nonlinear_iterations += 1
             residual = x - x_old - h * f
             norm = float(np.max(np.abs(residual)))
             if norm < self.TOLERANCE:
@@ -435,7 +485,7 @@ class StationSession(ThermalSession):
         while done < step - 1e-12 * max(1., step):
             h = min(h, step - done)
             try:
-                x_new, result = self._solve(x, h)
+                x_new, result = self._solve_at(x,h,self.time+done+h)
                 masses, energies, temperatures = self._unpack(x_new)
                 for v in network.vessels:
                     _device(v, devices.check_vessel, network.parameters[v], result['vessels'][v])
@@ -457,6 +507,7 @@ class StationSession(ThermalSession):
         self.counters = counters
         self.energy_residual_j += energy_residual
         self.frame_residual_j += energy_residual
+        return result
 
     # --- A2：可从任意 accepted vector 开始的无提交试算与误差接受控制 --------------------------
     def _check_vessels(self, result):
@@ -490,12 +541,13 @@ class StationSession(ThermalSession):
         """
         saved = (self._jacobian, self._cache)
         half = 0.5 * h
+        start = self.time if self._trial_start_time is None else self._trial_start_time
         try:
-            x_full, result_full = self._solve(x, h)
+            x_full, result_full = self._solve_at(x,h,start+h)
             self._check_vessels(result_full)
-            x_mid, result_mid = self._solve(x, half)
+            x_mid, result_mid = self._solve_at(x,half,start+half)
             self._check_vessels(result_mid)
-            x_fine, result_fine = self._solve(x_mid, half)
+            x_fine, result_fine = self._solve_at(x_mid,half,start+h)
             self._check_vessels(result_fine)
         except devices.DeviceRangeError as range_error:
             self._jacobian, self._cache = saved
@@ -512,7 +564,7 @@ class StationSession(ThermalSession):
             for result in (result_mid, result_fine):
                 for key, power in self._powers(result).items():
                     counters[key] = counters.get(key, 0.) + half * power
-            payload = {'x': x_fine, 'residual': residual, 'counters': counters}
+            payload = {'x':x_fine,'residual':residual,'counters':counters,'result':result_fine}
             self.last_trial = {'h': h, 'x_full': x_full, 'x_mid': x_mid, 'x_fine': x_fine,
                                'error_norm': error.norm}
             return payload, error
@@ -527,37 +579,105 @@ class StationSession(ThermalSession):
         counters = dict(self.counters)
         residual, frame_residual = self.energy_residual_j, self.frame_residual_j
         caches = self._jacobian, self._cache, self.last_trial
+        elapsed, final_result = 0., None
 
         def trial(h):
             x = self._vector(masses, energies, temperatures)
+            self._trial_start_time = self.time+elapsed
             return self._trial_doubling(x, h)
 
         def accept(payload, h, error):
-            nonlocal masses, energies, temperatures, residual, frame_residual
+            nonlocal masses, energies, temperatures, residual, frame_residual, elapsed, final_result
             masses, energies, temperatures = self._unpack(payload['x'])
             for key, energy in payload['counters'].items():
                 counters[key] = counters.get(key, 0.) + energy
             residual += payload['residual']
             frame_residual += payload['residual']
+            elapsed += h
+            final_result = payload['result']
 
         try:
             self._march_adaptive(step, trial, accept)
         except Exception:
             self._jacobian, self._cache, self.last_trial = caches
             raise
+        finally:
+            self._trial_start_time = None
         self.masses, self.energies, self.temperatures = masses, energies, temperatures
         self.counters = counters
         self.energy_residual_j, self.frame_residual_j = residual, frame_residual
+        return final_result
 
     def initialize(self):
+        if self.closed:
+            raise StopIteration
+        if self.module_adapter is not None and not self.frames:
+            try:
+                self.module_adapter.initialize()
+            except BaseException:
+                self.close()
+                raise
         if not self.frames and self.duration is not None:
             self.diagnostics.extend(Diagnostic(code='SCHEDULE_EVENT_AFTER_RUN', severity='warning', field='events',
                 message=f'事件 {e.id} 在 t={e.time_s:g}s，超出本次运行时长 {self.duration:g}s，不会执行')
                 for e in self.network.events if e.time_s >= self.duration)
         return super().initialize()
 
+    @contextmanager
+    def _segment_transaction(self):
+        if self.module_adapter is None:
+            with super()._segment_transaction():
+                yield
+            return
+        from ..module_execution import begin_module_step
+        from ..runtime import RuntimeErrorBase
+        self._module_step_id = begin_module_step(self.runners)
+        self._module_transaction = None
+        try:
+            with super()._segment_transaction():
+                try:
+                    yield
+                    self._module_transaction.promote()
+                except RuntimeErrorBase as error:
+                    failure = SolveFailed(error.code,str(error),None,list(self.frames))
+                    if error.diagnostics:
+                        failure.diagnostic = error.diagnostics[0].model_copy(update={'code':error.code})
+                        failure.diagnostics = error.diagnostics
+                    raise failure from error
+        except Exception:
+            if self._module_transaction is not None:
+                self._module_transaction.discard()
+            self.close()
+            raise
+        try:
+            self._module_transaction.synchronize()
+        except RuntimeErrorBase as error:
+            if not self.frames or self.frames[-1].time_s<self.time:
+                self.publish()
+            self.close()
+            failure = SolveFailed(error.code,str(error),None,list(self.frames))
+            if error.diagnostics:failure.diagnostic=error.diagnostics[0]
+            raise failure from error
+
+    def _advance_heat(self, step):
+        if self.module_adapter is None:
+            return super()._advance_heat(step)
+        result = self._integrate(step)
+        for script in self.scripts.values():
+            if script.pending:
+                self.diagnostics.extend(Diagnostic.model_validate(d) for d in script.pending[0].get('diagnostics',[]))
+                script.accept()
+        self.time += step
+        self._cache = self._cache_key(),result
+        self._module_transaction = self.module_adapter.prepare(self._module_step_id,self.time,step,result)
+        frame = self.snapshot()
+        frame.variables.update(self.module_adapter.variables(result,self._module_transaction.candidates))
+        RunFrame.model_validate_json(frame.model_dump_json())
+
     def advance(self):
         """ThermalSession.advance plus the schedule: due events apply before the control sample of that instant."""
+        if self.closed:
+            raise StopIteration
         if not self.frames:
             return self.initialize()
         if self.done:
@@ -611,13 +731,18 @@ class StationSession(ThermalSession):
                 powers[(iid, 'fan_energy_j')] = r['fan_power_w']
             elif kind == 'cold_room':
                 powers[(iid, 'external_energy_j')] = r['envelope_heat_w'] + self.network.parameters[iid]['heat_input_w']
+            if iid in self.network.refrigeration_modules:
+                powers[(iid,'transferred_mass_kg')] = r['mass_flow_kg_s']
         return powers
 
+    def _cache_key(self):
+        return (self.time,self.revision,tuple(self.masses.values()),tuple(self.energies.values()),tuple(self.temperatures.values()))
+
     def _current(self):
-        key = (self.time, self.revision, tuple(self.masses.values()), tuple(self.energies.values()),
-               tuple(self.temperatures.values()))
+        key = self._cache_key()
         if self._cache is None or self._cache[0] != key:
             try:
+                self._candidate_time = self.time
                 self._cache = key, self._evaluate(self.masses, self.energies, self.temperatures)
             except devices.DeviceRangeError as error:
                 raise SolveFailed(error.code, f't={self.time:g}s {error}', error.instance_id, list(self.frames)) from error
@@ -654,6 +779,8 @@ class StationSession(ThermalSession):
             values.update(pid.variables())
         for script in self.scripts.values():
             values.update(script.variables())
+        if self.module_adapter is not None:
+            values.update(self.module_adapter.variables(result))
         scope = Diagnostic(code='REFRIGERATION_STATION', severity='info',
             message='集总制冷站：压力只在饱和容器中，设备为容器状态的代数关系；不计管路压降、换热器持液与过冷/过热')
         envelope = [d.model_copy(update={'instance_id': iid}) for iid, r in result['devices'].items()

@@ -1,0 +1,52 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "inlet_pressure_pa": {
+      "exclusiveMinimum": 0,
+      "title": "Inlet Pressure Pa",
+      "type": "number"
+    },
+    "outlet_pressure_pa": {
+      "exclusiveMinimum": 0,
+      "title": "Outlet Pressure Pa",
+      "type": "number"
+    },
+    "inlet_temperature_k": {
+      "exclusiveMinimum": 0,
+      "title": "Inlet Temperature K",
+      "type": "number"
+    },
+    "inlet_enthalpy_j_kg": {
+      "title": "Inlet Enthalpy J Kg",
+      "type": "number"
+    },
+    "inlet_density_kg_m3": {
+      "exclusiveMinimum": 0,
+      "title": "Inlet Density Kg M3",
+      "type": "number"
+    },
+    "opening_ratio": {
+      "maximum": 1,
+      "minimum": 0,
+      "title": "Opening Ratio",
+      "type": "number"
+    },
+    "rated_kv_m3_h": {
+      "exclusiveMinimum": 0,
+      "title": "Rated Kv M3 H",
+      "type": "number"
+    }
+  },
+  "required": [
+    "inlet_pressure_pa",
+    "outlet_pressure_pa",
+    "inlet_temperature_k",
+    "inlet_enthalpy_j_kg",
+    "inlet_density_kg_m3",
+    "opening_ratio",
+    "rated_kv_m3_h"
+  ],
+  "title": "RefrigerationThrottleInput",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

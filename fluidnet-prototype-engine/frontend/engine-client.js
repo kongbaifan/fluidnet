@@ -159,6 +159,7 @@ window.createEngineClient = function (ui) {
       ports,channels:(manifest.channels || []).map(c => ({id:c.id,name:c.name,input:c.input_port,output:c.output_port,kind:c.relation,enabled:c.enabled !== false})),
       parameters:manifest.parameters || [],parameterDefs,variables,customVars:[],quickParam:parameterDefs[0]?.[0] || '',quickType:'number',drawing:{shape:'rectangle',width:32,height:30,label:manifest.name},step:100,precision:4,dirty:false,
       source:{runtime:manifest.source?.runtime || '',header:'',design:['','','']},designSource:typeof manifest.source?.design === 'string' ? manifest.source.design : '',sourceFormat:'python-v1',values,banks:[clone(values),clone(values),clone(values)],bankNames:manifest.bank_names || ['额定工况','部分负荷','调试备份']};
+    if(manifest.execution_role)m.testConditions=window.ModuleTestEditor.defaultConditions(manifest);
     return m;
   }
   function manifestPayload(m) {
@@ -181,7 +182,7 @@ window.createEngineClient = function (ui) {
     }
     return m;
   }
-  const contractFields = ['schema_version','sdk','applicability','hydraulic_dependencies','dependency_mode','pure_evaluate','composite','name','category','description','entrypoint','solver_model','state_model','thermal_model','ports','channels','parameters','variables','bank_names'];
+  const contractFields = ['schema_version','sdk','applicability','execution_role','hydraulic_dependencies','dependency_mode','pure_evaluate','composite','name','category','description','entrypoint','solver_model','state_model','thermal_model','ports','channels','parameters','variables','bank_names'];
   function contractText(m) {
     if (m.contractDraft !== undefined) return m.contractDraft;
     const definition=manifestPayload(m);
@@ -207,11 +208,12 @@ window.createEngineClient = function (ui) {
   function pinProject(owner, legacy=false) {
     for (const n of owner.pages.flatMap(p=>p.nodes)) {
       const m=bindModule(owner,n.moduleId,legacy);
-      if (m?.frozen) n.package={module_id:m.id,version:`${m.version}.0.0`,content_hash:m.manifest.content_hash,definition_hash:m.manifest.definition_hash || null};
+      if (m?.frozen && m.runtime==='python') n.package={module_id:m.id,version:`${m.version}.0.0`,content_hash:m.manifest.content_hash,definition_hash:m.manifest.definition_hash || null};
     }
   }
   function applyManifest(m, definition) {
     const keep={publishedManifest:m.publishedManifest,latestVersion:m.latestVersion,versions:m.versions,releaseNotes:m.releaseNotes};
+    if(m.testConditions)keep.testConditions=clone(m.testConditions);
     Object.assign(m,moduleFromManifest(definition),keep);
     ui.parameterDefinitions[m.kind]=m.parameterDefs;
     delete m.contractDraft;
@@ -268,6 +270,7 @@ window.createEngineClient = function (ui) {
       // Test the declared defaults on every save; prior bench results cannot authorize changed code.
       const bench=ui.state().bench;
       if (bench?.moduleId===m.id) Object.assign(test,{inlet_pressure_pa:bench.boundary.inlet*1000,outlet_pressure_pa:bench.boundary.outlet*1000,temperature_k:bench.boundary.temperature+273.15,dt_s:bench.run.step,duration_s:bench.run.step});
+      if(definition.execution_role && bench?.moduleId===m.id)test.fluid={fluid:bench.boundary.fluid || test.fluid?.fluid || 'Ammonia',phase_policy:'any'};
       ui.moduleOutput(m,'正在校验并进行 Worker 试算，通过后写入新版本…');
       const release=await request('/modules/versions',{module:definition,expected_latest_version:m.latestVersion ?? (m.publishedManifest?.version || 0),release_notes:m.releaseNotes || '',test});
       let unchanged=false;
@@ -370,6 +373,55 @@ window.createEngineClient = function (ui) {
   // project's extra chart variables. Only keys the frame will contain are sent; the backend fails
   // the run (TREND_VARIABLE_UNKNOWN) on anything else, and the run is then retried with full history.
   const TREND_LIMIT = 256;
+  function overviewBindings(owner) {
+    const canonical = Array.isArray(owner.instances);
+    const nodes = canonical ? owner.instances : owner.pages.flatMap(page => page.nodes);
+    const entries = nodes.map(node => ({node, module:canonical
+      ? owner.modules.find(module => module.id === node.module_id) : ui.moduleOf(node)}));
+    const channels = entries.flatMap(({node,module}) => {
+      // The prototype's saved channel overrides are authoritative for its UI;
+      // archived canonical projects already carry the effective contract.
+      const definition = module;
+      const enabled = (definition?.channels || []).filter(channel => channel.enabled !== false);
+      const model = definition?.solver_model || module?.manifest?.solver_model || module?.kind;
+      const role=definition.execution_role || definition.manifest?.execution_role;
+      if(role && definition.ports?.some(p=>p.id==='out0'&&p.domain==='refrigerant'))
+        return [{node,output:'out0',priority:0,label:`${node.id} · ${node.name}`,key:`${node.id}.mass_flow_kg_s`}];
+      const priority = ['pump','pump_curve','pump_variable_speed','fan'].includes(model) ? 0
+        : ['valve','valve_equal_percentage'].includes(model) ? 1 : 2;
+      return enabled.flatMap(channel => {
+        const output = channel.output_port || channel.output;
+        const port = definition.ports?.find(port => port.id === output);
+        if (!port || (port.domain || 'fluid') !== 'fluid') return [];
+        return [{node,output,priority,label:`${node.id} · ${node.name}${enabled.length > 1 ? ' · '+channel.name : ''}`,
+          key:`${node.id}.${enabled.length === 1 ? '' : channel.id+'.'}mass_flow_kg_s`}];
+      });
+    }).sort((a,b) => a.priority - b.priority);
+    const bindings = {};
+    channels.slice(0,3).forEach((entry,index) => {
+      bindings[['q','a','b'][index]] = {key:entry.key,label:entry.label+' · 流量',short:entry.node.id,unit:'kg/s',scale:1,offset:0};
+    });
+    const primary = channels[0];
+    if (primary) for (const [key,suffix,label,unit,scale,offset] of [
+      ['pressure','pressure_pa','出口压力','kPa',1000,0], ['temperature','temperature_k','出口温度','°C',1,-273.15]]) {
+      bindings[key] = {key:`${primary.node.id}.${primary.output}.${suffix}`,label:`${primary.label} · ${label}`,
+        short:primary.node.id,unit,scale,offset};
+    }
+    return bindings;
+  }
+  function refrigerationReportAvailable(record) {
+    const p=record?.request?.project;
+    if(!p || !['completed','failed','cancelled','interrupted'].includes(record.status) || p.thermal_couplings?.length)return false;
+    const definitions=new Map(p.modules.map(m=>[m.id,m]));
+    const domains=new Set(p.instances.flatMap(n=>(definitions.get(n.module_id)?.ports||[]).map(port=>port.domain)));
+    return domains.has('refrigerant') && !domains.has('fluid');
+  }
+  function overviewValues(bindings, canonical) {
+    return Object.fromEntries(['q','a','b','pressure','temperature'].map(key => {
+      const binding = bindings[key], value = binding && canonical[binding.key];
+      return [key,Number.isFinite(value) ? value / binding.scale + binding.offset : null];
+    }));
+  }
   function trendVariables(owner) {
     const nodes = new Map(owner.pages.flatMap(p => p.nodes).map(n => [n.id, n]));
     const keys = new Set();
@@ -382,8 +434,7 @@ window.createEngineClient = function (ui) {
       const n = nodes.get(id), m = n && ui.moduleOf(n);
       if (m?.ports?.some(p => p.id === port && (p.domain || 'fluid') === 'fluid')) keys.add(`${id}.${port}.${suffix}`);
     };
-    ['P1','V1','V2'].forEach(flowKey);
-    portKey('P1','out0','pressure_pa'); portKey('P1','out0','temperature_k');
+    for (const binding of Object.values(overviewBindings(owner))) keys.add(binding.key);
     for (const binding of ui.state().charts?.extra || []) {
       if (binding.projectId !== owner.id) continue;
       if (binding.canonicalKey) { keys.add(binding.canonicalKey); continue; }
@@ -414,12 +465,11 @@ window.createEngineClient = function (ui) {
   }
   function rowFromFrame(owner,frame) {
     const canonical = frame.variables;
+    const bindings = owner.run.overviewBindings || overviewBindings(owner);
     // partial: a trend-history frame (RunFrame.full=false) that only carries the trend variables.
     // Curves and the overview read it as usual; device panels use the latest full row (studio panelRow).
     const row = {t:frame.time_s,canonical,partial:frame.full === false,variables:{},variableValues:{},diagnostics:frame.diagnostics,metrics:frame.metrics,
-      q:canonical['P1.mass_flow_kg_s'] ?? null,a:canonical['V1.mass_flow_kg_s'] ?? null,b:canonical['V2.mass_flow_kg_s'] ?? null,
-      pressure:Number.isFinite(canonical['P1.out0.pressure_pa']) ? canonical['P1.out0.pressure_pa'] / 1000 : null,
-      temperature:Number.isFinite(canonical['P1.out0.temperature_k']) ? canonical['P1.out0.temperature_k'] - 273.15 : null};
+      ...overviewValues(bindings,canonical)};
     for (const n of owner.pages.flatMap(p => p.nodes)) {
       const m = ui.moduleOf(n);
       for (const v of m.variables) {
@@ -438,6 +488,7 @@ window.createEngineClient = function (ui) {
   }
   function applyRow(owner,row) {
     const run = owner.run;
+    if(!run.overviewBindings)run.overviewBindings=overviewBindings(owner);
     if(!run.chartBindings)run.chartBindings=clone((ui.state().charts?.extra||[]).filter(binding=>binding.projectId===owner.id));
     run.time = row.t;
     run.values = {q:row.q,a:row.a,b:row.b,pressure:row.pressure,temperature:row.temperature};
@@ -471,11 +522,13 @@ window.createEngineClient = function (ui) {
       owner.run.status = 'solving'; owner.run.source = 'engine'; ui.render();
       try {
         const parameters = testParameters(module, owner.params);
-        const body = await request('/modules/test',{module:manifestPayload(module),parameters,inlet_pressure_pa:Number(owner.boundary.inlet) * 1000,outlet_pressure_pa:Number(owner.boundary.outlet) * 1000,temperature_k:Number(owner.boundary.temperature) + 273.15,dt_s:owner.run.step,duration_s:owner.run.step},controller.signal);
+        const definition=manifestPayload(module);
+        const fluid=definition.execution_role ? {fluid:{fluid:owner.boundary.fluid || module.testConditions?.fluid?.fluid || 'Ammonia',phase_policy:'any'}} : {};
+        const body = await request('/modules/test',{module:definition,...fluid,parameters,inlet_pressure_pa:Number(owner.boundary.inlet) * 1000,outlet_pressure_pa:Number(owner.boundary.outlet) * 1000,temperature_k:Number(owner.boundary.temperature) + 273.15,dt_s:owner.run.step,duration_s:owner.run.step},controller.signal);
         const row = rowFromModuleTest(owner, body);
         owner.run.history = body.history.map(f => ({...row,t:f.time_s,canonical:f.variables,q:traceFlow(module, f.variables)}));
-        owner.run.time = row.t; owner.run.values = {q:row.q,a:null,b:null,pressure:owner.boundary.outlet,temperature:owner.boundary.temperature};
-        owner.run.worker = {status:'completed',contentHash:body.content_hash,version:module.version,evaluation:body.evaluation,initialState:body.state,committed:body.committed};
+        owner.run.time = row.t; owner.run.values = {q:row.q,a:null,b:null,pressure:owner.boundary.outlet,temperature:body.execution_domain==='refrigeration' ? body.frame.variables['D1.in0.temperature_k']-273.15 : owner.boundary.temperature};
+        owner.run.worker = {status:'completed',contentHash:body.content_hash,version:module.version,evaluation:body.evaluation,initialState:body.state,committed:body.committed,executionDomain:body.execution_domain,refrigeration:body.refrigeration_evaluation};
         owner.run.events = [{t:owner.run.time,text:`Worker evaluate 完成，${body.evaluation.relations.length} 条关系已注册。`},{t:owner.run.time,text:`commit_step 完成，状态提交 ${Object.keys(body.committed.state || {}).length} 项。`}]; owner.run.id = body.content_hash; owner.run.status = action === 'step' ? 'paused' : 'completed'; ui.dirty(); ui.render(); ui.message('Python 模块 Worker 测试完成。');
       } catch (error) { if(error.name !== 'AbortError') { owner.run.status='failed'; owner.run.events=[{t:owner.run.time,text:error.message}]; ui.message('模块测试失败：' + error.message,true); } ui.render(); }
       finally { if(pending.get('__bench') === controller) pending.delete('__bench'); }
@@ -810,5 +863,5 @@ window.createEngineClient = function (ui) {
     owner.run.parameterKey=ui.parameterKey(owner);ui.persist();ui.render();
   }
   const services=window.createProjectServices({request,ui,normalize,health:()=>health,authHeaders,pinProject,moduleFromManifest});
-  return {...services,request,normalize,moduleFromManifest,whenReady:()=>initializing || Promise.resolve(),command,tick,validate,init,applyParameters,loadOverview,authHeaders,signOut:()=>{sessionStorage.removeItem(TOKEN_KEY);location.reload();},overview:id=>overviews.get(id),circuits:id=>circuitsByProject.get(id)||[],confirmedCommand,portValue,observation,manifestPayload,contractText,checkModule,saveModule,runDesign,versions,loadVersion,newModule,newTemplate,newComposite,updateContractItem,bindModule,pinProject,moduleForInsert,get catalog(){return catalog;},get health(){return health;}};
+  return {...services,overviewBindings,overviewValues,refrigerationReportAvailable,request,normalize,moduleFromManifest,whenReady:()=>initializing || Promise.resolve(),command,tick,validate,init,applyParameters,loadOverview,authHeaders,signOut:()=>{sessionStorage.removeItem(TOKEN_KEY);location.reload();},overview:id=>overviews.get(id),circuits:id=>circuitsByProject.get(id)||[],confirmedCommand,portValue,observation,manifestPayload,contractText,checkModule,saveModule,runDesign,versions,loadVersion,newModule,newTemplate,newComposite,updateContractItem,bindModule,pinProject,moduleForInsert,get catalog(){return catalog;},get health(){return health;}};
 };

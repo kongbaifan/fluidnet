@@ -14,6 +14,8 @@ from ._module_schema_v1 import (
 from .air_models import AirVariableDescriptor, MoistAirOptions, PsychrometricLine
 from ._module_schema_v2 import ModuleDefinitionV2, ModuleSDKRequirements
 from ._module_schema_v3 import ModuleDefinitionV3, ModuleApplicability, CompositeDefinition
+from ._module_schema_v4 import ModuleDefinitionV4, RefrigerationApplicability
+from .refrigeration_models import RefrigerationThrottleInput, RefrigerationThrottleFlow
 
 
 class FluidConfig(StrictModel):
@@ -182,6 +184,22 @@ class EvaluateResponse(StrictModel):
     cache_hit: bool = Field(default=False, exclude_if=lambda value: value is False)
 
 
+class RefrigerationEvaluateRequest(StrictModel):
+    run_id: Identifier
+    instance_id: Identifier
+    iteration_id: int = Field(ge=0)
+    time_s: float = Field(ge=0)
+    throttle: RefrigerationThrottleInput
+    state_revision: int | None = Field(default=None,ge=0)
+    context: ModuleRequestContext | None = None
+
+
+class RefrigerationEvaluateResponse(StrictModel):
+    flow: RefrigerationThrottleFlow
+    variables: dict[str,float | int | str | bool | None] = Field(default_factory=dict)
+    diagnostics: list['Diagnostic'] = Field(default_factory=list)
+
+
 class ChannelState(StrictModel):
     dry_air_mass_flow_kg_s: float | None = Field(default=None, exclude_if=lambda v: v is None)
     inlet_mass_flow_kg_s: float | None = Field(default=None, exclude_if=lambda v: v is None)
@@ -245,23 +263,34 @@ class ModuleStepCandidate(StrictModel):
 class ModuleDefinition(ModuleFieldsV1):
     """Schema-dispatched module facade; v1 never receives SDK default fields."""
 
-    schema_version: Literal[1, 2, 3] = 1
+    schema_version: Literal[1, 2, 3, 4] = 1
     sdk: ModuleSDKRequirements | None = Field(default=None, exclude_if=lambda value: value is None)
-    applicability: ModuleApplicability | None = Field(default=None, exclude_if=lambda value: value is None)
+    applicability: ModuleApplicability | RefrigerationApplicability | None = Field(default=None, exclude_if=lambda value: value is None)
+    execution_role: Literal['refrigeration.isenthalpic_throttle.v1'] | None = Field(default=None,exclude_if=lambda value:value is None)
     hydraulic_dependencies: dict[Identifier, list[Identifier]] | None = Field(default=None, exclude_if=lambda value: value is None)
     dependency_mode: Literal['conservative','tracked'] | None = Field(default=None, exclude_if=lambda value: value is None)
     pure_evaluate: bool | None = Field(default=None, exclude_if=lambda value: value is None)
     composite: CompositeDefinition | None = Field(default=None, exclude_if=lambda value: value is None)
     model_config = ConfigDict(json_schema_extra={"allOf": [{
-        "if": {"properties": {"schema_version": {"enum": [2, 3]}}, "required": ["schema_version"]},
+        "if": {"properties": {"schema_version": {"enum": [2, 3, 4]}}, "required": ["schema_version"]},
         "then": {"required": ["sdk", "runtime"], "properties": {"sdk": {"type": "object"}, "runtime": {"const": "python"}}},
         "else": {"not": {"required": ["sdk"]}},
     }, {
         'if': {'properties': {'schema_version': {'const': 3}}, 'required': ['schema_version']},
-        'then': {'properties': {'applicability': {'type':'object'}, 'hydraulic_dependencies': {'type':'object'},
+        'then': {'properties': {'applicability': {'type':'object','properties':{'execution_domains':{'items':{'const':'fluid'}}}}, 'hydraulic_dependencies': {'type':'object'},
                                 'dependency_mode': {'type':'string'}, 'pure_evaluate': {'type':'boolean'}}},
         'else': {'not': {'anyOf': [{'required':[name]} for name in
-            ['applicability','hydraulic_dependencies','dependency_mode','pure_evaluate','composite']]}}
+            ['hydraulic_dependencies','dependency_mode','pure_evaluate','composite']]}}
+    }, {
+        'if': {'properties': {'schema_version': {'const':4}}, 'required':['schema_version']},
+        'then': {'required':['execution_role'], 'properties': {
+            'execution_role':{'const':'refrigeration.isenthalpic_throttle.v1'},
+            'applicability':{'type':'object','properties':{'execution_domains':{'items':{'const':'refrigeration'}}}}, 'solver_model':{'const':'generic'},
+            'state_model':{'type':'null'}, 'thermal_model':{'type':'null'}, 'source_format':{'const':'python-v1'}, 'channels':{'maxItems':0}}},
+        'else': {'not':{'required':['execution_role']}}
+    }, {
+        'if': {'properties': {'schema_version': {'enum':[1,2]}}},
+        'then': {'not':{'required':['applicability']}}
     }]})
 
     @model_validator(mode="before")
@@ -270,10 +299,10 @@ class ModuleDefinition(ModuleFieldsV1):
         if not isinstance(data, dict):
             return data
         # Catalog response subclasses have presentation-only fields outside the contract.
-        fields = set(ModuleDefinitionV3.model_fields)
+        fields = set(ModuleDefinitionV3.model_fields) | set(ModuleDefinitionV4.model_fields)
         core = {key: value for key, value in data.items() if key in fields}
         schema = core.get("schema_version", 1)
-        parser = {1: ModuleDefinitionV1, 2: ModuleDefinitionV2, 3: ModuleDefinitionV3}.get(schema) if isinstance(schema, (int, float)) else None
+        parser = {1: ModuleDefinitionV1, 2: ModuleDefinitionV2, 3: ModuleDefinitionV3, 4: ModuleDefinitionV4}.get(schema) if isinstance(schema, (int, float)) else None
         if parser is None:
             raise ValueError(f"不支持的模块合同 schema_version：{schema}")
         if schema == 1:
@@ -838,7 +867,7 @@ class ModuleTestSuiteRequest(StrictModel):
 
 
 class ModuleTemplateRequest(StrictModel):
-    template: Literal['resistance', 'pump', 'heat_exchanger', 'managed_state']
+    template: Literal['resistance', 'pump', 'heat_exchanger', 'managed_state', 'refrigeration_throttle']
     id: Identifier
     name: str = Field(min_length=1, max_length=80)
     category: str = '自定义模块'
@@ -852,6 +881,8 @@ class ModuleGroupRequest(StrictModel):
 
 
 class ModuleTestResponse(StrictModel):
+    execution_domain: Literal['refrigeration'] | None = Field(default=None,exclude_if=lambda value:value is None)
+    refrigeration_evaluation: RefrigerationEvaluateResponse | None = Field(default=None,exclude_if=lambda value:value is None)
     module_id: str
     content_hash: str
     state: dict[str, Any] = Field(default_factory=dict)

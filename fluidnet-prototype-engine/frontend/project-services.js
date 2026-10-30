@@ -60,6 +60,12 @@ window.createProjectServices = function ({request, ui, normalize, health, authHe
     await request('/runs/'+encodeURIComponent(id)+'/delete',{});
     await refreshArchives();
   }
+  async function exportRunReport(id,format) {
+    if(!['html','csv'].includes(format))throw Error('未知报告格式');
+    const response=await fetch('/api/v1/runs/'+encodeURIComponent(id)+'/report.'+format,{headers:authHeaders()});
+    if(!response.ok){const body=await response.json();throw Error(body.detail?.message || body.detail || '报告读取失败');}
+    return response.blob();
+  }
   async function backupRequest(path,body) {
     const response=await fetch('/api/v1/workspace/'+path,{method:'POST',headers:authHeaders(),body});
     if(!response.ok){const data=await response.json();throw Error(typeof data.detail==='string'?data.detail:data.detail?.message||'工作区操作失败');}
@@ -120,12 +126,69 @@ window.createProjectServices = function ({request, ui, normalize, health, authHe
   async function previewUpgrade(owner,id,version,migration=null) {
     return request('/project-upgrades/preview',{project:await normalize(owner),module_id:id,target_version:version,migration});
   }
+  async function exchangeDocument(data) {
+    if(data.format==='fluidnet-project' && data.schema===1)return clone(data);
+    if(data.format==='fluidnet-studio-prototype') {
+      const p=data.projects.find(p=>p.id===data.activeProject)||data.projects[0];
+      return {format:'fluidnet-project',schema:1,project:clone(p),modules:clone(data.modules),
+        models:clone(data.models||[]),charts:clone((data.charts?.extra||[]).filter(c=>c.projectId===p.id))};
+    }
+    if(data.schema_version!==1 || !Array.isArray(data.instances) || !Array.isArray(data.modules))
+      throw Error('请选择单项目、完整原型或规范 Project JSON 文件。');
+    const validation=await request('/projects/validate',data);
+    if(!validation.valid)throw Error(validation.diagnostics.map(d=>d.message).join('；'));
+    const definitions=new Map(data.modules.map(m=>[m.id,m]));
+    const snapshots=Object.fromEntries(data.modules.map(m=>[m.id,{...moduleFromManifest(clone(m)),frozen:true}]));
+    const display=(definition,values)=>Object.fromEntries(Object.entries(values).map(([id,value])=>{
+      const spec=definition.parameters.find(p=>p.id===id);
+      return [id,spec?.unit ? value/(spec.unit.display_scale ?? 1)+(spec.unit.display_offset ?? 0) : clone(value)];
+    }));
+    const pages=new Map(),nodes=new Map();
+    for(const n of data.instances) {
+      const definition=definitions.get(n.module_id),pageId=n.page_id || 'main';
+      if(!pages.has(pageId))pages.set(pageId,{id:pageId,name:pageId,zoom:1,pan:[0,0],nodes:[],edges:[]});
+      const defaults=Object.fromEntries(definition.parameters.map(p=>[p.id,clone(p.default)]));
+      const params=display(definition,{...defaults,...n.parameters});
+      const node={id:n.id,moduleId:n.module_id,name:n.name,x:n.position?.x ?? 100+nodes.size%5*180,
+        y:n.position?.y ?? 150+Math.floor(nodes.size/5)*130,rotation:n.rotation||0,params,
+        draft:display(definition,{...defaults,...n.parameters,...n.draft_parameters}),modelId:n.model_id||null,
+        modelVersion:n.model_version||1,draftModelId:null,package:clone(n.package||null)};
+      if((n.banks||[]).length>3)throw Error('当前画布最多支持三组设备库值。');
+      if(n.banks?.length) {
+        const banks=[0,1,2].map(i=>Object.fromEntries(Object.entries(display(definition,{...defaults,...n.banks[i]?.values})).map(([k,v])=>['param:'+k,v])));
+        node.variableState={schema:1,values:{},draft:{},banks,bankNames:[0,1,2].map(i=>n.banks[i]?.name || snapshots[n.module_id].bankNames[i])};
+      }
+      nodes.set(n.id,{node,pageId});pages.get(pageId).nodes.push(node);
+    }
+    for(const c of data.connections||[]) {
+      const pageId=nodes.get(c.source.instance_id).pageId;
+      if(pageId!==nodes.get(c.target.instance_id).pageId)throw Error('跨画布连接暂不能导入，请先将相连设备放到同一页。');
+      pages.get(pageId).edges.push([c.id,c.source.instance_id,c.source.port_id,c.target.instance_id,c.target.port_id]);
+    }
+    if(!pages.size)throw Error('规范项目没有设备。');
+    const p=ui.makeProject(data.id,data.name,data.description||'',[...pages.values()][0]);
+    Object.assign(p,{pages:[...pages.values()],activePage:pages.keys().next().value,moduleSnapshots:snapshots,
+      fluid:data.fluid?.fluid||'Water',fluidConfig:clone(data.fluid||{}),fluidReference:data.fluid?.reference||'mass',
+      circuitFluids:(data.circuit_fluids||[]).map(c=>({id:c.id,anchor:clone(c.anchor),fluid:c.fluid.fluid,fluidConfig:clone(c.fluid),fluidReference:c.fluid.reference})),
+      solverOptions:clone(data.solver||{}),controllers:clone(data.controllers||[]),events:clone(data.events||[]),
+      thermalCouplings:clone(data.thermal_couplings||[]),selectedVariables:clone(data.selected_variables||[]),
+      controlPrograms:[],controlScripts:[],controlEnabled:false,controlInputs:'',controlOutputs:'',
+      scenarios:(data.scenarios||[]).map(s=>({...clone(s),overrides:Object.fromEntries(Object.entries(s.overrides).map(([id,values])=>
+        [id,display(definitions.get(nodes.get(id).node.moduleId),values)]))}))});
+    const solver=data.solver||{};
+    p.solver={mode:'dynamic',duration:60,dt:Math.min(10,solver.dynamic_step_s||.1),
+      dynamicStep:solver.dynamic_step_s||.1,pressureAtol:solver.pressure_tolerance_pa??1,massAtol:solver.mass_tolerance_kg_s??1e-8,
+      maxIter:solver.max_iterations??80,hydraulicMethod:solver.hydraulic_method||'dense',moduleMixedJacobian:Boolean(solver.module_mixed_jacobian)};
+    controls.replaceScripts(p,data.control_scripts||[]);
+    return {format:'fluidnet-project',schema:1,project:p,modules:Object.values(snapshots),models:[],charts:[]};
+  }
   function upgradeDocument(owner,preview) {
     const document=projectDocument(owner),snapshot={...moduleFromManifest(clone(preview.module)),frozen:true};
     document.project.moduleSnapshots[snapshot.id]=snapshot;
     document.modules=document.modules.map(m=>m.id===snapshot.id?snapshot:m);
     const canonical=new Map(preview.project.instances.map(n=>[n.id,n]));
-    const display=values=>Object.fromEntries(preview.module.parameters.map(p=>[p.id,p.unit?values[p.id]/p.unit.display_scale+p.unit.display_offset:clone(values[p.id])]));
+    const display=(values,partial=false)=>Object.fromEntries(preview.module.parameters.filter(p=>!partial || p.id in values)
+      .map(p=>[p.id,p.unit?values[p.id]/p.unit.display_scale+p.unit.display_offset:clone(values[p.id])]));
     for(const pg of document.project.pages)for(const n of pg.nodes)if(n.moduleId===snapshot.id){
       const node=canonical.get(n.id);n.params=display(node.parameters);n.draft=display(node.draft_parameters);n.package=node.package;
       for(const [index,bank] of (n.variableState?.banks || []).entries()){
@@ -152,8 +215,12 @@ window.createProjectServices = function ({request, ui, normalize, health, authHe
       if(affected.has(edge[3]))edge[4]=migration.ports?.[edge[4]] || edge[4];
     }
     document.project.scenarios=clone(preview.project.scenarios);
-    for(const scenario of document.project.scenarios || [])for(const id of affected)if(scenario.overrides[id])scenario.overrides[id]=display(scenario.overrides[id]);
+    for(const scenario of document.project.scenarios || [])for(const id of Object.keys(scenario.overrides)) {
+      scenario.overrides[id]=affected.has(id) ? display(scenario.overrides[id],true)
+        : clone(owner.scenarios.find(s=>s.id===scenario.id).overrides[id]);
+    }
     document.project.controllers=clone(preview.project.controllers);
+    document.project.selectedVariables=clone(preview.project.selected_variables||[]);
     controls.replaceScripts(document.project,preview.project.control_scripts);
     for(const chart of document.charts || []){
       if(chart.canonicalKey)chart.canonicalKey=reference(chart.canonicalKey);
@@ -167,8 +234,8 @@ window.createProjectServices = function ({request, ui, normalize, health, authHe
     }
     document.project.run=ui.emptyRun();return document;
   }
-  return {prepare,previewControl,loadWorkspace,saveWorkspace,refreshArchives,openArchive,deleteArchive,
-    projectDocument,saveProject,restoreProject,deleteProject,previewUpgrade,upgradeDocument,
+  return {prepare,previewControl,loadWorkspace,saveWorkspace,refreshArchives,openArchive,deleteArchive,exportRunReport,
+    projectDocument,exchangeDocument,saveProject,restoreProject,deleteProject,previewUpgrade,upgradeDocument,
     batchOptions:(id,revision)=>request('/projects/'+encodeURIComponent(id)+'/batch-options?revision='+revision),
     previewBatch:(id,body)=>request('/projects/'+encodeURIComponent(id)+'/batches/preview',body),
     createBatch:(id,body)=>request('/projects/'+encodeURIComponent(id)+'/batches',body),

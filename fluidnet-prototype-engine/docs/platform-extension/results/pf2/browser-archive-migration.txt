@@ -1,0 +1,28 @@
+{
+  "projectCount": {
+    "oldArchive": 5,
+    "serverBaseline": 3,
+    "afterImport": 4,
+    "afterRestore": 4
+  },
+  "module": {
+    "id": "programmable_valve",
+    "contentHash": "3b8a1cd01b354756b85a7654957fcb91f26bcf3783358f40ee3c2adb19b7bf66",
+    "definitionHash": "b637b193585e7ebbf177abff5d6003aae64094df6e56e994bc0079e63cc1584f"
+  },
+  "keyParams": {
+    "V1.opening_ratio": 0.65,
+    "V1.kv_m3_h": 20
+  },
+  "revisions": {
+    "baseline": 1,
+    "afterMigrationSave": 2
+  },
+  "preserved": {
+    "originalExportSha256": "de58964636564b68431f7374e48787b4a78aaebd3405f17ff711c45fbdc14772",
+    "beforeWorkspaceSha256": "4a49f8102c07860de50953a8243bc01e5110e6228fd64eaba7023ffa29e6db3e",
+    "oldArchiveSha256": "4a49f8102c07860de50953a8243bc01e5110e6228fd64eaba7023ffa29e6db3e"
+  },
+  "artifacts": "artifacts\\archive-migration",
+  "errors": []
+}

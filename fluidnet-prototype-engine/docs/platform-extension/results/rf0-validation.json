@@ -1,0 +1,126 @@
+{
+  "date": "2026-10-30",
+  "recorded_at": "2026-10-30T14:43:00.748473+08:00",
+  "baseline": "802b4c5428a71984fc7a571f546066dc589ec30f",
+  "scope": "RF-0：显式实验适配器中的制冷节流设备；公共编译、发布与作者界面未开放",
+  "status": "RF-0 complete; RF-1 next",
+  "environment": {
+    "python": "3.11.0",
+    "platform": "Windows-10-10.0.29695-SP0",
+    "packages": {
+      "CoolProp": "8.0.0",
+      "numpy": "2.3.2",
+      "scipy": "1.17.1",
+      "pydantic": "2.13.4"
+    }
+  },
+  "checks": {
+    "backend-tests": {
+      "command": "python -m pytest -q tests/test_rf0_probe.py tests/test_refrigeration_station.py tests/test_thermal_coupling.py tests/test_module_transactions.py --tb=short",
+      "exit_code": 0,
+      "log": "docs/platform-extension/results/rf0/backend-tests.txt",
+      "sha256": "d8683e2dfbd5b658ab6386e68e4e4c450b21219a7fad4c402097c700f42294ec",
+      "passed": 122,
+      "rf0_tests": 34,
+      "existing_regressions": 88,
+      "duration_s": 48.73,
+      "warnings": 1
+    },
+    "contracts-recheck": {
+      "command": "python -m pytest -q tests/test_rf0_probe.py -k incompatible_contracts",
+      "exit_code": 0,
+      "log": "docs/platform-extension/results/rf0/contracts-recheck.txt",
+      "sha256": "f9b29118b1e02161826215c8f580e01597d59f507565b68f22988c2eed6e93df",
+      "passed": 3,
+      "warnings": 0,
+      "note": "非法端口测试夹具改为 Domain 枚举后复验；不与 122 项相加。"
+    },
+    "ruff": {
+      "command": "python -m ruff check backend tests scripts modules examples/control_templates examples/refrigeration_extensions",
+      "exit_code": 0,
+      "log": "docs/platform-extension/results/rf0/ruff.txt",
+      "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+    },
+    "mypy": {
+      "command": "python -m mypy",
+      "exit_code": 0,
+      "log": "docs/platform-extension/results/rf0/mypy.txt",
+      "sha256": "3960fb85cb7bfa8c8ba41b5e9221a31e4810587b155f8a158c1f3756a6384ded",
+      "source_files": 82,
+      "errors": 0
+    },
+    "author-types": {
+      "command": "python -m mypy examples/refrigeration_extensions/rf0_throttle.py",
+      "exit_code": 0,
+      "log": "docs/platform-extension/results/rf0/author-types.txt",
+      "sha256": "8e63ae22e8213e327a5e9cbd584067681681bd8ef7f25c869877887ccdcfc4ff",
+      "source_files": 1,
+      "errors": 0
+    },
+    "contracts": {
+      "command": "python scripts/generate_contracts.py --check",
+      "exit_code": 0,
+      "log": "docs/platform-extension/results/rf0/contracts.txt",
+      "sha256": "48d5f02a424b8df683a275adc2898374fa2705e0fdd79d2220b2bf97e0b13526",
+      "files": 85
+    },
+    "performance-log": {
+      "command": "python scripts/profile_rf0.py",
+      "exit_code": 0,
+      "log": "docs/platform-extension/results/rf0/performance-log.txt",
+      "sha256": "08b9826a514d95572f95f7739a7f82abdcca2e2c696931444e13aeef293db13e"
+    }
+  },
+  "performance": {
+    "path": "docs/platform-extension/results/rf0/performance.json",
+    "sha256": "1aae815565e05dd3991535220ede39c6caf6e6fa8d42bae5c9c3e17960efe363",
+    "budget_sha256": "2d2133ffa7d16aef1f5bcf5efc603a836251e43180a4a64be874c9da310487cd",
+    "medians": {
+      "builtin": {
+        "initialization_s": 0.6738907999970252,
+        "candidate_median_s": 0.00015159999747993425,
+        "dynamic_s": 0.02816259999963222,
+        "peak_sampled_rss_bytes": 174309376,
+        "newton_iterations": 12
+      },
+      "python": {
+        "initialization_s": 1.3401532999996562,
+        "candidate_median_s": 0.0006080000021029264,
+        "dynamic_s": 0.06068430000595981,
+        "peak_sampled_rss_bytes": 217436160,
+        "newton_iterations": 12
+      }
+    },
+    "checks": {
+      "initialization": true,
+      "candidate": true,
+      "dynamic": true,
+      "memory": true,
+      "workers": true,
+      "iterations": true,
+      "same_sources": true,
+      "physics": true
+    },
+    "max_differences": {
+      "final_masses": 0.0,
+      "final_energies": 0.0,
+      "final_temperatures": 0.0
+    }
+  },
+  "delivery_sha256": {
+    "backend/fn_engine/refrigeration/station.py": "d60891bebd7b9decbeec81d03bd261f518ad1a9862f4b77b948a6cde3831c453",
+    "scripts/rf0_probe.py": "0ee8375b003f20e96d0928d18c80f37f37e7278fe71221a8b8df5b3c097b931a",
+    "scripts/profile_rf0.py": "d9803a107d6415dd5f1ee8424446e1ea6abcb49b8c231b4df74f09f357ed2d58",
+    "examples/refrigeration_extensions/rf0_throttle.py": "16daf7a62eeaacbd34fd8b6ff3d30a82cb3421a50fcc553cfa6c2c61454608c7",
+    "tests/test_rf0_probe.py": "4060a051ea599e5f43e94ffbe9663c16d16a56c4fa0b825ebd26f6dbbd66fe2d",
+    "docs/REFRIGERATION_EXTENSION_DESIGN.md": "90d6c7d00a6b9996738746f0a86691c91c639d7e54c33785132e856c409dadd8",
+    "docs/platform-extension/rf0-performance-budget.json": "2d2133ffa7d16aef1f5bcf5efc603a836251e43180a4a64be874c9da310487cd"
+  },
+  "boundaries": [
+    "独立稳态入口仍返回 REFRIGERATION_DYNAMIC_REQUIRED；固定工作点求值不是稳态求解。",
+    "RF-0 使用旧 SDK 消息作实验运输，不宣称 schema 2 / SDK 0.6.0 正式开放制冷角色。",
+    "固定步失败缩步已验证；自适应步加倍、公共发布、验证台及跨域模块适配留给后续工作包。",
+    "未运行全量后端、完整浏览器链或覆盖率；122 项与 3 项复验不相加。",
+    "首次 122 项回归的一个警告来自非法端口注入时使用字符串；夹具已改用枚举，3 项复验无警告。"
+  ]
+}

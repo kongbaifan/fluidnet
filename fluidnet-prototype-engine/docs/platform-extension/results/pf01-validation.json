@@ -1,0 +1,144 @@
+{
+  "date": "2026-10-30",
+  "recorded_at": "2026-10-30T14:16:18.915105+08:00",
+  "baseline": "802b4c5428a71984fc7a571f546066dc589ec30f",
+  "scope": "PF-0 / PF-1 能力核对与自主建模流程；RF-0 至 RF-4、PF-2 待启动",
+  "checks": {
+    "browser-smoke": {
+      "command": "node tests/browser-smoke.mjs",
+      "exit_code": 0,
+      "log": "docs/platform-extension/results/browser-smoke.txt",
+      "sha256": "de3f8166d3001b912079fb3e4dd6a423ef77def7cb8a143f681c10c12471bb97",
+      "page_errors": 0
+    },
+    "browser-workflows": {
+      "command": "node tests/browser-workflows.mjs",
+      "exit_code": 0,
+      "log": "docs/platform-extension/results/browser-workflows.txt",
+      "sha256": "b6871ab36de005515843223c4d6c26299a05bcb62d286178f5cd0e9378e36388",
+      "page_errors": 0
+    },
+    "browser-archive-migration": {
+      "command": "node tests/browser-archive-migration.mjs",
+      "exit_code": 0,
+      "log": "docs/platform-extension/results/browser-archive-migration.txt",
+      "sha256": "764aedd339b26d8ebee8a6dfbec52e8e59398e2a4b84c52e554c192309825385",
+      "page_errors": 0
+    },
+    "browser-module-workflow": {
+      "command": "node tests/browser-module-workflow.mjs",
+      "exit_code": 0,
+      "log": "docs/platform-extension/results/browser-module-workflow.txt",
+      "sha256": "933c4675bf4d516a4936cc858e7ca20811eb9de29f436484a86cd01bd67ba115",
+      "page_errors": 0
+    },
+    "browser-platform-authoring": {
+      "command": "node tests/browser-platform-authoring.mjs",
+      "exit_code": 0,
+      "log": "docs/platform-extension/results/browser-platform-authoring.txt",
+      "sha256": "5bff621990cdb83be36a46adf99cb56a37649c98482507298f528e09cf0ac816",
+      "page_errors": 0
+    },
+    "frontend-contracts": {
+      "command": "npm run test:ui",
+      "exit_code": 0,
+      "log": "docs/platform-extension/results/frontend-contracts.txt",
+      "sha256": "f236de37543dd8f37511b79859eb11b80d868366dbd9b70cec2f82e554e6b943",
+      "passed": 10
+    },
+    "frontend-check": {
+      "command": "npm run check",
+      "exit_code": 0,
+      "log": "docs/platform-extension/results/frontend-check.txt",
+      "sha256": "123b5c31b2caa84a59c6d639df7bc3ae4696f95a1870431a6edeb683b82fcacb"
+    },
+    "backend": {
+      "command": "python -m pytest -q tests/test_module_templates.py tests/test_module_versions.py tests/test_module_migrations.py tests/test_module_composites.py tests/test_module_composite_physics.py tests/test_module_scope.py",
+      "exit_code": 0,
+      "passed": 43,
+      "duration_s": 47.66,
+      "log": "docs/platform-extension/results/backend-console-summary.txt",
+      "log_kind": "terminal_summary",
+      "sha256": "3f02d6c814cbc08969493fcc375bad3b54544eff2c082ec5ac9c925bc22691e5"
+    }
+  },
+  "authoring": {
+    "suite": {
+      "passed": true,
+      "cases": 3
+    },
+    "original": {
+      "project": "project-22",
+      "instance": "D-24",
+      "flow": 5.84428068992534,
+      "reference": 5.844280689925339
+    },
+    "versions": [
+      1,
+      2,
+      1
+    ],
+    "composite": {
+      "instance": "D-30",
+      "versions": [
+        1,
+        2,
+        1
+      ],
+      "childVersion": 1,
+      "flow": 5.84428068992534,
+      "exportReload": true
+    },
+    "errors": []
+  },
+  "screenshots": [
+    {
+      "path": "artifacts/platform-extension/pf1/custom-project-1080p.png",
+      "sha256": "175ef1155328c59d26baaf002e641d4141677b9c792002a5da17ab460cdc447d",
+      "viewport": {
+        "width": 1920,
+        "height": 1080,
+        "pixelRatio": 1
+      },
+      "captured_at": "2026-10-30T06:14:43.091Z"
+    },
+    {
+      "path": "artifacts/platform-extension/pf1/composite-1080p.png",
+      "sha256": "4d05a71de0b4fd8bb150530dbf39926dc06ac1215e244e8fe56cd460393169d4",
+      "viewport": {
+        "width": 1920,
+        "height": 1080,
+        "pixelRatio": 1
+      },
+      "captured_at": "2026-10-30T06:15:10.151Z"
+    },
+    {
+      "path": "artifacts/platform-extension/pf1/history-1080p.png",
+      "sha256": "4b5f74156c3076607c986e4e0c01f4c5c3b009208b46010d6c538ff8401bf999",
+      "viewport": {
+        "width": 1920,
+        "height": 1080,
+        "pixelRatio": 1
+      },
+      "captured_at": "2026-10-30T06:15:10.429Z"
+    }
+  ],
+  "delivery_sha256": {
+    "frontend/engine-client.js": "d951d62d283331fb85adcf3b81d00d6688601d26c429f04334cc315dc488bbad",
+    "frontend/studio.js": "f8670ba861b3b76f427912f8c32dbeb80b498455f49af2464dd199da12c2fd01",
+    "package.json": "5f33adc499be74e007cf72fad02d6f74336ed50498f20fc5d193b465ec498546",
+    "tests/browser-platform-authoring.mjs": "1498ffeeb93cd881ea71d5563b759c33b150b931ac8a508a5ef6a7f4f164c598",
+    "tests/project-overview.test.mjs": "e27f25a6f749b170a97fb246ef125f3fe0e0ecdf0f35bb995c099ebded75ef9c",
+    "docs/PLATFORM_CAPABILITIES.md": "e0e935c27330a4498f0cbfb588b8fe4f64154c09ddb332c0e7e523d250b6adfb",
+    "docs/PLATFORM_AUTHORING_ACCEPTANCE.md": "8d4d49266ceeb6b0f9c6719a04150443f2bdbdd6957b7d3e96072535e142422d",
+    "docs/PLATFORM_EXTENSION_PLAN.md": "dbd7b7d5acf564bc8459f95aaa36f44a2818f8bfed1bb81dd806ab8260755daa",
+    "docs/modules/DEVELOPMENT_GUIDE.md": "37511b8c172e8796982e19c97ff1443d6461805afc65cb99470c33ebe0a8d07c",
+    "docs/ROADMAP.md": "5767b83c915b7ae2936027a263ec888fa336a004f7dcf0b4a1205201220134ab",
+    "README.md": "f2065ffb43696e2e6745dc0207a6bedda44af07953d25239c1d8624ad495023a"
+  },
+  "notes": [
+    "后端 43 项在本轮开始执行，此后没有后端或 SDK 修改。",
+    "回归按修改范围执行；最后补充已保存通路覆盖测试后，重跑前端检查与新增作者浏览器流程。",
+    "本轮未运行全量后端、完整浏览器链或覆盖率；历史全量数字不计入本轮。"
+  ]
+}

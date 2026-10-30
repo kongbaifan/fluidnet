@@ -1,0 +1,497 @@
+{
+  "$defs": {
+    "Direction": {
+      "enum": [
+        "in",
+        "out",
+        "bidirectional"
+      ],
+      "title": "Direction",
+      "type": "string"
+    },
+    "Domain": {
+      "enum": [
+        "fluid",
+        "thermal",
+        "refrigerant",
+        "info",
+        "power",
+        "mech"
+      ],
+      "title": "Domain",
+      "type": "string"
+    },
+    "ModuleSDKRequirements": {
+      "additionalProperties": false,
+      "properties": {
+        "api_version": {
+          "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$",
+          "title": "Api Version",
+          "type": "string"
+        },
+        "capabilities": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)*$",
+            "type": "string"
+          },
+          "title": "Capabilities",
+          "type": "array"
+        },
+        "state_contract_version": {
+          "default": 1,
+          "minimum": 1,
+          "title": "State Contract Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "api_version"
+      ],
+      "title": "ModuleSDKRequirements",
+      "type": "object"
+    },
+    "ParameterSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "value_type": {
+          "default": "number",
+          "enum": [
+            "number",
+            "boolean",
+            "text",
+            "curve"
+          ],
+          "title": "Value Type",
+          "type": "string"
+        },
+        "default": {
+          "title": "Default"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/UnitSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "minimum": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Minimum"
+        },
+        "maximum": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Maximum"
+        },
+        "runtime": {
+          "default": false,
+          "title": "Runtime",
+          "type": "boolean"
+        },
+        "writable": {
+          "default": true,
+          "title": "Writable",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "default"
+      ],
+      "title": "ParameterSpec",
+      "type": "object"
+    },
+    "PortSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "domain": {
+          "$ref": "#/$defs/Domain",
+          "default": "fluid"
+        },
+        "direction": {
+          "$ref": "#/$defs/Direction",
+          "default": "bidirectional"
+        },
+        "required": {
+          "default": true,
+          "title": "Required",
+          "type": "boolean"
+        },
+        "circuit": {
+          "default": "fluid",
+          "title": "Circuit",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label"
+      ],
+      "title": "PortSpec",
+      "type": "object"
+    },
+    "RefrigerationApplicability": {
+      "additionalProperties": false,
+      "properties": {
+        "execution_domains": {
+          "items": {
+            "const": "refrigeration",
+            "type": "string"
+          },
+          "maxItems": 1,
+          "minItems": 1,
+          "title": "Execution Domains",
+          "type": "array"
+        },
+        "fluids": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 64,
+          "title": "Fluids",
+          "type": "array"
+        },
+        "assumptions": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 32,
+          "title": "Assumptions",
+          "type": "array"
+        }
+      },
+      "title": "RefrigerationApplicability",
+      "type": "object"
+    },
+    "UnitSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "quantity": {
+          "title": "Quantity",
+          "type": "string"
+        },
+        "canonical_unit": {
+          "title": "Canonical Unit",
+          "type": "string"
+        },
+        "display_unit": {
+          "title": "Display Unit",
+          "type": "string"
+        },
+        "display_scale": {
+          "default": 1.0,
+          "exclusiveMinimum": 0,
+          "title": "Display Scale",
+          "type": "number"
+        },
+        "display_offset": {
+          "default": 0.0,
+          "title": "Display Offset",
+          "type": "number"
+        }
+      },
+      "required": [
+        "quantity",
+        "canonical_unit",
+        "display_unit"
+      ],
+      "title": "UnitSpec",
+      "type": "object"
+    },
+    "VariableSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "quantity": {
+          "title": "Quantity",
+          "type": "string"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/UnitSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "source": {
+          "enum": [
+            "parameter",
+            "port",
+            "state",
+            "derived",
+            "system"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "writable": {
+          "default": false,
+          "title": "Writable",
+          "type": "boolean"
+        },
+        "sampleable": {
+          "default": true,
+          "title": "Sampleable",
+          "type": "boolean"
+        },
+        "parameter_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parameter Id"
+        },
+        "port_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Port Id"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "quantity",
+        "source"
+      ],
+      "title": "VariableSpec",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 4,
+      "default": 4,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "id": {
+      "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+      "title": "Id",
+      "type": "string"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "version": {
+      "default": 1,
+      "minimum": 1,
+      "title": "Version",
+      "type": "integer"
+    },
+    "category": {
+      "default": "自定义模块",
+      "title": "Category",
+      "type": "string"
+    },
+    "description": {
+      "default": "",
+      "title": "Description",
+      "type": "string"
+    },
+    "ports": {
+      "items": {
+        "$ref": "#/$defs/PortSpec"
+      },
+      "title": "Ports",
+      "type": "array"
+    },
+    "parameters": {
+      "items": {
+        "$ref": "#/$defs/ParameterSpec"
+      },
+      "title": "Parameters",
+      "type": "array"
+    },
+    "variables": {
+      "items": {
+        "$ref": "#/$defs/VariableSpec"
+      },
+      "title": "Variables",
+      "type": "array"
+    },
+    "channels": {
+      "items": {},
+      "maxItems": 0,
+      "title": "Channels",
+      "type": "array"
+    },
+    "solver_model": {
+      "const": "generic",
+      "default": "generic",
+      "title": "Solver Model",
+      "type": "string"
+    },
+    "state_model": {
+      "default": null,
+      "title": "State Model",
+      "type": "null"
+    },
+    "thermal_model": {
+      "default": null,
+      "title": "Thermal Model",
+      "type": "null"
+    },
+    "source_format": {
+      "const": "python-v1",
+      "default": "python-v1",
+      "title": "Source Format",
+      "type": "string"
+    },
+    "source": {
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        ]
+      },
+      "title": "Source",
+      "type": "object"
+    },
+    "runtime": {
+      "const": "python",
+      "title": "Runtime",
+      "type": "string"
+    },
+    "entrypoint": {
+      "default": "",
+      "title": "Entrypoint",
+      "type": "string"
+    },
+    "content_hash": {
+      "anyOf": [
+        {
+          "pattern": "^[a-fA-F0-9]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Content Hash"
+    },
+    "definition_hash": {
+      "anyOf": [
+        {
+          "pattern": "^[a-fA-F0-9]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Definition Hash"
+    },
+    "package_path": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Package Path"
+    },
+    "bank_names": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Bank Names",
+      "type": "array"
+    },
+    "sdk": {
+      "$ref": "#/$defs/ModuleSDKRequirements"
+    },
+    "execution_role": {
+      "const": "refrigeration.isenthalpic_throttle.v1",
+      "title": "Execution Role",
+      "type": "string"
+    },
+    "applicability": {
+      "$ref": "#/$defs/RefrigerationApplicability"
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "runtime",
+    "sdk",
+    "execution_role"
+  ],
+  "title": "ModuleDefinitionV4",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

@@ -1,0 +1,9 @@
+{
+  "command": "python -m pytest -q tests/test_refrigeration_execution.py tests/test_module_versions.py tests/test_module_transactions.py tests/test_refrigeration_station.py tests/test_thermal_coupling.py tests/test_rf0_probe.py --tb=short",
+  "exit_code": 0,
+  "passed": 153,
+  "duration_s": 94.0,
+  "evidence_type": "summary captured from tool output; complete stdout was not archived",
+  "summary": "153 passed in 94.00s (0:01:34)",
+  "note": "Run before adding four Worker-failure cases and the floating-point bench-duration case; the final backend run covers those additions."
+}

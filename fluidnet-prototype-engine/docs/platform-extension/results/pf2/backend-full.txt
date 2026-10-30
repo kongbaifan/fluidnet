@@ -1,0 +1,141 @@
+........................................................................ [  4%]
+........................................................................ [  8%]
+........................................................................ [ 12%]
+........................................................................ [ 16%]
+........................................................................ [ 20%]
+........................................................................ [ 25%]
+........................................................................ [ 29%]
+........................................................................ [ 33%]
+........................................................................ [ 37%]
+........................................................................ [ 41%]
+........................................................................ [ 45%]
+........................................................................ [ 50%]
+........................................................................ [ 54%]
+........................................................................ [ 58%]
+........................................................................ [ 62%]
+........................................................................ [ 66%]
+........................................................................ [ 71%]
+........................................................................ [ 75%]
+........................................................................ [ 79%]
+........................................................................ [ 83%]
+........................................................................ [ 87%]
+........................................................................ [ 91%]
+........................................................................ [ 96%]
+...................................................................      [100%]
+============================== warnings summary ===============================
+tests/test_external_clients.py::test_external_client_controls_saved_project_and_preserves_archive[python]
+  C:\Users\job steam\AppData\Local\Programs\Python\Python311\Lib\site-packages\websockets\legacy\__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+    warnings.warn(  # deprecated in 14.0 - 2024-11-09
+
+tests/test_external_clients.py::test_external_client_controls_saved_project_and_preserves_archive[python]
+  C:\Users\job steam\AppData\Local\Programs\Python\Python311\Lib\site-packages\uvicorn\protocols\websockets\websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+    from websockets.server import WebSocketServerProtocol
+
+tests/test_external_clients.py::test_external_client_controls_saved_project_and_preserves_archive[python]
+tests/test_external_clients.py::test_external_client_controls_saved_project_and_preserves_archive[javascript]
+  C:\Users\job steam\AppData\Local\Programs\Python\Python311\Lib\site-packages\websockets\legacy\server.py:1178: DeprecationWarning: remove second argument of ws_handler
+    warnings.warn("remove second argument of ws_handler", DeprecationWarning)
+
+tests/test_refrigeration_a1.py::test_thermal_compile_rejects_unsupported_contracts[port-THERMAL_PORT_INVALID]
+  C:\Users\job steam\AppData\Local\Programs\Python\Python311\Lib\site-packages\pydantic\main.py:475: UserWarning: Pydantic serializer warnings:
+    PydanticSerializationUnexpectedValue(Expected `enum` - serialized value may not be as expected [field_name='direction', input_value='out', input_type=str])
+    return self.__pydantic_serializer__.to_python(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=============================== tests coverage ================================
+_______________ coverage: platform win32, python 3.11.0-final-0 _______________
+
+Name                                                   Stmts   Miss  Cover   Missing
+------------------------------------------------------------------------------------
+backend\fn_engine\__init__.py                              1      0   100%
+backend\fn_engine\__main__.py                              2      2     0%   1-4
+backend\fn_engine\_module_schema_v1.py                   132     11    92%   65, 72, 74, 77, 79, 145, 147, 149, 151, 157, 160
+backend\fn_engine\_module_schema_v2.py                    17      0   100%
+backend\fn_engine\_module_schema_v3.py                    72      6    92%   21, 23, 25, 85, 87, 90
+backend\fn_engine\_module_schema_v4.py                    38      0   100%
+backend\fn_engine\air_api.py                              70     14    80%   40-44, 56-57, 66, 69-70, 76, 79-80, 88
+backend\fn_engine\air_catalog.py                          41      0   100%
+backend\fn_engine\air_compile.py                          76     11    86%   22, 26, 34, 38, 45, 58, 66-67, 78, 81-82
+backend\fn_engine\air_devices.py                         159     15    91%   58, 60, 62, 88, 162-169, 190, 192, 194, 204
+backend\fn_engine\air_examples.py                         67      9    87%   16, 40-45, 59-60
+backend\fn_engine\air_ledger.py                           16      0   100%
+backend\fn_engine\air_liquid.py                           37      2    95%   51-52
+backend\fn_engine\air_models.py                           55      0   100%
+backend\fn_engine\air_report.py                           48      4    92%   16, 37, 56, 64
+backend\fn_engine\air_room.py                             63      3    95%   54, 58, 68
+backend\fn_engine\air_transport.py                       263     14    95%   24, 61, 63, 144-148, 153, 182-184, 197, 218, 224, 234, 256
+backend\fn_engine\air_variables.py                       112      3    97%   83, 147, 191
+backend\fn_engine\api.py                                 718     95    87%   105, 125, 148, 162-163, 174, 188-191, 334-336, 352, 383-387, 401, 426, 438, 445, 451, 462-463, 473, 484-487, 514-516, 546-547, 563-564, 569-573, 596, 598-602, 612-614, 621-622, 631-633, 652-653, 674, 680-681, 697-702, 737, 756, 761-762, 795-802, 809, 813-816, 821, 828-829, 843, 846, 848, 875, 921, 944-947, 951-952, 995
+backend\fn_engine\auth.py                                104      2    98%   58, 116
+backend\fn_engine\backup.py                              125     18    86%   49-52, 73-76, 93, 95, 97, 105, 107, 125, 128, 133, 135, 146
+backend\fn_engine\batch.py                               116     16    86%   35-45, 58-59, 88-90
+backend\fn_engine\batch_api.py                            68      1    99%   24
+backend\fn_engine\batch_models.py                        151      3    98%   50, 52, 54
+backend\fn_engine\batch_store.py                         208     33    84%   46, 69-70, 83, 103-113, 134, 151, 158, 207, 211, 221, 241-242, 257, 269-271, 285-290, 301
+backend\fn_engine\batches.py                             299     58    81%   41, 45, 53-62, 72-77, 102, 120, 134, 140, 143, 149, 157, 165, 198, 209-221, 225-231, 235-236, 241, 279-281, 296, 307-310, 312-316, 338-342, 353, 364
+backend\fn_engine\bench.py                               137     11    92%   31-34, 48, 62, 65, 128, 131, 147, 151
+backend\fn_engine\bridge.py                              130     18    86%   53, 56, 60, 62, 71, 78, 84, 87, 96, 117-122, 129, 142, 150, 152, 174
+backend\fn_engine\catalog.py                             101      0   100%
+backend\fn_engine\check_valve.py                         130     18    86%   40, 61, 63, 65, 67, 69, 91, 114, 117, 150, 165, 169, 207, 233, 252-255
+backend\fn_engine\chiller_examples.py                     33      0   100%
+backend\fn_engine\cli.py                                  87      4    95%   54, 86-87, 98
+backend\fn_engine\compiler.py                            591     43    93%   174, 176, 183, 191, 193, 267, 275, 277, 279, 283-284, 310-311, 376-377, 414, 434, 436, 438, 440, 460, 463, 465, 470, 477, 479, 484, 492, 502, 514, 528, 530, 559, 573, 582, 586, 614, 620, 624, 677, 706, 759-760
+backend\fn_engine\composites.py                          263     32    88%   29, 36, 40, 43, 45, 59, 68, 71, 78, 82, 94, 97, 106, 122, 126, 160-163, 165-173, 175, 220, 223, 246
+backend\fn_engine\control.py                             128     26    80%   20, 22, 27, 29, 33-35, 49, 61-64, 101, 118-119, 133-134, 138-146
+backend\fn_engine\controllers.py                          49      1    98%   26
+backend\fn_engine\cooling_tower_moist.py                  55      3    95%   25, 62, 66
+backend\fn_engine\design.py                               78     43    45%   20-23, 26, 29-35, 38-40, 45-57, 62-76
+backend\fn_engine\errors.py                               31      0   100%
+backend\fn_engine\examples.py                             17      1    94%   23
+backend\fn_engine\hydraulic_derivatives.py               141      9    94%   95, 121-122, 169, 176, 183-184, 199, 207
+backend\fn_engine\hydraulic_plan.py                      517     31    94%   189, 204, 230-231, 233-236, 247, 258, 277, 375-377, 388-389, 397-400, 402, 460-461, 496, 580, 591, 631, 642, 702, 704, 709, 745
+backend\fn_engine\jobs.py                                599     32    95%   93, 111, 124-126, 201, 203, 206, 414, 463, 481-482, 486, 636-637, 647, 649, 680-681, 703-715
+backend\fn_engine\migrations.py                          192     44    77%   21, 25, 39, 42, 44, 47, 50, 52, 58-61, 67, 87, 92, 95, 98-102, 107, 111, 120, 127, 130-134, 140-153
+backend\fn_engine\models.py                             1014     33    97%   34, 38, 107, 118, 125, 300, 414, 489, 491, 511, 514, 561, 564, 566, 576, 578, 581, 583, 585, 597, 599, 603, 606, 623, 627, 630, 632, 634, 650, 654, 656, 829, 865
+backend\fn_engine\module_contracts.py                     81      2    98%   58, 78
+backend\fn_engine\module_diagnostics.py                   29      7    76%   41-51
+backend\fn_engine\module_execution.py                     24      0   100%
+backend\fn_engine\module_performance.py                   78      4    95%   56, 119-120, 123
+backend\fn_engine\module_phases.py                        83      6    93%   23, 35, 68, 72, 94, 105
+backend\fn_engine\module_scope.py                         32      5    84%   10, 14, 16, 26, 32
+backend\fn_engine\module_state.py                         38      5    87%   14, 20, 29, 41-42
+backend\fn_engine\module_templates.py                     45      1    98%   32
+backend\fn_engine\module_testing.py                       48      0   100%
+backend\fn_engine\module_transactions.py                  65      5    92%   26, 46-48, 70
+backend\fn_engine\module_validation.py                    45      5    89%   10, 24, 31, 33, 35
+backend\fn_engine\moist_air.py                            84      8    90%   44, 46-47, 93, 104, 117, 137, 141
+backend\fn_engine\packages.py                            159      9    94%   23, 29, 47, 102, 107, 123, 150, 152, 199
+backend\fn_engine\partition.py                           482     48    90%   168, 210, 255, 268, 274-275, 281-282, 293-294, 297-298, 310-313, 343, 345, 351, 361, 386, 391, 445-447, 485, 494, 511, 522, 531, 534-535, 552, 554, 568-571, 586, 620-622, 631, 649, 666, 688-689, 708
+backend\fn_engine\projects.py                             81      5    94%   28, 43, 45, 72, 89
+backend\fn_engine\properties.py                          390     36    91%   66, 136, 164, 193-194, 200, 226, 240, 316, 320, 337-338, 358, 379, 386, 393, 410, 440-441, 467-468, 483, 518, 526, 533, 543, 564-567, 570, 573, 576, 579, 594-595
+backend\fn_engine\refrigeration\__init__.py                0      0   100%
+backend\fn_engine\refrigeration\bench.py                  58      0   100%
+backend\fn_engine\refrigeration\cold_store.py            489     40    92%   70-71, 80, 86, 100, 102, 104, 108, 115, 117, 129, 131, 158, 162-163, 167-168, 243-245, 325, 327, 340, 392, 424-426, 431, 452-454, 456-459, 464, 531-532, 601, 610
+backend\fn_engine\refrigeration\compile.py                61      5    92%   27, 31, 58, 61, 63
+backend\fn_engine\refrigeration\coupling.py              230     10    96%   35, 66, 68, 90, 163-164, 166, 265, 297-300
+backend\fn_engine\refrigeration\coupling_examples.py      67      1    99%   29
+backend\fn_engine\refrigeration\cycle.py                  78     10    87%   48, 50, 61-62, 66, 84-85, 87, 127, 136
+backend\fn_engine\refrigeration\devices.py               105      1    99%   54
+backend\fn_engine\refrigeration\examples.py               39      0   100%
+backend\fn_engine\refrigeration\module_adapter.py         89      5    94%   30, 34, 41, 90, 97
+backend\fn_engine\refrigeration\report.py                256     23    91%   39-43, 72-79, 122, 135, 265, 277-279, 376, 394, 488, 492-493
+backend\fn_engine\refrigeration\schedule.py               31      1    97%   23
+backend\fn_engine\refrigeration\session.py               282     17    94%   24, 26, 64, 73, 79, 82-84, 187-188, 202, 293, 295, 307, 328, 342, 354
+backend\fn_engine\refrigeration\station.py               639     22    97%   81, 92-93, 96, 126, 128, 218, 232, 284-285, 462, 471-475, 613, 649, 682, 684, 702, 747-748
+backend\fn_engine\refrigeration_models.py                 15      0   100%
+backend\fn_engine\refrigeration_roles.py                  69     13    81%   15, 21, 32, 37-38, 49, 73, 85-86, 90, 93-96
+backend\fn_engine\runtime.py                             651    110    83%   69-72, 75, 105, 136-138, 155, 175, 178-180, 185, 193, 203, 221, 225-226, 230-233, 238-242, 252-255, 263, 293, 298, 300, 306, 309, 312, 322, 337, 341-343, 379, 387-414, 418, 437, 440, 442, 456, 461, 464, 484, 488, 494, 497, 506, 508, 510, 513-516, 520, 524-526, 635-636, 650, 660, 713-715, 725-727, 790, 802, 820, 850-851, 857-859, 870-871
+backend\fn_engine\sessions.py                             22      0   100%
+backend\fn_engine\simulation.py                          471     28    94%   34, 54-55, 98, 104, 137, 222, 228-232, 238, 299-301, 343, 401, 438, 470-471, 479, 499, 504, 519-522
+backend\fn_engine\solver.py                              995     36    96%   133, 223-225, 236-237, 391, 529, 585, 589-590, 595, 603-604, 668, 707, 723, 805, 870, 986, 994-995, 1022, 1025, 1054, 1094, 1140, 1145, 1174, 1181-1182, 1203, 1288-1289, 1334-1335
+backend\fn_engine\storage.py                             244      9    96%   49-50, 57, 150-151, 186, 190, 260, 266
+backend\fn_engine\thermal.py                             610     39    94%   75, 78, 83, 95, 108, 123, 164, 169-171, 177-178, 234, 252-253, 329, 351, 354, 405, 429, 436, 454-455, 542-543, 597-598, 600, 652-655, 671, 683, 711-712, 715, 766, 774, 783
+backend\fn_engine\timestep.py                            188     11    94%   95, 106-110, 131, 147, 153, 181, 285, 292
+backend\fn_engine\trapped.py                             266     37    86%   112, 117, 129, 134-135, 149-150, 159-160, 174, 183, 185, 191, 195, 211-212, 221, 238-239, 246, 266, 281-282, 306-309, 315-318, 335-338, 341, 422, 452, 457
+backend\fn_engine\water_chiller.py                        81      8    90%   49-50, 55-56, 66, 83, 92, 107
+backend\fn_engine\worker.py                              127    127     0%   1-174
+------------------------------------------------------------------------------------
+TOTAL                                                  15278   1368    91%
+Coverage XML written to file artifacts/platform-extension/pf2/backend-coverage.xml
+Required test coverage of 85.0% reached. Total coverage: 91.05%
+1723 passed, 5 warnings in 1769.51s (0:29:29)

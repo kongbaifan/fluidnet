@@ -9,6 +9,10 @@ window.ModuleTestEditor = (() => {
   };
   const boundaryFields = [['inlet_pressure_pa','入口压力 · Pa',250000], ['outlet_pressure_pa','出口压力 · Pa',120000],
     ['inlet_temperature_k','入口温度 · K',293.15], ['outlet_temperature_k','出口温度 · K',293.15]];
+  function defaultConditions(definition) {
+    return definition.execution_role ? {fluid:{fluid:definition.applicability?.fluids?.[0] || 'Ammonia',phase_policy:'any'},
+      inlet_pressure_pa:1350000,outlet_pressure_pa:110000} : {};
+  }
   function pressureCase(conditions, reverse) {
     const result = clone(conditions);
     const change = boundary => {
@@ -22,7 +26,7 @@ window.ModuleTestEditor = (() => {
   }
   function cases(module, definition) {
     if (Array.isArray(module.authoringTestCases)) return clone(module.authoringTestCases);
-    const conditions = {duration_s:.2, dt_s:.1, inlet_pressure_pa:250000, outlet_pressure_pa:120000, temperature_k:293.15, ...clone(module.testConditions || {})};
+    const conditions = {duration_s:.2, dt_s:.1, inlet_pressure_pa:250000, outlet_pressure_pa:120000, temperature_k:293.15, ...defaultConditions(definition), ...clone(module.testConditions || {})};
     const result = [
       {id:'forward', conditions},
       {id:'reverse', conditions:pressureCase(conditions,true)},
@@ -32,13 +36,14 @@ window.ModuleTestEditor = (() => {
     return result;
   }
   function mount(container, initial, definition) {
+    const refrigeration = Boolean(definition.execution_role), defaults = defaultConditions(definition);
     const draft = clone(initial).map(c => ({...c, assertions:c.assertions || []}));
     const keys = [...new Set([
       ...(definition.variables || []).map(v => `D1.${v.id}`),
       ...(definition.channels || []).flatMap(c => ['mass_flow_kg_s','pressure_drop_pa','heat_w'].map(v => `D1.${c.id}.${v}`)),
     ])];
-    const fields = [['inlet_pressure_pa','入口压力 · Pa',250000], ['outlet_pressure_pa','出口压力 · Pa',120000],
-      ['temperature_k','边界温度 · K',293.15], ['duration_s','时长 · s',.2], ['dt_s','步长 · s',.1]];
+    const fields = [['inlet_pressure_pa','入口压力 · Pa',defaults.inlet_pressure_pa ?? 250000], ['outlet_pressure_pa','出口压力 · Pa',defaults.outlet_pressure_pa ?? 120000],
+      ...(!refrigeration ? [['temperature_k','边界温度 · K',293.15]] : []), ['duration_s','时长 · s',.2], ['dt_s','步长 · s',.1]];
     const enabledChannels = (definition.channels || []).filter(channel => channel.enabled !== false);
     function boundaryEditor(c, i) {
       const overrides = c.conditions?.channel_boundaries || {};
@@ -52,14 +57,14 @@ window.ModuleTestEditor = (() => {
       }).join('')}</div>`;
     }
     function render() {
-      container.innerHTML = `<p class="muted">预期值使用引擎单位，检查最终帧。通过条件：绝对误差 ≤ max（绝对容差，相对容差 × |预期值|）。未配置预期值时，只检查网络运行是否有效。</p>
+      container.innerHTML = `${refrigeration ? '<p class="notice">制冷边界：入口为给定压力的饱和液体，温度由工质与压力确定；出口为给定压力的同焓流股。压力使用绝压，不积分容器存量。</p>' : ''}<p class="muted">预期值使用引擎单位，检查最终帧。通过条件：绝对误差 ≤ max（绝对容差，相对容差 × |预期值|）。未配置预期值时，只检查运行是否有效。</p>
         <datalist id="module-assertion-keys">${keys.map(key => `<option value="${esc(key)}"></option>`).join('')}</datalist>
         <div class="stack">${draft.map((c,i) => `<section class="panel" data-suite-case="${i}"><div class="panel-head">
           <label class="field"><span>工况标识</span><input data-case="${i}" data-case-id value="${esc(c.id)}" required maxlength="81" aria-label="工况 ${i+1} 标识"></label>
           <button type="button" class="btn small" data-suite-action="remove-case" data-case="${i}" ${draft.length === 1 ? 'disabled' : ''}>删除工况</button></div>
           <div class="panel-body stack"><strong>通用边界与运行时间</strong><div class="fields">${fields.map(([key,label,fallback]) => `<label class="field"><span>${label}</span><input type="number" step="any" min="0" ${key === 'duration_s' || key === 'dt_s' ? 'max="60"' : ''} required data-case="${i}" data-condition="${key}" value="${esc(c.conditions?.[key] ?? fallback)}" aria-label="${esc(c.id+' '+label)}"></label>`).join('')}</div>
           ${definition.sdk?.capabilities?.includes('air.pass_through.v1') ? `<label class="check-label"><input type="checkbox" data-case="${i}" data-suite-moist ${c.conditions?.moist_air?'checked':''}>湿空气验证（Air 气相、节点耦合；启用时设置低压边界）</label>${c.conditions?.moist_air?`<label class="field"><span>边界含湿量 · kg/kg_da</span><input type="number" min="0" max="0.05" step="any" data-case="${i}" data-condition="humidity_ratio_kg_kg" value="${esc(c.conditions.humidity_ratio_kg_kg??.008)}" aria-label="${esc(c.id)} 边界含湿量"></label>`:''}`:''}
-          ${boundaryEditor(c,i)}
+          ${refrigeration ? `<label class="field"><span>制冷剂名称（如 Ammonia、CO2）</span><input data-case="${i}" data-suite-fluid value="${esc(c.conditions?.fluid?.fluid || defaults.fluid.fluid)}" required aria-label="${esc(c.id)} 制冷剂"></label>` : boundaryEditor(c,i)}
           <label class="field"><span>参数覆盖（JSON 对象）</span><textarea data-case="${i}" data-parameters spellcheck="false" rows="2" aria-label="${esc(c.id)} 参数覆盖">${esc(c.parametersText ?? JSON.stringify(c.conditions?.parameters || {},null,2))}</textarea></label>
           <div class="table-wrap"><table style="table-layout:fixed;width:100%"><colgroup><col style="width:34%"><col style="width:18%"><col style="width:18%"><col style="width:18%"><col style="width:12%"></colgroup><thead><tr><th>结果变量</th><th>预期值</th><th>绝对容差</th><th>相对容差</th><th></th></tr></thead><tbody>${c.assertions.map((a,j) => `<tr data-suite-assertion="${j}">
             <td><input style="min-width:0;width:100%" list="module-assertion-keys" required maxlength="256" data-case="${i}" data-assertion="${j}" data-expectation="key" value="${esc(a.key)}" aria-label="结果变量"></td>
@@ -80,6 +85,7 @@ window.ModuleTestEditor = (() => {
         render();return;
       }
       if ('caseId' in d) c.id = event.target.value;
+      if ('suiteFluid' in d) { c.conditions ||= {}; c.conditions.fluid={fluid:event.target.value,phase_policy:'any'}; }
       if (d.condition) { c.conditions ||= {}; c.conditions[d.condition] = event.target.value; }
       if (d.boundaryField) c.conditions.channel_boundaries[d.boundary][d.boundaryField] = event.target.value;
       if ('parameters' in d) c.parametersText = event.target.value;
@@ -92,7 +98,7 @@ window.ModuleTestEditor = (() => {
       const d = button.dataset, c = draft[Number(d.case)];
       if (d.suiteAction === 'add-case' && draft.length < 64) {
         let n = draft.length + 1; while (draft.some(c => c.id === `case_${n}`)) n++;
-        draft.push({id:`case_${n}`, conditions:{duration_s:.2,dt_s:.1}, assertions:[]});
+        draft.push({id:`case_${n}`, conditions:{duration_s:.2,dt_s:.1,...clone(defaults)}, assertions:[]});
       }
       if (d.suiteAction === 'remove-case' && draft.length > 1) draft.splice(Number(d.case),1);
       if (d.suiteAction === 'add-boundary' && c) {
@@ -118,7 +124,8 @@ window.ModuleTestEditor = (() => {
         const id = c.id.trim();
         if (!/^[A-Za-z][A-Za-z0-9_-]{0,80}$/.test(id) || ids.has(id)) throw Error('工况标识须以字母开头，最多 81 个字符，仅使用字母、数字、下划线或短横线，不能重复。');
         ids.add(id);
-        const conditions = clone(c.conditions || {});
+        const conditions = {...clone(defaults),...clone(c.conditions || {})};
+        if(refrigeration && !conditions.fluid.fluid.trim()) throw Error(`${id} 必须填写制冷剂名称。`);
         if(conditions.moist_air){conditions.humidity_ratio_kg_kg=number(conditions.humidity_ratio_kg_kg??.008,'边界含湿量',0);if(conditions.humidity_ratio_kg_kg>.05)throw Error('含湿量不能超过 0.05 kg/kg_da');}
         for (const [key,label,fallback] of fields) conditions[key] = number(conditions[key] ?? fallback, `${id} ${label}`, 0, true);
         if (conditions.duration_s > 60 || conditions.dt_s > 60) throw Error(`${id} 时长和步长最多为 60 秒。`);
@@ -152,5 +159,5 @@ window.ModuleTestEditor = (() => {
       return lines.join('\n');
     }).join('\n');
   }
-  return {cases,mount,summary};
+  return {cases,mount,summary,defaultConditions};
 })();

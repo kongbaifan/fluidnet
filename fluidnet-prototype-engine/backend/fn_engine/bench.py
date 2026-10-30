@@ -55,6 +55,9 @@ def bench_channels(module: ModuleDefinition) -> list:
 
 def run_module_test(request: ModuleTestRequest) -> ModuleTestResponse:
     module = request.module
+    if module.execution_role:
+        from .refrigeration.bench import run_refrigeration_test
+        return run_refrigeration_test(request)
     if module.runtime != 'python':
         raise RuntimeErrorBase('模块测试只执行 Python 模块包')
     channels = module.channels if module.composite is not None else bench_channels(module)

@@ -1,0 +1,19 @@
+{
+  "scope": "RF-0, one Python throttle in the full B station_case with five PID loops and its control script",
+  "frozen_before_measurement": true,
+  "duration_s": 60,
+  "dt_s": 10,
+  "repeats": 5,
+  "candidate_warmups": 2,
+  "candidate_samples": 7,
+  "thread_limits": 1,
+  "limits": {
+    "initialization_extra_s": 3.0,
+    "candidate_median_extra_s": 0.005,
+    "dynamic_extra_s_floor": 0.5,
+    "dynamic_extra_fraction": 0.5,
+    "peak_sampled_rss_extra_bytes": 201326592,
+    "all_workers_reclaimed": true,
+    "same_newton_iterations": true
+  }
+}

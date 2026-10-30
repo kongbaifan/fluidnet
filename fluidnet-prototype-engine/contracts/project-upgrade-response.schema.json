@@ -736,7 +736,8 @@
               "schema_version": {
                 "enum": [
                   2,
-                  3
+                  3,
+                  4
                 ]
               }
             },
@@ -763,11 +764,6 @@
           "else": {
             "not": {
               "anyOf": [
-                {
-                  "required": [
-                    "applicability"
-                  ]
-                },
                 {
                   "required": [
                     "hydraulic_dependencies"
@@ -804,6 +800,13 @@
           "then": {
             "properties": {
               "applicability": {
+                "properties": {
+                  "execution_domains": {
+                    "items": {
+                      "const": "fluid"
+                    }
+                  }
+                },
                 "type": "object"
               },
               "hydraulic_dependencies": {
@@ -817,6 +820,79 @@
               }
             }
           }
+        },
+        {
+          "else": {
+            "not": {
+              "required": [
+                "execution_role"
+              ]
+            }
+          },
+          "if": {
+            "properties": {
+              "schema_version": {
+                "const": 4
+              }
+            },
+            "required": [
+              "schema_version"
+            ]
+          },
+          "then": {
+            "properties": {
+              "execution_role": {
+                "const": "refrigeration.isenthalpic_throttle.v1"
+              },
+              "applicability": {
+                "properties": {
+                  "execution_domains": {
+                    "items": {
+                      "const": "refrigeration"
+                    }
+                  }
+                },
+                "type": "object"
+              },
+              "solver_model": {
+                "const": "generic"
+              },
+              "state_model": {
+                "type": "null"
+              },
+              "thermal_model": {
+                "type": "null"
+              },
+              "source_format": {
+                "const": "python-v1"
+              },
+              "channels": {
+                "maxItems": 0
+              }
+            },
+            "required": [
+              "execution_role"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "schema_version": {
+                "enum": [
+                  1,
+                  2
+                ]
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "required": [
+                "applicability"
+              ]
+            }
+          }
         }
       ],
       "description": "Schema-dispatched module facade; v1 never receives SDK default fields.",
@@ -826,7 +902,8 @@
           "enum": [
             1,
             2,
-            3
+            3,
+            4
           ],
           "title": "Schema Version",
           "type": "integer"
@@ -1011,10 +1088,27 @@
               "$ref": "#/$defs/ModuleApplicability"
             },
             {
+              "$ref": "#/$defs/RefrigerationApplicability"
+            },
+            {
               "type": "null"
             }
           ],
-          "default": null
+          "default": null,
+          "title": "Applicability"
+        },
+        "execution_role": {
+          "anyOf": [
+            {
+              "const": "refrigeration.isenthalpic_throttle.v1",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Execution Role"
         },
         "hydraulic_dependencies": {
           "anyOf": [
@@ -1873,6 +1967,39 @@
         "id"
       ],
       "title": "ProjectUpgradeChange",
+      "type": "object"
+    },
+    "RefrigerationApplicability": {
+      "additionalProperties": false,
+      "properties": {
+        "execution_domains": {
+          "items": {
+            "const": "refrigeration",
+            "type": "string"
+          },
+          "maxItems": 1,
+          "minItems": 1,
+          "title": "Execution Domains",
+          "type": "array"
+        },
+        "fluids": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 64,
+          "title": "Fluids",
+          "type": "array"
+        },
+        "assumptions": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 32,
+          "title": "Assumptions",
+          "type": "array"
+        }
+      },
+      "title": "RefrigerationApplicability",
       "type": "object"
     },
     "Scenario": {

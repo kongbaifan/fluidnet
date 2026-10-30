@@ -1,0 +1,74 @@
+{
+  "date": "2026-10-30",
+  "recorded_at": "2026-10-30T16:56:12.247871+08:00",
+  "status": "RF-4 complete; PF-2 full acceptance passed",
+  "scope": "saved project/version/source snapshots; canonical and Studio exchange; frozen reports and batches; restart",
+  "checks": {
+    "browser": {
+      "command": "node tests/browser-refrigeration-projects.mjs",
+      "exit_code": 0,
+      "log": "docs/platform-extension/results/rf4/browser-final.txt",
+      "evidence": "docs/platform-extension/results/rf4/browser-validation.json",
+      "page_errors": 0,
+      "viewport": "1920x1080",
+      "dpr": 1,
+      "includes": "Historical report and CSV downloads through the generic archive UI"
+    },
+    "backend": {
+      "command": "python -m pytest -q tests/test_refrigeration_projects.py --tb=short",
+      "exit_code": 0,
+      "passed": 2,
+      "duration_s": 22.31,
+      "evidence_type": "summary captured from tool output; both cases also belong to the final PF-2 full run",
+      "summary": "2 passed in 22.31s",
+      "log": "docs/platform-extension/results/rf4/backend-summary.json"
+    },
+    "final-ui": {
+      "command": "npm run test:ui",
+      "exit_code": 0,
+      "passed": 15,
+      "log": "docs/platform-extension/results/pf2/frontend-unit-final.txt"
+    },
+    "full-backend": {
+      "command": "python -u -m pytest -q --cov=fn_engine --cov-report=term-missing --cov-report=xml:artifacts/platform-extension/pf2/backend-coverage.xml",
+      "exit_code": 0,
+      "log": "docs/platform-extension/results/pf2/backend-full.txt",
+      "sha256": "0b67eff31db7fc32e8e0f90a15e641ab46afde601eb1359bead3bfd435745711",
+      "passed": 1723,
+      "warnings": 5,
+      "skipped": 0,
+      "duration_s": 1769.51,
+      "coverage_percent": 91.05,
+      "coverage_floor_percent": 85
+    }
+  },
+  "source_sha256": {
+    "backend/fn_engine/refrigeration/report.py": "8ee8ebe68cff74b9843257bda95ccdf750ffd95bfe5cbd135c30c1949f2a8820",
+    "backend/fn_engine/bridge.py": "b48afb4839788677b03ba8fcb699e623b7fa81c563ddf403d173ffe64754dd0c",
+    "frontend/engine-client.js": "6174c4589958ca636ec731b8381d4872cb97398e31938b665d1abfcd759f0732",
+    "frontend/project-services.js": "ce279ed9e1374c372b7a5cbe432cc3a838a83ef2af21f22a68b30fa0f7496a57",
+    "frontend/modeling-workflows.js": "c335601bc8990ef8bfb41d58d715776023ddf1fb4bf5b244a8bbb746b46750bd",
+    "frontend/studio.js": "7544234da6ef24633e98f6f76a4119fecc23fbb90b5f111f6619800477918e1d",
+    "scripts/generate_refrigeration_author_example.py": "f3a7ff794cda57f40ad69731f65680eacadea739c0989bff558d619e2401563b",
+    "tests/test_refrigeration_projects.py": "063ed1704296e1003212289ad393d5b90b2bc1238660acc3118c432063543980",
+    "tests/project-exchange.test.mjs": "893eabc6bbce7e95e97e687f46520e19146a1bd919cedfc96fe63b6692eecdcd",
+    "tests/project-overview.test.mjs": "33d1e6f9b20826bb4a8c09bfec84ff9c0a91717d06ecded2ced71b19aa5fa751",
+    "tests/browser-refrigeration-projects.mjs": "2a0b085e2d2b4705d634b11b6ef6468fe5e2d754a3cb55d5abaab889a09f20ec",
+    "examples/refrigeration_extensions/author_station.json": "f945f7daf521604f5c886fa0bf62e273102c4da28c9e51a6e2ae739a61cfb9b4",
+    "examples/refrigeration_extensions/author_station_small.json": "01bae4ae0e8ff54a40d50e0127fcbc71c44082e60fb130e31fd595fdc3cfd3fc",
+    "tests/browser-cold-storage-station.mjs": "ad1003136e107eeaa25214e7835cc2d74f2c22a2487441548d501ee6141fad71"
+  },
+  "artifacts": {
+    "docs/platform-extension/results/rf4/backend-summary.json": "c07bb7757835226bc266688ca7c657e9e1e262a0460849dbf8e701f4e27a70fb",
+    "docs/platform-extension/results/rf4/batch-1080p.png": "e29d931d3cb63d866e5a74f6e2e756d1b15ce1b0cd69c20077dd5f4e7b9680ed",
+    "docs/platform-extension/results/rf4/batch-1080p.png.json": "9b20995061375bf2395105b92ea3121324f1036a4386c09574da6ba63a8bca11",
+    "docs/platform-extension/results/rf4/browser-final.txt": "b464699df1ff26d8feaaf97b9eb49405bdd8db57ac39660a45b8dfc5fde601cf",
+    "docs/platform-extension/results/rf4/browser-validation.json": "16448cc633cf016f2dfff1145e916f4273ff2978bd7b1c4239fba8f4b5b479ba",
+    "docs/platform-extension/results/rf4/browser.txt": "be55c9cf33cbe76e640c874db65006f40c0945e07c7f83f10c2408dcdd704895",
+    "docs/platform-extension/results/rf4/frozen-report-1080p.png": "12cdd5a2bc842cedef4eef11ad61ad94786ad9a778aa64904ee307a497060916",
+    "docs/platform-extension/results/rf4/frozen-report-1080p.png.json": "c81df547a9dcb8a5626c0c1c6de13245b30edb15adbef03902ab28f8f6ff2b1e",
+    "docs/platform-extension/results/rf4/frozen-report.html": "298be7d96df6e173d5f68300ee15caf61d85d0ab167c3aeb47d4359fbe606dec",
+    "docs/platform-extension/results/rf4/restored-project-1080p.png": "e59229a267afdc71da91773d78dc9f85ae7b12cde2a18640fede57540e7c00a1",
+    "docs/platform-extension/results/rf4/restored-project-1080p.png.json": "ec6d7f6ae1d01fbbb97ea4590c5ed666f6b26272291394c804e271ff25d60941"
+  }
+}

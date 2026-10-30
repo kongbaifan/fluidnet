@@ -1,0 +1,532 @@
+{
+  "suite": [
+    {
+      "id": "forward",
+      "passed": true,
+      "input_hash": "959de002b0f2be6f1a7c084d13f0233575f068dfd3ff2c55a5aaeba86ebc3949"
+    },
+    {
+      "id": "reverse",
+      "passed": true,
+      "input_hash": "709b4328fb82a70243b57ed9e78a40e0d2c1c8cf6cf3b96c23b5800597642fb1"
+    },
+    {
+      "id": "zero",
+      "passed": true,
+      "input_hash": "38facbd70d1f490536b9cb3bd044b38525d547c30aebc37b4bf0ab5605cec4d5"
+    },
+    {
+      "id": "closed",
+      "passed": true,
+      "input_hash": "a5c6f5e10b7c21e43860021caedb8f318211086347c3f2a4c22658cce860e5ee"
+    }
+  ],
+  "release": {
+    "package": {
+      "module_id": "author_cold_valve",
+      "version": "1.0.0",
+      "content_hash": "78b5d6698931a2a123626737ebc548e27be15644898d6123a66bda62ea1c79cf",
+      "definition_hash": "8ac71175007a4c31791664c7b183d2d1d2d24f8cc2806a72bf39b4b801ced852"
+    },
+    "created_at": "2026-10-30T07:58:56.748567+00:00",
+    "release_notes": "",
+    "tested": true,
+    "validation_evidence": [
+      {
+        "level": "L3",
+        "status": "passed",
+        "source": "engine module bench",
+        "content_hash": "78b5d6698931a2a123626737ebc548e27be15644898d6123a66bda62ea1c79cf",
+        "definition_hash": "8ac71175007a4c31791664c7b183d2d1d2d24f8cc2806a72bf39b4b801ced852",
+        "input_hash": "e58639e4acfc9b4075d61b11c9c6b84946c706b9cdeca8a4d729ce1fe4ac24e3",
+        "engine_version": "0.5.0",
+        "sdk_version": "0.7.0",
+        "tolerances": {
+          "pressure_pa": 1,
+          "mass_flow_kg_s": 1e-8
+        }
+      }
+    ],
+    "module": {
+      "schema_version": 4,
+      "id": "author_cold_valve",
+      "name": "作者制冷节流阀",
+      "version": 1,
+      "category": "自定义模块",
+      "description": "饱和液体单向等焓节流，支持 linear / equal_percentage 开度特性；平台积分累计通过质量。",
+      "ports": [
+        {
+          "id": "in0",
+          "label": "高压液进口",
+          "domain": "refrigerant",
+          "direction": "in",
+          "required": true,
+          "circuit": "refrigerant"
+        },
+        {
+          "id": "out0",
+          "label": "低压两相出口",
+          "domain": "refrigerant",
+          "direction": "out",
+          "required": true,
+          "circuit": "refrigerant"
+        }
+      ],
+      "parameters": [
+        {
+          "id": "kv_m3_h",
+          "label": "流量系数 Kv",
+          "value_type": "number",
+          "default": 0.6,
+          "unit": {
+            "quantity": "flow_coefficient",
+            "canonical_unit": "m³/h",
+            "display_unit": "m³/h",
+            "display_scale": 1,
+            "display_offset": 0
+          },
+          "minimum": 0.001,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "opening_ratio",
+          "label": "开度",
+          "value_type": "number",
+          "default": 0.5,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0
+          },
+          "minimum": 0,
+          "maximum": 1,
+          "runtime": true,
+          "writable": true
+        },
+        {
+          "id": "characteristic",
+          "label": "开度特性：linear / equal_percentage",
+          "value_type": "text",
+          "default": "linear",
+          "unit": null,
+          "minimum": null,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "rangeability",
+          "label": "等百分比可调比",
+          "value_type": "number",
+          "default": 50,
+          "unit": null,
+          "minimum": 1.000001,
+          "maximum": 1000,
+          "runtime": false,
+          "writable": true
+        }
+      ],
+      "variables": [
+        {
+          "id": "mass_flow_kg_s",
+          "label": "质量流量",
+          "quantity": "mass_flow",
+          "unit": {
+            "quantity": "mass_flow",
+            "canonical_unit": "kg/s",
+            "display_unit": "kg/s",
+            "display_scale": 1,
+            "display_offset": 0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "pressure_drop_pa",
+          "label": "压差",
+          "quantity": "pressure",
+          "unit": {
+            "quantity": "pressure",
+            "canonical_unit": "Pa",
+            "display_unit": "MPa",
+            "display_scale": 1000000,
+            "display_offset": 0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "outlet_quality",
+          "label": "出口干度",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1,
+            "display_offset": 0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "param.kv_m3_h",
+          "label": "流量系数 Kv",
+          "quantity": "flow_coefficient",
+          "unit": {
+            "quantity": "flow_coefficient",
+            "canonical_unit": "m³/h",
+            "display_unit": "m³/h",
+            "display_scale": 1,
+            "display_offset": 0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "kv_m3_h",
+          "port_id": null
+        },
+        {
+          "id": "param.opening_ratio",
+          "label": "开度",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "opening_ratio",
+          "port_id": null
+        },
+        {
+          "id": "opening",
+          "label": "算法开度",
+          "quantity": "ratio",
+          "unit": null,
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.accepted_segments",
+          "label": "已接受段数",
+          "quantity": "count",
+          "unit": null,
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "effective_kv_m3_h",
+          "label": "有效 Kv",
+          "quantity": "flow_coefficient",
+          "unit": {
+            "quantity": "flow_coefficient",
+            "canonical_unit": "m³/h",
+            "display_unit": "m³/h",
+            "display_scale": 1,
+            "display_offset": 0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.transferred_mass_kg",
+          "label": "累计通过质量",
+          "quantity": "mass",
+          "unit": {
+            "quantity": "mass",
+            "canonical_unit": "kg",
+            "display_unit": "kg",
+            "display_scale": 1,
+            "display_offset": 0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        }
+      ],
+      "channels": [],
+      "solver_model": "generic",
+      "state_model": null,
+      "thermal_model": null,
+      "source_format": "python-v1",
+      "source": {
+        "runtime": "\"\"\"Public SDK isenthalpic throttle: linear and normalized equal-percentage characteristics.\"\"\"\nimport math\n\nfrom fn_sdk import DeviceModule, ModuleContext\n\n\nclass Module:\n    def initialize(self, ctx: ModuleContext) -> None:\n        ctx.state['accepted_segments'] = 0\n\n    def evaluate(self, ctx: ModuleContext) -> None:\n        point = ctx.refrigeration.throttle\n        characteristic = ctx.parameter('characteristic', 'linear')\n        opening = point.opening_ratio\n        if characteristic == 'linear':\n            fraction = opening\n        elif characteristic == 'equal_percentage':\n            ratio = ctx.parameter('rangeability', 50.0)\n            if isinstance(ratio, bool) or not isinstance(ratio, (int, float)) or not math.isfinite(ratio) or ratio <= 1:\n                raise ValueError('rangeability must be finite and greater than one')\n            fraction = opening if opening in (0.0, 1.0) else math.expm1(opening * math.log(ratio)) / (ratio - 1)\n        else:\n            raise ValueError('characteristic must be linear or equal_percentage')\n        effective = point.rated_kv_m3_h * fraction\n        drop = max(point.inlet_pressure_pa-point.outlet_pressure_pa,0.)\n        mass = effective/3600*math.sqrt(1000*point.inlet_density_kg_m3*drop/100000)\n        ctx.refrigeration.flow(mass_flow_kg_s=mass,effective_kv_m3_h=effective)\n        ctx.var('opening',point.opening_ratio)\n\n    def commit_step(self, ctx: ModuleContext, dt_s: float) -> None:\n        count = ctx.state['accepted_segments']\n        if isinstance(count,bool) or not isinstance(count,int):\n            raise ValueError('accepted_segments must be an integer')\n        ctx.state['accepted_segments'] = count+1\n\n    def finalize(self, ctx: ModuleContext) -> None:\n        pass\n\n\ndef typed_module() -> DeviceModule:\n    return Module()\n"
+      },
+      "runtime": "python",
+      "entrypoint": "module:Module",
+      "content_hash": "78b5d6698931a2a123626737ebc548e27be15644898d6123a66bda62ea1c79cf",
+      "definition_hash": "8ac71175007a4c31791664c7b183d2d1d2d24f8cc2806a72bf39b4b801ced852",
+      "package_path": "C:\\Users\\JOBSTE~1\\AppData\\Local\\Temp\\fluidnet-browser-Rdx5nz\\modules\\module-author_cold_valve\\v1",
+      "bank_names": [
+        "额定工况",
+        "部分负荷",
+        "调试备份"
+      ],
+      "sdk": {
+        "api_version": "0.7.0",
+        "capabilities": [
+          "context.execution.v1",
+          "refrigeration.throttle.v1",
+          "state.transactions.v1"
+        ],
+        "state_contract_version": 1
+      },
+      "applicability": {
+        "execution_domains": [
+          "refrigeration"
+        ],
+        "fluids": [],
+        "assumptions": []
+      },
+      "execution_role": "refrigeration.isenthalpic_throttle.v1"
+    },
+    "test_conditions": {
+      "parameters": {},
+      "fluid": {
+        "backend": "coolprop",
+        "fluid": "Ammonia",
+        "composition": {},
+        "reference": "mass",
+        "phase_policy": "any"
+      },
+      "inlet_pressure_pa": 1350000,
+      "outlet_pressure_pa": 110000,
+      "temperature_k": 293.15,
+      "duration_s": 0.1,
+      "dt_s": 0.1,
+      "channel_boundaries": {},
+      "property_coupling": "reference"
+    },
+    "test_result": {
+      "execution_domain": "refrigeration",
+      "refrigeration_evaluation": {
+        "flow": {
+          "mass_flow_kg_s": 0.22493927636741132,
+          "effective_kv_m3_h": 0.3
+        },
+        "variables": {
+          "opening": 0.5
+        },
+        "diagnostics": []
+      },
+      "module_id": "author_cold_valve",
+      "content_hash": "78b5d6698931a2a123626737ebc548e27be15644898d6123a66bda62ea1c79cf",
+      "state": {
+        "accepted_segments": 0
+      },
+      "evaluation": {
+        "relations": [],
+        "variables": {
+          "mass_flow_kg_s": 0.22493927636741132,
+          "effective_kv_m3_h": 0.3,
+          "pressure_drop_pa": 1240000,
+          "enthalpy_j_kg": 511556.3393750404,
+          "outlet_quality": 0.22698416055229578,
+          "opening": 0.5,
+          "in0.pressure_pa": 1350000,
+          "in0.temperature_k": 308.1502141112723,
+          "in0.enthalpy_j_kg": 511556.3393750404,
+          "in0.density_kg_m3": 587.5859386764541,
+          "in0.mass_flow_kg_s": 0.22493927636741132,
+          "in0.quality": 0,
+          "out0.pressure_pa": 110000,
+          "out0.temperature_k": 241.48271650709094,
+          "out0.enthalpy_j_kg": 511556.3393750404,
+          "out0.density_kg_m3": 4.21362922123033,
+          "out0.mass_flow_kg_s": -0.22493927636741132,
+          "out0.quality": 0.22698416055229578
+        },
+        "diagnostics": []
+      },
+      "committed": {
+        "state": {
+          "accepted_segments": 1
+        },
+        "variables": {},
+        "diagnostics": []
+      },
+      "frame": {
+        "status": "converged",
+        "valid": true,
+        "time_s": 0.1,
+        "variables": {
+          "D1.mass_flow_kg_s": 0.22493927636741132,
+          "D1.effective_kv_m3_h": 0.3,
+          "D1.pressure_drop_pa": 1240000,
+          "D1.enthalpy_j_kg": 511556.3393750404,
+          "D1.outlet_quality": 0.22698416055229578,
+          "D1.opening": 0.5,
+          "D1.in0.pressure_pa": 1350000,
+          "D1.in0.temperature_k": 308.1502141112723,
+          "D1.in0.enthalpy_j_kg": 511556.3393750404,
+          "D1.in0.density_kg_m3": 587.5859386764541,
+          "D1.in0.mass_flow_kg_s": 0.22493927636741132,
+          "D1.in0.quality": 0,
+          "D1.out0.pressure_pa": 110000,
+          "D1.out0.temperature_k": 241.48271650709094,
+          "D1.out0.enthalpy_j_kg": 511556.3393750404,
+          "D1.out0.density_kg_m3": 4.21362922123033,
+          "D1.out0.mass_flow_kg_s": -0.22493927636741132,
+          "D1.out0.quality": 0.22698416055229578,
+          "D1.state.accepted_segments": 1,
+          "D1.param.kv_m3_h": 0.6,
+          "D1.param.opening_ratio": 0.5,
+          "D1.param.characteristic": "linear",
+          "D1.param.rangeability": 50,
+          "D1.state.transferred_mass_kg": 0.022493927636741132
+        },
+        "diagnostics": [
+          {
+            "code": "REFRIGERATION_BENCH_BOUNDARIES",
+            "message": "入口为给定压力的饱和液体，温度由压力确定；出口为给定压力的同焓流股。此验证台不积分容器存量。",
+            "severity": "info",
+            "instance_id": null,
+            "field": null
+          }
+        ],
+        "metrics": {
+          "mass_residual_kg_s": 0,
+          "energy_residual_w": 0
+        },
+        "solve_counters": null,
+        "solve_summary": null,
+        "full": true,
+        "sequence": 1,
+        "parameter_revision": 0
+      },
+      "history": [
+        {
+          "status": "converged",
+          "valid": true,
+          "time_s": 0,
+          "variables": {
+            "D1.mass_flow_kg_s": 0.22493927636741132,
+            "D1.effective_kv_m3_h": 0.3,
+            "D1.pressure_drop_pa": 1240000,
+            "D1.enthalpy_j_kg": 511556.3393750404,
+            "D1.outlet_quality": 0.22698416055229578,
+            "D1.opening": 0.5,
+            "D1.in0.pressure_pa": 1350000,
+            "D1.in0.temperature_k": 308.1502141112723,
+            "D1.in0.enthalpy_j_kg": 511556.3393750404,
+            "D1.in0.density_kg_m3": 587.5859386764541,
+            "D1.in0.mass_flow_kg_s": 0.22493927636741132,
+            "D1.in0.quality": 0,
+            "D1.out0.pressure_pa": 110000,
+            "D1.out0.temperature_k": 241.48271650709094,
+            "D1.out0.enthalpy_j_kg": 511556.3393750404,
+            "D1.out0.density_kg_m3": 4.21362922123033,
+            "D1.out0.mass_flow_kg_s": -0.22493927636741132,
+            "D1.out0.quality": 0.22698416055229578,
+            "D1.state.accepted_segments": 0,
+            "D1.param.kv_m3_h": 0.6,
+            "D1.param.opening_ratio": 0.5,
+            "D1.param.characteristic": "linear",
+            "D1.param.rangeability": 50,
+            "D1.state.transferred_mass_kg": 0
+          },
+          "diagnostics": [
+            {
+              "code": "REFRIGERATION_BENCH_BOUNDARIES",
+              "message": "入口为给定压力的饱和液体，温度由压力确定；出口为给定压力的同焓流股。此验证台不积分容器存量。",
+              "severity": "info",
+              "instance_id": null,
+              "field": null
+            }
+          ],
+          "metrics": {
+            "mass_residual_kg_s": 0,
+            "energy_residual_w": 0
+          },
+          "solve_counters": null,
+          "solve_summary": null,
+          "full": true,
+          "sequence": 0,
+          "parameter_revision": 0
+        },
+        {
+          "status": "converged",
+          "valid": true,
+          "time_s": 0.1,
+          "variables": {
+            "D1.mass_flow_kg_s": 0.22493927636741132,
+            "D1.effective_kv_m3_h": 0.3,
+            "D1.pressure_drop_pa": 1240000,
+            "D1.enthalpy_j_kg": 511556.3393750404,
+            "D1.outlet_quality": 0.22698416055229578,
+            "D1.opening": 0.5,
+            "D1.in0.pressure_pa": 1350000,
+            "D1.in0.temperature_k": 308.1502141112723,
+            "D1.in0.enthalpy_j_kg": 511556.3393750404,
+            "D1.in0.density_kg_m3": 587.5859386764541,
+            "D1.in0.mass_flow_kg_s": 0.22493927636741132,
+            "D1.in0.quality": 0,
+            "D1.out0.pressure_pa": 110000,
+            "D1.out0.temperature_k": 241.48271650709094,
+            "D1.out0.enthalpy_j_kg": 511556.3393750404,
+            "D1.out0.density_kg_m3": 4.21362922123033,
+            "D1.out0.mass_flow_kg_s": -0.22493927636741132,
+            "D1.out0.quality": 0.22698416055229578,
+            "D1.state.accepted_segments": 1,
+            "D1.param.kv_m3_h": 0.6,
+            "D1.param.opening_ratio": 0.5,
+            "D1.param.characteristic": "linear",
+            "D1.param.rangeability": 50,
+            "D1.state.transferred_mass_kg": 0.022493927636741132
+          },
+          "diagnostics": [
+            {
+              "code": "REFRIGERATION_BENCH_BOUNDARIES",
+              "message": "入口为给定压力的饱和液体，温度由压力确定；出口为给定压力的同焓流股。此验证台不积分容器存量。",
+              "severity": "info",
+              "instance_id": null,
+              "field": null
+            }
+          ],
+          "metrics": {
+            "mass_residual_kg_s": 0,
+            "energy_residual_w": 0
+          },
+          "solve_counters": null,
+          "solve_summary": null,
+          "full": true,
+          "sequence": 1,
+          "parameter_revision": 0
+        }
+      ]
+    }
+  },
+  "linear": 0.22493927636741132,
+  "equalPercentage": 0.05573965715830625,
+  "sourceLocation": true,
+  "errors": []
+}

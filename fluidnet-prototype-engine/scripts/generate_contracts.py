@@ -40,6 +40,9 @@ from fn_engine.solver import solve_steady
 from fn_engine._module_schema_v1 import ModuleDefinitionV1
 from fn_engine._module_schema_v2 import ModuleDefinitionV2
 from fn_engine._module_schema_v3 import ModuleDefinitionV3
+from fn_engine._module_schema_v4 import ModuleDefinitionV4
+from fn_engine.models import RefrigerationEvaluateRequest, RefrigerationEvaluateResponse
+from fn_engine.refrigeration_models import RefrigerationThrottleInput, RefrigerationThrottleFlow
 
 root=Path(__file__).resolve().parents[1]
 output=root/'contracts'
@@ -59,6 +62,10 @@ models = [
     ('saved-project-run-request', SavedProjectRunRequest),
     ('module-v1', ModuleDefinitionV1), ('module-v2', ModuleDefinitionV2),
     ('module-v3', ModuleDefinitionV3),
+    ('module-v4',ModuleDefinitionV4),('refrigeration-throttle-input',RefrigerationThrottleInput),
+    ('refrigeration-throttle-flow',RefrigerationThrottleFlow),
+    ('refrigeration-evaluate-request',RefrigerationEvaluateRequest),
+    ('refrigeration-evaluate-response',RefrigerationEvaluateResponse),
     ('module-request-context', ModuleRequestContext), ('module-execution-info', ModuleExecutionInfo),
     ('module-step-candidate', ModuleStepCandidate),
     ('module-test-suite-request', ModuleTestSuiteRequest), ('module-test-suite-response', ModuleTestSuiteResponse),

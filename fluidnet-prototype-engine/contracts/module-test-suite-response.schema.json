@@ -439,6 +439,30 @@
     "ModuleTestResponse": {
       "additionalProperties": false,
       "properties": {
+        "execution_domain": {
+          "anyOf": [
+            {
+              "const": "refrigeration",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Execution Domain"
+        },
+        "refrigeration_evaluation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefrigerationEvaluateResponse"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "module_id": {
           "title": "Module Id",
           "type": "string"
@@ -515,6 +539,70 @@
         "channel"
       ],
       "title": "NetworkRelation",
+      "type": "object"
+    },
+    "RefrigerationEvaluateResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "flow": {
+          "$ref": "#/$defs/RefrigerationThrottleFlow"
+        },
+        "variables": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Variables",
+          "type": "object"
+        },
+        "diagnostics": {
+          "items": {
+            "$ref": "#/$defs/Diagnostic"
+          },
+          "title": "Diagnostics",
+          "type": "array"
+        }
+      },
+      "required": [
+        "flow"
+      ],
+      "title": "RefrigerationEvaluateResponse",
+      "type": "object"
+    },
+    "RefrigerationThrottleFlow": {
+      "additionalProperties": false,
+      "properties": {
+        "mass_flow_kg_s": {
+          "minimum": 0,
+          "title": "Mass Flow Kg S",
+          "type": "number"
+        },
+        "effective_kv_m3_h": {
+          "minimum": 0,
+          "title": "Effective Kv M3 H",
+          "type": "number"
+        }
+      },
+      "required": [
+        "mass_flow_kg_s",
+        "effective_kv_m3_h"
+      ],
+      "title": "RefrigerationThrottleFlow",
       "type": "object"
     },
     "RunFrame": {

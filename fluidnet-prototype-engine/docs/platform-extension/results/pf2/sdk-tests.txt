@@ -1,0 +1,18 @@
+........................................................................ [ 56%]
+........................................................                 [100%]
+=============================== tests coverage ================================
+_______________ coverage: platform win32, python 3.11.0-final-0 _______________
+
+Name                                Stmts   Miss  Cover   Missing
+-----------------------------------------------------------------
+backend\fn_sdk\__init__.py              7      0   100%
+backend\fn_sdk\_hydraulic_core.py      25      0   100%
+backend\fn_sdk\_protocols.py           30      0   100%
+backend\fn_sdk\hydraulics.py           64      0   100%
+backend\fn_sdk\refrigeration.py         4      0   100%
+backend\fn_sdk\thermal.py              23      2    91%   26-27
+-----------------------------------------------------------------
+TOTAL                                 153      2    99%
+Coverage XML written to file artifacts/platform-extension/pf2/sdk-coverage.xml
+Required test coverage of 85.0% reached. Total coverage: 98.69%
+128 passed in 2.01s
