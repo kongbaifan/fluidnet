@@ -57,9 +57,12 @@ def compile_coupled_project(project):
         if domains and domains <= {Domain.fluid}:
             liquid_ids.add(instance.id)
             parameters = validated_parameters(instance, definition)
-            if definition.runtime != 'builtin' or definition.state_model or parameters.get('thermal_cells', 0) != 0:
+            if definition.state_model or parameters.get('thermal_cells', 0) != 0:
                 raise CompilationError('COUPLED_FLUID_STATE_UNSUPPORTED',
-                    '当前联算的单相侧只支持无储热内置网络；不含水箱、管壁/流体储热及 Python 设备模块', instance.id)
+                    '当前联算的单相侧只支持无储热网络；不含水箱及管壁/流体储热', instance.id)
+            if definition.runtime == 'python':
+                from .liquid_modules import check_liquid_module
+                check_liquid_module(definition, instance.id)
         elif domains and domains <= {Domain.refrigerant, Domain.thermal}:
             station_ids.add(instance.id)
         else:
@@ -106,7 +109,7 @@ def compile_coupled_project(project):
                    if (branch.instance_id, branch.channel_id) == (coupling.fluid_instance_id, coupling.fluid_channel_id)]
         definition = liquid.modules[liquid.instances[coupling.fluid_instance_id].module_id]
         parameters = liquid.parameters[coupling.fluid_instance_id]
-        if definition.solver_model != 'pipe' or len(definition.channels) != 1:
+        if definition.runtime != 'builtin' or definition.solver_model != 'pipe' or len(definition.channels) != 1:
             raise CompilationError('COUPLED_COIL_INVALID',
                 f'热耦合 {coupling.id} 的液体侧设备 {coupling.fluid_instance_id} 须为只有一条通路的内置圆管',
                 coupling.fluid_instance_id, 'fluid_instance_id')
@@ -146,11 +149,21 @@ def coupled_circuits(network):
 class CoupledStationSession(StationSession):
     _segment_fields: tuple[str, ...] = StationSession._segment_fields + ('_fluid_warm',)
 
+    def __init__(self, network, duration_s, dt_s, keep=None):
+        super().__init__(network, duration_s, dt_s, keep)
+        liquid = network.fluid_network
+        if any(liquid.modules[instance.module_id].runtime == 'python' for instance in liquid.instances.values()):
+            from .liquid_modules import CoupledLiquidModules
+            self.module_adapter = CoupledLiquidModules(network)
+            self.runners = self.module_adapter.runners
+
     def _init_state(self):
         super()._init_state()
         self._fluid_warm = None
 
     def _evaluate(self, masses, energies, temperatures):
+        if self.module_adapter is not None:
+            self.module_adapter.initialize()
         result = super()._evaluate(masses, energies, temperatures)
         liquid = self.network.fluid_network
         liquid.parameters = {iid: self.network.parameters[iid] for iid in liquid.instances}
@@ -159,8 +172,11 @@ class CoupledStationSession(StationSession):
                 (link.ua_w_k, result['vessels'][link.refrigerant_vessel_id].temperature_k)
             for link in self.network.couplings}
         try:
-            water = solve_network(liquid, runners={}, time_s=self.time, warm=self._fluid_warm)
+            water = solve_network(liquid, runners=self.runners, time_s=self._candidate_time, warm=self._fluid_warm)
         except (CompilationError, ValueError) as error:
+            from ..runtime import RuntimeErrorBase
+            if isinstance(error, RuntimeErrorBase):
+                raise
             raise devices.DeviceRangeError('COUPLED_FLUID_FAILED', f'单相侧试算失败：{error}') from error
         if water.thermal is None or any(phase_family(state) != 'liquid' for state in water.thermal.node_states):
             raise devices.DeviceRangeError('COUPLED_LIQUID_REQUIRED', '当前浸没盘管联算仅支持液态水或液态单相载冷剂')
@@ -199,6 +215,11 @@ class CoupledStationSession(StationSession):
         powers = super()._powers(result)
         for identifier, coupling in result['couplings'].items():
             powers[(f'coupling.{identifier}', 'transfer_energy_j')] = coupling['heat_w']
+        # This host ledger follows actual accepted inner steps (including the two
+        # accepted half-steps), independently of author commit_step bookkeeping.
+        for index, branch in enumerate(self.network.fluid_network.branches):
+            if branch.instance_id in self.runners:
+                powers[(branch.instance_id, 'transferred_mass_kg')] = abs(float(result['fluid_result'].hydraulic.flows[index]))
         return powers
 
     def snapshot(self):
@@ -211,6 +232,10 @@ class CoupledStationSession(StationSession):
         liquid.parameters = {iid: self.network.parameters[iid] for iid in liquid.instances}
         water = fluid_snapshot(liquid, result['fluid_result'], self.time)
         frame.variables.update(water.variables)
+        if self.module_adapter is not None:
+            # The cached hydraulic trial contains the previous accepted module
+            # state. Publish the state promoted with this station segment last.
+            frame.variables.update(self.module_adapter.variables(result))
         for identifier, values in result['couplings'].items():
             frame.variables.update({f'coupling.{identifier}.{key}': value for key, value in values.items()})
             energy = self.counters.get((f'coupling.{identifier}', 'transfer_energy_j'), 0.)
@@ -227,7 +252,7 @@ class CoupledStationSession(StationSession):
         frame.variables.update({f'metrics.{key}': value for key, value in totals.items()})
         frame.diagnostics.extend(water.diagnostics)
         frame.diagnostics.append(Diagnostic(code='COUPLED_SCOPE', severity='info',
-            message='浸没盘管：制冷剂容器状态与无储热单相液体网络联合求解；水侧仅内置设备，盘管无持液/管壁储热'))
+            message='浸没盘管：制冷剂容器与无储热液体网络联合求解；支持内置设备及无储量 Python 阀门/局部阻力，盘管无持液/管壁储热'))
         return frame
 
 
