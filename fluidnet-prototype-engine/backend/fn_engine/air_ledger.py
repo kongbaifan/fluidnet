@@ -5,6 +5,8 @@ from .moist_air import vapor_enthalpy
 
 ACCUMULATORS = {
     'cooling_coil':{'condensate_kg':'condensate_kg_s','cooling_energy_j':'cooling_load_w'},
+    'water_coil':{'condensate_kg':'condensate_kg_s','cooling_energy_j':'water_heat_w'},
+    'water_chiller':{'cooling_energy_j':'cooling_power_w','electric_energy_j':'electric_power_w'},
     'humidifier':{'water_added_kg':'moisture_addition_kg_s','heating_energy_j':'heat_w'},
     'air_room':{'moisture_added_kg':'moisture_load_kg_s','load_energy_j':None},
     'cooling_tower_moist':{'evaporated_kg':'evaporation_kg_s','drift_kg':'drift_kg_s',

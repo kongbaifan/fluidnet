@@ -10,10 +10,13 @@
 | 房间送回风系统 | [ahu-room.project.json](ahu-room.project.json) | [原型](ahu-room.prototype.json) | 完全混合房间的水量和能量隐式存储；实际新风与平衡渗透不重复；有送回风和排风支路 |
 | 并联风侧设备 | [air-parallel-wet.project.json](air-parallel-wet.project.json) | [原型](air-parallel-wet.prototype.json) | 盘管与过滤器并联分风后混合，出口流股独立于压力边界的输入湿度 |
 | 湿空气冷却塔 | [cooling-tower-moist.project.json](cooling-tower-moist.project.json) | [原型](cooling-tower-moist.prototype.json) | 补水=蒸发+飘水+排污；水侧焓降、补排水和空气焓增共同闭合 |
+| 冷水机组与房间风水联算 | [chiller-air-loop.project.json](chiller-air-loop.project.json) | [原型](chiller-air-loop.prototype.json) | 三回路独立守恒；机组制冷=盘管水侧得热+冷冻水泵功，塔排热=冷凝排热+冷却水泵功；动态记录室温、凝水与耗电 |
 
 Studio：左侧 **风系统 → 创建风侧示例**。也可在“项目 → 导入原型”载入 `.prototype.json`。文件已清除临时运行 ID 和本机模块路径；Python 模块源码、版本和哈希包含在项目快照中。
 
 规范项目可以直接 POST 到 `/api/v1/solve`；动态运行使用 `/api/v1/runs`，把完整规范项目放入 `project`。房间建议从 `duration_s=120, dt_s=2` 开始。界面参数使用显示单位，规范 JSON 使用 SI，不能把两种文件互换。
+
+风水联算示例默认运行 20 s、步长 2 s，操作与边界见[使用说明](../../docs/CHILLER_AIR_LOOP.md)。示例包含两个独立液体回路工质配置，导入或保存时应完整保留。
 
 ```powershell
 # 在项目根运行；已启动服务，默认端口 8798。

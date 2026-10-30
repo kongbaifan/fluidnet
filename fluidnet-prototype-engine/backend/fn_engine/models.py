@@ -1166,6 +1166,9 @@ class HealthCapabilities(StrictModel):
     air_room: bool = False
     cooling_tower_moist: bool = False
     air_variable_catalog: bool = False
+    water_coil: bool = False
+    water_chiller: bool = False
+    air_liquid_coupling: bool = False
     air_reports: bool = False
     thermal_coupling: bool = False
     # Two immersed coils bound to one saturated vessel (contract limit is two).

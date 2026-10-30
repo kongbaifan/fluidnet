@@ -21,6 +21,7 @@ UNITS = {
     'mass':('混合物质量流量','mass_flow','kg/s','kg/s',1.,0.,'mixture'),
     'dry_flow':('干空气质量流量','dry_air_mass_flow','kg_da/s','kg_da/s',1.,0.,'dry_air'),
     'water_flow':('水分流量','mass_flow','kg/s','kg/s',1.,0.,'water'),
+    'fluid_flow':('工质质量流量','mass_flow','kg/s','kg/s',1.,0.,'none'),
     'volume':('实际体积流量','volume_flow','m3/h','m3/h',1.,0.,'none'),
     'power':('功率','power','W','kW',1000.,0.,'none'),
     'energy':('能量','energy','J','kWh',3600000.,0.,'none'),
@@ -62,16 +63,53 @@ DEVICE_FIELDS = {
         'state.drift_kg':('累计飘水','water'),'state.blowdown_kg':('累计排污','water'),
         'state.makeup_kg':('累计补水','water'),'state.heat_rejected_j':('累计排热','energy')},
 }
+DEVICE_FIELDS['water_coil'] = DEVICE_FIELDS['cooling_coil'] | {
+    'cooling_load_w':('水侧换热量','power'), 'water_heat_w':('水侧得热','power'),
+    'wet_fraction':('湿表面比例','rh'), 'surface_temperature_k':('湿段等效表面温度','temperature'),
+    'saturation_limited':('出口饱和限幅','bool')}
+DEVICE_FIELDS['water_chiller'] = {
+    'cooling_power_w':('制冷量','power'), 'condenser_heat_w':('冷凝排热','power'),
+    'shaft_power_w':('压缩轴功率','power'), 'electric_power_w':('压缩机电功率','power'),
+    'cop':('COP（制冷量/电功率）','ratio'), 'load_ratio':('负荷比','rh'),
+    'capacity_limited':('满载仍未达设定','bool'), 'evaporating_temperature_k':('蒸发温度','temperature'),
+    'condensing_temperature_k':('冷凝温度','temperature'), 'discharge_temperature_k':('排气温度','temperature'),
+    'pressure_ratio':('压比','ratio'), 'refrigerant_mass_flow_kg_s':('制冷剂质量流量','fluid_flow'),
+    'state.cooling_energy_j':('累计制冷量','energy'), 'state.electric_energy_j':('累计耗电量','energy')}
+
+
+def air_port_keys(project):
+    """Resolve the saved circuit assignments without compiling or solving a project."""
+    if not project.solver.moist_air:
+        return set()
+    from .compiler import DisjointSet
+    definitions = {m.id:m for m in project.modules}
+    keys = [f'{i.id}:{p.id}' for i in project.instances for p in definitions[i.module_id].ports]
+    dsu = DisjointSet(keys)
+    for c in project.connections:
+        dsu.union(f'{c.source.instance_id}:{c.source.port_id}', f'{c.target.instance_id}:{c.target.port_id}')
+    for inst in project.instances:
+        definition = definitions[inst.module_id]
+        if definition.solver_model in ('junction', 'tank', 'closed_volume', 'air_mixing_box', 'air_room'):
+            for port in definition.ports[1:]:
+                dsu.union(f'{inst.id}:{definition.ports[0].id}', f'{inst.id}:{port.id}')
+        for channel in definition.channels:
+            if channel.enabled:
+                dsu.union(f'{inst.id}:{channel.input_port}', f'{inst.id}:{channel.output_port}')
+    # Invalid anchors are diagnosed by compilation. Metadata must also be available for failed runs.
+    assigned = {dsu.find(key):c.fluid for c in project.circuit_fluids
+                if (key := f'{c.anchor.instance_id}:{c.anchor.port_id}') in dsu.parent}
+    return {key for key in keys if assigned.get(dsu.find(key), project.fluid).fluid.split('::')[-1] == 'Air'}
 
 
 def is_air_project(project):
     used={i.module_id for i in project.instances}
-    return project.solver.moist_air or any(m.id in used and m.solver_model=='cooling_tower_moist' for m in project.modules)
+    return project.solver.moist_air or any(m.id in used and m.solver_model in ('cooling_tower_moist', 'water_chiller') for m in project.modules)
 
 
 def collect_air_variables(project):
     result={}
     definitions={m.id:m for m in project.modules}
+    wet_ports = air_port_keys(project)
     def add(iid,name,kind,label=None,source='derived',port=None,channel=None,dynamic=False):
         key=f'{iid}.{name}'
         if kind=='bool':
@@ -81,7 +119,8 @@ def collect_air_variables(project):
             descriptor=AirVariableDescriptor(key=key,label=label or default,instance_id=iid,quantity=quantity,mass_basis=basis,
                 unit=UnitSpec(quantity=quantity,canonical_unit=canonical,display_unit=display,display_scale=scale,display_offset=offset))
         descriptor.source,descriptor.port_id,descriptor.channel_id=source,port,channel
-        descriptor.nullable=name.split('.')[-1] in ('dew_point_k','wet_bulb_k','shr','fresh_air_fraction','achieved_concentration_ratio')
+        descriptor.nullable=name.split('.')[-1] in ('dew_point_k','wet_bulb_k','shr','fresh_air_fraction','achieved_concentration_ratio',
+            'surface_temperature_k','cop','evaporating_temperature_k','condensing_temperature_k','discharge_temperature_k','pressure_ratio')
         descriptor.available_in=['dynamic'] if dynamic else ['steady','dynamic']
         result[key]=descriptor
     for inst in project.instances:
@@ -95,19 +134,30 @@ def collect_air_variables(project):
                 quantity=variable.quantity,unit=variable.unit,source=variable.source,
                 available_in=['dynamic'] if variable.id.startswith('state.') else ['steady','dynamic'])
         for port in definition.ports:
-            for name,kind in (PORTS | (WET_PORTS if project.solver.moist_air else {})).items():
+            wet = f'{inst.id}:{port.id}' in wet_ports
+            for name,kind in (PORTS | (WET_PORTS if wet else {})).items():
                 add(inst.id,f'{port.id}.{name}',kind,f'{inst.name} · {port.label} · {UNITS[kind][0]}',source='port',port=port.id)
+                if not wet:
+                    v = result[f'{inst.id}.{port.id}.{name}']
+                    v.label = v.label.replace('混合物', '液体')
+                    if v.mass_basis == 'mixture':
+                        v.mass_basis = 'water'
         for ch in definition.channels:
             if not ch.enabled:
                 continue
             fields={'mass_flow_kg_s':'mass','volume_flow_m3_h':'volume','pressure_drop_pa':'pressure','heat_w':'power',
                     'inlet_temperature_k':'temperature','outlet_temperature_k':'temperature'}
-            if project.solver.moist_air:
+            if f'{inst.id}:{ch.input_port}' in wet_ports:
                 fields.update(dry_air_mass_flow_kg_s='dry_flow',inlet_mass_flow_kg_s='mass',outlet_mass_flow_kg_s='mass')
             for name,kind in fields.items():
                 add(inst.id,f'{ch.id}.{name}',kind,channel=ch.id)
                 if len(definition.channels)==1:
                     add(inst.id,name,kind,channel=ch.id)
+                if f'{inst.id}:{ch.input_port}' not in wet_ports:
+                    for key in (f'{inst.id}.{ch.id}.{name}', f'{inst.id}.{name}'):
+                        if key in result and result[key].mass_basis == 'mixture':
+                            result[key].mass_basis = 'water'
+                            result[key].label = result[key].label.replace('混合物', '液体')
         for name,(label,kind) in DEVICE_FIELDS.get(definition.solver_model,{}).items():
             dynamic=name.startswith('state.') and name not in {
                 'state.temperature_k','state.humidity_ratio_kg_kg','state.relative_humidity','state.dry_air_mass_kg',
@@ -129,6 +179,8 @@ def collect_air_variables(project):
                       'dry_air_mass_residual_kg_s':'dry_flow','air_transport_iterations':'count'}.items():
         if project.solver.moist_air or name=='energy_residual_w':
             add('metrics',name,kind,source='system')
+    if project.solver.moist_air and project.circuit_fluids:
+        add('metrics','liquid_mass_residual_kg_s','water_flow',label='液体质量残差',source='system')
     return list(result.values())
 
 
@@ -140,11 +192,19 @@ def make_air_metadata(project):
     import CoolProp
     snapshot=project.model_dump(mode='json')
     digest=hashlib.sha256(json.dumps(snapshot,ensure_ascii=False,sort_keys=True,separators=(',',':'),allow_nan=False).encode()).hexdigest()
+    used={i.module_id for i in project.instances}
+    water_coil=any(m.id in used and m.solver_model=='water_coil' for m in project.modules)
+    definitions={m.id:m for m in project.modules}
+    port_count=sum(len(definitions[i.module_id].ports) for i in project.instances)
+    basis = 'dry_air' if project.solver.moist_air else 'water'
+    if project.solver.moist_air and len(air_port_keys(project)) < port_count:
+        basis = 'mixed'
     return {'contract_version':1,'engine_version':__version__,'property_backend':'coolprop_ha',
-        'property_version':CoolProp.__version__,'continuity_basis':'dry_air' if project.solver.moist_air else 'water',
-        'enthalpy_basis':'dry_air' if project.solver.moist_air else 'water',
+        'property_version':CoolProp.__version__,'continuity_basis':basis,
+        'enthalpy_basis':basis,
         'project_snapshot_hash':digest,'variable_catalog':[v.model_dump(mode='json') for v in collect_air_variables(project)],
         'assumptions':['低速单相流动；湿空气公共比焓和流量以当地混合物计，热湿输运以干空气计。',
-            '湿盘管采用外部规定机器露点，不含冷水侧/制冷剂侧真实耦合。',
+            ('水盘管按逆流干湿分段 ε–NTU 与真实液体回路联算；机组为集总单级循环，液体管路无储热。' if water_coil
+             else '湿盘管采用外部规定机器露点，不含冷水侧/制冷剂侧真实耦合。'),
             '房间采用固定有效干空气存量；真实新风与平衡渗透须避免重复计入。',
             '冷却塔为接触效能教学模型，空气为规定流股，不能用于填料设计或厂家选型。']}

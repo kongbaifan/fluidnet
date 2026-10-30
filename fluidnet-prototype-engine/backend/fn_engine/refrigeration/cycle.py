@@ -119,16 +119,22 @@ def check_envelope(params, point):
                                    f'（{"下限" if side == "low" else "上限"} {shown[1]}）', field=field)
 
 
+def rated_displacement(service, params):
+    """Swept volume that delivers `rated_cooling_power_w` at the rated evaporating/condensing temperatures."""
+    _, _, suction, liquid = _states(service, params, params['rated_evaporating_temperature_k'],
+                                    params['rated_condensing_temperature_k'])
+    if not suction.enthalpy_j_kg > liquid.enthalpy_j_kg:
+        raise DeviceRangeError('CYCLE_DESIGN_INVALID', '额定工作点没有正的制冷效应')
+    rated_mass = params['rated_cooling_power_w'] / (suction.enthalpy_j_kg - liquid.enthalpy_j_kg)
+    return rated_mass / (suction.density_kg_m3 * params['volumetric_efficiency'])
+
+
 def rated_design(service, params):
     """Displacement and condenser UA fixed once at the declared rated point (PLAN 3.3); never rescaled per step."""
     t_evap, t_cond = params['rated_evaporating_temperature_k'], params['rated_condensing_temperature_k']
     if not t_cond > params['rated_ambient_temperature_k']:
         raise DeviceRangeError('CYCLE_DESIGN_INVALID', '额定冷凝温度须高于额定环境温度', field='rated_condensing_temperature_k')
-    _, _, suction, liquid = _states(service, params, t_evap, t_cond)
-    if not suction.enthalpy_j_kg > liquid.enthalpy_j_kg:
-        raise DeviceRangeError('CYCLE_DESIGN_INVALID', '额定工作点没有正的制冷效应')
-    rated_mass = params['rated_cooling_power_w'] / (suction.enthalpy_j_kg - liquid.enthalpy_j_kg)
-    displacement = rated_mass / (suction.density_kg_m3 * params['volumetric_efficiency'])
+    displacement = rated_displacement(service, params)
     rated = cycle_rates(service, params, displacement, t_evap, t_cond, 1.)
     return {'displacement_m3_s': displacement,
             'condenser_ua_w_k': rated['rejection_w'] / (t_cond - params['rated_ambient_temperature_k'])}

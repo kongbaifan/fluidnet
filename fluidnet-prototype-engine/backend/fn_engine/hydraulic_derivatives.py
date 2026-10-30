@@ -170,6 +170,9 @@ def branch_drop_value(model: str, params: dict, flow: float, density: float, vis
         return -density * GRAVITY * pump_head(params['head_curve'], flow / density * 3600, params['speed_ratio'])
     if model == 'resistance':
         return _shared.resistance_drop(params['diameter_m'], params['loss_coefficient'], flow, density)
+    if model == 'resistance_secondary':
+        # 双通路设备的第二通路（水盘管水侧、冷水机组冷凝器侧）用自己的 K 与等效直径。
+        return _shared.resistance_drop(params['secondary_diameter_m'], params['secondary_loss_coefficient'], flow, density)
     raise ValueError(f'未注册的支路模型：{model}')
 
 
@@ -196,8 +199,9 @@ def branch_drop_and_slope(model: str, params: dict, flow: float, density: float,
             raise ValueError('停泵阻力模型尚未定义，转速必须大于零')
         head, head_slope = pump_head_and_slope(params['head_curve'], flow / density * 3600, params['speed_ratio'])
         return -density * GRAVITY * head, -density * GRAVITY * head_slope * 3600 / density
-    if model == 'resistance':
-        area = _pipe_area(params['diameter_m'])
-        coef = params['loss_coefficient'] / (2 * density * area ** 2)
+    if model in ('resistance', 'resistance_secondary'):
+        prefix = 'secondary_' if model == 'resistance_secondary' else ''
+        area = _pipe_area(params[prefix + 'diameter_m'])
+        coef = params[prefix + 'loss_coefficient'] / (2 * density * area ** 2)
         return coef * flow * abs(flow), 2 * coef * abs(flow)
     raise ValueError(f'未注册的支路模型：{model}')

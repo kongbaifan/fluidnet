@@ -1,0 +1,197 @@
+{
+  "date": "2026-10-30",
+  "recorded_at": "2026-10-30T10:46:29+08:00",
+  "baseline": "5c68d92506e5202ddb469ebea3a790fdb03d63d9",
+  "branch": "claude/chiller-air-loop",
+  "scope": "冷水机组、真实水盘管与房间风水三回路联算收尾；本次未修改计算或界面代码。",
+  "environment": {
+    "python": "3.11.0",
+    "platform": "Windows",
+    "PYTHONUTF8": "1",
+    "browser_PYTHONPATH": "backend"
+  },
+  "checks": {
+    "backend": {
+      "command": "python -m pytest -q tests/test_water_coil.py tests/test_water_chiller.py tests/test_chiller_air_loop.py tests/test_air_devices.py tests/test_air_room.py tests/test_cooling_tower_moist.py tests/test_air_api_reports.py tests/test_air_module_protocol.py tests/test_moist_air_transport.py tests/test_moist_air_phase2.py tests/test_thermal.py tests/test_refrigeration_a1.py",
+      "exit_code": 0,
+      "log": "docs/chiller-air-loop/results/closeout-2026-10-30/backend.txt",
+      "sha256": "671023452ea8cc9e8851700cdcaf36070a1720fbfb0893ae1ae1ec0042225423",
+      "passed": 134,
+      "warnings": 1,
+      "duration_s": 50.97,
+      "source_log": "artifacts/chiller-closeout-pytest.txt",
+      "source_sha256": "4fa14a8ed59b75280e776203ff907fe3f27cb92428fd5eebcb1e6ce22a7de644"
+    },
+    "browser": {
+      "command": "npm run test:browser:chiller",
+      "exit_code": 0,
+      "log": "docs/chiller-air-loop/results/closeout-2026-10-30/browser.txt",
+      "sha256": "f0a2759312ae6508b4001a0909a94e4e73e69a9daf0cf7da1ff91b2c8545b019",
+      "scripts": 1,
+      "details": {
+        "firstRun": "6599a318cb5c423cba6c59e93c49cc8c",
+        "changedRun": "e3958b986aaf4b449e8c7e703e63dd5f",
+        "circuits": [
+          {
+            "id": "chilled-water",
+            "anchor": {
+              "instance_id": "Chiller",
+              "port_id": "in0"
+            },
+            "fluid": {
+              "backend": "coolprop",
+              "fluid": "Water",
+              "composition": {},
+              "reference": "mass",
+              "phase_policy": "liquid"
+            }
+          },
+          {
+            "id": "condenser-water",
+            "anchor": {
+              "instance_id": "Chiller",
+              "port_id": "in1"
+            },
+            "fluid": {
+              "backend": "coolprop",
+              "fluid": "Water",
+              "composition": {},
+              "reference": "mass",
+              "phase_policy": "liquid"
+            }
+          }
+        ],
+        "cooling": 26007.76715346077,
+        "waterCoil": 25937.488527061276,
+        "batchId": "5713ec8afb624050a2901d191395f510",
+        "batchItems": 2,
+        "errors": []
+      },
+      "source_log": "artifacts/chiller-closeout-browser.txt",
+      "source_sha256": "e3ed658be32af3aaa4e2a814119ed11bc77ee798fe7cde12900596e2a4c83c51"
+    },
+    "ruff": {
+      "command": "python -m ruff check backend tests scripts modules examples/control_templates",
+      "exit_code": 0,
+      "log": "docs/chiller-air-loop/results/closeout-2026-10-30/ruff.txt",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "source_log": "artifacts/chiller-closeout-ruff.txt",
+      "source_sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+    },
+    "mypy": {
+      "command": "python -m mypy",
+      "exit_code": 0,
+      "log": "docs/chiller-air-loop/results/closeout-2026-10-30/mypy.txt",
+      "sha256": "2c763b517dfd86c7150e2d41825c31489f397d03911b6772aef04ea99d95b537",
+      "source_files": 82,
+      "errors": 0,
+      "source_log": "artifacts/chiller-closeout-mypy.txt",
+      "source_sha256": "3960fb85cb7bfa8c8ba41b5e9221a31e4810587b155f8a158c1f3756a6384ded"
+    },
+    "frontend_syntax": {
+      "command": "npm run check",
+      "exit_code": 0,
+      "log": "docs/chiller-air-loop/results/closeout-2026-10-30/frontend_syntax.txt",
+      "sha256": "c51ff636f28f531ab795cbb083638cbb7d4a9a5f59edd6e0552270e92fac569b",
+      "source_log": "artifacts/chiller-closeout-syntax.txt",
+      "source_sha256": "0dd9f86da645c4a62c2decfecc45261e8aed8c4af7945d16172212f58b2c1b9f"
+    },
+    "contracts": {
+      "command": "python scripts/generate_contracts.py --check",
+      "exit_code": 0,
+      "log": "docs/chiller-air-loop/results/closeout-2026-10-30/contracts.txt",
+      "sha256": "e400ec84b649b2a625a82ffd76f89b891e0a309e1139039adfa591fc2cb559c2",
+      "files": 85,
+      "source_log": "artifacts/chiller-closeout-contracts.txt",
+      "source_sha256": "48d5f02a424b8df683a275adc2898374fa2705e0fdd79d2220b2bf97e0b13526"
+    }
+  },
+  "historical_validation": {
+    "index": "docs/chiller-air-loop/results/validation.json",
+    "verified_logs": {
+      "backend_full": {
+        "path": "artifacts/chiller-full-pytest.txt",
+        "sha256": "f3470bbbdf53f5fad0011ef317c7f04733812305331f54045ed0c6c30e83ffbf",
+        "matches": true
+      },
+      "browser_full": {
+        "path": "artifacts/chiller-full-browser.txt",
+        "sha256": "67774b896750a9c6af6051bffa134a052c4f98e2696c81b8d8031a283eb2aec2",
+        "matches": true
+      },
+      "backend_focused_followup": {
+        "path": "artifacts/chiller-final-focused.txt",
+        "sha256": "d32d141eeed0cf6a6426946efbc50483518856f9c5876fc3dd30cda706cd67a9",
+        "matches": true
+      },
+      "thermal_followup": {
+        "path": "artifacts/chiller-final-thermal-recheck.txt",
+        "sha256": "e4d12cde68e9155c77aeb6a21683473f80993df09f5a1ff0ed6aa11dd23bf731",
+        "matches": true
+      },
+      "ruff": {
+        "path": "artifacts/chiller-final-ruff.txt",
+        "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0",
+        "matches": true
+      },
+      "mypy": {
+        "path": "artifacts/chiller-final-mypy.txt",
+        "sha256": "3960fb85cb7bfa8c8ba41b5e9221a31e4810587b155f8a158c1f3756a6384ded",
+        "matches": true
+      },
+      "contracts": {
+        "path": "artifacts/chiller-final-contracts.txt",
+        "sha256": "48d5f02a424b8df683a275adc2898374fa2705e0fdd79d2220b2bf97e0b13526",
+        "matches": true
+      }
+    },
+    "note": "1581 项全量后端、90.94% 覆盖率及 24 个浏览器脚本与 6 项界面合同测试为 2026-10-29 历史结果，本次未重跑；各次测试数量不相加。"
+  },
+  "delivery_git_blobs": {
+    "backend/fn_engine/air_catalog.py": "89013b2baf364742963e6406ff8def434a8698ee",
+    "backend/fn_engine/air_compile.py": "b4b35aafd2720776b93830a23740e12977a3bbe1",
+    "backend/fn_engine/air_devices.py": "5a822ff4992dcee6f7f746f4efa3f932a7c30928",
+    "backend/fn_engine/air_examples.py": "f9caa2e38d790bfa947a3c0224d5f219e28ded6f",
+    "backend/fn_engine/air_ledger.py": "d3eab9f2fddd16ccffa758e522c6113e808baf04",
+    "backend/fn_engine/air_liquid.py": "b836f9f845433dd7e0faea7bf880fdcb88d430e4",
+    "backend/fn_engine/air_transport.py": "9450cb5d37fa79e182093cd665113670cd8d3a7b",
+    "backend/fn_engine/air_variables.py": "c838e3de9e16baeb7f4c3313ffedbe9a49df83d0",
+    "backend/fn_engine/api.py": "bed15ecd432e22ab0552ab800cf20419676a4f20",
+    "backend/fn_engine/bridge.py": "dca395ae21add9c43ea4b0fc83759966a355256a",
+    "backend/fn_engine/chiller_examples.py": "952b9d78f620821db210adf1a892cf5cf3dba674",
+    "backend/fn_engine/compiler.py": "44774f988e27a8d09aee33d4a78f64cdefb640f9",
+    "backend/fn_engine/hydraulic_derivatives.py": "b61bae9e782ba87b6abdb4371fe21b9cd661cdc5",
+    "backend/fn_engine/models.py": "27d6b4857d3e4855ef8e7e527ef6b88590ae5e05",
+    "backend/fn_engine/module_phases.py": "5c708daf6069d97b3e999ffd4b2176deec9b7a65",
+    "backend/fn_engine/refrigeration/cycle.py": "100d033aaf2385bd78abf1a3c3e77ff24c411cfc",
+    "backend/fn_engine/simulation.py": "20cded9cb7c8b927e8095669efe5a1327add7a63",
+    "backend/fn_engine/solver.py": "2f4fee51d8d07a42cafdfbff0dc681a498e29e22",
+    "backend/fn_engine/thermal.py": "76469cde70bdc21fc925e28e7b30d20aaf445620",
+    "backend/fn_engine/water_chiller.py": "e81d52c78eb6605c169b60e518579e5d55444ee5",
+    "contracts/health-response.schema.json": "fbe3b9762a465fc65fc91386f4c277bd29b3abb0",
+    "contracts/openapi.json": "3be00fe53afc0f044662cab320778d73206733ef",
+    "examples/air-side/README.md": "343eb9f381a79647af1df232ff51807921bdf2aa",
+    "examples/air-side/chiller-air-loop.project.json": "d1c5fb6df3be2fcd1f7c4affb1e4c3ed340bc2ed",
+    "examples/air-side/chiller-air-loop.prototype.json": "3f4907483e51a7fd0ae6950afec9058ba50beceb",
+    "frontend/air-side.js": "46d69f798059f6c18977eabc413a496975763cca",
+    "frontend/engine-client.js": "e9da75472aaaba2d594e24786a413ab967f0a11b",
+    "package.json": "5778a77ec7b0a58bf5170f296df4922452713979",
+    "tests/browser-chiller-air-loop.mjs": "d0bbcdc0d3f8219cd8ca5ec40b959a5863d68a4c",
+    "tests/test_chiller_air_loop.py": "eb65567c6657a61611d2c27f83eb5934675a39c3",
+    "tests/test_water_chiller.py": "6fd503c0e544031fad6830d489aac4542915ee36",
+    "tests/test_water_coil.py": "6c194ccb9e4da1d5a263c840fab720433d89813d"
+  },
+  "delivery_git_blobs_note": "路径相对 fluidnet-prototype-engine；记录本轮修改或新增的代码、测试、合同、示例和 package.json，经 Git 路径过滤后的对象 ID；文档和日志不在本清单中。",
+  "viewport": {
+    "width": 1920,
+    "height": 1080,
+    "device_scale_factor": 1
+  },
+  "local_screenshots_sha256": {
+    "artifacts/chiller-air-distribution-1080p.png": "eb27c92404d326e69f68e4fc392ab6342c20b67d4e6e28754667b364aab20f12",
+    "artifacts/chiller-air-devices-1080p.png": "cf720f67d040d608a7e11dc85ac0bd1804a177130dd6c9e0a8baf21f20af2fb0",
+    "artifacts/chiller-air-batches-1080p.png": "631bb4d6eca4a1887434403418890f86ac9bf3e962f1f0e9450f821403037da2"
+  },
+  "remaining_scope": "房间自动温控、水侧储热和机组启停控制仅为后续建议；此前取消任务未恢复。",
+  "archived_log_normalization": "入库日志统一 UTF-8/LF，末尾保留一个换行；sha256 按此格式计算，source_sha256 记录本地原始日志字节。"
+}

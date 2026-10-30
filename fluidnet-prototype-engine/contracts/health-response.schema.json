@@ -60,6 +60,21 @@
           "title": "Air Variable Catalog",
           "type": "boolean"
         },
+        "water_coil": {
+          "default": false,
+          "title": "Water Coil",
+          "type": "boolean"
+        },
+        "water_chiller": {
+          "default": false,
+          "title": "Water Chiller",
+          "type": "boolean"
+        },
+        "air_liquid_coupling": {
+          "default": false,
+          "title": "Air Liquid Coupling",
+          "type": "boolean"
+        },
         "air_reports": {
           "default": false,
           "title": "Air Reports",

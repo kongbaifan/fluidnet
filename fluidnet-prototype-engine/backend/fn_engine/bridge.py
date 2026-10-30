@@ -40,7 +40,7 @@ PARAMETER_BINDINGS = {
 
 # 新风侧设备使用合同参数 ID；UI 值仍按 UnitSpec 显示单位保存。
 for _air_definition in catalog_map().values():
-    if _air_definition.id in ('duct','cooling_coil','humidifier','air_mixing_box','air_filter','air_room','cooling_tower_moist'):
+    if _air_definition.id in ('duct','cooling_coil','humidifier','air_mixing_box','air_filter','air_room','cooling_tower_moist','water_coil','water_chiller'):
         PARAMETER_BINDINGS[_air_definition.id] = {p.id:p.id for p in _air_definition.parameters}
 
 
@@ -142,7 +142,9 @@ def normalize_prototype_export(data: dict[str, Any]) -> Project:
                     raise ValueError(f'{module_id} 当前模型不允许额外通路')
                 model = 'resistance' if definition.solver_model in {'heat_exchanger', 'heater','cooling_coil','humidifier','cooling_tower_moist'} else definition.solver_model
                 definition.channels = [ChannelSpec(id=c['id'], name=c.get('name',c['id']), input_port=c['input'], output_port=c['output'],
-                    relation='pump_curve' if model == 'pump_curve' else c.get('kind','resistance'), solver_model=model, enabled=c.get('enabled',True)) for c in original['channels']]
+                    relation='pump_curve' if model == 'pump_curve' else c.get('kind','resistance'),
+                    solver_model=next((q.solver_model for q in catalog[kind].channels if q.id==c['id']),model),
+                    enabled=c.get('enabled',True)) for c in original['channels']]
             # Port/variable IDs must remain compatible with the registered model in this version.
             if {p.id for p in definition.ports} != {p.id for p in catalog[kind].ports}:
                 raise ValueError(f'{module_id} 的端口 ID 已改变；需要注册对应的声明式模型')

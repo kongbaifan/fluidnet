@@ -128,11 +128,12 @@ window.createEngineClient = function (ui) {
   }
   function moduleFromManifest(manifest) {
     // Catalog icons come from studio.js ICONS; unknown ids intentionally fall back to Box.
-    const icon = {duct:'Wind',cooling_coil:'Snowflake',humidifier:'Droplets',air_mixing_box:'GitMerge',air_filter:'Filter',air_room:'Home',cooling_tower_moist:'Wind',pipe_fitting:'GitBranch',check_valve:'ArrowRightLeft',fan_coil_unit:'Wind',cooling_tower:'Sun',fan:'Wind',pump_variable_speed:'Gauge',capillary_tube:'Minus',valve_equal_percentage:'SlidersHorizontal'}[manifest.id] || 'Box';
+    const icon = {water_coil:'Snowflake',water_chiller:'Snowflake',duct:'Wind',cooling_coil:'Snowflake',humidifier:'Droplets',air_mixing_box:'GitMerge',air_filter:'Filter',air_room:'Home',cooling_tower_moist:'Wind',pipe_fitting:'GitBranch',check_valve:'ArrowRightLeft',fan_coil_unit:'Wind',cooling_tower:'Sun',fan:'Wind',pump_variable_speed:'Gauge',capillary_tube:'Minus',valve_equal_percentage:'SlidersHorizontal'}[manifest.id] || 'Box';
     const parameterDefs = (manifest.parameters || []).filter(p => p.value_type === 'number').map(manifestParamDef);
     const ports = (manifest.ports || []).map((p, index) => ({
       id:p.id, name:p.id.toUpperCase(), label:p.label || p.id, direction:p.direction === 'bidirectional' ? (index ? 'out' : 'in') : p.direction,
-      domain:p.domain || 'fluid', required:p.required !== false, x:p.direction === 'in' ? 20 : 80, y: manifest.ports.length > 2 ? (index % 2 ? 70 : 30) : 50
+      domain:p.domain || 'fluid', required:p.required !== false, x:p.direction === 'in' ? 20 : 80,
+      y:['water_coil','water_chiller'].includes(manifest.id) ? (index<2?30:70) : manifest.ports.length > 2 ? (index % 2 ? 70 : 30) : 50
     }));
     const variables = [];
     for (const p of ports) {
@@ -651,7 +652,7 @@ window.createEngineClient = function (ui) {
       await services.loadWorkspace(forceWorkspace);
       catalog=data;
       moduleCatalog=packages;
-      for (const manifest of data.modules.filter(m=>m.ports.some(p=>p.domain==='thermal' || p.domain==='refrigerant') || ['duct','cooling_coil','humidifier','air_mixing_box','air_filter','air_room','cooling_tower_moist'].includes(m.id))) {
+      for (const manifest of data.modules.filter(m=>m.ports.some(p=>p.domain==='thermal' || p.domain==='refrigerant') || ['duct','cooling_coil','humidifier','air_mixing_box','air_filter','air_room','cooling_tower_moist','water_coil','water_chiller'].includes(m.id))) {
         let m=ui.state().modules.find(m=>m.id===manifest.id);
         if(!m){m=moduleFromManifest(manifest);ui.state().modules.push(m);}
         ui.parameterDefinitions[m.kind]=manifest.parameters.filter(p=>p.value_type==='number').map(manifestParamDef);

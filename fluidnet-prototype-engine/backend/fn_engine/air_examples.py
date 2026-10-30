@@ -5,10 +5,13 @@ from .catalog import catalog_map
 from .models import Connection, Endpoint, FluidConfig, ModuleInstance, Project, SolverOptions
 from .packages import load_module_package
 
-AIR_EXAMPLES = ('air-coil-wet','air-mixing','ahu-wet','ahu-room','air-parallel-wet','cooling-tower-moist')
+AIR_EXAMPLES = ('air-coil-wet','air-mixing','ahu-wet','ahu-room','air-parallel-wet','cooling-tower-moist','chiller-air-loop')
 
 
 def air_example(name):
+    if name == 'chiller-air-loop':
+        from .chiller_examples import chiller_air_example
+        return chiller_air_example()
     if name not in AIR_EXAMPLES:
         raise KeyError(name)
     catalog=catalog_map()

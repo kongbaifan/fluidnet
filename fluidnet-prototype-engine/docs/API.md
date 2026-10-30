@@ -365,7 +365,7 @@ Worker RPC 超时默认 10 秒，超时返回 `MODULE_RUNTIME_TIMEOUT` 并终止
 
 ## 风侧合同 1
 
-客户端检查 `health.capabilities.moist_air_contract_version == 1`。细分能力为 `wet_cooling_coil`、`air_humidifier`、`ahu_components`、`air_room`、`cooling_tower_moist`、`air_variable_catalog`、`air_reports`；这些能力不替代模块自己的 SDK 协商。
+客户端检查 `health.capabilities.moist_air_contract_version == 1`。细分能力为 `wet_cooling_coil`、`air_humidifier`、`ahu_components`、`air_room`、`cooling_tower_moist`、`air_variable_catalog`、`air_reports`；真实水盘管、水冷冷水机组与风水联算分别由 `water_coil`、`water_chiller`、`air_liquid_coupling` 标记。这些能力不替代模块自己的 SDK 协商。
 
 | 方法与路径（/api/v1） | 用途 |
 | --- | --- |
@@ -379,8 +379,10 @@ Worker RPC 超时默认 10 秒，超时返回 `MODULE_RUNTIME_TIMEOUT` 并终止
 
 `RunRecordResponse.air_metadata` 保存合同/引擎/物性版本、项目摘要、冻结目录与模型假设。旧档案该字段为 null。既有 `report.csv`/`report.html` 路径按该元数据生成风侧报告，不重新编译或求解项目。
 
+`chiller-air-loop` 通过 `circuit_fluids` 指定独立冷冻水与冷却水回路，默认 Air/gas。混合项目的元数据 `continuity_basis`/`enthalpy_basis` 为 `mixed`：空气按干空气输运，液体按各自工质质量与比焓输运；变量目录只为空气端口声明含湿量和干空气流量。累计量与报告沿用原接受帧机制，详见[风水联算](CHILLER_AIR_LOOP.md)。
+
 ```json
 {"input_mode":"ptrh","pressure_pa":101325,"temperature_k":299.15,"relative_humidity":0.5}
 ```
 
-完整对象见 `contracts/air-*.schema.json`、`contracts/moist-air-options.schema.json` 及 OpenAPI。六个名称可通过 `/examples/{name}` 获取，见[示例目录](../examples/air-side/README.md)。操作与质量基准见[风侧使用说明](AIR_SIDE_USER_GUIDE.md)。
+完整对象见 `contracts/air-*.schema.json`、`contracts/moist-air-options.schema.json` 及 OpenAPI。示例可通过 `/examples/{name}` 获取，见[示例目录](../examples/air-side/README.md)。操作与质量基准见[风侧使用说明](AIR_SIDE_USER_GUIDE.md)。

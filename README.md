@@ -4,6 +4,8 @@
 
 2026-10-29 源码进展：风系统完整主线已接通，包含湿空气联合求解、房间热湿动态、冷却塔水耗、中文结果页与报告、旧项目迁移和批量方案。见[使用说明](fluidnet-prototype-engine/docs/AIR_SIDE_USER_GUIDE.md)及[实施验收](fluidnet-prototype-engine/docs/AIR_SIDE_IMPLEMENTATION_ACCEPTANCE.md)。
 
+同日后续已接通真实水盘管、水冷冷水机组和空气/冷冻水/冷却水三个回路的[完整联算示例](fluidnet-prototype-engine/docs/CHILLER_AIR_LOOP.md)，本轮检查状态见[联算验收](fluidnet-prototype-engine/docs/CHILLER_AIR_LOOP_ACCEPTANCE.md)。
+
 当前发布版本 **v0.5.0（2026-10-22）**：冷库 A 版单库房案例（A0–A6）、B 版 NH₃/CO₂ 集总制冷站案例（B0–B3）与倍思鹿模块开发套件 v1 已交付；发布说明见 [RELEASE_NOTES](fluidnet-prototype-engine/docs/RELEASE_NOTES.md)，许可证见 [LICENSE](LICENSE)。
 
 | 目录 | 内容 |

@@ -479,7 +479,7 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
 
     # Python module rows retain full relation dependencies, using grouped sparse
     # differences; the built-in equations and continuity rows use analytic slopes.
-    analytic_models = {'valve', 'pipe', 'duct', 'pump_curve', 'resistance', 'air_filter'}
+    analytic_models = {'valve', 'pipe', 'duct', 'pump_curve', 'resistance', 'resistance_secondary', 'air_filter'}
     if python_runners:
         builtins_supported = all(branch.instance_id in python_runners or branch.solver_model in analytic_models for branch in network.branches)
         analytic_supported = options.module_mixed_jacobian and options.analytic_jacobian and builtins_supported
@@ -820,7 +820,7 @@ def channel_state(network, result, index):
     values = {'mass_flow_kg_s':q,
               'pressure_drop_pa':float(hydraulic.pressures[branch.start_node]-hydraulic.pressures[branch.end_node]),
               'heat_w':float(thermal.heat_w[index]) if thermal else 0.}
-    if network.project.solver.moist_air:
+    if branch.start_node in network.air_nodes:
         wi = thermal.node_states[thermal.upstream[index]].humidity_ratio_kg_kg
         wo = thermal.outlet_states[index].humidity_ratio_kg_kg
         values.update(dry_air_mass_flow_kg_s=q,mass_flow_kg_s=q*(1+wi),
@@ -837,7 +837,7 @@ def build_port_states(network: CompiledNetwork, hydraulic: HydraulicResult,
         pressure = float(hydraulic.pressures[node])
         if thermal is not None:
             states[key] = _fluid_port(thermal.port_states[key], pressure, flows.get(key))
-            if network.project.solver.moist_air:
+            if node in network.air_nodes:
                 dry = flows.get(key, 0.)
                 w = thermal.port_states[key].humidity_ratio_kg_kg
                 assert w is not None

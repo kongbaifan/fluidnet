@@ -289,6 +289,7 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
                                 'air_duct':True,'moist_air':True,'moist_air_contract_version':1,
                                 'wet_cooling_coil':True,'air_humidifier':True,'ahu_components':True,
                                 'air_room':True,'cooling_tower_moist':True,'air_variable_catalog':True,'air_reports':True,
+                                'water_coil':True,'water_chiller':True,'air_liquid_coupling':True,
                                 'multi_inlet_vessels':True,
                                 # REFPROP 运行时发现（环境变量/捆绑目录/系统安装）；不加载 DLL。
                                 'refprop':refprop_info()},

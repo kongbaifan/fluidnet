@@ -6,6 +6,8 @@
 
 2026-10-28 已完成[1080p 基线与批量工况计划](docs/NEXT_DEVELOPMENT_1080P_PLAN.md)的六个工作包，唯一界面设计与验收基准为 **1920×1080（16:9）**。从左侧“批量”或建模工具栏“批量工况”进入；操作见[使用说明](docs/SCENARIO_BATCHES.md)，验证范围见[本轮验收](docs/FHD_BATCH_ACCEPTANCE.md)。
 
+2026-10-29 新增[冷水机组与房间风水联算](docs/CHILLER_AIR_LOOP.md)：真实水盘管、水冷冷水机组、冷冻水/冷却水独立回路、房间动态和冷却塔水耗。从“风系统 → 创建风侧示例”选择“冷水机组与房间风水联算”；检查状态见[联算验收](docs/CHILLER_AIR_LOOP_ACCEPTANCE.md)。
+
 ## 启动
 
 Python 3.11 或更高版本，在本目录执行：

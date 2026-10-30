@@ -40,7 +40,7 @@ def heat_hook(network, runners, hydraulic, service, time_s):
                     heat_w=float(previous_heat[j]))
                 up_port, down_port = (branch.input_port, branch.output_port) if q >= 0 else (branch.output_port, branch.input_port)
                 up_node, down_node = (branch.start_node, branch.end_node) if q >= 0 else (branch.end_node, branch.start_node)
-                if network.project.solver.moist_air:
+                if up_node in network.air_nodes:
                     w = states[up_node].humidity_ratio_kg_kg
                     total = resolved_q*(1+w)
                     channels[branch.channel_id] = channels[branch.channel_id].model_copy(update={

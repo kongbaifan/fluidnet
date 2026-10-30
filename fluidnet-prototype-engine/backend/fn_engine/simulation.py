@@ -135,7 +135,7 @@ class SimulationSession:
         parameters = validated_parameters(candidate, definition)
         if definition.solver_model == 'pump_curve' and parameters.get('speed_ratio', 1) <= 0:
             raise CompilationError('PARAMETER_RANGE', '当前泵模型转速必须大于零')
-        if self.network.project.solver.moist_air or definition.solver_model == 'cooling_tower_moist':
+        if self.network.project.solver.moist_air or definition.solver_model in ('cooling_tower_moist', 'water_chiller'):
             from .air_compile import validate_air_parameters
             validate_air_parameters(self.network,{instance_id:parameters},check_boundary_conflicts=False)
         return parameters
@@ -317,7 +317,7 @@ class SimulationSession:
                 node = view.port_nodes[f'{inst.id}:{definition.ports[0].id}']
                 params = view.parameters[inst.id]
                 pressure[node],temperature[node] = params['pressure_pa'],params['temperature_k']
-                if view.project.solver.moist_air:
+                if node in view.air_nodes:
                     humidity[node] = params.get('humidity_ratio_kg_kg',0.)
         # 困液定容容积：每一步的边界压力/温度来自 accepted 积分状态，而不是编译初值或保压近似。
         for node, spec in view.trapped.items():

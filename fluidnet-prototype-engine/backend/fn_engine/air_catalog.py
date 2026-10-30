@@ -51,7 +51,85 @@ def air_catalog():
             temperature('makeup_temperature_k','补水温度',293.15,273.15,323.15,True),
             number('loss_coefficient','水侧阻力系数',2.,'ratio','1',minimum=0.),
             number('diameter_m','水侧等效直径',.05,'length','m','mm',.001,1e-8,2.)])
-    return [mixing,air_filter,room,tower]
+    return [mixing,air_filter,room,tower,water_coil(),water_chiller()]
+
+
+def _derived(id, label, quantity, unit, display=None, scale=1., offset=0., source='derived'):
+    from .models import UnitSpec, VariableSpec
+    return VariableSpec(id=id, label=label, source=source, quantity=quantity,
+                        unit=UnitSpec(quantity=quantity, canonical_unit=unit, display_unit=display or unit,
+                                      display_scale=scale, display_offset=offset))
+
+
+def water_coil():
+    """风侧 ch0（in0→out0）与冷/热水侧 ch1（in1→out1）；两侧分属湿空气回路和液体回路。"""
+    from .catalog import channel, number
+    kw = lambda id, label, source='derived': _derived(id, label, 'power', 'W', 'kW', 1000., source=source)
+    return ModuleDefinition(id='water_coil', name='冷/热水盘管', category='风侧设备', solver_model='water_coil',
+        description='逆流 ε–NTU：干段在进风端、湿段在进水端，交界处表面温度等于进风露点；湿段按 Braun 焓效能法。'
+                    '水侧得热 = 空气焓降 − 凝水携出焓。需开启湿空气模式，水侧接液体回路。',
+        ports=[PortSpec(id='in0',label='进风',direction=Direction.in_),PortSpec(id='out0',label='出风',direction=Direction.out),
+               PortSpec(id='in1',label='进水',direction=Direction.in_),PortSpec(id='out1',label='出水',direction=Direction.out)],
+        channels=[channel('ch0','resistance'),channel('ch1','resistance_secondary','in1','out1')],
+        parameters=[
+            number('air_side_ua_w_k','空气侧换热能力 UA',4000.,'conductance','W/K',minimum=0.),
+            number('water_side_ua_w_k','水侧换热能力 UA',8000.,'conductance','W/K',minimum=0.),
+            number('loss_coefficient','风侧阻力系数 K',2.,'ratio','1',minimum=0.),
+            number('diameter_m','风侧水力等效内径',.4,'length','m','mm',.001,.001),
+            number('secondary_loss_coefficient','水侧阻力系数 K',5.,'ratio','1',minimum=0.),
+            number('secondary_diameter_m','水侧水力等效内径',.05,'length','m','mm',.001,.001)],
+        variables=[kw('total_heat_w','空气侧总冷量'),kw('sensible_heat_w','显热冷量'),kw('latent_heat_w','潜热冷量'),
+                   _derived('condensate_kg_s','凝水量','mass_flow','kg/s'),_derived('shr','显热比 SHR','ratio','1'),
+                   kw('water_heat_w','水侧得热'),_derived('wet_fraction','湿表面比例','ratio','1','%',.01),
+                   _derived('surface_temperature_k','湿段等效表面温度','temperature','K','°C',offset=-273.15),
+                   _derived('state.condensate_kg','累计凝水量','mass','kg',source='state'),
+                   _derived('state.cooling_energy_j','累计水侧冷量','energy','J','kWh',3600000.,source='state')])
+
+
+def water_chiller():
+    """蒸发器 ch0（冷冻水 in0→out0）与冷凝器 ch1（冷却水 in1→out1），单级循环复用 refrigeration/cycle.py。"""
+    from .catalog import _celsius, _ratio, channel, number
+    kw = lambda id, label, source='derived': _derived(id, label, 'power', 'W', 'kW', 1000., source=source)
+    celsius = lambda id, label: _derived(id, label, 'temperature', 'K', '°C', offset=-273.15)
+    return ModuleDefinition(id='water_chiller', name='水冷冷水机组', category='热力设备', solver_model='water_chiller',
+        description='单级蒸气压缩循环，蒸发器与冷凝器各接一条水通路；把冷冻水出水压到设定值，满载不足时出水温度上漂。'
+                    '负荷比在 0–1 连续变化，不模拟最小负荷启停；Q冷凝 = Q制冷 + 压缩轴功。',
+        ports=[PortSpec(id='in0',label='冷冻水进水',direction=Direction.in_),PortSpec(id='out0',label='冷冻水出水',direction=Direction.out),
+               PortSpec(id='in1',label='冷却水进水',direction=Direction.in_),PortSpec(id='out1',label='冷却水出水',direction=Direction.out)],
+        channels=[channel('ch0','resistance'),channel('ch1','resistance_secondary','in1','out1')],
+        parameters=[
+            number('running','启停（1 运行 / 0 停机）',1.,'ratio','1',minimum=0.,maximum=1.,runtime=True),
+            _celsius('chilled_water_setpoint_k','冷冻水出水设定',280.15,runtime=True),
+            ParameterSpec(id='refrigerant',label='制冷剂（CoolProp 名称）',value_type='text',default='HEOS::R134a'),
+            number('rated_cooling_power_w','额定制冷量',35000.,'power','W','kW',1000.,minimum=1.),
+            _celsius('rated_evaporating_temperature_k','额定蒸发温度',277.15),
+            _celsius('rated_condensing_temperature_k','额定冷凝温度',313.15),
+            number('superheat_k','吸气过热度',5.,'temperature_difference','K',minimum=.1),
+            number('subcooling_k','冷凝器出口过冷度',3.,'temperature_difference','K',minimum=.1),
+            _ratio('isentropic_efficiency','等熵效率',.7,minimum=.01),
+            _ratio('volumetric_efficiency','容积效率',.85,minimum=.01),
+            _ratio('motor_efficiency','电机效率',.92,minimum=.01),
+            number('evaporator_ua_w_k','蒸发器 UA',8000.,'conductance','W/K',minimum=0.),
+            number('condenser_ua_w_k','冷凝器 UA',6000.,'conductance','W/K',minimum=0.),
+            number('loss_coefficient','冷冻水侧阻力系数 K',5.,'ratio','1',minimum=0.),
+            number('diameter_m','冷冻水侧等效内径',.05,'length','m','mm',.001,.001),
+            number('secondary_loss_coefficient','冷却水侧阻力系数 K',5.,'ratio','1',minimum=0.),
+            number('secondary_diameter_m','冷却水侧等效内径',.05,'length','m','mm',.001,.001),
+            _celsius('min_evaporating_temperature_k','运行范围：最低蒸发温度',268.15),
+            _celsius('max_evaporating_temperature_k','运行范围：最高蒸发温度',293.15),
+            _celsius('min_condensing_temperature_k','运行范围：最低冷凝温度',293.15),
+            _celsius('max_condensing_temperature_k','运行范围：最高冷凝温度',333.15),
+            _celsius('max_discharge_temperature_k','运行范围：最高排气温度',383.15),
+            number('max_pressure_ratio','运行范围：最大压比',10.,'ratio','1',minimum=1.)],
+        variables=[kw('cooling_power_w','制冷量'),kw('condenser_heat_w','冷凝排热'),kw('shaft_power_w','压缩轴功率'),
+                   kw('electric_power_w','压缩机电功率'),_derived('cop','COP（制冷量/电功率）','ratio','1'),
+                   _derived('load_ratio','负荷比','ratio','1','%',.01),
+                   _derived('capacity_limited','满载仍未达设定','ratio','1'),
+                   celsius('evaporating_temperature_k','蒸发温度'),celsius('condensing_temperature_k','冷凝温度'),
+                   celsius('discharge_temperature_k','排气温度'),_derived('pressure_ratio','压比','ratio','1'),
+                   _derived('refrigerant_mass_flow_kg_s','制冷剂质量流量','mass_flow','kg/s'),
+                   _derived('state.cooling_energy_j','累计制冷量','energy','J','kWh',3600000.,source='state'),
+                   _derived('state.electric_energy_j','累计耗电量','energy','J','kWh',3600000.,source='state')])
 
 
 def upgrade_air_catalog(definitions):
