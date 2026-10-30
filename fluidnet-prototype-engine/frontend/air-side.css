@@ -1,5 +1,8 @@
 #fn-studio .air-page { max-width:1720px; margin:auto; }
 #fn-studio .air-page .page-heading { margin-bottom:18px; }
+#fn-studio [data-air-controller] .panel-body > .air-curve { display:inline-block; width:calc(50% - 10px); margin-right:10px; vertical-align:top; }
+#fn-studio [data-air-controller] .air-curve svg { max-height:240px; }
+#fn-studio [data-air-controller] .air-curve svg text { fill:var(--muted); }
 #fn-studio .air-toolbar { display:flex; align-items:end; gap:12px; margin-bottom:18px; }
 #fn-studio .air-toolbar .field { min-width:230px; max-width:350px; }
 #fn-studio .air-empty { padding:75px 50px; background:linear-gradient(120deg,#edf7f8,#f8f5ed); border:1px solid #d8e7e9; border-radius:12px; }
