@@ -338,6 +338,27 @@ def fairness(networks, records):
 
 # --- case B: lumped NH3/CO2 station ---------------------------------------------------------------
 
+def _station_author_modules(network):
+    """Resolve authors from the archived definitions without executing their code."""
+    authors = dict(network.refrigeration_modules)
+    liquid = getattr(network, 'fluid_network', None)
+    if liquid is not None:
+        authors.update((iid, liquid.modules[instance.module_id]) for iid, instance in liquid.instances.items()
+                       if liquid.modules[instance.module_id].runtime == 'python')
+    return authors
+
+
+def _station_author_fields(network, iid, definition):
+    fields = {variable.id: (variable.label, variable.unit.canonical_unit if variable.unit else '1')
+              for variable in definition.variables if variable.sampleable}
+    liquid = getattr(network, 'fluid_network', None)
+    if liquid is not None and iid in liquid.instances:
+        # This ledger belongs to the coupled host, including accepted half-steps;
+        # it exists even when the author does not declare a state variable for it.
+        fields['state.transferred_mass_kg'] = ('累计通过质量（平台积分）', 'kg')
+    return fields
+
+
 def station_series_keys(network):
     """Standard curves of a station run (rooms, vessel pressures/levels, actuators, controllers, energy)."""
     keys = []
@@ -354,29 +375,31 @@ def station_series_keys(network):
                  'refrigerant_pump': [(f'{iid}.param.speed_ratio', '1')],
                  'cascade_exchanger': [(f'{iid}.heat_w', 'W')]}.get(kind, [])
     keys += [(f'controller.{c.id}.setpoint', '') for c in network.project.controllers]
-    for iid,definition in network.refrigeration_modules.items():
-        keys += [(f'{iid}.{v.id}',v.unit.canonical_unit if v.unit else '1')
-                 for v in definition.variables if v.sampleable]
+    for iid, definition in _station_author_modules(network).items():
+        keys += [(f'{iid}.{key}', unit) for key, (_, unit) in _station_author_fields(network, iid, definition).items()]
+    for link in getattr(network, 'couplings', ()):
+        keys += [(f'coupling.{link.id}.{key}', unit) for key, unit in (
+            ('heat_w', 'W'), ('mass_flow_kg_s', 'kg/s'), ('fluid_inlet_temperature_k', 'K'),
+            ('fluid_outlet_temperature_k', 'K'), ('refrigerant_temperature_k', 'K'),
+            ('state.heat_energy_j', 'J'))]
     return list(dict(keys).items())
 
 
 def station_module_results(rows, network):
     """Contract-driven outputs and immutable version identities from this archived run."""
-    if not network.refrigeration_modules:
+    authors = _station_author_modules(network)
+    if not authors:
         return ''
     from ..packages import package_ref
     versions,outputs=[],[]
     last=rows[-1]['variables']
-    for iid,definition in network.refrigeration_modules.items():
+    for iid,definition in authors.items():
         package=package_ref(definition)
         versions.append(tuple(html.escape(str(value)) for value in
             (iid,definition.id,definition.version,package.content_hash,package.definition_hash)))
-        for variable in definition.variables:
-            if not variable.sampleable:
-                continue
-            key=f'{iid}.{variable.id}'
-            outputs.append((html.escape(key),html.escape(variable.label),html.escape(str(last.get(key,'—'))),
-                html.escape(variable.unit.canonical_unit if variable.unit else '1')))
+        for variable_id, (label, unit) in _station_author_fields(network, iid, definition).items():
+            key=f'{iid}.{variable_id}'
+            outputs.append((html.escape(key),html.escape(label),html.escape(str(last.get(key,'—'))),html.escape(unit)))
     return ('<h2>作者模块冻结版本</h2>'+_table(['设备','模块','版本','源码 SHA-256','定义 SHA-256'],versions)
         +'<h2>作者设备末帧结果</h2>'+_table(['变量','名称','值','规范单位'],outputs)
         +'<p class="note">以上定义、版本及结果来自本次运行快照；生成报告不执行作者代码。</p>')
@@ -428,6 +451,8 @@ def station_csv(rows, network):
 def station_report(record, rows, network):
     m = station_metrics(rows, network)
     rooms = list(network.room_coolers)
+    coupled = getattr(network, 'execution_domain', None) == 'coupled'
+    title = '制冷站与液体热耦合运行报告' if coupled else '制冷站运行报告'
     pct = lambda v: '—' if v is None else f'{v * 100:.2f} %'
     body = [('需求满足度（库温在设定 ±1 K 内的时间占比，自定义口径）', pct(m['satisfaction'])),
             ('制冷站电量（压缩机、液泵、冷凝器与冷风机风机）', _text(m['electric_energy_j'], 'kWh')),
@@ -455,20 +480,33 @@ def station_report(record, rows, network):
               + _chart(rows, pressure_targets, '容器压力与控制目标', 'kPa', scale=1000.)
               + _chart(rows, [(f'{v}.state.level_ratio', v) for v in network.vessels], '容器液位', '1')
               + _chart(rows, actuator_targets, '执行器', '1'))
+    if coupled:
+        last = rows[-1]['variables']
+        links = network.couplings
+        charts += ('<h2>热耦合</h2>' + _table(['关系', '液体通路', '制冷剂容器', '末帧传热 / kW', '累计传热 / kWh'], [
+            (html.escape(link.id), html.escape(f'{link.fluid_instance_id}.{link.fluid_channel_id}'),
+             html.escape(link.refrigerant_vessel_id), _text(last.get(f'coupling.{link.id}.heat_w'), 'kW'),
+             _text(last.get(f'coupling.{link.id}.state.heat_energy_j'), 'kWh')) for link in links])
+            + _chart(rows, [(f'coupling.{link.id}.heat_w', link.id) for link in links], '盘管向制冷剂侧传热', 'kW', scale=1000.))
     events = _table(['ID', '时刻', '写入'], [(html.escape(e.id), f'{e.time_s / 3600:.3f} h', html.escape(f'{e.key} = {e.value:g}'))
                                          for e in network.events]) if network.events else '<p>本次运行没有日程事件。</p>'
     request = record['request']
-    return (f'<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>制冷站运行报告</title><style>{STYLE}</style></head>'
-            '<body><h1>制冷站运行报告</h1>'
+    boundary = ('集总制冷站与无储量单相液体回路通过浸没盘管联合求解；两侧不交换质量。液体侧允许内置设备和受限的 '
+                'Python 阀门/局部阻力；盘管、液体管道与作者设备均无独立储热。累计传热及平台通过质量取实际接受子步积分。'
+                '制冷剂压力由饱和容器存量决定，不含制冷剂管网两相压降、过冷/过热或机组启停储热。'
+                '控制器与日程以本次冻结项目为准。' if coupled else
+                '集总制冷站：压力只在饱和容器中，其余设备为代数关系；不计管路压降、换热器持液与过冷/过热；'
+                '单级压缩未计油冷，排气温度偏高。控制：吸气压力→压缩机载量、贮液器压力→回气阀、贮液器液位→节流阀、库温→冷风机风量，'
+                '上层脚本按载量增减压缩机、按回气阀开度增减冷凝器风机组、按冷风机风量调液泵。')
+    return (f'<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>{title}</title><style>{STYLE}</style></head>'
+            f'<body><h1>{title}</h1>'
             + _table(['项目', '内容'], [('项目', html.escape(request['project']['name'])), ('工况', html.escape(_scenario_name(record))),
                                        ('运行', html.escape(record['id'])), ('状态', html.escape(record['status'])),
                                        ('项目修订', html.escape(str(request.get('project_revision') or '未保存草稿'))),
                                        ('仿真时长 / 发布间隔', f'{rows[-1]["time_s"] / 3600:.3f} h / {request["dt_s"]:g} s'),
                                        ('引擎版本', __version__), ('数据等级', '工程示范假设；不与倍思鹿数值对比')])
             + '<h2>指标</h2>' + _table(['指标', '数值'], body) + charts + station_module_results(rows,network) + '<h2>日程</h2>' + events
-            + '<h2>模型边界</h2><p>集总制冷站：压力只在饱和容器中，其余设备为代数关系；不计管路压降、换热器持液与过冷/过热；'
-              '单级压缩未计油冷，排气温度偏高。控制：吸气压力→压缩机载量、贮液器压力→回气阀、贮液器液位→节流阀、库温→冷风机风量，'
-              '上层脚本按载量增减压缩机、按回气阀开度增减冷凝器风机组、按冷风机风量调液泵。</p></body></html>')
+            + '<h2>模型边界</h2><p>' + boundary + '</p></body></html>')
 
 
 def comparison_report(records, rows, networks):

@@ -158,7 +158,7 @@ def shape_history(history: list[RunFrame], request: RunRequest, project: Project
         if getattr(network, 'execution_domain', None) == 'cold_store':
             from .refrigeration.report import series_keys
             outputs |= {key for key, _ in series_keys(network.chains)}
-        elif getattr(network, 'execution_domain', None) == 'refrigeration':
+        elif getattr(network, 'execution_domain', None) in {'refrigeration', 'coupled'}:
             from .refrigeration.report import station_series_keys
             outputs |= {key for key, _ in station_series_keys(network)}
         outputs &= history[0].variables.keys() | history[-1].variables.keys()
@@ -827,8 +827,8 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
             network = compile_project(apply_scenario(request.project, request.scenario_id))
         except ValueError as error:
             raise HTTPException(422, detail=diagnostic(error).model_dump()) from error
-        if not isinstance(network, CompiledColdStore) and getattr(network, 'execution_domain', None) != 'refrigeration':
-            raise HTTPException(422, detail={'code': 'REPORT_UNSUPPORTED', 'message': '运行报告只支持冷库案例与集总制冷站项目'})
+        if not isinstance(network, CompiledColdStore) and getattr(network, 'execution_domain', None) not in {'refrigeration', 'coupled'}:
+            raise HTTPException(422, detail={'code': 'REPORT_UNSUPPORTED', 'message': '运行报告只支持冷库案例、集总制冷站与液体热耦合项目'})
         return {**record, 'request': request.model_dump(mode='json')}, rows, network, decimated
 
     def report_download(content, name, media):
@@ -858,7 +858,7 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
         if record.get('air_metadata'):
             from .air_report import csv_report
             return report_download(csv_report(record,rows,decimated),f'air-{run_id[:8]}.csv','text/csv; charset=utf-8')
-        content = station_csv(rows, network) if network.execution_domain == 'refrigeration' else run_csv(rows, network)
+        content = station_csv(rows, network) if network.execution_domain in {'refrigeration', 'coupled'} else run_csv(rows, network)
         return report_download(content, f'cold-store-{run_id[:8]}.csv', 'text/csv; charset=utf-8')
 
     @app.get('/api/v1/runs/{run_id}/report.html', response_class=Response,
@@ -870,10 +870,10 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
         if record.get('air_metadata'):
             from .air_report import html_report
             return report_download(html_report(record,rows,decimated),f'air-{run_id[:8]}.html','text/html; charset=utf-8')
-        content = (station_report if network.execution_domain == 'refrigeration' else run_report)(record, rows, network)
+        content = (station_report if network.execution_domain in {'refrigeration', 'coupled'} else run_report)(record, rows, network)
         if decimated:
-            content = content.replace('<h1>冷库运行报告</h1>', '<h1>冷库运行报告</h1><p><strong>历史窗口不含全部帧，曲线与峰值使用抽稀概览；'
-                                      '累计量仍取最后一帧的精确计数。</strong></p>')
+            content = content.replace('</h1>', '</h1><p><strong>历史窗口不含全部帧，曲线与峰值使用抽稀概览；'
+                                      '累计量仍取最后一帧的精确计数。</strong></p>', 1)
         return report_download(content, f'cold-store-{run_id[:8]}.html', 'text/html; charset=utf-8')
 
     @app.post('/api/v1/cold-store/workpoint', response_model=UnitWorkpointResponse,
