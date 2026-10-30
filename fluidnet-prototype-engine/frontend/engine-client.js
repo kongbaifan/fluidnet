@@ -411,10 +411,10 @@ window.createEngineClient = function (ui) {
   }
   function refrigerationReportAvailable(record) {
     const p=record?.request?.project;
-    if(!p || !['completed','failed','cancelled','interrupted'].includes(record.status) || p.thermal_couplings?.length)return false;
+    if(!p || !['completed','failed','cancelled','interrupted'].includes(record.status))return false;
     const definitions=new Map(p.modules.map(m=>[m.id,m]));
     const domains=new Set(p.instances.flatMap(n=>(definitions.get(n.module_id)?.ports||[]).map(port=>port.domain)));
-    return domains.has('refrigerant') && !domains.has('fluid');
+    return domains.has('refrigerant') && (p.thermal_couplings?.length ? domains.has('fluid') : !domains.has('fluid'));
   }
   function overviewValues(bindings, canonical) {
     return Object.fromEntries(['q','a','b','pressure','temperature'].map(key => {

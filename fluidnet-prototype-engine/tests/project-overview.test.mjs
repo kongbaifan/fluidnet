@@ -32,7 +32,12 @@ test('report availability uses the frozen run domain, status and used instances'
   assert.equal(engine.refrigerationReportAvailable({...record,status:'running'}),false);
   record.request.project.thermal_couplings=[{id:'coil'}];
   assert.equal(engine.refrigerationReportAvailable(record),false);
-  record.request.project.thermal_couplings=[];record.request.project.instances.push({module_id:'unused_water'});
+  record.request.project.instances.push({module_id:'unused_water'});
+  assert.equal(engine.refrigerationReportAvailable(record),true);
+  record.request.project.thermal_couplings=[];
+  assert.equal(engine.refrigerationReportAvailable(record),false);
+  record.request.project.instances=[{module_id:'unused_water'}];
+  record.request.project.thermal_couplings=[{id:'coil'}];
   assert.equal(engine.refrigerationReportAvailable(record),false);
 });
 
