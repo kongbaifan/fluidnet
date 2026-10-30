@@ -27,6 +27,7 @@ from .models import (
     Diagnostic,
     EvaluateRequest,
     EvaluateResponse,
+    RefrigerationEvaluateRequest, RefrigerationEvaluateResponse,
     FluidConfig,
     InitializeRequest,
     ModuleDefinition,
@@ -113,7 +114,7 @@ class ModuleContext:
     def __init__(self, parameters: dict[str, Any], fluid: FluidConfig,
                  ports: dict[str, PortState] | None = None, state: dict[str, Any] | None = None,
                  channels: dict[str, ChannelResult] | None = None, port_fluids: dict[str, FluidConfig] | None = None,
-                 *, execution: ModuleExecutionInfo | None = None):
+                 *, execution: ModuleExecutionInfo | None = None, refrigeration_input=None):
         self._execution = execution if execution is not None else ModuleExecutionInfo()
         self._identity_read = False
         self.parameters = parameters
@@ -127,6 +128,14 @@ class ModuleContext:
         self.diagnostics: list[Diagnostic] = []
         self.heat_w: dict[str, float] = {}
         self.derivatives:dict[str,dict[str,Any]] = {}
+        from .refrigeration_roles import RefrigerationCollector
+        self._refrigeration = RefrigerationCollector(refrigeration_input) if refrigeration_input is not None else None
+
+    @property
+    def refrigeration(self):
+        if self._refrigeration is None or self.phase!='evaluate':
+            raise RuntimeErrorBase('制冷接口只在声明角色的制冷求值中可用',code='MODULE_REFRIGERATION_CONTEXT_UNAVAILABLE')
+        return self._refrigeration
 
     @property
     def execution(self):
@@ -225,18 +234,33 @@ def _load_module(definition: ModuleDefinition):
     return target() if isinstance(target, type) else target
 
 
+def validate_lifecycle(target):
+    for name,count in (('initialize',1),('evaluate',1),('commit_step',2),('finalize',1)):
+        callback=getattr(target,name,None)
+        if not callable(callback) or inspect.iscoroutinefunction(callback):
+            raise ValueError(f'入口必须实现同步生命周期方法 {name}')
+        inspect.signature(callback).bind(*([None]*count))
+
+
 class InProcessModuleRunner:
     """Reference runner used inside the isolated Worker process and by focused tests."""
 
     def __init__(self, definition: ModuleDefinition, parameters: dict[str, Any], fluid: FluidConfig,
                  initial_state: dict[str, Any] | None = None, port_fluids: dict[str, FluidConfig] | None = None,
                  *, run_id=None, instance_id=None, cache_enabled=False):
+        if definition.execution_role:
+            from .refrigeration_roles import require_throttle_role, role_parameters, role_fluid
+            require_throttle_role(definition)
+            parameters = role_parameters(definition,parameters)
+            role_fluid(definition,fluid,port_fluids)
         self.definition = definition
         self.parameters = parameters
         self.fluid = fluid
         self.port_fluids = dict(port_fluids or {})
         self.state = checked_state(initial_state or {})
         self.module = _load_module(definition)
+        if definition.execution_role:
+            validate_lifecycle(self.module)
         self.initialized = False
         self.execution = InvocationState(run_id, instance_id or definition.id)
         self._last_committed_time_s: float | None = None
@@ -263,9 +287,10 @@ class InProcessModuleRunner:
 
     def _invoke(self, callback, ctx, *args):
         from .module_scope import check_scope_configuration, scope_diagnostics
-        check_scope_configuration(self.definition, self.fluid)
+        domain = 'refrigeration' if self.definition.execution_role else 'fluid'
+        check_scope_configuration(self.definition, self.fluid,domain)
         for fluid in self.port_fluids.values():
-            check_scope_configuration(self.definition, fluid)
+            check_scope_configuration(self.definition, fluid,domain)
         ports = getattr(ctx.ports, '_values', ctx.ports)
         ctx.diagnostics = merge_diagnostics(ctx.diagnostics, scope_diagnostics(self.definition, ports,
             ctx.channels, ctx.phase, ctx.execution.instance_id, ctx.time_s))
@@ -274,10 +299,14 @@ class InProcessModuleRunner:
         if not callback:
             return
         ctx._identity_read = False
+        air_before = {key:port.humidity_ratio_kg_kg for key,port in ports.items()
+                      if port.humidity_ratio_kg_kg is not None}
         try:
             if inspect.iscoroutinefunction(callback):
                 raise ValueError('模块生命周期回调必须是同步函数')
             callback(ctx, *args)
+            if air_before and any(ctx.ports[key].humidity_ratio_kg_kg != w for key,w in air_before.items()):
+                raise RuntimeErrorBase('湿空气透传模块不能改变端口含湿量',code='MODULE_AIR_CAPABILITY_MISMATCH')
         except Exception as error:
             if isinstance(error, RuntimeErrorBase) and error.diagnostics:
                 raise
@@ -289,6 +318,8 @@ class InProcessModuleRunner:
                 'channels': {key: value.model_dump(mode='json') for key, value in ctx.channels.items()},
                 'execution': ctx.execution.model_dump(mode='json'),
                 'content_hash': module_content_hash(self.definition), 'definition_hash': module_definition_hash(self.definition)}
+            if ctx._refrigeration is not None:
+                replay['refrigeration'] = ctx._refrigeration.throttle.model_dump(mode='json')
             raise RuntimeErrorBase(str(error), diagnostics=[diagnostic], replay=replay, code=diagnostic.code) from error
 
     def initialize(self, context=None):
@@ -302,6 +333,8 @@ class InProcessModuleRunner:
         return self.state
 
     def evaluate(self, request: EvaluateRequest) -> EvaluateResponse:
+        if self.definition.execution_role:
+            raise RuntimeErrorBase('制冷角色必须使用制冷求值协议',code='MODULE_EXECUTION_DOMAIN_UNSUPPORTED')
         if not self.initialized:
             self.initialize()
         if request.state_revision is not None:
@@ -348,6 +381,36 @@ class InProcessModuleRunner:
                 self._evaluate_cache[cache_key] = response.model_copy(deep=True)
                 while len(self._evaluate_cache) > 64:
                     self._evaluate_cache.popitem(last=False)
+        return response
+
+    def evaluate_refrigeration(self, request: RefrigerationEvaluateRequest) -> RefrigerationEvaluateResponse:
+        from .refrigeration_roles import require_throttle_role, validate_throttle_input, validate_throttle_flow, RESERVED_FLOW_VARIABLES
+        require_throttle_role(self.definition)
+        if not self.initialized:
+            self.initialize()
+        if request.run_id!=self.execution.run_id or request.instance_id!=self.execution.instance_id:
+            raise RuntimeErrorBase('制冷求值的运行或实例身份不匹配',code='MODULE_REQUEST_CONFLICT')
+        if request.state_revision is not None and request.state_revision!=self.state_revision:
+            raise RuntimeErrorBase('制冷求值的状态修订已过期',code='MODULE_REVISION_CONFLICT')
+        context = request.context or self.execution.context()
+        if context.accepted_time_s is not None and (context.accepted_time_s>request.time_s or
+                context.accepted_time_s!=(self._last_committed_time_s or 0.)):
+            raise RuntimeErrorBase('制冷求值的接受时刻不一致',code='MODULE_REQUEST_CONFLICT')
+        inputs = validate_throttle_input(request.throttle,self.parameters)
+        info = self._info('evaluate',request.time_s,context,run_id=request.run_id,instance_id=request.instance_id,
+            iteration_id=request.iteration_id,port_data='trial',state_data='input_copy')
+        ctx = ModuleContext(deepcopy(self.parameters),self.fluid,state=deepcopy(self.state),execution=info,
+            refrigeration_input=inputs.model_copy(deep=True))
+        self._invoke(getattr(self.module,'evaluate'),ctx)
+        if ctx.net.relations or ctx.heat_w or ctx.derivatives or RESERVED_FLOW_VARIABLES & ctx.variables.keys():
+            raise RuntimeErrorBase('制冷角色不能返回水力关系、热流、导数或覆盖平台流股字段',code='MODULE_REFRIGERATION_OUTPUT_INVALID')
+        if ctx.refrigeration.result is None:
+            raise RuntimeErrorBase('制冷求值没有提交流量',code='MODULE_REFRIGERATION_OUTPUT_MISSING')
+        response = RefrigerationEvaluateResponse(flow=validate_throttle_flow(ctx.refrigeration.result,inputs),
+            variables=ctx.variables,diagnostics=ctx.diagnostics)
+        checked_result(response)
+        if any(item.severity=='error' for item in response.diagnostics):
+            raise RuntimeErrorBase('制冷设备报告错误',diagnostics=response.diagnostics)
         return response
 
     def _commit_candidate(self, request: CommitStepRequest, channels: dict[str, ChannelResult] | None = None) -> CommitStepResponse:
@@ -421,6 +484,8 @@ class InProcessModuleRunner:
         self._pending_candidate = None
 
     def phase_call(self, phase, request: ModulePhaseRequest):
+        if self.definition.execution_role:
+            raise RuntimeErrorBase('制冷角色不支持流体阶段调用',code='MODULE_EXECUTION_DOMAIN_UNSUPPORTED')
         if not self.initialized:
             self.initialize()
         capabilities = set(self.definition.sdk.capabilities) if self.definition.sdk else set()
@@ -491,6 +556,11 @@ class WorkerProcess:
                  initial_state: dict[str, Any] | None = None, timeout_s: float = 10.0,
                  port_fluids: dict[str, FluidConfig] | None = None, *, run_id=None, instance_id=None, cache_enabled=False):
         check_module_compatibility(definition)
+        if definition.execution_role:
+            from .refrigeration_roles import require_throttle_role, role_parameters, role_fluid
+            require_throttle_role(definition)
+            parameters = role_parameters(definition,parameters)
+            role_fluid(definition,fluid,port_fluids)
         self.definition = definition
         self.parameters = parameters
         self.fluid = fluid
@@ -595,6 +665,14 @@ class WorkerProcess:
         return line
 
     def _request(self, payload: dict[str, Any]) -> dict[str, Any]:
+        from .module_contracts import air_request_payload
+        if payload.get('action') == 'batch':
+            payload = {**payload, 'items': {key: air_request_payload(self._definitions.get(key,self.definition), value)
+                                           for key,value in payload['items'].items()}}
+        else:
+            key = payload.get('instance_id', payload.get('request', {}).get('instance_id'))
+            definition = self._definitions.get(key, self.definition)
+            payload = air_request_payload(definition, payload)
         try:
             return self._request_impl(payload)
         except RuntimeErrorBase as error:
@@ -606,7 +684,7 @@ class WorkerProcess:
             request = payload.get('request', {})
             action = payload.get('action')
             instance = request.get('instance_id', payload.get('instance_id', self.execution.instance_id))
-            info = ModuleExecutionInfo(phase='commit_step' if action == 'prepare_step' else
+            info = ModuleExecutionInfo(phase='evaluate' if action=='evaluate_refrigeration' else 'commit_step' if action == 'prepare_step' else
                 action if action in {'initialize', 'evaluate', 'commit_step', 'finalize'} else 'manual',
                 instance_id=instance, time_s=request.get('time_s'))
             definition = self._definitions.get(payload.get('instance_id','default'),self.definition)
@@ -659,7 +737,8 @@ class WorkerProcess:
         request = InitializeRequest(run_id=self.execution.run_id, instance_id=self.execution.instance_id,
                                     package={"module_id": self.definition.id, "version": f"{self.definition.version}.0.0",
                                              "content_hash": self.definition.content_hash or module_content_hash(self.definition),
-                                             "definition_hash": self.definition.definition_hash},
+                                             "definition_hash": self.definition.definition_hash or
+                                             (module_definition_hash(self.definition) if self.definition.execution_role else None)},
                                     parameters=self.parameters, fluid=self.fluid, port_fluids=self.port_fluids,
                                     initial_state=self.state, context=self.execution.context(), cache_enabled=self.cache_enabled)
         response = self._request({"action": "initialize", "definition": self.definition.model_dump(mode="json"),
@@ -668,6 +747,9 @@ class WorkerProcess:
         return self.state
 
     def update_parameters(self, parameters):
+        if self.definition.execution_role:
+            from .refrigeration_roles import updated_role_parameters
+            parameters=updated_role_parameters(self.definition,self.parameters,parameters)
         self._request({'action': 'parameters', 'parameters': parameters})
         self.parameters = dict(parameters)
         self._parent_cache.clear()
@@ -676,6 +758,8 @@ class WorkerProcess:
         return self._request({"action": "validate", "definition": self.definition.model_dump(mode="json")})
 
     def evaluate(self, request: EvaluateRequest):
+        if self.definition.execution_role:
+            raise RuntimeErrorBase('制冷角色必须使用制冷求值协议',code='MODULE_EXECUTION_DOMAIN_UNSUPPORTED')
         compact=self.cache_enabled and self.definition.pure_evaluate
         current = request.model_copy(update={"readonly_state": {} if compact else deepcopy(self.state),
             'state_revision':self.state_revision if compact else None,
@@ -689,6 +773,22 @@ class WorkerProcess:
         response = EvaluateResponse.model_validate(self._request({"action": "evaluate", "request": current.model_dump(mode="json")}))
         if key is not None:
             self._parent_cache.remember(key, response)
+        return response
+
+    def evaluate_refrigeration(self, request: RefrigerationEvaluateRequest):
+        from .refrigeration_roles import require_throttle_role, validate_throttle_input, validate_throttle_flow, RESERVED_FLOW_VARIABLES
+        require_throttle_role(self.definition)
+        request = RefrigerationEvaluateRequest.model_validate(request)
+        request = request.model_copy(deep=True,update={'context':request.context or self.execution.context()})
+        inputs = validate_throttle_input(request.throttle,self.parameters)
+        response = RefrigerationEvaluateResponse.model_validate(self._request({
+            'action':'evaluate_refrigeration','request':request.model_dump(mode='json')}))
+        # Recheck against the parent's input; a Worker cannot change its own physical boundary.
+        validate_throttle_flow(response.flow,inputs)
+        checked_result(response)
+        if RESERVED_FLOW_VARIABLES & response.variables.keys() or any(item.severity=='error' for item in response.diagnostics):
+            raise RuntimeErrorBase('制冷响应包含保留流股字段或错误诊断',code='MODULE_REFRIGERATION_OUTPUT_INVALID',
+                                   diagnostics=response.diagnostics)
         return response
 
     @property

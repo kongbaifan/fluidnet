@@ -77,6 +77,51 @@ def pipe_drop_and_slope(params, flow, density=RHO_WATER, viscosity=MU_WATER) -> 
     return value, coef * (1 - blend) + d_turbulent_dq * blend + (turbulent - laminar) * d_blend_dq
 
 
+def duct_geometry(params) -> tuple[float, float]:
+    """矩形风管的流通面积 [m²] 与水力直径 Dh = 2WH/(W+H) [m]。"""
+    width, height = params['duct_width_m'], params['duct_height_m']
+    return width * height, 2. * width * height / (width + height)
+
+
+def duct_drop(params, flow, density=RHO_WATER, viscosity=MU_WATER) -> float:
+    """矩形风管沿程压降：水力直径近似 + 与 pipe 相同的 Haaland 湍流摩擦。"""
+    area, diameter = duct_geometry(params)
+    length, roughness = params['length_m'], params['roughness_m']
+    reynolds = abs(flow) * diameter / (viscosity * area)
+    if reynolds < 1e-12:
+        return 0.
+    coef = 128. * viscosity * length / (math.pi * diameter ** 4 * density)
+    if reynolds < 2300:
+        return coef * flow
+    friction = haaland_friction(roughness, diameter, reynolds)
+    turbulent = friction * length / diameter * flow * abs(flow) / (2. * density * area ** 2)
+    blend = min(1., (reynolds - 2300) / 1700.)
+    return coef * flow * (1 - blend) + turbulent * blend
+
+
+def duct_drop_and_slope(params, flow, density=RHO_WATER, viscosity=MU_WATER) -> tuple[float, float]:
+    """矩形风管压降与对 q 的导数（层流/过渡/湍流分段约定与 pipe 一致）。"""
+    area, diameter = duct_geometry(params)
+    length, roughness = params['length_m'], params['roughness_m']
+    coef = 128. * viscosity * length / (math.pi * diameter ** 4 * density)
+    laminar = coef * flow
+    reynolds = abs(flow) * diameter / (viscosity * area)
+    if reynolds < 2300:
+        return laminar, coef
+    friction = haaland_friction(roughness, diameter, reynolds)
+    turbulent = friction * length / diameter * flow * abs(flow) / (2. * density * area ** 2)
+    blend = min(1., (reynolds - 2300) / 1700.)
+    value = laminar * (1 - blend) + turbulent * blend
+    d_re_dq = diameter / (viscosity * area) * (1. if flow >= 0 else -1.)
+    d_f_dq = _haaland_slope(roughness, diameter, reynolds, friction) * d_re_dq
+    d_turbulent_dq = length / diameter / (2. * density * area ** 2) * (
+        d_f_dq * flow * abs(flow) + friction * 2. * abs(flow))
+    if reynolds >= 4000:
+        return value, d_turbulent_dq
+    d_blend_dq = d_re_dq / 1700.
+    return value, coef * (1 - blend) + d_turbulent_dq * blend + (turbulent - laminar) * d_blend_dq
+
+
 def _pump_segment(curve, x: float):
     points = curve
     if x < points[0][0]:
@@ -108,23 +153,35 @@ def pump_head_and_slope(curve, flow_m3_h: float, speed: float) -> tuple[float, f
 
 def branch_drop_value(model: str, params: dict, flow: float, density: float, viscosity: float) -> float:
     """单条内置支路的压降（不含两端压力项），与历史 `branch_drop` 完全一致。"""
+    if model == 'air_filter':
+        q = flow/density
+        k = params['clean_pressure_drop_pa']*(1+(params['loaded_drop_multiplier']-1)*params['loading_ratio'])/params['rated_volume_flow_m3_s']**2
+        return k*q*abs(q)
     if model == 'valve':
         kv = params['kv_m3_h'] * params['opening_ratio']
         return _shared.valve_drop(kv, flow, density) + density * GRAVITY * params.get('height_m', 0)
     if model == 'pipe':
         return pipe_drop(params, flow, density, viscosity) + density * GRAVITY * params.get('height_m', 0)
+    if model == 'duct':
+        return duct_drop(params, flow, density, viscosity)
     if model == 'pump_curve':
         if params['speed_ratio'] <= 0:
             raise ValueError('停泵阻力模型尚未定义，转速必须大于零')
         return -density * GRAVITY * pump_head(params['head_curve'], flow / density * 3600, params['speed_ratio'])
     if model == 'resistance':
         return _shared.resistance_drop(params['diameter_m'], params['loss_coefficient'], flow, density)
+    if model == 'resistance_secondary':
+        # 双通路设备的第二通路（水盘管水侧、冷水机组冷凝器侧）用自己的 K 与等效直径。
+        return _shared.resistance_drop(params['secondary_diameter_m'], params['secondary_loss_coefficient'], flow, density)
     raise ValueError(f'未注册的支路模型：{model}')
 
 
 def branch_drop_and_slope(model: str, params: dict, flow: float, density: float,
                           viscosity: float) -> tuple[float, float]:
     """单条内置支路的压降与其对 q 的导数。"""
+    if model == 'air_filter':
+        k = params['clean_pressure_drop_pa']*(1+(params['loaded_drop_multiplier']-1)*params['loading_ratio'])/(params['rated_volume_flow_m3_s']*density)**2
+        return k*flow*abs(flow),2*k*abs(flow)
     if model == 'valve':
         kv = params['kv_m3_h'] * params['opening_ratio']
         volume_coef = 3600. / density
@@ -135,13 +192,16 @@ def branch_drop_and_slope(model: str, params: dict, flow: float, density: float,
     if model == 'pipe':
         value, slope = pipe_drop_and_slope(params, flow, density, viscosity)
         return value + density * GRAVITY * params.get('height_m', 0), slope
+    if model == 'duct':
+        return duct_drop_and_slope(params, flow, density, viscosity)
     if model == 'pump_curve':
         if params['speed_ratio'] <= 0:
             raise ValueError('停泵阻力模型尚未定义，转速必须大于零')
         head, head_slope = pump_head_and_slope(params['head_curve'], flow / density * 3600, params['speed_ratio'])
         return -density * GRAVITY * head, -density * GRAVITY * head_slope * 3600 / density
-    if model == 'resistance':
-        area = _pipe_area(params['diameter_m'])
-        coef = params['loss_coefficient'] / (2 * density * area ** 2)
+    if model in ('resistance', 'resistance_secondary'):
+        prefix = 'secondary_' if model == 'resistance_secondary' else ''
+        area = _pipe_area(params[prefix + 'diameter_m'])
+        coef = params[prefix + 'loss_coefficient'] / (2 * density * area ** 2)
         return coef * flow * abs(flow), 2 * coef * abs(flow)
     raise ValueError(f'未注册的支路模型：{model}')

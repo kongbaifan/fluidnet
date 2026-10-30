@@ -1,0 +1,61 @@
+{
+  "date": "2026-10-29",
+  "baseline": "348f104",
+  "implementation_head": "52eece3a7605d2f3a9e63a573a3447e5c11a342b",
+  "environment": {
+    "python": "3.11.0",
+    "coolprop": "8.0.0",
+    "platform": "Windows"
+  },
+  "backend_full": {
+    "passed": 1543,
+    "failed": 0,
+    "coverage_percent": 91.04
+  },
+  "backend_followup": {
+    "passed": 116,
+    "failed": 0,
+    "note": "全量之后的初态/旁通修正，计数不与全量相加"
+  },
+  "browser_full": {
+    "scripts": 23,
+    "ui_contract_tests": 6,
+    "exit_code": 0
+  },
+  "browser_followup": {
+    "scripts": 2,
+    "exit_code": 0
+  },
+  "contracts": 85,
+  "logs": {
+    "backend_full": {
+      "path": "artifacts/air-final-pytest.txt",
+      "sha256": "7a27a10640e73af4cf365f73b60f91844c5090af6027b723854a9fceb59e5f4e"
+    },
+    "backend_followup": {
+      "path": "artifacts/air-final-numerics-recheck.txt",
+      "sha256": "7b55e3b15752ca6690b2b451cf59fa006aaaf26a362a641f1d5491fafc5d0134"
+    },
+    "browser_full": {
+      "path": "artifacts/air-final-browser-2.txt",
+      "sha256": "574b64decb39af00ea9cb5a87b863f3b306a38d6a8abccf385ab0eda674b8ed7"
+    },
+    "browser_followup": {
+      "path": "artifacts/air-final-ui-recheck.txt",
+      "sha256": "a12bc23f428cf6ae527f01b186a7b08dd54f860a84d4c37d3230c2003d4c2b73"
+    }
+  },
+  "viewport": {
+    "width": 1920,
+    "height": 1080,
+    "device_scale_factor": 1
+  },
+  "examples": [
+    "air-coil-wet",
+    "air-mixing",
+    "ahu-wet",
+    "ahu-room",
+    "air-parallel-wet",
+    "cooling-tower-moist"
+  ]
+}

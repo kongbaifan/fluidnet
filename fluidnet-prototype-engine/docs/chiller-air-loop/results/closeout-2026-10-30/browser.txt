@@ -1,0 +1,10 @@
+npm warn Unknown user config "allow-scripts". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+
+> fluidnet-prototype-engine-ui@0.5.0 test:browser:chiller
+> node tests/browser-chiller-air-loop.mjs
+
+submitted 6599a318cb5c423cba6c59e93c49cc8c
+first completed
+submitted 1c34091a701c432192c5397759acf6f3
+submitted e3958b986aaf4b449e8c7e703e63dd5f
+{"run":"6599a318cb5c423cba6c59e93c49cc8c","changed":"e3958b986aaf4b449e8c7e703e63dd5f","errors":[]}

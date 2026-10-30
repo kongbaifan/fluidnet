@@ -1,0 +1,31 @@
+{"template":"resistance","status":"starting"}
+{"template":"pump","status":"starting"}
+{"template":"heat_exchanger","status":"starting"}
+{"template":"managed_state","status":"starting"}
+{"moduleAssertionBoundaries":{"directionsVerified":true,"channelEditsApplied":true,"overridesPreserved":true,"clearAndAdd":true,"contractLimits":true}}
+{"moduleAssertions":{"mismatchDetected":true,"laterCaseExecuted":true,"savedAndReloaded":true,"correctedPassed":true}}
+{
+  "results": [
+    {
+      "template": "resistance",
+      "version": 1,
+      "reloadRecomputed": true
+    },
+    {
+      "template": "pump",
+      "version": 1,
+      "reloadRecomputed": true
+    },
+    {
+      "template": "heat_exchanger",
+      "version": 1,
+      "reloadRecomputed": true
+    },
+    {
+      "template": "managed_state",
+      "version": 1,
+      "reloadRecomputed": true
+    }
+  ],
+  "errors": []
+}

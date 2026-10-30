@@ -1,0 +1,81 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "input_mode": {
+      "enum": [
+        "ptw",
+        "ptrh",
+        "phw"
+      ],
+      "title": "Input Mode",
+      "type": "string"
+    },
+    "pressure_pa": {
+      "maximum": 120000,
+      "minimum": 60000,
+      "title": "Pressure Pa",
+      "type": "number"
+    },
+    "temperature_k": {
+      "anyOf": [
+        {
+          "maximum": 333.15,
+          "minimum": 253.15,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Temperature K"
+    },
+    "humidity_ratio_kg_kg": {
+      "anyOf": [
+        {
+          "maximum": 0.05,
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Humidity Ratio Kg Kg"
+    },
+    "relative_humidity": {
+      "anyOf": [
+        {
+          "maximum": 1,
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Relative Humidity"
+    },
+    "enthalpy_j_kg_dry_air": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Enthalpy J Kg Dry Air"
+    }
+  },
+  "required": [
+    "input_mode",
+    "pressure_pa"
+  ],
+  "title": "AirPropertyRequest",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

@@ -1,0 +1,115 @@
+{
+  "schema_version": 3,
+  "id": "air_vent",
+  "name": "送/回风口",
+  "version": 2,
+  "category": "风侧模块",
+  "description": "按额定风量与额定压降折算等效 Kv 的送/回风口（定风量阻力件）；仅作风量分配与阻力教学用，不含射流与气流组织。",
+  "entrypoint": "module:Module",
+  "ports": [
+    {
+      "id": "in0",
+      "label": "入口",
+      "domain": "fluid",
+      "direction": "in",
+      "required": true,
+      "circuit": "fluid"
+    },
+    {
+      "id": "out0",
+      "label": "出口",
+      "domain": "fluid",
+      "direction": "out",
+      "required": true,
+      "circuit": "fluid"
+    }
+  ],
+  "parameters": [
+    {
+      "id": "nominal_flow_m3_h",
+      "label": "额定风量",
+      "value_type": "number",
+      "default": 1000.0,
+      "minimum": 0.001,
+      "unit": {
+        "quantity": "volume_flow",
+        "canonical_unit": "m³/s",
+        "display_unit": "m³/h",
+        "display_scale": 0.0002777777777777778
+      }
+    },
+    {
+      "id": "nominal_pressure_drop_pa",
+      "label": "额定压降",
+      "value_type": "number",
+      "default": 50.0,
+      "minimum": 0.001,
+      "unit": {
+        "quantity": "pressure",
+        "canonical_unit": "Pa",
+        "display_unit": "Pa"
+      }
+    },
+    {
+      "id": "density_kg_m3",
+      "label": "参考密度",
+      "value_type": "number",
+      "default": 1.2,
+      "minimum": 0.1,
+      "unit": {
+        "quantity": "density",
+        "canonical_unit": "kg/m³",
+        "display_unit": "kg/m³"
+      }
+    }
+  ],
+  "variables": [
+    {
+      "id": "kv_m3_h",
+      "label": "等效流量系数 Kv",
+      "quantity": "flow_coefficient",
+      "source": "derived",
+      "unit": {
+        "quantity": "flow_coefficient",
+        "canonical_unit": "m³/h",
+        "display_unit": "m³/h"
+      }
+    },
+    {
+      "id": "state.throughput_kg",
+      "label": "累计通过质量",
+      "quantity": "mass",
+      "source": "state",
+      "unit": {
+        "quantity": "mass",
+        "canonical_unit": "kg",
+        "display_unit": "kg"
+      }
+    }
+  ],
+  "channels": [
+    {
+      "id": "main",
+      "name": "主通路",
+      "input_port": "in0",
+      "output_port": "out0",
+      "relation": "resistance",
+      "solver_model": "valve",
+      "enabled": true
+    }
+  ],
+  "solver_model": "generic",
+  "source_format": "python-v1",
+  "sdk": {
+    "api_version": "0.6.0",
+    "capabilities": [
+      "lifecycle.v1",
+      "state.json.v1",
+      "properties.v1",
+      "net.valve",
+      "air.properties.v1",
+      "air.pass_through.v1"
+    ],
+    "state_contract_version": 1
+  }
+}

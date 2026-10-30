@@ -127,13 +127,15 @@ jobs:
         shell: pwsh
         run: |
           $command = (Get-Content package.json -Raw | ConvertFrom-Json).scripts.'test:browser'
-          $scripts = $command -split '&&' | ForEach-Object { ($_ -replace '^\s*node\s+', '').Trim() }
+          $scripts = $command -split '&&' | ForEach-Object { $_.Trim() }
           foreach ($script in $scripts) {
             Write-Host "::group::$script"
-            node $script
+            # 清单里既有 `node <脚本>`，也有 `npm run <任务>`（如 test:ui），按原命令执行。
+            $run = { if ($script -match '^npm run (\S+)$') { npm run $Matches[1] } else { node ($script -replace '^node\s+', '') } }
+            & $run
             if ($LASTEXITCODE -ne 0) {
               Write-Host "::warning::$script failed on first attempt; retrying once (CI runner flake mitigation)"
-              node $script
+              & $run
             }
             if ($LASTEXITCODE -ne 0) {
               Write-Host "::endgroup::"

@@ -1,0 +1,15 @@
+{
+  "category": "倍思鹿参考模块",
+  "count": 8,
+  "modules": [
+    "capillary_tube",
+    "check_valve",
+    "cooling_tower",
+    "fan",
+    "fan_coil_unit",
+    "pipe_fitting",
+    "pump_variable_speed",
+    "valve_equal_percentage"
+  ],
+  "errors": []
+}

@@ -488,6 +488,7 @@ class CoolPropPropertyService:
         # Components on the configured basis; a predefined REFPROP .MIX file reports itself.
         self.composition = dict(zip(name.split("&"), fractions)) if "&" in name else {self.fluid: 1.0}
         self.phase_policy = config.phase_policy
+        self._air_local = threading.local()
 
     def _result(self, state: FluidState, check_phase: bool = True) -> FluidState:
         if check_phase:
@@ -558,6 +559,24 @@ class CoolPropPropertyService:
 
     def humid_air(self, temperature: float, pressure: float, relative_humidity: float) -> dict[str, float]:
         return humid_air(temperature, pressure, relative_humidity)
+
+    def _moist_air_service(self):
+        from .moist_air import MoistAirService
+        if not hasattr(self._air_local,'service'):
+            self._air_local.service = MoistAirService()
+        return self._air_local.service
+
+    def state_ptw(self, pressure_pa: float, temperature_k: float, humidity_ratio_kg_kg: float) -> FluidState:
+        return self._moist_air_service().state_ptw(pressure_pa,temperature_k,humidity_ratio_kg_kg)
+
+    def state_phw(self, pressure_pa: float, enthalpy_j_kg_dry_air: float, humidity_ratio_kg_kg: float) -> FluidState:
+        return self._moist_air_service().state_phw(pressure_pa,enthalpy_j_kg_dry_air,humidity_ratio_kg_kg)
+
+    def humidity_from_rh(self, pressure_pa: float, temperature_k: float, relative_humidity: float) -> float:
+        return self._moist_air_service().humidity_from_rh(pressure_pa,temperature_k,relative_humidity)
+
+    def saturated_state(self, pressure_pa: float, temperature_k: float) -> FluidState:
+        return self._moist_air_service().saturated_state(pressure_pa,temperature_k)
 
 
 _services: dict[tuple[str, FluidKey, str], CoolPropPropertyService] = {}

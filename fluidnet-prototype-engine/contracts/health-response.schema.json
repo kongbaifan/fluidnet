@@ -17,6 +17,104 @@
     "HealthCapabilities": {
       "additionalProperties": false,
       "properties": {
+        "moist_air_contract_version": {
+          "anyOf": [
+            {
+              "const": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Moist Air Contract Version"
+        },
+        "wet_cooling_coil": {
+          "default": false,
+          "title": "Wet Cooling Coil",
+          "type": "boolean"
+        },
+        "air_humidifier": {
+          "default": false,
+          "title": "Air Humidifier",
+          "type": "boolean"
+        },
+        "ahu_components": {
+          "default": false,
+          "title": "Ahu Components",
+          "type": "boolean"
+        },
+        "air_room": {
+          "default": false,
+          "title": "Air Room",
+          "type": "boolean"
+        },
+        "cooling_tower_moist": {
+          "default": false,
+          "title": "Cooling Tower Moist",
+          "type": "boolean"
+        },
+        "air_variable_catalog": {
+          "default": false,
+          "title": "Air Variable Catalog",
+          "type": "boolean"
+        },
+        "water_coil": {
+          "default": false,
+          "title": "Water Coil",
+          "type": "boolean"
+        },
+        "water_chiller": {
+          "default": false,
+          "title": "Water Chiller",
+          "type": "boolean"
+        },
+        "air_liquid_coupling": {
+          "default": false,
+          "title": "Air Liquid Coupling",
+          "type": "boolean"
+        },
+        "air_reports": {
+          "default": false,
+          "title": "Air Reports",
+          "type": "boolean"
+        },
+        "thermal_coupling": {
+          "default": false,
+          "title": "Thermal Coupling",
+          "type": "boolean"
+        },
+        "dual_thermal_coupling": {
+          "default": false,
+          "title": "Dual Thermal Coupling",
+          "type": "boolean"
+        },
+        "heater": {
+          "default": false,
+          "title": "Heater",
+          "type": "boolean"
+        },
+        "air_duct": {
+          "default": false,
+          "title": "Air Duct",
+          "type": "boolean"
+        },
+        "moist_air": {
+          "default": false,
+          "title": "Moist Air",
+          "type": "boolean"
+        },
+        "scenario_batches": {
+          "default": false,
+          "title": "Scenario Batches",
+          "type": "boolean"
+        },
+        "multi_inlet_vessels": {
+          "default": false,
+          "title": "Multi Inlet Vessels",
+          "type": "boolean"
+        },
         "cold_room_ideal_source": {
           "default": false,
           "title": "Cold Room Ideal Source",
@@ -213,6 +311,14 @@
       "title": "Status",
       "type": "string"
     },
+    "mode": {
+      "enum": [
+        "studio",
+        "headless"
+      ],
+      "title": "Mode",
+      "type": "string"
+    },
     "version": {
       "title": "Version",
       "type": "string"
@@ -257,6 +363,7 @@
   },
   "required": [
     "status",
+    "mode",
     "version",
     "solver",
     "capabilities",

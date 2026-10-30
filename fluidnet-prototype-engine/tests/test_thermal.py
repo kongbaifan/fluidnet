@@ -25,7 +25,9 @@ def link(cid, source, target):
 
 def project(instances, connections, extra_modules=(), **solver):
     catalog = catalog_map()
-    kinds = sorted({kind for _, kind, _ in instances if kind in catalog})
+    # 自定义 Python 模块可以复用内置模型的 id（如 heater）：同 id 时以 extra_modules 为准。
+    overrides = {module.id for module in extra_modules}
+    kinds = sorted({kind for _, kind, _ in instances if kind in catalog and kind not in overrides})
     p = Project(id='thermal', name='thermal', modules=[catalog[k] for k in kinds] + list(extra_modules),
                 instances=[ModuleInstance(id=i, module_id=kind, name=i, parameters=params) for i, kind, params in instances],
                 connections=[link(f'e{n}', a, b) for n, (a, b) in enumerate(connections)])

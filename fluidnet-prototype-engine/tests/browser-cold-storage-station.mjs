@@ -1,3 +1,4 @@
+import {FHD_CONTEXT, captureFhd} from './browser-viewport.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -13,7 +14,7 @@ const start = async () => { launched = await launchEngine({args: ['--data-dir', 
 const stop = async () => { if (launched) await launched.stop(); };
 const errors = [];
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
-const newPage = async () => { const c = await browser.newContext({ viewport: { width: 1600, height: 1100 }, acceptDownloads: true }); const p = await c.newPage(); p.on('pageerror', e => errors.push(e.message)); return [c, p]; };
+const newPage = async () => { const c = await browser.newContext({ ...FHD_CONTEXT, acceptDownloads: true }); const p = await c.newPage(); p.on('pageerror', e => errors.push(e.message)); return [c, p]; };
 let [context, page] = await newPage();
 const api = path => fetch(base + '/api/v1' + path).then(r => r.json());
 const metric = id => page.locator(`[data-station-${id}]`).textContent();
@@ -65,7 +66,7 @@ try {
   expect(await metric('running')).toBe('3');
   expect(await metric('satisfaction')).toBe('100.00');
   mkdirSync('artifacts', { recursive: true });
-  await page.screenshot({ path: 'artifacts/cold-storage-station-run.png', fullPage: true });
+  await captureFhd(page, 'artifacts/cold-storage-station-run.png');
 
   // 2. 单步（暂停态）中把目标蒸发压力改为 115 kPa，再继续：吸气压力跟到新目标。
   const stepped = await posted(() => page.locator('[data-action="run-project"][data-command="step"]').first().click());
@@ -84,7 +85,8 @@ try {
   // 3. 报告与 CSV。
   await expect.poll(() => metric('lp-target'), { timeout: 20000 }).toBe('0.1150');
   const report = await downloaded(() => page.locator('[data-action="cs-report"]').click());
-  expect(report).toContain('NH₃/CO₂ 制冷站运行报告'); expect(report).toContain(stepped.id);
+  expect(report).toContain('<h1>制冷站运行报告</h1>');
+  expect(report).toContain('NH₃/CO₂ 两库房冷库'); expect(report).toContain(stepped.id);
   const csv = await downloaded(() => page.locator('[data-action="cs-csv"]').click());
   expect(csv.trim().split(/\r?\n/)).toHaveLength(2882);
 
@@ -103,12 +105,12 @@ try {
   const run3 = await finished(replay.id);
   expect(run3.frame.variables).toEqual(run1.frame.variables);
   expect(errors).toEqual([]);
-  await page.screenshot({ path: 'artifacts/cold-storage-station-restart.png', fullPage: true });
+  await captureFhd(page, 'artifacts/cold-storage-station-restart.png');
   console.log(JSON.stringify({ project: draft.id, runs: [first.id, stepped.id, replay.id], room1: await metric('room1'), errors }));
 } catch (error) {
   console.error(error);
   mkdirSync('artifacts', { recursive: true });
-  await page.screenshot({ path: 'artifacts/cold-storage-station-failure.png', fullPage: true }).catch(() => {});
+  await captureFhd(page, 'artifacts/cold-storage-station-failure.png').catch(() => {});
   process.exitCode = 1;
 } finally {
   await browser.close();

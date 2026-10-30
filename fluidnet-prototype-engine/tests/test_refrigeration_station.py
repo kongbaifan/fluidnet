@@ -75,7 +75,10 @@ TOPOLOGY_ERRORS = {
     'REFRIGERATION_CASCADE_CIRCUIT': lambda p: optional_co2_vapor(mutate(p, drop={'x3', 'x4'},
         add=[link('x3', ('HP1', 'vapor'), ('HX1', 'cond_in')), link('x4', ('HX1', 'cond_out'), ('HP1', 'in1'))])),
     'REFRIGERATION_COIL_SUPPLY': lambda p: mutate(p, drop={'p1', 'p2'}, remove={'PU1'}, add=[link('p1', ('CD1', 'liquid'), ('FH1', 'in0'))]),
-    'REFRIGERATION_MODEL_UNSUPPORTED': lambda p: mutate(p, instances=[ModuleInstance(id='PIPE', module_id='pipe', name='x')]),
+    # A liquid pipe now belongs to the coupled execution domain and requires an
+    # explicit relation. An ideal cold source still is not a station device.
+    'COUPLED_RELATION_MISSING': lambda p: mutate(p, instances=[ModuleInstance(id='PIPE', module_id='pipe', name='x')]),
+    'REFRIGERATION_MODEL_UNSUPPORTED': lambda p: mutate(p, instances=[ModuleInstance(id='SOURCE', module_id='ideal_cold_source', name='x')]),
 }
 
 

@@ -287,7 +287,7 @@ def reference_arrays(network: CompiledNetwork) -> tuple[np.ndarray, np.ndarray, 
 
 def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_density=None, branch_viscosity=None,
                       port_base: dict[str, PortState] | None = None, initial=None, storage_step=None,
-                      hooks: frozenset[str] | None = None) -> HydraulicResult:
+                      hooks: frozenset[str] | None = None, air_mass_factors=None) -> HydraulicResult:
     """Solve pressures and branch flows.
 
     With `storage_step` = (dt_s, {node: TankState}) each listed tank is no longer a fixed pressure:
@@ -323,6 +323,9 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
     rho_n, mu_n, rho_ref, mu_ref = reference_arrays(network)
     rho_b = rho_ref if branch_density is None else np.asarray(branch_density, dtype=float)
     mu_b = mu_ref if branch_viscosity is None else np.asarray(branch_viscosity, dtype=float)
+
+    def mixture_factor(idx, flow):
+        return 1. if air_mass_factors is None else float(air_mass_factors[idx, 0 if flow >= 0 else 1])
 
     python_runners = runners
     iteration_id = 0
@@ -418,10 +421,11 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
                 closed.append(float(flow))
             elif relation is not None and relation.kind == 'compressor':
                 drops.append(0.)
-                closed.append(float(flow) - relation.parameters['forced_mass_flow_kg_s'])
+                forced = relation.parameters['forced_mass_flow_kg_s']
+                closed.append(float(flow) - forced/mixture_factor(idx,forced))
             else:
                 drops.append(pressures[branch.start_node] - pressures[branch.end_node] - branch_drop(
-                    network, branch, float(flow), float(rho_b[idx]), float(mu_b[idx]), relation))
+                    network, branch, float(flow)*mixture_factor(idx, flow), float(rho_b[idx]), float(mu_b[idx]), relation))
             balance[branch.start_node] -= flow
             balance[branch.end_node] += flow
         constraints = {}
@@ -430,7 +434,8 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
             if branch.closed or (relation and relation.kind == 'valve' and relation.parameters['opening_ratio'] == 0):
                 constraints[idx] = flows[idx]
             elif relation and relation.kind == 'compressor':
-                constraints[idx] = flows[idx] - relation.parameters['forced_mass_flow_kg_s']
+                forced = relation.parameters['forced_mass_flow_kg_s']
+                constraints[idx] = flows[idx] - forced/mixture_factor(idx,forced)
         rates = unpack_rates(vector)
         storage_balance = [balance[node] - rates[node] for node in tanks]
         return np.asarray(drops), np.concatenate((balance[unknown], storage_balance)), closed, constraints
@@ -474,7 +479,7 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
 
     # Python module rows retain full relation dependencies, using grouped sparse
     # differences; the built-in equations and continuity rows use analytic slopes.
-    analytic_models = {'valve', 'pipe', 'pump_curve', 'resistance'}
+    analytic_models = {'valve', 'pipe', 'duct', 'pump_curve', 'resistance', 'resistance_secondary', 'air_filter'}
     if python_runners:
         builtins_supported = all(branch.instance_id in python_runners or branch.solver_model in analytic_models for branch in network.branches)
         analytic_supported = options.module_mixed_jacobian and options.analytic_jacobian and builtins_supported
@@ -522,8 +527,9 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
             params = network.parameters[branch.instance_id]
             if branch.solver_model == 'pump_curve' and params['speed_ratio'] <= 0:
                 raise ValueError(f'{branch.instance_id} 停泵阻力模型尚未定义，转速必须大于零')
-            _, slope = branch_drop_and_slope(branch.solver_model, params, float(flow),
+            _, slope = branch_drop_and_slope(branch.solver_model, params, float(flow)*mixture_factor(idx, flow),
                                              float(rho_b[idx]), float(mu_b[idx]))
+            slope *= mixture_factor(idx, flow)
             if branch.start_node in pressure_columns:
                 rows.append(idx); cols.append(pressure_columns[branch.start_node]); data.append(1.0)
             if branch.end_node in pressure_columns:
@@ -606,6 +612,10 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
     # A loop held only by tanks has no fixed pressure left; start from the tanks' current pressures.
     level = list(fixed.values()) or [network.storage[node].pressure(tank_old[node].mass_kg) for node in tanks]
     cold = np.concatenate((np.full(len(unknown), np.mean(level) / PRESSURE_SCALE), np.zeros(len(tanks)), np.full(m, .1)))
+    if (air_mass_factors is not None and not python_runners and max(level)-min(level)<1e-10
+            and all(b.solver_model!='pump_curve' and not network.parameters[b.instance_id].get('height_m',0.)
+                    for b in network.branches)):
+        cold[len(node_columns):] = 0.
     # New passive SDK modules can explicitly opt into a signed fixed-boundary seed.
     # Old saved contracts retain their original initialization and fallback path.
     for index,branch in enumerate(network.branches):
@@ -778,7 +788,7 @@ def port_mass_flows(network: CompiledNetwork, flows) -> dict[str, float]:
                 progress = True
         for inst in network.instances.values():
             model = network.modules[inst.module_id].solver_model
-            if model not in ('junction', 'tank'):
+            if model not in ('junction', 'tank', 'air_mixing_box', 'air_room'):
                 continue
             keys = [f'{inst.id}:{p.id}' for p in network.modules[inst.module_id].ports]
             connected = {key for pair in pairs for key in pair}
@@ -797,10 +807,25 @@ def port_mass_flows(network: CompiledNetwork, flows) -> dict[str, float]:
 
 
 def _fluid_port(state: FluidState, pressure=None, mass_flow=None) -> PortState:
-    return PortState(pressure_pa=float(state.pressure_pa if pressure is None else pressure), temperature_k=state.temperature_k,
-                     enthalpy_j_kg=state.enthalpy_j_kg, density_kg_m3=state.density_kg_m3,
-                     viscosity_pa_s=state.viscosity_pa_s, specific_heat_j_kg_k=state.specific_heat_j_kg_k,
-                     mass_flow_kg_s=mass_flow, quality=state.quality)
+    values = state.model_dump(include=set(PortState.model_fields))
+    values.update(pressure_pa=float(state.pressure_pa if pressure is None else pressure), mass_flow_kg_s=mass_flow)
+    return PortState(**values)
+
+
+def channel_state(network, result, index):
+    """试算后的观察和提交共用完整通路流量合同。"""
+    branch = network.branches[index]
+    hydraulic, thermal = result.hydraulic, result.thermal
+    q = float(hydraulic.flows[index])
+    values = {'mass_flow_kg_s':q,
+              'pressure_drop_pa':float(hydraulic.pressures[branch.start_node]-hydraulic.pressures[branch.end_node]),
+              'heat_w':float(thermal.heat_w[index]) if thermal else 0.}
+    if branch.start_node in network.air_nodes:
+        wi = thermal.node_states[thermal.upstream[index]].humidity_ratio_kg_kg
+        wo = thermal.outlet_states[index].humidity_ratio_kg_kg
+        values.update(dry_air_mass_flow_kg_s=q,mass_flow_kg_s=q*(1+wi),
+                      inlet_mass_flow_kg_s=q*(1+wi),outlet_mass_flow_kg_s=q*(1+wo))
+    return ChannelResult(**values)
 
 
 def build_port_states(network: CompiledNetwork, hydraulic: HydraulicResult,
@@ -812,6 +837,12 @@ def build_port_states(network: CompiledNetwork, hydraulic: HydraulicResult,
         pressure = float(hydraulic.pressures[node])
         if thermal is not None:
             states[key] = _fluid_port(thermal.port_states[key], pressure, flows.get(key))
+            if node in network.air_nodes:
+                dry = flows.get(key, 0.)
+                w = thermal.port_states[key].humidity_ratio_kg_kg
+                assert w is not None
+                states[key] = states[key].model_copy(update={'dry_air_mass_flow_kg_s':dry,
+                    'water_vapor_mass_flow_kg_s':dry*w, 'mass_flow_kg_s':dry*(1+w)})
         else:
             instance_id = key.split(':', 1)[0]
             density, viscosity = (reference_properties(network, network.node_circuit[node]) if network.mixed
@@ -894,6 +925,9 @@ def solve_network(network: CompiledNetwork, runners=None, time_s=0., warm: Netwo
 def _solve_network(network, runners, time_s, warm, service, storage_step=None) -> NetworkResult:
     from .module_phases import heat_hook
     options = network.project.solver
+    if options.moist_air:
+        from .air_transport import solve_air_network
+        return solve_air_network(network, runners, time_s, warm, getattr(network, 'air_room_step', None))
     start = warm.hydraulic.solution if warm is not None else None
     if not options.thermal:
         hydraulic = _solve_hydraulics(network, runners, time_s, initial=start, storage_step=storage_step)
@@ -1093,8 +1127,19 @@ def snapshot(network, result, time_s=0., warning=None):
         if state is not None:
             for name in PORT_THERMAL_FIELDS:
                 variables[f'{prefix}.{name}'] = getattr(state, name)
+            humidity = getattr(state, 'humidity_ratio_kg_kg', None)
+            if humidity is not None:
+                variables[f'{prefix}.humidity_ratio_kg_kg'] = humidity
+                from .moist_air import relative_humidity
+                variables[f'{prefix}.relative_humidity'] = relative_humidity(
+                    state.temperature_k, state.pressure_pa, humidity)
+    if thermal is not None and (thermal.coil_outputs or thermal.humidifier_outputs):
+        for instance_id, values in thermal.coil_outputs.items():
+            variables.update({f'{instance_id}.{key}': value for key, value in values.items()})
+        for instance_id, value in thermal.humidifier_outputs.items():
+            variables[f'{instance_id}.moisture_addition_kg_s'] = value
     for inst, params in network.parameters.items():
-        variables.update({f'{inst}.param.{k}': v for k,v in params.items() if isinstance(v, (float,int))})
+        variables.update({f'{inst}.param.{k}': v for k,v in params.items() if isinstance(v, (float,int,str,bool))})
     conflicts = variables.keys() & hydraulic.module_variables.keys()
     if conflicts:
         raise RuntimeErrorBase(f'模块输出不能覆盖网络求解变量：{sorted(conflicts)}')
@@ -1105,12 +1150,18 @@ def snapshot(network, result, time_s=0., warning=None):
     if thermal is not None:
         metrics.update({'thermal_iterations': thermal.iterations, 'coupling_iterations': coupling,
                         'energy_residual_w': thermal.energy_residual_w, 'reference_heat_w': thermal.reference_heat_w})
+        if thermal.humidity_ratio is not None:
+            metrics.update({'moisture_residual_kg_s': thermal.moisture_residual_kg_s,
+                            'humidifier_moisture_kg_s': thermal.humidifier_moisture_kg_s})
     summary = {'requested_method': hydraulic.requested_method, 'effective_method': hydraulic.effective_method,
                'method_reason': hydraulic.method_reason, 'matrix_size': hydraulic.matrix_size,
                'matrix_nnz': hydraulic.matrix_nnz, 'jacobian_mode': hydraulic.jacobian_mode,
                'jacobian_reason': hydraulic.jacobian_reason}
     frame = RunFrame(status='converged', valid=True, time_s=time_s, variables=variables, diagnostics=diagnostics,
                     metrics=metrics, solve_counters=hydraulic.counters, solve_summary=summary)
+    if network.project.solver.moist_air:
+        from .air_transport import air_frame_values
+        air_frame_values(network, result, frame.variables, frame.metrics, frame.solve_summary)
     from .composites import map_frame
     return map_frame(network,frame)
 
@@ -1156,6 +1207,9 @@ def _with_states(network, frame: RunFrame, result: NetworkResult, tanks: dict[in
 
 
 def solve_steady(network):
+    if getattr(network, 'execution_domain', None) == 'coupled':
+        from .refrigeration.coupling import solve_coupled_steady
+        return solve_coupled_steady(network)
     if getattr(network, 'execution_domain', None) == 'thermal':
         from .refrigeration.session import solve_thermal_steady
         return solve_thermal_steady(network)
@@ -1201,11 +1255,11 @@ def has_cells(network: CompiledNetwork) -> bool:
 
 def has_state(network: CompiledNetwork) -> bool:
     """True when the dynamic run must integrate states instead of chaining quasi-steady frames."""
-    return bool(network.storage) or has_cells(network)
+    return bool(network.storage) or bool(network.air_rooms) or has_cells(network)
 
 
 def solve_dynamic(network, duration_s, dt_s):
-    if getattr(network, 'execution_domain', None) in ('thermal', 'refrigeration', 'cold_store'):
+    if getattr(network, 'execution_domain', None) in ('thermal', 'refrigeration', 'cold_store', 'coupled'):
         from .sessions import create_session
         session = create_session(network, duration_s, dt_s)
         try:
@@ -1251,9 +1305,7 @@ def _commit_modules(network, runners, result: NetworkResult, time_s: float, dt_s
             channels = {}
             for j, (branch, flow) in enumerate(zip(network.branches, hydraulic.flows)):
                 if branch.instance_id == instance_id:
-                    channels[branch.channel_id] = ChannelResult(mass_flow_kg_s=float(flow),
-                        pressure_drop_pa=float(hydraulic.pressures[branch.start_node] - hydraulic.pressures[branch.end_node]),
-                        heat_w=float(result.thermal.heat_w[j]) if result.thermal else 0.)
+                    channels[branch.channel_id] = channel_state(network, result, j)
             committed = transaction.prepare(instance_id, CommitStepRequest(
                 run_id=runner.execution.run_id, instance_id=instance_id, time_s=time_s,
                 dt_s=dt_s, converged_ports=ports, context=runner.execution.context()), channels)

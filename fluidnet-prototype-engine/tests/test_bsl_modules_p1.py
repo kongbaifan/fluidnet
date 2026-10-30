@@ -22,7 +22,7 @@ MODULE_ROOT = ROOT / "modules"
 
 
 def load(name):
-    return load_module_package(MODULE_ROOT / name)
+    return load_module_package(MODULE_ROOT / name / "history" / "v1" if name == "fan" else MODULE_ROOT / name)
 
 
 def defaults(definition):

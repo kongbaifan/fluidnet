@@ -1,3 +1,4 @@
+import {FHD_CONTEXT, captureFhd} from './browser-viewport.mjs';
 import { testServer } from './browser-server.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
@@ -17,7 +18,7 @@ const MODULES = [
 
 const fixture = await testServer();
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
-const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+const page = await browser.newPage({ ...FHD_CONTEXT });
 const errors = [];
 page.on('pageerror', error => errors.push(error.message));
 try {
@@ -75,13 +76,13 @@ try {
   await expect(dialog).toHaveCount(0);
 
   mkdirSync('artifacts', { recursive: true });
-  await page.screenshot({ path: 'artifacts/module-catalog.png', fullPage: true });
+  await captureFhd(page, 'artifacts/module-catalog.png');
 
   expect(errors).toEqual([]);
   console.log(JSON.stringify({ category: CATEGORY, count: ids.length, modules: ids, errors }, null, 2));
 } catch (error) {
   mkdirSync('artifacts', { recursive: true });
-  await page.screenshot({ path: 'artifacts/module-catalog-failure.png', fullPage: true });
+  await captureFhd(page, 'artifacts/module-catalog-failure.png');
   console.error('Browser errors:', errors);
   throw error;
 } finally {

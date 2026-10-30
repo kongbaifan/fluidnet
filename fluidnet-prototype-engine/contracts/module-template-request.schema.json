@@ -6,7 +6,8 @@
         "resistance",
         "pump",
         "heat_exchanger",
-        "managed_state"
+        "managed_state",
+        "refrigeration_throttle"
       ],
       "title": "Template",
       "type": "string"

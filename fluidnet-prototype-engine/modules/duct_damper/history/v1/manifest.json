@@ -1,0 +1,131 @@
+{
+  "schema_version": 1,
+  "id": "duct_damper",
+  "name": "风阀",
+  "version": 1,
+  "category": "风侧模块",
+  "description": "风阀：按额定 Kv 与开度特性（线性/等百分比/快开）计算有效 Kv，0% 开度精确关断；开度可在运行中调整。",
+  "entrypoint": "module:Module",
+  "ports": [
+    {
+      "id": "in0",
+      "label": "入口",
+      "domain": "fluid",
+      "direction": "in",
+      "required": true,
+      "circuit": "fluid"
+    },
+    {
+      "id": "out0",
+      "label": "出口",
+      "domain": "fluid",
+      "direction": "out",
+      "required": true,
+      "circuit": "fluid"
+    }
+  ],
+  "parameters": [
+    {
+      "id": "kv_m3_h",
+      "label": "额定流量系数 Kv",
+      "value_type": "number",
+      "default": 500.0,
+      "minimum": 0.001,
+      "unit": {
+        "quantity": "flow_coefficient",
+        "canonical_unit": "m³/h",
+        "display_unit": "m³/h"
+      }
+    },
+    {
+      "id": "opening_ratio",
+      "label": "阀门开度",
+      "value_type": "number",
+      "default": 0.5,
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "runtime": true,
+      "unit": {
+        "quantity": "ratio",
+        "canonical_unit": "1",
+        "display_unit": "%",
+        "display_scale": 0.01
+      }
+    },
+    {
+      "id": "characteristic",
+      "label": "开度特性（linear / equal_percentage / quick_open）",
+      "value_type": "text",
+      "default": "linear"
+    },
+    {
+      "id": "rangeability_alf",
+      "label": "可调比 ALF（等百分比使用）",
+      "value_type": "number",
+      "default": 30.0,
+      "minimum": 2.0,
+      "maximum": 1000.0
+    },
+    {
+      "id": "density_kg_m3",
+      "label": "参考密度",
+      "value_type": "number",
+      "default": 1.2,
+      "minimum": 0.1,
+      "unit": {
+        "quantity": "density",
+        "canonical_unit": "kg/m³",
+        "display_unit": "kg/m³"
+      }
+    }
+  ],
+  "variables": [
+    {
+      "id": "effective_kv_m3_h",
+      "label": "有效流量系数 Kv",
+      "quantity": "flow_coefficient",
+      "source": "derived",
+      "unit": {
+        "quantity": "flow_coefficient",
+        "canonical_unit": "m³/h",
+        "display_unit": "m³/h"
+      }
+    },
+    {
+      "id": "effective_opening_ratio",
+      "label": "有效开度",
+      "quantity": "ratio",
+      "source": "derived",
+      "unit": {
+        "quantity": "ratio",
+        "canonical_unit": "1",
+        "display_unit": "%",
+        "display_scale": 0.01
+      }
+    },
+    {
+      "id": "state.throughput_kg",
+      "label": "累计通过质量",
+      "quantity": "mass",
+      "source": "state",
+      "unit": {
+        "quantity": "mass",
+        "canonical_unit": "kg",
+        "display_unit": "kg"
+      }
+    }
+  ],
+  "channels": [
+    {
+      "id": "main",
+      "name": "主通路",
+      "input_port": "in0",
+      "output_port": "out0",
+      "relation": "resistance",
+      "solver_model": "valve",
+      "enabled": true
+    }
+  ],
+  "solver_model": "generic",
+  "source_format": "python-v1"
+}

@@ -1,3 +1,4 @@
+import {FHD_CONTEXT, captureFhd} from './browser-viewport.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdirSync, mkdtempSync } from 'node:fs';
 import { join } from 'node:path';
@@ -14,7 +15,7 @@ async function startServer() {
 }
 async function stopServer() { if(launched)await launched.stop(); }
 const browser=await chromium.launch({channel:'msedge',headless:true});
-let page=await browser.newPage({viewport:{width:1600,height:1000}});
+let page=await browser.newPage({...FHD_CONTEXT});
 const errors=[];
 const watch=p=>p.on('pageerror',e=>errors.push(e.message)); watch(page);
 const localState=async()=>{
@@ -144,7 +145,7 @@ try {
   expect(v1.module.source.design).toContain('def design(ctx)');
   expect(v1.test_result.evaluation.variables.gain).toBe(1.2);
   mkdirSync('artifacts',{recursive:true});
-  await page.screenshot({path:'artifacts/module-authoring.png',fullPage:true});
+  await captureFhd(page, 'artifacts/module-authoring.png');
   await modules(); await card().locator('[data-action="module-example"]').click();
   const original=await runProject();
   expect(original.pages[0].nodes.find(n=>n.id==='V1').package.version).toBe('1.0.0');
@@ -192,7 +193,7 @@ try {
 
   // Restart the service and use a fresh browser context (no localStorage).
   await stopServer(); await startServer();
-  await page.close(); page=await browser.newPage({viewport:{width:1600,height:1000}});watch(page);
+  await page.close(); page=await browser.newPage({...FHD_CONTEXT});watch(page);
   await page.goto(base+'/#modules');
   await expect(card()).toContainText('Python · v2');
   await card().locator('[data-action="edit-module"]').click();
@@ -208,7 +209,7 @@ try {
   expect(errors).toEqual([]);
   console.log(JSON.stringify({versions:[v1.module.version,v2.module.version],oldFlow,newFlow:updated.run.history.at(-1).canonical['V1.mass_flow_kg_s'],restartReproduced:true,errors},null,2));
 } catch(error) {
-  mkdirSync('artifacts',{recursive:true});await page.screenshot({path:'artifacts/authoring-failure.png',fullPage:true});
+  mkdirSync('artifacts',{recursive:true});await captureFhd(page, 'artifacts/authoring-failure.png');
   console.error('Module cards:',await page.locator('[data-module-id]').evaluateAll(items=>items.map(x=>x.dataset.moduleId)));
   console.error('Browser errors:',errors,'Server:',serverLog.slice(-2500));throw error;
 } finally {await browser.close();await stopServer();}

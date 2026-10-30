@@ -6,8 +6,8 @@
 
 | 方法与路径 | 请求 | 返回模型与内容 | 错误响应（`detail.code`） |
 | --- | --- | --- | --- |
-| GET /api/v1/health | 无 | `HealthResponse`：版本（0.5.0）、`supported_domains`（`fluid`、`thermal`）、能力标志（含 `thermal`、`property_coupling`、`tank_state`、`live_runs`、`pid`、`runtime_parameters`、`continuous_step`、`continuous_runs`、`variables_api`、`run_stream`、`python_controls`、`persistent_workspace`、`cold_room_ideal_source`，以及 `refprop: {installed,source,path,version}`）、`auth.required`、同步运行 2001 帧上限、`history_window_max`、`overview_points`、20 次记录保留数 | 500 `INTERNAL_ERROR`（health 不受令牌限制） |
-| GET /api/v1/examples/{name} | `level`、`temperature` 或 `cold-storage` | `Project`：内置 PID 示例，或冷库 A1 库房 + 理想冷源示例 Project | 404（未知示例）；401/403 |
+| GET /api/v1/health | 无 | `HealthResponse`：版本（0.5.0）、`mode`（`studio` 或 `headless`）、`supported_domains`（`fluid`、`thermal`、`refrigerant`）、能力标志（含 `thermal`、`property_coupling`、`tank_state`、`live_runs`、`pid`、`runtime_parameters`、`continuous_step`、`continuous_runs`、`variables_api`、`run_stream`、`python_controls`、`persistent_workspace`、`cold_room_ideal_source`，以及 `refprop: {installed,source,path,version}`）、`auth.required`、同步运行 2001 帧上限、`history_window_max`、`overview_points`、20 次记录保留数 | 500 `INTERNAL_ERROR`（health 不受令牌限制） |
+| GET /api/v1/examples/{name} | `level`、`temperature`、`cold-storage`、`cold-storage-room`、`cold-storage-nh3co2` 或 `thermal-coupling` | `Project`：内置 PID、冷库或制冷站与二次液体回路示例；热耦合范围见 [说明](THERMAL_COUPLING.md) | 404（未知示例）；401/403 |
 | GET /api/v1/workspace | 可选 revision | `WorkspaceResponse`：完整原型工作区、revision、saved_at、project_revisions；未保存时 data=null | 404（修订不存在）、503（持久存储未启用）、507 `STORAGE_FAILED`；401/403 |
 | POST /api/v1/workspace | data、expected_revision | `WorkspaceSaveResponse`：已落盘修订、时间与项目修订映射 | 409 `WORKSPACE_CONFLICT`、503、507 `STORAGE_FAILED`；401/403 |
 | GET /api/v1/workspace/revisions | 无 | `WorkspaceRevisionsResponse`：最近 5 个修订元数据 | 503、507；401/403 |
@@ -28,6 +28,7 @@
 | POST /api/v1/projects/validate | Project | `ValidationResponse`：valid、diagnostics 和 circuits（各回路的工质、来源、端口）；检查失败时 valid=false、circuits 为空 | 422（请求体校验）；401/403 |
 | POST /api/v1/solve | Project | `RunFrame`：同步稳态 RunFrame | 422（计算失败或 `MODULE_WORKER_IO_ERROR`）、500 `INTERNAL_ERROR`；401/403 |
 | POST /api/v1/runs | RunRequest | **201** `RunCreateResponse`（run_id、status、frame、total_rows）。`?background=true` 改返回 **202** `RunStatus`（queued、frame 为 null，frame 由状态接口补） | 422 `RUN_LIMIT`/`RUN_TOO_LONG`、500；401/403 |
+| POST /api/v1/projects/{project_id}/runs | SavedProjectRunRequest：可选 revision、scenario_id 和运行选项 | **202** `RunStatus`：服务端固定已保存项目快照并创建后台运行，返回 run_id、queued | 404（项目或修订不存在）、422（文档/选项错误或 `RUN_LIMIT`）、503（持久存储未启用）、507 `STORAGE_FAILED`、500；401/403 |
 | GET /api/v1/runs/{run_id} | 无 | `RunRecordResponse`：状态、请求快照、最后一帧与事件，不重复携带整段历史（历史由 /history 提供） | 404（记录不存在或已被保留上限淘汰，detail 为固定字符串）、507；401/403 |
 | GET /api/v1/runs/{run_id}/history | offset≥0, 1≤limit≤2001（绝对帧序号） | `RunHistoryResponse`：rows、total_rows（已发布帧数）、offset（实际起点）、first_offset（窗口内最早帧）、truncated（请求的 offset 已移出窗口） | 404、507；401/403 |
 | GET /api/v1/runs/{run_id}/overview | 无 | `RunOverviewResponse`：全程抽稀 rows（每 stride 帧一行加最新帧，只含曲线变量和状态，无诊断）、stride、total_rows | 404、507；401/403 |
@@ -40,7 +41,17 @@
 
 `POST /api/v1/runs?background=true` 创建后台运行，返回 HTTP 202 和 `run_id`；已有 20 个非终态运行时返回 422 `RUN_LIMIT`。默认仍保持兼容的同步模式，返回 HTTP 201。前端稳态使用同步请求；动态项目在 health 报告 `live_runs` 时使用后台会话（运行、单步、暂停、改参数都对同一个 run_id 发命令）。同步运行不能中途控制。
 
-`GET /api/v1/health` 的 `capabilities.refprop` 为 `{"installed": bool, "source": "env" | "bundled" | "system" | null, "path": str | null, "version": str | null}`，向后兼容原来的 `installed` 布尔。`source` 表示 REFPROP 目录的发现方式：`env` 为环境变量 `FLUIDNET_REFPROP_PATH`，`bundled` 为捆绑候选（项目根、仓库根、当前工作目录或 `sys.executable` 所在目录下的 `vendor/refprop9.1`、`refprop9.1`、`refprop`、`NISTRefprop9.1`），`system` 为 Windows 默认安装目录 `C:\Program Files (x86)\REFPROP`；`path` 为实际生效目录，未检测到时两者为 `null`。`version` 优先取该目录 `refprop-manifest.json` 的 `version`，清单缺失或损坏时为 `null`，不影响 `installed`。详见 [内置 REFPROP 9.1](REFPROP_BUNDLE.md)。
+`GET /api/v1/health` 的 `capabilities` 中，`dual_thermal_coupling`、`heater`、`multi_inlet_vessels`、`air_duct`、`moist_air` 分别表示双盘管（两条耦合绑定同一饱和容器）、内置电加热器、多支路饱和容器（`hp_receiver_multi` / `lp_drum_multi`）、内置矩形风管与湿空气输运（含湿量 + 湿工况表冷器/加湿器）。`capabilities.refprop` 为 `{"installed": bool, "source": "env" | "bundled" | "system" | null, "path": str | null, "version": str | null}`，向后兼容原来的 `installed` 布尔。`source` 表示 REFPROP 目录的发现方式：`env` 为环境变量 `FLUIDNET_REFPROP_PATH`，`bundled` 为捆绑候选（项目根、仓库根、当前工作目录或 `sys.executable` 所在目录下的 `vendor/refprop9.1`、`refprop9.1`、`refprop`、`NISTRefprop9.1`），`system` 为 Windows 默认安装目录 `C:\Program Files (x86)\REFPROP`；`path` 为实际生效目录，未检测到时两者为 `null`。`version` 优先取该目录 `refprop-manifest.json` 的 `version`，清单缺失或损坏时为 `null`，不影响 `installed`。详见 [内置 REFPROP 9.1](REFPROP_BUNDLE.md)。
+
+## 批量工况与独立结果存档（2026-10-28）
+
+`capabilities.scenario_batches` 表示批量工况能力；仅在启用持久工作区时为 true。批次创建时固定项目、模块和控制脚本输入，各项独立顺序运行。完整路径、请求示例与单位约定见[批量工况说明](SCENARIO_BATCHES.md)。
+
+入口为 `GET /api/v1/projects/{project_id}/batch-options`、`POST /api/v1/projects/{project_id}/batches/preview` 和 `POST /api/v1/projects/{project_id}/batches`；创建返回 201 和 `BatchDetailResponse`，状态为 ready。之后通过 `POST /api/v1/batches/{batch_id}/start` 启动或继续未完成项。
+
+`GET /api/v1/batches` 列表、`GET /api/v1/batches/{batch_id}` 详情、`POST …/cancel`、`POST …/delete`、`GET …/items/{item_id}/curve?key=…` 与 `GET …/export` 分别提供历史、控制、独立曲线和 CSV。JSON 响应均有严格模型；CSV 使用 `text/csv` 成功响应 schema。错误包括 404 `BATCH_NOT_FOUND`、409 `BATCH_CONFLICT`、422 `BATCH_INVALID`、503（未启用存储）及 507 `STORAGE_FAILED`。
+
+参数扫描的 `values`／`range` 使用参数的**显示单位**；结果 `values` 和曲线点仍使用**规范单位**，由随批次固定的 `UnitSpec` 换算。每批最多 20 个工况、16 个观察变量，每条曲线最多 2000 个抽样点，首版一个活动批次。
 
 ## 错误响应与错误码（v0.4.10 起）
 
@@ -250,13 +261,29 @@ POST /runs 对类型正确但编译或求解失败的请求仍创建可查询的
 
 ## 独立验证台契约
 
-`ModuleTestRequest` 接收完整 Python `module`、规范单位 `parameters`、入口/出口绝对压力、温度、`duration_s` 和 `dt_s`。测试夹具为每条启用通路各建一组入口/出口压力边界，所有入口共用 `inlet_pressure_pa`、所有出口共用 `outlet_pressure_pa`；多通路模块因此一次求解全部通路。
+`ModuleTestRequest` 接收完整 Python `module`、规范单位 `parameters`、入口/出口绝对压力、温度、`duration_s` 和 `dt_s`。测试夹具为每条启用通路各建一组入口/出口压力边界；未覆盖的通路使用通用压力和温度，`channel_boundaries` 可独立指定各通路的压力、温度与工质。存在某通路覆盖时，该通路使用 `ChannelTestBoundary` 的显式值或默认值。多通路模块在同一个网络中求解。
 
 后端使用相同编译器和求解器建立测试网络。先采样 t=0，不提交状态；随后每个收敛时间步提交一次，最后不足整步时使用实际 dt。`ctx.channel(id)` 因此获得真实质量流量与压降。
 
 响应包含初始 `state`、最终 `evaluation`、最终 `committed`、最后 `frame` 和全部 `history`。变量使用 `D1.*` 路径，状态使用 `D1.state.*`。失败返回 422/detail Diagnostic；没有伪造的收敛残差。
 
 Worker RPC 超时默认 10 秒，超时返回 `MODULE_RUNTIME_TIMEOUT` 并终止进程；源码异常或缺失通路返回 `MODULE_RUNTIME_ERROR`。所有完成/失败路径都回收 Worker。通信显式使用 UTF-8，模块 print 不进入 JSON 通道。
+
+`POST /api/v1/modules/test-suite` 接收 `module` 和 1–64 项 `cases`。每项包含唯一 `id`、`conditions` 和可选 `assertions`，例如：
+
+```json
+{
+  "id": "forward",
+  "conditions": {"inlet_pressure_pa": 250000, "outlet_pressure_pa": 120000},
+  "assertions": [
+    {"key": "D1.in0.pressure_pa", "expected": 250000, "absolute_tolerance": 0.01, "relative_tolerance": 0}
+  ]
+}
+```
+
+断言使用最终帧和规范单位，要求 `abs(actual-expected) <= max(absolute_tolerance, relative_tolerance*abs(expected))`。预期值必须是有限数值，容差必须有限且非负，同一工况不可重复声明变量键。每项最多 256 条断言。响应回显预期值与容差，并包含 `actual`、`absolute_error`、`allowed_error`、`passed`、`status`、`message`；变量缺失、非数值和求解失败均明确报告。数值误差超过浮点表示范围时返回 `null` 并给出说明，比较本身保留精确判定。
+
+全部结果帧有效且全部断言通过才判工况通过，所有工况通过才判组合通过。任一工况失败仍执行后续工况；未设置断言时兼容旧行为及输入哈希，有断言时 `input_hash` 同时绑定边界、参数和断言。请求字段不合法返回 422；非有限 JSON 输入的错误详情以可序列化文本表示，不会转成服务器 500。
 
 ## 变量接口（v0.4.6）
 
@@ -270,6 +297,32 @@ Worker RPC 超时默认 10 秒，超时返回 `MODULE_RUNTIME_TIMEOUT` 并终止
   - `wait_s` > 0 时等到命令 applied 或 rejected 再返回（最多 10 秒），否则立即返回 `accepted` 回执，与 `/command` 相同；暂停的会话也会处理写入。底层是新的 RunCommand `action="write"`、`values`。
 - 推送：`WS /runs/{id}/stream?keys=…` 在每个新发布的帧推送一条 `{"type":"frame","status","time_s","sequence","parameter_revision","values"}`。客户端慢时跳过中间帧而不排队，`sequence` 体现跳过的帧；运行结束发 `{"type":"end","status":…}` 并关闭。未知运行关闭码 4404，未知变量 4422，令牌无效 4401。只有后台运行可以订阅。
 
+## 无界面服务与已保存项目运行
+
+`python -m fn_engine serve --headless --data-dir .runtime/workspace` 启动无界面服务，`health.mode` 为 `headless`，前端 `/`、`/studio.js` 返回 404；REST、WebSocket、`/docs`、`/openapi.json`、令牌、跨域和工作区行为保持一致。普通 `serve` 的模式为 `studio`；`--headless` 与 `--open` 互斥。嵌入调用 `create_app(data_root=...)` 不传前端目录时也是无界面模式。
+
+第三方可先用 `GET /api/v1/projects` 查询已保存项目，再调用 `POST /api/v1/projects/{project_id}/runs`。示例请求：
+
+```json
+{
+  "revision": 2,
+  "scenario_id": "throttle",
+  "mode": "dynamic",
+  "duration_s": null,
+  "dt_s": 0.1,
+  "start_paused": true,
+  "execution_mode": "realtime"
+}
+```
+
+`revision` 省略或为 null 时读取提交瞬间的最新保存修订；`scenario_id` 可省略。其余字段与 `RunRequest` 共用 `RunOptions`，默认 `mode=steady`，需要连续运行时显式传 `mode=dynamic,duration_s=null`。请求始终走后台运行，成功受理为 HTTP 202；随后通过现有 `/runs/{id}`、`/command`、`/variables` 和 `/stream` 接口查询和控制。
+
+服务端读取单项目文档并完成显示单位归一化，固定该修订的模块和控制脚本快照，使用已应用参数。编辑器的 `draft` 值不进入计算。运行记录中的 `request.project_revision` 来自实际读取的修订，客户端不能传入 `project` 或 `project_revision` 替换它；并发保存不会改变已捕获的运行快照。编译或求解失败（包括未知工况）沿用后台任务语义：请求可受理为 202，随后记录变为 `failed`，原因见 `frame.diagnostics`。
+
+该 POST 在认证启用时需要 control 令牌；只读令牌返回 403。未启用工作区返回 503，项目或修订缺失返回 404，无法归一化的保存文档返回 422 且不创建运行。停止并正常关闭服务后，重启可查询该运行的归档和项目修订；原仿真跨重启续算仍未实现。
+
+可直接运行的 [Python 和 JavaScript 客户端](../examples/external_clients/README.md) 包含令牌设置、按修订启动、订阅变量、写变量、暂停/继续和停止流程。变量仍使用完整规范键，值为规范单位。
+
 ## 访问控制（v0.4.6）
 
 服务以 `--auth required`，或 `--auth auto` 监听本机以外地址启动时，除 `GET /api/v1/health` 外所有 `/api/` 请求都要 `Authorization: Bearer <令牌>`：没有或无效返回 401 `AUTH_REQUIRED`，只读令牌发 POST 返回 403 `AUTH_SCOPE`。只读令牌可调用 GET 接口和订阅推送；控制令牌还可以调用全部 POST（校验、求解、运行、命令、写变量、模块保存）。WebSocket 可在请求头带令牌，或用子协议 `fluidnet.bearer.<令牌>`（服务端回应同一子协议）。静态前端页面、`/docs` 和 `/openapi.json` 不受令牌限制，它们不含运行数据。`/api/v1/health` 返回 `auth.required`，供前端决定是否要求输入令牌。跨域来源由 `--cors-origin` 显式列出，默认不允许跨域。
@@ -282,13 +335,15 @@ Worker RPC 超时默认 10 秒，超时返回 `MODULE_RUNTIME_TIMEOUT` 并终止
 
 `Project.control_scripts` 为 `ControlScript[]`，原型归一化从 `controlScripts` 读取。脚本包含 id、language=`python`、source、enabled（默认 false）、sample_s（0.001–60，默认 0.1）、inputs/outputs（各最多 256）、timeout_s（0.1–30，默认 5）和源码 SHA-256 `content_hash`。哈希由服务端生成；携带不匹配哈希会返回 422。最多 16 个脚本，只有启用的脚本参与校验/执行。启用脚本要求动态运行，稳态返回 `CONTROL_DYNAMIC_REQUIRED`。
 
+浏览器工作区使用 `controlPrograms` 保留各脚本编辑信息，选择项为 `selectedControlId`；原有 `control*` 字段保留所选脚本的编辑投影。运行和归一化导出全部 Python 脚本到 `controlScripts`，旧语言文本及禁用的空源码草稿只随工作区保存。首次打开旧单脚本或已有多脚本项目会迁入列表；模块升级按 ID 更新运行合同，保留未参与运行投影的草稿。切换所选脚本不改变计算输入，修改源码后清除旧哈希并由后端重新计算。
+
 `POST /controls/preview` 将目标脚本放入独立临时会话，在 t=0 完成 initialize 和一次 step，校验并返回拟写入值；不修改原型项目，不产生运行档案。生命周期均为同步 Python 函数，`step(ctx,dt_s)` 第一次 dt_s=0，之后为实际仿真采样间隔。ctx.time_s、ctx.read、ctx.write、ctx.state、ctx.log 可用；state 必须为有限值 JSON 字典且不超过 64 KiB。读写只能使用声明键，写入先整批校验，再交给运行参数/PID 接口；PID 目标和不同脚本的直接写目标不能重叠。运行帧增加 `script.<id>.samples/last_time_s/content_hash/state.<标量键>`。
 
 `serve` 启用本地持久化（`--data-dir` / `FLUIDNET_DATA_DIR`），`create_app` 嵌入调用则通过 `data_root` 显式启用。health.capabilities 中 `python_controls` 为 true，`persistent_workspace` 表示本实例是否启用存储。未启用时 workspace 接口返回 503。保存的 data 是 schema=1 的完整原型工作区，含 projects/modules/models 和 activeProject，最大 64 MiB；不等同于规范计算 Project。expected_revision=0 表示首次保存；修订冲突不会覆盖现有数据。
 
 归档 RunRecordResponse 增加 `persisted_at`（最近成功落盘时间）与 `persisted_rows`（累计落盘帧数）。每帧元数据、窗口行与必要的 overview 在一个 SQLite 事务中写入；最后 20 次终态运行保留在磁盘。`history_window` 默认 2001、最大 20001；更早逐帧历史被淘汰，全程保留抽稀曲线。history=full 仅控制窗口帧内容，不保证无限保留全帧。重启恢复将未结束运行变为 interrupted，并拒绝尚无生效确认的命令。已结束档案可读变量/历史/overview，不能 resume。
 
-完整备份使用 SQLite online backup API，并在复制模块包时持有模块发布锁。恢复在临时目录内校验清单、文件大小与哈希、数据库完整性/版本/引用/修订号及模块双哈希，全部通过后发布为独立目录；不会覆盖现有目录。备份格式 v1、当前数据库版本 2，恢复接受版本 1 和 2；版本 1 的数据库首次打开时迁移并建立项目修订。最多 10000 个 ZIP 条目、2 GiB 解压体积。未启用持久化时返回 503；认证规则与其他接口一致，两个 POST 需要 control 权限。CLI 与目录优先级见 [备份说明](WORKSPACE_BACKUP.md)。
+完整备份使用 SQLite online backup API，并在复制模块包时持有模块发布锁。恢复在临时目录内校验清单、文件大小与哈希、数据库完整性/版本/引用/修订号及模块双哈希，全部通过后发布为独立目录；不会覆盖现有目录。备份格式 v1、当前数据库版本 3，恢复接受版本 1、2、3；旧版本首次打开时迁移到版本 3，保留项目／运行并建立批次表。最多 10000 个 ZIP 条目、2 GiB 解压体积。未启用持久化时返回 503；认证规则与其他接口一致，两个 POST 需要 control 权限。CLI 与目录优先级见 [备份说明](WORKSPACE_BACKUP.md)。
 
 ## 单项目修订与模块升级
 
@@ -307,3 +362,27 @@ Worker RPC 超时默认 10 秒，超时返回 `MODULE_RUNTIME_TIMEOUT` 并终止
 `document` 是格式为 `fluidnet-project`、schema=1 的单项目交换文档，含原型 project、固定模块快照 modules、关联 models 和 charts。路径中的 `project_id` 必须与文档一致。expected_revision 使用各项目独立修订号，冲突返回 409 `PROJECT_CONFLICT`，成功保存会在同一事务中更新项目历史和完整工作区。项目保存、恢复、删除和模块升级预览在项目有活动运行时返回 409。
 
 升级预览不写入项目。前端应用时先保存原修订，再保存升级文档；已归档运行继续使用原快照。`RunRequest.project_revision` 为可选正整数元数据，前端仅在当前模型与已保存状态一致时填写。原型工况 overrides 经归一化转换为规范参数和单位，所选工况通过 `scenario_id` 提交。
+
+## 风侧合同 1
+
+客户端检查 `health.capabilities.moist_air_contract_version == 1`。细分能力为 `wet_cooling_coil`、`air_humidifier`、`ahu_components`、`air_room`、`cooling_tower_moist`、`air_variable_catalog`、`air_reports`；真实水盘管、水冷冷水机组与风水联算分别由 `water_coil`、`water_chiller`、`air_liquid_coupling` 标记。这些能力不替代模块自己的 SDK 协商。
+
+| 方法与路径（/api/v1） | 用途 |
+| --- | --- |
+| POST `/air/properties` | `input_mode=ptw/ptrh/phw`，查询完整湿空气状态与实际物性版本 |
+| GET `/air/psychrometric-grid` | 压力、温度范围与含湿量上限下的 10 条 RH 背景线，每条最多 161 点 |
+| POST `/air/variables/preview` | 完整 Project → 中文变量目录、单位、质量基准、可写性；不启动 Worker |
+| GET `/runs/{run_id}/air-variables` | 创建运行时冻结的变量目录 |
+| POST `/air/migrations/preview` | `{project, upgrade_official_modules}` → 原项目、候选项目、变化和诊断；不写工作区 |
+
+新增查询 POST 仍要求 control 权限，GET/WS 使用 read 权限。物性/项目语义错误为 422；旧运行无风侧元数据时目录返回 409 `AIR_METADATA_UNAVAILABLE`。旧湿空气项目需先迁移，不能静默改变既有焓/质量语义。
+
+`RunRecordResponse.air_metadata` 保存合同/引擎/物性版本、项目摘要、冻结目录与模型假设。旧档案该字段为 null。既有 `report.csv`/`report.html` 路径按该元数据生成风侧报告，不重新编译或求解项目。
+
+`chiller-air-loop` 通过 `circuit_fluids` 指定独立冷冻水与冷却水回路，默认 Air/gas。混合项目的元数据 `continuity_basis`/`enthalpy_basis` 为 `mixed`：空气按干空气输运，液体按各自工质质量与比焓输运；变量目录只为空气端口声明含湿量和干空气流量。累计量与报告沿用原接受帧机制，详见[风水联算](CHILLER_AIR_LOOP.md)。
+
+```json
+{"input_mode":"ptrh","pressure_pa":101325,"temperature_k":299.15,"relative_humidity":0.5}
+```
+
+完整对象见 `contracts/air-*.schema.json`、`contracts/moist-air-options.schema.json` 及 OpenAPI。示例可通过 `/examples/{name}` 获取，见[示例目录](../examples/air-side/README.md)。操作与质量基准见[风侧使用说明](AIR_SIDE_USER_GUIDE.md)。

@@ -10,13 +10,15 @@ def check_scope_configuration(definition, fluid, domain='fluid'):
         raise ValueError(f'{definition.id} 不支持执行域 {domain}')
     if scope.fluids and fluid.fluid.casefold() not in {name.casefold() for name in scope.fluids}:
         raise ValueError(f'{definition.id} 不支持工质 {fluid.fluid}')
+    if definition.execution_role:
+        return  # role-specific saturated/two-phase data is checked by the typed refrigeration protocol
     if fluid.phase_policy in {'liquid','gas'} and fluid.phase_policy not in scope.phases:
         raise ValueError(f'{definition.id} 不支持相态 {fluid.phase_policy}')
 
 
 def scope_diagnostics(definition, ports, channels, phase, instance_id, time_s):
     scope = definition.applicability
-    if scope is None:
+    if scope is None or definition.execution_role:
         return []
     diagnostics = []
     for name, port in ports.items():

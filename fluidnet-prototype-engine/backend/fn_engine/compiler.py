@@ -102,6 +102,12 @@ class CompiledNetwork:
     # 困液定容容积（I0–I4）：节点 -> 配置。节点同时出现在 fixed_pressures/fixed_temperatures 里，
     # 作为编译期与首帧的初态压力/温度参考；动态步用积分状态覆盖它们。
     trapped: dict[int, TrappedSpec] = field(default_factory=dict)
+    # 湿空气模式：固定压力节点的边界含湿量（kg 水/kg 干空气）；放在末尾以保持位置参数向后兼容。
+    fixed_humidities: dict[int, float] = field(default_factory=dict)
+    air_rooms: dict = field(default_factory=dict)
+    air_room_step: tuple | None = None
+    # Only these nodes use dry-air continuity and h/w transport in a mixed air/liquid project.
+    air_nodes: set[int] = field(default_factory=set)
 
     def fluid_at(self, node: int) -> FluidConfig:
         return self.circuit_fluids[self.node_circuit[node]] if self.mixed else self.project.fluid
@@ -254,7 +260,7 @@ def check_fluid_conditions(instance_id: str, params: dict, solver_model: str, se
     limits, name = service.limits(), service.fluid
     span = f'{limits["t_min_k"] - 273.15:.2f}…{limits["t_max_k"] - 273.15:.2f} °C'
     checks = [('temperature_k', params.get('temperature_k'))] if solver_model in ('pressure_source', 'tank') else []
-    if solver_model in ('pipe', 'tank'):
+    if solver_model in ('pipe', 'duct', 'tank'):
         checks.append(('ambient_temperature_k', params.get('ambient_temperature_k')))
     for key, temperature in checks:
         if not isinstance(temperature, (int, float)) or isinstance(temperature, bool):
@@ -359,13 +365,38 @@ def _compile_trapped(project, modules, parameters, nodes, branches, fixed, fixed
 
 
 def compile_project(project: Project) -> CompiledNetwork:
+    definitions = {module.id:module for module in project.modules}
+    role_instances = [instance for instance in project.instances
+                      if definitions[instance.module_id].execution_role or definitions[instance.module_id].schema_version==4]
+    if role_instances:
+        from .refrigeration_roles import require_throttle_role
+        for instance in role_instances:
+            try:
+                require_throttle_role(definitions[instance.module_id])
+            except ValueError as error:
+                raise CompilationError(getattr(error,'code','MODULE_CONTRACT_INVALID'),str(error),instance.id,
+                                       getattr(error,'field','execution_role')) from error
+        if project.thermal_couplings or project.solver.moist_air or any(
+                port.domain==Domain.fluid for instance in project.instances for port in definitions[instance.module_id].ports):
+            raise CompilationError('MODULE_EXECUTION_DOMAIN_UNSUPPORTED',
+                '制冷作者角色仅支持纯集总制冷站，不能放入流体、湿空气或热耦合项目',role_instances[0].id,'execution_role')
     from .composites import expand_composites
     project, composite_maps = expand_composites(project)
+    if project.thermal_couplings:
+        from .refrigeration.coupling import compile_coupled_project
+        return compile_coupled_project(project)
     used = {instance.module_id for instance in project.instances}
     used_domains = {port.domain for module in project.modules if module.id in used for port in module.ports}
+    if Domain.fluid in used_domains and Domain.refrigerant in used_domains:
+        raise CompilationError('COUPLED_RELATION_MISSING',
+            '项目同时包含单相流体网络与制冷站，但尚未建立热耦合；请选择液体管段和饱和制冷剂容器建立关系',
+            field='thermal_couplings')
     if Domain.thermal in used_domains or Domain.refrigerant in used_domains:
         from .refrigeration.cold_store import check_event_conflicts, compile_cold_store, uses_cold_store
         if uses_cold_store(project):
+            if role_instances:
+                raise CompilationError('MODULE_EXECUTION_DOMAIN_UNSUPPORTED',
+                    '制冷作者角色不适用于 A 版冷库执行域',role_instances[0].id,'execution_role')
             network = compile_cold_store(project)
             check_event_conflicts(network)
             return network
@@ -383,10 +414,32 @@ def compile_project(project: Project) -> CompiledNetwork:
         raise CompilationError('EMPTY_NETWORK', '项目没有设备')
     diagnostics = list(project.import_diagnostics)
     parameters, port_keys = {}, []
-    supported = {'pressure_source', 'junction', 'valve', 'pipe', 'pump_curve', 'heat_exchanger', 'tank',
-                 'closed_volume'}
+    supported = {'pressure_source', 'junction', 'valve', 'pipe', 'duct', 'pump_curve', 'heat_exchanger', 'tank',
+                 'closed_volume', 'heater', 'cooling_coil', 'humidifier', 'air_mixing_box', 'air_filter', 'air_room',
+                 'cooling_tower_moist', 'water_coil', 'water_chiller'}
+    # 湿空气网络只接受空气单相与内置风侧元件（Python 模块按干空气近似参与）。
+    moist = project.solver.moist_air
+    moist_models = {'pressure_source', 'junction', 'valve', 'pipe', 'duct', 'heater', 'cooling_coil', 'humidifier', 'air_mixing_box', 'air_filter', 'air_room'}
+    if moist:
+        fluid_name = (project.fluid.fluid or '').split('::')[-1]
+        if project.fluid.phase_policy != 'gas' or fluid_name != 'Air':
+            raise CompilationError('MOIST_AIR_FLUID_REQUIRED', '湿空气模式要求 fluid=Air 且 phase_policy=gas')
+        if project.solver.moist_air_options is None:
+            raise CompilationError('AIR_CONTRACT_VERSION_REQUIRED', '旧湿空气项目需先预览迁移并确认合同版本 1', field='solver.moist_air_options')
+        if not project.solver.thermal or project.solver.property_coupling != 'node':
+            raise CompilationError('AIR_SOLVER_OPTIONS', '湿空气模式必须启用 thermal=true、property_coupling=node', field='solver')
+        unsupported = [name for name in ('series_compression','hydraulic_blocks','module_mixed_jacobian')
+                       if getattr(project.solver,name)]
+        if project.solver.thermal_acceleration != 'none' or project.solver.coupling_acceleration != 'none':
+            unsupported.append('acceleration')
+        if unsupported:
+            raise CompilationError('AIR_OPTIMIZATION_UNSUPPORTED', f'湿空气暂不支持优化选项：{unsupported}', field='solver')
+        if project.fluid.composition:
+            raise CompilationError('MOIST_AIR_FLUID_REQUIRED','湿空气含湿量不能写入组分')
+    elif project.solver.moist_air_options is not None:
+        raise CompilationError('AIR_SOLVER_OPTIONS', '关闭湿空气模式时 moist_air_options 必须为空', field='solver.moist_air_options')
     # Built-in state models and the solver model each one belongs to.
-    state_models = {'open_tank': 'tank', 'closed_volume': 'closed_volume'}
+    state_models = {'open_tank': 'tank', 'closed_volume': 'closed_volume', 'moist_air_room': 'air_room'}
     service = fluid_service(project)
     for inst in project.instances:
         definition = modules[inst.module_id]
@@ -394,6 +447,9 @@ def compile_project(project: Project) -> CompiledNetwork:
             definition.solver_model != 'tank'
         if definition.runtime != 'python' and (definition.solver_model not in supported or not state_ok):
             raise CompilationError('MODEL_NOT_SUPPORTED', f'{inst.id} 的模型 {definition.state_model or definition.solver_model} 尚未实现；不能生成替代计算结果', inst.id)
+        if definition.solver_model in ('cooling_coil', 'humidifier', 'air_room', 'air_mixing_box', 'water_coil') and not moist:
+            raise CompilationError('MOIST_AIR_REQUIRED', f'{inst.id} 的 {definition.solver_model} 需要 SolverOptions.moist_air=True',
+                                   inst.id)
         if definition.runtime == 'python':
             from .module_contracts import ModuleCompatibilityError, check_module_compatibility
             try:
@@ -438,7 +494,7 @@ def compile_project(project: Project) -> CompiledNetwork:
         dsu.union(source, target)
     for inst in project.instances:
         definition = modules[inst.module_id]
-        if definition.solver_model in ('junction', 'tank', 'closed_volume'):
+        if definition.solver_model in ('junction', 'tank', 'closed_volume', 'air_mixing_box', 'air_room'):
             for p in definition.ports[1:]:
                 dsu.union(f'{inst.id}:{definition.ports[0].id}', f'{inst.id}:{p.id}')
         for port in definition.ports:
@@ -448,6 +504,30 @@ def compile_project(project: Project) -> CompiledNetwork:
     index = {root: n for n, root in enumerate(roots)}
     nodes = {key: index[dsu.find(key)] for key in port_keys}
     node_circuit, circuit_fluids, circuit_sources, mixed = assign_circuits(project, modules, nodes, len(roots))
+    air_nodes = set()
+    if moist:
+        for node, circuit in enumerate(node_circuit):
+            config = circuit_fluids[circuit]
+            if config.fluid.split('::')[-1] == 'Air' and config.phase_policy == 'gas' and not config.composition:
+                air_nodes.add(node)
+            elif config.phase_policy not in ('liquid', 'single_phase'):
+                raise CompilationError('MOIST_AIR_FLUID_REQUIRED', '联算回路必须是 Air/gas 或单相液体')
+        for inst in project.instances:
+            definition = modules[inst.module_id]
+            flags = {port.id: nodes[f'{inst.id}:{port.id}'] in air_nodes for port in definition.ports}
+            kind = definition.solver_model
+            if kind == 'water_coil':
+                if flags != {'in0': True, 'out0': True, 'in1': False, 'out1': False}:
+                    raise CompilationError('WATER_COIL_CIRCUITS', '水盘管风侧必须为 Air/gas，水侧必须指定独立液体回路', inst.id)
+            elif any(flags.values()):
+                if not all(flags.values()) or definition.runtime != 'python' and kind not in moist_models:
+                    raise CompilationError('MOIST_AIR_MODEL_UNSUPPORTED', f'{inst.id} 的模型 {kind} 不适用于湿空气回路', inst.id)
+                if definition.runtime == 'python' and (definition.sdk is None or 'air.pass_through.v1' not in definition.sdk.capabilities):
+                    raise CompilationError('MODULE_AIR_CAPABILITY_REQUIRED', f'{inst.id} 需升级为声明湿空气透传能力的模块版本', inst.id)
+            elif kind in ('duct', 'cooling_coil', 'humidifier', 'air_mixing_box', 'air_filter', 'air_room'):
+                raise CompilationError('AIR_DEVICE_FLUID_REQUIRED', f'{inst.id} 必须接湿空气回路', inst.id)
+            elif kind in ('tank', 'closed_volume', 'heat_exchanger'):
+                raise CompilationError('AIR_LIQUID_MODEL_UNSUPPORTED', f'风水联算暂不支持 {inst.id} 的 {kind}；请使用无储量水管和水盘管', inst.id)
 
     def service_of(instance_id):
         """Service of the circuit an instance's first port belongs to (a built-in's ports share one, exchangers aside)."""
@@ -460,9 +540,16 @@ def compile_project(project: Project) -> CompiledNetwork:
         if modules[inst.module_id].runtime == 'builtin':
             check_fluid_conditions(inst.id, parameters[inst.id], modules[inst.module_id].solver_model, service_of(inst.id),
                                    project.solver.thermal)
+            if modules[inst.module_id].solver_model == 'duct':
+                width, height = parameters[inst.id]['duct_width_m'], parameters[inst.id]['duct_height_m']
+                ratio = max(width, height) / min(width, height)
+                if ratio > 8.:
+                    diagnostics.append(Diagnostic(code='DUCT_ASPECT_RATIO', severity='warning', instance_id=inst.id,
+                        message=f'{inst.id} 断面宽高比 {ratio:.1f} 超过 8；水力直径近似误差增大，建议拆分风管或改用等效直径'))
     branches: list[CompiledBranch] = []
     fixed: dict[int, float] = {}
     fixed_temperatures: dict[int, float] = {}
+    fixed_humidities: dict[int, float] = {}
     storage: dict[int, StorageSpec] = {}
     for inst in project.instances:
         definition, params = modules[inst.module_id], parameters[inst.id]
@@ -480,6 +567,25 @@ def compile_project(project: Project) -> CompiledNetwork:
                                        'temperature_k')
             fixed[node] = value
             fixed_temperatures.setdefault(node, temperature)
+            if node in air_nodes:
+                humidity = float(params.get('humidity_ratio_kg_kg', 0.0) or 0.0)
+                if humidity < 0.0 or humidity > 0.05:
+                    raise CompilationError('PARAMETER_RANGE', f'{inst.id}.humidity_ratio_kg_kg 超出 0–0.05 kg/kg_da',
+                                           inst.id, 'humidity_ratio_kg_kg')
+                from .moist_air import saturation_humidity_ratio
+                from .moist_air import MoistAirService, AirPropertyError
+                try:
+                    MoistAirService().state_ptw(value, temperature, humidity)
+                except AirPropertyError as error:
+                    raise CompilationError(error.code, str(error), inst.id) from error
+                if humidity > saturation_humidity_ratio(temperature, value):
+                    raise CompilationError('AIR_HUMIDITY_SUPERSATURATED',
+                                           f'{inst.id} 的边界含湿量 {humidity:.5g} 超过该温度压力下的饱和含湿量', inst.id,
+                                           'humidity_ratio_kg_kg')
+                if node in fixed_humidities and not math.isclose(fixed_humidities[node], humidity, rel_tol=0, abs_tol=1e-9):
+                    raise CompilationError('BOUNDARY_HUMIDITY_CONFLICT', f'{inst.id} 与同节点边界的含湿量不同', inst.id,
+                                           'humidity_ratio_kg_kg')
+                fixed_humidities.setdefault(node, humidity)
             continue
         if definition.solver_model == 'tank':
             node = nodes[f'{inst.id}:{definition.ports[0].id}']
@@ -493,14 +599,19 @@ def compile_project(project: Project) -> CompiledNetwork:
             storage[node] = spec
             fixed[node], fixed_temperatures[node] = spec.initial_pressure_pa, spec.initial_temperature_k
             continue
-        if definition.solver_model in ('junction', 'closed_volume'):
+        if definition.solver_model in ('junction', 'closed_volume', 'air_mixing_box', 'air_room'):
             continue
         channels = [c for c in definition.channels if c.enabled]
         covered = {p for c in channels for p in (c.input_port, c.output_port)}
         if covered != {p.id for p in definition.ports}:
             raise CompilationError('CHANNEL_COVERAGE', f'{inst.id} 存在未绑定到有效通路的端口', inst.id)
         for ch in channels:
-            expected = 'resistance' if definition.solver_model == 'heat_exchanger' else definition.solver_model
+            expected = 'resistance' if definition.solver_model in ('heat_exchanger', 'heater', 'cooling_coil', 'humidifier', 'cooling_tower_moist') \
+                else definition.solver_model
+            if definition.solver_model in ('water_coil', 'water_chiller'):
+                expected = 'resistance' if ch.id == 'ch0' else 'resistance_secondary'
+                if ch.id not in ('ch0', 'ch1') or (ch.input_port, ch.output_port) != (('in0', 'out0') if ch.id == 'ch0' else ('in1', 'out1')):
+                    raise CompilationError('CHANNEL_MODEL_INVALID', f'{inst.id} 双侧设备通路必须为 ch0(in0→out0)、ch1(in1→out1)', inst.id, ch.id)
             relation = 'pump_curve' if expected == 'pump_curve' else 'resistance'
             if definition.runtime != 'python' and (ch.solver_model != expected or ch.relation != relation):
                 raise CompilationError('CHANNEL_MODEL_INVALID', f'{inst.id}.{ch.id} 未注册的通路关系 {ch.solver_model}/{ch.relation}', inst.id, ch.id)
@@ -531,8 +642,12 @@ def compile_project(project: Project) -> CompiledNetwork:
                                       f'{project.fluid.fluid}）；各回路物性独立计算'))
     network = CompiledNetwork(project, modules, instances, parameters, nodes, roots, branches, fixed, diagnostics,
                            fixed_temperatures, [components.find(n) for n in range(len(roots))], storage,
-                           node_circuit, circuit_fluids, circuit_sources, mixed, trapped=trapped)
+                           node_circuit, circuit_fluids, circuit_sources, mixed, trapped=trapped,
+                           fixed_humidities=fixed_humidities, air_nodes=air_nodes)
     network.composite_maps = composite_maps or getattr(project,'_composite_maps',{})
+    if moist or any(m.solver_model in ('cooling_tower_moist', 'water_chiller', 'water_coil') for m in modules.values()):
+        from .air_compile import compile_air_network
+        compile_air_network(network)
     from .module_scope import check_scope_configuration
     for key, instance in instances.items():
         definition = modules[instance.module_id]
@@ -618,6 +733,9 @@ def validate_project(project: Project) -> list[Diagnostic]:
 
 def circuit_info(network: CompiledNetwork) -> list[dict]:
     """Fluid circuits of a compiled network (one entry for a single-fluid project)."""
+    if getattr(network, 'execution_domain', None) == 'coupled':
+        from .refrigeration.coupling import coupled_circuits
+        return coupled_circuits(network)
     if getattr(network, 'execution_domain', None) in ('thermal', 'cold_store'):
         return []
     if getattr(network, 'execution_domain', None) == 'refrigeration':

@@ -230,6 +230,7 @@
     "B2.out0.quality": null,
     "B1.param.pressure_pa": 201325.0,
     "B1.param.temperature_k": 293.15,
+    "B1.param.humidity_ratio_kg_kg": 0.0,
     "P1.param.speed_ratio": 1.0,
     "P1.param.efficiency_ratio": 0.75,
     "N1.param.elevation_m": 0.0,
@@ -253,7 +254,8 @@
     "L2.param.wall_heat_capacity_j_k": 0.0,
     "N2.param.elevation_m": 0.0,
     "B2.param.pressure_pa": 120000.0,
-    "B2.param.temperature_k": 293.15
+    "B2.param.temperature_k": 293.15,
+    "B2.param.humidity_ratio_kg_kg": 0.0
   },
   "diagnostics": [
     {

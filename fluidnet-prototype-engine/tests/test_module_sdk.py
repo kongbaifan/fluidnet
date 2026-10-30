@@ -48,10 +48,11 @@ def test_sdk_and_typed_example_import_with_only_the_standard_library():
     result = subprocess.run([sys.executable, '-I', '-S', '-c', source, str(ROOT / 'backend'),
                              str(ROOT / 'examples/module_sdk/valve.py'), str(ROOT / 'examples/module_sdk/resistance.py'),
                              str(ROOT / 'examples/module_sdk/timed_valve.py'),str(ROOT/'examples/module_sdk/fan_coil.py'),
-                             str(ROOT/'examples/module_sdk/cooling_tower.py'),str(ROOT/'examples/module_sdk/capillary.py')],
+                             str(ROOT/'examples/module_sdk/cooling_tower.py'),str(ROOT/'examples/module_sdk/capillary.py'),
+                             str(ROOT/'examples/refrigeration_extensions/sdk_throttle.py')],
                             capture_output=True, text=True, timeout=30)
     assert result.returncode == 0, result.stdout + result.stderr
-    assert json.loads(result.stdout)['examples'] == 6
+    assert json.loads(result.stdout)['examples'] == 7
 
 
 def test_type_checker_rejects_bad_relation_state_and_input_writes(tmp_path):
@@ -64,6 +65,8 @@ def test_type_checker_rejects_bad_relation_state_and_input_writes(tmp_path):
             ctx.port('in0').pressure_pa = 120000.0
             ctx.time_s = 3.0
             ctx.execution.phase = 'commit_step'
+            ctx.refrigeration.throttle.inlet_pressure_pa = 120000.0
+            ctx.refrigeration.flow(mass_flow_kg_s='one', effective_kv_m3_h=0.3)
     '''), encoding='utf-8')
     result = subprocess.run([sys.executable, '-m', 'mypy', '--config-file', 'mypy-sdk.ini', str(source)],
                             cwd=ROOT, capture_output=True, text=True, timeout=60)

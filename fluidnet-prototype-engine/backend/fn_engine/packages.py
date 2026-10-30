@@ -160,8 +160,10 @@ class ModuleStore:
             module.source = {"runtime": runtime, **({"design": design} if design.strip() else {})}
             module.content_hash = module_content_hash(module)
             module.definition_hash = module_definition_hash(module)
+            from .refrigeration.bench import effective_test_conditions
+            actual_conditions = effective_test_conditions(module,request.test)
             try:
-                test_result = run_module_test(ModuleTestRequest(module=module, **request.test.model_dump()))
+                test_result = run_module_test(ModuleTestRequest(module=module, **actual_conditions.model_dump()))
             except ValueError as error:
                 raise ModuleSaveInvalid(getattr(error,'diagnostics',[]) or
                     [Diagnostic(code=getattr(error, "code", "MODULE_TEST_FAILED"), message=str(error))],replay=getattr(error,'replay',None)) from error
@@ -169,9 +171,9 @@ class ModuleStore:
             if missing:
                 raise ModuleSaveInvalid([Diagnostic(code='MODULE_OUTPUT_MISSING', message=f'试算未返回已声明输出：{missing}', field='variables')])
             receipt = {"created_at": datetime.now(timezone.utc).isoformat(), "release_notes": request.release_notes,
-                       "tested": True, "test_conditions": request.test.model_dump(mode="json"),
+                       "tested": True, "test_conditions": actual_conditions.model_dump(mode="json"),
                        "test_result": test_result.model_dump(mode="json")}
-            conditions = json.dumps(request.test.model_dump(mode='json'), sort_keys=True, ensure_ascii=False,
+            conditions = json.dumps(actual_conditions.model_dump(mode='json'), sort_keys=True, ensure_ascii=False,
                                     separators=(',', ':'), allow_nan=False).encode('utf-8')
             receipt['validation_evidence'] = [{'level':'L3', 'status':'passed', 'source':'engine module bench',
                 'content_hash':module.content_hash, 'definition_hash':module.definition_hash,

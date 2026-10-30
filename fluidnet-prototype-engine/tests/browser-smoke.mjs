@@ -1,9 +1,10 @@
+import {FHD_CONTEXT, captureFhd} from './browser-viewport.mjs';
 import { testServer } from './browser-server.mjs';
 import { chromium, expect } from '@playwright/test';
 import { writeFileSync, mkdirSync } from 'node:fs';
 const fixture=await testServer(), base=fixture.base;
 const browser = await chromium.launch({channel:'msedge',headless:true});
-const page = await browser.newPage({viewport:{width:1600,height:1000}});
+const page = await browser.newPage({...FHD_CONTEXT});
 const errors=[];page.on('pageerror',e=>errors.push(e.message));
 const runButton=(command)=>page.locator(`[data-action="run-project"][data-command="${command}"]`).first();
 async function step() {
@@ -60,7 +61,7 @@ try {
   await page.reload();
   await expect(page.locator('[data-result-status]').first()).toContainText('结果已更新');
   mkdirSync('artifacts',{recursive:true});
-  await page.screenshot({path:'artifacts/workbench.png',fullPage:true});
+  await captureFhd(page, 'artifacts/workbench.png');
   const startResponse=page.waitForResponse(r=>new URL(r.url()).pathname.endsWith('/command') && r.request().method()==='POST');
   await runButton('run').click();
   expect((await (await startResponse).json()).command_status).toBe('accepted');

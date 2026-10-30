@@ -10,6 +10,12 @@ import sys
 from pathlib import Path
 
 from fn_engine.api import create_app
+from fn_engine.batch_models import (
+    BatchCreateRequest, BatchCurveResponse, BatchDeleteResponse, BatchDetailResponse,
+    BatchListResponse, BatchPlanRequest, BatchPreviewResponse, BatchSetupResponse,
+)
+from fn_engine.air_models import AirPropertyRequest, AirGridRequest, AirVariableDescriptor, MoistAirOptions
+from fn_engine.models import AirPropertyResponse, AirGridResponse, AirVariableCatalogResponse, AirMigrationRequest, AirMigrationResponse, RunRecordResponse
 from fn_engine.bridge import normalize_prototype_export
 from fn_engine.models import (
     CommitStepRequest, CommitStepResponse, ControlPreviewResponse, EvaluateRequest, EvaluateResponse,
@@ -21,7 +27,7 @@ from fn_engine.models import (
     ModuleTestResponse, NetworkRelation, PortState, Project, ProjectDeleteResponse,
     ProjectDetailResponse, ProjectListResponse, ProjectRevisionsResponse, ProjectRestoreResponse,
     ProjectSaveResponse, ProjectUpgradeResponse, RunCreateResponse, RunDeleteResponse,
-    RunEventsResponse, RunFrame, RunHistoryResponse, RunListResponse, RunRequest, RunStatus,
+    RunEventsResponse, RunFrame, RunHistoryResponse, RunListResponse, RunRequest, RunStatus, SavedProjectRunRequest,
     ErrorResponse, ValidationResponse,
     ModuleSaveRequest, ModuleVersionResponse, ModuleVersionsResponse,
     ModuleDesignRequest, ModuleDesignResponse, UnitWorkpointRequest, UnitWorkpointResponse,
@@ -34,15 +40,32 @@ from fn_engine.solver import solve_steady
 from fn_engine._module_schema_v1 import ModuleDefinitionV1
 from fn_engine._module_schema_v2 import ModuleDefinitionV2
 from fn_engine._module_schema_v3 import ModuleDefinitionV3
+from fn_engine._module_schema_v4 import ModuleDefinitionV4
+from fn_engine.models import RefrigerationEvaluateRequest, RefrigerationEvaluateResponse
+from fn_engine.refrigeration_models import RefrigerationThrottleInput, RefrigerationThrottleFlow
 
 root=Path(__file__).resolve().parents[1]
 output=root/'contracts'
 
 # 合同文件清单的唯一来源：schema 名与生成顺序都由这里给出，测试直接导入 models，避免名单漂移。
 models = [
+    ('moist-air-options',MoistAirOptions), ('air-property-request',AirPropertyRequest),
+    ('air-property-response',AirPropertyResponse), ('air-grid-request',AirGridRequest),
+    ('air-grid-response',AirGridResponse), ('air-variable-descriptor',AirVariableDescriptor),
+    ('air-variable-catalog-response',AirVariableCatalogResponse), ('air-migration-request',AirMigrationRequest),
+    ('air-migration-response',AirMigrationResponse), ('run-record-response',RunRecordResponse),
+    ('batch-plan-request', BatchPlanRequest), ('batch-create-request', BatchCreateRequest),
+    ('batch-setup-response', BatchSetupResponse), ('batch-preview-response', BatchPreviewResponse),
+    ('batch-detail-response', BatchDetailResponse), ('batch-list-response', BatchListResponse),
+    ('batch-curve-response', BatchCurveResponse), ('batch-delete-response', BatchDeleteResponse),
     ('module', ModuleDefinition), ('project', Project), ('run-request', RunRequest), ('run-frame', RunFrame),
+    ('saved-project-run-request', SavedProjectRunRequest),
     ('module-v1', ModuleDefinitionV1), ('module-v2', ModuleDefinitionV2),
     ('module-v3', ModuleDefinitionV3),
+    ('module-v4',ModuleDefinitionV4),('refrigeration-throttle-input',RefrigerationThrottleInput),
+    ('refrigeration-throttle-flow',RefrigerationThrottleFlow),
+    ('refrigeration-evaluate-request',RefrigerationEvaluateRequest),
+    ('refrigeration-evaluate-response',RefrigerationEvaluateResponse),
     ('module-request-context', ModuleRequestContext), ('module-execution-info', ModuleExecutionInfo),
     ('module-step-candidate', ModuleStepCandidate),
     ('module-test-suite-request', ModuleTestSuiteRequest), ('module-test-suite-response', ModuleTestSuiteResponse),

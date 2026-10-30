@@ -1,0 +1,108 @@
+{
+  "date": "2026-10-29",
+  "baseline": "5c68d92",
+  "branch": "claude/chiller-air-loop",
+  "environment": {
+    "python": "3.11.0",
+    "coolprop": "8.0.0",
+    "platform": "Windows"
+  },
+  "backend_full": {
+    "passed": 1581,
+    "failed": 0,
+    "coverage_percent": 90.94,
+    "duration_s": 1232.18
+  },
+  "backend_followup": {
+    "focused_passed": 44,
+    "thermal_passed": 46,
+    "final_negative_case_passed": 1,
+    "note": "Full run preceded the final metadata/phase/closed-condenser checks; followups cover the final source. Counts overlap and must not be added."
+  },
+  "browser_full": {
+    "scripts": 24,
+    "ui_contract_tests": 6,
+    "exit_code": 0
+  },
+  "new_browser": {
+    "firstRun": "138a7ae1aee84af0bc0965078025b2d8",
+    "changedRun": "736b7ac5629e425aa11ecea288ac7ed8",
+    "circuits": [
+      {
+        "id": "chilled-water",
+        "anchor": {
+          "instance_id": "Chiller",
+          "port_id": "in0"
+        },
+        "fluid": {
+          "backend": "coolprop",
+          "fluid": "Water",
+          "composition": {},
+          "reference": "mass",
+          "phase_policy": "liquid"
+        }
+      },
+      {
+        "id": "condenser-water",
+        "anchor": {
+          "instance_id": "Chiller",
+          "port_id": "in1"
+        },
+        "fluid": {
+          "backend": "coolprop",
+          "fluid": "Water",
+          "composition": {},
+          "reference": "mass",
+          "phase_policy": "liquid"
+        }
+      }
+    ],
+    "cooling": 26007.76715346077,
+    "waterCoil": 25937.488527061276,
+    "batchId": "3db5538bf78d488fa33238e877e7d022",
+    "batchItems": 2,
+    "errors": []
+  },
+  "static": {
+    "ruff": "passed",
+    "mypy_source_files": 82,
+    "mypy_errors": 0,
+    "frontend_syntax": "passed",
+    "contract_files": 85
+  },
+  "viewport": {
+    "width": 1920,
+    "height": 1080,
+    "device_scale_factor": 1
+  },
+  "logs": {
+    "backend_full": {
+      "path": "artifacts/chiller-full-pytest.txt",
+      "sha256": "f3470bbbdf53f5fad0011ef317c7f04733812305331f54045ed0c6c30e83ffbf"
+    },
+    "browser_full": {
+      "path": "artifacts/chiller-full-browser.txt",
+      "sha256": "67774b896750a9c6af6051bffa134a052c4f98e2696c81b8d8031a283eb2aec2"
+    },
+    "backend_focused_followup": {
+      "path": "artifacts/chiller-final-focused.txt",
+      "sha256": "d32d141eeed0cf6a6426946efbc50483518856f9c5876fc3dd30cda706cd67a9"
+    },
+    "thermal_followup": {
+      "path": "artifacts/chiller-final-thermal-recheck.txt",
+      "sha256": "e4d12cde68e9155c77aeb6a21683473f80993df09f5a1ff0ed6aa11dd23bf731"
+    },
+    "ruff": {
+      "path": "artifacts/chiller-final-ruff.txt",
+      "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+    },
+    "mypy": {
+      "path": "artifacts/chiller-final-mypy.txt",
+      "sha256": "3960fb85cb7bfa8c8ba41b5e9221a31e4810587b155f8a158c1f3756a6384ded"
+    },
+    "contracts": {
+      "path": "artifacts/chiller-final-contracts.txt",
+      "sha256": "48d5f02a424b8df683a275adc2898374fa2705e0fdd79d2220b2bf97e0b13526"
+    }
+  }
+}

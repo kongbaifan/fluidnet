@@ -1,0 +1,36 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "pressure_pa": {
+      "default": 101325,
+      "maximum": 120000,
+      "minimum": 60000,
+      "title": "Pressure Pa",
+      "type": "number"
+    },
+    "temperature_min_k": {
+      "default": 273.15,
+      "maximum": 333.15,
+      "minimum": 253.15,
+      "title": "Temperature Min K",
+      "type": "number"
+    },
+    "temperature_max_k": {
+      "default": 323.15,
+      "maximum": 333.15,
+      "minimum": 253.15,
+      "title": "Temperature Max K",
+      "type": "number"
+    },
+    "humidity_max_kg_kg": {
+      "default": 0.03,
+      "exclusiveMinimum": 0,
+      "maximum": 0.05,
+      "title": "Humidity Max Kg Kg",
+      "type": "number"
+    }
+  },
+  "title": "AirGridRequest",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

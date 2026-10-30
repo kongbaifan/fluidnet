@@ -76,8 +76,30 @@ class Module:
             )
         return points
 
+    def _density(self, ctx):
+        mode = str(ctx.parameter('density_mode', 'state'))
+        if mode not in ('state', 'reference'):
+            raise ValueError('风机 density_mode 只能为 state 或 reference')
+        port = ctx.port('in0')
+        if mode == 'state' and port.density_kg_m3:
+            return float(port.density_kg_m3)
+        if mode == 'reference':
+            ctx.diagnostic('FAN_REFERENCE_DENSITY', '风机使用显式参考密度折算曲线', severity='warning')
+        return float(ctx.parameter('air_density_kg_m3', 1.2))
+
+    def observe(self, ctx):
+        channel = ctx.channel('main')
+        if channel.dry_air_mass_flow_kg_s is not None and channel.mass_flow_kg_s < -1e-10:
+            raise ValueError('湿空气风机不支持反向流动')
+        flow = abs(channel.mass_flow_kg_s)/self._density(ctx)
+        rise = -channel.pressure_drop_pa
+        shaft = rise*flow/float(ctx.parameter('efficiency', .6))
+        ctx.var('pressure_rise_pa', rise)
+        ctx.var('shaft_power_w', shaft)
+        ctx.var('electric_power_w', shaft/float(ctx.parameter('motor_efficiency', .9)))
+
     def evaluate(self, ctx):
-        air_density_kg_m3 = max(float(ctx.parameter("air_density_kg_m3", 1.2)), 1e-3)
+        air_density_kg_m3 = self._density(ctx)
         speed_ratio = _clamp(float(ctx.parameter("speed_ratio", 1.0)), SPEED_MIN, SPEED_MAX)
         points = self._pressure_curve(ctx)
         # H = p/(ρg)：风压曲线按空气柱高折算，泵关系再乘 speed²。
@@ -101,7 +123,7 @@ class Module:
         channel = ctx.channel("main")
         mass_flow_kg_s = abs(float(channel.mass_flow_kg_s or 0.0))
         pressure_drop_pa = abs(float(channel.pressure_drop_pa or 0.0))
-        air_density_kg_m3 = max(float(ctx.parameter("air_density_kg_m3", 1.2)), 1e-3)
+        air_density_kg_m3 = self._density(ctx)
         efficiency = _clamp(float(ctx.parameter("efficiency", 0.6)), 1e-6, 1.0)
         motor_efficiency = _clamp(float(ctx.parameter("motor_efficiency", 0.9)), 1e-6, 1.0)
 

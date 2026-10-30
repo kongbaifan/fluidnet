@@ -1,0 +1,4834 @@
+{
+  "schema_version": 1,
+  "id": "author-station-nh3co2",
+  "name": "作者节流模块 · NH₃/CO₂ 完整制冷站",
+  "description": "公共 SDK 等焓节流设备，项目与运行固定模块版本；含原有控制及自定义实例编号。",
+  "fluid": {
+    "backend": "coolprop",
+    "fluid": "Water",
+    "composition": {},
+    "reference": "mass",
+    "phase_policy": "single_phase"
+  },
+  "modules": [
+    {
+      "schema_version": 1,
+      "id": "cold_room",
+      "name": "库房热节点",
+      "version": 1,
+      "category": "冷库案例",
+      "description": "空气及内部构件等效热容；围护漏热与热负荷。A1 不含货物热节点。",
+      "ports": [
+        {
+          "id": "heat",
+          "label": "冷却热接口",
+          "domain": "thermal",
+          "direction": "in",
+          "required": true,
+          "circuit": "thermal"
+        }
+      ],
+      "parameters": [
+        {
+          "id": "temperature_k",
+          "label": "初始库温",
+          "value_type": "number",
+          "default": 263.15,
+          "unit": {
+            "quantity": "temperature",
+            "canonical_unit": "K",
+            "display_unit": "°C",
+            "display_scale": 1.0,
+            "display_offset": -273.15
+          },
+          "minimum": 1.0,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "heat_capacity_j_k",
+          "label": "等效热容",
+          "value_type": "number",
+          "default": 1200000.0,
+          "unit": {
+            "quantity": "heat_capacity",
+            "canonical_unit": "J/K",
+            "display_unit": "kJ/K",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "minimum": 1.0,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "ambient_temperature_k",
+          "label": "室外温度",
+          "value_type": "number",
+          "default": 305.15,
+          "unit": {
+            "quantity": "temperature",
+            "canonical_unit": "K",
+            "display_unit": "°C",
+            "display_scale": 1.0,
+            "display_offset": -273.15
+          },
+          "minimum": 1.0,
+          "maximum": null,
+          "runtime": true,
+          "writable": true
+        },
+        {
+          "id": "ground_temperature_k",
+          "label": "地面温度",
+          "value_type": "number",
+          "default": 283.15,
+          "unit": {
+            "quantity": "temperature",
+            "canonical_unit": "K",
+            "display_unit": "°C",
+            "display_scale": 1.0,
+            "display_offset": -273.15
+          },
+          "minimum": 1.0,
+          "maximum": null,
+          "runtime": true,
+          "writable": true
+        },
+        {
+          "id": "wall_ua_w_k",
+          "label": "墙体传热 UA",
+          "value_type": "number",
+          "default": 31.68,
+          "unit": {
+            "quantity": "conductance",
+            "canonical_unit": "W/K",
+            "display_unit": "W/K",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "roof_ua_w_k",
+          "label": "屋顶传热 UA",
+          "value_type": "number",
+          "default": 14.4,
+          "unit": {
+            "quantity": "conductance",
+            "canonical_unit": "W/K",
+            "display_unit": "W/K",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "floor_ua_w_k",
+          "label": "地面传热 UA",
+          "value_type": "number",
+          "default": 20.0,
+          "unit": {
+            "quantity": "conductance",
+            "canonical_unit": "W/K",
+            "display_unit": "W/K",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "heat_input_w",
+          "label": "附加热负荷",
+          "value_type": "number",
+          "default": 0.0,
+          "unit": {
+            "quantity": "power",
+            "canonical_unit": "W",
+            "display_unit": "kW",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": null,
+          "runtime": true,
+          "writable": true
+        }
+      ],
+      "variables": [
+        {
+          "id": "state.temperature_k",
+          "label": "库温",
+          "quantity": "temperature",
+          "unit": {
+            "quantity": "temperature",
+            "canonical_unit": "K",
+            "display_unit": "°C",
+            "display_scale": 1.0,
+            "display_offset": -273.15
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "envelope_heat_w",
+          "label": "围护漏热",
+          "quantity": "power",
+          "unit": {
+            "quantity": "power",
+            "canonical_unit": "W",
+            "display_unit": "kW",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "stored_energy_j",
+          "label": "库房储能（相对 273.15 K）",
+          "quantity": "energy",
+          "unit": {
+            "quantity": "energy",
+            "canonical_unit": "J",
+            "display_unit": "kWh",
+            "display_scale": 3600000.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.external_energy_j",
+          "label": "累计外界输入热量",
+          "quantity": "energy",
+          "unit": {
+            "quantity": "energy",
+            "canonical_unit": "J",
+            "display_unit": "kWh",
+            "display_scale": 3600000.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "cooling_power_w",
+          "label": "冷却功率",
+          "quantity": "power",
+          "unit": {
+            "quantity": "power",
+            "canonical_unit": "W",
+            "display_unit": "kW",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "param.temperature_k",
+          "label": "初始库温",
+          "quantity": "temperature",
+          "unit": {
+            "quantity": "temperature",
+            "canonical_unit": "K",
+            "display_unit": "°C",
+            "display_scale": 1.0,
+            "display_offset": -273.15
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "temperature_k",
+          "port_id": null
+        },
+        {
+          "id": "param.heat_capacity_j_k",
+          "label": "等效热容",
+          "quantity": "heat_capacity",
+          "unit": {
+            "quantity": "heat_capacity",
+            "canonical_unit": "J/K",
+            "display_unit": "kJ/K",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "heat_capacity_j_k",
+          "port_id": null
+        },
+        {
+          "id": "param.ambient_temperature_k",
+          "label": "室外温度",
+          "quantity": "temperature",
+          "unit": {
+            "quantity": "temperature",
+            "canonical_unit": "K",
+            "display_unit": "°C",
+            "display_scale": 1.0,
+            "display_offset": -273.15
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "ambient_temperature_k",
+          "port_id": null
+        },
+        {
+          "id": "param.ground_temperature_k",
+          "label": "地面温度",
+          "quantity": "temperature",
+          "unit": {
+            "quantity": "temperature",
+            "canonical_unit": "K",
+            "display_unit": "°C",
+            "display_scale": 1.0,
+            "display_offset": -273.15
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "ground_temperature_k",
+          "port_id": null
+        },
+        {
+          "id": "param.wall_ua_w_k",
+          "label": "墙体传热 UA",
+          "quantity": "conductance",
+          "unit": {
+            "quantity": "conductance",
+            "canonical_unit": "W/K",
+            "display_unit": "W/K",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "wall_ua_w_k",
+          "port_id": null
+        },
+        {
+          "id": "param.roof_ua_w_k",
+          "label": "屋顶传热 UA",
+          "quantity": "conductance",
+          "unit": {
+            "quantity": "conductance",
+            "canonical_unit": "W/K",
+            "display_unit": "W/K",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "roof_ua_w_k",
+          "port_id": null
+        },
+        {
+          "id": "param.floor_ua_w_k",
+          "label": "地面传热 UA",
+          "quantity": "conductance",
+          "unit": {
+            "quantity": "conductance",
+            "canonical_unit": "W/K",
+            "display_unit": "W/K",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "floor_ua_w_k",
+          "port_id": null
+        },
+        {
+          "id": "param.heat_input_w",
+          "label": "附加热负荷",
+          "quantity": "power",
+          "unit": {
+            "quantity": "power",
+            "canonical_unit": "W",
+            "display_unit": "kW",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "heat_input_w",
+          "port_id": null
+        }
+      ],
+      "channels": [],
+      "solver_model": "cold_room",
+      "state_model": "room_temperature",
+      "thermal_model": null,
+      "source_format": "python-v1",
+      "source": {},
+      "runtime": "builtin",
+      "entrypoint": "",
+      "content_hash": null,
+      "definition_hash": null,
+      "package_path": null,
+      "bank_names": [
+        "额定工况",
+        "部分负荷",
+        "调试备份"
+      ]
+    },
+    {
+      "schema_version": 1,
+      "id": "hp_receiver",
+      "name": "高压贮液器",
+      "version": 1,
+      "category": "制冷站设备",
+      "description": "饱和两相集总容器：由存量 M、内能 U 与容积反求压力和液位。冷凝液进 in0，供液从 liquid 出。",
+      "ports": [
+        {
+          "id": "in0",
+          "label": "进液/进气",
+          "domain": "refrigerant",
+          "direction": "in",
+          "required": true,
+          "circuit": "refrigerant"
+        },
+        {
+          "id": "in1",
+          "label": "进液/进气 2",
+          "domain": "refrigerant",
+          "direction": "in",
+          "required": false,
+          "circuit": "refrigerant"
+        },
+        {
+          "id": "vapor",
+          "label": "气相出口",
+          "domain": "refrigerant",
+          "direction": "out",
+          "required": false,
+          "circuit": "refrigerant"
+        },
+        {
+          "id": "liquid",
+          "label": "液相出口",
+          "domain": "refrigerant",
+          "direction": "out",
+          "required": true,
+          "circuit": "refrigerant"
+        }
+      ],
+      "parameters": [
+        {
+          "id": "volume_m3",
+          "label": "容积",
+          "value_type": "number",
+          "default": 3.0,
+          "unit": {
+            "quantity": "volume",
+            "canonical_unit": "m³",
+            "display_unit": "m³",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.001,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "height_m",
+          "label": "液位换算高度（立式等截面）",
+          "value_type": "number",
+          "default": 2.0,
+          "unit": {
+            "quantity": "length",
+            "canonical_unit": "m",
+            "display_unit": "m",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.01,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "temperature_k",
+          "label": "初始饱和温度",
+          "value_type": "number",
+          "default": 308.15,
+          "unit": {
+            "quantity": "temperature",
+            "canonical_unit": "K",
+            "display_unit": "°C",
+            "display_scale": 1.0,
+            "display_offset": -273.15
+          },
+          "minimum": 1.0,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "level_ratio",
+          "label": "初始液位（液体体积占比）",
+          "value_type": "number",
+          "default": 0.62,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "minimum": 0.01,
+          "maximum": 0.99,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "min_level_ratio",
+          "label": "模型适用液位下限",
+          "value_type": "number",
+          "default": 0.05,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "max_level_ratio",
+          "label": "模型适用液位上限",
+          "value_type": "number",
+          "default": 0.95,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "runtime": false,
+          "writable": true
+        }
+      ],
+      "variables": [
+        {
+          "id": "state.pressure_pa",
+          "label": "压力",
+          "quantity": "pressure",
+          "unit": {
+            "quantity": "pressure",
+            "canonical_unit": "Pa",
+            "display_unit": "MPa",
+            "display_scale": 1000000.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.temperature_k",
+          "label": "饱和温度",
+          "quantity": "temperature",
+          "unit": {
+            "quantity": "temperature",
+            "canonical_unit": "K",
+            "display_unit": "°C",
+            "display_scale": 1.0,
+            "display_offset": -273.15
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.mass_kg",
+          "label": "存量",
+          "quantity": "mass",
+          "unit": {
+            "quantity": "mass",
+            "canonical_unit": "kg",
+            "display_unit": "kg",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.internal_energy_j",
+          "label": "内能",
+          "quantity": "energy",
+          "unit": {
+            "quantity": "energy",
+            "canonical_unit": "J",
+            "display_unit": "MJ",
+            "display_scale": 1000000.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.liquid_mass_kg",
+          "label": "液相质量",
+          "quantity": "mass",
+          "unit": {
+            "quantity": "mass",
+            "canonical_unit": "kg",
+            "display_unit": "kg",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.vapor_mass_kg",
+          "label": "气相质量",
+          "quantity": "mass",
+          "unit": {
+            "quantity": "mass",
+            "canonical_unit": "kg",
+            "display_unit": "kg",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.quality",
+          "label": "罐内干度",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.level_ratio",
+          "label": "液位（体积占比）",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.level_m",
+          "label": "液位高度",
+          "quantity": "length",
+          "unit": {
+            "quantity": "length",
+            "canonical_unit": "m",
+            "display_unit": "m",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "liquid_enthalpy_j_kg",
+          "label": "饱和液比焓",
+          "quantity": "specific_enthalpy",
+          "unit": {
+            "quantity": "specific_enthalpy",
+            "canonical_unit": "J/kg",
+            "display_unit": "kJ/kg",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "vapor_enthalpy_j_kg",
+          "label": "饱和气比焓",
+          "quantity": "specific_enthalpy",
+          "unit": {
+            "quantity": "specific_enthalpy",
+            "canonical_unit": "J/kg",
+            "display_unit": "kJ/kg",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "liquid_density_kg_m3",
+          "label": "饱和液密度",
+          "quantity": "density",
+          "unit": {
+            "quantity": "density",
+            "canonical_unit": "kg/m³",
+            "display_unit": "kg/m³",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "vapor_density_kg_m3",
+          "label": "饱和气密度",
+          "quantity": "density",
+          "unit": {
+            "quantity": "density",
+            "canonical_unit": "kg/m³",
+            "display_unit": "kg/m³",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "net_inflow_kg_s",
+          "label": "净流入质量流量",
+          "quantity": "mass_flow",
+          "unit": {
+            "quantity": "mass_flow",
+            "canonical_unit": "kg/s",
+            "display_unit": "kg/s",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "param.volume_m3",
+          "label": "容积",
+          "quantity": "volume",
+          "unit": {
+            "quantity": "volume",
+            "canonical_unit": "m³",
+            "display_unit": "m³",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "volume_m3",
+          "port_id": null
+        },
+        {
+          "id": "param.height_m",
+          "label": "液位换算高度（立式等截面）",
+          "quantity": "length",
+          "unit": {
+            "quantity": "length",
+            "canonical_unit": "m",
+            "display_unit": "m",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "height_m",
+          "port_id": null
+        },
+        {
+          "id": "param.temperature_k",
+          "label": "初始饱和温度",
+          "quantity": "temperature",
+          "unit": {
+            "quantity": "temperature",
+            "canonical_unit": "K",
+            "display_unit": "°C",
+            "display_scale": 1.0,
+            "display_offset": -273.15
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "temperature_k",
+          "port_id": null
+        },
+        {
+          "id": "param.level_ratio",
+          "label": "初始液位（液体体积占比）",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "level_ratio",
+          "port_id": null
+        },
+        {
+          "id": "param.min_level_ratio",
+          "label": "模型适用液位下限",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "min_level_ratio",
+          "port_id": null
+        },
+        {
+          "id": "param.max_level_ratio",
+          "label": "模型适用液位上限",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "max_level_ratio",
+          "port_id": null
+        }
+      ],
+      "channels": [],
+      "solver_model": "saturated_vessel",
+      "state_model": "saturated_vessel",
+      "thermal_model": null,
+      "source_format": "python-v1",
+      "source": {},
+      "runtime": "builtin",
+      "entrypoint": "",
+      "content_hash": null,
+      "definition_hash": null,
+      "package_path": null,
+      "bank_names": [
+        "额定工况",
+        "部分负荷",
+        "调试备份"
+      ]
+    },
+    {
+      "schema_version": 1,
+      "id": "lp_drum",
+      "name": "低压循环桶",
+      "version": 1,
+      "category": "制冷站设备",
+      "description": "饱和两相集总容器：节流供液与满液式蒸发器回气进入，压缩机从 vapor 吸气，liquid 向蒸发器供液。",
+      "ports": [
+        {
+          "id": "in0",
+          "label": "进液/进气",
+          "domain": "refrigerant",
+          "direction": "in",
+          "required": true,
+          "circuit": "refrigerant"
+        },
+        {
+          "id": "in1",
+          "label": "进液/进气 2",
+          "domain": "refrigerant",
+          "direction": "in",
+          "required": false,
+          "circuit": "refrigerant"
+        },
+        {
+          "id": "vapor",
+          "label": "气相出口",
+          "domain": "refrigerant",
+          "direction": "out",
+          "required": true,
+          "circuit": "refrigerant"
+        },
+        {
+          "id": "liquid",
+          "label": "液相出口",
+          "domain": "refrigerant",
+          "direction": "out",
+          "required": false,
+          "circuit": "refrigerant"
+        }
+      ],
+      "parameters": [
+        {
+          "id": "volume_m3",
+          "label": "容积",
+          "value_type": "number",
+          "default": 4.0,
+          "unit": {
+            "quantity": "volume",
+            "canonical_unit": "m³",
+            "display_unit": "m³",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.001,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "height_m",
+          "label": "液位换算高度（立式等截面）",
+          "value_type": "number",
+          "default": 2.0,
+          "unit": {
+            "quantity": "length",
+            "canonical_unit": "m",
+            "display_unit": "m",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.01,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "temperature_k",
+          "label": "初始饱和温度",
+          "value_type": "number",
+          "default": 243.15,
+          "unit": {
+            "quantity": "temperature",
+            "canonical_unit": "K",
+            "display_unit": "°C",
+            "display_scale": 1.0,
+            "display_offset": -273.15
+          },
+          "minimum": 1.0,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "level_ratio",
+          "label": "初始液位（液体体积占比）",
+          "value_type": "number",
+          "default": 0.4,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "minimum": 0.01,
+          "maximum": 0.99,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "min_level_ratio",
+          "label": "模型适用液位下限",
+          "value_type": "number",
+          "default": 0.05,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "max_level_ratio",
+          "label": "模型适用液位上限",
+          "value_type": "number",
+          "default": 0.95,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "runtime": false,
+          "writable": true
+        }
+      ],
+      "variables": [
+        {
+          "id": "state.pressure_pa",
+          "label": "压力",
+          "quantity": "pressure",
+          "unit": {
+            "quantity": "pressure",
+            "canonical_unit": "Pa",
+            "display_unit": "MPa",
+            "display_scale": 1000000.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.temperature_k",
+          "label": "饱和温度",
+          "quantity": "temperature",
+          "unit": {
+            "quantity": "temperature",
+            "canonical_unit": "K",
+            "display_unit": "°C",
+            "display_scale": 1.0,
+            "display_offset": -273.15
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.mass_kg",
+          "label": "存量",
+          "quantity": "mass",
+          "unit": {
+            "quantity": "mass",
+            "canonical_unit": "kg",
+            "display_unit": "kg",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.internal_energy_j",
+          "label": "内能",
+          "quantity": "energy",
+          "unit": {
+            "quantity": "energy",
+            "canonical_unit": "J",
+            "display_unit": "MJ",
+            "display_scale": 1000000.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.liquid_mass_kg",
+          "label": "液相质量",
+          "quantity": "mass",
+          "unit": {
+            "quantity": "mass",
+            "canonical_unit": "kg",
+            "display_unit": "kg",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.vapor_mass_kg",
+          "label": "气相质量",
+          "quantity": "mass",
+          "unit": {
+            "quantity": "mass",
+            "canonical_unit": "kg",
+            "display_unit": "kg",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.quality",
+          "label": "罐内干度",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.level_ratio",
+          "label": "液位（体积占比）",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.level_m",
+          "label": "液位高度",
+          "quantity": "length",
+          "unit": {
+            "quantity": "length",
+            "canonical_unit": "m",
+            "display_unit": "m",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "liquid_enthalpy_j_kg",
+          "label": "饱和液比焓",
+          "quantity": "specific_enthalpy",
+          "unit": {
+            "quantity": "specific_enthalpy",
+            "canonical_unit": "J/kg",
+            "display_unit": "kJ/kg",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "vapor_enthalpy_j_kg",
+          "label": "饱和气比焓",
+          "quantity": "specific_enthalpy",
+          "unit": {
+            "quantity": "specific_enthalpy",
+            "canonical_unit": "J/kg",
+            "display_unit": "kJ/kg",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "liquid_density_kg_m3",
+          "label": "饱和液密度",
+          "quantity": "density",
+          "unit": {
+            "quantity": "density",
+            "canonical_unit": "kg/m³",
+            "display_unit": "kg/m³",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "vapor_density_kg_m3",
+          "label": "饱和气密度",
+          "quantity": "density",
+          "unit": {
+            "quantity": "density",
+            "canonical_unit": "kg/m³",
+            "display_unit": "kg/m³",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "net_inflow_kg_s",
+          "label": "净流入质量流量",
+          "quantity": "mass_flow",
+          "unit": {
+            "quantity": "mass_flow",
+            "canonical_unit": "kg/s",
+            "display_unit": "kg/s",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "param.volume_m3",
+          "label": "容积",
+          "quantity": "volume",
+          "unit": {
+            "quantity": "volume",
+            "canonical_unit": "m³",
+            "display_unit": "m³",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "volume_m3",
+          "port_id": null
+        },
+        {
+          "id": "param.height_m",
+          "label": "液位换算高度（立式等截面）",
+          "quantity": "length",
+          "unit": {
+            "quantity": "length",
+            "canonical_unit": "m",
+            "display_unit": "m",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "height_m",
+          "port_id": null
+        },
+        {
+          "id": "param.temperature_k",
+          "label": "初始饱和温度",
+          "quantity": "temperature",
+          "unit": {
+            "quantity": "temperature",
+            "canonical_unit": "K",
+            "display_unit": "°C",
+            "display_scale": 1.0,
+            "display_offset": -273.15
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "temperature_k",
+          "port_id": null
+        },
+        {
+          "id": "param.level_ratio",
+          "label": "初始液位（液体体积占比）",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "level_ratio",
+          "port_id": null
+        },
+        {
+          "id": "param.min_level_ratio",
+          "label": "模型适用液位下限",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "min_level_ratio",
+          "port_id": null
+        },
+        {
+          "id": "param.max_level_ratio",
+          "label": "模型适用液位上限",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "max_level_ratio",
+          "port_id": null
+        }
+      ],
+      "channels": [],
+      "solver_model": "saturated_vessel",
+      "state_model": "saturated_vessel",
+      "thermal_model": null,
+      "source_format": "python-v1",
+      "source": {},
+      "runtime": "builtin",
+      "entrypoint": "",
+      "content_hash": null,
+      "definition_hash": null,
+      "package_path": null,
+      "bank_names": [
+        "额定工况",
+        "部分负荷",
+        "调试备份"
+      ]
+    },
+    {
+      "schema_version": 1,
+      "id": "pumped_drum",
+      "name": "泵供液储液器",
+      "version": 1,
+      "category": "制冷站设备",
+      "description": "载冷侧饱和两相集总容器：冷风机湿回气进入，vapor 去复叠冷凝侧，liquid 供液泵。",
+      "ports": [
+        {
+          "id": "in0",
+          "label": "进液/进气",
+          "domain": "refrigerant",
+          "direction": "in",
+          "required": true,
+          "circuit": "refrigerant"
+        },
+        {
+          "id": "in1",
+          "label": "进液/进气 2",
+          "domain": "refrigerant",
+          "direction": "in",
+          "required": false,
+          "circuit": "refrigerant"
+        },
+        {
+          "id": "vapor",
+          "label": "气相出口",
+          "domain": "refrigerant",
+          "direction": "out",
+          "required": true,
+          "circuit": "refrigerant"
+        },
+        {
+          "id": "liquid",
+          "label": "液相出口",
+          "domain": "refrigerant",
+          "direction": "out",
+          "required": true,
+          "circuit": "refrigerant"
+        }
+      ],
+      "parameters": [
+        {
+          "id": "volume_m3",
+          "label": "容积",
+          "value_type": "number",
+          "default": 3.0,
+          "unit": {
+            "quantity": "volume",
+            "canonical_unit": "m³",
+            "display_unit": "m³",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.001,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "height_m",
+          "label": "液位换算高度（立式等截面）",
+          "value_type": "number",
+          "default": 2.0,
+          "unit": {
+            "quantity": "length",
+            "canonical_unit": "m",
+            "display_unit": "m",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.01,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "temperature_k",
+          "label": "初始饱和温度",
+          "value_type": "number",
+          "default": 247.15,
+          "unit": {
+            "quantity": "temperature",
+            "canonical_unit": "K",
+            "display_unit": "°C",
+            "display_scale": 1.0,
+            "display_offset": -273.15
+          },
+          "minimum": 1.0,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "level_ratio",
+          "label": "初始液位（液体体积占比）",
+          "value_type": "number",
+          "default": 0.4,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "minimum": 0.01,
+          "maximum": 0.99,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "min_level_ratio",
+          "label": "模型适用液位下限",
+          "value_type": "number",
+          "default": 0.05,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "max_level_ratio",
+          "label": "模型适用液位上限",
+          "value_type": "number",
+          "default": 0.95,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "runtime": false,
+          "writable": true
+        }
+      ],
+      "variables": [
+        {
+          "id": "state.pressure_pa",
+          "label": "压力",
+          "quantity": "pressure",
+          "unit": {
+            "quantity": "pressure",
+            "canonical_unit": "Pa",
+            "display_unit": "MPa",
+            "display_scale": 1000000.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.temperature_k",
+          "label": "饱和温度",
+          "quantity": "temperature",
+          "unit": {
+            "quantity": "temperature",
+            "canonical_unit": "K",
+            "display_unit": "°C",
+            "display_scale": 1.0,
+            "display_offset": -273.15
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.mass_kg",
+          "label": "存量",
+          "quantity": "mass",
+          "unit": {
+            "quantity": "mass",
+            "canonical_unit": "kg",
+            "display_unit": "kg",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.internal_energy_j",
+          "label": "内能",
+          "quantity": "energy",
+          "unit": {
+            "quantity": "energy",
+            "canonical_unit": "J",
+            "display_unit": "MJ",
+            "display_scale": 1000000.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.liquid_mass_kg",
+          "label": "液相质量",
+          "quantity": "mass",
+          "unit": {
+            "quantity": "mass",
+            "canonical_unit": "kg",
+            "display_unit": "kg",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.vapor_mass_kg",
+          "label": "气相质量",
+          "quantity": "mass",
+          "unit": {
+            "quantity": "mass",
+            "canonical_unit": "kg",
+            "display_unit": "kg",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.quality",
+          "label": "罐内干度",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.level_ratio",
+          "label": "液位（体积占比）",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.level_m",
+          "label": "液位高度",
+          "quantity": "length",
+          "unit": {
+            "quantity": "length",
+            "canonical_unit": "m",
+            "display_unit": "m",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "liquid_enthalpy_j_kg",
+          "label": "饱和液比焓",
+          "quantity": "specific_enthalpy",
+          "unit": {
+            "quantity": "specific_enthalpy",
+            "canonical_unit": "J/kg",
+            "display_unit": "kJ/kg",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "vapor_enthalpy_j_kg",
+          "label": "饱和气比焓",
+          "quantity": "specific_enthalpy",
+          "unit": {
+            "quantity": "specific_enthalpy",
+            "canonical_unit": "J/kg",
+            "display_unit": "kJ/kg",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "liquid_density_kg_m3",
+          "label": "饱和液密度",
+          "quantity": "density",
+          "unit": {
+            "quantity": "density",
+            "canonical_unit": "kg/m³",
+            "display_unit": "kg/m³",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "vapor_density_kg_m3",
+          "label": "饱和气密度",
+          "quantity": "density",
+          "unit": {
+            "quantity": "density",
+            "canonical_unit": "kg/m³",
+            "display_unit": "kg/m³",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "net_inflow_kg_s",
+          "label": "净流入质量流量",
+          "quantity": "mass_flow",
+          "unit": {
+            "quantity": "mass_flow",
+            "canonical_unit": "kg/s",
+            "display_unit": "kg/s",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "param.volume_m3",
+          "label": "容积",
+          "quantity": "volume",
+          "unit": {
+            "quantity": "volume",
+            "canonical_unit": "m³",
+            "display_unit": "m³",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "volume_m3",
+          "port_id": null
+        },
+        {
+          "id": "param.height_m",
+          "label": "液位换算高度（立式等截面）",
+          "quantity": "length",
+          "unit": {
+            "quantity": "length",
+            "canonical_unit": "m",
+            "display_unit": "m",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "height_m",
+          "port_id": null
+        },
+        {
+          "id": "param.temperature_k",
+          "label": "初始饱和温度",
+          "quantity": "temperature",
+          "unit": {
+            "quantity": "temperature",
+            "canonical_unit": "K",
+            "display_unit": "°C",
+            "display_scale": 1.0,
+            "display_offset": -273.15
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "temperature_k",
+          "port_id": null
+        },
+        {
+          "id": "param.level_ratio",
+          "label": "初始液位（液体体积占比）",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "level_ratio",
+          "port_id": null
+        },
+        {
+          "id": "param.min_level_ratio",
+          "label": "模型适用液位下限",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "min_level_ratio",
+          "port_id": null
+        },
+        {
+          "id": "param.max_level_ratio",
+          "label": "模型适用液位上限",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "max_level_ratio",
+          "port_id": null
+        }
+      ],
+      "channels": [],
+      "solver_model": "saturated_vessel",
+      "state_model": "saturated_vessel",
+      "thermal_model": null,
+      "source_format": "python-v1",
+      "source": {},
+      "runtime": "builtin",
+      "entrypoint": "",
+      "content_hash": null,
+      "definition_hash": null,
+      "package_path": null,
+      "bank_names": [
+        "额定工况",
+        "部分负荷",
+        "调试备份"
+      ]
+    },
+    {
+      "schema_version": 1,
+      "id": "refrigerant_compressor",
+      "name": "压缩机（强制流量）",
+      "version": 1,
+      "category": "制冷站设备",
+      "description": "吸气为吸气容器的饱和气；流量由排量、载量和容积效率决定，排气压力取排气侧容器压力。电机损耗排向机房，不进入制冷剂。",
+      "ports": [
+        {
+          "id": "suction",
+          "label": "吸气",
+          "domain": "refrigerant",
+          "direction": "in",
+          "required": true,
+          "circuit": "refrigerant"
+        },
+        {
+          "id": "discharge",
+          "label": "排气",
+          "domain": "refrigerant",
+          "direction": "out",
+          "required": true,
+          "circuit": "refrigerant"
+        }
+      ],
+      "parameters": [
+        {
+          "id": "running",
+          "label": "启停（1 运行 / 0 停机）",
+          "value_type": "number",
+          "default": 1.0,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "runtime": true,
+          "writable": true
+        },
+        {
+          "id": "load_ratio",
+          "label": "载量",
+          "value_type": "number",
+          "default": 1.0,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "runtime": true,
+          "writable": true
+        },
+        {
+          "id": "displacement_m3_s",
+          "label": "理论排量",
+          "value_type": "number",
+          "default": 0.08055555555555556,
+          "unit": {
+            "quantity": "volume_flow",
+            "canonical_unit": "m³/s",
+            "display_unit": "m³/h",
+            "display_scale": 0.0002777777777777778,
+            "display_offset": 0.0
+          },
+          "minimum": 1e-06,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "volumetric_efficiency",
+          "label": "容积效率",
+          "value_type": "number",
+          "default": 0.8,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "minimum": 0.01,
+          "maximum": 1.0,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "isentropic_efficiency",
+          "label": "等熵效率",
+          "value_type": "number",
+          "default": 0.72,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "minimum": 0.01,
+          "maximum": 1.0,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "motor_efficiency",
+          "label": "电机效率",
+          "value_type": "number",
+          "default": 0.92,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "minimum": 0.01,
+          "maximum": 1.0,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "max_pressure_ratio",
+          "label": "单级压比包络",
+          "value_type": "number",
+          "default": 12.0,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 1.0,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        }
+      ],
+      "variables": [
+        {
+          "id": "mass_flow_kg_s",
+          "label": "质量流量",
+          "quantity": "mass_flow",
+          "unit": {
+            "quantity": "mass_flow",
+            "canonical_unit": "kg/s",
+            "display_unit": "kg/s",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "shaft_power_w",
+          "label": "轴功率",
+          "quantity": "power",
+          "unit": {
+            "quantity": "power",
+            "canonical_unit": "W",
+            "display_unit": "kW",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "electric_power_w",
+          "label": "电功率",
+          "quantity": "power",
+          "unit": {
+            "quantity": "power",
+            "canonical_unit": "W",
+            "display_unit": "kW",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "discharge_temperature_k",
+          "label": "排气温度",
+          "quantity": "temperature",
+          "unit": {
+            "quantity": "temperature",
+            "canonical_unit": "K",
+            "display_unit": "°C",
+            "display_scale": 1.0,
+            "display_offset": -273.15
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "pressure_ratio",
+          "label": "压比",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.electric_energy_j",
+          "label": "累计电量",
+          "quantity": "energy",
+          "unit": {
+            "quantity": "energy",
+            "canonical_unit": "J",
+            "display_unit": "kWh",
+            "display_scale": 3600000.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "param.running",
+          "label": "启停（1 运行 / 0 停机）",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "running",
+          "port_id": null
+        },
+        {
+          "id": "param.load_ratio",
+          "label": "载量",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "load_ratio",
+          "port_id": null
+        },
+        {
+          "id": "param.displacement_m3_s",
+          "label": "理论排量",
+          "quantity": "volume_flow",
+          "unit": {
+            "quantity": "volume_flow",
+            "canonical_unit": "m³/s",
+            "display_unit": "m³/h",
+            "display_scale": 0.0002777777777777778,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "displacement_m3_s",
+          "port_id": null
+        },
+        {
+          "id": "param.volumetric_efficiency",
+          "label": "容积效率",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "volumetric_efficiency",
+          "port_id": null
+        },
+        {
+          "id": "param.isentropic_efficiency",
+          "label": "等熵效率",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "isentropic_efficiency",
+          "port_id": null
+        },
+        {
+          "id": "param.motor_efficiency",
+          "label": "电机效率",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "motor_efficiency",
+          "port_id": null
+        },
+        {
+          "id": "param.max_pressure_ratio",
+          "label": "单级压比包络",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "max_pressure_ratio",
+          "port_id": null
+        }
+      ],
+      "channels": [],
+      "solver_model": "refrigerant_compressor",
+      "state_model": null,
+      "thermal_model": null,
+      "source_format": "python-v1",
+      "source": {},
+      "runtime": "builtin",
+      "entrypoint": "",
+      "content_hash": null,
+      "definition_hash": null,
+      "package_path": null,
+      "bank_names": [
+        "额定工况",
+        "部分负荷",
+        "调试备份"
+      ]
+    },
+    {
+      "schema_version": 1,
+      "id": "evaporative_condenser",
+      "name": "蒸发式冷凝器",
+      "version": 1,
+      "category": "制冷站设备",
+      "description": "排热 = UA_eff·(T_cond − T_wb)。风机比例与贮液器回气阀开度修正 UA；回气阀关小时冷凝液积存、有效面积减小。按湿球温差近似，不解喷淋水与空气焓差。",
+      "ports": [
+        {
+          "id": "in0",
+          "label": "排气进口",
+          "domain": "refrigerant",
+          "direction": "in",
+          "required": true,
+          "circuit": "refrigerant"
+        },
+        {
+          "id": "out0",
+          "label": "冷凝液出口",
+          "domain": "refrigerant",
+          "direction": "out",
+          "required": true,
+          "circuit": "refrigerant"
+        }
+      ],
+      "parameters": [
+        {
+          "id": "ua_w_k",
+          "label": "额定 UA（风机全开）",
+          "value_type": "number",
+          "default": 40000.0,
+          "unit": {
+            "quantity": "conductance",
+            "canonical_unit": "W/K",
+            "display_unit": "kW/K",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "fan_ratio",
+          "label": "风机投入比例",
+          "value_type": "number",
+          "default": 1.0,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "runtime": true,
+          "writable": true
+        },
+        {
+          "id": "natural_ua_ratio",
+          "label": "风机全停时 UA 比例",
+          "value_type": "number",
+          "default": 0.2,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "wet_bulb_temperature_k",
+          "label": "室外湿球温度",
+          "value_type": "number",
+          "default": 300.15,
+          "unit": {
+            "quantity": "temperature",
+            "canonical_unit": "K",
+            "display_unit": "°C",
+            "display_scale": 1.0,
+            "display_offset": -273.15
+          },
+          "minimum": 1.0,
+          "maximum": null,
+          "runtime": true,
+          "writable": true
+        },
+        {
+          "id": "fan_power_w",
+          "label": "风机与喷淋泵功率（全开）",
+          "value_type": "number",
+          "default": 7500.0,
+          "unit": {
+            "quantity": "power",
+            "canonical_unit": "W",
+            "display_unit": "kW",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "return_gas_ratio",
+          "label": "贮液器回气阀开度",
+          "value_type": "number",
+          "default": 1.0,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "runtime": true,
+          "writable": true
+        },
+        {
+          "id": "flooded_ua_ratio",
+          "label": "回气阀全关时 UA 比例",
+          "value_type": "number",
+          "default": 0.5,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "runtime": false,
+          "writable": true
+        }
+      ],
+      "variables": [
+        {
+          "id": "heat_rejection_w",
+          "label": "排热量",
+          "quantity": "power",
+          "unit": {
+            "quantity": "power",
+            "canonical_unit": "W",
+            "display_unit": "kW",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "effective_ua_w_k",
+          "label": "有效 UA",
+          "quantity": "conductance",
+          "unit": {
+            "quantity": "conductance",
+            "canonical_unit": "W/K",
+            "display_unit": "kW/K",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "condensing_temperature_k",
+          "label": "冷凝温度",
+          "quantity": "temperature",
+          "unit": {
+            "quantity": "temperature",
+            "canonical_unit": "K",
+            "display_unit": "°C",
+            "display_scale": 1.0,
+            "display_offset": -273.15
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "fan_power_w",
+          "label": "风机功率",
+          "quantity": "power",
+          "unit": {
+            "quantity": "power",
+            "canonical_unit": "W",
+            "display_unit": "kW",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.heat_rejected_j",
+          "label": "累计排热",
+          "quantity": "energy",
+          "unit": {
+            "quantity": "energy",
+            "canonical_unit": "J",
+            "display_unit": "kWh",
+            "display_scale": 3600000.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.fan_energy_j",
+          "label": "累计风机电量",
+          "quantity": "energy",
+          "unit": {
+            "quantity": "energy",
+            "canonical_unit": "J",
+            "display_unit": "kWh",
+            "display_scale": 3600000.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "param.ua_w_k",
+          "label": "额定 UA（风机全开）",
+          "quantity": "conductance",
+          "unit": {
+            "quantity": "conductance",
+            "canonical_unit": "W/K",
+            "display_unit": "kW/K",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "ua_w_k",
+          "port_id": null
+        },
+        {
+          "id": "param.fan_ratio",
+          "label": "风机投入比例",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "fan_ratio",
+          "port_id": null
+        },
+        {
+          "id": "param.natural_ua_ratio",
+          "label": "风机全停时 UA 比例",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "natural_ua_ratio",
+          "port_id": null
+        },
+        {
+          "id": "param.wet_bulb_temperature_k",
+          "label": "室外湿球温度",
+          "quantity": "temperature",
+          "unit": {
+            "quantity": "temperature",
+            "canonical_unit": "K",
+            "display_unit": "°C",
+            "display_scale": 1.0,
+            "display_offset": -273.15
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "wet_bulb_temperature_k",
+          "port_id": null
+        },
+        {
+          "id": "param.fan_power_w",
+          "label": "风机与喷淋泵功率（全开）",
+          "quantity": "power",
+          "unit": {
+            "quantity": "power",
+            "canonical_unit": "W",
+            "display_unit": "kW",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "fan_power_w",
+          "port_id": null
+        },
+        {
+          "id": "param.return_gas_ratio",
+          "label": "贮液器回气阀开度",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "return_gas_ratio",
+          "port_id": null
+        },
+        {
+          "id": "param.flooded_ua_ratio",
+          "label": "回气阀全关时 UA 比例",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "flooded_ua_ratio",
+          "port_id": null
+        }
+      ],
+      "channels": [],
+      "solver_model": "evaporative_condenser",
+      "state_model": null,
+      "thermal_model": null,
+      "source_format": "python-v1",
+      "source": {},
+      "runtime": "builtin",
+      "entrypoint": "",
+      "content_hash": null,
+      "definition_hash": null,
+      "package_path": null,
+      "bank_names": [
+        "额定工况",
+        "部分负荷",
+        "调试备份"
+      ]
+    },
+    {
+      "schema_version": 1,
+      "id": "cascade_exchanger",
+      "name": "复叠换热器（蒸发/冷凝）",
+      "version": 1,
+      "category": "制冷站设备",
+      "description": "满液式：蒸发侧与冷凝侧均按饱和处理，Q = UA·(T_sat,冷凝 − T_sat,蒸发)。两侧分属不同回路与工质。",
+      "ports": [
+        {
+          "id": "evap_in",
+          "label": "蒸发侧进液",
+          "domain": "refrigerant",
+          "direction": "in",
+          "required": true,
+          "circuit": "evaporating"
+        },
+        {
+          "id": "evap_out",
+          "label": "蒸发侧回气",
+          "domain": "refrigerant",
+          "direction": "out",
+          "required": true,
+          "circuit": "evaporating"
+        },
+        {
+          "id": "cond_in",
+          "label": "冷凝侧进气",
+          "domain": "refrigerant",
+          "direction": "in",
+          "required": true,
+          "circuit": "condensing"
+        },
+        {
+          "id": "cond_out",
+          "label": "冷凝侧出液",
+          "domain": "refrigerant",
+          "direction": "out",
+          "required": true,
+          "circuit": "condensing"
+        }
+      ],
+      "parameters": [
+        {
+          "id": "ua_w_k",
+          "label": "传热能力 UA",
+          "value_type": "number",
+          "default": 45000.0,
+          "unit": {
+            "quantity": "conductance",
+            "canonical_unit": "W/K",
+            "display_unit": "kW/K",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        }
+      ],
+      "variables": [
+        {
+          "id": "heat_w",
+          "label": "换热量",
+          "quantity": "power",
+          "unit": {
+            "quantity": "power",
+            "canonical_unit": "W",
+            "display_unit": "kW",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "approach_k",
+          "label": "两侧饱和温差",
+          "quantity": "temperature_difference",
+          "unit": {
+            "quantity": "temperature_difference",
+            "canonical_unit": "K",
+            "display_unit": "K",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "evaporated_kg_s",
+          "label": "蒸发侧蒸发量",
+          "quantity": "mass_flow",
+          "unit": {
+            "quantity": "mass_flow",
+            "canonical_unit": "kg/s",
+            "display_unit": "kg/s",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "condensed_kg_s",
+          "label": "冷凝侧冷凝量",
+          "quantity": "mass_flow",
+          "unit": {
+            "quantity": "mass_flow",
+            "canonical_unit": "kg/s",
+            "display_unit": "kg/s",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "param.ua_w_k",
+          "label": "传热能力 UA",
+          "quantity": "conductance",
+          "unit": {
+            "quantity": "conductance",
+            "canonical_unit": "W/K",
+            "display_unit": "kW/K",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "ua_w_k",
+          "port_id": null
+        }
+      ],
+      "channels": [],
+      "solver_model": "cascade_exchanger",
+      "state_model": null,
+      "thermal_model": null,
+      "source_format": "python-v1",
+      "source": {},
+      "runtime": "builtin",
+      "entrypoint": "",
+      "content_hash": null,
+      "definition_hash": null,
+      "package_path": null,
+      "bank_names": [
+        "额定工况",
+        "部分负荷",
+        "调试备份"
+      ]
+    },
+    {
+      "schema_version": 1,
+      "id": "refrigerant_pump",
+      "name": "制冷剂液泵",
+      "version": 1,
+      "category": "制冷站设备",
+      "description": "屏蔽泵：流量 ∝ 转速，压升 ∝ 转速²；电功率全部进入液体。不计汽蚀余量。",
+      "ports": [
+        {
+          "id": "in0",
+          "label": "吸入",
+          "domain": "refrigerant",
+          "direction": "in",
+          "required": true,
+          "circuit": "refrigerant"
+        },
+        {
+          "id": "out0",
+          "label": "排出",
+          "domain": "refrigerant",
+          "direction": "out",
+          "required": true,
+          "circuit": "refrigerant"
+        }
+      ],
+      "parameters": [
+        {
+          "id": "running",
+          "label": "启停（1 运行 / 0 停机）",
+          "value_type": "number",
+          "default": 1.0,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "runtime": true,
+          "writable": true
+        },
+        {
+          "id": "speed_ratio",
+          "label": "转速比（变频）",
+          "value_type": "number",
+          "default": 1.0,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": 1.2,
+          "runtime": true,
+          "writable": true
+        },
+        {
+          "id": "rated_mass_flow_kg_s",
+          "label": "额定质量流量",
+          "value_type": "number",
+          "default": 2.0,
+          "unit": {
+            "quantity": "mass_flow",
+            "canonical_unit": "kg/s",
+            "display_unit": "kg/s",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "rated_pressure_rise_pa",
+          "label": "额定压升",
+          "value_type": "number",
+          "default": 200000.0,
+          "unit": {
+            "quantity": "pressure",
+            "canonical_unit": "Pa",
+            "display_unit": "kPa",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "efficiency_ratio",
+          "label": "泵与电机效率",
+          "value_type": "number",
+          "default": 0.45,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "minimum": 0.01,
+          "maximum": 1.0,
+          "runtime": false,
+          "writable": true
+        }
+      ],
+      "variables": [
+        {
+          "id": "mass_flow_kg_s",
+          "label": "质量流量",
+          "quantity": "mass_flow",
+          "unit": {
+            "quantity": "mass_flow",
+            "canonical_unit": "kg/s",
+            "display_unit": "kg/s",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "pressure_rise_pa",
+          "label": "压升",
+          "quantity": "pressure",
+          "unit": {
+            "quantity": "pressure",
+            "canonical_unit": "Pa",
+            "display_unit": "kPa",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "electric_power_w",
+          "label": "电功率",
+          "quantity": "power",
+          "unit": {
+            "quantity": "power",
+            "canonical_unit": "W",
+            "display_unit": "kW",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.electric_energy_j",
+          "label": "累计电量",
+          "quantity": "energy",
+          "unit": {
+            "quantity": "energy",
+            "canonical_unit": "J",
+            "display_unit": "kWh",
+            "display_scale": 3600000.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "param.running",
+          "label": "启停（1 运行 / 0 停机）",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "running",
+          "port_id": null
+        },
+        {
+          "id": "param.speed_ratio",
+          "label": "转速比（变频）",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "speed_ratio",
+          "port_id": null
+        },
+        {
+          "id": "param.rated_mass_flow_kg_s",
+          "label": "额定质量流量",
+          "quantity": "mass_flow",
+          "unit": {
+            "quantity": "mass_flow",
+            "canonical_unit": "kg/s",
+            "display_unit": "kg/s",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "rated_mass_flow_kg_s",
+          "port_id": null
+        },
+        {
+          "id": "param.rated_pressure_rise_pa",
+          "label": "额定压升",
+          "quantity": "pressure",
+          "unit": {
+            "quantity": "pressure",
+            "canonical_unit": "Pa",
+            "display_unit": "kPa",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "rated_pressure_rise_pa",
+          "port_id": null
+        },
+        {
+          "id": "param.efficiency_ratio",
+          "label": "泵与电机效率",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "efficiency_ratio",
+          "port_id": null
+        }
+      ],
+      "channels": [],
+      "solver_model": "refrigerant_pump",
+      "state_model": null,
+      "thermal_model": null,
+      "source_format": "python-v1",
+      "source": {},
+      "runtime": "builtin",
+      "entrypoint": "",
+      "content_hash": null,
+      "definition_hash": null,
+      "package_path": null,
+      "bank_names": [
+        "额定工况",
+        "部分负荷",
+        "调试备份"
+      ]
+    },
+    {
+      "schema_version": 1,
+      "id": "air_cooler",
+      "name": "冷风机（泵供液）",
+      "version": 1,
+      "category": "制冷站设备",
+      "description": "空气侧 UA·(T_库 − T_蒸发)，受供液量与出口干度上限约束；风机热量留在库内。供液阀开度决定同一供液集管下各冷风机的分流比例。",
+      "ports": [
+        {
+          "id": "in0",
+          "label": "供液",
+          "domain": "refrigerant",
+          "direction": "in",
+          "required": true,
+          "circuit": "refrigerant"
+        },
+        {
+          "id": "out0",
+          "label": "湿回气",
+          "domain": "refrigerant",
+          "direction": "out",
+          "required": true,
+          "circuit": "refrigerant"
+        },
+        {
+          "id": "heat",
+          "label": "冷量输出",
+          "domain": "thermal",
+          "direction": "out",
+          "required": true,
+          "circuit": "thermal"
+        }
+      ],
+      "parameters": [
+        {
+          "id": "running",
+          "label": "风机启停（1 运行 / 0 停机）",
+          "value_type": "number",
+          "default": 1.0,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "runtime": true,
+          "writable": true
+        },
+        {
+          "id": "ua_w_k",
+          "label": "空气侧 UA（风机全开）",
+          "value_type": "number",
+          "default": 12000.0,
+          "unit": {
+            "quantity": "conductance",
+            "canonical_unit": "W/K",
+            "display_unit": "kW/K",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "fan_ratio",
+          "label": "风量比例",
+          "value_type": "number",
+          "default": 1.0,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "runtime": true,
+          "writable": true
+        },
+        {
+          "id": "natural_ua_ratio",
+          "label": "风机停转时 UA 比例",
+          "value_type": "number",
+          "default": 0.1,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "fan_power_w",
+          "label": "风机功率（全开）",
+          "value_type": "number",
+          "default": 4000.0,
+          "unit": {
+            "quantity": "power",
+            "canonical_unit": "W",
+            "display_unit": "kW",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "supply_valve_ratio",
+          "label": "供液阀开度",
+          "value_type": "number",
+          "default": 1.0,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "runtime": true,
+          "writable": true
+        },
+        {
+          "id": "max_outlet_quality",
+          "label": "出口干度上限",
+          "value_type": "number",
+          "default": 0.5,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "minimum": 0.01,
+          "maximum": 1.0,
+          "runtime": false,
+          "writable": true
+        }
+      ],
+      "variables": [
+        {
+          "id": "refrigerant_heat_w",
+          "label": "制冷剂吸热量",
+          "quantity": "power",
+          "unit": {
+            "quantity": "power",
+            "canonical_unit": "W",
+            "display_unit": "kW",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "room_cooling_w",
+          "label": "库房净冷量（扣风机热）",
+          "quantity": "power",
+          "unit": {
+            "quantity": "power",
+            "canonical_unit": "W",
+            "display_unit": "kW",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "fan_power_w",
+          "label": "风机功率",
+          "quantity": "power",
+          "unit": {
+            "quantity": "power",
+            "canonical_unit": "W",
+            "display_unit": "kW",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "supply_mass_flow_kg_s",
+          "label": "供液量",
+          "quantity": "mass_flow",
+          "unit": {
+            "quantity": "mass_flow",
+            "canonical_unit": "kg/s",
+            "display_unit": "kg/s",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "outlet_quality",
+          "label": "出口干度",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "evaporating_temperature_k",
+          "label": "蒸发温度",
+          "quantity": "temperature",
+          "unit": {
+            "quantity": "temperature",
+            "canonical_unit": "K",
+            "display_unit": "°C",
+            "display_scale": 1.0,
+            "display_offset": -273.15
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.cooling_energy_j",
+          "label": "累计库房净冷量",
+          "quantity": "energy",
+          "unit": {
+            "quantity": "energy",
+            "canonical_unit": "J",
+            "display_unit": "kWh",
+            "display_scale": 3600000.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.fan_energy_j",
+          "label": "累计风机电量",
+          "quantity": "energy",
+          "unit": {
+            "quantity": "energy",
+            "canonical_unit": "J",
+            "display_unit": "kWh",
+            "display_scale": 3600000.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "param.running",
+          "label": "风机启停（1 运行 / 0 停机）",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "running",
+          "port_id": null
+        },
+        {
+          "id": "param.ua_w_k",
+          "label": "空气侧 UA（风机全开）",
+          "quantity": "conductance",
+          "unit": {
+            "quantity": "conductance",
+            "canonical_unit": "W/K",
+            "display_unit": "kW/K",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "ua_w_k",
+          "port_id": null
+        },
+        {
+          "id": "param.fan_ratio",
+          "label": "风量比例",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "fan_ratio",
+          "port_id": null
+        },
+        {
+          "id": "param.natural_ua_ratio",
+          "label": "风机停转时 UA 比例",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "natural_ua_ratio",
+          "port_id": null
+        },
+        {
+          "id": "param.fan_power_w",
+          "label": "风机功率（全开）",
+          "quantity": "power",
+          "unit": {
+            "quantity": "power",
+            "canonical_unit": "W",
+            "display_unit": "kW",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "fan_power_w",
+          "port_id": null
+        },
+        {
+          "id": "param.supply_valve_ratio",
+          "label": "供液阀开度",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "supply_valve_ratio",
+          "port_id": null
+        },
+        {
+          "id": "param.max_outlet_quality",
+          "label": "出口干度上限",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "max_outlet_quality",
+          "port_id": null
+        }
+      ],
+      "channels": [],
+      "solver_model": "air_cooler",
+      "state_model": null,
+      "thermal_model": null,
+      "source_format": "python-v1",
+      "source": {},
+      "runtime": "builtin",
+      "entrypoint": "",
+      "content_hash": null,
+      "definition_hash": null,
+      "package_path": null,
+      "bank_names": [
+        "额定工况",
+        "部分负荷",
+        "调试备份"
+      ]
+    },
+    {
+      "schema_version": 1,
+      "id": "refrigerant_header",
+      "name": "制冷剂集管",
+      "version": 1,
+      "category": "制冷站设备",
+      "description": "汇流/分流节点：同一压力等级内的多台设备经集管连到一个容器端口。",
+      "ports": [
+        {
+          "id": "in0",
+          "label": "汇入 1",
+          "domain": "refrigerant",
+          "direction": "in",
+          "required": false,
+          "circuit": "refrigerant"
+        },
+        {
+          "id": "in1",
+          "label": "汇入 2",
+          "domain": "refrigerant",
+          "direction": "in",
+          "required": false,
+          "circuit": "refrigerant"
+        },
+        {
+          "id": "in2",
+          "label": "汇入 3",
+          "domain": "refrigerant",
+          "direction": "in",
+          "required": false,
+          "circuit": "refrigerant"
+        },
+        {
+          "id": "in3",
+          "label": "汇入 4",
+          "domain": "refrigerant",
+          "direction": "in",
+          "required": false,
+          "circuit": "refrigerant"
+        },
+        {
+          "id": "out0",
+          "label": "分出 1",
+          "domain": "refrigerant",
+          "direction": "out",
+          "required": false,
+          "circuit": "refrigerant"
+        },
+        {
+          "id": "out1",
+          "label": "分出 2",
+          "domain": "refrigerant",
+          "direction": "out",
+          "required": false,
+          "circuit": "refrigerant"
+        },
+        {
+          "id": "out2",
+          "label": "分出 3",
+          "domain": "refrigerant",
+          "direction": "out",
+          "required": false,
+          "circuit": "refrigerant"
+        },
+        {
+          "id": "out3",
+          "label": "分出 4",
+          "domain": "refrigerant",
+          "direction": "out",
+          "required": false,
+          "circuit": "refrigerant"
+        }
+      ],
+      "parameters": [],
+      "variables": [],
+      "channels": [],
+      "solver_model": "refrigerant_header",
+      "state_model": null,
+      "thermal_model": null,
+      "source_format": "python-v1",
+      "source": {},
+      "runtime": "builtin",
+      "entrypoint": "",
+      "content_hash": null,
+      "definition_hash": null,
+      "package_path": null,
+      "bank_names": [
+        "额定工况",
+        "部分负荷",
+        "调试备份"
+      ]
+    },
+    {
+      "schema_version": 4,
+      "id": "isenthalpic_throttle",
+      "name": "Python 等焓节流阀",
+      "version": 1,
+      "category": "制冷作者模块",
+      "description": "饱和液体单向等焓节流，支持 linear / equal_percentage 开度特性；平台积分累计通过质量。",
+      "ports": [
+        {
+          "id": "in0",
+          "label": "高压液进口",
+          "domain": "refrigerant",
+          "direction": "in",
+          "required": true,
+          "circuit": "refrigerant"
+        },
+        {
+          "id": "out0",
+          "label": "低压两相出口",
+          "domain": "refrigerant",
+          "direction": "out",
+          "required": true,
+          "circuit": "refrigerant"
+        }
+      ],
+      "parameters": [
+        {
+          "id": "kv_m3_h",
+          "label": "流量系数 Kv",
+          "value_type": "number",
+          "default": 0.6,
+          "unit": {
+            "quantity": "flow_coefficient",
+            "canonical_unit": "m³/h",
+            "display_unit": "m³/h",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.001,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "opening_ratio",
+          "label": "开度",
+          "value_type": "number",
+          "default": 0.5,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "runtime": true,
+          "writable": true
+        },
+        {
+          "id": "characteristic",
+          "label": "开度特性：linear / equal_percentage",
+          "value_type": "text",
+          "default": "linear",
+          "unit": null,
+          "minimum": null,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "rangeability",
+          "label": "等百分比可调比",
+          "value_type": "number",
+          "default": 50.0,
+          "unit": null,
+          "minimum": 1.000001,
+          "maximum": 1000.0,
+          "runtime": false,
+          "writable": true
+        }
+      ],
+      "variables": [
+        {
+          "id": "mass_flow_kg_s",
+          "label": "质量流量",
+          "quantity": "mass_flow",
+          "unit": {
+            "quantity": "mass_flow",
+            "canonical_unit": "kg/s",
+            "display_unit": "kg/s",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "pressure_drop_pa",
+          "label": "压差",
+          "quantity": "pressure",
+          "unit": {
+            "quantity": "pressure",
+            "canonical_unit": "Pa",
+            "display_unit": "MPa",
+            "display_scale": 1000000.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "outlet_quality",
+          "label": "出口干度",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "param.kv_m3_h",
+          "label": "流量系数 Kv",
+          "quantity": "flow_coefficient",
+          "unit": {
+            "quantity": "flow_coefficient",
+            "canonical_unit": "m³/h",
+            "display_unit": "m³/h",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "kv_m3_h",
+          "port_id": null
+        },
+        {
+          "id": "param.opening_ratio",
+          "label": "开度",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "opening_ratio",
+          "port_id": null
+        },
+        {
+          "id": "opening",
+          "label": "算法开度",
+          "quantity": "ratio",
+          "unit": null,
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.accepted_segments",
+          "label": "已接受段数",
+          "quantity": "count",
+          "unit": null,
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "effective_kv_m3_h",
+          "label": "有效 Kv",
+          "quantity": "flow_coefficient",
+          "unit": {
+            "quantity": "flow_coefficient",
+            "canonical_unit": "m³/h",
+            "display_unit": "m³/h",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.transferred_mass_kg",
+          "label": "累计通过质量",
+          "quantity": "mass",
+          "unit": {
+            "quantity": "mass",
+            "canonical_unit": "kg",
+            "display_unit": "kg",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        }
+      ],
+      "channels": [],
+      "solver_model": "generic",
+      "state_model": null,
+      "thermal_model": null,
+      "source_format": "python-v1",
+      "source": {
+        "runtime": "\"\"\"Public SDK isenthalpic throttle: linear and normalized equal-percentage characteristics.\"\"\"\nimport math\n\nfrom fn_sdk import DeviceModule, ModuleContext\n\n\nclass Module:\n    def initialize(self, ctx: ModuleContext) -> None:\n        ctx.state['accepted_segments'] = 0\n\n    def evaluate(self, ctx: ModuleContext) -> None:\n        point = ctx.refrigeration.throttle\n        characteristic = ctx.parameter('characteristic', 'linear')\n        opening = point.opening_ratio\n        if characteristic == 'linear':\n            fraction = opening\n        elif characteristic == 'equal_percentage':\n            ratio = ctx.parameter('rangeability', 50.0)\n            if isinstance(ratio, bool) or not isinstance(ratio, (int, float)) or not math.isfinite(ratio) or ratio <= 1:\n                raise ValueError('rangeability must be finite and greater than one')\n            fraction = opening if opening in (0.0, 1.0) else math.expm1(opening * math.log(ratio)) / (ratio - 1)\n        else:\n            raise ValueError('characteristic must be linear or equal_percentage')\n        effective = point.rated_kv_m3_h * fraction\n        drop = max(point.inlet_pressure_pa-point.outlet_pressure_pa,0.)\n        mass = effective/3600*math.sqrt(1000*point.inlet_density_kg_m3*drop/100000)\n        ctx.refrigeration.flow(mass_flow_kg_s=mass,effective_kv_m3_h=effective)\n        ctx.var('opening',point.opening_ratio)\n\n    def commit_step(self, ctx: ModuleContext, dt_s: float) -> None:\n        count = ctx.state['accepted_segments']\n        if isinstance(count,bool) or not isinstance(count,int):\n            raise ValueError('accepted_segments must be an integer')\n        ctx.state['accepted_segments'] = count+1\n\n    def finalize(self, ctx: ModuleContext) -> None:\n        pass\n\n\ndef typed_module() -> DeviceModule:\n    return Module()\n"
+      },
+      "runtime": "python",
+      "entrypoint": "module:Module",
+      "content_hash": "78b5d6698931a2a123626737ebc548e27be15644898d6123a66bda62ea1c79cf",
+      "definition_hash": "a54374f5f4a545a0431ddb4d59ac3ab32d7d7338555526da3bddec808e64ffcc",
+      "package_path": null,
+      "bank_names": [
+        "额定工况",
+        "部分负荷",
+        "调试备份"
+      ],
+      "sdk": {
+        "api_version": "0.7.0",
+        "capabilities": [
+          "context.execution.v1",
+          "refrigeration.throttle.v1",
+          "state.transactions.v1"
+        ],
+        "state_contract_version": 1
+      },
+      "applicability": {
+        "execution_domains": [
+          "refrigeration"
+        ],
+        "fluids": [],
+        "assumptions": []
+      },
+      "execution_role": "refrigeration.isenthalpic_throttle.v1"
+    }
+  ],
+  "instances": [
+    {
+      "id": "LP1",
+      "module_id": "lp_drum",
+      "name": "低压循环桶",
+      "page_id": "main",
+      "position": {
+        "x": 190.0,
+        "y": 220.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "temperature_k": 241.482716507
+      },
+      "draft_parameters": {},
+      "banks": [],
+      "model_id": null,
+      "model_version": null,
+      "package": null
+    },
+    {
+      "id": "HP1",
+      "module_id": "hp_receiver",
+      "name": "高压贮液器",
+      "page_id": "main",
+      "position": {
+        "x": 890.0,
+        "y": 330.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "temperature_k": 308.150214111,
+        "level_ratio": 0.633
+      },
+      "draft_parameters": {},
+      "banks": [],
+      "model_id": null,
+      "model_version": null,
+      "package": null
+    },
+    {
+      "id": "CD1",
+      "module_id": "pumped_drum",
+      "name": "CO₂ 储液器",
+      "page_id": "main",
+      "position": {
+        "x": 190.0,
+        "y": 640.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "temperature_k": 245.577548873
+      },
+      "draft_parameters": {},
+      "banks": [],
+      "model_id": null,
+      "model_version": null,
+      "package": null
+    },
+    {
+      "id": "SH1",
+      "module_id": "refrigerant_header",
+      "name": "吸气集管",
+      "page_id": "main",
+      "position": {
+        "x": 330.0,
+        "y": 150.0
+      },
+      "rotation": 0,
+      "parameters": {},
+      "draft_parameters": {},
+      "banks": [],
+      "model_id": null,
+      "model_version": null,
+      "package": null
+    },
+    {
+      "id": "DH1",
+      "module_id": "refrigerant_header",
+      "name": "排气集管",
+      "page_id": "main",
+      "position": {
+        "x": 610.0,
+        "y": 150.0
+      },
+      "rotation": 0,
+      "parameters": {},
+      "draft_parameters": {},
+      "banks": [],
+      "model_id": null,
+      "model_version": null,
+      "package": null
+    },
+    {
+      "id": "K1",
+      "module_id": "refrigerant_compressor",
+      "name": "压缩机 1",
+      "page_id": "main",
+      "position": {
+        "x": 470.0,
+        "y": 80.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "running": 1.0,
+        "load_ratio": 0.826,
+        "displacement_m3_s": 0.09166666666666666,
+        "max_pressure_ratio": 14.0
+      },
+      "draft_parameters": {},
+      "banks": [],
+      "model_id": null,
+      "model_version": null,
+      "package": null
+    },
+    {
+      "id": "K2",
+      "module_id": "refrigerant_compressor",
+      "name": "压缩机 2",
+      "page_id": "main",
+      "position": {
+        "x": 470.0,
+        "y": 160.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "running": 1.0,
+        "load_ratio": 0.826,
+        "displacement_m3_s": 0.09166666666666666,
+        "max_pressure_ratio": 14.0
+      },
+      "draft_parameters": {},
+      "banks": [],
+      "model_id": null,
+      "model_version": null,
+      "package": null
+    },
+    {
+      "id": "K3",
+      "module_id": "refrigerant_compressor",
+      "name": "压缩机 3",
+      "page_id": "main",
+      "position": {
+        "x": 470.0,
+        "y": 240.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "running": 1.0,
+        "load_ratio": 0.826,
+        "displacement_m3_s": 0.09166666666666666,
+        "max_pressure_ratio": 14.0
+      },
+      "draft_parameters": {},
+      "banks": [],
+      "model_id": null,
+      "model_version": null,
+      "package": null
+    },
+    {
+      "id": "K4",
+      "module_id": "refrigerant_compressor",
+      "name": "压缩机 4",
+      "page_id": "main",
+      "position": {
+        "x": 470.0,
+        "y": 320.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "running": 0.0,
+        "load_ratio": 0.826,
+        "displacement_m3_s": 0.09166666666666666,
+        "max_pressure_ratio": 14.0
+      },
+      "draft_parameters": {},
+      "banks": [],
+      "model_id": null,
+      "model_version": null,
+      "package": null
+    },
+    {
+      "id": "Condenser-Custom",
+      "module_id": "evaporative_condenser",
+      "name": "蒸发式冷凝器",
+      "page_id": "main",
+      "position": {
+        "x": 750.0,
+        "y": 150.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "return_gas_ratio": 0.739
+      },
+      "draft_parameters": {},
+      "banks": [],
+      "model_id": null,
+      "model_version": null,
+      "package": null
+    },
+    {
+      "id": "Expansion-Custom",
+      "module_id": "isenthalpic_throttle",
+      "name": "电磁节流阀",
+      "page_id": "main",
+      "position": {
+        "x": 890.0,
+        "y": 470.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "opening_ratio": 0.388
+      },
+      "draft_parameters": {},
+      "banks": [],
+      "model_id": null,
+      "model_version": null,
+      "package": {
+        "module_id": "isenthalpic_throttle",
+        "version": "1.0.0",
+        "content_hash": "78b5d6698931a2a123626737ebc548e27be15644898d6123a66bda62ea1c79cf",
+        "definition_hash": "a54374f5f4a545a0431ddb4d59ac3ab32d7d7338555526da3bddec808e64ffcc"
+      }
+    },
+    {
+      "id": "RH1",
+      "module_id": "refrigerant_header",
+      "name": "低压桶回气集管",
+      "page_id": "main",
+      "position": {
+        "x": 610.0,
+        "y": 520.0
+      },
+      "rotation": 0,
+      "parameters": {},
+      "draft_parameters": {},
+      "banks": [],
+      "model_id": null,
+      "model_version": null,
+      "package": null
+    },
+    {
+      "id": "HX1",
+      "module_id": "cascade_exchanger",
+      "name": "复叠换热器",
+      "page_id": "main",
+      "position": {
+        "x": 330.0,
+        "y": 560.0
+      },
+      "rotation": 0,
+      "parameters": {},
+      "draft_parameters": {},
+      "banks": [],
+      "model_id": null,
+      "model_version": null,
+      "package": null
+    },
+    {
+      "id": "PU1",
+      "module_id": "refrigerant_pump",
+      "name": "CO₂ 液泵",
+      "page_id": "main",
+      "position": {
+        "x": 330.0,
+        "y": 720.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "rated_mass_flow_kg_s": 3.0,
+        "speed_ratio": 0.72
+      },
+      "draft_parameters": {},
+      "banks": [],
+      "model_id": null,
+      "model_version": null,
+      "package": null
+    },
+    {
+      "id": "FH1",
+      "module_id": "refrigerant_header",
+      "name": "供液集管",
+      "page_id": "main",
+      "position": {
+        "x": 470.0,
+        "y": 720.0
+      },
+      "rotation": 0,
+      "parameters": {},
+      "draft_parameters": {},
+      "banks": [],
+      "model_id": null,
+      "model_version": null,
+      "package": null
+    },
+    {
+      "id": "BH1",
+      "module_id": "refrigerant_header",
+      "name": "湿回气集管",
+      "page_id": "main",
+      "position": {
+        "x": 190.0,
+        "y": 800.0
+      },
+      "rotation": 0,
+      "parameters": {},
+      "draft_parameters": {},
+      "banks": [],
+      "model_id": null,
+      "model_version": null,
+      "package": null
+    },
+    {
+      "id": "AC1",
+      "module_id": "air_cooler",
+      "name": "冷风机 1",
+      "page_id": "main",
+      "position": {
+        "x": 610.0,
+        "y": 640.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "fan_ratio": 0.6,
+        "ua_w_k": 15000.0
+      },
+      "draft_parameters": {},
+      "banks": [],
+      "model_id": null,
+      "model_version": null,
+      "package": null
+    },
+    {
+      "id": "AC2",
+      "module_id": "air_cooler",
+      "name": "冷风机 2",
+      "page_id": "main",
+      "position": {
+        "x": 610.0,
+        "y": 800.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "fan_ratio": 0.6,
+        "ua_w_k": 15000.0
+      },
+      "draft_parameters": {},
+      "banks": [],
+      "model_id": null,
+      "model_version": null,
+      "package": null
+    },
+    {
+      "id": "ROOM1",
+      "module_id": "cold_room",
+      "name": "库房 1",
+      "page_id": "main",
+      "position": {
+        "x": 790.0,
+        "y": 640.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "temperature_k": 255.15,
+        "heat_capacity_j_k": 20000000.0,
+        "ambient_temperature_k": 305.15,
+        "ground_temperature_k": 283.15,
+        "wall_ua_w_k": 900.0,
+        "roof_ua_w_k": 450.0,
+        "floor_ua_w_k": 250.0,
+        "heat_input_w": 15000.0
+      },
+      "draft_parameters": {},
+      "banks": [],
+      "model_id": null,
+      "model_version": null,
+      "package": null
+    },
+    {
+      "id": "ROOM2",
+      "module_id": "cold_room",
+      "name": "库房 2",
+      "page_id": "main",
+      "position": {
+        "x": 790.0,
+        "y": 800.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "temperature_k": 255.15,
+        "heat_capacity_j_k": 20000000.0,
+        "ambient_temperature_k": 305.15,
+        "ground_temperature_k": 283.15,
+        "wall_ua_w_k": 900.0,
+        "roof_ua_w_k": 450.0,
+        "floor_ua_w_k": 250.0,
+        "heat_input_w": 15000.0
+      },
+      "draft_parameters": {},
+      "banks": [],
+      "model_id": null,
+      "model_version": null,
+      "package": null
+    }
+  ],
+  "connections": [
+    {
+      "id": "s0",
+      "source": {
+        "instance_id": "LP1",
+        "port_id": "vapor"
+      },
+      "target": {
+        "instance_id": "SH1",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "s1",
+      "source": {
+        "instance_id": "SH1",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "K1",
+        "port_id": "suction"
+      }
+    },
+    {
+      "id": "s2",
+      "source": {
+        "instance_id": "SH1",
+        "port_id": "out1"
+      },
+      "target": {
+        "instance_id": "K2",
+        "port_id": "suction"
+      }
+    },
+    {
+      "id": "s3",
+      "source": {
+        "instance_id": "SH1",
+        "port_id": "out2"
+      },
+      "target": {
+        "instance_id": "K3",
+        "port_id": "suction"
+      }
+    },
+    {
+      "id": "s4",
+      "source": {
+        "instance_id": "SH1",
+        "port_id": "out3"
+      },
+      "target": {
+        "instance_id": "K4",
+        "port_id": "suction"
+      }
+    },
+    {
+      "id": "d1",
+      "source": {
+        "instance_id": "K1",
+        "port_id": "discharge"
+      },
+      "target": {
+        "instance_id": "DH1",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "d2",
+      "source": {
+        "instance_id": "K2",
+        "port_id": "discharge"
+      },
+      "target": {
+        "instance_id": "DH1",
+        "port_id": "in1"
+      }
+    },
+    {
+      "id": "d3",
+      "source": {
+        "instance_id": "K3",
+        "port_id": "discharge"
+      },
+      "target": {
+        "instance_id": "DH1",
+        "port_id": "in2"
+      }
+    },
+    {
+      "id": "d4",
+      "source": {
+        "instance_id": "K4",
+        "port_id": "discharge"
+      },
+      "target": {
+        "instance_id": "DH1",
+        "port_id": "in3"
+      }
+    },
+    {
+      "id": "d0",
+      "source": {
+        "instance_id": "DH1",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Condenser-Custom",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "c1",
+      "source": {
+        "instance_id": "Condenser-Custom",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "HP1",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "v1",
+      "source": {
+        "instance_id": "HP1",
+        "port_id": "liquid"
+      },
+      "target": {
+        "instance_id": "Expansion-Custom",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "v2",
+      "source": {
+        "instance_id": "Expansion-Custom",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "RH1",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "v3",
+      "source": {
+        "instance_id": "RH1",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "LP1",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "x1",
+      "source": {
+        "instance_id": "LP1",
+        "port_id": "liquid"
+      },
+      "target": {
+        "instance_id": "HX1",
+        "port_id": "evap_in"
+      }
+    },
+    {
+      "id": "x2",
+      "source": {
+        "instance_id": "HX1",
+        "port_id": "evap_out"
+      },
+      "target": {
+        "instance_id": "RH1",
+        "port_id": "in1"
+      }
+    },
+    {
+      "id": "x3",
+      "source": {
+        "instance_id": "CD1",
+        "port_id": "vapor"
+      },
+      "target": {
+        "instance_id": "HX1",
+        "port_id": "cond_in"
+      }
+    },
+    {
+      "id": "x4",
+      "source": {
+        "instance_id": "HX1",
+        "port_id": "cond_out"
+      },
+      "target": {
+        "instance_id": "CD1",
+        "port_id": "in1"
+      }
+    },
+    {
+      "id": "p1",
+      "source": {
+        "instance_id": "CD1",
+        "port_id": "liquid"
+      },
+      "target": {
+        "instance_id": "PU1",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "p2",
+      "source": {
+        "instance_id": "PU1",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "FH1",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "f1",
+      "source": {
+        "instance_id": "FH1",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "AC1",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "f2",
+      "source": {
+        "instance_id": "FH1",
+        "port_id": "out1"
+      },
+      "target": {
+        "instance_id": "AC2",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "b1",
+      "source": {
+        "instance_id": "AC1",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "BH1",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "b2",
+      "source": {
+        "instance_id": "AC2",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "BH1",
+        "port_id": "in1"
+      }
+    },
+    {
+      "id": "b0",
+      "source": {
+        "instance_id": "BH1",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "CD1",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "h1",
+      "source": {
+        "instance_id": "AC1",
+        "port_id": "heat"
+      },
+      "target": {
+        "instance_id": "ROOM1",
+        "port_id": "heat"
+      }
+    },
+    {
+      "id": "h2",
+      "source": {
+        "instance_id": "AC2",
+        "port_id": "heat"
+      },
+      "target": {
+        "instance_id": "ROOM2",
+        "port_id": "heat"
+      }
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "half-opening",
+      "name": "初始半开度",
+      "overrides": {
+        "Expansion-Custom": {
+          "opening_ratio": 0.5
+        }
+      },
+      "events": null
+    },
+    {
+      "id": "equal-percentage",
+      "name": "等百分比特性",
+      "overrides": {
+        "Expansion-Custom": {
+          "characteristic": "equal_percentage"
+        }
+      },
+      "events": null
+    }
+  ],
+  "selected_variables": [],
+  "import_diagnostics": [],
+  "solver": {
+    "module_mixed_jacobian": false,
+    "module_cache": false,
+    "pressure_tolerance_pa": 1.0,
+    "mass_tolerance_kg_s": 1e-08,
+    "max_iterations": 80,
+    "dynamic_step_s": 10.0,
+    "thermal": true,
+    "property_coupling": "reference",
+    "thermal_tolerance_k": 1e-06,
+    "max_thermal_iterations": 50,
+    "max_coupling_iterations": 20,
+    "coupling_density_rtol": 1e-06,
+    "thermal_acceleration": "none",
+    "coupling_acceleration": "none",
+    "moist_air": false,
+    "max_step_halvings": 6,
+    "hydraulic_method": "dense",
+    "hydraulic_diagnostics": false,
+    "analytic_jacobian": true,
+    "series_compression": false,
+    "hydraulic_blocks": false,
+    "module_parallelism": 1,
+    "batch_modules": true,
+    "time_step": {
+      "enabled": false,
+      "mass_atol_kg": 1e-09,
+      "energy_atol_j": 0.001,
+      "temperature_atol_k": 1e-05,
+      "rtol": 1e-06,
+      "min_internal_step_s": 0.001,
+      "max_internal_step_s": null,
+      "safety": 0.9,
+      "growth_factor": 2.0,
+      "shrink_factor": 0.5
+    }
+  },
+  "controllers": [
+    {
+      "id": "suction",
+      "measurement": "LP1.state.pressure_pa",
+      "instance_id": "K1",
+      "parameter_id": "load_ratio",
+      "setpoint": 110000.0,
+      "kp": -2e-05,
+      "ki": -6.666666666666667e-08,
+      "kd": 0.0,
+      "sample_s": 10.0,
+      "minimum": 0.2,
+      "maximum": 1.0,
+      "mode": "auto",
+      "manual_output": null
+    },
+    {
+      "id": "head",
+      "measurement": "HP1.state.pressure_pa",
+      "instance_id": "Condenser-Custom",
+      "parameter_id": "return_gas_ratio",
+      "setpoint": 1350000.0,
+      "kp": -4e-06,
+      "ki": -1.3333333333333332e-08,
+      "kd": 0.0,
+      "sample_s": 10.0,
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "mode": "auto",
+      "manual_output": null
+    },
+    {
+      "id": "level",
+      "measurement": "HP1.state.level_ratio",
+      "instance_id": "Expansion-Custom",
+      "parameter_id": "opening_ratio",
+      "setpoint": 0.633,
+      "kp": -5.0,
+      "ki": -0.008333333333333333,
+      "kd": 0.0,
+      "sample_s": 10.0,
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "mode": "auto",
+      "manual_output": null
+    },
+    {
+      "id": "room1",
+      "measurement": "ROOM1.state.temperature_k",
+      "instance_id": "AC1",
+      "parameter_id": "fan_ratio",
+      "setpoint": 255.15,
+      "kp": -0.3,
+      "ki": -0.00025,
+      "kd": 0.0,
+      "sample_s": 10.0,
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "mode": "auto",
+      "manual_output": null
+    },
+    {
+      "id": "room2",
+      "measurement": "ROOM2.state.temperature_k",
+      "instance_id": "AC2",
+      "parameter_id": "fan_ratio",
+      "setpoint": 255.15,
+      "kp": -0.3,
+      "ki": -0.00025,
+      "kd": 0.0,
+      "sample_s": 10.0,
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "mode": "auto",
+      "manual_output": null
+    }
+  ],
+  "control_scripts": [
+    {
+      "id": "control",
+      "language": "python",
+      "enabled": true,
+      "source": "MIN_ON, MIN_OFF, CONFIRM = 600.0, 300.0, 300.0   # compressor minimum on/off and staging confirmation, s\nSTART_LOAD, STOP_REMAINING = 0.95, 0.90        # start when the running mean load stays high; stop if the rest stay below\nFAN_INTERVAL = 300.0                           # condenser fan group staging, s\nNATURAL, FLOODED = 0.2, 0.5                    # EC1 natural_ua_ratio / flooded_ua_ratio\nFAN_RAMP = 0.005                               # fan ratio change per 10 s sample (one group in 1000 s)\nPUMP_MIN, PUMP_GAIN = 0.3, 0.7                 # loop 5: pump speed from the mean cooler fan ratio\nBAND = 1.0                                     # demand satisfaction: room within setpoint ± BAND\nFOLLOWERS = [\"K2\", \"K3\", \"K4\"]\n\ndef initialize(ctx):\n    ctx.state.update({\"last_K2\": -1e9, \"last_K3\": -1e9, \"last_K4\": -1e9, \"high_since\": -1.0, \"low_since\": -1.0,\n                      \"fan_since\": -1e9, \"fan_high_since\": -1.0, \"fan_low_since\": -1.0, \"in_band_1\": 0.0, \"in_band_2\": 0.0,\n                      \"elapsed\": 0.0, \"starts\": 0.0, \"stops\": 0.0, \"fan_changes\": 0.0, \"reason\": \"初始\",\n                      \"infeasible_since\": -1.0, \"infeasible\": 0.0})\n\ndef timer(ctx, key, active, t):\n    if not active:\n        ctx.state[key] = -1.0\n        return 0.0\n    if ctx.state[key] < 0:\n        ctx.state[key] = t\n    return t - ctx.state[key]\n\ndef needed(fan, lower, valve):\n    # Return-gas opening that keeps today's UA after dropping one fan group (condenser UA model of EC1).\n    ua = (NATURAL + (1 - NATURAL) * fan) * (FLOODED + (1 - FLOODED) * valve)\n    return (ua / (NATURAL + (1 - NATURAL) * lower) - FLOODED) / (1 - FLOODED)\n\ndef step(ctx, dt_s):\n    s, t = ctx.state, ctx.time_s\n    lead = ctx.read(\"K1.param.load_ratio\")\n    running = [k for k in FOLLOWERS if ctx.read(k + \".param.running\") >= 0.5]\n    n = 1 + len(running)\n    # Upper loop: number of compressors from the lead load (all running units carry the same load).\n    if timer(ctx, \"high_since\", lead >= START_LOAD, t) >= CONFIRM:\n        stopped = [k for k in FOLLOWERS if k not in running and t - s[\"last_\" + k] >= MIN_OFF]\n        if stopped:\n            running.append(stopped[0]); s[\"last_\" + stopped[0]] = t; s[\"high_since\"] = -1.0\n            s[\"starts\"] += 1; s[\"reason\"] = f\"t={t:.0f}s 载量 {lead:.2f} 持续偏高，启动 {stopped[0]}\"\n    remaining = lead * n / (n - 1) if n > 1 else 9.0\n    if timer(ctx, \"low_since\", remaining < STOP_REMAINING, t) >= CONFIRM:\n        movable = [k for k in reversed(running) if t - s[\"last_\" + k] >= MIN_ON]\n        if movable:\n            running.remove(movable[0]); s[\"last_\" + movable[0]] = t; s[\"low_since\"] = -1.0\n            s[\"stops\"] += 1; s[\"reason\"] = f\"t={t:.0f}s 停一台后载量约 {remaining:.2f}，停止 {movable[0]}\"\n    for k in FOLLOWERS:\n        ctx.write(k + \".param.running\", 1.0 if k in running else 0.0)\n        ctx.write(k + \".param.load_ratio\", lead)\n    # Upper loop: condenser fan groups (0, 1/2, 1) from the return-gas valve the pressure PID is using.\n    # Upper loop: condenser fan groups (stages 0, 1/2, 1) from the return-gas valve the pressure PID is using;\n    # the fan ratio ramps to the stage (FAN_RAMP per sample), as fan motors do.\n    fan, valve = ctx.read(\"Condenser-Custom.param.fan_ratio\"), ctx.read(\"Condenser-Custom.param.return_gas_ratio\")\n    stage = s.setdefault(\"fan_stage\", fan)\n    error = ctx.read(\"HP1.state.pressure_pa\") - ctx.read(\"controller.head.setpoint\")\n    if t - s[\"fan_since\"] >= FAN_INTERVAL and abs(fan - stage) < 1e-9:\n        raise_ok = valve >= 0.98 and error > 2e4 and stage < 1.0\n        lower_ok = valve <= 0.6 and error <= 1e4 and stage > 0.0 and needed(stage, stage - 0.5, valve) <= 0.85\n        if timer(ctx, \"fan_high_since\", raise_ok, t) >= 120.0:\n            stage = min(1.0, stage + 0.5); s[\"fan_since\"] = t; s[\"fan_changes\"] += 1\n            s[\"reason\"] = f\"t={t:.0f}s 回气阀全开仍超压，冷凝器风机增至 {stage:.1f}\"\n        elif timer(ctx, \"fan_low_since\", lower_ok, t) >= FAN_INTERVAL:\n            stage = max(0.0, stage - 0.5); s[\"fan_since\"] = t; s[\"fan_changes\"] += 1\n            s[\"reason\"] = f\"t={t:.0f}s 回气阀开度低、冷凝能力过剩，冷凝器风机减至 {stage:.1f}\"\n    s[\"fan_stage\"] = stage\n    fan = min(stage, fan + FAN_RAMP) if stage > fan else max(stage, fan - FAN_RAMP)\n    ctx.write(\"Condenser-Custom.param.fan_ratio\", fan)\n    # Condensing target not reachable: return-gas valve and fans fully open, pressure still high.\n    if timer(ctx, \"infeasible_since\", valve >= 0.98 and fan >= 1.0 and error > 2e4, t) >= 1800.0 and not s[\"infeasible\"]:\n        s[\"infeasible\"] = 1.0\n        ctx.log(f\"冷凝能力已到上限，目标冷凝压力不可达（实际高出 {error / 1000:.0f} kPa）\")\n    elif s[\"infeasible_since\"] < 0:\n        s[\"infeasible\"] = 0.0\n    # Loop 5: CO2 pump speed follows the cooler fans.\n    mean_fan = (ctx.read(\"AC1.param.fan_ratio\") + ctx.read(\"AC2.param.fan_ratio\")) / 2\n    ctx.write(\"PU1.param.speed_ratio\", min(1.0, max(PUMP_MIN, PUMP_MIN + PUMP_GAIN * mean_fan)))\n    # Feedback: demand satisfaction (own definition: time share inside setpoint ± BAND).\n    s[\"elapsed\"] += dt_s\n    for i in (1, 2):\n        if abs(ctx.read(f\"ROOM{i}.state.temperature_k\") - ctx.read(f\"controller.room{i}.setpoint\")) <= BAND:\n            s[f\"in_band_{i}\"] += dt_s\n    s[\"satisfaction\"] = (s[\"in_band_1\"] + s[\"in_band_2\"]) / (2 * s[\"elapsed\"]) if s[\"elapsed\"] > 0 else 1.0\n    s[\"running\"] = float(len(running) + 1)\n\ndef finalize(ctx):\n    pass\n",
+      "sample_s": 10.0,
+      "inputs": [
+        "K1.param.load_ratio",
+        "K2.param.running",
+        "K3.param.running",
+        "K4.param.running",
+        "Condenser-Custom.param.fan_ratio",
+        "Condenser-Custom.param.return_gas_ratio",
+        "HP1.state.pressure_pa",
+        "controller.head.setpoint",
+        "AC1.param.fan_ratio",
+        "AC2.param.fan_ratio",
+        "ROOM1.state.temperature_k",
+        "ROOM2.state.temperature_k",
+        "controller.room1.setpoint",
+        "controller.room2.setpoint"
+      ],
+      "outputs": [
+        "K2.param.running",
+        "K2.param.load_ratio",
+        "K3.param.running",
+        "K3.param.load_ratio",
+        "K4.param.running",
+        "K4.param.load_ratio",
+        "Condenser-Custom.param.fan_ratio",
+        "PU1.param.speed_ratio"
+      ],
+      "timeout_s": 5.0,
+      "content_hash": "2de3410729193703d30a8277cdbe4bb82dec2b83aa9e7c015a679313cb79be09"
+    }
+  ],
+  "circuit_fluids": [
+    {
+      "id": "nh3",
+      "anchor": {
+        "instance_id": "LP1",
+        "port_id": "in0"
+      },
+      "fluid": {
+        "backend": "coolprop",
+        "fluid": "Ammonia",
+        "composition": {},
+        "reference": "mass",
+        "phase_policy": "single_phase"
+      }
+    },
+    {
+      "id": "co2",
+      "anchor": {
+        "instance_id": "CD1",
+        "port_id": "in0"
+      },
+      "fluid": {
+        "backend": "coolprop",
+        "fluid": "CarbonDioxide",
+        "composition": {},
+        "reference": "mass",
+        "phase_policy": "single_phase"
+      }
+    }
+  ],
+  "events": []
+}

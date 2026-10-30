@@ -1,0 +1,276 @@
+{
+  "$defs": {
+    "Diagnostic": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "severity": {
+          "default": "error",
+          "enum": [
+            "info",
+            "warning",
+            "error"
+          ],
+          "title": "Severity",
+          "type": "string"
+        },
+        "instance_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Instance Id"
+        },
+        "field": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Field"
+        },
+        "module_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Module Id"
+        },
+        "module_version": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Module Version"
+        },
+        "phase": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Phase"
+        },
+        "time_s": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Time S"
+        },
+        "source_file": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source File"
+        },
+        "source_line": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Line"
+        },
+        "channel_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Channel Id"
+        },
+        "source_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Path"
+        },
+        "occurrences": {
+          "default": 1,
+          "minimum": 1,
+          "title": "Occurrences",
+          "type": "integer"
+        },
+        "first_time_s": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "First Time S"
+        },
+        "last_time_s": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Time S"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "title": "Diagnostic",
+      "type": "object"
+    },
+    "PsychrometricLine": {
+      "additionalProperties": false,
+      "properties": {
+        "relative_humidity": {
+          "title": "Relative Humidity",
+          "type": "number"
+        },
+        "segments": {
+          "items": {
+            "items": {
+              "$ref": "#/$defs/PsychrometricPoint"
+            },
+            "type": "array"
+          },
+          "title": "Segments",
+          "type": "array"
+        }
+      },
+      "required": [
+        "relative_humidity",
+        "segments"
+      ],
+      "title": "PsychrometricLine",
+      "type": "object"
+    },
+    "PsychrometricPoint": {
+      "additionalProperties": false,
+      "properties": {
+        "temperature_k": {
+          "title": "Temperature K",
+          "type": "number"
+        },
+        "humidity_ratio_kg_kg": {
+          "title": "Humidity Ratio Kg Kg",
+          "type": "number"
+        }
+      },
+      "required": [
+        "temperature_k",
+        "humidity_ratio_kg_kg"
+      ],
+      "title": "PsychrometricPoint",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "contract_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Contract Version",
+      "type": "integer"
+    },
+    "pressure_pa": {
+      "title": "Pressure Pa",
+      "type": "number"
+    },
+    "temperature_min_k": {
+      "title": "Temperature Min K",
+      "type": "number"
+    },
+    "temperature_max_k": {
+      "title": "Temperature Max K",
+      "type": "number"
+    },
+    "humidity_max_kg_kg": {
+      "title": "Humidity Max Kg Kg",
+      "type": "number"
+    },
+    "lines": {
+      "items": {
+        "$ref": "#/$defs/PsychrometricLine"
+      },
+      "title": "Lines",
+      "type": "array"
+    },
+    "diagnostics": {
+      "items": {
+        "$ref": "#/$defs/Diagnostic"
+      },
+      "title": "Diagnostics",
+      "type": "array"
+    }
+  },
+  "required": [
+    "pressure_pa",
+    "temperature_min_k",
+    "temperature_max_k",
+    "humidity_max_kg_kg",
+    "lines"
+  ],
+  "title": "AirGridResponse",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

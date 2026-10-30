@@ -1,10 +1,11 @@
+import {FHD_CONTEXT, captureFhd} from './browser-viewport.mjs';
 import { testServer } from './browser-server.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 
 const fixture=await testServer();
 const browser = await chromium.launch({channel:'msedge',headless:true});
-const page = await browser.newPage({viewport:{width:1600,height:1000}});
+const page = await browser.newPage({...FHD_CONTEXT});
 const errors=[];
 page.on('pageerror',e=>errors.push(e.message));
 const save=async()=>{
@@ -28,7 +29,7 @@ try {
   let state=await save();
   expect(state.bench.run.values.q).toBe(bench.frame.variables['D1.mass_flow_kg_s']);
   mkdirSync('artifacts',{recursive:true});
-  await page.screenshot({path:'artifacts/module-bench.png',fullPage:true});
+  await captureFhd(page, 'artifacts/module-bench.png');
   await page.locator('.rail-link[data-route="modules"]').click();
   await card.locator('[data-action="module-example"]').click();
   await expect(page.locator('[data-node="V1"]')).toContainText('可编程阀门');
@@ -45,7 +46,7 @@ try {
   await expect(page.locator('#app-header')).toContainText(/v\d+\.\d+\.\d+/);
   await page.locator('[data-node="V1"]').dblclick();
   await expect(page.locator('[data-instance-param="opening_ratio"][type="number"]')).toHaveValue('0.8');
-  await page.screenshot({path:'artifacts/module-project.png',fullPage:true});
+  await captureFhd(page, 'artifacts/module-project.png');
   await page.locator('[data-action="float-close"]').first().click();
   // A package from the server can use the original prototype drag/drop path.
   const drag=page.locator('[data-drag-module="programmable_valve"]');
@@ -59,7 +60,7 @@ try {
     commits:project.run.history.at(-1).canonical['V1.state.commit_count'],errors},null,2));
 } catch(error) {
   mkdirSync('artifacts',{recursive:true});
-  await page.screenshot({path:'artifacts/platform-failure.png',fullPage:true});
+  await captureFhd(page, 'artifacts/platform-failure.png');
   console.error('Browser errors:',errors);
   throw error;
 } finally { await browser.close(); await fixture.close(); }

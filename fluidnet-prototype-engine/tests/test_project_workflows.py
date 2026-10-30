@@ -58,7 +58,7 @@ def test_v1_database_migration_and_project_history_are_durable(tmp_path):
     try:
         assert store.project('p')['revision']==2
         assert store.project('p')['document']['project']['name']=='migrated project'
-        assert store.db.execute('PRAGMA user_version').fetchone()[0]==2
+        assert store.db.execute('PRAGMA user_version').fetchone()[0]==3
     finally:store.close()
 
 

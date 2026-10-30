@@ -85,6 +85,30 @@
       "default": null,
       "title": "Mass Flow Kg S"
     },
+    "dry_air_mass_flow_kg_s": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Dry Air Mass Flow Kg S"
+    },
+    "water_vapor_mass_flow_kg_s": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Water Vapor Mass Flow Kg S"
+    },
     "quality": {
       "anyOf": [
         {
@@ -96,6 +120,78 @@
       ],
       "default": null,
       "title": "Quality"
+    },
+    "humidity_ratio_kg_kg": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Humidity Ratio Kg Kg"
+    },
+    "relative_humidity": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Relative Humidity"
+    },
+    "enthalpy_j_kg_dry_air": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Enthalpy J Kg Dry Air"
+    },
+    "specific_heat_j_kg_dry_air_k": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Specific Heat J Kg Dry Air K"
+    },
+    "dew_point_k": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Dew Point K"
+    },
+    "wet_bulb_k": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Wet Bulb K"
     },
     "composition": {
       "additionalProperties": {

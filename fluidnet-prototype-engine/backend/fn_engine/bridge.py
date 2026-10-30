@@ -21,7 +21,7 @@ PROTOTYPE_MEDIA = {
 
 # Prototype parameter names -> canonical contract names. Conversion comes from UnitSpec.
 PARAMETER_BINDINGS = {
-    'source': {'pressure':'pressure_pa', 'temperature':'temperature_k'},
+    'source': {'pressure':'pressure_pa', 'temperature':'temperature_k', 'humidity_ratio_kg_kg':'humidity_ratio_kg_kg'},
     'pump': {'speed':'speed_ratio', 'efficiency':'efficiency_ratio', 'head_curve':'head_curve'},
     'valve': {'opening':'opening_ratio', 'kv':'kv_m3_h'},
     'pipe': {'length':'length_m', 'diameter':'diameter_m', 'roughness':'roughness_m',
@@ -29,6 +29,7 @@ PARAMETER_BINDINGS = {
              'cells':'thermal_cells', 'wallHeat':'wall_heat_capacity_j_k'},
     'junction': {'elevation':'elevation_m'},
     'exchanger': {'ua':'ua_w_k', 'loss':'loss_coefficient', 'diameter':'diameter_m'},
+    'heater': {'power':'heat_input_w', 'loss':'loss_coefficient', 'diameter':'diameter_m'},
     'tank': {'level':'level_m', 'area':'area_m2', 'height':'height_m', 'surface':'surface_pressure_pa',
              'temperature':'temperature_k', 'heater':'heat_input_w', 'heatLoss':'heat_loss_ua_w_k',
              'ambient':'ambient_temperature_k'},
@@ -37,11 +38,19 @@ PARAMETER_BINDINGS = {
        for definition in (*thermal_catalog(), *cold_store_catalog(), *refrigeration_catalog())},
 }
 
+# 新风侧设备使用合同参数 ID；UI 值仍按 UnitSpec 显示单位保存。
+for _air_definition in catalog_map().values():
+    if _air_definition.id in ('duct','cooling_coil','humidifier','air_mixing_box','air_filter','air_room','cooling_tower_moist','water_coil','water_chiller'):
+        PARAMETER_BINDINGS[_air_definition.id] = {p.id:p.id for p in _air_definition.parameters}
+
 
 def parameter_map(kind, params, definition):
     # Python module packages own their canonical contract IDs. Built-in
     # prototype modules still use the legacy UI names and bindings below.
-    names = {key: key for key in params} if definition.runtime == 'python' else PARAMETER_BINDINGS[kind]
+    names = {key: key for key in params} if definition.runtime == 'python' else {
+        **{p.id:p.id for p in definition.parameters}, **PARAMETER_BINDINGS[kind]}
+    if len({names.get(key,key) for key in params}) != len(params):
+        raise ValueError(f'{kind} 同时使用同一参数的旧名和合同名，请保留一种写法')
     unknown = params.keys() - names.keys()
     if unknown:
         raise ValueError(f'{kind} 不支持参数 {sorted(unknown)}')
@@ -55,6 +64,21 @@ def parameter_map(kind, params, definition):
             for key,value in params.items()}
 
 
+def prototype_fluid(raw: dict[str, Any]) -> FluidConfig:
+    """Preserve imported property settings while honoring Studio's visible selectors."""
+    config = deepcopy(raw.get('fluidConfig', {}))
+    if not isinstance(config, dict):
+        raise ValueError('fluidConfig 必须为工质配置对象')
+    medium = raw.get('medium', 'water')
+    fluid_text = str(raw.get('fluid', config.get('fluid')) or '').strip()
+    if not fluid_text and medium not in PROTOTYPE_MEDIA:
+        raise ValueError(f'不支持的介质 {medium}；可选：{"、".join(PROTOTYPE_MEDIA)}')
+    reference = raw.get('fluidReference', config.get('reference', 'mass'))
+    if reference not in ('mass', 'mole'):
+        raise ValueError('fluidReference 只能是 mass 或 mole')
+    return FluidConfig.model_validate(config | {'fluid': fluid_text or PROTOTYPE_MEDIA[medium], 'reference': reference})
+
+
 def normalize_prototype_export(data: dict[str, Any]) -> Project:
     if data.get('format') != 'fluidnet-studio-prototype':
         raise ValueError('需要包含项目的 fluidnet-studio-prototype 导出文件')
@@ -65,14 +89,7 @@ def normalize_prototype_export(data: dict[str, Any]) -> Project:
     raw = next((p for p in projects if p.get('id') == active_id), None)
     if raw is None:
         raise ValueError('activeProject 引用了不存在的项目')
-    medium = raw.get('medium', 'water')
-    # An explicit fluid string (e.g. REFPROP::R407C.MIX) overrides the preset medium.
-    fluid_text = str(raw.get('fluid') or '').strip()
-    if not fluid_text and medium not in PROTOTYPE_MEDIA:
-        raise ValueError(f'不支持的介质 {medium}；可选：{"、".join(PROTOTYPE_MEDIA)}')
-    reference = raw.get('fluidReference', 'mass')
-    if reference not in ('mass', 'mole'):
-        raise ValueError('fluidReference 只能是 mass 或 mole')
+    fluid = prototype_fluid(raw)
     catalog = catalog_map()
     raw_modules = data.get('modules', [])
     if len({m['id'] for m in raw_modules}) != len(raw_modules):
@@ -121,11 +138,13 @@ def normalize_prototype_export(data: dict[str, Any]) -> Project:
                     required=p.get('required', registered[p['id']].required if p['id'] in registered else True),
                     circuit=p.get('circuit', registered[p['id']].circuit if p['id'] in registered else 'main')) for p in original['ports']]
             if 'channels' in original:
-                if kind in {'source','junction','tank'} and original['channels']:
+                if kind in {'source','junction','tank','air_mixing_box','air_room'} and original['channels']:
                     raise ValueError(f'{module_id} 当前模型不允许额外通路')
-                model = 'resistance' if kind == 'exchanger' else definition.solver_model
+                model = 'resistance' if definition.solver_model in {'heat_exchanger', 'heater','cooling_coil','humidifier','cooling_tower_moist'} else definition.solver_model
                 definition.channels = [ChannelSpec(id=c['id'], name=c.get('name',c['id']), input_port=c['input'], output_port=c['output'],
-                    relation='pump_curve' if model == 'pump_curve' else c.get('kind','resistance'), solver_model=model, enabled=c.get('enabled',True)) for c in original['channels']]
+                    relation='pump_curve' if model == 'pump_curve' else c.get('kind','resistance'),
+                    solver_model=next((q.solver_model for q in catalog[kind].channels if q.id==c['id']),model),
+                    enabled=c.get('enabled',True)) for c in original['channels']]
             # Port/variable IDs must remain compatible with the registered model in this version.
             if {p.id for p in definition.ports} != {p.id for p in catalog[kind].ports}:
                 raise ValueError(f'{module_id} 的端口 ID 已改变；需要注册对应的声明式模型')
@@ -170,23 +189,30 @@ def normalize_prototype_export(data: dict[str, Any]) -> Project:
             entry['events'] = deepcopy(scenario['events'])
         scenarios.append(entry)
     thermal = any(p.domain.value in ('thermal', 'refrigerant') for definition in definitions.values() for p in definition.ports)
-    diagnostics.append(Diagnostic(code='THERMAL_SCOPE' if thermal else 'HYDRAULIC_SCOPE', severity='info',
-        message='库房热系统按已应用参数计算热平衡；热端口不传递工质压力或质量流量' if thermal else
+    couplings = deepcopy(raw.get('thermalCouplings', []))
+    diagnostics.append(Diagnostic(code='THERMAL_COUPLING_SCOPE' if couplings else 'THERMAL_SCOPE' if thermal else 'HYDRAULIC_SCOPE', severity='info',
+        message='单相回路与饱和制冷剂容器通过盘管交换热量；两侧质量和压力网络保持独立' if couplings else
+        '库房热系统按已应用参数计算热平衡；热端口不传递工质压力或质量流量' if thermal else
         '按已应用参数与所选工况计算各回路工质的水力与端口焓、温度；动态状态按隐式 Euler 积分，Python 模块及项目控制在独立 Worker 执行'))
+    # Keep canonical options from imported cases; visible Studio controls override
+    # their own fields without dropping other solver settings on save/reload.
+    solver_options = deepcopy(raw.get('solverOptions', {}))
+    solver_options.update(
+        pressure_tolerance_pa=solver.get('pressureAtol', solver_options.get('pressure_tolerance_pa', 1.)),
+        mass_tolerance_kg_s=solver.get('massAtol', solver_options.get('mass_tolerance_kg_s', 1e-8)),
+        max_iterations=solver.get('maxIter', solver_options.get('max_iterations', 80)),
+        dynamic_step_s=solver.get('dynamicStep', solver_options.get('dynamic_step_s',
+            min(10., solver.get('dt', .1)) if thermal else solver.get('dt', .1))),
+        hydraulic_method=solver.get('hydraulicMethod', solver_options.get('hydraulic_method', 'dense')),
+        module_mixed_jacobian=bool(solver.get('moduleMixedJacobian', solver_options.get('module_mixed_jacobian', False))))
     return Project.model_validate(dict(id=raw['id'], name=raw.get('name','原型项目'), description=raw.get('description',''),
-        fluid=FluidConfig(fluid=fluid_text or PROTOTYPE_MEDIA[medium], reference=reference),
+        fluid=fluid,
         modules=list(definitions.values()),instances=instances,connections=connections,import_diagnostics=diagnostics,
         controllers=raw.get('controllers', []),
         control_scripts=raw.get('controlScripts', []),
-        scenarios=scenarios,
+        thermal_couplings=couplings,
+        scenarios=scenarios,selected_variables=deepcopy(raw.get('selectedVariables', [])),
         events=deepcopy(raw.get('events', [])),
-        circuit_fluids=[{'id': c['id'], 'anchor': c['anchor'],
-                         'fluid': {'fluid': (c.get('fluid') or '').strip() or PROTOTYPE_MEDIA[c.get('medium', 'water')],
-                                   'reference': c.get('fluidReference', 'mass')}}
+        circuit_fluids=[{'id': c['id'], 'anchor': c['anchor'], 'fluid': prototype_fluid(c)}
                         for c in raw.get('circuitFluids', [])],
-        solver=SolverOptions(pressure_tolerance_pa=solver.get('pressureAtol',1.),mass_tolerance_kg_s=solver.get('massAtol',1e-8),
-                             max_iterations=solver.get('maxIter',80),dynamic_step_s=min(10., solver.get('dt',.1)) if thermal else solver.get('dt',.1),
-                             # S2：原型导出文件缺 hydraulicMethod 时按旧行为 dense；新建项目由前端显式写 auto。
-                             hydraulic_method=solver.get('hydraulicMethod','dense'),
-                             # 缺 moduleMixedJacobian 时保持关闭；新建项目由前端显式写 true（见 ENGINEERING_ACCEPTANCE.md）。
-                             module_mixed_jacobian=bool(solver.get('moduleMixedJacobian',False)))))
+        solver=SolverOptions.model_validate(solver_options)))

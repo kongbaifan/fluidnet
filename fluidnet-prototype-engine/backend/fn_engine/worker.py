@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import inspect
 import json
 import os
 import sys
@@ -11,7 +10,7 @@ from contextlib import redirect_stdout, redirect_stderr
 # （stdout 只走 JSON RPC，保持协议不变），startup_report 动作也能读回。
 _STARTED_AT = time.perf_counter()
 
-from .models import CommitStepRequest, EvaluateRequest, InitializeRequest, ModuleDefinition, ModuleRequestContext
+from .models import CommitStepRequest, EvaluateRequest, InitializeRequest, ModuleDefinition, ModuleRequestContext, RefrigerationEvaluateRequest
 
 _IMPORTS_READY_AT = time.perf_counter()
 _FIRST_REQUEST_AT: float | None = None
@@ -95,25 +94,26 @@ def main():
             if errors:
                 raise ValueError('; '.join(errors))
             return {'ok': True}
-        if action in ('validate', 'initialize', 'parameters', 'evaluate', 'commit_step'):
+        if action in ('validate', 'initialize', 'parameters', 'evaluate', 'evaluate_refrigeration', 'commit_step'):
             _ensure_lazy_properties()
         if action == 'validate':
-            from .runtime import _load_module, design_source
+            from .runtime import _load_module, design_source, validate_lifecycle
             definition = ModuleDefinition.model_validate(message['definition'])
             target = _load_module(definition)
-            for name, count in (('initialize', 1), ('evaluate', 1), ('commit_step', 2), ('finalize', 1)):
-                callback = getattr(target, name, None)
-                if not callable(callback) or inspect.iscoroutinefunction(callback):
-                    raise ValueError(f'入口必须实现同步生命周期方法 {name}')
-                inspect.signature(callback).bind(*([None] * count))
+            validate_lifecycle(target)
             if design_source(definition).strip():
                 from .design import load_design
                 load_design(design_source(definition))
             return {'ok': True}
         if action == 'initialize':
-            from .runtime import InProcessModuleRunner
+            from .runtime import InProcessModuleRunner, RuntimeErrorBase, module_content_hash, module_definition_hash
             definition = ModuleDefinition.model_validate(message['definition'])
             request = InitializeRequest.model_validate(message['request'])
+            if definition.execution_role and (request.package.module_id!=definition.id or
+                    request.package.version!=f'{definition.version}.0.0' or
+                    request.package.content_hash!=module_content_hash(definition) or
+                    request.package.definition_hash!=module_definition_hash(definition)):
+                raise RuntimeErrorBase('制冷 Worker 初始化的版本或双哈希不匹配',code='MODULE_PACKAGE_MISMATCH')
             runner = InProcessModuleRunner(definition, request.parameters, request.fluid, request.initial_state,
                                            request.port_fluids, run_id=request.run_id, instance_id=request.instance_id,
                                            cache_enabled=request.cache_enabled)
@@ -122,8 +122,14 @@ def main():
         if runner is None:
             raise ValueError('Worker 尚未初始化')
         if action == 'parameters':
-            runner.parameters = dict(message['parameters'])
+            if runner.definition.execution_role:
+                from .refrigeration_roles import updated_role_parameters
+                runner.parameters = updated_role_parameters(runner.definition,runner.parameters,message['parameters'])
+            else:
+                runner.parameters = dict(message['parameters'])
             return {'ok': True}
+        if action == 'evaluate_refrigeration':
+            return runner.evaluate_refrigeration(RefrigerationEvaluateRequest.model_validate(message['request'])).model_dump(mode='json')
         if action == 'evaluate':
             return runner.evaluate(EvaluateRequest.model_validate(message['request'])).model_dump(mode='json')
         if action == 'commit_step':

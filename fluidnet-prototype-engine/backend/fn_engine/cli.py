@@ -12,7 +12,9 @@ def main(argv=None):
     serve = sub.add_parser("serve")
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", type=int, default=8798)
-    serve.add_argument("--open", action="store_true")
+    interface = serve.add_mutually_exclusive_group()
+    interface.add_argument("--open", action="store_true", help='启动后打开开发界面')
+    interface.add_argument('--headless', action='store_true', help='仅启动 API 与后台计算，不挂载开发界面')
     serve.add_argument('--data-dir', help='工作区目录（默认 FLUIDNET_DATA_DIR 或项目 .runtime/workspace）')
     serve.add_argument('--module-dir', help='模块版本目录；恢复的工作区默认使用其 module-packages 子目录')
     serve.add_argument("--auth", choices=("auto", "required", "off"), default="auto",
@@ -87,7 +89,8 @@ def main(argv=None):
             threading.Timer(1.0, lambda: webbrowser.open(f"http://{args.host}:{args.port}")).start()
         data_root = args.data_dir or os.environ.get('FLUIDNET_DATA_DIR') or (
             Path(os.environ['FLUIDNET_MODULE_STORE']) / '.workspace' if os.environ.get('FLUIDNET_MODULE_STORE') else root / '.runtime' / 'workspace')
-        uvicorn.run(create_app(root / "frontend", module_storage_root=args.module_dir, auth=auth, cors_origins=args.cors_origin, data_root=data_root), host=args.host, port=args.port,
+        frontend = None if args.headless else root / 'frontend'
+        uvicorn.run(create_app(frontend, module_storage_root=args.module_dir, auth=auth, cors_origins=args.cors_origin, data_root=data_root), host=args.host, port=args.port,
                     log_level="info")
 
 

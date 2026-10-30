@@ -11,8 +11,11 @@ from ._module_schema_v1 import (
     Identifier, ModuleDefinitionV1, ModuleFieldsV1, ParameterSpec as ParameterSpec,
     PortSpec as PortSpec, StrictModel, UnitSpec as UnitSpec, VariableSpec as VariableSpec,
 )
+from .air_models import AirVariableDescriptor, MoistAirOptions, PsychrometricLine
 from ._module_schema_v2 import ModuleDefinitionV2, ModuleSDKRequirements
 from ._module_schema_v3 import ModuleDefinitionV3, ModuleApplicability, CompositeDefinition
+from ._module_schema_v4 import ModuleDefinitionV4, RefrigerationApplicability
+from .refrigeration_models import RefrigerationThrottleInput, RefrigerationThrottleFlow
 
 
 class FluidConfig(StrictModel):
@@ -59,6 +62,13 @@ class FluidState(StrictModel):
     speed_of_sound_m_s: float | None = None
     phase: str = "unknown"
     quality: float | None = None
+    # Moist-air mode only: kg water / kg dry air at this node or port.
+    humidity_ratio_kg_kg: float | None = Field(default=None, exclude_if=lambda v: v is None)
+    relative_humidity: float | None = Field(default=None, exclude_if=lambda v: v is None)
+    enthalpy_j_kg_dry_air: float | None = Field(default=None, exclude_if=lambda v: v is None)
+    specific_heat_j_kg_dry_air_k: float | None = Field(default=None, exclude_if=lambda v: v is None)
+    dew_point_k: float | None = Field(default=None, exclude_if=lambda v: v is None)
+    wet_bulb_k: float | None = Field(default=None, exclude_if=lambda v: v is None)
     composition: dict[str, float] = Field(default_factory=dict)
 
 
@@ -70,7 +80,15 @@ class PortState(StrictModel):
     viscosity_pa_s: float | None = None
     specific_heat_j_kg_k: float | None = None
     mass_flow_kg_s: float | None = None
+    dry_air_mass_flow_kg_s: float | None = Field(default=None, exclude_if=lambda v: v is None)
+    water_vapor_mass_flow_kg_s: float | None = Field(default=None, exclude_if=lambda v: v is None)
     quality: float | None = None
+    humidity_ratio_kg_kg: float | None = Field(default=None, exclude_if=lambda v: v is None)
+    relative_humidity: float | None = Field(default=None, exclude_if=lambda v: v is None)
+    enthalpy_j_kg_dry_air: float | None = Field(default=None, exclude_if=lambda v: v is None)
+    specific_heat_j_kg_dry_air_k: float | None = Field(default=None, exclude_if=lambda v: v is None)
+    dew_point_k: float | None = Field(default=None, exclude_if=lambda v: v is None)
+    wet_bulb_k: float | None = Field(default=None, exclude_if=lambda v: v is None)
     composition: dict[str, float] = Field(default_factory=dict)
 
 
@@ -166,7 +184,26 @@ class EvaluateResponse(StrictModel):
     cache_hit: bool = Field(default=False, exclude_if=lambda value: value is False)
 
 
+class RefrigerationEvaluateRequest(StrictModel):
+    run_id: Identifier
+    instance_id: Identifier
+    iteration_id: int = Field(ge=0)
+    time_s: float = Field(ge=0)
+    throttle: RefrigerationThrottleInput
+    state_revision: int | None = Field(default=None,ge=0)
+    context: ModuleRequestContext | None = None
+
+
+class RefrigerationEvaluateResponse(StrictModel):
+    flow: RefrigerationThrottleFlow
+    variables: dict[str,float | int | str | bool | None] = Field(default_factory=dict)
+    diagnostics: list['Diagnostic'] = Field(default_factory=list)
+
+
 class ChannelState(StrictModel):
+    dry_air_mass_flow_kg_s: float | None = Field(default=None, exclude_if=lambda v: v is None)
+    inlet_mass_flow_kg_s: float | None = Field(default=None, exclude_if=lambda v: v is None)
+    outlet_mass_flow_kg_s: float | None = Field(default=None, exclude_if=lambda v: v is None)
     mass_flow_kg_s: float = 0.0
     pressure_drop_pa: float = 0.0
     heat_w: float = Field(default=0.0, exclude_if=lambda value: value == 0)
@@ -226,23 +263,34 @@ class ModuleStepCandidate(StrictModel):
 class ModuleDefinition(ModuleFieldsV1):
     """Schema-dispatched module facade; v1 never receives SDK default fields."""
 
-    schema_version: Literal[1, 2, 3] = 1
+    schema_version: Literal[1, 2, 3, 4] = 1
     sdk: ModuleSDKRequirements | None = Field(default=None, exclude_if=lambda value: value is None)
-    applicability: ModuleApplicability | None = Field(default=None, exclude_if=lambda value: value is None)
+    applicability: ModuleApplicability | RefrigerationApplicability | None = Field(default=None, exclude_if=lambda value: value is None)
+    execution_role: Literal['refrigeration.isenthalpic_throttle.v1'] | None = Field(default=None,exclude_if=lambda value:value is None)
     hydraulic_dependencies: dict[Identifier, list[Identifier]] | None = Field(default=None, exclude_if=lambda value: value is None)
     dependency_mode: Literal['conservative','tracked'] | None = Field(default=None, exclude_if=lambda value: value is None)
     pure_evaluate: bool | None = Field(default=None, exclude_if=lambda value: value is None)
     composite: CompositeDefinition | None = Field(default=None, exclude_if=lambda value: value is None)
     model_config = ConfigDict(json_schema_extra={"allOf": [{
-        "if": {"properties": {"schema_version": {"enum": [2, 3]}}, "required": ["schema_version"]},
+        "if": {"properties": {"schema_version": {"enum": [2, 3, 4]}}, "required": ["schema_version"]},
         "then": {"required": ["sdk", "runtime"], "properties": {"sdk": {"type": "object"}, "runtime": {"const": "python"}}},
         "else": {"not": {"required": ["sdk"]}},
     }, {
         'if': {'properties': {'schema_version': {'const': 3}}, 'required': ['schema_version']},
-        'then': {'properties': {'applicability': {'type':'object'}, 'hydraulic_dependencies': {'type':'object'},
+        'then': {'properties': {'applicability': {'type':'object','properties':{'execution_domains':{'items':{'const':'fluid'}}}}, 'hydraulic_dependencies': {'type':'object'},
                                 'dependency_mode': {'type':'string'}, 'pure_evaluate': {'type':'boolean'}}},
         'else': {'not': {'anyOf': [{'required':[name]} for name in
-            ['applicability','hydraulic_dependencies','dependency_mode','pure_evaluate','composite']]}}
+            ['hydraulic_dependencies','dependency_mode','pure_evaluate','composite']]}}
+    }, {
+        'if': {'properties': {'schema_version': {'const':4}}, 'required':['schema_version']},
+        'then': {'required':['execution_role'], 'properties': {
+            'execution_role':{'const':'refrigeration.isenthalpic_throttle.v1'},
+            'applicability':{'type':'object','properties':{'execution_domains':{'items':{'const':'refrigeration'}}}}, 'solver_model':{'const':'generic'},
+            'state_model':{'type':'null'}, 'thermal_model':{'type':'null'}, 'source_format':{'const':'python-v1'}, 'channels':{'maxItems':0}}},
+        'else': {'not':{'required':['execution_role']}}
+    }, {
+        'if': {'properties': {'schema_version': {'enum':[1,2]}}},
+        'then': {'not':{'required':['applicability']}}
     }]})
 
     @model_validator(mode="before")
@@ -251,10 +299,10 @@ class ModuleDefinition(ModuleFieldsV1):
         if not isinstance(data, dict):
             return data
         # Catalog response subclasses have presentation-only fields outside the contract.
-        fields = set(ModuleDefinitionV3.model_fields)
+        fields = set(ModuleDefinitionV3.model_fields) | set(ModuleDefinitionV4.model_fields)
         core = {key: value for key, value in data.items() if key in fields}
         schema = core.get("schema_version", 1)
-        parser = {1: ModuleDefinitionV1, 2: ModuleDefinitionV2, 3: ModuleDefinitionV3}.get(schema) if isinstance(schema, (int, float)) else None
+        parser = {1: ModuleDefinitionV1, 2: ModuleDefinitionV2, 3: ModuleDefinitionV3, 4: ModuleDefinitionV4}.get(schema) if isinstance(schema, (int, float)) else None
         if parser is None:
             raise ValueError(f"不支持的模块合同 schema_version：{schema}")
         if schema == 1:
@@ -399,6 +447,10 @@ class SolverOptions(StrictModel):
     # L1/L2：迭代加速模式。'none' = v0.5.0 的固定 0.7/0.3 阻尼（旧项目默认不变）。
     thermal_acceleration: Literal['none', 'adaptive', 'aitken'] = 'none'
     coupling_acceleration: Literal['none', 'adaptive', 'aitken'] = 'none'
+    # 湿空气网络：把含湿量作为与焓并列的输运标量（默认关闭，旧项目行为不变）。
+    # 仅支持空气单相网络与内置风侧元件；湿工况表冷器/加湿器需要开启本项。
+    moist_air: bool = False
+    moist_air_options: MoistAirOptions | None = Field(default=None, exclude_if=lambda v: v is None)
     # Implicit time stepping (networks with tanks): a failed substep is retried with half the step.
     max_step_halvings: int = Field(default=6, ge=0, le=20)
     # S1: 'auto' 由实际未知量、Jacobian 稀疏度与模块端口依赖选择；旧项目缺字段仍按 dense。
@@ -471,6 +523,16 @@ class CircuitFluid(StrictModel):
     fluid: FluidConfig
 
 
+class ThermalCoupling(StrictModel):
+    """A storage-free single-phase coil immersed in a saturated refrigerant vessel."""
+
+    id: Identifier
+    fluid_instance_id: Identifier
+    fluid_channel_id: Identifier = 'ch0'
+    refrigerant_vessel_id: Identifier
+    ua_w_k: float = Field(ge=0)
+
+
 class Project(StrictModel):
     schema_version: Literal[1] = 1
     id: str
@@ -487,6 +549,8 @@ class Project(StrictModel):
     controllers: list[PIDController] = Field(default_factory=list)
     control_scripts: list[ControlScript] = Field(default_factory=list, max_length=16)
     circuit_fluids: list[CircuitFluid] = Field(default_factory=list, max_length=64)
+    thermal_couplings: list[ThermalCoupling] = Field(default_factory=list, max_length=2,
+                                                   exclude_if=lambda value: not value)
     # Load/operation schedule; only cold-store projects execute it (others reject a non-empty list).
     events: list[ScheduleEvent] = Field(default_factory=list, max_length=500)
 
@@ -501,6 +565,13 @@ class Project(StrictModel):
         if any(i.module_id not in module_ids for i in self.instances):
             raise ValueError("实例引用了不存在的模块")
         instance_map = {i.id: i for i in self.instances}
+        if len({c.id for c in self.thermal_couplings}) != len(self.thermal_couplings):
+            raise ValueError('热耦合关系 ID 重复')
+        if len({(c.fluid_instance_id, c.fluid_channel_id) for c in self.thermal_couplings}) != len(self.thermal_couplings):
+            raise ValueError('同一液体通路只能绑定一条热耦合关系')
+        for coupling in self.thermal_couplings:
+            if coupling.fluid_instance_id not in instance_map or coupling.refrigerant_vessel_id not in instance_map:
+                raise ValueError('热耦合引用了不存在的设备')
         if len({c.id for c in self.controllers}) != len(self.controllers):
             raise ValueError('控制器 ID 重复')
         if len({c.id for c in self.control_scripts}) != len(self.control_scripts):
@@ -624,15 +695,14 @@ class ProjectUpgradeRequest(StrictModel):
     migration: ModuleMigration | None = None
 
 
-class RunRequest(StrictModel):
-    project: Project
+class RunOptions(StrictModel):
+    """Shared scheduling and result-selection options for both run entry points."""
     mode: Literal["steady", "dynamic"] = "steady"
     # None runs a background dynamic session until it is stopped.
     duration_s: float | None = Field(default=60, gt=0, le=604800)
     dt_s: float = Field(default=0.1, gt=0, le=60)
     selected_variables: list[str] | None = Field(default=None, max_length=64)
     scenario_id: str | None = None
-    project_revision: int | None = Field(default=None, ge=1)
     # 'trend' keeps every variable only on key frames (first, last, every K-th; ≤ ~51 in total)
     # and only trend_variables plus module state on the others. Dynamic runs only.
     history: Literal["full", "trend"] = "full"
@@ -655,6 +725,16 @@ class RunRequest(StrictModel):
         if self.mode != "dynamic" or self.duration_s is None:
             return None
         return math.ceil(self.duration_s / self.dt_s - 1e-9) + 1
+
+
+class RunRequest(RunOptions):
+    project: Project
+    project_revision: int | None = Field(default=None, ge=1)
+
+
+class SavedProjectRunRequest(RunOptions):
+    """Run a persisted project snapshot; the server supplies its actual revision."""
+    revision: int | None = Field(default=None, ge=1)
 
 
 class RunCommand(StrictModel):
@@ -725,9 +805,14 @@ class ChannelTestBoundary(StrictModel):
     inlet_temperature_k: float = Field(default=293.15, gt=0)
     outlet_temperature_k: float = Field(default=293.15, gt=0)
     fluid: FluidConfig = Field(default_factory=FluidConfig)
+    inlet_humidity_ratio_kg_kg: float = Field(default=.008,ge=0,le=.05,exclude_if=lambda v:v==.008)
+    outlet_humidity_ratio_kg_kg: float = Field(default=.008,ge=0,le=.05,exclude_if=lambda v:v==.008)
 
 
 class ModuleTestConditions(StrictModel):
+    moist_air: bool = Field(default=False,exclude_if=lambda v:not v)
+    moist_air_options: MoistAirOptions | None = Field(default=None,exclude_if=lambda v:v is None)
+    humidity_ratio_kg_kg: float = Field(default=.008,ge=0,le=.05,exclude_if=lambda v:v==.008)
     parameters: dict[str, Any] = Field(default_factory=dict)
     fluid: FluidConfig = Field(default_factory=FluidConfig)
     inlet_pressure_pa: float = Field(default=250000.0, gt=0)
@@ -749,9 +834,25 @@ class ModuleTestRequest(ModuleTestConditions):
     module: ModuleDefinition
 
 
+class ModuleTestAssertion(StrictModel):
+    """An author's expected final-frame value, expressed in canonical units."""
+
+    key: str = Field(min_length=1, max_length=256, pattern=r'^\S+$')
+    expected: float = Field(strict=True)
+    absolute_tolerance: float = Field(default=0., ge=0, strict=True)
+    relative_tolerance: float = Field(default=0., ge=0, strict=True)
+
+
 class ModuleTestCase(StrictModel):
     id: Identifier
     conditions: ModuleTestConditions = Field(default_factory=ModuleTestConditions)
+    assertions: list[ModuleTestAssertion] = Field(default_factory=list, max_length=256)
+
+    @model_validator(mode='after')
+    def unique_assertions(self):
+        if len({assertion.key for assertion in self.assertions}) != len(self.assertions):
+            raise ValueError('测试断言变量键重复')
+        return self
 
 
 class ModuleTestSuiteRequest(StrictModel):
@@ -766,7 +867,7 @@ class ModuleTestSuiteRequest(StrictModel):
 
 
 class ModuleTemplateRequest(StrictModel):
-    template: Literal['resistance', 'pump', 'heat_exchanger', 'managed_state']
+    template: Literal['resistance', 'pump', 'heat_exchanger', 'managed_state', 'refrigeration_throttle']
     id: Identifier
     name: str = Field(min_length=1, max_length=80)
     category: str = '自定义模块'
@@ -780,6 +881,8 @@ class ModuleGroupRequest(StrictModel):
 
 
 class ModuleTestResponse(StrictModel):
+    execution_domain: Literal['refrigeration'] | None = Field(default=None,exclude_if=lambda value:value is None)
+    refrigeration_evaluation: RefrigerationEvaluateResponse | None = Field(default=None,exclude_if=lambda value:value is None)
     module_id: str
     content_hash: str
     state: dict[str, Any] = Field(default_factory=dict)
@@ -789,6 +892,15 @@ class ModuleTestResponse(StrictModel):
     history: list[RunFrame] = Field(default_factory=list)
 
 
+class ModuleTestAssertionResult(ModuleTestAssertion):
+    actual: float | int | str | bool | None = None
+    absolute_error: float | None = None
+    allowed_error: float | None = None
+    passed: bool
+    status: Literal['passed', 'outside_tolerance', 'missing', 'non_numeric', 'non_finite', 'not_evaluated']
+    message: str = ''
+
+
 class ModuleTestCaseResult(StrictModel):
     id: Identifier
     passed: bool
@@ -796,6 +908,7 @@ class ModuleTestCaseResult(StrictModel):
     level: Literal['L3'] = 'L3'
     result: ModuleTestResponse | None = None
     diagnostics: list[Diagnostic] = Field(default_factory=list)
+    assertions: list[ModuleTestAssertionResult] = Field(default_factory=list)
 
 
 class ModuleTestSuiteResponse(StrictModel):
@@ -1025,6 +1138,47 @@ class RunRecordResponse(StrictModel):
     lag_s: float = 0.0
     persisted_at: str | None = None
     persisted_rows: int = 0
+    air_metadata: dict | None = None
+
+
+class AirVariableCatalogResponse(StrictModel):
+    contract_version: Literal[1] = 1
+    project_id: str
+    run_id: str | None = None
+    project_revision: int | None = None
+    variables: list[AirVariableDescriptor]
+    diagnostics: list[Diagnostic] = Field(default_factory=list)
+
+
+class AirPropertyResponse(StrictModel):
+    contract_version: Literal[1] = 1
+    property_backend: Literal['coolprop_ha'] = 'coolprop_ha'
+    property_version: str
+    state: FluidState
+    diagnostics: list[Diagnostic] = Field(default_factory=list)
+
+
+class AirGridResponse(StrictModel):
+    contract_version: Literal[1] = 1
+    pressure_pa: float
+    temperature_min_k: float
+    temperature_max_k: float
+    humidity_max_kg_kg: float
+    lines: list[PsychrometricLine]
+    diagnostics: list[Diagnostic] = Field(default_factory=list)
+
+
+class AirMigrationRequest(StrictModel):
+    project: Project
+    upgrade_official_modules: bool = False
+
+
+class AirMigrationResponse(StrictModel):
+    original_project: Project
+    project: Project
+    changes: list[str]
+    valid: bool
+    diagnostics: list[Diagnostic]
 
 
 class RefpropInfo(StrictModel):
@@ -1036,6 +1190,29 @@ class RefpropInfo(StrictModel):
 
 
 class HealthCapabilities(StrictModel):
+    moist_air_contract_version: Literal[1] | None = None
+    wet_cooling_coil: bool = False
+    air_humidifier: bool = False
+    ahu_components: bool = False
+    air_room: bool = False
+    cooling_tower_moist: bool = False
+    air_variable_catalog: bool = False
+    water_coil: bool = False
+    water_chiller: bool = False
+    air_liquid_coupling: bool = False
+    air_reports: bool = False
+    thermal_coupling: bool = False
+    # Two immersed coils bound to one saturated vessel (contract limit is two).
+    dual_thermal_coupling: bool = False
+    # Built-in ideal electric heater in the single-phase fluid network.
+    heater: bool = False
+    # Rectangular air ducts (`duct`): hydraulic-diameter friction and optional ambient heat loss.
+    air_duct: bool = False
+    # Moist-air networks: humidity-ratio transport, wet cooling coil and humidifier.
+    moist_air: bool = False
+    scenario_batches: bool = False
+    # Saturated vessels with up to four stream inlets (`hp_receiver_multi`, `lp_drum_multi`).
+    multi_inlet_vessels: bool = False
     cold_room_ideal_source: bool = False
     refrigeration_station: bool = False
     # Case A: storage room + goods, unit cooler, single-stage cycle, schedule events and reports.
@@ -1071,6 +1248,7 @@ class HealthAuth(StrictModel):
 class HealthResponse(StrictModel):
     """`GET /health`：版本、能力标志与全局上限。"""
     status: str
+    mode: Literal['studio', 'headless']
     version: str
     solver: str
     supported_domains: list[str] = Field(default_factory=list)

@@ -164,3 +164,25 @@ flowchart TD
 保存使用 `expected_latest_version` 检测陈旧草稿，进程内锁覆盖检查与试算，目录重命名处理跨进程同版本竞争。已有版本不被覆盖。版本文件保存在可配置本地目录；storage.py 用 SQLite 存储工作区修订和运行归档，jobs.py 在发布帧与命令边界落盘。control.py 在独立 Worker 执行项目控制脚本。
 
 前端区分当前编辑定义、可插入的已保存定义、项目固定快照。同一项目中一个模块 ID 固定一个版本，更新模块库不会替换项目实例；跨版本实例迁移和同项目多版本混用尚未提供。新项目可使用最新或显式载入的历史版本。
+
+## 风侧合同 1 的实际调用链（2026-10-29）
+
+湿空气仍是 fluid 执行域。编译器复用既有节点/支路映射并调用 `air_compile`；`solver._solve_network` 调度 `air_transport.solve_air_network`，在水力与 h/w 输运之间反馈物性。`air_devices`、`air_room` 和 `cooling_tower_moist` 只返回候选值；`air_ledger` 随 `SimulationSession._accept` 一次提交累计量。
+
+```mermaid
+flowchart LR
+  UI["Studio 风系统页 / 外部客户端"] --> API["api.py + air_api.py"]
+  API --> C["compiler.py + air_compile.py"]
+  C --> S["solver.py / air_transport.py"]
+  S <--> P["CoolProp 湿空气服务"]
+  S --> D["盘管 / 加湿器 / 房间 / 冷却塔"]
+  S --> W["原 Worker 四阶段协议"]
+  D --> A["SimulationSession 接受子步"]
+  A --> L["air_ledger 累计量"]
+  A --> F["同一 RunFrame"]
+  F --> DB["RunManager / SQLite 归档"]
+  DB --> R["冻结变量目录 / CSV / HTML"]
+  R --> UI
+```
+
+运行创建时固定 `air_metadata`（物性版本、质量基准、项目摘要、变量目录与假设），沿用现有 JSON 存储事务。报告直接读取已保存的帧和目录，不执行编译或数值求解。新旧模块通过 SDK 0.6.0 能力声明区分，旧 RPC 过滤新增字段。详细行为及验证见 [风侧实施验收](AIR_SIDE_IMPLEMENTATION_ACCEPTANCE.md)。

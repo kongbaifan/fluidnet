@@ -1,6 +1,6 @@
-# Python 模块公共 SDK：S0–S3 接口
+# Python 模块公共 SDK
 
-当前 `fn_sdk.SDK_API_VERSION = '0.3.0'`；S0 的 0.1.0 类型接口、S1 的 resistance 与水力工具保留。S2 接入 schema 2 的版本协商，S3 增加时间、阶段与执行身份。SDK 版本与软件版本 0.5.0、模块整数版本及合同 schema 分开管理；四个 Python 回调签名保持。
+当前 `fn_sdk.SDK_API_VERSION = '0.7.0'`，新增 schema 4 制冷角色的类型化 Worker 接口，见[RF-1 合同](../REFRIGERATION_MODULE_CONTRACT.md)。SDK、软件版本、模块整数版本和合同 schema 独立管理。下文 S0–S3 保留基础接口的历史说明；当前生命周期与状态接受规则见[开发指南](DEVELOPMENT_GUIDE.md)，湿空气与制冷增量见文末。
 
 ## 1. 导入与安装
 
@@ -124,3 +124,15 @@ python -m pytest -q tests/test_module_sdk.py tests/test_module_sdk_hydraulics.py
 独立 `module-sdk` CI job 使用轻依赖运行 SDK lint、严格类型检查及公共数学函数测试/独立覆盖率；后端 job 在全量环境执行实际宿主签名、Worker、网络和旧公式回放。SDK 覆盖率不代表全部物理工况或协议分支覆盖率。旧压差驱动反向冷启动/等压工况限制见 [S0 执行证据](results/S0.md)，S1 的范围和实测结果见 [S1 执行证据](results/S1.md)。
 
 `bsl-modules` 轻依赖门禁还覆盖 schema 冻结、哈希和 SDK 声明校验；实际保存/Worker/设计接入见 [S2 执行证据](results/S2.md)。
+
+## SDK 0.6.0：湿空气透传
+
+新增 `air.properties.v1` 和 `air.pass_through.v1`。`ctx.fluid`/`fluid_at` 增加 `state_ptw`、`state_phw`、`humidity_from_rh`、`saturated_state`。公共比焓和比热仍按混合物计，显式 `_dry_air` 字段按干空气计；完整字段见 `PortState`/`ChannelState` 合同。
+
+`evaluate`、`thermal`、`observe`、`commit_step` 及独立验证台都传递相同湿空气状态。通路 `mass_flow_kg_s` 是实际入口总质量流量，另有 `dry_air_mass_flow_kg_s` 和入口/出口总质量字段。透传模块不能改变 w；湿空气源汇暂使用内置设备。旧 Worker 请求只发送历史字段，不因新增 null 字段而解析失败。
+
+官方 `fan`、`duct_fitting`、`duct_damper`、`air_vent` 新版本为 2，旧版本在 `history/v1/`。旧项目不自动切换到新源码；迁移预览只升级与已知旧哈希匹配的官方版本。
+
+## SDK 0.7.0：制冷角色
+
+新增 `ctx.refrigeration.throttle` 只读输入和 `ctx.refrigeration.flow(...)` 类型化输出，以及 `RefrigerationContext`、`RefrigerationThrottleInput`、`RefrigerationThrottleFlow` 协议。要求 schema 4 与 `refrigeration.isenthalpic_throttle.v1` 角色；SDK 0.6.0 及旧合同不自动获得该能力。接口与单位见 [RF-1 合同](../REFRIGERATION_MODULE_CONTRACT.md)，正式运行、状态事务与作者验证发布见 [RF-2/RF-3 交付](../REFRIGERATION_MODULE_EXECUTION.md)。

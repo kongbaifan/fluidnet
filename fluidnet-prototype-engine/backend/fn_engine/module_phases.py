@@ -40,6 +40,19 @@ def heat_hook(network, runners, hydraulic, service, time_s):
                     heat_w=float(previous_heat[j]))
                 up_port, down_port = (branch.input_port, branch.output_port) if q >= 0 else (branch.output_port, branch.input_port)
                 up_node, down_node = (branch.start_node, branch.end_node) if q >= 0 else (branch.end_node, branch.start_node)
+                if up_node in network.air_nodes:
+                    w = states[up_node].humidity_ratio_kg_kg
+                    total = resolved_q*(1+w)
+                    channels[branch.channel_id] = channels[branch.channel_id].model_copy(update={
+                        'mass_flow_kg_s':total,'dry_air_mass_flow_kg_s':resolved_q,
+                        'inlet_mass_flow_kg_s':total,'outlet_mass_flow_kg_s':total})
+                    ports[up_port] = ports[up_port].model_copy(update={'mass_flow_kg_s':abs(total),
+                        'dry_air_mass_flow_kg_s':abs(resolved_q),'water_vapor_mass_flow_kg_s':abs(resolved_q)*w})
+                    outlet = service.state_phw(float(hydraulic.pressures[down_node]),
+                        states[up_node].enthalpy_j_kg_dry_air+(previous_heat[j]/abs(q) if resolved_q else 0.),w)
+                    ports[down_port] = PortState(**outlet.model_dump(include=set(PortState.model_fields)),
+                        mass_flow_kg_s=-abs(total),dry_air_mass_flow_kg_s=-abs(resolved_q),water_vapor_mass_flow_kg_s=-abs(resolved_q)*w)
+                    continue
                 ports[up_port] = ports[up_port].model_copy(update={'mass_flow_kg_s':abs(resolved_q)})
                 if abs(q) > network.project.solver.mass_tolerance_kg_s:
                     from .compiler import service_at
@@ -64,14 +77,13 @@ def heat_hook(network, runners, hydraulic, service, time_s):
 
 def observe_modules(network, runners, result, time_s):
     from .module_scope import scope_diagnostics
+    from .solver import channel_state
     for key, runner in runners.items():
         definition = network.modules[network.instances[key].module_id]
         channels = {}
         for j, branch in enumerate(network.branches):
             if branch.instance_id == key:
-                channels[branch.channel_id] = ChannelState(mass_flow_kg_s=float(result.hydraulic.flows[j]),
-                    pressure_drop_pa=float(result.hydraulic.pressures[branch.start_node] - result.hydraulic.pressures[branch.end_node]),
-                    heat_w=float(result.thermal.heat_w[j]) if result.thermal else 0.)
+                channels[branch.channel_id] = channel_state(network, result, j)
         ports = {port.id:result.port_states[f'{key}:{port.id}'] for port in definition.ports}
         messages = scope_diagnostics(definition, ports, channels, 'observe', key, time_s)
         if definition.applicability is not None and result.thermal:

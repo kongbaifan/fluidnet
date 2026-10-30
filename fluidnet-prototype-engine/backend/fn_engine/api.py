@@ -11,8 +11,11 @@ from collections import OrderedDict
 from contextlib import asynccontextmanager
 from pathlib import Path
 from threading import Lock
+from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse, Response
 from starlette.background import BackgroundTask
@@ -37,6 +40,7 @@ from .models import (
     ModuleTestResponse,
     ModuleCatalogResponse,
     Project,
+    ProjectDocument,
     ProjectDeleteResponse,
     ProjectDetailResponse,
     ProjectListResponse,
@@ -47,6 +51,7 @@ from .models import (
     RunCommand,
     RunFrame,
     RunRequest,
+    SavedProjectRunRequest,
     RunStatus,
     RunRecordResponse,
     RunCreateResponse,
@@ -195,6 +200,9 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
     lock = Lock()
     archive = WorkspaceStore(data_root) if data_root is not None else None
     manager = RunManager(apply_scenario, archive)
+    from .batch_api import batch_router
+    from .batches import BatchService
+    batch_service = BatchService(archive, manager) if archive is not None else None
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
@@ -204,6 +212,11 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
         try:
             yield
         finally:
+            if batch_service is not None:
+                try:
+                    batch_service.close()
+                except Exception:  # pragma: no cover - defensive teardown
+                    logger.exception('FluidNet batch service shutdown failed')
             try:
                 manager.close()
             except Exception:  # pragma: no cover - defensive teardown
@@ -213,6 +226,21 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
                     archive.close()
 
     app = FastAPI(title='FluidNet Prototype Engine', version=__version__, lifespan=lifespan)
+    app.include_router(batch_router(batch_service))
+    @app.exception_handler(RequestValidationError)
+    async def request_validation_error(request: Request, error: RequestValidationError):
+        # Rejected JSON numbers (including overflow such as 1e999) must not make
+        # the validation response itself fail strict JSON serialization.
+        def finite_detail(value):
+            if isinstance(value, float) and not math.isfinite(value):
+                return str(value)
+            if isinstance(value, dict):
+                return {key: finite_detail(item) for key, item in value.items()}
+            if isinstance(value, list):
+                return [finite_detail(item) for item in value]
+            return value
+        detail = jsonable_encoder(error.errors(), custom_encoder={ValueError: str, TypeError: str})
+        return JSONResponse(status_code=422, content={'detail': finite_detail(detail)})
     @app.exception_handler(StorageError)
     async def storage_error(_request, error):
         return JSONResponse(status_code=507, content={'detail': {'code': 'STORAGE_FAILED', 'message': str(error)}})
@@ -246,7 +274,8 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
     @app.get('/api/v1/health', response_model=HealthResponse,
               responses=error_responses('INTERNAL_ERROR'))
     def health():
-        return {'status':'ok','version':__version__,'solver':'declarative-fluid-v1','supported_domains':['fluid', 'thermal', 'refrigerant'],
+        return {'status':'ok','mode':'studio' if frontend_root else 'headless',
+                'version':__version__,'solver':'declarative-fluid-v1','supported_domains':['fluid', 'thermal', 'refrigerant'],
                 'capabilities':{'steady_hydraulics':True,'quasi_steady_series':True,'thermal':True,
                                 'property_coupling':['reference','node'],'tank_state':True,
                                 'time_integration':'implicit_euler',
@@ -254,7 +283,14 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
                                 'module_versions':True,'run_control':True,'live_runs':True,'pid':True,'runtime_parameters':True,'continuous_step':True,
                                 'continuous_runs':True,'variables_api':True,'run_stream':True,
                                 'python_controls':True,'persistent_workspace':archive is not None,
+                                'scenario_batches':archive is not None,
                                 'cold_room_ideal_source':True,'refrigeration_station':True,'cold_store_cycle':True,
+                                'thermal_coupling':True,'dual_thermal_coupling':True,'heater':True,
+                                'air_duct':True,'moist_air':True,'moist_air_contract_version':1,
+                                'wet_cooling_coil':True,'air_humidifier':True,'ahu_components':True,
+                                'air_room':True,'cooling_tower_moist':True,'air_variable_catalog':True,'air_reports':True,
+                                'water_coil':True,'water_chiller':True,'air_liquid_coupling':True,
+                                'multi_inlet_vessels':True,
                                 # REFPROP 运行时发现（环境变量/捆绑目录/系统安装）；不加载 DLL。
                                 'refprop':refprop_info()},
                 'max_frames':2001,'run_retention':RUN_RETENTION,'history_window_max':20001,'overview_points':OVERVIEW_POINTS,
@@ -377,6 +413,25 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
         except KeyError:
             raise HTTPException(404, detail='项目或修订不存在')
 
+    @app.post('/api/v1/projects/{project_id}/runs', status_code=202, response_model=RunStatus,
+              responses=protected_error_responses(404, 422, 503, 'RUN_LIMIT', 'STORAGE_FAILED', 'INTERNAL_ERROR'))
+    def run_saved_project(project_id: str, request: SavedProjectRunRequest):
+        try:
+            saved = require_archive().project(project_id, request.revision)
+        except KeyError:
+            raise HTTPException(404, detail='项目或修订不存在') from None
+        try:
+            document = ProjectDocument.model_validate(saved['document'])
+            if document.project['id'] != project_id:
+                raise ValueError('保存文档与路径项目 ID 不一致')
+            project = normalize_prototype_export({'format':'fluidnet-studio-prototype', 'schema':1,
+                'activeProject':project_id, 'projects':[document.project], 'modules':document.modules})
+            run_request = RunRequest(project=project, project_revision=saved['revision'],
+                                     **request.model_dump(exclude={'revision'}))
+        except (ValueError, KeyError, TypeError, AttributeError, IndexError) as error:
+            raise HTTPException(422, detail=str(error)) from error
+        return submit_background(run_request)
+
     @app.get('/api/v1/projects/{project_id}/revisions', response_model=ProjectRevisionsResponse,
               responses=protected_error_responses(503, 'STORAGE_FAILED', 'INTERNAL_ERROR'))
     def project_revisions(project_id: str):
@@ -438,9 +493,15 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
 
     @app.get('/api/v1/examples/{name}', response_model=Project,
              responses=protected_error_responses(404, 'INTERNAL_ERROR'))
-    def example(name: str):
+    def example(name: str, topology: Literal['single', 'parallel', 'independent'] = 'single'):
         from .examples import pid_example
+        from .air_examples import AIR_EXAMPLES, air_example
         try:
+            if name in AIR_EXAMPLES:
+                return air_example(name)
+            if name == 'thermal-coupling':
+                from .refrigeration.coupling_examples import thermal_coupling_example
+                return thermal_coupling_example(topology=topology)
             if name == 'cold-storage':
                 from .refrigeration.examples import ideal_room_example
                 return ideal_room_example()
@@ -601,6 +662,8 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
         record = {'id':run_id,'status':status,'mode':request.mode,'request':request.model_dump(mode='json'),
                   'frame':frame.model_dump(mode='json'),'history':history_rows,
                   'events':events, 'total_rows':len(history)}
+        from .air_variables import make_air_metadata
+        record['air_metadata'] = make_air_metadata(request.project)
         if archive:
             stride = 1 if len(history_rows) <= OVERVIEW_POINTS else 2
             archive.save_run(record, list(enumerate(history_rows)), len(history_rows), 2001,
@@ -611,17 +674,20 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
                 runs.popitem(last=False)
         return record
 
+    def submit_background(request: RunRequest):
+        try:
+            run_id = manager.submit(request)
+        except ValueError as error:
+            raise HTTPException(422, detail={'code':'RUN_LIMIT', 'message':str(error)}) from error
+        return JSONResponse(status_code=202, content=RunStatus(run_id=run_id,status='queued',mode=request.mode).model_dump(mode='json'))
+
     @app.post('/api/v1/runs',status_code=201, response_model=RunCreateResponse,
               responses={202: {'model': RunStatus, 'description': '后台运行已受理（background=true）'},
                          **protected_error_responses('RUN_LIMIT', 'RUN_TOO_LONG', 'MODULE_WORKER_IO_ERROR', 'INTERNAL_ERROR')})
     def run(request: RunRequest, background: bool = Query(False)):
-        run_id = uuid.uuid4().hex
         if background:
-            try:
-                run_id = manager.submit(request)
-            except ValueError as error:
-                raise HTTPException(422, detail={'code':'RUN_LIMIT', 'message':str(error)}) from error
-            return JSONResponse(status_code=202, content=RunStatus(run_id=run_id,status='queued',mode=request.mode).model_dump(mode='json'))
+            return submit_background(request)
+        run_id = uuid.uuid4().hex
         frames = request.frame_count()
         if request.mode == 'dynamic' and (frames is None or frames > 2001):
             raise HTTPException(422, detail={'code':'RUN_TOO_LONG', 'message':'同步运行一次返回全部帧，最多 2001 帧且必须设定时长；'
@@ -753,6 +819,9 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
         rows = [row.model_dump(mode='json') if hasattr(row, 'model_dump') else row for row in rows]
         if not rows:
             raise HTTPException(409, detail={'code': 'NO_FRAME', 'message': '运行没有可用帧'})
+        if record.get('air_metadata'):
+            # 风侧报告使用运行时冻结的目录和实际帧，不编译当前设备版本、不重新求解。
+            return record, rows, None, decimated
         request = RunRequest.model_validate(record['request'])
         try:
             network = compile_project(apply_scenario(request.project, request.scenario_id))
@@ -773,7 +842,7 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
         if a == b:
             raise HTTPException(422, detail='请选择两次不同的运行')
         left, right = report_inputs(a), report_inputs(b)
-        if left[2].execution_domain != 'cold_store' or right[2].execution_domain != 'cold_store':
+        if getattr(left[2],'execution_domain',None) != 'cold_store' or getattr(right[2],'execution_domain',None) != 'cold_store':
             raise HTTPException(422, detail={'code': 'REPORT_UNSUPPORTED', 'message': '策略对照报告目前只支持冷库 A 案例'})
         if len(left[2].chains) != len(right[2].chains):
             raise HTTPException(422, detail='两次运行的库房数量不同，无法对照')
@@ -785,7 +854,10 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
                         **protected_error_responses(404, 409, 422, 'STORAGE_FAILED', 'INTERNAL_ERROR')})
     def run_report_csv(run_id: str):
         from .refrigeration.report import run_csv, station_csv
-        record, rows, network, _ = report_inputs(run_id)
+        record, rows, network, decimated = report_inputs(run_id)
+        if record.get('air_metadata'):
+            from .air_report import csv_report
+            return report_download(csv_report(record,rows,decimated),f'air-{run_id[:8]}.csv','text/csv; charset=utf-8')
         content = station_csv(rows, network) if network.execution_domain == 'refrigeration' else run_csv(rows, network)
         return report_download(content, f'cold-store-{run_id[:8]}.csv', 'text/csv; charset=utf-8')
 
@@ -795,6 +867,9 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
     def run_report_html(run_id: str):
         from .refrigeration.report import run_report, station_report
         record, rows, network, decimated = report_inputs(run_id)
+        if record.get('air_metadata'):
+            from .air_report import html_report
+            return report_download(html_report(record,rows,decimated),f'air-{run_id[:8]}.html','text/html; charset=utf-8')
         content = (station_report if network.execution_domain == 'refrigeration' else run_report)(record, rows, network)
         if decimated:
             content = content.replace('<h1>冷库运行报告</h1>', '<h1>冷库运行报告</h1><p><strong>历史窗口不含全部帧，曲线与峰值使用抽稀概览；'
@@ -919,6 +994,8 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
         except (WebSocketDisconnect, RuntimeError):
             return
 
+    from .air_api import register_air_routes
+    register_air_routes(app,get_run)
     if frontend_root:
         app.mount('/',StaticFiles(directory=str(Path(frontend_root)),html=True),name='frontend')
     return app

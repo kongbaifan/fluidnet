@@ -1,0 +1,19 @@
+{
+  "status": "paused",
+  "metrics": {
+    "pressure_residual_pa": 8.731149137020111e-11,
+    "mass_residual_kg_s": 4.440892098500626e-16,
+    "iterations": 6,
+    "node_count": 5,
+    "branch_count": 5,
+    "matrix_size": 8,
+    "matrix_nnz": 19,
+    "thermal_iterations": 1,
+    "coupling_iterations": 1,
+    "energy_residual_w": 8.287770469905809e-11,
+    "reference_heat_w": 0
+  },
+  "before": 3.5826766415095452,
+  "after": 2.346313012321039,
+  "errors": []
+}

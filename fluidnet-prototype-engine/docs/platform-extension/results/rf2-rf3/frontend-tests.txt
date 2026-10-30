@@ -1,0 +1,23 @@
+npm warn Unknown user config "allow-scripts". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+
+> fluidnet-prototype-engine-ui@0.5.0 test:ui
+> node --test tests/thermal-coupling-ui.test.mjs tests/project-overview.test.mjs
+
+✔ overview follows device roles and actual custom IDs, with no example-name dependency (2.7882ms)
+✔ two-channel historical snapshot uses its own port and channel contract (0.5192ms)
+✔ missing or non-finite samples stay missing and thermal-only projects get no fluid placeholders (1.4325ms)
+✔ saved prototype channel overrides take precedence over the catalog manifest (0.3494ms)
+✔ saved built-in channel overrides determine the legal coil and its persisted binding (6.3711ms)
+✔ a disabled saved channel is excluded even when the catalog channel is enabled (2.1427ms)
+✔ IDs outside the backend contract do not mutate the draft (3.9773ms)
+✔ two independently editable relations retain the first curve IDs and add aggregate bindings (3.1813ms)
+✔ editing cannot overwrite another relationship, reuse its pipe, or select a different vessel (2.6293ms)
+✔ removing the selected relation retains the other and removes only obsolete aggregate curves (2.7034ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 278.2648

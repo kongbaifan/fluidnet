@@ -1,3 +1,4 @@
+import {FHD_CONTEXT, captureFhd} from './browser-viewport.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdirSync, mkdtempSync } from 'node:fs';
 import { join } from 'node:path';
@@ -17,7 +18,7 @@ async function startServer() {
 async function stopServer() { if (launched) await launched.stop(); }
 
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
-const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+const page = await browser.newPage({ ...FHD_CONTEXT });
 const errors = []; page.on('pageerror', e => errors.push(e.message));
 // studio.js is an IIFE, so the page's live state is not reachable from evaluate();
 // `保存` is the app's own way of flushing it to localStorage.
@@ -64,7 +65,7 @@ try {
   await page.locator('[data-action="save"]').first().click();
   await page.reload();
   await expect(page.locator('[data-pid-card="temperature"]')).toBeVisible();
-  await page.screenshot({path:'artifacts/pid-controls.png',fullPage:true});
+  await captureFhd(page, 'artifacts/pid-controls.png');
   await page.locator('.rail-link[data-route="workbench"]').click();
   await expect(stepButton).toBeEnabled({timeout:30000});
   await stepButton.click();
@@ -75,6 +76,6 @@ try {
   expect(errors).toEqual([]);
   console.log(JSON.stringify({pid:'temperature',time:record.frame.time_s,output:record.frame.variables['controller.temperature.output'],errors}));
 } catch(error) {
-  mkdirSync('artifacts',{recursive:true});await page.screenshot({path:'artifacts/pid-failure.png',fullPage:true});
+  mkdirSync('artifacts',{recursive:true});await captureFhd(page, 'artifacts/pid-failure.png');
   console.error(serverLog.slice(-1000),errors);throw error;
 } finally {await browser.close();await stopServer();}

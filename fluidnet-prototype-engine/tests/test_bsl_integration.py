@@ -46,7 +46,7 @@ def minimal_project(module_id, parameters=None, *, fluid=None, inlet_pressure=25
                     outlet_pressure=120000.0, inlet_temperature=293.15, outlet_temperature=None):
     """source → D1(target) → sink 的最小可编译项目。"""
     catalog = catalog_map()
-    definition = load_module_package(MODULE_ROOT / module_id)
+    definition = load_module_package(MODULE_ROOT / module_id / "history" / "v1" if module_id == "fan" else MODULE_ROOT / module_id)
     outlet_temperature = inlet_temperature if outlet_temperature is None else outlet_temperature
     return Project(
         id=f"l3-{module_id}",

@@ -1,0 +1,190 @@
+{
+  "$defs": {
+    "BatchParameter": {
+      "additionalProperties": false,
+      "properties": {
+        "instance_id": {
+          "title": "Instance Id",
+          "type": "string"
+        },
+        "instance_name": {
+          "title": "Instance Name",
+          "type": "string"
+        },
+        "parameter_id": {
+          "title": "Parameter Id",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "unit": {
+          "$ref": "#/$defs/UnitSpec"
+        },
+        "value": {
+          "title": "Value",
+          "type": "number"
+        },
+        "minimum": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Minimum"
+        },
+        "maximum": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Maximum"
+        }
+      },
+      "required": [
+        "instance_id",
+        "instance_name",
+        "parameter_id",
+        "label",
+        "unit",
+        "value"
+      ],
+      "title": "BatchParameter",
+      "type": "object"
+    },
+    "BatchScenarioChoice": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "title": "BatchScenarioChoice",
+      "type": "object"
+    },
+    "BatchVariable": {
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "unit": {
+          "$ref": "#/$defs/UnitSpec"
+        }
+      },
+      "required": [
+        "key",
+        "label",
+        "unit"
+      ],
+      "title": "BatchVariable",
+      "type": "object"
+    },
+    "UnitSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "quantity": {
+          "title": "Quantity",
+          "type": "string"
+        },
+        "canonical_unit": {
+          "title": "Canonical Unit",
+          "type": "string"
+        },
+        "display_unit": {
+          "title": "Display Unit",
+          "type": "string"
+        },
+        "display_scale": {
+          "default": 1.0,
+          "exclusiveMinimum": 0,
+          "title": "Display Scale",
+          "type": "number"
+        },
+        "display_offset": {
+          "default": 0.0,
+          "title": "Display Offset",
+          "type": "number"
+        }
+      },
+      "required": [
+        "quantity",
+        "canonical_unit",
+        "display_unit"
+      ],
+      "title": "UnitSpec",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "project_id": {
+      "title": "Project Id",
+      "type": "string"
+    },
+    "project_name": {
+      "title": "Project Name",
+      "type": "string"
+    },
+    "revision": {
+      "title": "Revision",
+      "type": "integer"
+    },
+    "parameters": {
+      "items": {
+        "$ref": "#/$defs/BatchParameter"
+      },
+      "title": "Parameters",
+      "type": "array"
+    },
+    "variables": {
+      "items": {
+        "$ref": "#/$defs/BatchVariable"
+      },
+      "title": "Variables",
+      "type": "array"
+    },
+    "scenarios": {
+      "items": {
+        "$ref": "#/$defs/BatchScenarioChoice"
+      },
+      "title": "Scenarios",
+      "type": "array"
+    }
+  },
+  "required": [
+    "project_id",
+    "project_name",
+    "revision",
+    "parameters",
+    "variables",
+    "scenarios"
+  ],
+  "title": "BatchSetupResponse",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

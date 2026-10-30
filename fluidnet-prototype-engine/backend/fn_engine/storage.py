@@ -53,20 +53,24 @@ class WorkspaceStore:
             self.db.execute('PRAGMA synchronous=FULL')
             self.db.execute('PRAGMA foreign_keys=ON')
             version = self.db.execute('PRAGMA user_version').fetchone()[0]
-            if version not in (0, 1, 2):
+            if version not in (0, 1, 2, 3):
                 raise StorageError(f'工作区版本 {version} 不受当前程序支持')
+            from .batch_store import BATCH_SCHEMA
             self.db.executescript('''
                 CREATE TABLE IF NOT EXISTS workspace(revision INTEGER PRIMARY KEY, saved_at TEXT NOT NULL, data BLOB NOT NULL);
                 CREATE TABLE IF NOT EXISTS runs(id TEXT PRIMARY KEY, updated REAL NOT NULL, record BLOB NOT NULL, overview BLOB);
                 CREATE TABLE IF NOT EXISTS frames(run_id TEXT REFERENCES runs(id) ON DELETE CASCADE, idx INTEGER, data BLOB NOT NULL, PRIMARY KEY(run_id,idx));
                 CREATE TABLE IF NOT EXISTS project_history(id TEXT, revision INTEGER, saved_at TEXT NOT NULL, data BLOB, PRIMARY KEY(id,revision));
-            ''')
+            ''' + BATCH_SCHEMA)
             if version < 2:
                 with self.transaction() as db:
                     row = db.execute('SELECT saved_at,data FROM workspace ORDER BY revision DESC LIMIT 1').fetchone()
                     if row:
                         self._sync_projects(db, unpack(row[1]), row[0])
                     db.execute('PRAGMA user_version=2')
+            if version < 3:
+                with self.transaction() as db:
+                    db.execute('PRAGMA user_version=3')
             if recover:
                 self._recover()
         except Exception as error:
@@ -211,6 +215,8 @@ class WorkspaceStore:
             if overview is not None:
                 db.execute('UPDATE runs SET overview=? WHERE id=?', (pack(overview), record['id']))
             if record['status'] in TERMINAL:
+                from .batch_store import capture_batch_result
+                capture_batch_result(db, metadata, overview, total_rows)
                 self._prune(db)
         record.update(persisted_at=metadata['persisted_at'], persisted_rows=total_rows)
 
@@ -280,6 +286,8 @@ class WorkspaceStore:
                 events.append({'type': 'interrupted', 'time_s': time_s, 'message': '服务已重新启动，保留最后落盘历史；继续计算请新建运行'})
                 record['events'] = events[-1000:]
                 db.execute('UPDATE runs SET record=? WHERE id=?', (pack(record), rid))
+            from .batch_store import recover_batches
+            recover_batches(db)
             self._prune(db)
 
     def close(self):

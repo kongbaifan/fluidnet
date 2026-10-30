@@ -62,6 +62,12 @@ class ThermalResult:
     # Pipes with thermal_cells > 0: branch -> cell enthalpies (start→end port order) and stored power, W.
     cell_enthalpies: dict[int, np.ndarray] = field(default_factory=dict)
     cell_power_w: dict[int, float] = field(default_factory=dict)
+    # 湿空气模式（SolverOptions.moist_air=True）：节点含湿量、盘管/加湿器输出与水分账。
+    humidity_ratio: np.ndarray | None = None
+    coil_outputs: dict[str, dict] = field(default_factory=dict)
+    humidifier_outputs: dict[str, float] = field(default_factory=dict)
+    humidifier_moisture_kg_s: float = 0.0
+    moisture_residual_kg_s: float = 0.0
 
 
 def phase_family(state: FluidState) -> str:
@@ -223,12 +229,17 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
     downstream = [b.end_node if q >= 0 else b.start_node for b, q in zip(branches, flows)]
 
     fixed = network.fixed_pressures
+    component = network.node_component if len(network.node_component) == n else [0] * n
+    if options.moist_air:
+        raise ThermalError('AIR_SOLVER_ENTRY_REQUIRED', '湿空气请通过 solve_network 执行水力与热湿联合求解')
     svc = (lambda node: service_at(network, node, service)) if network.mixed else (lambda node: service)
-    boundary_states = {node: _state_pt(svc(node), fixed[node], network.fixed_temperatures.get(node, DEFAULT_TEMPERATURE_K),
-                                       labels[node]) for node in fixed}
+    boundary_states: dict[int, FluidState] = {}
+    for node in fixed:
+        pressure = fixed[node]
+        temperature = network.fixed_temperatures.get(node, DEFAULT_TEMPERATURE_K)
+        boundary_states[node] = _state_pt(svc(node), pressure, temperature, labels[node])
     # Allowed single phase per hydraulic component: a vapour line elsewhere must not let a liquid
     # stream silently turn into steam (its hydraulics still assume the liquid density).
-    component = network.node_component if len(network.node_component) == n else [0] * n
     allowed_by_component: dict[int, set[str]] = {}
     for node, state in boundary_states.items():
         allowed_by_component.setdefault(component[node], set()).add(phase_family(state))
@@ -280,6 +291,8 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
     pipe_cells, cell_volume, cell_wall = [0] * m, np.zeros(m), np.zeros(m)
     cell_old = (storage_step[2] if storage_step is not None and len(storage_step) > 2 else None) or {}
     exchanger_branches: dict[str, list[int]] = {}
+    # Set only by the explicit cross-domain coordinator for its storage-free immersed coil.
+    saturated_coils = getattr(network, 'saturated_coils', {})
     for j, branch in enumerate(branches):
         instance = network.instances[branch.instance_id]
         definition = network.modules[instance.module_id]
@@ -288,7 +301,10 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
         height = float((relation.parameters if relation else params).get('height_m', 0.0) or 0.0)
         # Potential energy: rising along the flow converts enthalpy into elevation.
         gravity[j] = -GRAVITY * height * (1.0 if flows[j] >= 0 else -1.0)
-        if relation is not None:
+        if (branch.instance_id, branch.channel_id) in saturated_coils:
+            kinds[j] = 'saturated_coil'
+            pipe_ua[j], ambient_t[j] = saturated_coils[(branch.instance_id, branch.channel_id)]
+        elif relation is not None:
             kinds[j] = 'module'
             heat[j] = float(relation.parameters.get('heat_w', 0.0) or 0.0)
             if heat[j] != 0.0 and weight[j] <= flow_eps:
@@ -298,7 +314,22 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
         elif definition.runtime == 'builtin' and definition.solver_model == 'heat_exchanger':
             kinds[j] = 'exchanger'
             exchanger_branches.setdefault(branch.instance_id, []).append(j)
-        elif branch.solver_model == 'pipe':
+        elif definition.runtime == 'builtin' and definition.solver_model == 'heater':
+            # Constant electric heat into the stream. No storage: a stagnant heater would have to
+            # raise the temperature of an unmodelled mass, so it is rejected like module heat.
+            kinds[j] = 'heater'
+            heat[j] = float(params.get('heat_input_w', 0.0) or 0.0)
+            if heat[j] != 0.0 and weight[j] <= flow_eps:
+                raise ThermalError('NO_FLOW_HEAT', f'{branch.instance_id}.{branch.channel_id} 通路流量为零却声明了 '
+                                   f'{heat[j]:g} W 的热量；无热容通路不能在零流量下持续加热或冷却',
+                                   branch.instance_id, branch.channel_id)
+        elif definition.runtime == 'builtin' and definition.solver_model == 'cooling_tower_moist':
+            kinds[j] = 'cooling_tower_moist'
+            if flows[j] < -flow_eps:
+                raise ThermalError('AIR_REVERSE_FLOW_UNSUPPORTED', '湿空气冷却塔只支持水侧正向流动', branch.instance_id)
+        elif definition.runtime == 'builtin' and definition.solver_model == 'water_chiller':
+            kinds[j] = 'water_chiller'
+        elif branch.solver_model in ('pipe', 'duct'):
             kinds[j] = 'pipe'
             pipe_ua[j] = float(params.get('heat_loss_ua_w_k', 0.0) or 0.0)
             pipe_cells[j] = int(params.get('thermal_cells', 0) or 0)
@@ -326,7 +357,7 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
         else:
             diagnostics.append(Diagnostic(code='THERMAL_EXCHANGER_NO_FLOW', severity='info', instance_id=instance_id,
                                           message=f'{instance_id} 至少一侧无流量，本次不交换热量'))
-    nonlinear = (module_heat is not None or bool(exchangers) or any(pipe_ua[j] > 0 for j in flowing)
+    nonlinear = ('water_chiller' in kinds or 'cooling_tower_moist' in kinds or module_heat is not None or bool(exchangers) or any(pipe_ua[j] > 0 for j in flowing)
                  or any(storage[node].heat_loss_ua_w_k > 0 for node in finite)
                  or any(pipe_cells[j] > 0 for j in flowing))
 
@@ -350,7 +381,11 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
 
     # A lossy pipe relaxes towards ambient, which also fixes the level of a closed loop it sits in.
     # Tanks fix their own enthalpy (held state or stored energy), so loops through them are well posed.
-    seeds = set(supply) | set(storage) | {downstream[j] for j in flowing if kinds[j] == 'pipe' and pipe_ua[j] > 0}
+    seeds = set(supply) | set(storage) | {downstream[j] for j in flowing
+                                        if kinds[j] in ('pipe', 'saturated_coil') and pipe_ua[j] > 0}
+    if 'water_chiller' in kinds:
+        # Neither liquid side may acquire a hidden heat sink from a fallback temperature pin.
+        seeds |= {downstream[j] for j in flowing if kinds[j] in ('water_chiller', 'cooling_tower_moist')}
     pins: dict[int, float] = {}
     reach = reachable(seeds)
     while True:
@@ -447,6 +482,8 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
         return slope, offset, cells, mass
 
     def relations_for(states, h):
+        from .air_liquid import coupled_device_results
+        coupled = coupled_device_results(network, states, flows, pressures, upstream, downstream) if 'water_chiller' in kinds else {}
         if module_heat is not None:
             from .module_diagnostics import merge_diagnostics
             powers, messages = module_heat(states, heat.copy())
@@ -459,11 +496,23 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
         chains.clear()
         for j in flowing:
             up, w, c = upstream[j], weight[j], gravity[j]
+            if j in coupled:
+                weights[j] = {}
+                consts[j] = coupled[j].outlet_state.enthalpy_j_kg
+                continue
             if kinds[j] == 'pipe' and pipe_cells[j] > 0:
                 a, offset, cells, mass = cell_chain(j, states, h)
                 chains[j] = (cells, mass)
                 weights[j] = {up: a}
                 c += offset
+            elif kinds[j] == 'saturated_coil' and pipe_ua[j] > 0:
+                # The phase-change side is isothermal. Linearize the single-phase
+                # upstream temperature, without flashing that fluid at refrigerant Tsat.
+                cp = states[up].specific_heat_j_kg_k
+                a = math.exp(-pipe_ua[j] / (w * cp))
+                weights[j] = {up: a}
+                offset = states[up].temperature_k - h[up] / cp
+                c += (1.0 - a) * cp * (ambient_t[j] - offset)
             elif kinds[j] == 'pipe' and pipe_ua[j] > 0:
                 cp = states[up].specific_heat_j_kg_k
                 a = math.exp(-pipe_ua[j] / (w * cp))
@@ -481,6 +530,19 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
             elif kinds[j] == 'module':
                 # Python pump/compressor relations carry shaft work in `shaft`; heat_w is extra heat.
                 c += (heat[j] + shaft[j]) / w
+            elif kinds[j] == 'heater':
+                # Constant heat per unit mass: h_out = h_in + Q/w (declared in the classification pass).
+                c += heat[j] / w
+            elif kinds[j] == 'cooling_tower_moist':
+                from .cooling_tower_moist import evaluate_tower
+                from .moist_air import AirPropertyError
+                try:
+                    tower = evaluate_tower(states[up],w,network.parameters[branches[j].instance_id],svc(up),
+                                           float(pressures[downstream[j]]))
+                except AirPropertyError as error:
+                    raise ThermalError(error.code,str(error),branches[j].instance_id) from error
+                weights[j] = {}
+                c = tower.outlet_state.enthalpy_j_kg
             consts[j] = c
         for _, a, b, ua in exchangers:
             na, nb = upstream[a], upstream[b]
@@ -562,7 +624,7 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
         assert states is not None  # Nonlinear iterations always evaluate node states above.
         change = max((abs(candidate[k] - h[k]) / (states[k].specific_heat_j_kg_k or 4180.0) for k in range(n)), default=0.0)
         if change < options.thermal_tolerance_k:
-            if module_heat is not None:
+            if module_heat is not None or saturated_coils or 'cooling_tower_moist' in kinds or 'water_chiller' in kinds:
                 used_heat = heat.copy()
                 final_states = node_states(candidate)
                 final_weights, final_consts = relations_for(final_states, candidate)
@@ -598,7 +660,7 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
     else:
         raise ThermalError('THERMAL_NOT_CONVERGED', f'热力迭代 {options.max_thermal_iterations} 次未收敛，请检查换热与散热参数')
 
-    if module_heat is not None:
+    if module_heat is not None or saturated_coils or 'cooling_tower_moist' in kinds or 'water_chiller' in kinds:
         used_heat = heat.copy()
         final_states = node_states(h)
         weights, consts = relations_for(final_states, h)
@@ -606,7 +668,8 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
         defect = max((abs(check[k] - h[k]) / (final_states[k].specific_heat_j_kg_k or 4180.) for k in range(n)), default=0.)
         heat_ok = np.all(np.abs(heat - used_heat) <= 1e-6 + 1e-6 * np.maximum(np.abs(heat), np.abs(used_heat)))
         if not heat_ok or defect > options.thermal_tolerance_k:
-            raise ThermalError('MODULE_THERMAL_DEFECT', '最终热回调热流或固定点缺陷超过容差，拒绝结果')
+            raise ThermalError('COUPLED_THERMAL_DEFECT' if saturated_coils else 'MODULE_THERMAL_DEFECT',
+                               '最终换热关系或固定点缺陷超过容差，拒绝结果')
 
     if acceleration != 'none' and nonlinear:
         # 未经加速伪装的方程残差复核：在最终 h 上做一次纯 Picard 评估，
@@ -628,8 +691,29 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
     heat_w = np.zeros(m)
     for j in flowing:
         outlet_h[j] = sum(a * h[col] for col, a in weights[j].items()) + consts[j]
-        outlet_states[j] = checked_state(pressures[downstream[j]], outlet_h[j], branches[j].instance_id, downstream[j])
+        outlet_states[j] = checked_state(pressures[downstream[j]], outlet_h[j], branches[j].instance_id,
+                                         downstream[j])
         heat_w[j] = weight[j] * (outlet_h[j] - h[upstream[j]])
+
+    coil_outputs: dict[str, dict] = {}
+    if 'water_chiller' in kinds:
+        from .air_liquid import coupled_device_results
+        for j, device in coupled_device_results(network, states, flows, pressures, upstream, downstream, check=True).items():
+            if device.outputs:
+                coil_outputs[branches[j].instance_id] = device.outputs
+    for j,kind in enumerate(kinds):
+        if kind == 'cooling_tower_moist':
+            from .cooling_tower_moist import evaluate_tower
+            from .moist_air import AirPropertyError
+            try:
+                tower = evaluate_tower(states[upstream[j]],weight[j],network.parameters[branches[j].instance_id],
+                                       svc(upstream[j]),float(pressures[downstream[j]]))
+            except AirPropertyError as error:
+                raise ThermalError(error.code,str(error),branches[j].instance_id) from error
+            coil_outputs[branches[j].instance_id] = tower.outputs
+            if tower.concentration_limited:
+                diagnostics.append(Diagnostic(code='TOWER_CONCENTRATION_LIMITED',severity='warning',
+                    instance_id=branches[j].instance_id,message='飘水限制可达到的浓缩倍数；已输出实际值'))
 
     # Cell enthalpies (start→end port order) and the power each pipe stores in its cells.
     cell_enthalpies, cell_power = {}, {}
@@ -638,9 +722,9 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
             continue
         if j in chains:
             cells, mass = chains[j]
-            values = np.array([slope * h[upstream[j]] + offset for slope, offset in cells])
+            cell_values = np.array([slope * h[upstream[j]] + offset for slope, offset in cells])
             if flows[j] < 0:
-                values = values[::-1]
+                cell_values = cell_values[::-1]
         else:
             # Stagnant: no transport. Steady/frame 0 takes the start node's state; a step relaxes towards ambient.
             node = upstream[j]
@@ -649,11 +733,11 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
                 cp = states[node].specific_heat_j_kg_k
                 g = pipe_ua[j] / (pipe_cells[j] * cp)
                 h_env = environment_h(j, states, h, node) if pipe_ua[j] > 0 else 0.0
-                values = (mass / dt_s * np.asarray(cell_old[j]) + g * h_env) / (mass / dt_s + g)
+                cell_values = (mass / dt_s * np.asarray(cell_old[j]) + g * h_env) / (mass / dt_s + g)
             else:
-                values = np.full(pipe_cells[j], h[node])
-        cell_enthalpies[j] = values
-        cell_power[j] = float(mass * np.sum(values - np.asarray(cell_old[j])) / dt_s) if j in cell_old else 0.0
+                cell_values = np.full(pipe_cells[j], h[node])
+        cell_enthalpies[j] = cell_values
+        cell_power[j] = float(mass * np.sum(cell_values - np.asarray(cell_old[j])) / dt_s) if j in cell_old else 0.0
 
     # Heat the fallback reference injected: residual of the original node balance at pinned rows.
     reference_heat = 0.0
@@ -718,4 +802,6 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
                          boundary_supply=supply, boundary_states=boundary_states, port_states=port_states,
                          reference_heat_w=float(reference_heat), energy_residual_w=residual, iterations=iterations,
                          diagnostics=diagnostics, storage_power_w=storage_power,
-                         cell_enthalpies=cell_enthalpies, cell_power_w=cell_power)
+                         cell_enthalpies=cell_enthalpies, cell_power_w=cell_power,
+                         coil_outputs=coil_outputs)
+

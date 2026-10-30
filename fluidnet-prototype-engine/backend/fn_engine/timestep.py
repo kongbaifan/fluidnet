@@ -45,7 +45,7 @@ from .compiler import CompilationError
 from .models import SolverOptions
 
 # 首轮支持的执行域：理想热模型（A1）与冷库 B 集总制冷站（A2/A3）。
-SUPPORTED_DOMAINS = frozenset({'thermal', 'refrigeration'})
+SUPPORTED_DOMAINS = frozenset({'thermal', 'refrigeration', 'coupled'})
 
 # 误差类别的规范单位；配置字段名即单位，避免 kg/J/K 混用。
 CATEGORY_UNITS = {'mass': 'kg', 'energy': 'J', 'temperature': 'K', 'pressure': 'Pa'}

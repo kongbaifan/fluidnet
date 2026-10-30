@@ -193,15 +193,20 @@ class RunManager:
         self.active = 0
         self.archive = _ArchiveWriter(self, storage) if storage is not None else None
 
-    def submit(self, request):
+    def submit(self, request, *, run_id=None):
+        from .air_variables import make_air_metadata
+        air_metadata = make_air_metadata(request.project)
         with self.wake:
             if self.closed:
                 raise ValueError('运行服务已关闭')
             if sum(j.record['status'] not in TERMINAL for j in self.jobs.values()) >= 20:
                 raise ValueError('最多保留 20 个活动运行，请先停止不用的任务')
-            run_id = uuid.uuid4().hex
+            run_id = run_id or uuid.uuid4().hex
+            if run_id in self.jobs:
+                raise ValueError('运行标识已存在')
             record = {'id': run_id, 'status': 'queued', 'mode': request.mode,
                 'request': request.model_dump(mode='json'), 'frame': None, 'history': [], 'events': [{'type': 'queued', 'time_s': 0.}]}
+            record['air_metadata'] = air_metadata
             job = Job(request.model_copy(deep=True), record)
         # Durable before the scheduler can see the job; one small write per run is fine.
         self._persist(job)

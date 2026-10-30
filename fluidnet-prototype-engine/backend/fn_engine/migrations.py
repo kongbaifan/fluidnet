@@ -163,3 +163,55 @@ def migrate_project(project, target, migration):
         script.content_hash = restored.content_hash
     candidate.modules = [target.model_copy(deep=True) if module.id == target.id else module for module in candidate.modules]
     return Project.model_validate(candidate.model_dump()), sorted(set(references))
+
+
+def preview_air_migration(project, upgrade_official_modules=False):
+    """纯预览：保留输入与原始定义，只返回新项目；不写工作区或旧运行。"""
+    from pathlib import Path
+    from .air_models import MoistAirOptions
+    from .compiler import CompilationError, compile_project
+    from .module_contracts import definition_hash
+    from .packages import load_module_package
+    original=project.model_copy(deep=True)
+    candidate=project.model_copy(deep=True)
+    changes=[]
+    if not project.solver.moist_air:
+        raise ValueError('此入口只迁移已启用 moist_air 的旧项目；普通干工质项目保持原样')
+    if project.solver.moist_air_options is None:
+        changes.extend(['湿空气合同升级为 1；公共质量流量和比焓按当地混合物计，内部输运按干空气计。',
+                        '物性由教学近似改为 CoolProp 湿空气服务；历史帧不转换，新结果需重新运行。'])
+        candidate.solver.moist_air_options=MoistAirOptions()
+    candidate.solver.thermal=True
+    candidate.solver.property_coupling='node'
+    candidate.solver.series_compression=False
+    candidate.solver.hydraulic_blocks=False
+    candidate.solver.module_mixed_jacobian=False
+    candidate.solver.thermal_acceleration='none'
+    candidate.solver.coupling_acceleration='none'
+    changes.append('启用热力和节点物性耦合，关闭尚未适配湿空气的压缩、分块与混合导数选项。')
+    if upgrade_official_modules:
+        root=Path(__file__).resolve().parents[2]/'modules'
+        for name in ('fan','duct_fitting','duct_damper','air_vent'):
+            old=next((m for m in candidate.modules if m.id==name),None)
+            if old is None or old.sdk and 'air.pass_through.v1' in old.sdk.capabilities:
+                continue
+            historical=load_module_package(root/name/'history'/'v1')
+            if definition_hash(old)!=definition_hash(historical):
+                changes.append(f'{name} 与已知旧版哈希不同，保留自定义源码；需作者声明并验证湿空气能力。')
+                continue
+            target=load_module_package(root/name)
+            for inst in candidate.instances:
+                if inst.module_id==name:
+                    inst.parameters={p.id:deepcopy(p.default) for p in old.parameters}|inst.parameters
+                    inst.package=package_ref(target)
+            candidate.modules=[target if m.id==name else m for m in candidate.modules]
+            changes.append(f'{name}：已核对旧版哈希，预览升级 v{old.version} → v{target.version}，冻结原参数默认值。')
+    candidate=Project.model_validate(candidate.model_dump())
+    try:
+        network=compile_project(candidate)
+        diagnostics=network.diagnostics
+        valid=True
+    except CompilationError as error:
+        diagnostics=[error.diagnostic]
+        valid=False
+    return {'original_project':original,'project':candidate,'changes':changes,'valid':valid,'diagnostics':diagnostics}

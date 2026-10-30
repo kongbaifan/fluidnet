@@ -736,7 +736,8 @@
               "schema_version": {
                 "enum": [
                   2,
-                  3
+                  3,
+                  4
                 ]
               }
             },
@@ -763,11 +764,6 @@
           "else": {
             "not": {
               "anyOf": [
-                {
-                  "required": [
-                    "applicability"
-                  ]
-                },
                 {
                   "required": [
                     "hydraulic_dependencies"
@@ -804,6 +800,13 @@
           "then": {
             "properties": {
               "applicability": {
+                "properties": {
+                  "execution_domains": {
+                    "items": {
+                      "const": "fluid"
+                    }
+                  }
+                },
                 "type": "object"
               },
               "hydraulic_dependencies": {
@@ -817,6 +820,79 @@
               }
             }
           }
+        },
+        {
+          "else": {
+            "not": {
+              "required": [
+                "execution_role"
+              ]
+            }
+          },
+          "if": {
+            "properties": {
+              "schema_version": {
+                "const": 4
+              }
+            },
+            "required": [
+              "schema_version"
+            ]
+          },
+          "then": {
+            "properties": {
+              "execution_role": {
+                "const": "refrigeration.isenthalpic_throttle.v1"
+              },
+              "applicability": {
+                "properties": {
+                  "execution_domains": {
+                    "items": {
+                      "const": "refrigeration"
+                    }
+                  }
+                },
+                "type": "object"
+              },
+              "solver_model": {
+                "const": "generic"
+              },
+              "state_model": {
+                "type": "null"
+              },
+              "thermal_model": {
+                "type": "null"
+              },
+              "source_format": {
+                "const": "python-v1"
+              },
+              "channels": {
+                "maxItems": 0
+              }
+            },
+            "required": [
+              "execution_role"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "schema_version": {
+                "enum": [
+                  1,
+                  2
+                ]
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "required": [
+                "applicability"
+              ]
+            }
+          }
         }
       ],
       "description": "Schema-dispatched module facade; v1 never receives SDK default fields.",
@@ -826,7 +902,8 @@
           "enum": [
             1,
             2,
-            3
+            3,
+            4
           ],
           "title": "Schema Version",
           "type": "integer"
@@ -1011,10 +1088,27 @@
               "$ref": "#/$defs/ModuleApplicability"
             },
             {
+              "$ref": "#/$defs/RefrigerationApplicability"
+            },
+            {
               "type": "null"
             }
           ],
-          "default": null
+          "default": null,
+          "title": "Applicability"
+        },
+        "execution_role": {
+          "anyOf": [
+            {
+              "const": "refrigeration.isenthalpic_throttle.v1",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Execution Role"
         },
         "hydraulic_dependencies": {
           "anyOf": [
@@ -1407,6 +1501,85 @@
       "title": "ModuleSDKRequirements",
       "type": "object"
     },
+    "MoistAirOptions": {
+      "additionalProperties": false,
+      "properties": {
+        "contract_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Contract Version",
+          "type": "integer"
+        },
+        "property_backend": {
+          "const": "coolprop_ha",
+          "default": "coolprop_ha",
+          "title": "Property Backend",
+          "type": "string"
+        },
+        "humidity_tolerance_kg_kg": {
+          "default": 1e-08,
+          "exclusiveMinimum": 0,
+          "maximum": 0.001,
+          "title": "Humidity Tolerance Kg Kg",
+          "type": "number"
+        },
+        "max_iterations": {
+          "default": 60,
+          "maximum": 500,
+          "minimum": 1,
+          "title": "Max Iterations",
+          "type": "integer"
+        },
+        "relaxation": {
+          "default": 0.7,
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "title": "Relaxation",
+          "type": "number"
+        },
+        "moisture_atol_kg_s": {
+          "default": 1e-09,
+          "exclusiveMinimum": 0,
+          "title": "Moisture Atol Kg S",
+          "type": "number"
+        },
+        "moisture_rtol": {
+          "default": 1e-06,
+          "exclusiveMinimum": 0,
+          "maximum": 0.001,
+          "title": "Moisture Rtol",
+          "type": "number"
+        },
+        "energy_atol_w": {
+          "default": 0.001,
+          "exclusiveMinimum": 0,
+          "title": "Energy Atol W",
+          "type": "number"
+        },
+        "energy_rtol": {
+          "default": 1e-06,
+          "exclusiveMinimum": 0,
+          "maximum": 0.001,
+          "title": "Energy Rtol",
+          "type": "number"
+        },
+        "flow_zero_tolerance_kg_s": {
+          "default": 1e-10,
+          "exclusiveMinimum": 0,
+          "maximum": 1e-06,
+          "title": "Flow Zero Tolerance Kg S",
+          "type": "number"
+        },
+        "supersaturation_policy": {
+          "const": "error",
+          "default": "error",
+          "title": "Supersaturation Policy",
+          "type": "string"
+        }
+      },
+      "title": "MoistAirOptions",
+      "type": "object"
+    },
     "PIDController": {
       "additionalProperties": false,
       "properties": {
@@ -1727,6 +1900,14 @@
           "title": "Circuit Fluids",
           "type": "array"
         },
+        "thermal_couplings": {
+          "items": {
+            "$ref": "#/$defs/ThermalCoupling"
+          },
+          "maxItems": 2,
+          "title": "Thermal Couplings",
+          "type": "array"
+        },
         "events": {
           "items": {
             "$ref": "#/$defs/ScheduleEvent"
@@ -1741,6 +1922,39 @@
         "name"
       ],
       "title": "Project",
+      "type": "object"
+    },
+    "RefrigerationApplicability": {
+      "additionalProperties": false,
+      "properties": {
+        "execution_domains": {
+          "items": {
+            "const": "refrigeration",
+            "type": "string"
+          },
+          "maxItems": 1,
+          "minItems": 1,
+          "title": "Execution Domains",
+          "type": "array"
+        },
+        "fluids": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 64,
+          "title": "Fluids",
+          "type": "array"
+        },
+        "assumptions": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 32,
+          "title": "Assumptions",
+          "type": "array"
+        }
+      },
+      "title": "RefrigerationApplicability",
       "type": "object"
     },
     "Scenario": {
@@ -2009,6 +2223,22 @@
           "title": "Coupling Acceleration",
           "type": "string"
         },
+        "moist_air": {
+          "default": false,
+          "title": "Moist Air",
+          "type": "boolean"
+        },
+        "moist_air_options": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MoistAirOptions"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "max_step_halvings": {
           "default": 6,
           "maximum": 20,
@@ -2063,6 +2293,46 @@
         }
       },
       "title": "SolverOptions",
+      "type": "object"
+    },
+    "ThermalCoupling": {
+      "additionalProperties": false,
+      "description": "A storage-free single-phase coil immersed in a saturated refrigerant vessel.",
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "fluid_instance_id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+          "title": "Fluid Instance Id",
+          "type": "string"
+        },
+        "fluid_channel_id": {
+          "default": "ch0",
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+          "title": "Fluid Channel Id",
+          "type": "string"
+        },
+        "refrigerant_vessel_id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+          "title": "Refrigerant Vessel Id",
+          "type": "string"
+        },
+        "ua_w_k": {
+          "minimum": 0,
+          "title": "Ua W K",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "fluid_instance_id",
+        "refrigerant_vessel_id",
+        "ua_w_k"
+      ],
+      "title": "ThermalCoupling",
       "type": "object"
     },
     "TimeStepOptions": {

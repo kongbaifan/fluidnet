@@ -1,3 +1,4 @@
+import {FHD_CONTEXT, captureFhd} from './browser-viewport.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdirSync, mkdtempSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -21,7 +22,7 @@ async function startServer() {
 async function stopServer() { if (launched) await launched.stop(); }
 
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
-const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+const page = await browser.newPage({ ...FHD_CONTEXT });
 const errors = []; page.on('pageerror', e => errors.push(e.message));
 
 try {
@@ -55,6 +56,6 @@ try {
   expect(errors).toEqual([]);
   console.log(JSON.stringify({ runId, errors }));
 } catch (error) {
-  mkdirSync('artifacts', { recursive: true }); await page.screenshot({ path: 'artifacts/auth-failure.png', fullPage: true });
+  mkdirSync('artifacts', { recursive: true }); await captureFhd(page, 'artifacts/auth-failure.png');
   console.error(serverLog.slice(-1500), errors); throw error;
 } finally { await browser.close(); await stopServer(); }

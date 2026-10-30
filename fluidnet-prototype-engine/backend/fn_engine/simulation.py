@@ -65,6 +65,9 @@ class SimulationSession:
         self.result = None
         self.tanks = s.tank_states_from(network, None, None, None)
         self.cells = {}
+        from .air_ledger import initial_accumulators
+        self.air_rooms = {node:spec.initial_state for node,spec in network.air_rooms.items()}
+        self.air_accumulators = initial_accumulators(network)
         self.committed = {}
         self.diagnostics = []
         self.view = network
@@ -79,7 +82,9 @@ class SimulationSession:
     def initialize(self):
         try:
             self.runners = s._python_runners(self.network)
-            self.result = s.solve_network(self.network, self.runners, 0., service=self.service if self.network.project.solver.thermal else None)
+            initial_view = dataclasses.replace(self.network,air_room_step=(0.,self.air_rooms)) if self.air_rooms else self.network
+            self.result = s.solve_network(initial_view, self.runners, 0., service=self.service if self.network.project.solver.thermal else None)
+            self.air_rooms = {node:item.state for node,item in getattr(self.result.thermal,'air_room_results',{}).items()}
             self.cells = dict(self.result.thermal.cell_enthalpies) if self.result.thermal else {}
             # Targets and limits were checked by compile_project (validate_controllers).
             for config in self.network.project.controllers:
@@ -130,6 +135,9 @@ class SimulationSession:
         parameters = validated_parameters(candidate, definition)
         if definition.solver_model == 'pump_curve' and parameters.get('speed_ratio', 1) <= 0:
             raise CompilationError('PARAMETER_RANGE', '当前泵模型转速必须大于零')
+        if self.network.project.solver.moist_air or definition.solver_model in ('cooling_tower_moist', 'water_chiller'):
+            from .air_compile import validate_air_parameters
+            validate_air_parameters(self.network,{instance_id:parameters},check_boundary_conflicts=False)
         return parameters
 
     def _apply_parameters(self, instance_id, parameters):
@@ -173,7 +181,11 @@ class SimulationSession:
             if any(self._apply_parameters(target,parameters) for target,parameters in candidates.items()):
                 self.revision += 1
             return
-        if self._apply_parameters(instance_id, self._candidate_parameters(instance_id, {parameter_id: value}, controlled)):
+        candidate = self._candidate_parameters(instance_id, {parameter_id: value}, controlled)
+        if self.network.project.solver.moist_air:
+            from .air_compile import validate_air_parameters
+            validate_air_parameters(self.network,{instance_id:candidate})
+        if self._apply_parameters(instance_id, candidate):
             self.revision += 1
 
     def _candidate_controller(self, controller_id, values):
@@ -230,6 +242,9 @@ class SimulationSession:
                                        'controller.<控制器>.setpoint|mode|manual_output')
         configs = {cid: self._candidate_controller(cid, fields) for cid, fields in controllers.items()}
         candidates = {iid: self._candidate_parameters(iid, fields, script_id=script_id) for iid, fields in parameters.items()}
+        if self.network.project.solver.moist_air:
+            from .air_compile import validate_air_parameters
+            validate_air_parameters(self.network,candidates)
         changed = False
         for cid, config in configs.items():
             self._apply_controller(cid, config)
@@ -295,6 +310,15 @@ class SimulationSession:
                 adjacency[branch.end_node].add(branch.start_node)
         unseen = set(adjacency)
         pressure, temperature = dict(view.fixed_pressures), dict(view.fixed_temperatures)
+        humidity = dict(view.fixed_humidities)
+        for inst in view.instances.values():
+            definition = view.modules[inst.module_id]
+            if definition.solver_model == 'pressure_source':
+                node = view.port_nodes[f'{inst.id}:{definition.ports[0].id}']
+                params = view.parameters[inst.id]
+                pressure[node],temperature[node] = params['pressure_pa'],params['temperature_k']
+                if node in view.air_nodes:
+                    humidity[node] = params.get('humidity_ratio_kg_kg',0.)
         # 困液定容容积：每一步的边界压力/温度来自 accepted 积分状态，而不是编译初值或保压近似。
         for node, spec in view.trapped.items():
             state = self.trapped[node]
@@ -321,10 +345,13 @@ class SimulationSession:
             pressure[anchor] = float(self.result.hydraulic.pressures[anchor])
             temperature[anchor] = self.result.thermal.node_states[anchor].temperature_k if self.result.thermal else 293.15
             diagnostics.append(Diagnostic(code='ISOLATED_PRESSURE_HELD', severity='info', message='被动隔离管段采用零流量保压近似；不计算热膨胀'))
-        return dataclasses.replace(view, fixed_pressures=pressure, fixed_temperatures=temperature, diagnostics=diagnostics)
+        return dataclasses.replace(view, fixed_pressures=pressure, fixed_temperatures=temperature,
+                                   fixed_humidities=humidity, diagnostics=diagnostics)
 
     def _trial(self, h):
         view = self._view()
+        if self.air_rooms:
+            view = dataclasses.replace(view,air_room_step=(h,self.air_rooms))
         warm = self.result
         if self.network.storage and warm.hydraulic.solution is not None and not warm.hydraulic.storage_rates:
             n_free = len([n for n in range(len(self.network.node_keys)) if n not in self.network.fixed_pressures])
@@ -358,6 +385,9 @@ class SimulationSession:
             preview.time = self.time + h
             preview.view, preview.result, preview.tanks, preview.cells = view, result, tanks, cells
             preview.trapped, preview.trapped_ledgers = trapped
+            preview.air_rooms = {node:item.state for node,item in getattr(result.thermal,'air_room_results',{}).items()}
+            from .air_ledger import advance_accumulators
+            preview.air_accumulators = advance_accumulators(view,self.air_accumulators,result,h) if self.air_accumulators else {}
             preview.committed = self.committed | values
             preview.diagnostics = merge_diagnostics(self.diagnostics, diagnostics)
             preview.scripts = {key: copy(script) for key, script in self.scripts.items()}
@@ -377,7 +407,8 @@ class SimulationSession:
             self._rollback_control()
             raise
         transaction.promote()
-        for field in ('time', 'view', 'result', 'tanks', 'cells', 'trapped', 'trapped_ledgers', 'committed', 'diagnostics'):
+        for field in ('time', 'view', 'result', 'tanks', 'cells', 'trapped', 'trapped_ledgers', 'committed', 'diagnostics',
+                      'air_rooms','air_accumulators'):
             setattr(self, field, getattr(preview, field))
         for key, script in self.scripts.items():
             for field in ('state', 'pending', 'next_s', 'last_s', 'samples', 'last_values'):
@@ -392,6 +423,8 @@ class SimulationSession:
         if protected & self.committed.keys():
             raise CompilationError('MODULE_OUTPUT_CONFLICT', 'commit_step 输出不能覆盖网络求解变量')
         frame.variables.update(self.committed)
+        for iid,ledger in self.air_accumulators.items():
+            frame.variables.update({f'{iid}.state.{key}':value for key,value in ledger.items()})
         trapped_specs = getattr(self.network, 'trapped', {})
         if trapped_specs:
             for node, spec in trapped_specs.items():
@@ -516,7 +549,8 @@ def run_dynamic(network, duration_s, dt_s):
             session.advance()
         return session.frames
     except CompilationError as error:
-        if session.frames and error.diagnostic.code.startswith('CONTROL_'):
+        from .air_variables import is_air_project
+        if session.frames and (error.diagnostic.code.startswith('CONTROL_') or is_air_project(network.project)):
             raise s.SolveFailed(error.diagnostic.code, str(error), frames=list(session.frames)) from error
         raise
     finally:

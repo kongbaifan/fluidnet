@@ -20,6 +20,8 @@
 | `Scenario` | id, name, overrides | 按实例 ID 提供规范参数覆盖；本次运行使用副本 |
 | `Project` | modules, instances, connections, scenarios, selected_variables, solver | 一次可独立计算和复现的项目 |
 | `RunRequest` | project, mode, duration_s, dt_s, scenario_id, selected_variables, history, trend_variables | 创建一次运行；变量选择与历史瘦身（`history='trend'`）不影响物理求解 |
+| `SavedProjectRunRequest` | revision?, mode, duration_s, dt_s, scenario_id, selected_variables, history, trend_variables | 按路径项目 ID 启动已保存文档，服务端归一化并固定实际修订；运行选项与 `RunRequest` 共用 `RunOptions` |
+| `ThermalCoupling` | id, fluid_instance_id, fluid_channel_id, refrigerant_vessel_id, ua_w_k | `Project.thermal_couplings` 内的浸没盘管合同，首版最多一条，UA ≥ 0；两侧压力/质量网络分离，只交换热量，详见 [热耦合说明](THERMAL_COUPLING.md) |
 | `RunCommand` | action, instance_id, parameter_id, value | 后台运行控制请求;仅 pause/resume/stop 生效 |
 | `RunFrame` | status, valid, time_s, variables, diagnostics, metrics, full | 一个时刻的结果与质量证据；`full=false` 表示瘦身历史中只含曲线变量的帧 |
 | `FluidConfig` | backend, fluid, composition, phase_policy | 物性服务选择和单相约束；`fluid` 可带后端前缀与质量分数，如 `INCOMP::MEG[0.3]` |
@@ -270,3 +272,5 @@ A1 只有两台内置设备：
 工作区以完整 schema=1 原型文档存储，独立于规范 Project；保存修订号覆盖全部项目、模块草稿、型号、关联快照等。SQLite 事务成功才确认 revision/saved_at，最近 5 个修订可读。RunRecordResponse 的 persisted_at/persisted_rows 标明最后确认的归档边界；重启保留项目与历史，并将未结束运行标为 interrupted，不恢复内存会话继续推进。窗口、全程抽稀与终态保留数见 API 文档。
 
 数据库版本 2 增加独立项目历史，每个项目保留最近 5 个修订；版本 1 自动从最新工作区建立项目初始修订。单项目交换格式为 `fluidnet-project`、schema=1，包含原型 project、modules、models 和 charts。项目保存按该项目的 expected_revision 检测冲突，并与完整工作区修订在同一事务中提交。工作区响应新增 `project_revisions`；运行请求新增可选 `project_revision`，用于标记当时已保存的项目修订。
+
+2026-10-28 数据库版本 3 增加 `batches` 与 `batch_items`，旧版本 1／2 自动迁移。批次自身保存规范项目、工况、模块／控制脚本快照和观察变量；终态结果与普通运行终态在同一事务提交，且先于普通运行保留清理。批次末值和有界曲线独立存储，不依赖普通运行或源项目修订仍存在。输入扫描值按保存参数的显示单位解析，API 结果按规范单位返回；详见[批量工况合同](SCENARIO_BATCHES.md)和 `contracts/batch-*.schema.json`。

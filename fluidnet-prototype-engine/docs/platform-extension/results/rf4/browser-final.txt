@@ -1,0 +1,3 @@
+RF-4 imported canonical project and ran v1.
+RF-4 version upgrade preserved partial scenarios and frozen report.
+{"projectId":"project-22","finalProjectId":"project-24","versions":[1,2,1],"flowV1":0.17455289375560082,"flowV2":0.032708631737966766,"batch":"c3c841bc95574597b025b1b17d3c1236","restarted":true,"formats":["fluidnet-project","Project"],"errors":[]}

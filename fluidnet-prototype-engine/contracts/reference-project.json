@@ -43,7 +43,7 @@
           },
           "minimum": 1.0,
           "maximum": null,
-          "runtime": false,
+          "runtime": true,
           "writable": true
         },
         {
@@ -60,7 +60,24 @@
           },
           "minimum": 1.0,
           "maximum": null,
-          "runtime": false,
+          "runtime": true,
+          "writable": true
+        },
+        {
+          "id": "humidity_ratio_kg_kg",
+          "label": "边界含湿量（湿空气模式）",
+          "value_type": "number",
+          "default": 0.0,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": 0.2,
+          "runtime": true,
           "writable": true
         }
       ],
@@ -233,6 +250,23 @@
           "writable": false,
           "sampleable": true,
           "parameter_id": "temperature_k",
+          "port_id": null
+        },
+        {
+          "id": "param.humidity_ratio_kg_kg",
+          "label": "边界含湿量（湿空气模式）",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "humidity_ratio_kg_kg",
           "port_id": null
         }
       ],
@@ -3335,6 +3369,7 @@
     "coupling_density_rtol": 1e-06,
     "thermal_acceleration": "none",
     "coupling_acceleration": "none",
+    "moist_air": false,
     "max_step_halvings": 6,
     "hydraulic_method": "dense",
     "hydraulic_diagnostics": false,

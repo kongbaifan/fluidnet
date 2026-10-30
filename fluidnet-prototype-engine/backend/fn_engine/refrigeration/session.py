@@ -1,5 +1,6 @@
 """Implicit room heat balance, sharing accepted-state controls and run commands."""
 from collections import deque
+from contextlib import contextmanager
 import math
 
 from ..compiler import CompilationError
@@ -14,6 +15,9 @@ from ..timestep import (AdaptiveMarch, StepStatistics, TimeStepConfig, TimeStepE
 
 class ThermalSession(SimulationSession):
     """Uses SimulationSession's validated parameter/control methods, not its fluid solver."""
+
+    _segment_fields: tuple[str, ...] = ('temperatures', 'cooling_energy', 'external_energy',
+                                       'energy_residual_j', 'frame_residual_j')
 
     def __init__(self, network, duration_s, dt_s, keep=None):
         if not math.isfinite(dt_s) or dt_s <= 0 or duration_s is not None and (not math.isfinite(duration_s) or duration_s <= 0):
@@ -40,6 +44,7 @@ class ThermalSession(SimulationSession):
         self.published_time = 0.
         self.diagnostics = []
         self.closed = False
+        self._control_base = None
         # 困液定容（I0–I4）只在通用流体执行域启用；热模型/制冷站复用 SimulationSession 的参数与
         # 控制方法但不调用其 __init__，这里保持空状态，使共用参数写入路径与原行为一致。
         self.trapped, self.trapped_ledgers = {}, {}
@@ -133,6 +138,69 @@ class ThermalSession(SimulationSession):
                 script.accept()
         self.time += step
 
+    def _step_checkpoint(self):
+        # The sequence grows for the whole run; retain its length instead of copying it per segment.
+        return ({key: value for key, value in vars(self.step_stats).items() if key != 'sequence'},
+                len(self.step_stats.sequence), self.march._next_h if self.march is not None else None)
+
+    def _restore_steps(self, checkpoint):
+        values, length, next_h = checkpoint
+        # Failed attempts remain observable, but provisional accepted steps must not enter the ledger.
+        failures = {'rejected', 'solver_failures', 'min_step_hits', 'max_error_norm',
+                    'frame_rejected', 'frame_solver_failures', 'frame_max_error'}
+        for key, value in values.items():
+            if key not in failures:
+                setattr(self.step_stats, key, value)
+        del self.step_stats.sequence[length:]
+        if self.march is not None:
+            self.march._next_h = next_h
+
+    @contextmanager
+    def _segment_transaction(self):
+        """Accept physics, controls and schedules together at the next control/output boundary."""
+        state = {}
+        for key in self._segment_fields:
+            value = getattr(self, key)
+            state[key] = value.copy() if isinstance(value, dict) else value
+        step_checkpoint, start = self._step_checkpoint(), self.time
+        self._control_base = self._capture_control()
+        try:
+            yield
+        except Exception as error:
+            self.time = start
+            self._rollback_control()
+            for key, value in state.items():
+                setattr(self, key, value)
+            self._restore_steps(step_checkpoint)
+            # Earlier complete segments may precede the next requested output frame. Keep their
+            # state and timestamp together, instead of returning only the older output-grid frame.
+            if self.frames and self.time > self.frames[-1].time_s:
+                self.publish()
+            frames = list(self.frames)
+            if isinstance(error, SolveFailed):
+                error.frames = frames
+                raise
+            diagnostic = getattr(error, 'diagnostic', None)
+            failure = SolveFailed(getattr(error, 'code', diagnostic.code if diagnostic else 'STEP_EXECUTION_FAILED'),
+                                  str(error), diagnostic.instance_id if diagnostic else None, frames)
+            if diagnostic is not None:
+                failure.diagnostic = diagnostic
+                failure.diagnostics = getattr(error, 'diagnostics', [diagnostic])
+            raise failure from error
+        else:
+            self._control_base = None
+
+    def _march_adaptive(self, step, trial, accept):
+        checkpoint = self._step_checkpoint()
+        try:
+            self.march.march(segment=step, trial=trial, accept=accept, time=self.time)
+        except Exception as error:
+            self._restore_steps(checkpoint)
+            if isinstance(error, TimeStepExhausted):
+                message = f'{error}；本积分段未接受，保留 t={self.time:g}s 的状态'
+                raise SolveFailed(error.code, message, None, list(self.frames)) from error
+            raise
+
     def _integrate(self, step):
         """Advance the physical state by `step`; nothing is committed unless the whole step succeeds."""
         if self.timestep.enabled:
@@ -186,22 +254,15 @@ class ThermalSession(SimulationSession):
             values[room], external[room], cooling[source] = temperature, heat_in, heat_out
         return {'temperatures': values, 'external': external, 'cooling': cooling, 'residual': residual}
 
-    def _commit_heat(self, payload):
-        """只提交被接受细步的库温、累计冷量/外供热量与能量残差。"""
-        self.temperatures.update(payload['temperatures'])
-        for room, energy in payload['external'].items():
-            self.external_energy[room] += energy
-        for source, energy in payload['cooling'].items():
-            self.cooling_energy[source] += energy
-        self.energy_residual_j += payload['residual']
-        self.frame_residual_j += payload['residual']
-
     def _integrate_adaptive(self, step):
-        """A1：整步与两个半步都从同一 accepted state 试算；只在 error_norm≤1 时提交细步路径。"""
+        """Error-accepted internal steps remain local until the complete segment succeeds."""
         rooms = list(self.network.room_sources)
+        temperatures = dict(self.temperatures)
+        external, cooling = dict(self.external_energy), dict(self.cooling_energy)
+        residual, frame_residual = self.energy_residual_j, self.frame_residual_j
 
         def trial(h):
-            old = {room: self.temperatures[room] for room in rooms}
+            old = {room: temperatures[room] for room in rooms}
             full = self._heat_trial(old, h)
             half = self._heat_trial(old, 0.5 * h)
             fine = self._heat_trial(half['temperatures'], 0.5 * h)
@@ -213,14 +274,19 @@ class ThermalSession(SimulationSession):
             return (half, fine), error
 
         def accept(payload, h, error):
-            half, fine = payload
-            self._commit_heat(half)
-            self._commit_heat(fine)
+            nonlocal residual, frame_residual
+            for candidate in payload:
+                temperatures.update(candidate['temperatures'])
+                for room, energy in candidate['external'].items():
+                    external[room] += energy
+                for source, energy in candidate['cooling'].items():
+                    cooling[source] += energy
+                residual += candidate['residual']
+                frame_residual += candidate['residual']
 
-        try:
-            self.march.march(segment=step, trial=trial, accept=accept, time=self.time)
-        except TimeStepExhausted as error:
-            raise SolveFailed(error.code, str(error), None, list(self.frames)) from error
+        self._march_adaptive(step, trial, accept)
+        self.temperatures, self.external_energy, self.cooling_energy = temperatures, external, cooling
+        self.energy_residual_j, self.frame_residual_j = residual, frame_residual
 
     def advance(self):
         if not self.frames:
@@ -231,14 +297,15 @@ class ThermalSession(SimulationSession):
         if self.duration is not None:
             target = min(target, self.duration)
         while target - self.time > 1e-12 * max(1., target):
-            self._control()
-            limit = self.timestep.max_step_s if self.timestep.enabled else self.network.project.solver.dynamic_step_s
-            step = min([target - self.time, limit]
-                       + [pid.next_s - self.time for pid in self.controllers.values()]
-                       + [script.next_s - self.time for script in self.scripts.values()])
-            if step <= 0:
-                raise CompilationError('THERMAL_STEP_INVALID', '热系统控制时钟未推进')
-            self._advance_heat(step)
+            with self._segment_transaction():
+                self._control()
+                limit = self.timestep.max_step_s if self.timestep.enabled else self.network.project.solver.dynamic_step_s
+                step = min([target - self.time, limit]
+                           + [pid.next_s - self.time for pid in self.controllers.values()]
+                           + [script.next_s - self.time for script in self.scripts.values()])
+                if step <= 0:
+                    raise CompilationError('THERMAL_STEP_INVALID', '热系统控制时钟未推进')
+                self._advance_heat(step)
         self.time = target
         self.index += 1
         return self.publish()

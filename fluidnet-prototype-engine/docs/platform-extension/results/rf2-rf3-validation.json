@@ -1,0 +1,132 @@
+{
+  "date": "2026-10-30",
+  "recorded_at": "2026-10-30T16:05:15.343744+08:00",
+  "baseline": "802b4c5428a71984fc7a571f546066dc589ec30f",
+  "scope": "RF-2 normal station execution and whole-segment acceptance; RF-3 author throttle, independent bench, UI and publication",
+  "status": "RF-2 and RF-3 complete; RF-4 and PF-2 pending",
+  "checks": {
+    "backend": {
+      "command": "python -m pytest -q tests/test_refrigeration_execution.py tests/test_refrigeration_bench.py tests/test_refrigeration_modules.py tests/test_module_templates.py tests/test_timestep_station.py tests/test_timestep_transactions.py tests/test_refrigeration_station_control.py --tb=short",
+      "exit_code": 0,
+      "evidence": "docs/platform-extension/results/rf2-rf3/backend.txt",
+      "sha256": "e5b5a6ff0c129fa74839f0da14704238abda59f4727a87dba3a1804ca34fe745",
+      "passed": 133,
+      "duration_s": 327.63
+    },
+    "related-regression": {
+      "command": "python -m pytest -q tests/test_refrigeration_execution.py tests/test_module_versions.py tests/test_module_transactions.py tests/test_refrigeration_station.py tests/test_thermal_coupling.py tests/test_rf0_probe.py --tb=short",
+      "exit_code": 0,
+      "evidence": "docs/platform-extension/results/rf2-rf3/regression-summary.json",
+      "sha256": "adcf037c2f9bfd028fd4514d44e1c44c9defcd443089cedbeb35119e194e9a92",
+      "passed": 153,
+      "duration_s": 94.0,
+      "note": "Summary only; this run overlaps the final backend run."
+    },
+    "ruff": {
+      "command": "python -m ruff check backend tests scripts modules examples/control_templates examples/refrigeration_extensions",
+      "exit_code": 0,
+      "evidence": "docs/platform-extension/results/rf2-rf3/ruff.txt",
+      "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+    },
+    "mypy": {
+      "command": "python -m mypy",
+      "exit_code": 0,
+      "evidence": "docs/platform-extension/results/rf2-rf3/mypy.txt",
+      "sha256": "0e8341d95deb3a76739b22eed147d75a1e8bbb7a44cb32f3485e0f723b8dd75d",
+      "source_files": 87
+    },
+    "sdk-types": {
+      "command": "python -m mypy --config-file mypy-sdk.ini",
+      "exit_code": 0,
+      "evidence": "docs/platform-extension/results/rf2-rf3/sdk-types.txt",
+      "sha256": "99774ae94d9c061d2ee8a3c00a79bb1c6dfd2b0998f7cb389be50e19a0dc7d15",
+      "source_files": 12
+    },
+    "author-types": {
+      "command": "python -m mypy --config-file mypy-sdk.ini modules/isenthalpic_throttle/module.py",
+      "exit_code": 0,
+      "evidence": "docs/platform-extension/results/rf2-rf3/author-types.txt",
+      "sha256": "8e63ae22e8213e327a5e9cbd584067681681bd8ef7f25c869877887ccdcfc4ff",
+      "source_files": 1
+    },
+    "frontend-check": {
+      "command": "npm run check",
+      "exit_code": 0,
+      "evidence": "docs/platform-extension/results/rf2-rf3/frontend-check.txt",
+      "sha256": "5e9f2486aa56b28a1714b894fb4f78e08aadf85de7f6dcd709736657d2ea73d3"
+    },
+    "frontend-tests": {
+      "command": "npm run test:ui",
+      "exit_code": 0,
+      "evidence": "docs/platform-extension/results/rf2-rf3/frontend-tests.txt",
+      "sha256": "4328eb569b6ae5e6fd863b5e3bd4dda1ecbb853dd6c9fa5d6f5581a50a132077",
+      "passed": 10
+    },
+    "browser-refrigeration": {
+      "command": "node tests/browser-refrigeration-authoring.mjs",
+      "exit_code": 0,
+      "evidence": "docs/platform-extension/results/rf2-rf3/browser-refrigeration.txt",
+      "sha256": "99fcd07e39243507d08181d960daaf2ed6a6764fc6bc99dd7505ec9dacafa092",
+      "page_errors": 0,
+      "viewport": "1920x1080",
+      "dpr": 1
+    },
+    "browser-module-workflow": {
+      "command": "node tests/browser-module-workflow.mjs",
+      "exit_code": 0,
+      "evidence": "docs/platform-extension/results/rf2-rf3/browser-module-workflow.txt",
+      "sha256": "933c4675bf4d516a4936cc858e7ca20811eb9de29f436484a86cd01bd67ba115",
+      "page_errors": 0,
+      "templates": 4
+    },
+    "contracts": {
+      "command": "python scripts/generate_contracts.py --check",
+      "exit_code": 0,
+      "evidence": "docs/platform-extension/results/rf2-rf3/contracts.txt",
+      "sha256": "b5aea33da688f516427bd52a028b65faf34aa1fb5d08a46088015d85d650750e",
+      "files": 90
+    },
+    "performance": {
+      "command": "python scripts/profile_rf0.py --formal",
+      "exit_code": 0,
+      "evidence": "docs/platform-extension/results/rf2-rf3/performance.json",
+      "sha256": "33580e0d751e1474b4e914bea25bb5452d78c6b9457658e1bfffe1c53ed1ee13",
+      "protocol": "schema4-sdk0.7",
+      "repeats_per_variant": 5,
+      "all_budgets_passed": true
+    }
+  },
+  "additional_evidence": [
+    "docs/platform-extension/results/rf2-rf3/browser-evidence.json",
+    "docs/platform-extension/results/rf2-rf3/bench-1080p.png",
+    "docs/platform-extension/results/rf2-rf3/bench-1080p.png.json"
+  ],
+  "source_sha256": {
+    "backend/fn_engine/refrigeration/station.py": "812f203f2fba1ecf67d8a0e60b47981933bfa616447bcd4e836892cbf427bb52",
+    "backend/fn_engine/refrigeration/module_adapter.py": "fa5524154d9be83c106523e0504d0d126fb632abe4be22c82cdb3c7a0fe2a241",
+    "backend/fn_engine/refrigeration/bench.py": "0cdddfca070949bda9b91e415289fc40101c99796658dc32dc01ea9cf855bb55",
+    "backend/fn_engine/runtime.py": "72999baee98e5d781f849d329317ab9f32410272766c626bf2f4b153266a738d",
+    "backend/fn_engine/worker.py": "66012cc05d628ccea4b13889d3bc86cabe511487e464422d8c26153ed92b9815",
+    "backend/fn_engine/bench.py": "469e47e9220434f7d01be65d59021210b9134c622331da2368c2ba24c39581fb",
+    "backend/fn_engine/models.py": "cf7d11cc755286363488c4d08dec43742eeb74e772c641e38eb3989188829054",
+    "backend/fn_engine/module_templates.py": "5ecf8b3db6113806d5b4c9317ed6c82e7de9543b9dc615f82317725d06a3ea19",
+    "backend/fn_engine/module_testing.py": "512627ff7ae9600fb53c704712add1fb5676356c32e58fc7ab17a79c6e9c2840",
+    "backend/fn_engine/packages.py": "40cd453159bb23b0a870cac25de312a40efa6ade2478948ded81e472fabc4738",
+    "frontend/studio.js": "bffad54f052253efe67f0dd977f2359afe8229481edc3ce6bb2461e099d2731a",
+    "frontend/engine-client.js": "bc6d6f3539bda89a7cb4b803f7e7d42773c6ab733f38aa5342b191e6025d3b34",
+    "frontend/module-test-editor.js": "fc25ef3ae9ef5d0aa96dfb51c656b3e23dab0577bc414919dabc1399f5594fe9",
+    "modules/isenthalpic_throttle/manifest.json": "d8f955f6d025613cdaf9df90fd4fb62178fceeadd2cd3524b7da93f61e570fdf",
+    "modules/isenthalpic_throttle/module.py": "29fb9b1cddf038a957f67dbc89e6856d4f28ce23b784d0b669be8c4a43edd5da",
+    "scripts/profile_rf0.py": "afa81b48b02e059e13dd5f51bc381e61c5fca260a23057f8a81d3228fe413bf7",
+    "tests/test_refrigeration_execution.py": "0a1b04e5318ccd465c66e4fc9a56e9c1cba526d86c0e5c5c02d5fcd3ea9d774a",
+    "tests/test_refrigeration_modules.py": "557428cb8eb0ac455856bd43848ab29cf93d96daefc6ce1d8a76357a8157ca81",
+    "tests/test_refrigeration_bench.py": "f3e6febf32844c93edcdb2f4e3c10145ce65b6c47211ae31dadc881815db0f98",
+    "tests/browser-refrigeration-authoring.mjs": "cd3aa9d6a922c7523fdddac7439a8ffec9a5335b0b87dfede67a041e02bb8932"
+  },
+  "limits": [
+    "Only the explicit isenthalpic-throttle role in pure refrigeration projects.",
+    "No station steady solver; no thermal coupling or independent author physical storage.",
+    "RF-4 end-to-end project/version/report/batch acceptance and PF-2 full regression/coverage remain pending.",
+    "Performance is a short fixed B-case comparison, not a general scaling or long-running guarantee."
+  ]
+}

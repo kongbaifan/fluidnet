@@ -1,0 +1,1 @@
+{"pid":"temperature","time":2,"output":1500,"errors":[]}

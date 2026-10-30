@@ -1,3 +1,4 @@
+import {FHD_CONTEXT, captureFhd} from './browser-viewport.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -15,7 +16,7 @@ async function start(){
 }
 async function stop(){if(launched)await launched.stop();}
 const browser=await chromium.launch({channel:'msedge',headless:true});
-let context=await browser.newContext({viewport:{width:1600,height:1100}}), page=await context.newPage();
+let context=await browser.newContext({...FHD_CONTEXT}), page=await context.newPage();
 const errors=[];
 const watch=p=>p.on('pageerror',e=>errors.push(e.message));watch(page);
 const ready=async p=>expect(p.locator('#app-header')).toContainText('模块平台 · v');
@@ -76,12 +77,12 @@ try{
   await expect.poll(async()=>{const r=await fetch(base+'/api/v1/runs/'+runId).then(r=>r.json());return r.status==='paused' && r.frame?.variables['V1.param.opening_ratio']===.65;},{timeout:20000}).toBe(true);
   await page.locator('.rail-link[data-route="controls"]').click();
   await expect(page.locator('#control-live')).toContainText('"V1.param.opening_ratio": 0.65');
-  mkdirSync('artifacts',{recursive:true});await page.screenshot({path:'artifacts/workspace-controls.png',fullPage:true});
+  mkdirSync('artifacts',{recursive:true});await captureFhd(page, 'artifacts/workspace-controls.png');
   await save(page);
 
   // A hard process termination, then a fresh browser with no localStorage.
   await stop();await context.close();await start();
-  context=await browser.newContext({viewport:{width:1600,height:1100}});page=await context.newPage();watch(page);
+  context=await browser.newContext({...FHD_CONTEXT});page=await context.newPage();watch(page);
   await page.goto(base+'/#controls');await ready(page);
   await expect(page.getByLabel('控制程序名称')).toHaveValue('retry after disk error');
   await expect(page.locator('[data-control-enabled]')).toBeChecked();
@@ -128,7 +129,7 @@ try{
   await expect(page.getByLabel('项目控制脚本')).toHaveValue('-- preserved legacy script');
   await expect(page.locator('[data-control-enabled]')).toBeDisabled();
   expect(errors).toEqual([]);
-  mkdirSync('artifacts',{recursive:true});await page.screenshot({path:'artifacts/workspace-legacy.png',fullPage:true});
+  mkdirSync('artifacts',{recursive:true});await captureFhd(page, 'artifacts/workspace-legacy.png');
   console.log(JSON.stringify({runId,restart:'interrupted',conflict:409,saveFailure:507,errors}));
-}catch(error){mkdirSync('artifacts',{recursive:true});await page.screenshot({path:'artifacts/workspace-failure.png',fullPage:true}).catch(()=>{});console.error(log.slice(-2500),errors);throw error;}
+}catch(error){mkdirSync('artifacts',{recursive:true});await captureFhd(page, 'artifacts/workspace-failure.png').catch(()=>{});console.error(log.slice(-2500),errors);throw error;}
 finally{await browser.close();await stop();}

@@ -1,0 +1,23 @@
+{
+  "runId": "5e58d734c22746028dd8fdd5520cfd19",
+  "finalStatus": "cancelled",
+  "timeS": 0.30000000000000004,
+  "rows": 7,
+  "rowsAfterStop": 7,
+  "timeAfterStop": 0.30000000000000004,
+  "events": [
+    "queued",
+    "running",
+    "stop accepted · 7884958d-87fa-4f6c-8a94-17ae5c28d695",
+    "命令 applied · 7884958d-87fa-4f6c-8a94-17ae5c28d695",
+    "cancelled"
+  ],
+  "trendRows": 61,
+  "partialRows": 30,
+  "parameterBatches": {
+    "writes": 3,
+    "acceptedRevisions": 2,
+    "rejectedBatches": 1
+  },
+  "errors": []
+}

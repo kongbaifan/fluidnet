@@ -1,0 +1,164 @@
+[
+  {
+    "log": "docs\\platform-extension\\results\\pf2\\frontend-unit.txt",
+    "duration_s": 1.1346993,
+    "exit_code": 0,
+    "command": "npm run test:ui"
+  },
+  {
+    "log": "docs\\platform-extension\\results\\pf2\\browser-smoke.txt",
+    "duration_s": 11.8745471,
+    "exit_code": 0,
+    "command": "node tests/browser-smoke.mjs"
+  },
+  {
+    "log": "docs\\platform-extension\\results\\pf2\\browser-heater.txt",
+    "duration_s": 12.4637463,
+    "exit_code": 0,
+    "command": "node tests/browser-heater.mjs"
+  },
+  {
+    "log": "docs\\platform-extension\\results\\pf2\\browser-platform.txt",
+    "duration_s": 14.1172739,
+    "exit_code": 0,
+    "command": "node tests/browser-platform.mjs"
+  },
+  {
+    "log": "docs\\platform-extension\\results\\pf2\\browser-authoring.txt",
+    "duration_s": 38.2434907,
+    "exit_code": 0,
+    "command": "node tests/browser-authoring.mjs"
+  },
+  {
+    "log": "docs\\platform-extension\\results\\pf2\\browser-run-control.txt",
+    "duration_s": 37.2851968,
+    "exit_code": 0,
+    "command": "node tests/browser-run-control.mjs"
+  },
+  {
+    "log": "docs\\platform-extension\\results\\pf2\\browser-pid.txt",
+    "duration_s": 12.8487673,
+    "exit_code": 0,
+    "command": "node tests/browser-pid.mjs"
+  },
+  {
+    "log": "docs\\platform-extension\\results\\pf2\\browser-continuous.txt",
+    "duration_s": 10.5993083,
+    "exit_code": 0,
+    "command": "node tests/browser-continuous.mjs"
+  },
+  {
+    "log": "docs\\platform-extension\\results\\pf2\\browser-multifluid.txt",
+    "duration_s": 7.4355186,
+    "exit_code": 0,
+    "command": "node tests/browser-multifluid.mjs"
+  },
+  {
+    "log": "docs\\platform-extension\\results\\pf2\\browser-auth.txt",
+    "duration_s": 8.1728873,
+    "exit_code": 0,
+    "command": "node tests/browser-auth.mjs"
+  },
+  {
+    "log": "docs\\platform-extension\\results\\pf2\\browser-workspace.txt",
+    "duration_s": 18.7808504,
+    "exit_code": 0,
+    "command": "node tests/browser-workspace.mjs"
+  },
+  {
+    "log": "docs\\platform-extension\\results\\pf2\\browser-control-programs.txt",
+    "duration_s": 28.6712668,
+    "exit_code": 0,
+    "command": "node tests/browser-control-programs.mjs"
+  },
+  {
+    "log": "docs\\platform-extension\\results\\pf2\\browser-workflows.txt",
+    "duration_s": 20.7089205,
+    "exit_code": 0,
+    "command": "node tests/browser-workflows.mjs"
+  },
+  {
+    "log": "docs\\platform-extension\\results\\pf2\\browser-archive-migration.txt",
+    "duration_s": 16.8752759,
+    "exit_code": 0,
+    "command": "node tests/browser-archive-migration.mjs"
+  },
+  {
+    "log": "docs\\platform-extension\\results\\pf2\\browser-cold-storage.txt",
+    "duration_s": 87.1978385,
+    "exit_code": 0,
+    "command": "node tests/browser-cold-storage.mjs"
+  },
+  {
+    "log": "docs\\platform-extension\\results\\pf2\\browser-cold-storage-station.txt",
+    "duration_s": 218.5394689,
+    "exit_code": 1,
+    "command": "node tests/browser-cold-storage-station.mjs"
+  },
+  {
+    "log": "docs\\platform-extension\\results\\pf2\\browser-module-catalog.txt",
+    "duration_s": 8.1220535,
+    "exit_code": 0,
+    "command": "node tests/browser-module-catalog.mjs"
+  },
+  {
+    "log": "docs\\platform-extension\\results\\pf2\\browser-module-workflow.txt",
+    "duration_s": 60.5157277,
+    "exit_code": 0,
+    "command": "node tests/browser-module-workflow.mjs"
+  },
+  {
+    "log": "docs\\platform-extension\\results\\pf2\\browser-thermal-coupling.txt",
+    "duration_s": 19.9262683,
+    "exit_code": 0,
+    "command": "node tests/browser-thermal-coupling.mjs"
+  },
+  {
+    "log": "docs\\platform-extension\\results\\pf2\\browser-thermal-coupling-modeling.txt",
+    "duration_s": 31.715172,
+    "exit_code": 0,
+    "command": "node tests/browser-thermal-coupling-modeling.mjs"
+  },
+  {
+    "log": "docs\\platform-extension\\results\\pf2\\browser-dual-thermal-coupling.txt",
+    "duration_s": 31.2475518,
+    "exit_code": 0,
+    "command": "node tests/browser-dual-thermal-coupling.mjs"
+  },
+  {
+    "log": "docs\\platform-extension\\results\\pf2\\browser-scenario-batches.txt",
+    "duration_s": 24.7888487,
+    "exit_code": 0,
+    "command": "node tests/browser-scenario-batches.mjs"
+  },
+  {
+    "log": "docs\\platform-extension\\results\\pf2\\browser-air-side.txt",
+    "duration_s": 33.3178522,
+    "exit_code": 0,
+    "command": "node tests/browser-air-side.mjs"
+  },
+  {
+    "log": "docs\\platform-extension\\results\\pf2\\browser-air-batches.txt",
+    "duration_s": 12.6999706,
+    "exit_code": 0,
+    "command": "node tests/browser-air-batches.mjs"
+  },
+  {
+    "log": "docs\\platform-extension\\results\\pf2\\browser-chiller-air-loop.txt",
+    "duration_s": 77.7244129,
+    "exit_code": 0,
+    "command": "node tests/browser-chiller-air-loop.mjs"
+  },
+  {
+    "log": "docs\\platform-extension\\results\\pf2\\browser-platform-authoring.txt",
+    "duration_s": 60.2124542,
+    "exit_code": 0,
+    "command": "node tests/browser-platform-authoring.mjs"
+  },
+  {
+    "log": "docs\\platform-extension\\results\\pf2\\browser-refrigeration-authoring.txt",
+    "duration_s": 25.7846617,
+    "exit_code": 0,
+    "command": "node tests/browser-refrigeration-authoring.mjs"
+  }
+]

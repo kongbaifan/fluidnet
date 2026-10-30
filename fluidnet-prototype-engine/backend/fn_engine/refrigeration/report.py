@@ -151,13 +151,13 @@ def _chart(rows, series, title, unit, scale=1., offset=0.):
         if current:
             segments.append(current)
         paths += [f'<polyline fill="none" stroke="{colors[index % 4]}" stroke-width="1.6" points="{" ".join(s)}"/>' for s in segments]
-    legend = ''.join(f'<tspan fill="{colors[i % 4]}" dx="12">■ {html.escape(label)}</tspan>' for i, (_, label) in enumerate(series))
+    legend = ''.join(f'<span style="color:{colors[i % 4]}">■ {html.escape(label)}</span>' for i, (_, label) in enumerate(series))
     return (f'<figure><svg viewBox="0 0 680 250" role="img" aria-label="{html.escape(title)}" style="width:100%;max-width:760px">'
             f'<path d="M60 20 V210 H660" fill="none" stroke="#555"/>{"".join(paths)}'
             f'<text x="4" y="26" font-size="11">{y1:.4g}</text><text x="4" y="210" font-size="11">{y0:.4g}</text>'
             f'<text x="60" y="230" font-size="11">{t0 / 3600:.2f} h</text><text x="600" y="230" font-size="11">{t1 / 3600:.2f} h</text>'
-            f'<text x="60" y="246" font-size="11">{html.escape(unit)}{legend}</text></svg>'
-            f'<figcaption>{html.escape(title)}</figcaption></figure>')
+            f'<text x="60" y="246" font-size="11">{html.escape(unit)}</text></svg>'
+            f'<figcaption>{html.escape(title)}</figcaption><div class="chart-legend">{legend}</div></figure>')
 
 
 FORMULAS = '''库房   C_r·dT_r/dt = ΣUA_i(T_边界,i − T_r) + Q_门 + Q_照明 + Q_其他 + P_风机 + f·P_融霜 + UA_g(T_g − T_r) − Q_冷风机
@@ -203,8 +203,8 @@ def _metric_rows(m):
 
 STYLE = ('body{font-family:system-ui,"Microsoft YaHei",sans-serif;max-width:980px;margin:24px auto;padding:0 16px;color:#1d2733}'
          'table{border-collapse:collapse;width:100%;margin:8px 0 16px}th,td{border:1px solid #c9d1d9;padding:4px 8px;text-align:left;'
-         'vertical-align:top}th{background:#eef2f6}pre{background:#f6f8fa;padding:10px;white-space:pre-wrap}'
-         '.note{color:#5b6670}figure{margin:12px 0}')
+         'vertical-align:top;overflow-wrap:anywhere}th{background:#eef2f6}pre{background:#f6f8fa;padding:10px;white-space:pre-wrap}'
+         '.note{color:#5b6670}figure{margin:12px 0}.chart-legend{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12px}')
 
 
 def _scenario_name(record):
@@ -354,7 +354,32 @@ def station_series_keys(network):
                  'refrigerant_pump': [(f'{iid}.param.speed_ratio', '1')],
                  'cascade_exchanger': [(f'{iid}.heat_w', 'W')]}.get(kind, [])
     keys += [(f'controller.{c.id}.setpoint', '') for c in network.project.controllers]
-    return keys
+    for iid,definition in network.refrigeration_modules.items():
+        keys += [(f'{iid}.{v.id}',v.unit.canonical_unit if v.unit else '1')
+                 for v in definition.variables if v.sampleable]
+    return list(dict(keys).items())
+
+
+def station_module_results(rows, network):
+    """Contract-driven outputs and immutable version identities from this archived run."""
+    if not network.refrigeration_modules:
+        return ''
+    from ..packages import package_ref
+    versions,outputs=[],[]
+    last=rows[-1]['variables']
+    for iid,definition in network.refrigeration_modules.items():
+        package=package_ref(definition)
+        versions.append(tuple(html.escape(str(value)) for value in
+            (iid,definition.id,definition.version,package.content_hash,package.definition_hash)))
+        for variable in definition.variables:
+            if not variable.sampleable:
+                continue
+            key=f'{iid}.{variable.id}'
+            outputs.append((html.escape(key),html.escape(variable.label),html.escape(str(last.get(key,'—'))),
+                html.escape(variable.unit.canonical_unit if variable.unit else '1')))
+    return ('<h2>作者模块冻结版本</h2>'+_table(['设备','模块','版本','源码 SHA-256','定义 SHA-256'],versions)
+        +'<h2>作者设备末帧结果</h2>'+_table(['变量','名称','值','规范单位'],outputs)
+        +'<p class="note">以上定义、版本及结果来自本次运行快照；生成报告不执行作者代码。</p>')
 
 
 def station_metrics(rows, network):
@@ -417,25 +442,30 @@ def station_report(record, rows, network):
             *_timestep_rows(rows, network),
             ('能量账本残差', _text(m['energy_residual_j'], 'J')),
             ('回路存量残差', html.escape(', '.join(f'{k}={v:.3g} kg' for k, v in m['mass_residual_kg'].items())))]
-    role = lambda module: next((v for v in network.vessels if network.instances[v].module_id == module), network.vessels[0])
-    lp, hp = role('lp_drum'), role('hp_receiver')
+    pressure_targets=[(c.measurement,f'{c.id} · 测量') for c in network.project.controllers if c.measurement.endswith('.state.pressure_pa')]
+    pressure_targets += [(f'controller.{c.id}.setpoint',f'{c.id} · 设定') for c in network.project.controllers if c.measurement.endswith('.state.pressure_pa')]
+    if not pressure_targets:pressure_targets=[(f'{v}.state.pressure_pa',v) for v in network.vessels]
+    actuator_targets=[]
+    for iid,kind in network.kinds.items():
+        for suffix,label in {'refrigerant_compressor':[('load_ratio','载量')],
+            'evaporative_condenser':[('fan_ratio','风机'),('return_gas_ratio','回气阀')],
+            'expansion_valve':[('opening_ratio','开度')]}.get(kind,[]):
+            actuator_targets.append((f'{iid}.param.{suffix}',f'{iid} · {label}'))
     charts = (_chart(rows, [(f'{r}.state.temperature_k', r) for r in rooms], '库温', '°C', offset=-273.15)
-              + _chart(rows, [(f'{lp}.state.pressure_pa', '低压桶压力'), ('controller.suction.setpoint', '目标蒸发压力')], '蒸发侧压力', 'kPa', scale=1000.)
-              + _chart(rows, [(f'{hp}.state.pressure_pa', '贮液器压力'), ('controller.head.setpoint', '目标冷凝压力')], '冷凝侧压力', 'kPa', scale=1000.)
+              + _chart(rows, pressure_targets, '容器压力与控制目标', 'kPa', scale=1000.)
               + _chart(rows, [(f'{v}.state.level_ratio', v) for v in network.vessels], '容器液位', '1')
-              + _chart(rows, [(f'{k}.param.load_ratio', k) for k, kind in network.kinds.items() if kind == 'refrigerant_compressor'][:1]
-                       + [('EC1.param.fan_ratio', '冷凝器风机'), ('EC1.param.return_gas_ratio', '回气阀'), ('EV1.param.opening_ratio', '节流阀')],
-                       '执行器', '1'))
+              + _chart(rows, actuator_targets, '执行器', '1'))
     events = _table(['ID', '时刻', '写入'], [(html.escape(e.id), f'{e.time_s / 3600:.3f} h', html.escape(f'{e.key} = {e.value:g}'))
                                          for e in network.events]) if network.events else '<p>本次运行没有日程事件。</p>'
     request = record['request']
     return (f'<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>制冷站运行报告</title><style>{STYLE}</style></head>'
-            '<body><h1>NH₃/CO₂ 制冷站运行报告</h1>'
+            '<body><h1>制冷站运行报告</h1>'
             + _table(['项目', '内容'], [('项目', html.escape(request['project']['name'])), ('工况', html.escape(_scenario_name(record))),
                                        ('运行', html.escape(record['id'])), ('状态', html.escape(record['status'])),
+                                       ('项目修订', html.escape(str(request.get('project_revision') or '未保存草稿'))),
                                        ('仿真时长 / 发布间隔', f'{rows[-1]["time_s"] / 3600:.3f} h / {request["dt_s"]:g} s'),
                                        ('引擎版本', __version__), ('数据等级', '工程示范假设；不与倍思鹿数值对比')])
-            + '<h2>指标</h2>' + _table(['指标', '数值'], body) + charts + '<h2>日程</h2>' + events
+            + '<h2>指标</h2>' + _table(['指标', '数值'], body) + charts + station_module_results(rows,network) + '<h2>日程</h2>' + events
             + '<h2>模型边界</h2><p>集总制冷站：压力只在饱和容器中，其余设备为代数关系；不计管路压降、换热器持液与过冷/过热；'
               '单级压缩未计油冷，排气温度偏高。控制：吸气压力→压缩机载量、贮液器压力→回气阀、贮液器液位→节流阀、库温→冷风机风量，'
               '上层脚本按载量增减压缩机、按回气阀开度增减冷凝器风机组、按冷风机风量调液泵。</p></body></html>')

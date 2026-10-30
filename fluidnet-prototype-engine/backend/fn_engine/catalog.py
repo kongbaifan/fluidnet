@@ -18,13 +18,22 @@ def channel(id, model, inlet='in0', outlet='out0'):
                        relation='pump_curve' if model == 'pump_curve' else 'resistance', solver_model=model)
 
 
+def _moist_var(id, label, quantity, unit, display=None, scale=1., offset=0.):
+    """风侧内置设备的派生变量（湿空气模式输出）。"""
+    return VariableSpec(id=id, label=label, quantity=quantity, source='derived',
+                        unit=UnitSpec(quantity=quantity, canonical_unit=unit, display_unit=display or unit,
+                                      display_scale=scale, display_offset=offset))
+
+
 def builtin_catalog() -> list[ModuleDefinition]:
     definitions = [
         ModuleDefinition(id='source', name='压力边界', category='边界与节点', solver_model='pressure_source',
             ports=ports('out0'), parameters=[
                 number('pressure_pa', '绝对压力', 201325.0, 'pressure', 'Pa', 'kPa', 1000.0, 1.0),
                 # The usable range depends on the fluid; the compiler checks it against the property service.
-                number('temperature_k', '边界温度', 293.15, 'temperature', 'K', '°C', minimum=1.0, offset=-273.15)]),
+                number('temperature_k', '边界温度', 293.15, 'temperature', 'K', '°C', minimum=1.0, offset=-273.15),
+                # 仅湿空气模式使用（SolverOptions.moist_air=True）；干工质网络忽略该参数。
+                number('humidity_ratio_kg_kg', '边界含湿量（湿空气模式）', 0., 'ratio', '1', minimum=0., maximum=.2)]),
         ModuleDefinition(id='junction', name='连接节点', category='边界与节点', solver_model='junction',
             ports=[p.model_copy(update={'required': False}) for p in ports('in0', 'out0', 'out1')],
             parameters=[number('elevation_m', '标高（当前仅支持零标高）', 0.0, 'length', 'm', minimum=0, maximum=0)]),
@@ -48,6 +57,45 @@ def builtin_catalog() -> list[ModuleDefinition]:
                 # 0 keeps the algebraic pipe of 0.3; N > 0 adds N well-mixed cells of fluid + wall capacity.
                 number('thermal_cells', '热容分段数（0 为无热惯性）', 0, 'count', '1', minimum=0, maximum=50),
                 number('wall_heat_capacity_j_k', '管壁热容', 0., 'heat_capacity', 'J/K', 'kJ/K', 1000., 0.)]),
+        # 矩形风管：沿程阻力按水力直径 Dh=2WH/(W+H) 与 Haaland 湍流摩擦计算，可选向环境散热；
+        # 断面参数用 duct_width_m / duct_height_m，避免与 pipe 的高差 height_m 混淆。
+        ModuleDefinition(id='duct', name='风管', category='管道与阻力', solver_model='duct',
+            description='矩形风管：沿程阻力按水力直径与 Haaland 湍流摩擦计算，可选向环境散热；'
+                        '无储热、无局部阻力（弯头/三通/变径等用 duct_fitting 模块）。',
+            ports=ports('in0', 'out0'), channels=[channel('ch0', 'duct')], parameters=[
+                number('length_m', '风管长度', 10., 'length', 'm', minimum=.001),
+                number('duct_width_m', '断面宽', .4, 'length', 'm', 'mm', .001, .01),
+                number('duct_height_m', '断面高', .4, 'length', 'm', 'mm', .001, .01),
+                number('roughness_m', '绝对粗糙度', .00015, 'length', 'm', 'mm', .001, 0.),
+                number('heat_loss_ua_w_k', '散热能力 UA（0 为绝热）', 0., 'conductance', 'W/K', minimum=0.),
+                number('ambient_temperature_k', '环境温度', 293.15, 'temperature', 'K', '°C', minimum=1., offset=-273.15)]),
+        # 湿工况表冷器（旁通系数法）：出口温度/含湿量由盘管表面温度（机器露点）与旁通系数确定；
+        # 需 SolverOptions.moist_air=True。显热/潜热/凝水/SHR 由求解器输出。
+        ModuleDefinition(id='cooling_coil', name='湿工况表冷器', category='热力设备', solver_model='cooling_coil',
+            description='旁通系数法表冷器：T_out = T_adp + BF·(T_in − T_adp)；湿工况 w_out = w_sat(T_adp) + BF·(w_in − w_sat)；'
+                        '输出显热、潜热、凝水量与 SHR。需开启湿空气模式。',
+            ports=ports('in0', 'out0'), channels=[channel('ch0', 'resistance')], parameters=[
+                number('coil_surface_temperature_k', '盘管表面温度（机器露点）', 285.15, 'temperature', 'K', '°C',
+                       minimum=1., offset=-273.15),
+                number('bypass_factor', '旁通系数 BF', .15, 'ratio', '1', minimum=0., maximum=1.),
+                number('loss_coefficient', '局部阻力系数 K', 0., 'ratio', '1', minimum=0.),
+                number('diameter_m', '水力等效内径', .4, 'length', 'm', 'mm', .001, .001)],
+            variables=[_moist_var('sensible_heat_w', '显热换热量', 'power', 'W', 'kW', 1000.),
+                       _moist_var('latent_heat_w', '潜热换热量', 'power', 'W', 'kW', 1000.),
+                       _moist_var('condensate_kg_s', '凝水量', 'mass_flow', 'kg/s'),
+                       _moist_var('shr', '显热比 SHR', 'ratio', '1')]),
+        # 加湿器：adiabatic 等焓加湿（温度下降），isothermal 等温加湿（补入蒸汽焓）。
+        ModuleDefinition(id='humidifier', name='加湿器', category='热力设备', solver_model='humidifier',
+            description='加湿器：mode=adiabatic 等焓加湿（温度下降），isothermal 等温加湿（补入蒸汽焓）；'
+                        'moisture_addition_kg_kg 为每 kg 干空气的加湿量。需开启湿空气模式。',
+            ports=ports('in0', 'out0'), channels=[channel('ch0', 'resistance')], parameters=[
+                ParameterSpec(id='mode', label='加湿模式（adiabatic / isothermal）', value_type='text',
+                              default='adiabatic'),
+                number('moisture_addition_kg_kg', '加湿量（kg 水/kg 干空气）', .002, 'ratio', '1',
+                       minimum=0., maximum=.05),
+                number('loss_coefficient', '局部阻力系数 K', 0., 'ratio', '1', minimum=0.),
+                number('diameter_m', '水力等效内径', .4, 'length', 'm', 'mm', .001, .001)],
+            variables=[_moist_var('moisture_addition_kg_s', '加湿量（质量流量）', 'mass_flow', 'kg/s')]),
         ModuleDefinition(id='exchanger', name='双侧换热器（水力）', category='热力设备', solver_model='heat_exchanger',
             thermal_model='epsilon_ntu', ports=ports('in0', 'out0', 'in1', 'out1'),
             channels=[channel('ch0', 'resistance'), channel('ch1', 'resistance', 'in1', 'out1')], parameters=[
@@ -79,7 +127,20 @@ def builtin_catalog() -> list[ModuleDefinition]:
                 number('heat_input_w', '加热功率（负值为冷却）', 0., 'power', 'W', runtime=True),
                 number('heat_loss_ua_w_k', '散热能力 UA（0 为绝热）', 0., 'conductance', 'W/K', minimum=0.),
                 number('ambient_temperature_k', '环境温度', 293.15, 'temperature', 'K', '°C', minimum=1.0, offset=-273.15)]),
+        # 电加热器：理想加热段，把声明功率全部加入流经流体；无热容、无相变，
+        # 零流量时拒绝加热（与 Python 模块的 heat_w 语义一致）。水力按局部阻力处理，
+        # loss_coefficient=0 表示不产生附加压降。
+        ModuleDefinition(id='heater', name='电加热器', category='热力设备', solver_model='heater',
+            description='理想加热段：heat_input_w 全部进入流体，按质量流量折算比焓升；'
+                        '无储热，零流量时拒绝加热；loss_coefficient=0 时不产生附加压降。',
+            ports=ports('in0', 'out0'), channels=[channel('ch0', 'resistance')], parameters=[
+                number('heat_input_w', '加热功率（负值为冷却）', 1000., 'power', 'W', 'kW', 1000., runtime=True),
+                number('loss_coefficient', '局部阻力系数 K', 0., 'ratio', '1', minimum=0.),
+                number('diameter_m', '水力等效内径', .04, 'length', 'm', 'mm', .001, .001)]),
     ]
+    from .air_catalog import air_catalog, upgrade_air_catalog
+    upgrade_air_catalog(definitions)
+    definitions.extend(air_catalog())
     for definition in definitions:
         for port in definition.ports:
             # Thermal entries are None when SolverOptions.thermal is off.
@@ -377,14 +438,14 @@ def _switch(label='启停（1 运行 / 0 停机）'):
 
 def refrigeration_catalog() -> list[ModuleDefinition]:
     """Case-B lumped refrigeration-station devices; the fluid comes from each port's circuit."""
-    def vessel(id, name, description, defaults, required):
+    def vessel(id, name, description, defaults, required, extra_inlets=0):
         volume, height, temperature, level = defaults
+        labels = ['进液/进气', '进液/进气 2'] + [f'进液/进气 {i + 1}' for i in range(2, 2 + extra_inlets)]
         return ModuleDefinition(id=id, name=name, category='制冷站设备', solver_model='saturated_vessel',
             state_model='saturated_vessel', description=description,
-            ports=[_stream('in0', '进液/进气', Direction.in_, 'in0' in required),
-                   _stream('in1', '进液/进气 2', Direction.in_, 'in1' in required),
-                   _stream('vapor', '气相出口', Direction.out, 'vapor' in required),
-                   _stream('liquid', '液相出口', Direction.out, 'liquid' in required)],
+            ports=[_stream(f'in{i}', label, Direction.in_, f'in{i}' in required) for i, label in enumerate(labels)]
+                  + [_stream('vapor', '气相出口', Direction.out, 'vapor' in required),
+                     _stream('liquid', '液相出口', Direction.out, 'liquid' in required)],
             parameters=[number('volume_m3', '容积', volume, 'volume', 'm³', minimum=.001),
                         number('height_m', '液位换算高度（立式等截面）', height, 'length', 'm', minimum=.01),
                         _celsius('temperature_k', '初始饱和温度', temperature),
@@ -415,6 +476,13 @@ def refrigeration_catalog() -> list[ModuleDefinition]:
     co2_drum = vessel('pumped_drum', '泵供液储液器',
         '载冷侧饱和两相集总容器：冷风机湿回气进入，vapor 去复叠冷凝侧，liquid 供液泵。',
         (3., 2., 247.15, .4), {'in0', 'vapor', 'liquid'})
+    receiver_multi = vessel('hp_receiver_multi', '高压贮液器（多支路）',
+        '同一饱和容器的四个进口：可接入多台冷凝器或回气支路；vapor/liquid 为气相、液相出口。'
+        '集总模型只有一个压力等级，多出口同相态没有额外物理意义，分支请用集管。',
+        (3., 2., 308.15, .62), {'in0', 'liquid'}, extra_inlets=2)
+    lp_drum_multi = vessel('lp_drum_multi', '低压循环桶（多支路）',
+        '同一饱和容器的四个进口：可接入多路回气或供液支路；vapor/liquid 为气相、液相出口。',
+        (4., 2., 243.15, .4), {'in0', 'vapor'}, extra_inlets=2)
     compressor = ModuleDefinition(id='refrigerant_compressor', name='压缩机（强制流量）', category='制冷站设备',
         solver_model='refrigerant_compressor', description='吸气为吸气容器的饱和气；流量由排量、载量和容积效率决定，'
             '排气压力取排气侧容器压力。电机损耗排向机房，不进入制冷剂。',
@@ -503,7 +571,8 @@ def refrigeration_catalog() -> list[ModuleDefinition]:
         solver_model='refrigerant_header', description='汇流/分流节点：同一压力等级内的多台设备经集管连到一个容器端口。',
         ports=[_stream(f'in{i}', f'汇入 {i + 1}', Direction.in_, False) for i in range(4)]
               + [_stream(f'out{i}', f'分出 {i + 1}', Direction.out, False) for i in range(4)])
-    definitions = [receiver, lp_drum, co2_drum, compressor, condenser, valve, cascade, pump, cooler, header]
+    definitions = [receiver, lp_drum, co2_drum, receiver_multi, lp_drum_multi, compressor, condenser, valve, cascade,
+                   pump, cooler, header]
     for definition in definitions:
         definition.variables.extend(VariableSpec(id='param.' + p.id, label=p.label, source='parameter',
             parameter_id=p.id, quantity=p.unit.quantity, unit=p.unit) for p in definition.parameters)

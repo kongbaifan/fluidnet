@@ -1,3 +1,4 @@
+import {FHD_CONTEXT, captureFhd} from './browser-viewport.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -16,7 +17,7 @@ async function start() {
 }
 async function stop() { if (launched) await launched.stop(); }
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
-const newPage = async () => { const c = await browser.newContext({ viewport: { width: 1600, height: 1100 }, acceptDownloads: true }); const p = await c.newPage(); p.on('pageerror', e => errors.push(e.message)); return [c, p]; };
+const newPage = async () => { const c = await browser.newContext({ ...FHD_CONTEXT, acceptDownloads: true }); const p = await c.newPage(); p.on('pageerror', e => errors.push(e.message)); return [c, p]; };
 const errors = [];
 let [context, page] = await newPage();
 const ready = p => expect(p.locator('.rail-link[data-route="projects"]')).toBeVisible();
@@ -82,7 +83,7 @@ try {
   expect(await metric('starts')).toBe(String(run1.frame.variables['CU1.state.starts']));
   expect(Math.abs(run1.frame.metrics.energy_residual_j)).toBeLessThan(1e-2);
   mkdirSync('artifacts', { recursive: true });
-  await page.screenshot({ path: 'artifacts/cold-storage-run.png', fullPage: true });
+  await captureFhd(page, 'artifacts/cold-storage-run.png');
 
   // 3. 单步（暂停态），在设备窗口把温控设定改为 −19 °C 并应用，再继续运行到结束。
   const stepped = await posted(() => page.locator('[data-action="run-project"][data-command="step"]').first().click());
@@ -150,12 +151,12 @@ try {
   const run4 = await finished(replay.id);
   expect(run4.frame.variables).toEqual(run3.frame.variables);
   expect(errors).toEqual([]);
-  await page.screenshot({ path: 'artifacts/cold-storage-restart.png', fullPage: true });
+  await captureFhd(page, 'artifacts/cold-storage-restart.png');
   console.log(JSON.stringify({ projectId, runs: [first.id, stepped.id, third.id, replay.id], temperature: await metric('temperature'), errors }));
 } catch (error) {
   console.error(error);
   mkdirSync('artifacts', { recursive: true });
-  await page.screenshot({ path: 'artifacts/cold-storage-failure.png', fullPage: true }).catch(() => {});
+  await captureFhd(page, 'artifacts/cold-storage-failure.png').catch(() => {});
   process.exitCode = 1;
 } finally {
   await browser.close();

@@ -1,0 +1,200 @@
+{
+  "schema_version": 4,
+  "id": "sdk_throttle",
+  "name": "SDK 等焓节流示例",
+  "version": 1,
+  "category": "制冷站设备",
+  "description": "饱和液经 Kv 节流（与调节阀同一 Kv 定义），等焓闪发；只允许正向流动。",
+  "ports": [
+    {
+      "id": "in0",
+      "label": "高压液进口",
+      "domain": "refrigerant",
+      "direction": "in",
+      "required": true,
+      "circuit": "refrigerant"
+    },
+    {
+      "id": "out0",
+      "label": "低压两相出口",
+      "domain": "refrigerant",
+      "direction": "out",
+      "required": true,
+      "circuit": "refrigerant"
+    }
+  ],
+  "parameters": [
+    {
+      "id": "kv_m3_h",
+      "label": "流量系数 Kv",
+      "value_type": "number",
+      "default": 0.6,
+      "unit": {
+        "quantity": "flow_coefficient",
+        "canonical_unit": "m³/h",
+        "display_unit": "m³/h",
+        "display_scale": 1.0,
+        "display_offset": 0.0
+      },
+      "minimum": 0.001,
+      "maximum": null,
+      "runtime": false,
+      "writable": true
+    },
+    {
+      "id": "opening_ratio",
+      "label": "开度",
+      "value_type": "number",
+      "default": 0.5,
+      "unit": {
+        "quantity": "ratio",
+        "canonical_unit": "1",
+        "display_unit": "%",
+        "display_scale": 0.01,
+        "display_offset": 0.0
+      },
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "runtime": true,
+      "writable": true
+    }
+  ],
+  "variables": [
+    {
+      "id": "mass_flow_kg_s",
+      "label": "质量流量",
+      "quantity": "mass_flow",
+      "unit": {
+        "quantity": "mass_flow",
+        "canonical_unit": "kg/s",
+        "display_unit": "kg/s",
+        "display_scale": 1.0,
+        "display_offset": 0.0
+      },
+      "source": "derived",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": null,
+      "port_id": null
+    },
+    {
+      "id": "pressure_drop_pa",
+      "label": "压差",
+      "quantity": "pressure",
+      "unit": {
+        "quantity": "pressure",
+        "canonical_unit": "Pa",
+        "display_unit": "MPa",
+        "display_scale": 1000000.0,
+        "display_offset": 0.0
+      },
+      "source": "derived",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": null,
+      "port_id": null
+    },
+    {
+      "id": "outlet_quality",
+      "label": "出口干度",
+      "quantity": "ratio",
+      "unit": {
+        "quantity": "ratio",
+        "canonical_unit": "1",
+        "display_unit": "1",
+        "display_scale": 1.0,
+        "display_offset": 0.0
+      },
+      "source": "derived",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": null,
+      "port_id": null
+    },
+    {
+      "id": "param.kv_m3_h",
+      "label": "流量系数 Kv",
+      "quantity": "flow_coefficient",
+      "unit": {
+        "quantity": "flow_coefficient",
+        "canonical_unit": "m³/h",
+        "display_unit": "m³/h",
+        "display_scale": 1.0,
+        "display_offset": 0.0
+      },
+      "source": "parameter",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": "kv_m3_h",
+      "port_id": null
+    },
+    {
+      "id": "param.opening_ratio",
+      "label": "开度",
+      "quantity": "ratio",
+      "unit": {
+        "quantity": "ratio",
+        "canonical_unit": "1",
+        "display_unit": "%",
+        "display_scale": 0.01,
+        "display_offset": 0.0
+      },
+      "source": "parameter",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": "opening_ratio",
+      "port_id": null
+    },
+    {
+      "id": "opening",
+      "label": "算法开度",
+      "quantity": "ratio",
+      "unit": null,
+      "source": "derived",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": null,
+      "port_id": null
+    },
+    {
+      "id": "state.accepted_segments",
+      "label": "已接受段数",
+      "quantity": "count",
+      "unit": null,
+      "source": "state",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": null,
+      "port_id": null
+    }
+  ],
+  "channels": [],
+  "solver_model": "generic",
+  "state_model": null,
+  "thermal_model": null,
+  "source_format": "python-v1",
+  "runtime": "python",
+  "entrypoint": "module:Module",
+  "bank_names": [
+    "额定工况",
+    "部分负荷",
+    "调试备份"
+  ],
+  "sdk": {
+    "api_version": "0.7.0",
+    "capabilities": [
+      "context.execution.v1",
+      "refrigeration.throttle.v1",
+      "state.transactions.v1"
+    ],
+    "state_contract_version": 1
+  },
+  "applicability": {
+    "execution_domains": [
+      "refrigeration"
+    ],
+    "fluids": [],
+    "assumptions": []
+  },
+  "execution_role": "refrigeration.isenthalpic_throttle.v1"
+}
