@@ -5,10 +5,14 @@ from .catalog import catalog_map
 from .models import Connection, Endpoint, FluidConfig, ModuleInstance, Project, SolverOptions
 from .packages import load_module_package
 
-AIR_EXAMPLES = ('air-coil-wet','air-mixing','ahu-wet','ahu-room','air-parallel-wet','cooling-tower-moist','chiller-air-loop')
+AIR_EXAMPLES = ('air-coil-wet','air-mixing','ahu-wet','ahu-room','air-parallel-wet','cooling-tower-moist','chiller-air-loop',
+                'room-temperature-control','room-control-load-step','room-control-setpoint-step')
 
 
 def air_example(name):
+    if name in ('room-temperature-control','room-control-load-step','room-control-setpoint-step'):
+        from .chiller_examples import room_temperature_example
+        return room_temperature_example(name)
     if name == 'chiller-air-loop':
         from .chiller_examples import chiller_air_example
         return chiller_air_example()
