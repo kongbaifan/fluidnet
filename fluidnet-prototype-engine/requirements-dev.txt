@@ -4,3 +4,4 @@
 ruff==0.16.0
 mypy==2.3.0
 pytest-cov==7.1.0
+jsonschema==4.26.0
