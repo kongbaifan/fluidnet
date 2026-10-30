@@ -13,6 +13,17 @@ from ..solver import _close_runners, _commit_modules
 from .devices import valve_flow
 
 
+def check_output_variables(definition, variables):
+    declared = {variable.id for variable in definition.variables if variable.source == 'derived'}
+    protected = {'mass_flow_kg_s', 'volume_flow_m3_h', 'pressure_drop_pa', 'inlet_pressure_pa',
+                 'outlet_pressure_pa', 'inlet_temperature_k', 'outlet_temperature_k', 'heat_w', 'shaft_power_w'}
+    prefixes = ('state.', 'param.', *(port.id + '.' for port in definition.ports),
+                *(channel.id + '.' for channel in definition.channels))
+    if set(variables) - declared or protected & variables.keys() or any(key.startswith(prefixes) for key in variables):
+        raise RuntimeErrorBase('作者回调不能返回未声明的观察变量或覆盖平台通路、端口、参数与状态字段',
+                               code='MODULE_OUTPUT_INVALID')
+
+
 def check_liquid_module(definition, instance_id):
     required = {'state.transactions.v1'}
     allowed = {'lifecycle.v1', 'state.json.v1', 'properties.v1', 'context.execution.v1',
@@ -37,6 +48,7 @@ class LiquidWorker(WorkerProcess):
 
     def evaluate(self, request):
         response = super().evaluate(request)
+        check_output_variables(self.definition, response.variables)
         for relation in response.relations:
             allowed = ({'kv_m3_h', 'opening_ratio', 'density_kg_m3', 'height_m', 'heat_w'} if relation.kind == 'valve'
                        else {'diameter_m', 'loss_coefficient', 'density_kg_m3', 'heat_w'})
@@ -47,6 +59,12 @@ class LiquidWorker(WorkerProcess):
                     instance_id=self.execution.instance_id, channel_id=relation.channel,
                     phase='evaluate', time_s=request.time_s)
                 raise RuntimeErrorBase(message, code=diagnostic.code, diagnostics=[diagnostic])
+        return response
+
+    def phase_call(self, phase, request):
+        response = super().phase_call(phase, request)
+        if phase == 'observe':
+            check_output_variables(self.definition, response.variables)
         return response
 
 
@@ -105,9 +123,7 @@ class CoupledLiquidModules:
                 raise RuntimeErrorBase('transferred_mass_kg 由平台按实际接受子步积分，作者状态不能覆盖',
                                        code='MODULE_STATE_CONFLICT')
             if candidate is not None:
-                declared = {variable.id for variable in runner.definition.variables if variable.source == 'derived'}
-                if set(candidate.result.variables) - declared:
-                    raise RuntimeErrorBase('接受回调返回未声明的观察变量', code='MODULE_OUTPUT_INVALID')
+                check_output_variables(runner.definition, candidate.result.variables)
                 values.update({f'{iid}.{key}': value for key, value in candidate.result.variables.items()})
             values.update({f'{iid}.state.{key}': value for key, value in state.items()
                            if isinstance(value, (float, int, str, bool)) or value is None})
