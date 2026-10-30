@@ -53,8 +53,8 @@ jobs:
   backend:
     name: backend (Python 3.11)
     runs-on: windows-latest
-    # 最近全量已约 30 分钟，新增联算事务和长时温控场景需包含安装及检查的余量。
-    timeout-minutes: 60
+    # 新增三组长时温控后，全量覆盖率检查接近一小时；同时预留依赖安装与较慢 runner 的时间。
+    timeout-minutes: 90
     defaults:
       run:
         working-directory: fluidnet-prototype-engine
