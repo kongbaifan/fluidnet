@@ -294,6 +294,23 @@ function trimDraft(draft,frames,records){
   }
   return trimmed;
 }
+// Only compact a replaceable cache after the server confirms every local frame
+// is durable. Explicit RECORD-* snapshots and unsaved bench results are untouched.
+function compactArchivedDraft(draft,frames){
+  let changed=false;
+  for(const owner of draft.projects||[]){
+    const run=owner.run,cache=run?.archiveCache,history=run?.history;
+    if(run?.source!=='engine'||typeof run.id!=='string'||!run.id
+      ||typeof cache?.persisted_at!=='string'||!cache.persisted_at.trim()||cache.id!==run.id
+      ||!Array.isArray(history)||!Number.isInteger(cache.rows)||cache.rows<=0||cache.rows<history.length
+      ||!Number.isFinite(cache.time_s)||history.some(row=>!Number.isFinite(row.t)||row.t>cache.time_s))continue;
+    const tail=history.slice(-frames),full=history.findLast(row=>row.partial!==true);
+    if(full&&!tail.includes(full))tail.unshift(full);
+    if(tail.length>=history.length)continue;
+    run.history=tail;changed=true;
+  }
+  return changed;
+}
 function failLocalSave(text){
   const repeat=localSaveError===text;
   localSaveError=text;localSaveTrimmed=false;syncChrome();
@@ -303,31 +320,37 @@ function failLocalSave(text){
 // 依次产出可写入的草稿文本：第一项为原样 state，之后为逐级裁剪运行历史的副本（懒生成，
 // 前一项写入成功就不再序列化后面的副本）。内存中的 state 不会被修改。
 function* draftTexts(){
-  let last='', draft=null;
-  for(const step of [null,...LOCAL_DRAFT_STEPS]){
-    let text;
-    if(step===null)text=JSON.stringify(state);
-    else{
-      draft||=clone(state);
-      if(!trimDraft(draft,step[0],step[1]))continue;
-      text=JSON.stringify(draft);
-    }
+  let last=JSON.stringify(state);
+  yield {frames:null,text:last};
+  const cached=clone(state);
+  for(const frames of [8,1]){
+    if(!compactArchivedDraft(cached,frames))continue;
+    const text=JSON.stringify(cached);
+    last=text;
+    yield {frames,text,archivedOnly:true};
+  }
+  // Keep the existing visible fallback for older, non-persistent workspaces.
+  const draft=clone(state);
+  for(const step of LOCAL_DRAFT_STEPS){
+    if(!trimDraft(draft,step[0],step[1]))continue;
+    const text=JSON.stringify(draft);
     if(text===last)continue;
     last=text;
-    yield {frames:step?step[0]:null,text};
+    yield {frames:step[0],text};
   }
 }
 // 统一的本地草稿写入（“保存原型”与引擎/流程里的 ui.persist 共用）：
 // 先原样写；配额不足时按 LOCAL_DRAFT_STEPS 逐级裁剪副本重试；全部失败则保留内存数据并显示可见错误。
 function persistLocal(){
   try{
-    for(const {frames,text} of draftTexts()){
+    for(const {frames,text,archivedOnly} of draftTexts()){
       try{localStorage.setItem(STORAGE_KEY,text);}
       catch(error){if(isQuotaError(error))continue;return failLocalSave('本地草稿保存失败：'+(error.message||'浏览器拒绝写入')+'；内存数据仍在，请导出原型。');}
       if(frames===null){if(localSaveError||localSaveTrimmed){localSaveError='';localSaveTrimmed=false;syncChrome();}return true;}
       const first=!localSaveTrimmed;
       localSaveError='';localSaveTrimmed=true;syncChrome();
-      if(first)msg(`浏览器草稿已保存；存储空间不足，运行历史已裁剪为最近 ${frames} 帧，完整曲线仍在内存，请导出原型。`);
+      if(first)msg(archivedOnly?`浏览器草稿已保存；已归档运行仅缓存末个完整帧及最近 ${frames} 帧，完整结果可从服务端档案读取。`
+        :`浏览器草稿已保存；存储空间不足，运行历史已裁剪为最近 ${frames} 帧，完整曲线仍在内存，请导出原型。`);
       return true;
     }
     return failLocalSave('本地草稿保存失败：存储空间不足，已保留内存数据，请导出原型后清理浏览器存储。');
@@ -1035,7 +1058,7 @@ function networkViewBox(pg) {
 }
 
 function projectParameterKey(owner = project()) {
-  return JSON.stringify({scenarios:owner.scenarios||[],events:owner.events||[],activeScenarioId:owner.activeScenarioId||'',medium:owner.medium,fluid:owner.fluid,fluidReference:owner.fluidReference,fluidConfig:owner.fluidConfig,circuitFluids:owner.circuitFluids,thermalCouplings:owner.thermalCouplings,solverOptions:owner.solverOptions,controls:controls.key(owner), solver: owner.solver, modules: state.modules.filter(m => owner.pages.some(pg => pg.nodes.some(n => n.moduleId === m.id))).map(m => ({id:m.id,kind:m.kind,version:m.version,ports:m.ports,channels:m.channels})), pages: owner.pages.map(pg => ({
+  return JSON.stringify({scenarios:owner.scenarios||[],events:owner.events||[],activeScenarioId:owner.activeScenarioId||'',medium:owner.medium,fluid:owner.fluid,fluidReference:owner.fluidReference,fluidConfig:owner.fluidConfig,circuitFluids:owner.circuitFluids,thermalCouplings:owner.thermalCouplings,solverOptions:owner.solverOptions,controllers:owner.controllers||[],controls:controls.key(owner), solver: owner.solver, modules: state.modules.filter(m => owner.pages.some(pg => pg.nodes.some(n => n.moduleId === m.id))).map(m => ({id:m.id,kind:m.kind,version:m.version,ports:m.ports,channels:m.channels})), pages: owner.pages.map(pg => ({
     nodes: pg.nodes.map(n => ({ id: n.id, moduleId: n.moduleId, params: n.params, values: n.variableState?.values })),
     edges: pg.edges,
   })) });

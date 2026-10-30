@@ -9,6 +9,27 @@ window.createEngineClient = function (ui) {
   // localStorage is short (studio.js persistLocal trims only the stored copy, never these in-memory rows).
   const LIVE_ROWS = 2001;
   const overviews = new Map();  // run id -> {rows, stride, total, at}
+  function archiveCacheMetadata(runId, record, historyRows) {
+    if (typeof runId !== 'string' || !runId || record?.id !== runId
+        || typeof record.persisted_at !== 'string' || !record.persisted_at.trim()
+        || !Number.isInteger(historyRows) || historyRows <= 0
+        || !Number.isInteger(record.total_rows) || record.total_rows < historyRows
+        || !Number.isInteger(record.persisted_rows) || record.persisted_rows < record.total_rows
+        || !Number.isFinite(record.frame?.time_s) || record.frame.time_s < 0) return null;
+    return {id:runId,rows:record.persisted_rows,time_s:record.frame.time_s,persisted_at:record.persisted_at};
+  }
+  async function confirmArchiveCache(owner, run, record, historyRows, refresh, signal) {
+    let metadata = archiveCacheMetadata(run.id,record,historyRows);
+    if (!metadata && refresh && run.id) {
+      // The record may precede the final asynchronous archive write. One fresh
+      // receipt is enough; an unavailable receipt keeps the full local cache.
+      try { metadata=archiveCacheMetadata(run.id,await request('/runs/'+encodeURIComponent(run.id),undefined,signal),historyRows); }
+      catch (error) { if(signal?.aborted)throw error;metadata=null; }
+    }
+    if (owner.run !== run) return;
+    if (metadata) run.archiveCache=metadata;
+    else delete run.archiveCache;
+  }
   let catalog = null, moduleCatalog = null, health = null;
   // Polling a backgrounded run is bounded twice on purpose: a backend that never leaves
   // queued/running must not spin the UI forever, and an iteration cap alone would not hold
@@ -654,6 +675,9 @@ window.createEngineClient = function (ui) {
           queues.set(owner.id,{rows:rows.slice(1),key:before,wall:performance.now(),sim:0});
         } else owner.run.status='completed';
       }
+      // Legacy single-step playback can concatenate several immutable run IDs;
+      // its combined local history is not backed by this one archived request.
+      if (action !== 'step') await confirmArchiveCache(owner,owner.run,data,history.total_rows,true,controller.signal);
       ui.dirty(owner); ui.render();
       ui.message(mode === 'steady' ? '真实稳态求解完成。' : stopped ? '运行在事件处停止：' + stopped.message
         : (history.rows[0]?.diagnostics || []).some(d => d.code === 'DYNAMIC_IMPLICIT_EULER')
@@ -759,6 +783,9 @@ window.createEngineClient = function (ui) {
       const data = await request('/runs/' + id);
       const history = await request(`/runs/${id}/history?offset=${owner.run.offset || 0}`);
       if (owner.run.runId !== id) return;
+      await confirmArchiveCache(owner,owner.run,data,history.total_rows,
+        ['completed','failed','cancelled','interrupted'].includes(data.status));
+      if (owner.run.runId !== id) return;
       // `truncated`: frames older than the server window were skipped; the curve shows a gap.
       for (const frame of history.rows) applyRow(owner, rowFromFrame(owner,frame));
       if (owner.run.history.length > LIVE_ROWS) owner.run.history.splice(0, owner.run.history.length - LIVE_ROWS);
@@ -863,5 +890,5 @@ window.createEngineClient = function (ui) {
     owner.run.parameterKey=ui.parameterKey(owner);ui.persist();ui.render();
   }
   const services=window.createProjectServices({request,ui,normalize,health:()=>health,authHeaders,pinProject,moduleFromManifest});
-  return {...services,overviewBindings,overviewValues,refrigerationReportAvailable,request,normalize,moduleFromManifest,whenReady:()=>initializing || Promise.resolve(),command,tick,validate,init,applyParameters,loadOverview,authHeaders,signOut:()=>{sessionStorage.removeItem(TOKEN_KEY);location.reload();},overview:id=>overviews.get(id),circuits:id=>circuitsByProject.get(id)||[],confirmedCommand,portValue,observation,manifestPayload,contractText,checkModule,saveModule,runDesign,versions,loadVersion,newModule,newTemplate,newComposite,updateContractItem,bindModule,pinProject,moduleForInsert,get catalog(){return catalog;},get health(){return health;}};
+  return {...services,archiveCacheMetadata,overviewBindings,overviewValues,refrigerationReportAvailable,request,normalize,moduleFromManifest,whenReady:()=>initializing || Promise.resolve(),command,tick,validate,init,applyParameters,loadOverview,authHeaders,signOut:()=>{sessionStorage.removeItem(TOKEN_KEY);location.reload();},overview:id=>overviews.get(id),circuits:id=>circuitsByProject.get(id)||[],confirmedCommand,portValue,observation,manifestPayload,contractText,checkModule,saveModule,runDesign,versions,loadVersion,newModule,newTemplate,newComposite,updateContractItem,bindModule,pinProject,moduleForInsert,get catalog(){return catalog;},get health(){return health;}};
 };
