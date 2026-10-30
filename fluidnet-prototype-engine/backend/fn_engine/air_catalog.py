@@ -1,5 +1,5 @@
 """风系统设备合同；与通用目录共用参数/单位生成器。"""
-from .models import Direction, ModuleDefinition, ParameterSpec, PortSpec
+from .models import Direction, ModuleDefinition, ParameterSpec, PortSpec, UnitSpec, VariableSpec
 
 
 def air_catalog():
@@ -37,7 +37,15 @@ def air_catalog():
             number('infiltration_dry_air_kg_s','平衡渗透干空气流量',0.,'dry_air_mass_flow','kg_da/s',minimum=0.,maximum=100.,runtime=True),
             number('sensible_load_w','室内显热负荷',1000.,'power','W','kW',1000.,-1e7,1e7,True),
             number('moisture_load_kg_s','人员货物散湿量',.0001,'mass_flow','kg/s',minimum=0.,maximum=10.,runtime=True),
-            temperature('moisture_source_temperature_k','散湿蒸汽参考温度',307.15,273.15,333.15,True)])
+            temperature('moisture_source_temperature_k','散湿蒸汽参考温度',307.15,273.15,333.15,True)],
+        variables=[
+            VariableSpec(id='state.temperature_k',label='房间温度',source='state',quantity='temperature',
+                unit=UnitSpec(quantity='temperature',canonical_unit='K',display_unit='°C',display_offset=-273.15)),
+            VariableSpec(id='state.humidity_ratio_kg_kg',label='房间含湿量',source='state',quantity='humidity_ratio',
+                unit=UnitSpec(quantity='humidity_ratio',canonical_unit='kg/kg_da',display_unit='g/kg_da',display_scale=.001)),
+            VariableSpec(id='state.relative_humidity',label='房间相对湿度',source='state',quantity='ratio',
+                unit=UnitSpec(quantity='ratio',canonical_unit='1',display_unit='%',display_scale=.01)),
+        ])
     tower = ModuleDefinition(id='cooling_tower_moist',name='湿空气冷却塔',category='热力设备',solver_model='cooling_tower_moist',
         description='接触效能教学模型：循环水与规定外界空气交换热湿，核算蒸发、飘水、排污和补水；无空气端口。',
         ports=ports('in0','out0'),channels=[channel('ch0','resistance')],parameters=[
