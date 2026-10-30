@@ -353,8 +353,10 @@ def _station_author_fields(network, iid, definition):
               for variable in definition.variables if variable.sampleable}
     liquid = getattr(network, 'fluid_network', None)
     if liquid is not None and iid in liquid.instances:
-        # This ledger belongs to the coupled host, including accepted half-steps;
-        # it exists even when the author does not declare a state variable for it.
+        # The coupled host owns these values and units, even when the author has
+        # no declaration or a conflicting display contract for the same key.
+        fields.update(mass_flow_kg_s=('质量流量（平台求解）', 'kg/s'),
+                      pressure_drop_pa=('压差（平台求解）', 'Pa'))
         fields['state.transferred_mass_kg'] = ('累计通过质量（平台积分）', 'kg')
     return fields
 

@@ -69,6 +69,8 @@ def test_coupled_liquid_reports_use_frozen_version_and_no_worker_after_restart(t
         assert original.definition_hash in report and latest.definition_hash not in report
         assert AUTHOR in report and 'WV1' not in report
         assert AUTHOR + '.density_kg_m3' in report
+        assert AUTHOR + '.mass_flow_kg_s' in report
+        assert AUTHOR + '.pressure_drop_pa' in report
         assert AUTHOR + '.state.transferred_mass_kg' in report
         assert '累计通过质量（平台积分）' in report
         assert 'HX_W.ch0' in report
@@ -81,6 +83,8 @@ def test_coupled_liquid_reports_use_frozen_version_and_no_worker_after_restart(t
         assert float(rows[-1][AUTHOR + '.state.transferred_mass_kg [kg]']) == pytest.approx(
             frame['variables'][AUTHOR + '.state.transferred_mass_kg'])
         assert float(rows[-1][AUTHOR + '.density_kg_m3 [kg/m³]']) > 0
+        for key, unit in [('mass_flow_kg_s', 'kg/s'), ('pressure_drop_pa', 'Pa')]:
+            assert float(rows[-1][f'{AUTHOR}.{key} [{unit}]']) == pytest.approx(frame['variables'][f'{AUTHOR}.{key}'])
         assert float(rows[-1]['coupling.HX1.state.heat_energy_j [J]']) > 0
     with TestClient(create_app(**config)) as client:
         assert client.get(path).json()['frame'] == frame
@@ -93,6 +97,8 @@ def test_sync_trend_history_retains_coupled_author_derived_fields_and_platform_l
     network = compile_project(project)
     keys = dict(station_series_keys(network))
     assert not network.refrigeration_modules
+    assert keys[AUTHOR + '.mass_flow_kg_s'] == 'kg/s'
+    assert keys[AUTHOR + '.pressure_drop_pa'] == 'Pa'
     assert keys[AUTHOR + '.state.transferred_mass_kg'] == 'kg'
     wanted = {AUTHOR + '.density_kg_m3': 998., AUTHOR + '.opening_ratio': .8,
               AUTHOR + '.state.transferred_mass_kg': 1.2, 'coupling.HX1.heat_w': 2000.}
@@ -103,3 +109,16 @@ def test_sync_trend_history_retains_coupled_author_derived_fields_and_platform_l
     assert not frames[1].full
     assert 'unobserved.output' not in frames[1].variables
     assert frames[1].variables == wanted
+
+
+def test_liquid_host_report_units_override_conflicting_author_declarations():
+    project = author_project()
+    module = project.modules[-1]
+    temperature = next(variable for definition in project.modules for variable in definition.variables
+                       if variable.unit and variable.unit.canonical_unit == 'K')
+    for key in ['mass_flow_kg_s', 'pressure_drop_pa', 'state.transferred_mass_kg']:
+        module.variables.append(temperature.model_copy(deep=True, update={'id': key, 'label': '错误温度标记', 'source': 'derived'}))
+    keys = dict(station_series_keys(compile_project(project)))
+    assert keys[AUTHOR + '.mass_flow_kg_s'] == 'kg/s'
+    assert keys[AUTHOR + '.pressure_drop_pa'] == 'Pa'
+    assert keys[AUTHOR + '.state.transferred_mass_kg'] == 'kg'
