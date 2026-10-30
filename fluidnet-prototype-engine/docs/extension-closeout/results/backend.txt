@@ -36,7 +36,7 @@ tmp_path = WindowsPath('C:/Users/job steam/AppData/Local/Temp/pytest-of-job/pyte
             assert record['status']=='running'
 >           command(client,run_id,{'action':'pause'})
 
-tests\test_live.py:67: 
+tests\test_live.py:67:
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
 client = <starlette.testclient.TestClient object at 0x0000028A2FA04510>

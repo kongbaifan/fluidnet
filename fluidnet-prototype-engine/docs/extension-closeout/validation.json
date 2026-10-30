@@ -107,44 +107,58 @@
   },
   "logs": {
     "backend.txt": {
-      "sha256": "cea46297b56f99562feff3066ca5a602218ec4dc870ea57aff1a2528de878edb",
-      "bytes": 19926
-    },
-    "coverage.xml": {
-      "sha256": "6c1831eca52293403cf48122d340a42eb02a52be836eb65e8c3275ec37a52da5",
-      "bytes": 585825
+      "sha256": "f3fb2d4646765d6525b314f3ececc286c277eaf1d85a43ed5cc1b8e490953179",
+      "bytes": 19925,
+      "original_sha256": "cea46297b56f99562feff3066ca5a602218ec4dc870ea57aff1a2528de878edb",
+      "text_normalization": "LF line endings, trailing whitespace removed, one final newline; original artifact retained locally"
     },
     "realtime-recheck.txt": {
       "sha256": "7fad62235437148fa7224e4de03fc3ff352df6d67ccdfd56fe290af135ceecbd",
-      "bytes": 101
+      "bytes": 101,
+      "original_sha256": "7fad62235437148fa7224e4de03fc3ff352df6d67ccdfd56fe290af135ceecbd",
+      "text_normalization": "LF line endings, trailing whitespace removed, one final newline; original artifact retained locally"
     },
     "ruff.txt": {
       "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0",
-      "bytes": 20
+      "bytes": 20,
+      "original_sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0",
+      "text_normalization": "LF line endings, trailing whitespace removed, one final newline; original artifact retained locally"
     },
     "mypy.txt": {
       "sha256": "a8e31773e2994b0946e1974b0219eb67b8f9fcdf3843b0bcd8d2643e4a84cab8",
-      "bytes": 1389
+      "bytes": 1389,
+      "original_sha256": "a8e31773e2994b0946e1974b0219eb67b8f9fcdf3843b0bcd8d2643e4a84cab8",
+      "text_normalization": "LF line endings, trailing whitespace removed, one final newline; original artifact retained locally"
     },
     "sdk-types.txt": {
       "sha256": "99774ae94d9c061d2ee8a3c00a79bb1c6dfd2b0998f7cb389be50e19a0dc7d15",
-      "bytes": 45
+      "bytes": 45,
+      "original_sha256": "99774ae94d9c061d2ee8a3c00a79bb1c6dfd2b0998f7cb389be50e19a0dc7d15",
+      "text_normalization": "LF line endings, trailing whitespace removed, one final newline; original artifact retained locally"
     },
     "contracts.txt": {
       "sha256": "710f513d5a1f330f712c2af266035385f7b742d0218965d585f5ad301d36c3e3",
-      "bytes": 32
+      "bytes": 32,
+      "original_sha256": "710f513d5a1f330f712c2af266035385f7b742d0218965d585f5ad301d36c3e3",
+      "text_normalization": "LF line endings, trailing whitespace removed, one final newline; original artifact retained locally"
     },
     "examples.txt": {
       "sha256": "5c424bd52b7fcea6d6d5093f6d4285881cc42ab53cd32da1cf05ede3779cfe75",
-      "bytes": 423
+      "bytes": 423,
+      "original_sha256": "5c424bd52b7fcea6d6d5093f6d4285881cc42ab53cd32da1cf05ede3779cfe75",
+      "text_normalization": "LF line endings, trailing whitespace removed, one final newline; original artifact retained locally"
     },
     "frontend-check.txt": {
-      "sha256": "3ae6cbb43f13dde763f7b47c28bdfa3d22ea184951e37bf31ee9966c252292c4",
-      "bytes": 1718
+      "sha256": "b1385314c01d2fff6c1ddf61ba7ab101c219cea06e59439db1862f15c4662f8a",
+      "bytes": 1716,
+      "original_sha256": "3ae6cbb43f13dde763f7b47c28bdfa3d22ea184951e37bf31ee9966c252292c4",
+      "text_normalization": "LF line endings, trailing whitespace removed, one final newline; original artifact retained locally"
     },
     "browser.txt": {
       "sha256": "53ddbd522bf28d779ffe5fa566db23342045b3c79aac73ed5402c9b6038aa672",
-      "bytes": 12286
+      "bytes": 12286,
+      "original_sha256": "53ddbd522bf28d779ffe5fa566db23342045b3c79aac73ed5402c9b6038aa672",
+      "text_normalization": "LF line endings, trailing whitespace removed, one final newline; original artifact retained locally"
     },
     "coupled-browser.json": {
       "sha256": "83287c7a31ad88819ca659c34eb94db6c6cf5fc8936da7e7792c749f736517de",
@@ -175,6 +189,11 @@
       "bytes": 156839,
       "width": 1920,
       "height": 1080
+    },
+    "backend-coverage.xml": {
+      "sha256": "6c1831eca52293403cf48122d340a42eb02a52be836eb65e8c3275ec37a52da5",
+      "bytes": 585825,
+      "original_artifact": "artifacts/extension-closeout/coverage.xml"
     }
   },
   "code_and_test_head": "3c28a7990047e997acb2b14cdc7f081fdab68677",
