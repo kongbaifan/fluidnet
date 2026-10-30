@@ -1,0 +1,209 @@
+npm warn Unknown user config "allow-scripts". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+
+> fluidnet-prototype-engine-ui@0.5.0 test:browser
+> npm run test:ui && node tests/browser-smoke.mjs && node tests/browser-heater.mjs && node tests/browser-platform.mjs && node tests/browser-authoring.mjs && node tests/browser-run-control.mjs && node tests/browser-pid.mjs && node tests/browser-continuous.mjs && node tests/browser-multifluid.mjs && node tests/browser-auth.mjs && node tests/browser-workspace.mjs && node tests/browser-control-programs.mjs && node tests/browser-workflows.mjs && node tests/browser-archive-migration.mjs && node tests/browser-cold-storage.mjs && node tests/browser-cold-storage-station.mjs && node tests/browser-module-catalog.mjs && node tests/browser-module-workflow.mjs && node tests/browser-thermal-coupling.mjs && node tests/browser-thermal-coupling-modeling.mjs && node tests/browser-dual-thermal-coupling.mjs && node tests/browser-scenario-batches.mjs && node tests/browser-air-side.mjs && node tests/browser-air-batches.mjs && node tests/browser-chiller-air-loop.mjs && node tests/browser-platform-authoring.mjs && node tests/browser-refrigeration-authoring.mjs && node tests/browser-refrigeration-projects.mjs && node tests/browser-coupled-liquid-author.mjs && node tests/browser-room-control.mjs && node tests/browser-room-control-workflows.mjs
+
+npm warn Unknown env config "allow-scripts". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+npm warn Unknown user config "allow-scripts". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+
+> fluidnet-prototype-engine-ui@0.5.0 test:ui
+> node --test tests/thermal-coupling-ui.test.mjs tests/project-overview.test.mjs tests/project-exchange.test.mjs tests/draft-cache.test.mjs tests/run-archive-cache.test.mjs
+
+✔ quota pressure compacts only confirmed server caches and preserves drafts and local snapshots (22.8291ms)
+✔ incomplete or mismatched archive receipts do not authorize cache trimming (12.4095ms)
+✔ cache compaction retains the last complete frame before partial trend frames (2.6644ms)
+✔ PID settings participate in stale-result detection without run-cache noise (1.8941ms)
+✔ upgrade retains sparse scenario overrides and other device display units (12.3377ms)
+✔ canonical import preserves authored hashes, controls, fluid options, drafts and banks (39.8912ms)
+✔ refrigeration author overview follows the declared role and instance ID (2.504ms)
+✔ imported builtin snapshots do not receive a Python package with null hashes (0.5896ms)
+✔ report availability uses the frozen run domain, status and used instances (1.281ms)
+✔ overview follows device roles and actual custom IDs, with no example-name dependency (1.9216ms)
+✔ two-channel historical snapshot uses its own port and channel contract (1.3018ms)
+✔ missing or non-finite samples stay missing and thermal-only projects get no fluid placeholders (2.764ms)
+✔ saved prototype channel overrides take precedence over the catalog manifest (0.413ms)
+✔ only a matching persisted run covering all fetched rows authorizes a local cache (2.6819ms)
+✔ incomplete asynchronous persistence cannot authorize removal of newer frames (0.532ms)
+✔ nonpersistent servers and legacy records without archive receipts retain their local results (0.4782ms)
+✔ invalid row counts and frame times never authorize local cache trimming (0.8279ms)
+✔ a persisted initial frame and an acknowledged live prefix can retain their exact boundary (0.4273ms)
+✔ saved built-in channel overrides determine the legal coil and its persisted binding (14.9536ms)
+✔ a disabled saved channel is excluded even when the catalog channel is enabled (3.6006ms)
+✔ IDs outside the backend contract do not mutate the draft (10.4679ms)
+✔ two independently editable relations retain the first curve IDs and add aggregate bindings (9.5589ms)
+✔ editing cannot overwrite another relationship, reuse its pipe, or select a different vessel (7.898ms)
+✔ removing the selected relation retains the other and removes only obsolete aggregate curves (3.6951ms)
+ℹ tests 24
+ℹ suites 0
+ℹ pass 24
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 825.3813
+{
+  "status": "paused",
+  "metrics": {
+    "pressure_residual_pa": 8.731149137020111e-11,
+    "mass_residual_kg_s": 4.440892098500626e-16,
+    "iterations": 6,
+    "node_count": 5,
+    "branch_count": 5,
+    "matrix_size": 8,
+    "matrix_nnz": 19,
+    "thermal_iterations": 1,
+    "coupling_iterations": 1,
+    "energy_residual_w": 8.287770469905809e-11,
+    "reference_heat_w": 0
+  },
+  "before": 3.5826766415095452,
+  "after": 2.346313012321039,
+  "errors": []
+}
+{"beforeHeatW":2000.0000000000055,"afterHeatW":5000.000000000002,"errors":[]}
+{
+  "workerFlow": 4.050459519508026,
+  "commits": 10,
+  "errors": []
+}
+{
+  "versions": [
+    1,
+    2
+  ],
+  "oldFlow": 2.930150532357225,
+  "newFlow": 3.2245555435329547,
+  "restartReproduced": true,
+  "errors": []
+}
+{
+  "runId": "469b487b59cd443caa5ca46381a32ee5",
+  "finalStatus": "cancelled",
+  "timeS": 0.75,
+  "rows": 16,
+  "rowsAfterStop": 16,
+  "timeAfterStop": 0.75,
+  "events": [
+    "queued",
+    "running",
+    "stop accepted · c518fa9b-79d9-4954-a431-9001846dd9fa",
+    "命令 applied · c518fa9b-79d9-4954-a431-9001846dd9fa",
+    "cancelled"
+  ],
+  "trendRows": 61,
+  "partialRows": 30,
+  "parameterBatches": {
+    "writes": 3,
+    "acceptedRevisions": 2,
+    "rejectedBatches": 1
+  },
+  "errors": []
+}
+{"pid":"temperature","time":2,"output":1500,"errors":[]}
+{"runId":"0605f1f833c94dc1a2efdceb4b42884b","status":"cancelled","rows":33,"timeS":3.2,"overviewRows":32,"errors":[]}
+{"circuits":[["Water",6],["INCOMP::MEG[0.3]",6]],"cold":1035.9416955364197,"hot":980.6013462740993,"errors":[]}
+{"runId":"09ac6b70d2f54eb08862457a10a17249","errors":[]}
+{"runId":"54cad3121fb045499b9a21f72ffa5f3b","restart":"interrupted","conflict":409,"saveFailure":507,"errors":[]}
+{"scripts":2,"importedIdLength":81,"runId":"c6125c0914c0423eb11d3d1255adefd1","capacity":16,"errors":[]}
+{"project":"project-24","baseline":"c356e439f2d74f518ef7d72b21b91d89","throttled":"5034f717f6d64baa8accbfbf36d4f7e2","upgrade":"v2 -> v3 -> v2","errors":[]}
+{
+  "projectCount": {
+    "oldArchive": 5,
+    "serverBaseline": 3,
+    "afterImport": 4,
+    "afterRestore": 4
+  },
+  "module": {
+    "id": "programmable_valve",
+    "contentHash": "3b8a1cd01b354756b85a7654957fcb91f26bcf3783358f40ee3c2adb19b7bf66",
+    "definitionHash": "b637b193585e7ebbf177abff5d6003aae64094df6e56e994bc0079e63cc1584f"
+  },
+  "keyParams": {
+    "V1.opening_ratio": 0.65,
+    "V1.kv_m3_h": 20
+  },
+  "revisions": {
+    "baseline": 1,
+    "afterMigrationSave": 2
+  },
+  "preserved": {
+    "originalExportSha256": "a6ed7bebd8636f3c5f446fbebcdd577bfacbc74c1d22bfec4764f4fa374cd4c5",
+    "beforeWorkspaceSha256": "b7b2bab91b6d9dfe074a8513109f7b04322454d3fd2a05a1e48e823f203c647c",
+    "oldArchiveSha256": "b7b2bab91b6d9dfe074a8513109f7b04322454d3fd2a05a1e48e823f203c647c"
+  },
+  "artifacts": "artifacts\\archive-migration",
+  "errors": []
+}
+{"projectId":"project-22","runs":["f67e64a6b11447a6a623eccba82d7bbc","9c491d191d76431c991141a7f555abbd","0023a663bb204d7aab9df16c7515d88c","50417456616843c888ceb4e875d4b36f"],"temperature":"-19.51","errors":[]}
+{"project":"project-22","runs":["d2d5ae5fd06c4ffc91af6ca325629f0f","e45aa35d1fb04db5a638e6594096637a","ae85af99e6d3405182c9d829df15d130"],"room1":"-18.00","errors":[]}
+{
+  "category": "倍思鹿参考模块",
+  "count": 8,
+  "modules": [
+    "capillary_tube",
+    "check_valve",
+    "cooling_tower",
+    "fan",
+    "fan_coil_unit",
+    "pipe_fitting",
+    "pump_variable_speed",
+    "valve_equal_percentage"
+  ],
+  "errors": []
+}
+{"template":"resistance","status":"starting"}
+{"template":"pump","status":"starting"}
+{"template":"heat_exchanger","status":"starting"}
+{"template":"managed_state","status":"starting"}
+{"moduleAssertionBoundaries":{"directionsVerified":true,"channelEditsApplied":true,"overridesPreserved":true,"clearAndAdd":true,"contractLimits":true}}
+{"moduleAssertions":{"mismatchDetected":true,"laterCaseExecuted":true,"savedAndReloaded":true,"correctedPassed":true}}
+{
+  "results": [
+    {
+      "template": "resistance",
+      "version": 1,
+      "reloadRecomputed": true
+    },
+    {
+      "template": "pump",
+      "version": 1,
+      "reloadRecomputed": true
+    },
+    {
+      "template": "heat_exchanger",
+      "version": 1,
+      "reloadRecomputed": true
+    },
+    {
+      "template": "managed_state",
+      "version": 1,
+      "reloadRecomputed": true
+    }
+  ],
+  "errors": []
+}
+{"projectId":"project-22","runs":["de3a64d4f9794a7aa145fefe47bd341f","e333c529ced04d1187f5b4a6df9d6b91","70f016faebca4d58a980d576e071bf98","cfbc6ae04e874131934fd50d9114446b"],"heat_w":16591.07512835801,"errors":[]}
+{"projectId":"thermal-modeling-custom","couplingId":"CustomCoil-2","runs":["497be4b585c44b2db8eede23595a4b73","48ec8e8f299b440c8a8b517e4490e7c7","7564c6ff04cd4181aab57f363dd2bc91","ae3c03bcdcd041cebd1c074656ad117c","091836ed5a094eebb9e400030a1f76df","096860f509f54879b8d10e220b07e6ac"],"errors":[]}
+{"projects":["project-22","project-23","project-38"],"totalHeat":28682.278758352368,"errors":[]}
+{"batches":["5245363bcab740e2a0a0567d32fc8cc8","889a59ae9ce449a38965dd4c944f26b7","eca25ce46aeb4227990a95c1c428970d"],"items":5,"sourceRevision":1,"snapshot":"6e691e0b19b90c9ba4bfe26cc2eab61f0f163f17bad893b04bb351246c6217da","errors":[]}
+{"projectId":"air-project-22","contract":1,"errors":[]}
+{"id":"2ded7476f47744fd8a1f70880d1dbe1d","items":3,"errors":[]}
+submitted bad778fd60f44719ab71be68e77a8a22
+first completed
+submitted 4b1959228e4245b09104008c9851ddff
+submitted 99b57c2f9bf544fcbfbc4cc72f4773a0
+{"run":"bad778fd60f44719ab71be68e77a8a22","changed":"99b57c2f9bf544fcbfbc4cc72f4773a0","errors":[]}
+{"suite":{"passed":true,"cases":3},"original":{"project":"project-22","instance":"D-24","flow":5.84428068992534,"reference":5.844280689925339},"versions":[1,2,1],"composite":{"instance":"D-30","versions":[1,2,1],"childVersion":1,"flow":5.84428068992534,"exportReload":true},"errors":[]}
+{"suite":[{"id":"forward","passed":true,"input_hash":"959de002b0f2be6f1a7c084d13f0233575f068dfd3ff2c55a5aaeba86ebc3949"},{"id":"reverse","passed":true,"input_hash":"709b4328fb82a70243b57ed9e78a40e0d2c1c8cf6cf3b96c23b5800597642fb1"},{"id":"zero","passed":true,"input_hash":"38facbd70d1f490536b9cb3bd044b38525d547c30aebc37b4bf0ab5605cec4d5"},{"id":"closed","passed":true,"input_hash":"a5c6f5e10b7c21e43860021caedb8f318211086347c3f2a4c22658cce860e5ee"}],"linear":0.22493927636741132,"equalPercentage":0.05573965715830625,"sourceLocation":true,"errors":[]}
+RF-4 imported canonical project and ran v1.
+RF-4 version upgrade preserved partial scenarios and frozen report.
+{"projectId":"project-22","finalProjectId":"project-24","versions":[1,2,1],"flowV1":0.17455289375560082,"flowV2":0.032708631737966766,"batch":"74f6ff81a88d4963b9b50bb9287b30a3","restarted":true,"formats":["fluidnet-project","Project"],"errors":[]}
+Coupled author canonical import and dynamic run passed.
+Coupled author upgrade and frozen HTML/CSV downloads passed.
+{"projectId":"project-22","finalProjectId":"project-24","versions":[1,2,1],"flowV1":1.1882519438685635,"flowV2":1.0525486078704873,"batch":"b97eda98701f43eab3eb8a780a91c26d","formats":["fluidnet-project","Project"],"restarted":true,"errors":[]}
+{"id":"09f858d4cd224f79b1b0e1b57df568fe","time":2400,"room":26.0430677796071,"target":26}
+{"id":"45e3d88bc0864711b895890b535a9228","time":60,"room":29.23851835927377,"target":25}
+{"id":"a37f8114885e44eea649dc1089776219","time":60,"room":29.23851835927377,"target":25}
+{"id":"915bdb1cb18843feba7d209b09bae02d","time":630,"room":26.1737813487087,"target":26}
+{"id":"d1e12c48ca014482a8e3830681c06834","time":630,"room":25.92799500365237,"target":25}
+{"importedRun":"c3721c985c66416cb6f0dbf0abed191b","batch":"9ac69ce1c71749d4823d2b6b797a6935","items":2,"errors":[]}

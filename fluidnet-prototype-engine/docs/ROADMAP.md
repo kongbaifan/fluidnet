@@ -18,6 +18,8 @@ M0–M2 已完成。**M3 已取消，M3B 的后续开发／联调与 M4 的持�
 
 ## 后续开发建议（2026-10-30）
 
+2026-10-30 后续：用户要求的“热耦合液体侧 Python 作者设备”与“房间自动温控”已并行完成，并按可验证阶段多次提交。前者开放无独立储量的阀门/局部阻力及冻结报告，后者提供三回路室温反馈、负荷/设定变化和中文控制结果。使用见[作者设备](COUPLED_LIQUID_MODULES.md)、[房间温控](ROOM_TEMPERATURE_CONTROL.md)，实际结果及首轮时序测试的修复复验见[综合验收](COUPLED_MODULES_ROOM_CONTROL_ACCEPTANCE.md)。水侧储热和机组启停仍为后置方向；以下八包计划保留上一阶段的交付事实。
+
 已编制[自主建模与制冷设备扩展计划](PLATFORM_EXTENSION_PLAN.md)，代码基线为 `802b4c5`。下一阶段建议依次完成现有作者流程补缺、制冷设备扩展合同验证、首类 Python 等焓节流设备及项目/版本闭环，共 8 个工作包。首批 PF-0/PF-1 已完成能力核对、自建模块/组合复用及结果引用修复，见[首批验收](PLATFORM_AUTHORING_ACCEPTANCE.md)；RF-0 已完成[制冷设备角色、接受事务与性能验证](REFRIGERATION_EXTENSION_DESIGN.md)，RF-1 已完成[正式合同、SDK 与编译/Worker 接入](REFRIGERATION_MODULE_CONTRACT.md)。RF-2/RF-3 已接通[正式运行、接受事务、作者模板与验证台](REFRIGERATION_MODULE_EXECUTION.md)。RF-4 已完成[项目版本与结果闭环](REFRIGERATION_PROJECT_ACCEPTANCE.md)，PF-2 已通过[全阶段验收](PLATFORM_EXTENSION_ACCEPTANCE.md)：1723 项后端测试、91.05% 覆盖率、27 个浏览器脚本，本计划八包全部完成。水侧储热和机组启停保留为后置物理与场景方向，原取消任务不恢复。下方旧计划与验收按历史日期保留。
 
 ## 新一轮计划（2026-10-27）

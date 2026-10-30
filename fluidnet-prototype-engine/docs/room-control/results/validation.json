@@ -1,0 +1,174 @@
+{
+  "date": "2026-10-30",
+  "duration_s": 2400,
+  "output_and_control_sample_s": 30,
+  "reference_kind": "reproducible engineering assumptions; not manufacturer or field calibration",
+  "cases": [
+    {
+      "id": "room-temperature-control",
+      "final_temperature_c": 26.043067779607043,
+      "final_target_c": 26,
+      "final_valve_opening": 0.05542510530786743,
+      "chiller_energy_kwh": 0.7411782643812076,
+      "minimum_coil_water_flow_kg_s": 0.08918889892613727
+    },
+    {
+      "id": "room-control-load-step",
+      "final_temperature_c": 26.15114496365021,
+      "final_target_c": 26,
+      "final_valve_opening": 0.08548217664458072,
+      "chiller_energy_kwh": 0.9649721294611009,
+      "minimum_coil_water_flow_kg_s": 0.09105272406306648
+    },
+    {
+      "id": "room-control-setpoint-step",
+      "final_temperature_c": 25.036998214256812,
+      "final_target_c": 25,
+      "final_valve_opening": 0.061848284217521234,
+      "chiller_energy_kwh": 0.8221282316771854,
+      "minimum_coil_water_flow_kg_s": 0.09267514697500796
+    }
+  ],
+  "backend_checks": [
+    {
+      "command": "python -m pytest -q tests/test_air_room_controls.py tests/test_air_room.py --tb=short",
+      "passed": 10,
+      "seconds": 4.05
+    },
+    {
+      "command": "python -u -m pytest -q -s tests/test_room_temperature_control.py --tb=short --maxfail=1",
+      "passed": 7,
+      "seconds": 627.55,
+      "note": "Before the capacity and portable-file tests were added; API complete-frame assertions were rechecked below."
+    },
+    {
+      "command": "python -m pytest -q tests/test_room_temperature_control.py -k insufficient --tb=short",
+      "passed": 1,
+      "seconds": 61.19
+    },
+    {
+      "command": "python -m pytest -q tests/test_room_temperature_control.py -k 'api or portable' --tb=short",
+      "passed": 2,
+      "seconds": 14.25,
+      "note": "API is a recheck, not an additional unique test."
+    }
+  ],
+  "unique_new_room_control_tests": 9,
+  "browser_status": "passed final complete browser chain",
+  "browser_first_attempt": {
+    "completed_2400_s_run": "8b1debaca93f406c9e8665927b7b1158",
+    "final_temperature_c": 26.0430677796071,
+    "result": "failed acceptance: local draft quota warning, then changing the PID target did not mark previous results stale"
+  },
+  "browser_checks": [
+    {
+      "command": "node tests/browser-room-control.mjs",
+      "exit_code": 0,
+      "evidence": {
+        "first": "a84e12c4ed034d05833314f8d432cca2",
+        "changed": "ee8a35631bf540afa067c116d5503df7",
+        "repeated": "771aad34e4224d7f9859cea66c1fa693",
+        "staged": [
+          "a963408a08ce4c7aaec1fcbe7995de97",
+          "f89ba10dd62d4830bdd5d00251eac4dd"
+        ],
+        "finalTemperatureC": 26.0430677796071,
+        "energyKwh": 0.7411782643827541,
+        "errors": []
+      },
+      "stage_durations_s": [
+        2400,
+        2400
+      ],
+      "note": "This execution ran both staged cases for 2400 s. The helper now waits for the newly selected project and asserts 630 s in the final integration chain."
+    },
+    {
+      "command": "node tests/browser-room-control-workflows.mjs",
+      "exit_code": 0,
+      "evidence": {
+        "importedRun": "8681af1ce4bf4f4185280dd64c28e734",
+        "batch": "2a281010bb9e425eb194c542f8562ed0",
+        "items": [
+          {
+            "id": "item-1",
+            "values": {
+              "Room.state.temperature_k": 302.3888762018031,
+              "controller.room-temperature.setpoint": 299.15,
+              "controller.room-temperature.output": 0.36772136690655355,
+              "Chiller.state.electric_energy_j": 214074.73685383837
+            }
+          },
+          {
+            "id": "item-2",
+            "values": {
+              "Room.state.temperature_k": 302.5416406256229,
+              "controller.room-temperature.setpoint": 299.15,
+              "controller.room-temperature.output": 0.3756880912213486,
+              "Chiller.state.electric_energy_j": 215826.78918809097
+            }
+          }
+        ],
+        "errors": []
+      },
+      "batch_duration_s": 60,
+      "batch_cases": 2,
+      "canonical_ui_import": true
+    }
+  ],
+  "integrated_browser_check": {
+    "command": "npm run test:browser",
+    "exit_code": 0,
+    "scripts": 30,
+    "evidence": {
+      "first": "09f858d4cd224f79b1b0e1b57df568fe",
+      "changed": "45e3d88bc0864711b895890b535a9228",
+      "repeated": "a37f8114885e44eea649dc1089776219",
+      "staged": [
+        "915bdb1cb18843feba7d209b09bae02d",
+        "d1e12c48ca014482a8e3830681c06834"
+      ],
+      "finalTemperatureC": 26.0430677796071,
+      "energyKwh": 0.7411782643827541,
+      "errors": []
+    },
+    "stage_runs": [
+      {
+        "id": "915bdb1cb18843feba7d209b09bae02d",
+        "time": 630,
+        "room": 26.1737813487087,
+        "target": 26
+      },
+      {
+        "id": "d1e12c48ca014482a8e3830681c06834",
+        "time": 630,
+        "room": 25.92799500365237,
+        "target": 25
+      }
+    ],
+    "workflow": {
+      "importedRun": "c3721c985c66416cb6f0dbf0abed191b",
+      "batch": "9ac69ce1c71749d4823d2b6b797a6935",
+      "items": [
+        {
+          "id": "item-1",
+          "values": {
+            "Room.state.temperature_k": 302.3888762018031,
+            "controller.room-temperature.setpoint": 299.15,
+            "controller.room-temperature.output": 0.36772136690655355,
+            "Chiller.state.electric_energy_j": 214074.73685383837
+          }
+        },
+        {
+          "id": "item-2",
+          "values": {
+            "Room.state.temperature_k": 302.5416406256229,
+            "controller.room-temperature.setpoint": 299.15,
+            "controller.room-temperature.output": 0.3756880912213486,
+            "Chiller.state.electric_energy_j": 215826.78918809097
+          }
+        }
+      ],
+      "errors": []
+    }
+  }
+}

@@ -2,6 +2,8 @@
 
 本功能允许无独立储量的 Python 阀门或局部阻力，参与集总制冷站与单相液体网络的热耦合。普通模块编写、验证、保存版本、项目升级/回退和结果归档流程继续适用。
 
+本轮实现与统一检查已完成，结果及可追溯日志见[综合验收](COUPLED_MODULES_ROOM_CONTROL_ACCEPTANCE.md)。
+
 ## 从完整示例开始
 
 1. 启动源码服务，从“项目 → 导入单项目”导入 [`author_loop.json`](../examples/coupled_liquid_modules/author_loop.json)。这是包含模块源码及双哈希的规范 Project 文件，可在另一工作区导入，无须本机绝对路径。

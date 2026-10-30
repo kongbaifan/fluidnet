@@ -12,6 +12,8 @@
 
 ## 启动
 
+新增使用入口：[热耦合液体作者模块](docs/COUPLED_LIQUID_MODULES.md)提供含源码的完整水阀联算项目；[房间自动温控](docs/ROOM_TEMPERATURE_CONTROL.md)提供初始降温、负荷变化和设定变化三种风水联算案例。均复用现有保存、版本、控制和冻结报告流程；两条主线已完成，范围与最终结果见[综合验收](docs/COUPLED_MODULES_ROOM_CONTROL_ACCEPTANCE.md)。
+
 Python 3.11 或更高版本，在本目录执行：
 
 ```powershell

@@ -6,6 +6,8 @@
 
 同日后续已接通真实水盘管、水冷冷水机组和空气/冷冻水/冷却水三个回路的[完整联算示例](fluidnet-prototype-engine/docs/CHILLER_AIR_LOOP.md)，本轮检查状态见[联算验收](fluidnet-prototype-engine/docs/CHILLER_AIR_LOOP_ACCEPTANCE.md)。
 
+2026-10-30 后续新增[热耦合液体侧 Python 作者设备](fluidnet-prototype-engine/docs/COUPLED_LIQUID_MODULES.md)与[房间自动温控](fluidnet-prototype-engine/docs/ROOM_TEMPERATURE_CONTROL.md)：可编辑水阀参与制冷站联算，三回路房间案例支持自动调阀、负荷变化和目标温度变化。两条主线已完成，最终检查与证据见[综合验收](fluidnet-prototype-engine/docs/COUPLED_MODULES_ROOM_CONTROL_ACCEPTANCE.md)。
+
 当前发布版本 **v0.5.0（2026-10-22）**：冷库 A 版单库房案例（A0–A6）、B 版 NH₃/CO₂ 集总制冷站案例（B0–B3）与倍思鹿模块开发套件 v1 已交付；发布说明见 [RELEASE_NOTES](fluidnet-prototype-engine/docs/RELEASE_NOTES.md)，许可证见 [LICENSE](LICENSE)。
 
 | 目录 | 内容 |

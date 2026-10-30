@@ -1,0 +1,225 @@
+{
+  "date": "2026-10-30",
+  "baseline": "ec3edf3",
+  "full_runtime_revision": "da19e24",
+  "runtime_unchanged_after_full": true,
+  "python": "3.11.0",
+  "platform": "Windows-10-10.0.29695-SP0",
+  "backend_full": {
+    "passed": 1759,
+    "failed": 1,
+    "warnings": 5,
+    "seconds": 4755.19,
+    "coverage_percent": 91.23,
+    "coverage_floor_percent": 85
+  },
+  "recheck": {
+    "test": "tests/test_live.py::test_realtime_publishes_before_completion_and_pause_does_not_expire",
+    "passed": 1,
+    "seconds": 11.66,
+    "instrumentation": "coverage run",
+    "change": "Test duration 2 to 30 seconds; original running/pause/stop assertions retained"
+  },
+  "frontend_units": 24,
+  "backend_typed_files": 89,
+  "sdk_typed_files": 12,
+  "contracts": 90,
+  "portable_examples": 4,
+  "browser": {
+    "status": "passed",
+    "exit_code": 0,
+    "scripts": 30,
+    "frontend_units": 24,
+    "viewport": [
+      1920,
+      1080
+    ],
+    "dpr": 1,
+    "room": {
+      "first": "09f858d4cd224f79b1b0e1b57df568fe",
+      "changed": "45e3d88bc0864711b895890b535a9228",
+      "repeated": "a37f8114885e44eea649dc1089776219",
+      "staged": [
+        "915bdb1cb18843feba7d209b09bae02d",
+        "d1e12c48ca014482a8e3830681c06834"
+      ],
+      "finalTemperatureC": 26.0430677796071,
+      "energyKwh": 0.7411782643827541,
+      "errors": []
+    },
+    "room_step_runs": [
+      {
+        "id": "915bdb1cb18843feba7d209b09bae02d",
+        "time": 630,
+        "room": 26.1737813487087,
+        "target": 26
+      },
+      {
+        "id": "d1e12c48ca014482a8e3830681c06834",
+        "time": 630,
+        "room": 25.92799500365237,
+        "target": 25
+      }
+    ],
+    "room_workflows": {
+      "importedRun": "c3721c985c66416cb6f0dbf0abed191b",
+      "batch": "9ac69ce1c71749d4823d2b6b797a6935",
+      "items": [
+        {
+          "id": "item-1",
+          "values": {
+            "Room.state.temperature_k": 302.3888762018031,
+            "controller.room-temperature.setpoint": 299.15,
+            "controller.room-temperature.output": 0.36772136690655355,
+            "Chiller.state.electric_energy_j": 214074.73685383837
+          }
+        },
+        {
+          "id": "item-2",
+          "values": {
+            "Room.state.temperature_k": 302.5416406256229,
+            "controller.room-temperature.setpoint": 299.15,
+            "controller.room-temperature.output": 0.3756880912213486,
+            "Chiller.state.electric_energy_j": 215826.78918809097
+          }
+        }
+      ],
+      "errors": []
+    },
+    "coupled_author": {
+      "projectId": "project-22",
+      "finalProjectId": "project-24",
+      "versions": [
+        1,
+        2,
+        1
+      ],
+      "flowV1": 1.1882519438685635,
+      "flowV2": 1.0525486078704873,
+      "batch": "b97eda98701f43eab3eb8a780a91c26d",
+      "formats": [
+        "fluidnet-project",
+        "Project"
+      ],
+      "restarted": true,
+      "errors": []
+    }
+  },
+  "logs": {
+    "backend.txt": {
+      "sha256": "cea46297b56f99562feff3066ca5a602218ec4dc870ea57aff1a2528de878edb",
+      "bytes": 19926
+    },
+    "coverage.xml": {
+      "sha256": "6c1831eca52293403cf48122d340a42eb02a52be836eb65e8c3275ec37a52da5",
+      "bytes": 585825
+    },
+    "realtime-recheck.txt": {
+      "sha256": "7fad62235437148fa7224e4de03fc3ff352df6d67ccdfd56fe290af135ceecbd",
+      "bytes": 101
+    },
+    "ruff.txt": {
+      "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0",
+      "bytes": 20
+    },
+    "mypy.txt": {
+      "sha256": "a8e31773e2994b0946e1974b0219eb67b8f9fcdf3843b0bcd8d2643e4a84cab8",
+      "bytes": 1389
+    },
+    "sdk-types.txt": {
+      "sha256": "99774ae94d9c061d2ee8a3c00a79bb1c6dfd2b0998f7cb389be50e19a0dc7d15",
+      "bytes": 45
+    },
+    "contracts.txt": {
+      "sha256": "710f513d5a1f330f712c2af266035385f7b742d0218965d585f5ad301d36c3e3",
+      "bytes": 32
+    },
+    "examples.txt": {
+      "sha256": "5c424bd52b7fcea6d6d5093f6d4285881cc42ab53cd32da1cf05ede3779cfe75",
+      "bytes": 423
+    },
+    "frontend-check.txt": {
+      "sha256": "3ae6cbb43f13dde763f7b47c28bdfa3d22ea184951e37bf31ee9966c252292c4",
+      "bytes": 1718
+    },
+    "browser.txt": {
+      "sha256": "53ddbd522bf28d779ffe5fa566db23342045b3c79aac73ed5402c9b6038aa672",
+      "bytes": 12286
+    },
+    "coupled-browser.json": {
+      "sha256": "83287c7a31ad88819ca659c34eb94db6c6cf5fc8936da7e7792c749f736517de",
+      "bytes": 312
+    },
+    "room-browser.json": {
+      "sha256": "8539133b7f9f39999b6052a5d41bfd289f8771e880e2c28f94f904c103feab80",
+      "bytes": 338
+    },
+    "room-workflows.json": {
+      "sha256": "7cf05f87cd182d136ee925ed93786d89afc2fc7c9376e3b5f2954f2a2dec7ec1",
+      "bytes": 736
+    },
+    "coupled-author-1080p.png": {
+      "sha256": "2b5083017ab2ca6c3629e39f476db3d51524251e501ab75192643019935d3bf6",
+      "bytes": 159474,
+      "width": 1920,
+      "height": 1080
+    },
+    "room-control-1080p.png": {
+      "sha256": "c34c6c1c99b7e5115a6dd297953c23165fcc34b93a9be8f7184dbd984d9af22c",
+      "bytes": 106740,
+      "width": 1920,
+      "height": 1080
+    },
+    "room-batches-1080p.png": {
+      "sha256": "196f2b0ff2d0f0b6f157094bed1259e0ef1681a74ead4f189f9a660ebac31e06",
+      "bytes": 156839,
+      "width": 1920,
+      "height": 1080
+    }
+  },
+  "code_and_test_head": "3c28a7990047e997acb2b14cdc7f081fdab68677",
+  "source_sha256": {
+    "fluidnet-prototype-engine/backend/fn_engine/air_catalog.py": "4ea04a50a6cd2b538049ea14dc58118417ac201ec91548470a721cb2f94e17c9",
+    "fluidnet-prototype-engine/backend/fn_engine/air_examples.py": "34f1bda9ea611c4aae6f9ec8f8cc8858e05bcc235f844e3c4bea5dad0de380f0",
+    "fluidnet-prototype-engine/backend/fn_engine/air_variables.py": "406b778902ec23b01a18ef376163aeddcbb301ca17fe7b4e5e969942bf8b0ab2",
+    "fluidnet-prototype-engine/backend/fn_engine/api.py": "35f6469b9f4da7b4958db5a54ea19e1679a6316d824d61737b7f17cc58fddf87",
+    "fluidnet-prototype-engine/backend/fn_engine/batches.py": "09c87596a75f69a40a5455afad50bb843b07b5b93d2f78c2d299a6e7cee58cb5",
+    "fluidnet-prototype-engine/backend/fn_engine/chiller_examples.py": "71ecd20cebc1d1f8dc3e5d8a6c04cf72fe62e7d30413b9da322a6079fcd58c12",
+    "fluidnet-prototype-engine/backend/fn_engine/models.py": "e3ee7d080c83bd4ffeedbae85c781fd51f15ada1ee2e4b1a43b819a554c6776f",
+    "fluidnet-prototype-engine/backend/fn_engine/refrigeration/coupling.py": "282c03a6dbf86244b0cf216a5aa36df1cb5476c102ec7b0c9ec6034b76476ff7",
+    "fluidnet-prototype-engine/backend/fn_engine/refrigeration/liquid_module_examples.py": "96f35892b45edea83f1e291211eda706060ca88ba6de0bd6a2c763ecda3e0791",
+    "fluidnet-prototype-engine/backend/fn_engine/refrigeration/liquid_modules.py": "ae151f8df833d30f4021215dca7fefa1ee9e29a434baafa87992217c37ca4116",
+    "fluidnet-prototype-engine/backend/fn_engine/refrigeration/report.py": "11017670f24ad7154e4bae42faeaed93369662e3dfef1b6f91d05c0b78fa7a43",
+    "fluidnet-prototype-engine/contracts/health-response.schema.json": "a5b415584ad96c97ea48d3fcbe5ebf01ed4917acf528a3d71fad7bb9f096c39e",
+    "fluidnet-prototype-engine/contracts/openapi.json": "1fdaf55c7166d6099a891666509139c90a5be3540fd9b83bfd5e02014b029696",
+    "fluidnet-prototype-engine/examples/coupled_liquid_modules/README.md": "c2a0eb8a16c0d67223e25143187ee29ff92dba4b54bfdc4b00aabd2a86955f63",
+    "fluidnet-prototype-engine/examples/coupled_liquid_modules/author_loop.json": "2bc5ff448af2379dd684590bb68c02be47d42ced7a09aeb9bec10819558d9cf3",
+    "fluidnet-prototype-engine/examples/room-control/README.md": "a4cbec5fe17e910f233834b8e18cfe16e8c95ce5472d69d9e83b892b64e6e9e0",
+    "fluidnet-prototype-engine/examples/room-control/room-control-load-step.project.json": "e5c76cebaf7ae5257d2a757fc6f367b5f5c0e9490cb83cb54ae2b34700e1caec",
+    "fluidnet-prototype-engine/examples/room-control/room-control-setpoint-step.project.json": "08ea40187e48eca5b226f0e2ab094741d5472d4dd7085fc00580db402db57c23",
+    "fluidnet-prototype-engine/examples/room-control/room-temperature-control.project.json": "906c058d1f6d8ac4e2b28be2b8652dae4a64aa29467891e5de7a7121722c7555",
+    "fluidnet-prototype-engine/frontend/air-side.css": "43b003512608b164d49e1519865add13cc5cd0b7140fa675d7b2a2f56aa27405",
+    "fluidnet-prototype-engine/frontend/air-side.js": "a156f324a8d0971860836fa6a01af6d65f9007e0cd2f0cc98f9417538831eeb0",
+    "fluidnet-prototype-engine/frontend/engine-client.js": "0bc153cd8f9e9916984ef247d1f00d33ed8221b69715e4aa15253590cd0b7074",
+    "fluidnet-prototype-engine/frontend/studio.js": "6ad3eb195024f131157ca975f8ca9b438942d657aeb5018ff85375aa4f42065e",
+    "fluidnet-prototype-engine/modules/coupled_liquid_valve/README.md": "9c958e8922a6d13a6bb1fe0a1e926c19bc57c645765f3e9fa3df49b4e6a7bb91",
+    "fluidnet-prototype-engine/modules/coupled_liquid_valve/manifest.json": "6f88152a61d6720f3e70c239852d2361d6fc7cd4fce8a8354085866e744b0ee5",
+    "fluidnet-prototype-engine/modules/coupled_liquid_valve/module.py": "b906fd8a3db4b395abad9b4f2e72926b012828bdc5eaf84364e9b9229f799d84",
+    "fluidnet-prototype-engine/scripts/generate_coupled_liquid_example.py": "c37825766766621b8b7666eec745a686d8ac7386db4ab889eb6b5bb4ed70df27",
+    "fluidnet-prototype-engine/scripts/generate_room_control_examples.py": "8342278651d85e8f6011d7ba6e462180c7b4dd1aa78d24a57e8e49431cbbaed6",
+    "fluidnet-prototype-engine/tests/browser-coupled-liquid-author.mjs": "d229b5252c1451243d4b59cdf3b0c65260e94e0fb03ca055f481d6ca3c81a663",
+    "fluidnet-prototype-engine/tests/browser-room-control-workflows.mjs": "e97a2679a180b24bf01469e110a8bd19fec7d9379fda6db7636f2ab319e6d9b4",
+    "fluidnet-prototype-engine/tests/browser-room-control.mjs": "5089ba9c41f0f7f177ac6a31bde4083850234c030441415595fd266dbe426b91",
+    "fluidnet-prototype-engine/tests/draft-cache.test.mjs": "a4a4fa3c388b06538198d8fc9731db64dbe30ff168941ae7baab294da9bed3d0",
+    "fluidnet-prototype-engine/tests/project-overview.test.mjs": "91e5b59ba4ea9039c5327c73f1e557a2c975178d98f695a2efecf13674a05a01",
+    "fluidnet-prototype-engine/tests/run-archive-cache.test.mjs": "adc72b6e6d8125236f9aed3e670f1a3fad724f9babf6f96fa89e09a234c1e640",
+    "fluidnet-prototype-engine/tests/test_air_control_variables.py": "80105e0164fa84010850cd860c9580d74a1a380f7597f29b31c11465f3dc3597",
+    "fluidnet-prototype-engine/tests/test_air_room_controls.py": "301d273cbae5b527d9d109d2dfa004dee3d41f37707ff4b593bec964b0b4f63e",
+    "fluidnet-prototype-engine/tests/test_coupled_liquid_examples.py": "e6fb88f89dc01f25b678234b3d340430b63bf165d21e4521ea4c09de6f3367e3",
+    "fluidnet-prototype-engine/tests/test_coupled_liquid_modules.py": "4aa23b345cd9083ad72cd00dd48443e0d59729118a481cb5eb90375a054ae244",
+    "fluidnet-prototype-engine/tests/test_coupled_liquid_reports.py": "8589f8ea4859dad555999b1f9130e4f4088e7e9bd33751481122433c1ea87e1d",
+    "fluidnet-prototype-engine/tests/test_live.py": "812af66052a7c4521cb6fbea1ea2f3c84a6752ee05ac9adb4f2df54a5449f8d2",
+    "fluidnet-prototype-engine/tests/test_room_temperature_control.py": "f9ca38b9b876407f7d8851889e5da83bcfc4f467cb5c3c3d081d7176cc4582ea"
+  },
+  "ci_backend_timeout_minutes": 120
+}

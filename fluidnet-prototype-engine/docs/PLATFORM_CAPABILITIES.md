@@ -1,6 +1,6 @@
 # 自主建模能力与执行范围（PF-0）
 
-核对日期：2026-10-30。起始代码基线：`802b4c5`。本文按实际编译与执行入口区分能力；设备出现在模块库，不表示能放入所有类型的项目。后续制冷扩展按 [PF/RF 计划](PLATFORM_EXTENSION_PLAN.md) 单独推进。
+核对日期：2026-10-30。初始代码基线：`802b4c5`；同日补充热耦合液体作者设备与房间温控。本文按实际编译与执行入口区分能力；设备出现在模块库，不表示能放入所有类型的项目。后续制冷扩展按 [PF/RF 计划](PLATFORM_EXTENSION_PLAN.md) 单独推进。
 
 ## 执行范围
 
@@ -11,7 +11,7 @@
 | A1 库房热系统（`thermal`） | 库房热节点、理想冷源 | 只接受注册内置模型，不开放 Python 或组合设备 | 有界的热节点方程及端口合同；作者适配入口尚未实现 | [compile.py](../backend/fn_engine/refrigeration/compile.py)、[A1 测试](../tests/test_refrigeration_a1.py) |
 | A 版冷库（`cold_store`） | 冻结货物库房、冷风机、单级机组；货温、库温及设备日程/开停状态 | 只接受注册内置模型 | 拓扑和设备角色绑定现有联立模型；作者设备合同与事务适配尚未实现 | [cold_store.py](../backend/fn_engine/refrigeration/cold_store.py)、[冷库路线图](COLD_STORAGE_ROADMAP.md) |
 | B 版集总制冷站（`refrigeration`） | 压缩机、饱和容器、节流、液泵、换热设备、集管与库房；容器质量/内能和库温 | 内置模型和 schema 4 作者节流角色均可运行；正式 Worker、守恒流股、固定/自适应步接受及独立制冷验证台已接通 | 仅动态积分，独立稳态入口明确拒绝。现有编译器验证端口角色、压力等级、容器取相和参数合同。RF-2/RF-3 支持节流角色的正常运行、验证和发布；RF-4 已完成项目版本、报告及批量闭环，PF-2 全阶段验收已通过 | [station.py](../backend/fn_engine/refrigeration/station.py)、[制冷站测试](../tests/test_refrigeration_station.py) |
-| 制冷站与液体热耦合（`coupled`） | 单相无储量内置网络与集总制冷站之间交换热量 | 液体侧拒绝 Python；制冷站侧沿用内置模型限制；组合展开不能绕过这些检查 | 最多两条关系，绑定同一饱和容器。液体侧拒绝水箱、困液和管段热容；额外状态需解决嵌套求解、跨域积分和失败回滚 | [coupling.py](../backend/fn_engine/refrigeration/coupling.py)、[热耦合测试](../tests/test_thermal_coupling.py) |
+| 制冷站与液体热耦合（`coupled`） | 单相无储量内置网络与集总制冷站之间交换热量 | 液体侧支持 schema 2/3 无储量 Python 阀门/局部阻力，按合同与实际返回关系检查；制冷站侧仍使用内置模型，组合展开不能绕过检查 | 最多两条关系，绑定同一饱和容器。液体侧拒绝水箱、困液和管段热容；额外状态需解决嵌套求解、跨域积分和失败回滚 | [coupling.py](../backend/fn_engine/refrigeration/coupling.py)、[热耦合测试](../tests/test_thermal_coupling.py)、[作者设备说明](COUPLED_LIQUID_MODULES.md) |
 
 普通流体与湿空气共用流体编译器；湿空气由 `solver.moist_air` 配置，并不是可以任意填写的独立设备执行域。当前公共 SDK 最高版本为 0.7.0，旧版本按其原有能力集合校验，见 [module_contracts.py](../backend/fn_engine/module_contracts.py)。声明一个能力或修改 `solver_model` 不会自动获得对应执行适配。
 
@@ -34,4 +34,4 @@
 
 该验收复现了默认曲线仍显示固定 `P1/V1/V2`、自定义编号没有默认概览曲线的问题；源码核对还发现设备结果温度读取项目概览温度。PF-1 修复默认曲线按实际设备/通路绑定、历史概览按冻结项目解释、设备温度按自身出口读取，并移除空白项目预置的示例控制引用；另修复含连字符的组合公开端口被前端导入检查误拒绝的问题。实现和最终执行结果登记在 [首批验收](PLATFORM_AUTHORING_ACCEPTANCE.md)。
 
-RF-0 已完成[独立实验验证](REFRIGERATION_EXTENSION_DESIGN.md)，RF-1 已交付[正式合同、SDK 与编译/Worker 接口](REFRIGERATION_MODULE_CONTRACT.md)；RF-2/RF-3 已接通[正式节流模块运行与验证发布](REFRIGERATION_MODULE_EXECUTION.md)。RF-4 已完成[项目闭环](REFRIGERATION_PROJECT_ACCEPTANCE.md)，PF-2 [全阶段验收](PLATFORM_EXTENSION_ACCEPTANCE.md)已通过；热耦合液体侧作者设备、水侧储热及机组启停保持原范围。
+RF-0 已完成[独立实验验证](REFRIGERATION_EXTENSION_DESIGN.md)，RF-1 已交付[正式合同、SDK 与编译/Worker 接口](REFRIGERATION_MODULE_CONTRACT.md)；RF-2/RF-3 已接通[正式节流模块运行与验证发布](REFRIGERATION_MODULE_EXECUTION.md)。RF-4 已完成[项目闭环](REFRIGERATION_PROJECT_ACCEPTANCE.md)，PF-2 [全阶段验收](PLATFORM_EXTENSION_ACCEPTANCE.md)已通过；后续已接入[热耦合液体作者设备](COUPLED_LIQUID_MODULES.md)及[房间自动温控](ROOM_TEMPERATURE_CONTROL.md)。房间温度、含湿量与相对湿度正式声明为可采样状态，PID 结果按冻结测量/执行器单位进入风侧报告和批量目录。水侧储热及机组启停仍为后置方向。

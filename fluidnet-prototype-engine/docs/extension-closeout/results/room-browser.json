@@ -1,0 +1,12 @@
+{
+  "first": "09f858d4cd224f79b1b0e1b57df568fe",
+  "changed": "45e3d88bc0864711b895890b535a9228",
+  "repeated": "a37f8114885e44eea649dc1089776219",
+  "staged": [
+    "915bdb1cb18843feba7d209b09bae02d",
+    "d1e12c48ca014482a8e3830681c06834"
+  ],
+  "finalTemperatureC": 26.0430677796071,
+  "energyKwh": 0.7411782643827541,
+  "errors": []
+}
