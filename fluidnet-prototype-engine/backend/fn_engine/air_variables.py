@@ -181,6 +181,27 @@ def collect_air_variables(project):
             add('metrics',name,kind,source='system')
     if project.solver.moist_air and project.circuit_fluids:
         add('metrics','liquid_mass_residual_kg_s','water_flow',label='液体质量残差',source='system')
+    # PID frames use canonical units. Resolve them from the frozen measurement and
+    # actuator definitions so custom IDs and historical reports retain their units.
+    for controller in project.controllers:
+        measurement = result.get(controller.measurement)
+        actuator = result.get(f'{controller.instance_id}.param.{controller.parameter_id}')
+        owner = f'controller.{controller.id}'
+        for field, label, reference in (
+            ('measurement', '测量值', measurement), ('setpoint', '设定值', measurement),
+            ('output', '控制输出', actuator), ('integral', '积分项', actuator),
+        ):
+            key = f'{owner}.{field}'
+            result[key] = AirVariableDescriptor(
+                key=key, label=f'PID {controller.id} · {label}', instance_id=owner,
+                quantity=reference.quantity if reference else 'number',
+                unit=reference.unit.model_copy(deep=True) if reference and reference.unit else None,
+                mass_basis=reference.mass_basis if reference else 'none', source='system',
+                nullable=field == 'measurement', writable=field == 'setpoint', available_in=['dynamic'])
+        key = f'{owner}.mode'
+        result[key] = AirVariableDescriptor(
+            key=key, label=f'PID {controller.id} · 模式', instance_id=owner,
+            value_type='text', quantity='text', source='system', writable=True, available_in=['dynamic'])
     return list(result.values())
 
 
