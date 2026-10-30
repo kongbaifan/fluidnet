@@ -1200,8 +1200,10 @@ class HealthCapabilities(StrictModel):
     water_coil: bool = False
     water_chiller: bool = False
     air_liquid_coupling: bool = False
+    room_temperature_control: bool = False
     air_reports: bool = False
     thermal_coupling: bool = False
+    thermal_coupling_liquid_modules: bool = False
     # Two immersed coils bound to one saturated vessel (contract limit is two).
     dual_thermal_coupling: bool = False
     # Built-in ideal electric heater in the single-phase fluid network.

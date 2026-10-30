@@ -286,10 +286,12 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
                                 'scenario_batches':archive is not None,
                                 'cold_room_ideal_source':True,'refrigeration_station':True,'cold_store_cycle':True,
                                 'thermal_coupling':True,'dual_thermal_coupling':True,'heater':True,
+                                'thermal_coupling_liquid_modules':True,
                                 'air_duct':True,'moist_air':True,'moist_air_contract_version':1,
                                 'wet_cooling_coil':True,'air_humidifier':True,'ahu_components':True,
                                 'air_room':True,'cooling_tower_moist':True,'air_variable_catalog':True,'air_reports':True,
                                 'water_coil':True,'water_chiller':True,'air_liquid_coupling':True,
+                                'room_temperature_control':True,
                                 'multi_inlet_vessels':True,
                                 # REFPROP 运行时发现（环境变量/捆绑目录/系统安装）；不加载 DLL。
                                 'refprop':refprop_info()},
@@ -502,6 +504,9 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
             if name == 'thermal-coupling':
                 from .refrigeration.coupling_examples import thermal_coupling_example
                 return thermal_coupling_example(topology=topology)
+            if name == 'thermal-coupling-author':
+                from .refrigeration.liquid_module_examples import coupled_liquid_module_example
+                return coupled_liquid_module_example()
             if name == 'cold-storage':
                 from .refrigeration.examples import ideal_room_example
                 return ideal_room_example()
