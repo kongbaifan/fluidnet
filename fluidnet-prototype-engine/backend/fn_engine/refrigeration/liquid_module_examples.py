@@ -9,6 +9,9 @@ from .coupling_examples import thermal_coupling_example
 
 ROOT = Path(__file__).resolve().parents[3]
 VALVE = 'LiquidValve-Custom'
+LAYOUT = {'LP1': (140, 95), 'K1': (340, 50), 'EC1': (560, 50), 'HP1': (760, 130),
+          'EV1': (440, 175), 'WB1': (120, 310), 'WN1': (245, 310), 'WP1': (380, 285),
+          'WL1': (550, 285), VALVE: (740, 350), 'HX_W': (470, 410)}
 
 
 def coupled_liquid_module_example(coolant='Water', module=None):
@@ -20,6 +23,8 @@ def coupled_liquid_module_example(coolant='Water', module=None):
     valve = next(instance for instance in project.instances if instance.id == 'WV1')
     valve.id, valve.name, valve.module_id = VALVE, '自定义二次液体调节阀', definition.id
     valve.package = package_ref(definition)
+    for instance in project.instances:
+        instance.position.x, instance.position.y = LAYOUT[instance.id]
     project.modules.append(definition)
     used = {instance.module_id for instance in project.instances}
     project.modules = [item for item in project.modules if item.id in used]

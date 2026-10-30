@@ -62,7 +62,7 @@ python scripts/generate_coupled_liquid_example.py --check
 ## 验证入口
 
 ```powershell
-python -m pytest -q tests/test_coupled_liquid_modules.py tests/test_coupled_liquid_reports.py
+python -m pytest -q tests/test_coupled_liquid_modules.py tests/test_coupled_liquid_examples.py tests/test_coupled_liquid_reports.py
 npm run test:browser:coupled-author
 ```
 
