@@ -1,0 +1,37 @@
+sequenceDiagram
+  autonumber
+  actor U as Studio
+  participant A as FastAPI
+  participant D as SQLite 工作区 / BatchStore
+  participant B as BatchService
+  participant J as RunManager
+  U->>A: 保存项目/工作区 + 预期修订
+  A->>D: 事务保存画布、草稿、源码、绑定及控制
+  alt 修订冲突
+    D-->>A: 修订冲突
+    A-->>U: HTTP 409，保留本地草稿
+  else 保存成功
+    D-->>A: 新修订
+    A-->>U: 确认保存成功
+  end
+  U->>A: POST /projects/id/batches/preview
+  A->>B: prepare(保存修订、工况、观察量)
+  B->>D: 读取已保存项目
+  B->>B: 归一化并编译各工况，计算快照/预览哈希
+  B-->>U: 经 API 返回预览与来源信息
+  U->>A: 创建批次 + request_id + preview_hash
+  A->>B: 检查幂等标识及预览是否仍有效
+  B->>D: 冻结 Project、模块、控制源码与工况
+  U->>A: POST /batches/id/start
+  A->>B: 启动批次
+  loop 按顺序运行各工况
+    B->>D: 取得下一项及固定快照
+    B->>J: submit(固定修订与 scenario_id)
+    J->>J: 编译、运行、接受子步与发布结果
+    J->>D: 归档运行，终态捕获批次结果
+    B->>D: 确认结果/诊断/曲线后继续下一项
+  end
+  U->>A: 查看批次、曲线或导出 CSV
+  A->>D: 读取独立批次结果
+  D-->>A: 比较数据
+  A-->>U: 可重复查看的结果
