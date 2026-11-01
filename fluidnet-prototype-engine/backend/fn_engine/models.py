@@ -94,7 +94,7 @@ class PortState(StrictModel):
 
 class NetworkRelation(StrictModel):
     relation_id: Identifier
-    kind: Literal["pipe", "valve", "pump", "compressor", "resistance"]
+    kind: Literal["pipe", "valve", "pump", "compressor", "resistance", "pressure_drop"]
     channel: Identifier
     parameters: dict[str, Any] = Field(default_factory=dict)
 
@@ -102,7 +102,9 @@ class NetworkRelation(StrictModel):
     def validate_parameters(self):
         required = {'pipe':['length_m','diameter_m','roughness_m'], 'valve':['kv_m3_h','opening_ratio'],
                     'pump':['head_curve','speed_ratio'], 'compressor':['forced_mass_flow_kg_s'],
-                    'resistance':['diameter_m','loss_coefficient']}[self.kind]
+                    'resistance':['diameter_m','loss_coefficient'], 'pressure_drop':['pressure_drop_pa']}[self.kind]
+        if self.kind == 'pressure_drop' and set(self.parameters) != {'pressure_drop_pa'}:
+            raise ValueError('自定义压降关系只接受 pressure_drop_pa；热流请使用 thermal 回调')
         if set(required) - self.parameters.keys():
             raise ValueError(f'{self.kind} 缺少关系参数 {sorted(set(required)-self.parameters.keys())}')
         for key,value in self.parameters.items():
@@ -171,6 +173,8 @@ class EvaluateRequest(StrictModel):
     iteration_id: int = Field(ge=0)
     time_s: float = Field(ge=0)
     trial_ports: dict[Identifier, PortState] = Field(default_factory=dict)
+    # Only supplied to net.pressure_drop modules; omitted from legacy wire payloads.
+    trial_channels: dict[Identifier, ChannelState] = Field(default_factory=dict, exclude_if=lambda value: not value)
     readonly_state: dict[str, Any] = Field(default_factory=dict)
     state_revision: int | None = Field(default=None,ge=0,exclude_if=lambda value:value is None)
     context: ModuleRequestContext | None = Field(default=None, exclude_if=lambda value: value is None)
@@ -867,7 +871,7 @@ class ModuleTestSuiteRequest(StrictModel):
 
 
 class ModuleTemplateRequest(StrictModel):
-    template: Literal['resistance', 'pump', 'heat_exchanger', 'managed_state', 'refrigeration_throttle']
+    template: Literal['resistance', 'pump', 'heat_exchanger', 'managed_state', 'refrigeration_throttle', 'custom_pressure_drop']
     id: Identifier
     name: str = Field(min_length=1, max_length=80)
     category: str = '自定义模块'

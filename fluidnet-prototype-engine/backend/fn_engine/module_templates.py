@@ -12,6 +12,7 @@ TEMPLATES = {
     'heat_exchanger': {'name': '双侧换热', 'description': '两侧独立工质的单相显热 ε–NTU 模型。'},
     'managed_state': {'name': '受管理状态', 'description': '显式离散累计量；只在接受子步累计，不作为隐式热容。'},
     'refrigeration_throttle': {'name':'制冷等焓节流阀','description':'饱和液体等焓节流；线性或等百分比开度特性，可用于集总制冷站。'},
+    'custom_pressure_drop': {'name':'自定义压降公式','description':'读取当前试算流量，自写被动设备压降公式；由平台联立求解。'},
 }
 
 
@@ -30,10 +31,11 @@ def template_conditions(template):
 def create_template(template, identifier, name, category='自定义模块'):
     if template not in TEMPLATES:
         raise ValueError('未知模块模板')
-    if template=='refrigeration_throttle':
-        base=load_module_package(ROOT/'modules/isenthalpic_throttle')
+    if template in {'refrigeration_throttle', 'custom_pressure_drop'}:
+        package = 'isenthalpic_throttle' if template == 'refrigeration_throttle' else 'porous_filter'
+        base=load_module_package(ROOT/'modules'/package)
         return ModuleDefinition.model_validate({**base.model_dump(mode='json'),'id':identifier,'name':name,'category':category,
-            'version':1,'package_path':None,'content_hash':None,'definition_hash':None})
+            'description':TEMPLATES[template]['description'], 'version':1,'package_path':None,'content_hash':None,'definition_hash':None})
     base = load_module_package(ROOT / 'modules' / ('sdk_resistance' if template == 'resistance' else 'programmable_valve_sdk'))
     payload = base.model_dump(mode='json')
     payload.update(schema_version=3,id=identifier, name=name, category=category, version=1, content_hash=None, definition_hash=None,

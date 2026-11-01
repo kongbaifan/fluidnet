@@ -1,0 +1,125 @@
+{
+  "schema_version": 3,
+  "version": 1,
+  "runtime": "python",
+  "entrypoint": "module:Module",
+  "category": "自定义关系示范",
+  "solver_model": "generic",
+  "source_format": "python-v1",
+  "sdk": {
+    "api_version": "0.8.0",
+    "capabilities": [
+      "net.pressure_drop",
+      "state.transactions.v1",
+      "context.execution.v1",
+      "observe.v1",
+      "evaluate.pure.v1",
+      "hydraulic.signed_start.v1",
+      "net.valve"
+    ]
+  },
+  "pure_evaluate": true,
+  "applicability": {
+    "execution_domains": [
+      "fluid"
+    ],
+    "phases": [
+      "liquid",
+      "gas"
+    ],
+    "assumptions": [
+      "单相、无独立物理储量、被动压降；参数仅为公式演示，不代表厂家标定"
+    ]
+  },
+  "ports": [
+    {
+      "id": "in0",
+      "label": "入口",
+      "direction": "in"
+    },
+    {
+      "id": "out0",
+      "label": "出口",
+      "direction": "out"
+    }
+  ],
+  "channels": [
+    {
+      "id": "main",
+      "name": "主通路",
+      "input_port": "in0",
+      "output_port": "out0",
+      "relation": "resistance",
+      "solver_model": "generic",
+      "enabled": true
+    }
+  ],
+  "variables": [
+    {
+      "id": "actual_drop_pa",
+      "label": "实际压降",
+      "source": "derived",
+      "quantity": "pressure",
+      "unit": {
+        "quantity": "pressure",
+        "canonical_unit": "Pa",
+        "display_unit": "kPa",
+        "display_scale": 1000
+      }
+    },
+    {
+      "id": "state.transferred_mass_kg",
+      "label": "累计通过质量",
+      "source": "state",
+      "quantity": "mass",
+      "unit": {
+        "quantity": "mass",
+        "canonical_unit": "kg",
+        "display_unit": "kg"
+      }
+    }
+  ],
+  "id": "flow_limiter",
+  "name": "自定义分段限流阀",
+  "description": "流量越过拐点后压降增长加快；软限流，不是严格限幅。",
+  "parameters": [
+    {
+      "id": "knee_flow_kg_s",
+      "label": "流量拐点",
+      "default": 2,
+      "minimum": 0.01,
+      "unit": {
+        "quantity": "mass_flow",
+        "canonical_unit": "kg/s",
+        "display_unit": "kg/s"
+      }
+    },
+    {
+      "id": "low_slope",
+      "label": "低流量段斜率 [Pa/(kg/s)]",
+      "default": 10000,
+      "minimum": 1
+    },
+    {
+      "id": "high_slope",
+      "label": "高流量段斜率 [Pa/(kg/s)]",
+      "default": 200000,
+      "minimum": 1
+    },
+    {
+      "id": "opening_ratio",
+      "label": "开度",
+      "default": 1,
+      "minimum": 0,
+      "maximum": 1,
+      "runtime": true,
+      "writable": true,
+      "unit": {
+        "quantity": "ratio",
+        "canonical_unit": "1",
+        "display_unit": "%",
+        "display_scale": 0.01
+      }
+    }
+  ]
+}

@@ -109,6 +109,9 @@ class NetworkBuilder:
         self._add("resistance", channel, {"diameter_m": diameter_m, "loss_coefficient": loss_coefficient,
             "density_kg_m3": 0.0 if density_kg_m3 is None else density_kg_m3, "heat_w": heat_w})
 
+    def pressure_drop(self, *, channel: str, pressure_drop_pa: float):
+        self._add('pressure_drop', channel, {'pressure_drop_pa': pressure_drop_pa})
+
 
 class ModuleContext:
     def __init__(self, parameters: dict[str, Any], fluid: FluidConfig,
@@ -337,6 +340,13 @@ class InProcessModuleRunner:
             raise RuntimeErrorBase('制冷角色必须使用制冷求值协议',code='MODULE_EXECUTION_DOMAIN_UNSUPPORTED')
         if not self.initialized:
             self.initialize()
+        custom = self.definition.sdk is not None and 'net.pressure_drop' in self.definition.sdk.capabilities
+        expected = {channel.id for channel in self.definition.channels if channel.enabled}
+        if custom and set(request.trial_channels) != expected:
+            raise RuntimeErrorBase('自定义压降设备需要每条启用通路的当前试算流量，请使用支持 SDK 0.8 的引擎',
+                                   code='MODULE_TRIAL_FLOW_REQUIRED')
+        if request.trial_channels and not custom:
+            raise RuntimeErrorBase('读取试算流量需要声明 net.pressure_drop 能力',code='MODULE_CAPABILITY_UNSUPPORTED')
         if request.state_revision is not None:
             if request.state_revision != self.state_revision:
                 raise RuntimeErrorBase('计算请求的状态修订不匹配',code='MODULE_REVISION_CONFLICT')
@@ -344,9 +354,10 @@ class InProcessModuleRunner:
         context = request.context if request.context is not None else self.execution.context()
         info = self._info('evaluate', request.time_s, context, run_id=request.run_id, instance_id=request.instance_id,
             iteration_id=request.iteration_id, port_data=context.port_data if request.trial_ports else 'unavailable',
+            channel_data=('converged' if context.port_data == 'converged' else 'hydraulic_trial') if custom else 'unavailable',
             state_data='input_copy')
         ctx = ModuleContext(deepcopy(self.parameters), self.fluid, request.trial_ports, deepcopy(request.readonly_state),
-                            port_fluids=self.port_fluids, execution=info)
+                            channels=deepcopy(request.trial_channels), port_fluids=self.port_fluids, execution=info)
         cache_key = None
         if self.cache_enabled and self.definition.pure_evaluate:
             payload = {'inputs':request.model_dump(mode='json', exclude={'context', 'iteration_id'}),
@@ -364,6 +375,18 @@ class InProcessModuleRunner:
             from .module_performance import TrackedPorts
             ctx.ports = TrackedPorts(ctx.ports, accessed)
         self._invoke(getattr(self.module, "evaluate"), ctx)
+        if custom and ctx.channels != request.trial_channels:
+            raise RuntimeErrorBase('试算流量是引擎输入，设备代码不能修改',code='MODULE_TRIAL_INPUT_MUTATION')
+        for relation in ctx.net.relations:
+            if relation.kind == 'pressure_drop':
+                if not custom:
+                    raise RuntimeErrorBase('自定义压降关系需要声明 net.pressure_drop 能力',code='MODULE_CAPABILITY_UNSUPPORTED')
+                if relation.channel not in expected:
+                    raise RuntimeErrorBase(f'自定义压降引用未启用通路 {relation.channel}',code='MODULE_CHANNEL_UNKNOWN')
+                flow = request.trial_channels[relation.channel].mass_flow_kg_s
+                if flow * relation.parameters['pressure_drop_pa'] < 0:
+                    raise RuntimeErrorBase('自定义压降与流向相反；本接口只支持被动阻力设备，主动压升请使用泵接口',
+                                           code='MODULE_PRESSURE_DROP_ACTIVE')
         if self.definition.dependency_mode == 'tracked':
             declared = self.definition.hydraulic_dependencies or {}
             for relation in ctx.net.relations:

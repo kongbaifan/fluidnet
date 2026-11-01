@@ -125,6 +125,8 @@ def branch_drop(network: CompiledNetwork, branch: CompiledBranch, flow_kg_s: flo
     params, model = network.parameters[branch.instance_id], branch.solver_model
     relation_params = relation.parameters if relation else {}
     if relation:
+        if relation.kind == 'pressure_drop':
+            return float(relation.parameters['pressure_drop_pa'])
         model = {'pump':'pump_curve'}.get(relation.kind, relation.kind)
         params = {**params, **relation_params}
         density = relation_params.get('density_kg_m3') or density
@@ -166,6 +168,12 @@ def jacobian_pattern(network: CompiledNetwork, unknown, tanks, python_runners):
             declared = definition.hydraulic_dependencies or {}
             names = declared.get(branch.channel_id, [port.id for port in definition.ports]) if definition.dependency_mode == 'tracked' else [port.id for port in definition.ports]
             dependencies.update(network.port_nodes[f'{branch.instance_id}:{name}'] for name in names)
+            if definition.sdk and 'net.pressure_drop' in definition.sdk.capabilities:
+                # A custom law can read every channel in its own module. Preserve
+                # cross-channel flow dependencies in sparse/grouped differences.
+                for other, candidate in enumerate(network.branches):
+                    if candidate.instance_id == branch.instance_id:
+                        pattern[idx, len(node_columns) + other] = 1
         for node in dependencies:
             if node in node_columns:
                 pattern[idx, node_columns[node]] = 1
@@ -181,6 +189,10 @@ def jacobian_pattern(network: CompiledNetwork, unknown, tanks, python_runners):
 def choose_hydraulic_method(requested: str, size: int, nnz: int) -> HydraulicMethodChoice:
     """S0/S1 选择器：只依据真实未知量与 Jacobian 稀疏度，不用实例数代替。"""
     density = nnz / (size * size) if size else 1.0
+    if requested == 'sparse' and size == 1:
+        # SciPy's LSMR trust-region subproblem requires two dimensions when the
+        # Gauss-Newton step leaves the radius. A scalar problem has no sparsity gain.
+        return HydraulicMethodChoice('sparse', 'dense', size, nnz, density, '单未知量使用 dense，避开 LSMR 二维子问题限制')
     if requested == 'dense':
         return HydraulicMethodChoice('dense', 'dense', size, nnz, density, '显式请求 dense')
     if requested == 'sparse':
@@ -343,7 +355,7 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
                          temperature_k=float(network.parameters[instance_id].get('temperature_k', 293.15)),
                          density_kg_m3=float(rho_n[node]), viscosity_pa_s=float(mu_n[node]))
 
-    def evaluate_python_relations(pressures):
+    def evaluate_python_relations(pressures, flows):
         nonlocal iteration_id
         iteration_id += 1
         relations = {}
@@ -358,8 +370,14 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
             for port in definition.ports:
                 node = network.port_nodes[f'{instance_id}:{port.id}']
                 ports[port.id] = trial_port(instance_id, port.id, float(pressures[node]))
+            channels = {}
+            if definition.sdk and 'net.pressure_drop' in definition.sdk.capabilities:
+                from .models import ChannelState
+                channels = {branch.channel_id: ChannelState(mass_flow_kg_s=float(flows[j]),
+                    pressure_drop_pa=float(pressures[branch.start_node]-pressures[branch.end_node]))
+                    for j, branch in enumerate(network.branches) if branch.instance_id == instance_id}
             requests[instance_id] = EvaluateRequest(run_id=runner.execution.run_id if hasattr(runner, 'execution') else 'solve', instance_id=instance_id,
-                iteration_id=iteration_id, time_s=time_s, trial_ports=ports, readonly_state=runner.state)
+                iteration_id=iteration_id, time_s=time_s, trial_ports=ports, trial_channels=channels, readonly_state=runner.state)
         def runner_count(name):
             if hasattr(python_runners, name):
                 return int(getattr(python_runners, name))
@@ -411,7 +429,7 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
 
     def physical_residual_values(vector):
         pressures, flows = unpack(vector)
-        runtime_relations = evaluate_python_relations(pressures) if python_runners else {}
+        runtime_relations = evaluate_python_relations(pressures, flows) if python_runners else {}
         drops, balance, closed = [], np.zeros(n_nodes), []
         for idx, (branch, flow) in enumerate(zip(network.branches, flows)):
             relation = runtime_relations.get((branch.instance_id, branch.channel_id))

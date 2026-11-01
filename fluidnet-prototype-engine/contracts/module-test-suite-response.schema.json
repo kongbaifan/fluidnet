@@ -517,7 +517,8 @@
             "valve",
             "pump",
             "compressor",
-            "resistance"
+            "resistance",
+            "pressure_drop"
           ],
           "title": "Kind",
           "type": "string"

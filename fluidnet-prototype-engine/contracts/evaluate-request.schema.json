@@ -1,5 +1,63 @@
 {
   "$defs": {
+    "ChannelState": {
+      "additionalProperties": false,
+      "properties": {
+        "dry_air_mass_flow_kg_s": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dry Air Mass Flow Kg S"
+        },
+        "inlet_mass_flow_kg_s": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Inlet Mass Flow Kg S"
+        },
+        "outlet_mass_flow_kg_s": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Outlet Mass Flow Kg S"
+        },
+        "mass_flow_kg_s": {
+          "default": 0.0,
+          "title": "Mass Flow Kg S",
+          "type": "number"
+        },
+        "pressure_drop_pa": {
+          "default": 0.0,
+          "title": "Pressure Drop Pa",
+          "type": "number"
+        },
+        "heat_w": {
+          "default": 0.0,
+          "title": "Heat W",
+          "type": "number"
+        }
+      },
+      "title": "ChannelState",
+      "type": "object"
+    },
     "ModuleRequestContext": {
       "additionalProperties": false,
       "description": "Optional transport metadata; callback phase/time are derived from the action itself.",
@@ -287,6 +345,15 @@
         }
       },
       "title": "Trial Ports",
+      "type": "object"
+    },
+    "trial_channels": {
+      "patternProperties": {
+        "^[A-Za-z][A-Za-z0-9_-]{0,80}$": {
+          "$ref": "#/$defs/ChannelState"
+        }
+      },
+      "title": "Trial Channels",
       "type": "object"
     },
     "readonly_state": {

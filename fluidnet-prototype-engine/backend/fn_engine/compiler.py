@@ -458,6 +458,9 @@ def compile_project(project: Project) -> CompiledNetwork:
                 raise CompilationError(error.code, str(error), inst.id, error.field) from error
             if not definition.entrypoint:
                 raise CompilationError('MODULE_ENTRYPOINT_MISSING', f'{inst.id} 的 Python 模块没有入口', inst.id)
+            if moist and definition.sdk and 'net.pressure_drop' in definition.sdk.capabilities:
+                raise CompilationError('MODULE_PRESSURE_DROP_DOMAIN_UNSUPPORTED',
+                    '自定义压降首批用于普通单相网络，尚未开放湿空气/风水联算',inst.id,'sdk.capabilities')
             source = definition.source.get('runtime', '') if definition.source else ''
             if isinstance(source, list):
                 source = '\n'.join(source)

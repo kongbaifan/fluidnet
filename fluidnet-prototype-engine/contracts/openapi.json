@@ -9819,7 +9819,8 @@
               "pump",
               "heat_exchanger",
               "managed_state",
-              "refrigeration_throttle"
+              "refrigeration_throttle",
+              "custom_pressure_drop"
             ],
             "title": "Template"
           },
@@ -10650,7 +10651,8 @@
               "valve",
               "pump",
               "compressor",
-              "resistance"
+              "resistance",
+              "pressure_drop"
             ],
             "title": "Kind"
           },

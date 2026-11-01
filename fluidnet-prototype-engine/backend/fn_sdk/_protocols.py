@@ -8,7 +8,7 @@ from .refrigeration import RefrigerationContext
 ScalarValue: TypeAlias = float | int | str | bool | None
 JSONValue: TypeAlias = ScalarValue | list['JSONValue'] | dict[str, 'JSONValue']
 DiagnosticSeverity: TypeAlias = Literal['info', 'warning', 'error']
-RelationKind: TypeAlias = Literal['pipe', 'valve', 'pump', 'compressor', 'resistance']
+RelationKind: TypeAlias = Literal['pipe', 'valve', 'pump', 'compressor', 'resistance', 'pressure_drop']
 CallbackPhase: TypeAlias = Literal['manual', 'initialize', 'evaluate', 'thermal', 'observe', 'jacobian', 'commit_step', 'finalize']
 PortDataKind: TypeAlias = Literal['unavailable', 'trial', 'converged']
 ChannelDataKind: TypeAlias = Literal['unavailable', 'hydraulic_trial', 'converged']
@@ -197,6 +197,14 @@ class NetworkBuilder(Protocol):
 
     def resistance(self, *, channel: str, diameter_m: float, loss_coefficient: float,
                    density_kg_m3: float | None = None, heat_w: float = 0.0) -> None: ...
+
+    def pressure_drop(self, *, channel: str, pressure_drop_pa: float) -> None:
+        """SDK 0.8 / net.pressure_drop: passive signed drop at this trial flow.
+
+        evaluate reads ctx.channel(channel).mass_flow_kg_s (hydraulic_trial).
+        The host solves p_in - p_out = pressure_drop_pa and owns continuity.
+        """
+        ...
 
 
 class Diagnostic(Protocol):

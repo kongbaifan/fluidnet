@@ -133,6 +133,9 @@ def run_module_test(request: ModuleTestRequest) -> ModuleTestResponse:
             set_module_step({'D1':runner}, network_result.module_step_id)
             evaluation = runner.evaluate(EvaluateRequest(run_id=runner.execution.run_id,instance_id='D1',iteration_id=0,
                 time_s=time_s,trial_ports=ports,readonly_state=runner.state,
+                trial_channels={branch.channel_id:channel_state(network,network_result,j)
+                    for j,branch in enumerate(network.branches) if branch.instance_id=='D1'}
+                    if module.sdk and 'net.pressure_drop' in module.sdk.capabilities else {},
                 context=runner.execution.context(port_data='converged')))
             if index:
                 transaction=ModuleStepTransaction({'D1':runner},network_result.module_step_id,time_s)

@@ -17,7 +17,7 @@ from .hydraulics import (
 from .thermal import heat_exchanger_effectiveness
 from .refrigeration import RefrigerationContext, RefrigerationThrottleInput, RefrigerationThrottleFlow
 
-SDK_API_VERSION: Final[str] = '0.7.0'
+SDK_API_VERSION: Final[str] = '0.8.0'
 
 __all__ = [
     'RefrigerationContext','RefrigerationThrottleInput','RefrigerationThrottleFlow',
