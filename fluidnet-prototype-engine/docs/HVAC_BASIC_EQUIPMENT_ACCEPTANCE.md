@@ -56,7 +56,15 @@
 
 ## 5. 全量回归
 
-`python -m pytest -q --cov=fn_engine` 在本机运行时间较长（CI 同一命令预留 120 分钟），本轮改动提交前以该命令的完整结果为准；专项测试、浏览器回归与静态门禁结果见第 2 节。
+`python -m pytest -q --cov=fn_engine`（本机 Python 3.11，单进程）：
+
+```text
+1855 passed, 5 warnings in 2170.99s (0:36:10)
+TOTAL 15811 语句，覆盖率 90.75%（门禁 85%）
+Required test coverage of 85.0% reached.
+```
+
+本轮新增文件覆盖率：`measurements.py` 92%、`hvac_examples.py` 99%；`hvac_basic.py` 为 0%——它只是 16 个设备包的生成来源，由 `scripts/generate_hvac_modules.py --check` 在 CI 中保证与 `modules/` 一致，运行时不导入。
 
 ## 6. 复现命令
 
