@@ -4,7 +4,9 @@ window.createAirSideUI = function (ui) {
   const examples = [['air-coil-wet','湿盘管除湿'],['air-mixing','新回风混合'],['ahu-wet','空气处理机组'],
     ['ahu-room','房间送回风热湿系统'],['air-parallel-wet','并联风侧设备'],['cooling-tower-moist','冷却塔水耗'],
     ['chiller-air-loop','冷水机组与房间风水联算'],['room-temperature-control','房间自动温控 · 初始降温'],
-    ['room-control-load-step','房间自动温控 · 负荷阶跃'],['room-control-setpoint-step','房间自动温控 · 设定变化']];
+    ['room-control-load-step','房间自动温控 · 负荷阶跃'],['room-control-setpoint-step','房间自动温控 · 设定变化'],
+    ['hvac-water-balance','暖通基础 · 两支路水力平衡'],['hvac-three-way-mixing','暖通基础 · 三通阀混流'],
+    ['hvac-pump-switch','暖通基础 · 工作泵与备用泵切换'],['hvac-basic-plant','暖通基础 · 双盘管冷水机房']];
   const colors = ['#147d88','#e09339','#6372ba','#a5558a'];
   const model = {signature:'',epoch:0,record:null,catalog:[],grid:null,runs:[],selectedRunId:'',loading:false,error:'',
     curves:[],curveKey:'',comparisonIds:[],search:'',controlRows:[]};
@@ -12,7 +14,7 @@ window.createAirSideUI = function (ui) {
   const engine = ui.engine, state = ui.state, project = ui.project;
   const active = () => ui.ui().route === 'air';
   const supported = () => engine().health?.capabilities?.moist_air_contract_version === 1;
-  const isAir = p => p.solverOptions?.moist_air || p.pages.some(pg=>pg.nodes.some(n=>['cooling_tower_moist','water_chiller'].includes(ui.moduleOf(n).kind)));
+  const isAir = p => p.caseId?.startsWith('hvac-') || p.solverOptions?.moist_air || p.pages.some(pg=>pg.nodes.some(n=>['cooling_tower_moist','water_chiller'].includes(ui.moduleOf(n).kind)));
   function view(p) {
     p.airSideView ||= {schema:1,selected_instance_ids:[],observed_keys:[],active_tab:'distribution',reference_pressure_pa:101325,comparison_run_ids:[]};
     const ids = new Set(p.pages.flatMap(pg=>pg.nodes.map(n=>n.id)));
@@ -155,7 +157,7 @@ window.createAirSideUI = function (ui) {
     const canonicalProject=await engine().normalize(p);
     if(project()!==p)throw Error('项目已切换，请重新调整设定。');
     const [iid,...parts]=c.measurement.split('.'),source=canonicalProject.instances.find(i=>i.id===iid);
-    const unit=canonicalProject.modules.find(m=>m.id===source?.module_id)?.variables.find(v=>v.id===parts.join('.'))?.unit;
+    const unit=iid==='measurement'?canonicalProject.measurements?.find(m=>m.id===parts.join('.'))?.unit:canonicalProject.modules.find(m=>m.id===source?.module_id)?.variables.find(v=>v.id===parts.join('.'))?.unit;
     const owner=canonicalProject.control_scripts.find(s=>s.enabled&&s.outputs.includes('controller.'+id+'.setpoint'));
     if(p.run.live&&owner)throw Error('设定值由脚本 '+owner.id+' 控制，请停止后编辑脚本或初始设定。');
     const current=unit?c.setpoint/unit.display_scale+unit.display_offset:c.setpoint;
@@ -213,7 +215,7 @@ window.createAirSideUI = function (ui) {
     Object.assign(p,{medium:canonical.solver.moist_air?'air':'water',fluid:canonical.fluid.fluid,fluidConfig:canonical.fluid,
       circuitFluids:(canonical.circuit_fluids||[]).map(c=>({id:c.id,anchor:c.anchor,medium:'water',fluid:c.fluid.fluid,fluidConfig:c.fluid,fluidReference:c.fluid.reference})),
       moduleSnapshots:snapshots,solverOptions:canonical.solver,controllers:clone(canonical.controllers||[]),
-      scenarios:clone(canonical.scenarios||[]),selectedVariables:clone(canonical.selected_variables||[]),
+      scenarios:clone(canonical.scenarios||[]),selectedVariables:clone(canonical.selected_variables||[]),measurements:clone(canonical.measurements||[]),
       controlEnabled:false,controlPrograms:[],controlScripts:[],caseId:name});
     window.FluidNetControls.replaceScripts(p,canonical.control_scripts||[]);
     // Canonical scenario parameter values use engine units; Studio scenarios use display units.
@@ -222,7 +224,7 @@ window.createAirSideUI = function (ui) {
       for(const [key,value] of Object.entries(values)){const unit=definition.parameters.find(spec=>spec.id===key)?.unit;if(unit)values[key]=value/unit.display_scale+unit.display_offset;}
     }
     const controlled=!!canonical.controllers?.length;
-    p.solver={...p.solver,mode:controlled||['ahu-room','chiller-air-loop'].includes(name)?'dynamic':'steady',duration:controlled?2400:name==='chiller-air-loop'?20:name==='ahu-room'?120:10,dt:controlled?30:2,
+    p.solver={...p.solver,mode:controlled||['ahu-room','chiller-air-loop','hvac-pump-switch'].includes(name)?'dynamic':'steady',duration:controlled?2400:name==='chiller-air-loop'?20:name==='ahu-room'?120:10,dt:controlled?30:name==='hvac-pump-switch'?1:2,
       executionMode:'fast',moduleMixedJacobian:false,pressureAtol:1,massAtol:1e-8};
     state().projects.push(p);ui.normalizeState();view(p);persistView(p);forgetProject();ui.openProject(p.id);ui.navigate('air');ui.persist();
     msg('风侧示例已创建，可运行计算并保存项目。');

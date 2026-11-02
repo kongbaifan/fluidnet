@@ -730,6 +730,72 @@ document.addEventListener('click',async event=>{
     state.projects.push(owner);normalizeState();markDirty(owner);openProject(owner.id);
   }catch(error){msg(error.message,true);}
 });
+const meterKinds = {value:'单点测量',difference:'两点差值',volume_flow:'体积流量',thermal_power:'热功率'};
+function meterSources(p) {
+  const result=[];
+  const fields=[['pressure_pa','压力','pressure','Pa','kPa',1000,0],['temperature_k','温度','temperature','K','°C',1,-273.15],
+    ['mass_flow_kg_s','质量流量','mass_flow','kg/s','kg/s',1,0],['density_kg_m3','密度','density','kg/m3','kg/m³',1,0],
+    ['enthalpy_j_kg','比焓','specific_enthalpy','J/kg','kJ/kg',1000,0]];
+  for(const n of p.pages.flatMap(pg=>pg.nodes)) {
+    const m=moduleOf(n),d=m.manifest||engine.catalog?.modules.find(d=>d.id===m.kind);
+    if(!d)continue;
+    for(const v of d.variables.filter(v=>v.sampleable&&v.source!=='parameter'&&v.unit&&v.value_type==='number'))
+      result.push({key:n.id+'.'+v.id,label:n.name+' · '+v.label,unit:clone(v.unit)});
+    for(const port of d.ports)for(const [id,label,quantity,canonical_unit,display_unit,display_scale,display_offset] of fields)
+      result.push({key:n.id+'.'+port.id+'.'+id,label:n.name+' · '+port.label+' · '+label,unit:{quantity,canonical_unit,display_unit,display_scale,display_offset}});
+    for(const ch of d.channels.filter(c=>c.enabled))for(const [id,label,quantity,canonical_unit,display_unit,display_scale,display_offset] of fields.filter(f=>f[0]==='mass_flow_kg_s'))
+      result.push({key:n.id+'.'+ch.id+'.'+id,label:n.name+' · '+ch.name+' · '+label,unit:{quantity,canonical_unit,display_unit,display_scale,display_offset}});
+  }
+  return result.filter((v,i)=>result.findIndex(s=>s.key===v.key)===i);
+}
+function meterValue(p,m) {
+  const value=p.run.history.at(-1)?.canonical?.['measurement.'+m.id];
+  return Number.isFinite(value)?number(value/m.unit.display_scale+m.unit.display_offset,3)+' '+esc(m.unit.display_unit):'—';
+}
+function meterPanel(p) {
+  const disabled=p.run.live?'disabled':'';
+  return `<section class="panel" style="margin-bottom:20px"><div class="panel-head"><h2>仪表与测点</h2><span class="push"></span>${Object.entries(meterKinds).map(([kind,label])=>btn('add-meter',label,'Plus',`data-kind="${kind}" ${disabled||((p.measurements||[]).length>=64?'disabled':'')}`,'small')).join('')}</div><div class="panel-body stack"><p class="muted">测点读取同一运行帧，可用于 PID 反馈和趋势。计算测点按所选输入的顺序求差；流量与热功率保留通路方向。</p>${(p.measurements||[]).map(m=>`<div class="row gap-6" data-meter-card="${esc(m.id)}"><strong>${esc(m.label)}</strong><span>${esc(meterKinds[m.kind])}</span><span class="push" data-meter-value="${esc(m.id)}">${meterValue(p,m)}</span>${btn('edit-meter','编辑','Pencil',`data-id="${esc(m.id)}" ${disabled}`,'small')}${btn('meter-curve','加入曲线','Activity',`data-id="${esc(m.id)}"`,'small')}${btn('remove-meter','移除','Trash2',`data-id="${esc(m.id)}" ${disabled}`,'small')}</div>`).join('')||'<p>尚未添加测点。</p>'}</div></section>`;
+}
+function editMeter(p,existing,kind) {
+  const sources=meterSources(p),count={value:1,difference:2,volume_flow:2,thermal_power:3}[kind];
+  const quantities=kind==='volume_flow'?['mass_flow','density']:kind==='thermal_power'?['mass_flow','specific_enthalpy','specific_enthalpy']:[];
+  const choices=Array.from({length:count},(_,i)=>sources.filter(v=>!quantities[i]||v.unit.quantity===quantities[i]));
+  if(choices.some(c=>!c.length))throw Error('当前设备没有这类测点所需的变量。');
+  const labels=kind==='thermal_power'?['通路质量流量','出口比焓','入口比焓']:kind==='volume_flow'?['通路质量流量','通路密度']:kind==='difference'?['第一点','第二点']:['绑定变量'];
+  openDialog(existing?'编辑测点':'添加'+meterKinds[kind],'数值按设备单位计算；测点可在控制反馈和曲线中选用。',
+    field('label','测点名称',existing?.label||meterKinds[kind],'required maxlength="80"')+choices.map((items,i)=>selectField('source'+i,labels[i],items.map(s=>[s.key,s.label+' ('+s.unit.display_unit+')']),existing?.sources[i]||items[0].key)).join(''),data=>{
+      if(project()!==p||p.run.live)throw Error('项目状态已改变，请重新编辑测点。');
+      const selected=choices.map((items,i)=>items.find(v=>v.key===data['source'+i]));
+      if(selected.some(v=>!v))throw Error('请选择有效的绑定变量。');
+      if(kind==='difference'&&selected[0].unit.canonical_unit!==selected[1].unit.canonical_unit)throw Error('两点差值须选择相同单位的变量。');
+      let unit=clone(selected[0].unit);
+      if(kind==='difference'){unit.display_offset=0;if(unit.canonical_unit==='K')unit.display_unit='K';}
+      if(kind==='volume_flow')unit={quantity:'volume_flow',canonical_unit:'m3/s',display_unit:'m³/h',display_scale:1/3600,display_offset:0};
+      if(kind==='thermal_power')unit={quantity:'power',canonical_unit:'W',display_unit:'kW',display_scale:1000,display_offset:0};
+      p.measurements||=[];
+      const value={id:existing?.id||uid('meter'),label:data.label.trim(),kind,sources:selected.map(s=>s.key),unit};
+      if(!value.label)throw Error('请填写测点名称。');
+      if(existing)Object.assign(existing,value);else p.measurements.push(value);
+      for(const chart of state.charts.extra.filter(c=>c.projectId===p.id&&c.canonicalKey==='measurement.'+value.id))Object.assign(chart,{label:value.label,unit:unit.display_unit,canonicalScale:unit.display_scale,canonicalOffset:unit.display_offset});
+      markDirty(p);render();
+    },'保存测点');
+}
+document.addEventListener('click',event=>{
+  const button=event.target.closest('[data-action="add-meter"],[data-action="edit-meter"],[data-action="remove-meter"],[data-action="meter-curve"]');
+  if(!button)return;
+  const p=project(),m=p.measurements?.find(m=>m.id===button.dataset.id);
+  try {
+    if(button.dataset.action==='meter-curve'){if(m)addChartVariable('measurement.'+m.id,m.label);return;}
+    if(p.run.live)return;
+    if(button.dataset.action==='remove-meter') {
+      if(p.controllers?.some(c=>c.measurement==='measurement.'+m.id)||controls.normalize(p).some(s=>(s.inputs||[]).includes('measurement.'+m.id)))throw Error('测点已被控制器或脚本使用，请先修改反馈绑定。');
+      p.measurements=p.measurements.filter(v=>v!==m);
+      p.selectedVariables=(p.selectedVariables||[]).filter(k=>k!=='measurement.'+m.id);
+      state.charts.extra=state.charts.extra.filter(c=>c.projectId!==p.id||c.canonicalKey!=='measurement.'+m.id);
+      markDirty(p);render();
+    } else editMeter(p,m,m?.kind||button.dataset.kind);
+  }catch(error){msg(error.message,true);}
+});
 function pidOptions(p) {
   const measurements=[],targets=[];
   for(const node of p.pages.flatMap(pg=>pg.nodes)) {
@@ -740,6 +806,7 @@ function pidOptions(p) {
     for(const spec of definition.parameters.filter(v=>v.runtime && v.writable && v.value_type==='number'))
       targets.push([`${node.id}.${spec.id}`,`${node.name} · ${spec.label}${spec.unit?' ('+spec.unit.canonical_unit+')':''}`,spec]);
   }
+  for(const m of p.measurements||[])measurements.push(['measurement.'+m.id,m.label+' ('+m.unit.canonical_unit+')']);
   return {measurements,targets};
 }
 function pidPanel(p) {
@@ -789,7 +856,7 @@ function controlLiveValues(p=project()){
   const values=p.run.history.at(-1)?.canonical||{}, keys=new Set((p.controlOutputs||'').split(/[\s,，]+/));
   return JSON.stringify(Object.fromEntries(Object.entries(values).filter(([key])=>keys.has(key)||key.startsWith(`script.${p.selectedControlId}.`))),null,2);
 }
-function renderControls(){const p=project(),programs=controls.normalize(p),selected=controls.current(p);return `<div class="page-shell">${heading('项目控制逻辑','按脚本组织控制策略；修改会在下次新运行生效。',btn('control-template','载入示例','FileCode2',selected?'':'disabled')+btn('preview-control','预览一个周期','StepForward',selected?'':'disabled','primary')+btn('save','保存脚本','Save'))}${pidPanel(p)}<section class="panel" style="margin-bottom:20px"><div class="panel-head"><h2>控制脚本</h2>${badge(programs.length+' / '+controls.MAX_PROGRAMS)}<span class="push"></span>${btn('add-control-program','新建脚本','Plus',programs.length>=controls.MAX_PROGRAMS?'disabled':'','small')}${btn('remove-control-program','删除所选脚本','Trash2',selected?`data-id="${esc(selected.id)}"`:'disabled','small')}</div><div class="panel-body">${programs.length?`<label class="field"><span>当前脚本</span><select data-control-program aria-label="选择控制脚本">${programs.map(program=>option(program.id,`${program.name} · ${program.id} · ${program.language!=='python'?'待迁移':program.enabled?'已启用':'未启用'}`,p.selectedControlId)).join('')}</select></label>`:'<p>尚无控制脚本。新建脚本后可编辑、预览并单独启用。</p>'}</div></section>${selected?`<details open><summary>编辑 ${esc(selected.id)}</summary><div class="connection-layout"><aside class="stack"><section class="panel"><div class="panel-head"><h3>控制程序</h3>${badge(p.controlLanguage==='python'?'Python':'旧脚本待迁移',p.controlLanguage==='python'?'good':'warn')}</div><div class="panel-body stack">
+function renderControls(){const p=project(),programs=controls.normalize(p),selected=controls.current(p);return `<div class="page-shell">${heading('项目控制逻辑','按脚本组织控制策略；修改会在下次新运行生效。',btn('control-template','载入示例','FileCode2',selected?'':'disabled')+btn('preview-control','预览一个周期','StepForward',selected?'':'disabled','primary')+btn('save','保存脚本','Save'))}${meterPanel(p)}${pidPanel(p)}<section class="panel" style="margin-bottom:20px"><div class="panel-head"><h2>控制脚本</h2>${badge(programs.length+' / '+controls.MAX_PROGRAMS)}<span class="push"></span>${btn('add-control-program','新建脚本','Plus',programs.length>=controls.MAX_PROGRAMS?'disabled':'','small')}${btn('remove-control-program','删除所选脚本','Trash2',selected?`data-id="${esc(selected.id)}"`:'disabled','small')}</div><div class="panel-body">${programs.length?`<label class="field"><span>当前脚本</span><select data-control-program aria-label="选择控制脚本">${programs.map(program=>option(program.id,`${program.name} · ${program.id} · ${program.language!=='python'?'待迁移':program.enabled?'已启用':'未启用'}`,p.selectedControlId)).join('')}</select></label>`:'<p>尚无控制脚本。新建脚本后可编辑、预览并单独启用。</p>'}</div></section>${selected?`<details open><summary>编辑 ${esc(selected.id)}</summary><div class="connection-layout"><aside class="stack"><section class="panel"><div class="panel-head"><h3>控制程序</h3>${badge(p.controlLanguage==='python'?'Python':'旧脚本待迁移',p.controlLanguage==='python'?'good':'warn')}</div><div class="panel-body stack">
   <label class="check-label"><input type="checkbox" data-control-enabled ${p.controlEnabled?'checked':''} ${p.controlLanguage!=='python'?'disabled':''}>启用 Python 控制（下次新运行生效）</label>
   <label class="field"><span>脚本语言</span><select data-control-language aria-label="脚本语言">${option('python','Python',p.controlLanguage)}${p.controlLanguage!=='python'?option('legacy','旧脚本文本（待迁移）',p.controlLanguage):''}</select></label>
   <label class="field"><span>名称</span><input value="${esc(p.controlConfig.name)}" aria-label="控制程序名称" data-control-name></label><label class="field"><span>控制周期</span><div class="field-unit"><input type="number" value="${p.controlConfig.period}" min="1" max="60000" step="1" data-control-setting="period" aria-label="控制周期"><span>ms</span></div></label><label class="field"><span>执行超时</span><div class="field-unit"><input type="number" value="${p.controlTimeout}" min="0.1" max="30" step="0.1" data-control-timeout aria-label="控制执行超时"><span>s</span></div></label></div></section>
@@ -1440,7 +1507,8 @@ function variableObservation(n, v, owner = ownerOfInstance(n)) {
     origin: v.origin, sampleKey: n.id + ':' + v.id, legacyFactor: factor };
 }
 function projectVariables(owner = project()) {
-  return owner.pages.flatMap(pg => pg.nodes).flatMap(n => moduleOf(n).variables.map(v => variableObservation(n, v, owner)).filter(Boolean));
+  return [...owner.pages.flatMap(pg => pg.nodes).flatMap(n => moduleOf(n).variables.map(v => variableObservation(n, v, owner)).filter(Boolean)),
+    ...(owner.measurements||[]).map(m=>({id:'measurement.'+m.id,identifier:'measurement.'+m.id,nodeId:'measurement',variableId:m.id,sampleKey:'measurement.'+m.id,name:m.label,device:'测点',origin:'measurement',writable:false,unit:m.unit.display_unit,value:owner.run.history.at(-1)?.canonical?.['measurement.'+m.id]}))];
 }
 function sampleVariableValues(owner, legacyValues) {
   return Object.fromEntries(projectVariables(owner).map(v => [v.sampleKey,
@@ -1870,6 +1938,8 @@ function refreshLive() {
   coldStorage.refresh(project());
   airSide.refresh();
   const controlLive=document.getElementById('control-live');if(controlLive)controlLive.textContent=controlLiveValues();
+  for(const m of project().measurements||[]){const el=document.querySelector(`[data-meter-value="${m.id}"]`);if(el)el.innerHTML=meterValue(project(),m);}
+  for(const c of project().controllers||[]){const el=document.querySelector(`[data-pid-readout="${c.id}"]`);if(el)el.textContent=pidReadout(project(),c);}
   if (ui.route === 'curves') {
     const run = currentChartRun();
     const items = [['main-chart', ['q', 'a', 'b'], 'main-flow-chart'], ['pressure-chart', ['pressure'], 'pressure-line'], ['temperature-chart', ['temperature'], 'temperature-line']];
@@ -1971,6 +2041,12 @@ function legacyApiPreview(kind = ui.apiKind || 'read') {
   const method = path?.previousElementSibling; if (method) method.textContent = kind === 'set' ? 'POST' : 'GET';
 }
 function addChartVariable(id, label, inline = false) {
+  const meter=project().measurements?.find(m=>'measurement.'+m.id===id);
+  if(meter){
+    const key='measurement.'+meter.id;
+    if(!state.charts.extra.some(c=>c.projectId===project().id&&c.canonicalKey===key))state.charts.extra.push({id:key,projectId:project().id,label:meter.label,unit:meter.unit.display_unit,canonicalKey:key,canonicalScale:meter.unit.display_scale,canonicalOffset:meter.unit.display_offset,identifier:key,sampleKey:key});
+    state.charts.source='live';markDirty(project());navigate('curves');return;
+  }
   const v = projectVariables().find(v => v.id === id); if (!v) throw Error('变量不属于当前项目或暂未提供采样。');
   let binding = state.charts.extra.find(x => x.projectId === project().id && (x.nodeId === v.nodeId && x.variableId === v.variableId || !x.variableId && v.origin !== 'custom' && x.id === v.legacyId));
   if (!binding) { binding = {}; state.charts.extra.push(binding); }
@@ -2073,7 +2149,7 @@ function validateImport(data) {
   const safeId = id => typeof id === 'string' && /^[A-Za-z][A-Za-z0-9_-]{0,80}$/.test(id);
   if (!data || data.schema !== 1 || !Array.isArray(data.modules) || !data.modules.length || !Array.isArray(data.models)) throw Error('不是本版本的原型交换文件。');
   validateModuleGroups(data);
-  if (data.modules.length > 64 || data.models.length > 500) throw Error('导入数据超出原型演示容量。');
+  if (data.modules.length > 256 || data.models.length > 500) throw Error('导入数据超出工作区容量。');
   backfillBuiltinParams(data);
   const unique = values => new Set(values).size === values.length;
   if (!unique(data.modules.map(m => m.id)) || !unique(data.models.map(m => m.id))) throw Error('模块或型号标识重复。');
@@ -2208,7 +2284,7 @@ function handleAction(action, el) {
     case 'new-module':
       openDialog('新建算法模块', '选择模板后编辑端口、参数和算法。制冷等焓节流模板用于纯集总制冷站，入口须来自饱和容器液相。', `<div class="fields">${field('name', '模块名称', '自定义调节阀', 'required maxlength="40"')}${field('code', '模块标识', 'CUSTOM_VALVE', 'required pattern="[A-Za-z_][A-Za-z0-9_]*" maxlength="48"')}${selectField('base', 'Python 模板', [['template:resistance','两端口局部阻力'],['template:custom_pressure_drop','自定义压降公式'],['template:pump','泵／风机'],['template:heat_exchanger','双侧换热'],['template:managed_state','受管理状态'],['template:refrigeration_throttle','制冷等焓节流阀'],...state.modules.filter(m=>m.runtime==='python').map(m=>[m.id,m.name])], 'programmable_valve')}${selectField('category', '所属分组', moduleGroupNames().map(name => [name, name]), ui.route === 'modules' && ui.category !== '全部模块' ? ui.category : '自定义模块')}</div>`, async data => {
         if (!isIdentifier(data.code) || state.modules.some(m => m.code === data.code)) throw Error('模块标识需合法且唯一。');
-        if (state.modules.length >= 64) throw Error('已达到原型模块数量上限。');
+        if (state.modules.length >= 256) throw Error('已达到工作区模块数量上限（256）。');
         if (!moduleGroupNames().includes(data.category)) throw Error('请选择已有分组。');
         if (!data.name.trim()) throw Error('请输入模块名称。');
         if (!/^[A-Za-z][A-Za-z0-9_]{0,47}$/.test(data.code) || state.modules.some(m=>m.id===data.code.toLowerCase())) throw Error('模块标识需以字母开头且唯一。');

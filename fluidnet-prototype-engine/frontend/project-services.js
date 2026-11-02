@@ -171,7 +171,7 @@ window.createProjectServices = function ({request, ui, normalize, health, authHe
       fluid:data.fluid?.fluid||'Water',fluidConfig:clone(data.fluid||{}),fluidReference:data.fluid?.reference||'mass',
       circuitFluids:(data.circuit_fluids||[]).map(c=>({id:c.id,anchor:clone(c.anchor),fluid:c.fluid.fluid,fluidConfig:clone(c.fluid),fluidReference:c.fluid.reference})),
       solverOptions:clone(data.solver||{}),controllers:clone(data.controllers||[]),events:clone(data.events||[]),
-      thermalCouplings:clone(data.thermal_couplings||[]),selectedVariables:clone(data.selected_variables||[]),
+      thermalCouplings:clone(data.thermal_couplings||[]),selectedVariables:clone(data.selected_variables||[]),measurements:clone(data.measurements||[]),
       controlPrograms:[],controlScripts:[],controlEnabled:false,controlInputs:'',controlOutputs:'',
       scenarios:(data.scenarios||[]).map(s=>({...clone(s),overrides:Object.fromEntries(Object.entries(s.overrides).map(([id,values])=>
         [id,display(definitions.get(nodes.get(id).node.moduleId),values)]))}))});
@@ -221,6 +221,7 @@ window.createProjectServices = function ({request, ui, normalize, health, authHe
     }
     document.project.controllers=clone(preview.project.controllers);
     document.project.selectedVariables=clone(preview.project.selected_variables||[]);
+    document.project.measurements=clone(preview.project.measurements||[]);
     controls.replaceScripts(document.project,preview.project.control_scripts);
     for(const chart of document.charts || []){
       if(chart.canonicalKey)chart.canonicalKey=reference(chart.canonicalKey);

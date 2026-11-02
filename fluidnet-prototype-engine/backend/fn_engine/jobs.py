@@ -417,7 +417,7 @@ class RunManager:
         # Sessions may name variables their reports need on every frame (cold store: the standard curves).
         report_keys = getattr(job.session, 'report_keys', ())
         trend = {k for k in row['variables'] if k in request.trend_variables or k in script_outputs or k in report_keys
-                 or '.state.' in k or k.startswith(('controller.', 'script.'))}
+                 or '.state.' in k or k.startswith(('controller.', 'script.', 'measurement.'))}
         if request.history == 'trend':
             missing = set(request.trend_variables) - frame.variables.keys()
             if missing:

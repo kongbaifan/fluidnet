@@ -380,6 +380,8 @@ def compile_project(project: Project) -> CompiledNetwork:
                 port.domain==Domain.fluid for instance in project.instances for port in definitions[instance.module_id].ports):
             raise CompilationError('MODULE_EXECUTION_DOMAIN_UNSUPPORTED',
                 '制冷作者角色仅支持纯集总制冷站，不能放入流体、湿空气或热耦合项目',role_instances[0].id,'execution_role')
+    from .measurements import validate_measurements
+    validate_measurements(project)
     from .composites import expand_composites
     project, composite_maps = expand_composites(project)
     if project.thermal_couplings:
@@ -683,6 +685,8 @@ def validate_controllers(project: Project, modules, instances) -> None:
             raise CompilationError('PID_TARGET_INVALID', f'PID {c.id} 的输出范围 [{c.minimum:g}, {c.maximum:g}] 超出目标参数范围 '
                                    f'[{spec.minimum}, {spec.maximum}]', c.instance_id, c.parameter_id)
         instance_id, _, variable_id = c.measurement.partition('.')
+        if instance_id == 'measurement' and any(m.id == variable_id for m in project.measurements):
+            continue
         source = instances.get(instance_id)
         variable = source and next((v for v in modules[source.module_id].variables if v.id == variable_id), None)
         if not variable or not variable.sampleable or variable.source == 'parameter':

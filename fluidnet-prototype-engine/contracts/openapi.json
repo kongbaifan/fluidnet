@@ -8394,6 +8394,51 @@
         ],
         "title": "LibraryBank"
       },
+      "MeasurementSpec": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "value",
+              "difference",
+              "volume_flow",
+              "thermal_power"
+            ],
+            "title": "Kind",
+            "default": "value"
+          },
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 3,
+            "minItems": 1,
+            "title": "Sources"
+          },
+          "unit": {
+            "$ref": "#/components/schemas/UnitSpec"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "sources",
+          "unit"
+        ],
+        "title": "MeasurementSpec"
+      },
       "ModuleApplicability": {
         "properties": {
           "execution_domains": {
@@ -11026,6 +11071,14 @@
             "type": "array",
             "maxItems": 64,
             "title": "Selected Variables"
+          },
+          "measurements": {
+            "items": {
+              "$ref": "#/components/schemas/MeasurementSpec"
+            },
+            "type": "array",
+            "maxItems": 64,
+            "title": "Measurements"
           },
           "import_diagnostics": {
             "items": {

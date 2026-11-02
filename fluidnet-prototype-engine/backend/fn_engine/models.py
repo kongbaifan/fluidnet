@@ -537,6 +537,21 @@ class ThermalCoupling(StrictModel):
     ua_w_k: float = Field(ge=0)
 
 
+class MeasurementSpec(StrictModel):
+    id: Identifier
+    label: str
+    kind: Literal['value', 'difference', 'volume_flow', 'thermal_power'] = 'value'
+    sources: list[str] = Field(min_length=1, max_length=3)
+    unit: UnitSpec
+
+    @model_validator(mode='after')
+    def check_sources(self):
+        count = {'value':1, 'difference':2, 'volume_flow':2, 'thermal_power':3}[self.kind]
+        if len(self.sources) != count:
+            raise ValueError('测点输入数量与计算类型不一致')
+        return self
+
+
 class Project(StrictModel):
     schema_version: Literal[1] = 1
     id: str
@@ -548,6 +563,7 @@ class Project(StrictModel):
     connections: list[Connection] = Field(default_factory=list)
     scenarios: list[Scenario] = Field(default_factory=list)
     selected_variables: list[str] = Field(default_factory=list, max_length=64)
+    measurements: list[MeasurementSpec] = Field(default_factory=list, max_length=64, exclude_if=lambda value: not value)
     import_diagnostics: list[Diagnostic] = Field(default_factory=list)
     solver: SolverOptions = Field(default_factory=SolverOptions)
     controllers: list[PIDController] = Field(default_factory=list)

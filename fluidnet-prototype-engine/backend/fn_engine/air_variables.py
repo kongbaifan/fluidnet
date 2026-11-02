@@ -181,6 +181,10 @@ def collect_air_variables(project):
             add('metrics',name,kind,source='system')
     if project.solver.moist_air and project.circuit_fluids:
         add('metrics','liquid_mass_residual_kg_s','water_flow',label='液体质量残差',source='system')
+    for meter in project.measurements:
+        key = 'measurement.' + meter.id
+        result[key] = AirVariableDescriptor(key=key, label=meter.label, instance_id='measurement',
+            quantity=meter.unit.quantity, unit=meter.unit.model_copy(deep=True), nullable=True)
     # PID frames use canonical units. Resolve them from the frozen measurement and
     # actuator definitions so custom IDs and historical reports retain their units.
     for controller in project.controllers:

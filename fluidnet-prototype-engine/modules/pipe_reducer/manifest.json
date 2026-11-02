@@ -1,0 +1,53 @@
+{
+  "schema_version": 3,
+  "id": "pipe_reducer",
+  "name": "异径管（渐缩／渐扩）",
+  "version": 1,
+  "category": "暖通基础设备",
+  "description": "两端独立管径、渐变或突变过渡；按实际流向选择收缩／扩张局部阻力，适用于单相管网。",
+  "runtime": "python",
+  "entrypoint": "module:Module",
+  "solver_model": "generic",
+  "source_format": "python-v1",
+  "sdk": {
+    "api_version": "0.6.0",
+    "capabilities": ["net.resistance", "state.transactions.v1", "observe.v1", "evaluate.pure.v1", "hydraulic.signed_start.v1", "air.pass_through.v1"]
+  },
+  "pure_evaluate": true,
+  "applicability": {
+    "execution_domains": ["fluid"],
+    "phases": ["liquid", "gas"],
+    "assumptions": ["单相、水平、不可逆局部损失模型；不含动压静压恢复、管壁沿程摩擦或两相流；K 以小端流速为基准"]
+  },
+  "ports": [
+    {"id": "in0", "label": "入口端", "direction": "in"},
+    {"id": "out0", "label": "出口端", "direction": "out"}
+  ],
+  "channels": [
+    {"id": "main", "name": "变径通路", "input_port": "in0", "output_port": "out0", "relation": "resistance", "solver_model": "resistance"}
+  ],
+  "parameters": [
+    {"id": "inlet_diameter_m", "label": "入口端内径", "default": 0.1, "minimum": 0.001, "maximum": 5,
+      "unit": {"quantity": "length", "canonical_unit": "m", "display_unit": "mm", "display_scale": 0.001}},
+    {"id": "outlet_diameter_m", "label": "出口端内径", "default": 0.05, "minimum": 0.001, "maximum": 5,
+      "unit": {"quantity": "length", "canonical_unit": "m", "display_unit": "mm", "display_scale": 0.001}},
+    {"id": "transition_length_m", "label": "过渡长度", "default": 0.15, "minimum": 0, "maximum": 20,
+      "unit": {"quantity": "length", "canonical_unit": "m", "display_unit": "mm", "display_scale": 0.001}},
+    {"id": "profile", "label": "过渡形式（gradual 渐变／sudden 突变）", "value_type": "text", "default": "gradual"},
+    {"id": "loss_multiplier", "label": "局部阻力修正倍率", "default": 1, "minimum": 0.001, "maximum": 100}
+  ],
+  "variables": [
+    {"id": "loss_coefficient", "label": "小端基准阻力系数 K", "source": "derived", "quantity": "ratio"},
+    {"id": "area_ratio", "label": "小端／大端面积比", "source": "derived", "quantity": "ratio"},
+    {"id": "included_angle_deg", "label": "过渡全角（度）", "source": "derived", "quantity": "angle"},
+    {"id": "is_contraction", "label": "当前为收缩流（1 是／0 否）", "source": "derived", "quantity": "ratio"},
+    {"id": "inlet_velocity_m_s", "label": "入口端有符号流速", "source": "derived", "quantity": "velocity",
+      "unit": {"quantity": "velocity", "canonical_unit": "m/s", "display_unit": "m/s"}},
+    {"id": "outlet_velocity_m_s", "label": "出口端有符号流速", "source": "derived", "quantity": "velocity",
+      "unit": {"quantity": "velocity", "canonical_unit": "m/s", "display_unit": "m/s"}},
+    {"id": "pressure_loss_pa", "label": "有符号局部压降", "source": "derived", "quantity": "pressure",
+      "unit": {"quantity": "pressure", "canonical_unit": "Pa", "display_unit": "kPa", "display_scale": 1000}},
+    {"id": "state.throughput_kg", "label": "累计通过质量", "source": "state", "quantity": "mass",
+      "unit": {"quantity": "mass", "canonical_unit": "kg", "display_unit": "kg"}}
+  ]
+}

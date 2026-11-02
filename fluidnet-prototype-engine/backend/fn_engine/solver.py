@@ -1181,7 +1181,8 @@ def snapshot(network, result, time_s=0., warning=None):
         from .air_transport import air_frame_values
         air_frame_values(network, result, frame.variables, frame.metrics, frame.solve_summary)
     from .composites import map_frame
-    return map_frame(network,frame)
+    from .measurements import apply_measurements
+    return apply_measurements(network.project,map_frame(network,frame))
 
 
 def cell_variables(network: CompiledNetwork, result: NetworkResult, service):

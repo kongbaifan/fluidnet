@@ -444,7 +444,8 @@ class SimulationSession:
         frame.sequence = self.sequence
         frame.parameter_revision = self.revision
         from .composites import map_frame
-        return map_frame(self.network,frame)
+        from .measurements import apply_measurements
+        return apply_measurements(self.network.project,map_frame(self.network,frame))
 
     def publish(self):
         frame = self.snapshot()

@@ -136,6 +136,8 @@ def migrate_project(project, target, migration):
         for instance in affected & scenario.overrides.keys():
             scenario.overrides[instance] = values(scenario.overrides[instance])
     candidate.selected_variables = [variable(key) for key in candidate.selected_variables]
+    for meter in candidate.measurements:
+        meter.sources = [variable(key) for key in meter.sources]
     for controller in candidate.controllers:
         controller.measurement = variable(controller.measurement)
         if controller.instance_id in affected:

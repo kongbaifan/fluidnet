@@ -212,6 +212,7 @@ def normalize_prototype_export(data: dict[str, Any]) -> Project:
         control_scripts=raw.get('controlScripts', []),
         thermal_couplings=couplings,
         scenarios=scenarios,selected_variables=deepcopy(raw.get('selectedVariables', [])),
+        measurements=deepcopy(raw.get('measurements', [])),
         events=deepcopy(raw.get('events', [])),
         circuit_fluids=[{'id': c['id'], 'anchor': c['anchor'], 'fluid': prototype_fluid(c)}
                         for c in raw.get('circuitFluids', [])],
