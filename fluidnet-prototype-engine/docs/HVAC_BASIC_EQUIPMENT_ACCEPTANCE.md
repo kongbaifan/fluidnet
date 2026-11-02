@@ -18,13 +18,13 @@
 
 | 检查 | 命令 | 结果 |
 | --- | --- | --- |
-| 暖通专项测试 | `python -m pytest tests/test_hvac_equipment.py tests/test_hvac_reducer.py -q` | **68 passed**（75.7 s） |
+| 暖通专项测试 | `python -m pytest tests/test_hvac_equipment.py tests/test_hvac_reducer.py tests/test_hvac_templates.py -q` | **84 passed**（105 s） |
 | 浏览器回归 | `node tests/browser-hvac-equipment.mjs` | **通过**：模块目录 68 个模块自动发现、风侧页创建暖通示例、测点读数非零、界面新增差值测点、PID 反馈选项包含新测点、加入曲线、保存后重载保留 4 个测点，`pageerror` 为空 |
 | 类型检查 | `python -m mypy` | 92 个源文件无问题 |
 | Lint | `python -m ruff check backend tests scripts modules examples/control_templates` | All checks passed |
 | 契约一致性 | `python scripts/generate_contracts.py --check` | 90 个文件一致（本轮已重新生成 `contracts/`） |
 | 设备包一致性 | `python scripts/generate_hvac_modules.py --check` | HVAC equipment packages consistent |
-| 示例快照一致性 | `python scripts/generate_hvac_examples.py --check` | 4 HVAC examples verified |
+| 示例快照一致性 | `python scripts/generate_hvac_examples.py --check` | 7 HVAC examples verified |
 | 前端语法 | `npm run check` | 通过（含新增 `tests/browser-hvac-equipment.mjs`） |
 | 全量后端回归 | `python -m pytest -q --cov=fn_engine` | 见第 5 节 |
 
@@ -45,6 +45,11 @@
 | 泵切换示例 | 5 s 后工作泵与备用泵互换：停泵支路零流量、止回阀关闭、参考口无隐含补水，电能账本与逐帧功率求和一致（相对误差 1e-8） |
 | 双盘管冷水机房示例 | 冷冻水总流量 2.179 kg/s；机组冷量 14.12 kW = 两台盘管热量 + 冷冻水泵功；冷却塔排热 15.82 kW = 冷凝热 + 冷却水泵功；第二盘管水侧热功率测点 4.66 kW |
 | 测点校验 | 未知引用、单位与计算类型不符、两点差值单位不同、显示单位带偏移均以 `MEASUREMENT_INVALID` 拒绝；运行期缺失/NaN/溢出输入返回 `null` + `MEASUREMENT_UNAVAILABLE`，重复调用不累积诊断 |
+| 空调箱与房间送风 | 送风 16.6 °C、约 3324 m³/h，房间稳定在 18.6 °C；盘管制冷量 7.37 kW 与独立水侧 `m·Δh` 一致（相对误差 1e-6），冷冻水温升 11.6 K，送风含湿量低于回风 |
+| 新风机组／风机盘管模板 | 305.15 K、14 g/kg 进风被降到低于进风 5 K 以上且含湿量下降；冷冻水侧吸热升温，全网能量残差 < 0.05 W、质量残差 < 1e-7 kg/s |
+| 定压补水 | 泄漏 0.02／0.1／0.6 开度对应补水 0.078／0.397／3.10 m³/h，补水与泄漏相对差 < 0.02%；止回阀累计质量随运行增加，阀位只取全开或最小开度两种 |
+| 机房联锁 | 2 s 压差确认后 1 号泵单独运行（流量 > 0.5 kg/s），10 s 后切换到 2 号泵且 1 号泵流量 < 1e-6 kg/s；扬程不足工况在确认窗口后两台泵停止、`phase='tripped'`、流量 < 1e-3 kg/s |
+| 组合端口湿空气字段 | 组合外端口在湿空气回路上公开含湿量、干空气与水蒸气质量流量，测点可直接绑定送风含湿量（此前组合只映射压力/温度/焓/流量/密度等基础字段） |
 
 ## 4. 本轮修复的问题
 

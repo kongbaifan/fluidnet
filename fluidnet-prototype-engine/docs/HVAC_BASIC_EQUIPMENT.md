@@ -22,6 +22,20 @@
 | `hvac_water_pump` | 循环水泵（含停机阻力） | in0 / out0 | `running`、`speed_ratio`、`head_curve`（m³/h—m）、`efficiency_ratio`、`motor_efficiency`、`diameter_m`、`stopped_loss_coefficient` | `is_running`、`pump_shaft_power_w`、`electric_power_w`、`state.electric_energy_j`、`state.throughput_kg` |
 | `hvac_check_valve` | 止回阀（开启／关闭压差） | in0 / out0 | `kv_m3_h`、`opening_pressure_pa`、`closing_pressure_pa` | `flowing`、`state.is_open`、`state.throughput_kg` |
 
+### 1.1 成套模板与联锁
+
+| 模块 ID | 名称 | 外端口 | 内部部件 | 公开参数 |
+| --- | --- | --- | --- | --- |
+| `ahu_standard` | 空调箱（混风＋过滤＋盘管＋风机） | `fresh_in`、`return_in`、`supply_out`、`water_in`、`water_out` | 混风箱 → 过滤器 → 水盘管 → 风机 | 风机转速比与压力曲线、过滤器额定风量与污堵、盘管两侧 UA 与阻力 |
+| `fahu_standard` | 新风机组（过滤＋盘管＋风机） | `air_in`、`air_out`、`water_in`、`water_out` | 过滤器 → 水盘管 → 风机 | 同上（新风工况参数） |
+| `fcu_terminal` | 风机盘管末端（过滤＋盘管＋风机） | `return_in`、`supply_out`、`water_in`、`water_out` | 过滤器 → 水盘管 → 风机 | 同上（末端工况参数） |
+| `makeup_water_unit` | 定压补水装置（过滤器＋止回阀＋调节阀） | `makeup_in`、`supply_out` | 过滤器 → 止回阀 → 平衡阀 | 止回阀开启／关闭压差、补水阀 Kv 与特性曲线、过滤器污堵 |
+
+- 末端模板是**组合模块**：内部为固定版本部件，风侧与水侧各成独立回路，展开后按节点质量与焓守恒求解；公开参数在设备面板可直接改，运行中可改的只有风机转速比、过滤器污堵与补水阀开度。
+- 组合端口除压力、温度、焓、质量流量、密度外，在湿空气回路上还公开 `humidity_ratio_kg_kg`、`dry_air_mass_flow_kg_s`、`water_vapor_mass_flow_kg_s`，因此“送风含湿量”与内置风侧设备一样可直接作测点和曲线变量。
+- **定压补水装置的补水边界必须留在组合外部**：组合展开拒绝内置压力源。用法是在组合前接一个 `source` 作定压设定（如 250 kPa），组合的 `supply_out` 接回泵入口；补水量看 `state.Check.throughput_kg`（止回阀累计质量）。
+- 由于补水边界同时是该回路唯一的压力参考，止回阀在最不利工况下完全关闭会让回路失去参考；本轮示例因此只用“有泄漏”的工况。真正的闭式定压需要膨胀罐（清单 E06），尚未实施。
+
 约定：
 
 - 参数和变量都按引擎 SI 单位计算；界面上按 `display_unit` 显示（如 kPa、m³/h、kW、%）。`opening_ratio`、`loading_ratio` 等比例参数在界面按百分比编辑。
@@ -53,7 +67,7 @@
 
 ## 3. 示例
 
-风系统页 → “创建风侧示例”可一键创建四个暖通基础示例（`examples/hvac-basic/*.project.json` 是同一内容的可移植快照，由 `scripts/generate_hvac_examples.py` 生成）：
+风系统页 → “创建风侧示例”可一键创建七个暖通基础示例（`examples/hvac-basic/*.project.json` 是同一内容的可移植快照，由 `scripts/generate_hvac_examples.py` 生成）：
 
 | 示例 | 内容 | 验证要点 |
 | --- | --- | --- |
@@ -61,13 +75,32 @@
 | `hvac-three-way-mixing` | 冷／热两路经三通调节阀混合后回水 | 三端口质量与焓守恒；混合水温测点；三个工况（冷路全开／各半／热路全开） |
 | `hvac-pump-switch` | 分水器 → 两台泵 + 止回阀 → 集水器 → 负荷管段，Python 脚本 5 s 切换工作泵 | 停泵支路零流量、止回阀关闭、电能账本只结算一次 |
 | `hvac-basic-plant` | 冷水机组 + 冷冻水泵 + 冷却水泵 + 冷却塔 + 双盘管 + 分集水器 + 过滤器 + 异径管 + 关断阀 | 三回路流量平衡、机组冷量 = 盘管热量 + 泵功、冷却塔排热 = 冷凝热 + 泵功 |
+| `hvac-ahu-terminal` | 空调箱模板 + 新风管 + 送／回风管 + 房间，冷冻水由供回水边界给出、经盘管水阀控制 | 送风温度与含湿量低于回风、房间热湿平衡、盘管制冷量与测点独立核算 |
+| `hvac-closed-loop-makeup` | 闭式水回路（泵 + 电加热 + 负荷管）+ 泄漏支路 + 定压补水装置（外部定压边界） | 补水流量与泄漏流量相等、止回阀累计补水量、回差控制阀位 |
+| `hvac-plant-interlock` | 两台泵 + 止回阀 + 关断阀 + 负荷管段，机房联锁脚本：启动顺序 → 压差确认 → 低压差停机 → 工作泵切换 | 2 s 后 1 号泵运行、10 s 后切到 2 号泵；扬程不足时两台泵停止且进入 `tripped` |
+
+### 3.1 机房联锁控制模板（B13）
+
+`examples/control_templates/plant_interlock.py` 是可移植的 Python 控制模板，`hvac-plant-interlock` 示例是它在真实变量路径下的可运行版本；控制页“载入机房联锁”按钮可把同一份脚本写入所选控制脚本并声明输入／输出。
+
+| 阶段 | 行为 | 输入／输出 |
+| --- | --- | --- |
+| 启动顺序 | 运行开始即启动 1 号泵 | 输出 `Pump1.param.running` |
+| 压差确认 | 2 s 后比较出口与入口总管压力，低于 20 kPa 判为无流量 | 输入 `Discharge.common.pressure_pa`、`Suction.common.pressure_pa` |
+| 无流量停机 | 确认失败时停两台泵并保持 `phase='tripped'`；运行中状态与阶段写入脚本状态 | — |
+| 停机/切换顺序 | 先启备用泵再停原工作泵；`finalize` 把两台泵都置停止 | 输出 `Pump2.param.running` |
+
+模板里的变量路径要按项目实际设备改名（同上表输入／输出列）。脚本状态可在帧变量 `script.plant-interlock.state.phase` 中观察。
 
 ## 4. 当前限制
 
 - 设备默认参数是教学假设：Kv、曲线、效率、额定压降都要按厂家资料填写后才能用于工程结论。
 - 过滤器污堵只改变阻力，不产生堵塞事件；止回阀为“开启压差／关闭压差”的互补状态，反向严格截止，但未模拟阀芯动力学与撞击噪声。
 - 三通阀两通路按互补开度分配；未模拟执行器动作时间、关断泄漏与厂家快开曲线。
-- 泵效率按定值折算，未接入效率—流量曲线；风机不在本轮范围内。
+- 泵效率按定值折算，未接入效率—流量曲线；风机效率也是定值，未接入风机失速区与噪声。
+- 末端模板是“过滤器 + 盘管 + 风机 (+ 混风箱)”的固定成套：不含加湿、再热、旁通与变风量末端，需要时在模板外补部件。
+- 定压补水只覆盖“有泄漏/有压差”的工况：补水边界同时是回路唯一压力参考，止回阀完全关闭会失去参考，膨胀罐（E06）尚未实施。
+- 机房联锁模板只做启停顺序、压差确认与工作泵切换；无流量停机按压差判定，未接入真实流量计故障、电气保护与手动复位。
 - 分水器／集水器为集中阻力模型，不反映各支路间真实的三维分流与静压恢复。
 - 测点是理想仪表：无测量误差、无采样延迟。
 - 未实现的设备（膨胀罐、安全泄压、自动平衡阀／PICV、VAV 等）仍登记在[补全清单](HVAC_BASIC_EQUIPMENT_CHECKLIST.md)的“按需”一栏。
@@ -75,7 +108,7 @@
 ## 5. 验证入口
 
 ```powershell
-python -m pytest tests/test_hvac_equipment.py tests/test_hvac_reducer.py -q
+python -m pytest tests/test_hvac_equipment.py tests/test_hvac_reducer.py tests/test_hvac_templates.py -q
 python scripts/generate_hvac_modules.py --check
 python scripts/generate_hvac_examples.py --check
 node tests/browser-hvac-equipment.mjs    # 需 playwright + Edge
