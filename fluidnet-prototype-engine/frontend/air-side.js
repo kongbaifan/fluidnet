@@ -6,7 +6,9 @@ window.createAirSideUI = function (ui) {
     ['chiller-air-loop','冷水机组与房间风水联算'],['room-temperature-control','房间自动温控 · 初始降温'],
     ['room-control-load-step','房间自动温控 · 负荷阶跃'],['room-control-setpoint-step','房间自动温控 · 设定变化'],
     ['hvac-water-balance','暖通基础 · 两支路水力平衡'],['hvac-three-way-mixing','暖通基础 · 三通阀混流'],
-    ['hvac-pump-switch','暖通基础 · 工作泵与备用泵切换'],['hvac-basic-plant','暖通基础 · 双盘管冷水机房']];
+    ['hvac-pump-switch','暖通基础 · 工作泵与备用泵切换'],['hvac-basic-plant','暖通基础 · 双盘管冷水机房'],
+    ['hvac-ahu-terminal','暖通基础 · 空调箱与房间送风'],['hvac-closed-loop-makeup','暖通基础 · 闭式回路定压补水'],
+    ['hvac-plant-interlock','暖通基础 · 机房联锁启停']];
   const colors = ['#147d88','#e09339','#6372ba','#a5558a'];
   const model = {signature:'',epoch:0,record:null,catalog:[],grid:null,runs:[],selectedRunId:'',loading:false,error:'',
     curves:[],curveKey:'',comparisonIds:[],search:'',controlRows:[]};

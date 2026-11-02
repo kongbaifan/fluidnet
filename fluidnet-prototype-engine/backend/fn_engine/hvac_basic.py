@@ -206,20 +206,25 @@ def junction_module(count):
     return ModuleDefinition.model_validate(reference)
 
 
-def compose(identifier,name,definitions,instances,connections,port_names):
+def compose(identifier,name,definitions,instances,connections,port_names,description=None):
     project=Project(id='hvac-composition',name=name,modules=definitions,instances=instances,connections=connections)
     module=module_from_group(project,[i.id for i in project.instances],identifier,name)
     data=module.model_dump(mode='json')
     rename={port['id']:port_names[port['id']][0] for port in data['ports']}
     data['category']=CATEGORY
-    data['description']=name+'：内部展开为固定版本部件，按节点质量与焓守恒求解。'
+    data['description']=(description or name+'：内部展开为固定版本部件，按节点质量与焓守恒求解。')
     for port in data['ports']:
         old=port['id']; port['id'],port['label']=port_names[old]
     data['composite']['external_ports']={rename[key]:value for key,value in data['composite']['external_ports'].items()}
     data['channels']=[]
     data['source']={'runtime':data['source']['runtime']}
-    # Composition authoring normally exposes runtime controls only. Equipment also
-    # needs its static geometry, curves, Kv and efficiency editable from Studio.
+    expose_static_parameters(data,project,definitions)
+    return ModuleDefinition.model_validate(data)
+
+
+def expose_static_parameters(data,project,definitions):
+    """Composition authoring normally exposes runtime controls only. Equipment also
+    needs its static geometry, curves, Kv and efficiency editable from Studio."""
     for instance in project.instances:
         definition = next(m for m in definitions if m.id == instance.module_id)
         for spec in definition.parameters:
@@ -231,7 +236,76 @@ def compose(identifier,name,definitions,instances,connections,port_names):
                              default=instance.parameters.get(spec.id, spec.default))
             data['parameters'].append(parameter)
             data['composite']['parameter_maps'][public] = [{'instance_id':instance.id, 'parameter_id':spec.id}]
-    return ModuleDefinition.model_validate(data)
+
+
+def air_terminal(identifier,name,mixing,defaults,ports,description):
+    """空调箱／新风机组／风机盘管：固定版本部件组合，风侧与水侧各自成通路。"""
+    from .packages import load_module_package
+    catalog=catalog_map()
+    fan=load_module_package(ROOT/'modules'/'fan')
+    definitions=[catalog['air_filter'],catalog['water_coil'],fan]
+    instances=[{'id':'Filter','module_id':'air_filter','name':'过滤器','parameters':defaults.get('Filter',{})},
+               {'id':'Coil','module_id':'water_coil','name':'盘管','parameters':defaults.get('Coil',{})},
+               {'id':'Fan','module_id':'fan','name':'风机','parameters':defaults.get('Fan',{})}]
+    connections=[{'id':'filter-coil','source':{'instance_id':'Filter','port_id':'out0'},'target':{'instance_id':'Coil','port_id':'in0'}},
+                 {'id':'coil-fan','source':{'instance_id':'Coil','port_id':'out0'},'target':{'instance_id':'Fan','port_id':'in0'}}]
+    if mixing:
+        # 新风与回风先混合，再依次经过滤器、水盘管和风机。
+        definitions.insert(0,catalog['air_mixing_box'])
+        instances.insert(0,{'id':'Mix','module_id':'air_mixing_box','name':'混风箱'})
+        connections.insert(0,{'id':'mix-filter','source':{'instance_id':'Mix','port_id':'supply_out'},
+                              'target':{'instance_id':'Filter','port_id':'in0'}})
+    return compose(identifier,name,definitions,instances,connections,ports,description)
+
+
+def ahu_module():
+    return air_terminal('ahu_standard','空调箱（混风＋过滤＋盘管＋风机）',True,
+        {'Filter':{'rated_volume_flow_m3_s':1.2,'clean_pressure_drop_pa':120.},
+         'Coil':{'air_side_ua_w_k':2000.,'water_side_ua_w_k':4000.},
+         'Fan':{'speed_ratio':1.,'nominal_flow_m3_h':4000.,
+                'pressure_curve':[[0.,450.],[2000.,360.],[4000.,180.],[5000.,0.]]}},
+        {'Mix_fresh_in':('fresh_in','新风进口'),'Mix_return_in':('return_in','回风进口'),
+         'Fan_out0':('supply_out','送风出口'),'Coil_in1':('water_in','冷冻水进口'),'Coil_out1':('water_out','冷冻水出口')},
+        '空调箱（混风箱＋过滤器＋水盘管＋风机）：新风与回风混合后处理并加压送出；水侧为独立液体回路。')
+
+
+def fahu_module():
+    """新风机组：只处理新风，不含混风箱。"""
+    return air_terminal('fahu_standard','新风机组（过滤＋盘管＋风机）',False,
+        {'Filter':{'rated_volume_flow_m3_s':.35,'clean_pressure_drop_pa':100.},
+         'Coil':{'air_side_ua_w_k':900.,'water_side_ua_w_k':2400.},
+         'Fan':{'speed_ratio':1.,'nominal_flow_m3_h':1200.,
+                'pressure_curve':[[0.,300.],[800.,220.],[1600.,80.],[2000.,0.]]}},
+        {'Filter_in0':('air_in','新风进口'),'Fan_out0':('air_out','处理后送风'),
+         'Coil_in1':('water_in','冷冻水进口'),'Coil_out1':('water_out','冷冻水出口')},
+        '新风机组（过滤器＋水盘管＋风机）：只处理新风，风侧与水侧各自成通路。')
+
+
+def fcu_module():
+    """风机盘管末端：室内回风经盘管处理后送回房间。"""
+    return air_terminal('fcu_terminal','风机盘管末端（过滤＋盘管＋风机）',False,
+        {'Filter':{'rated_volume_flow_m3_s':.25,'clean_pressure_drop_pa':60.},
+         'Coil':{'air_side_ua_w_k':700.,'water_side_ua_w_k':1800.},
+         'Fan':{'speed_ratio':1.,'nominal_flow_m3_h':900.,
+                'pressure_curve':[[0.,90.],[600.,60.],[1200.,20.],[1600.,0.]]}},
+        {'Filter_in0':('return_in','回风口'),'Fan_out0':('supply_out','送风口'),
+         'Coil_in1':('water_in','冷冻水进口'),'Coil_out1':('water_out','冷冻水出口')},
+        '风机盘管末端（过滤器＋水盘管＋风机）：室内回风经处理后送回房间；水侧为独立液体回路。')
+
+
+def makeup_module():
+    """定压补水装置：止回阀、过滤器与平衡阀成套；补水压力边界保留在组合外部。"""
+    check,strainer,balance=check_module(),filter_module(),valve_module()
+    return compose('makeup_water_unit','定压补水装置（止回阀＋过滤器＋平衡阀）',
+        [check,strainer,balance],
+        [{'id':'Strainer','module_id':'water_strainer','name':'补水过滤器'},
+         {'id':'Check','module_id':'hvac_check_valve','name':'补水止回阀','parameters':{'kv_m3_h':20.,'opening_pressure_pa':500.,'closing_pressure_pa':200.}},
+         {'id':'Balance','module_id':'water_balancing_valve','name':'补水调节阀','parameters':{'kv_m3_h':8.,'opening_ratio':.5}}],
+        [{'id':'strainer-check','source':{'instance_id':'Strainer','port_id':'out0'},'target':{'instance_id':'Check','port_id':'in0'}},
+         {'id':'check-balance','source':{'instance_id':'Check','port_id':'out0'},'target':{'instance_id':'Balance','port_id':'in0'}}],
+        {'Strainer_in0':('makeup_in','补水进口（接定压边界）'),'Balance_out0':('supply_out','补入回路')},
+        '定压补水装置（过滤器＋止回阀＋调节阀）：补水边界固定在组合外部，'
+        '回路压力低于定压设定时止回阀自动导通；补水量看 state.Check.throughput_kg。')
 
 
 def header_module(branches=4, collector=False, tee=False):
@@ -314,7 +388,8 @@ def check_module():
 def equipment_definitions():
     return [valve_module(),valve_module('water_shutoff_valve','蝶阀／球阀（关断阀）',True),filter_module(),pump_module(),check_module(),
             header_module(2,tee=True),three_way_module(),
-            *[header_module(count,collector) for collector in (False,True) for count in (2,4,6,8)]]
+            *[header_module(count,collector) for collector in (False,True) for count in (2,4,6,8)],
+            ahu_module(),fahu_module(),fcu_module(),makeup_module()]
 
 
 def equipment(identifier):

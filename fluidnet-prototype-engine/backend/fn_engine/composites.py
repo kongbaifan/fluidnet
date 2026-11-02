@@ -8,6 +8,10 @@ from .runtime import module_content_hash, module_definition_hash
 MAX_DEPTH = 8
 MAX_INSTANCES = 1000
 PORT_FIELDS = ['pressure_pa','temperature_k','enthalpy_j_kg','mass_flow_kg_s','density_kg_m3','viscosity_pa_s','quality']
+# Moist-air ports carry extra fields; they are mapped when the child frame provides them,
+# so air-handling composites expose 送风含湿量 like built-in air devices do.
+AIR_PORT_FIELDS = ['humidity_ratio_kg_kg','dry_air_mass_flow_kg_s','water_vapor_mass_flow_kg_s']
+COMPOSITE_PORT_FIELDS = PORT_FIELDS + AIR_PORT_FIELDS
 
 
 def _namespace(root, path):
@@ -50,7 +54,7 @@ def expand_composites(project):
             port_map = {port.id:Endpoint(instance_id=name,port_id=port.id) for port in definition.ports}
             parameter_map = {parameter.id:[(name,parameter.id)] for parameter in definition.parameters}
             variable_map = {variable.id:f'{name}.{variable.id}' for variable in definition.variables}
-            variable_map.update({f'{port.id}.{field}':f'{name}.{port.id}.{field}' for port in definition.ports for field in PORT_FIELDS})
+            variable_map.update({f'{port.id}.{field}':f'{name}.{port.id}.{field}' for port in definition.ports for field in COMPOSITE_PORT_FIELDS})
             variable_map.update({f'{channel.id}.{field}':f'{name}.{channel.id}.{field}' for channel in definition.channels
                                 for field in ['mass_flow_kg_s','pressure_drop_pa','heat_w','inlet_temperature_k','outlet_temperature_k']})
             variable_map.update({f'param.{p.id}':f'{name}.param.{p.id}' for p in definition.parameters})
@@ -126,7 +130,7 @@ def expand_composites(project):
                 raise ValueError(f'组合输出引用不存在：{reference}')
             variable_map[public] = results[child_id][2][suffix]
         for public,reference in port_map.items():
-            for field in PORT_FIELDS:
+            for field in COMPOSITE_PORT_FIELDS:
                 variable_map[f'{public}.{field}'] = f'{reference.instance_id}.{reference.port_id}.{field}'
         for public,destinations in parameter_map.items():
             variable_map['param.'+public] = destinations[0][0]+'.param.'+destinations[0][1]
@@ -293,3 +297,5 @@ def module_from_group(project, instance_ids, identifier, name):
                      'external_ports':external,'parameter_maps':parameter_maps,'output_aliases':outputs},
         'applicability':{'assumptions':['组合展开复用子模块精确版本；外端口和公开参数一对一映射。']}}
     return ModuleDefinition.model_validate(payload)
+
+

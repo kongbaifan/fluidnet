@@ -7,7 +7,8 @@ from .packages import load_module_package
 
 AIR_EXAMPLES = ('air-coil-wet','air-mixing','ahu-wet','ahu-room','air-parallel-wet','cooling-tower-moist','chiller-air-loop',
                 'room-temperature-control','room-control-load-step','room-control-setpoint-step',
-                'hvac-water-balance','hvac-three-way-mixing','hvac-pump-switch','hvac-basic-plant')
+                'hvac-water-balance','hvac-three-way-mixing','hvac-pump-switch','hvac-basic-plant',
+                'hvac-ahu-terminal','hvac-closed-loop-makeup','hvac-plant-interlock')
 
 
 def air_example(name):

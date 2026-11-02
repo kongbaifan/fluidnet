@@ -11,7 +11,70 @@ HVAC_EXAMPLES = {
     'hvac-three-way-mixing': '暖通基础 · 三通阀混流',
     'hvac-pump-switch': '暖通基础 · 工作泵与备用泵切换',
     'hvac-basic-plant': '暖通基础 · 双盘管冷水机房',
+    'hvac-ahu-terminal': '暖通基础 · 空调箱与房间送风',
+    'hvac-closed-loop-makeup': '暖通基础 · 闭式回路定压补水',
+    'hvac-plant-interlock': '暖通基础 · 机房联锁启停',
 }
+
+INTERLOCK_THRESHOLD_KG_S = .2
+INTERLOCK_CONFIRM_S = 2.
+INTERLOCK_SWITCH_S = 10.
+INTERLOCK_SOURCE = '''# 机房联锁：启动顺序 → 压差确认 → 低压差停机 → 工作泵切换。
+MIN_DP_PA = 20000.
+CONFIRM_S = 2.
+SWITCH_S = 10.
+
+def initialize(ctx):
+    ctx.state['phase'] = 'starting'
+    ctx.state['switched'] = False
+
+def step(ctx, dt):
+    dp = ctx.read('Discharge.common.pressure_pa') - ctx.read('Suction.common.pressure_pa')
+    pump1 = 'Pump1.param.running'
+    pump2 = 'Pump2.param.running'
+    if ctx.state['phase'] == 'starting':
+        ctx.write(pump1, 1.)
+        if ctx.time_s >= CONFIRM_S:
+            if dp < MIN_DP_PA:
+                ctx.write(pump1, 0.)
+                ctx.write(pump2, 0.)
+                ctx.state['phase'] = 'tripped'
+            else:
+                ctx.state['phase'] = 'running'
+    elif ctx.state['phase'] == 'running' and not ctx.state['switched'] and ctx.time_s >= SWITCH_S:
+        ctx.write(pump2, 1.)
+        ctx.write(pump1, 0.)
+        ctx.state['switched'] = True
+
+def finalize(ctx):
+    ctx.write('Pump1.param.running', 0.)
+    ctx.write('Pump2.param.running', 0.)
+'''
+
+MAKEUP_SOURCE = '''# 定压补水：泵入口压力低于定压设定时全开补水阀，高于设定＋回差时关到最小开度。
+# 补水边界压力是定压设定值本身，阀门只决定补水流量，不改变定压值。
+SETPOINT_PA = 245000.
+HYSTERESIS_PA = 2000.
+OPENING_HIGH = 1.0
+OPENING_LOW = 0.1
+
+def initialize(ctx):
+    ctx.state['open'] = True
+    ctx.state['makeup_events'] = 0
+
+def step(ctx, dt):
+    pressure = ctx.read('Join.in0.pressure_pa')
+    if pressure < SETPOINT_PA:
+        if not ctx.state['open']:
+            ctx.state['makeup_events'] += 1
+        ctx.state['open'] = True
+    elif pressure > SETPOINT_PA + HYSTERESIS_PA:
+        ctx.state['open'] = False
+    ctx.write('Makeup.param.Balance_opening_ratio', OPENING_HIGH if ctx.state['open'] else OPENING_LOW)
+
+def finalize(ctx):
+    pass
+'''
 
 
 def meter(identifier, label, kind, sources, quantity, canonical, display=None, scale=1., offset=0.):
@@ -20,11 +83,57 @@ def meter(identifier, label, kind, sources, quantity, canonical, display=None, s
               'display_scale':scale, 'display_offset':offset})
 
 
+def ahu_terminal_example(catalog):
+    """空调箱（混风＋过滤＋盘管＋风机）为房间送风，水侧由供回水边界给出。"""
+    from .air_examples import air_example
+    from .models import CircuitFluid, Connection, Endpoint, FluidConfig
+    project = air_example('ahu-room').model_copy(deep=True)
+    replaced = {'Mix', 'Filter', 'Coil', 'Reheat', 'Humidifier', 'Fan'}
+    project.instances = [i for i in project.instances if i.id not in replaced]
+    project.connections = [c for c in project.connections
+                           if c.source.instance_id not in replaced and c.target.instance_id not in replaced]
+    project.modules = [m for m in project.modules
+                       if m.id not in {'air_mixing_box', 'air_filter', 'cooling_coil', 'heater', 'humidifier', 'fan'}]
+    project.modules.append(load_module_package(ROOT/'modules'/'ahu_standard'))
+    project.modules.append(catalog['valve'])
+    project.instances.extend([
+        ModuleInstance(id='AHU', module_id='ahu_standard', name='空调箱'),
+        ModuleInstance(id='WaterValve', module_id='valve', name='盘管水阀', parameters={'kv_m3_h':4., 'opening_ratio':.25}),
+        ModuleInstance(id='ChilledSupply', module_id='source', name='冷冻水供水',
+                       parameters={'pressure_pa':230000., 'temperature_k':280.15}),
+        ModuleInstance(id='ChilledReturn', module_id='source', name='冷冻水回水',
+                       parameters={'pressure_pa':200000., 'temperature_k':285.15})])
+    links = [('FreshDuct:out0','AHU:fresh_in'), ('ReturnDuct:out0','AHU:return_in'),
+             ('AHU:supply_out','SupplyDuct:in0'), ('ChilledSupply:out0','AHU:water_in'),
+             ('AHU:water_out','WaterValve:in0'), ('WaterValve:out0','ChilledReturn:out0')]
+    for index, (a, b) in enumerate(links):
+        start, end = a.split(':'), b.split(':')
+        project.connections.append(Connection(id=f'ahu{index}', source=Endpoint(instance_id=start[0], port_id=start[1]),
+                                              target=Endpoint(instance_id=end[0], port_id=end[1])))
+    project.circuit_fluids = [CircuitFluid(id='chilled-water', anchor=Endpoint(instance_id='AHU', port_id='water_in'),
+                                           fluid=FluidConfig(fluid='Water', phase_policy='liquid'))]
+    project.solver.moist_air_options.max_iterations = 400
+    project.measurements = [
+        meter('supply-air-temperature','送风温度','value',['AHU.supply_out.temperature_k'],'temperature','K','°C',offset=-273.15),
+        meter('room-temperature','房间温度','value',['Room.state.temperature_k'],'temperature','K','°C',offset=-273.15),
+        meter('chilled-water-delta-t','冷冻水温升','difference',
+              ['AHU.water_out.temperature_k','AHU.water_in.temperature_k'],'temperature','K'),
+        meter('coil-cooling-power','盘管制冷量','thermal_power',
+              ['AHU.water_in.mass_flow_kg_s','AHU.water_out.enthalpy_j_kg','AHU.water_in.enthalpy_j_kg'],'power','W','kW',1000.),
+        meter('supply-air-volume-flow','送风体积流量','volume_flow',
+              ['Room.supply_in.mass_flow_kg_s','Room.supply_in.density_kg_m3'],'volume_flow','m3/s','m³/h',1/3600.)]
+    project.scenarios = [Scenario(id='valve-half', name='盘管水阀 50%', overrides={'WaterValve':{'opening_ratio':.5}})]
+    return project
+
+
 def hvac_example(name):
     if name not in HVAC_EXAMPLES:
         raise KeyError(name)
     catalog = catalog_map()
-    if name == 'hvac-basic-plant':
+    if name == 'hvac-ahu-terminal':
+        project = ahu_terminal_example(catalog)
+        project.id, project.name = name, HVAC_EXAMPLES[name]
+    elif name == 'hvac-basic-plant':
         from .chiller_examples import chiller_air_example
         project = chiller_air_example()
         project.id, project.name = name, HVAC_EXAMPLES[name]
@@ -49,7 +158,10 @@ def hvac_example(name):
         for a, b in zip(ports[::2], ports[1::2]):
             link(a, b)
 
-    if name == 'hvac-three-way-mixing':
+    if name == 'hvac-ahu-terminal':
+        # 风侧与水侧在 ahu_terminal_example() 中已经接好，这里不再叠加水侧支路。
+        pass
+    elif name == 'hvac-three-way-mixing':
         add('Hot', 'source', pressure_pa=250000., temperature_k=313.15)
         add('Cold', 'source', pressure_pa=250000., temperature_k=283.15)
         add('Return', 'source', pressure_pa=200000., temperature_k=293.15)
@@ -90,6 +202,59 @@ def step(ctx, dt):
 def finalize(ctx):
     pass
 ''')]
+    elif name == 'hvac-closed-loop-makeup':
+        # 定压补水：补水边界经成套补水装置进入泵入口，末端支路带可调泄漏。
+        project.solver.thermal = True
+        project.solver.property_coupling = 'node'
+        add('MakeupSource', 'source', pressure_pa=250000., temperature_k=285.15)
+        add('Makeup', 'makeup_water_unit')
+        add('Join', 'junction')
+        add('Pump', 'hvac_water_pump', head_curve=[[0.,6.],[8.,4.],[16.,0.]])
+        add('Heater', 'heater', heat_input_w=4000.)
+        add('Tee', 'water_tee')
+        add('Load', 'pipe', length_m=40., diameter_m=.05)
+        add('Leak', 'water_balancing_valve', kv_m3_h=6., opening_ratio=.3)
+        add('Drain', 'source', pressure_pa=150000., temperature_k=293.15)
+        path('MakeupSource:out0','Makeup:makeup_in', 'Makeup:supply_out','Join:in0', 'Join:out0','Pump:in0',
+             'Pump:out0','Heater:in0', 'Heater:out0','Tee:common',
+             'Tee:branch1','Load:in0', 'Load:out0','Join:out1',
+             'Tee:branch2','Leak:in0', 'Leak:out0','Drain:out0')
+        project.measurements = [
+            meter('makeup-flow','补水量','volume_flow',
+                  ['Makeup.makeup_in.mass_flow_kg_s','Makeup.makeup_in.density_kg_m3'],'volume_flow','m3/s','m³/h',1/3600.),
+            meter('leak-flow','泄漏量','volume_flow',
+                  ['Leak.main.mass_flow_kg_s','Leak.in0.density_kg_m3'],'volume_flow','m3/s','m³/h',1/3600.),
+            meter('loop-dp','供回水压差','difference',
+                  ['Tee.common.pressure_pa','Join.in0.pressure_pa'],'pressure','Pa','kPa',1000.)]
+        project.control_scripts = [ControlScript(id='makeup-pressure', enabled=True, sample_s=1.,
+            inputs=['Join.in0.pressure_pa'], outputs=['Makeup.param.Balance_opening_ratio'], source=MAKEUP_SOURCE)]
+        project.scenarios = [Scenario(id='leak-small', name='小泄漏', overrides={'Leak':{'opening_ratio':.1}}),
+                             Scenario(id='leak-tiny', name='极小泄漏', overrides={'Leak':{'opening_ratio':.02}}),
+                             Scenario(id='leak-large', name='大泄漏', overrides={'Leak':{'opening_ratio':.6}})]
+    elif name == 'hvac-plant-interlock':
+        add('Ref', 'source', pressure_pa=200000.)
+        add('ReturnJoin', 'junction')
+        add('Suction', 'water_header_2')
+        add('Discharge', 'water_collector_2')
+        add('Isolation', 'water_shutoff_valve', kv_m3_h=30.)
+        add('Load', 'pipe', length_m=25., diameter_m=.05)
+        path('Ref:out0','ReturnJoin:in0', 'ReturnJoin:out0','Suction:common',
+             'Discharge:common','Isolation:in0', 'Isolation:out0','Load:in0', 'Load:out0','ReturnJoin:out1')
+        for index in (1,2):
+            add('Pump'+str(index), 'hvac_water_pump', running=0.)
+            add('Check'+str(index), 'hvac_check_valve')
+            path('Suction:branch'+str(index),'Pump'+str(index)+':in0',
+                 'Pump'+str(index)+':out0','Check'+str(index)+':in0',
+                 'Check'+str(index)+':out0','Discharge:branch'+str(index))
+        project.measurements = [meter('pump-dp','供回水压差','difference',
+            ['Discharge.common.pressure_pa','Suction.common.pressure_pa'],'pressure','Pa','kPa',1000.)]
+        project.control_scripts = [ControlScript(id='plant-interlock', enabled=True, sample_s=.5,
+            inputs=['Discharge.common.pressure_pa','Suction.common.pressure_pa'],
+            outputs=['Pump1.param.running','Pump2.param.running'], source=INTERLOCK_SOURCE)]
+        project.scenarios = [
+            Scenario(id='normal', name='正常启动与切换', overrides={}),
+            Scenario(id='low-pressure', name='泵扬程不足 · 压差联锁停机',
+                     overrides={'Pump1':{'head_curve':[[0.,2.],[5.,1.],[10.,0.]]}})]
     else:
         plant = name == 'hvac-basic-plant'
         if not plant and name == 'hvac-water-balance':
@@ -147,3 +312,4 @@ def finalize(ctx):
     for index, instance in enumerate(project.instances):
         instance.position = Position(x=110+(index%6)*210, y=110+(index//6)*160)
     return Project.model_validate(project.model_dump(mode='json'))
+

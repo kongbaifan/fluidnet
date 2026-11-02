@@ -208,7 +208,40 @@ function waterPage(){return {id:'main',name:'主系统',zoom:1,pan:[0,0],nodes:[
 function heatPage(){return {id:'main',name:'一次与二次回路',zoom:1,pan:[0,0],nodes:[makeInstance('B1','source','一次侧供水',100,155,{temperature:65}),makeInstance('P1','pump','一次泵',290,155),makeInstance('HX1','exchanger','板式换热器',545,235),makeInstance('B2','source','一次侧回水',825,155,{pressure:120}),makeInstance('B3','source','二次侧供水',100,335,{temperature:25}),makeInstance('P2','pump','二次泵',290,335),makeInstance('B4','source','二次侧回水',825,335,{pressure:120})],edges:[['h1','B1','out0','P1','in0'],['h2','P1','out0','HX1','in0'],['h3','HX1','out0','B2','out0'],['h4','B3','out0','P2','in0'],['h5','P2','out0','HX1','in1'],['h6','HX1','out1','B4','out0']]};}
 function tankPage(){return {id:'main',name:'储水与调节',zoom:1,pan:[0,0],nodes:[makeInstance('B1','source','补水边界',120,230),makeInstance('V1','valve','进水调节阀',330,230,{opening:65}),makeInstance('TK1','tank','储水罐',540,230),makeInstance('V2','valve','出水调节阀',750,230,{opening:40}),makeInstance('B2','source','回水边界',960,230,{pressure:120})],edges:[['t1','B1','out0','V1','in0'],['t2','V1','out0','TK1','in0'],['t3','TK1','out0','V2','in0'],['t4','V2','out0','B2','out0']]};}
 function emptyRun(scope='project') {return {scope,status:'ready',time:0,step:.1,history:[],events:[],id:'',values:{q:0,a:0,b:0,pressure:0,temperature:20}};}
-function controlTemplate() {return `def initialize(ctx):
+function controlTemplate(kind) {
+  if (kind === 'interlock') return `# 机房联锁：启动顺序 → 压差确认 → 低压差停机 → 工作泵切换。
+MIN_DP_PA = 20000.
+CONFIRM_S = 2.
+SWITCH_S = 10.
+
+
+def initialize(ctx):
+    ctx.state["phase"] = "starting"
+    ctx.state["switched"] = False
+
+
+def step(ctx, dt_s):
+    dp = ctx.read("Discharge.common.pressure_pa") - ctx.read("Suction.common.pressure_pa")
+    if ctx.state["phase"] == "starting":
+        ctx.write("Pump1.param.running", 1.)
+        if ctx.time_s >= CONFIRM_S:
+            if dp < MIN_DP_PA:
+                ctx.write("Pump1.param.running", 0.)
+                ctx.write("Pump2.param.running", 0.)
+                ctx.state["phase"] = "tripped"
+            else:
+                ctx.state["phase"] = "running"
+    elif ctx.state["phase"] == "running" and not ctx.state["switched"] and ctx.time_s >= SWITCH_S:
+        ctx.write("Pump2.param.running", 1.)
+        ctx.write("Pump1.param.running", 0.)
+        ctx.state["switched"] = True
+
+
+def finalize(ctx):
+    ctx.write("Pump1.param.running", 0.)
+    ctx.write("Pump2.param.running", 0.)
+`;
+  return `def initialize(ctx):
     ctx.state["samples"] = 0
 
 
@@ -856,7 +889,7 @@ function controlLiveValues(p=project()){
   const values=p.run.history.at(-1)?.canonical||{}, keys=new Set((p.controlOutputs||'').split(/[\s,，]+/));
   return JSON.stringify(Object.fromEntries(Object.entries(values).filter(([key])=>keys.has(key)||key.startsWith(`script.${p.selectedControlId}.`))),null,2);
 }
-function renderControls(){const p=project(),programs=controls.normalize(p),selected=controls.current(p);return `<div class="page-shell">${heading('项目控制逻辑','按脚本组织控制策略；修改会在下次新运行生效。',btn('control-template','载入示例','FileCode2',selected?'':'disabled')+btn('preview-control','预览一个周期','StepForward',selected?'':'disabled','primary')+btn('save','保存脚本','Save'))}${meterPanel(p)}${pidPanel(p)}<section class="panel" style="margin-bottom:20px"><div class="panel-head"><h2>控制脚本</h2>${badge(programs.length+' / '+controls.MAX_PROGRAMS)}<span class="push"></span>${btn('add-control-program','新建脚本','Plus',programs.length>=controls.MAX_PROGRAMS?'disabled':'','small')}${btn('remove-control-program','删除所选脚本','Trash2',selected?`data-id="${esc(selected.id)}"`:'disabled','small')}</div><div class="panel-body">${programs.length?`<label class="field"><span>当前脚本</span><select data-control-program aria-label="选择控制脚本">${programs.map(program=>option(program.id,`${program.name} · ${program.id} · ${program.language!=='python'?'待迁移':program.enabled?'已启用':'未启用'}`,p.selectedControlId)).join('')}</select></label>`:'<p>尚无控制脚本。新建脚本后可编辑、预览并单独启用。</p>'}</div></section>${selected?`<details open><summary>编辑 ${esc(selected.id)}</summary><div class="connection-layout"><aside class="stack"><section class="panel"><div class="panel-head"><h3>控制程序</h3>${badge(p.controlLanguage==='python'?'Python':'旧脚本待迁移',p.controlLanguage==='python'?'good':'warn')}</div><div class="panel-body stack">
+function renderControls(){const p=project(),programs=controls.normalize(p),selected=controls.current(p);return `<div class="page-shell">${heading('项目控制逻辑','按脚本组织控制策略；修改会在下次新运行生效。',btn('control-template','载入示例','FileCode2',selected?'':'disabled')+btn('control-template','载入机房联锁','ShieldCheck',(selected?'':'disabled')+' data-kind="interlock"','small')+btn('preview-control','预览一个周期','StepForward',selected?'':'disabled','primary')+btn('save','保存脚本','Save'))}${meterPanel(p)}${pidPanel(p)}<section class="panel" style="margin-bottom:20px"><div class="panel-head"><h2>控制脚本</h2>${badge(programs.length+' / '+controls.MAX_PROGRAMS)}<span class="push"></span>${btn('add-control-program','新建脚本','Plus',programs.length>=controls.MAX_PROGRAMS?'disabled':'','small')}${btn('remove-control-program','删除所选脚本','Trash2',selected?`data-id="${esc(selected.id)}"`:'disabled','small')}</div><div class="panel-body">${programs.length?`<label class="field"><span>当前脚本</span><select data-control-program aria-label="选择控制脚本">${programs.map(program=>option(program.id,`${program.name} · ${program.id} · ${program.language!=='python'?'待迁移':program.enabled?'已启用':'未启用'}`,p.selectedControlId)).join('')}</select></label>`:'<p>尚无控制脚本。新建脚本后可编辑、预览并单独启用。</p>'}</div></section>${selected?`<details open><summary>编辑 ${esc(selected.id)}</summary><div class="connection-layout"><aside class="stack"><section class="panel"><div class="panel-head"><h3>控制程序</h3>${badge(p.controlLanguage==='python'?'Python':'旧脚本待迁移',p.controlLanguage==='python'?'good':'warn')}</div><div class="panel-body stack">
   <label class="check-label"><input type="checkbox" data-control-enabled ${p.controlEnabled?'checked':''} ${p.controlLanguage!=='python'?'disabled':''}>启用 Python 控制（下次新运行生效）</label>
   <label class="field"><span>脚本语言</span><select data-control-language aria-label="脚本语言">${option('python','Python',p.controlLanguage)}${p.controlLanguage!=='python'?option('legacy','旧脚本文本（待迁移）',p.controlLanguage):''}</select></label>
   <label class="field"><span>名称</span><input value="${esc(p.controlConfig.name)}" aria-label="控制程序名称" data-control-name></label><label class="field"><span>控制周期</span><div class="field-unit"><input type="number" value="${p.controlConfig.period}" min="1" max="60000" step="1" data-control-setting="period" aria-label="控制周期"><span>ms</span></div></label><label class="field"><span>执行超时</span><div class="field-unit"><input type="number" value="${p.controlTimeout}" min="0.1" max="30" step="0.1" data-control-timeout aria-label="控制执行超时"><span>s</span></div></label></div></section>
@@ -2452,7 +2485,18 @@ function handleAction(action, el) {
       },'新建');break;
     }
     case 'remove-control-program': {const p=project(),id=d.id;confirmChange('删除控制脚本',`删除 ${id}；当前运行仍使用启动时的脚本快照。`,()=>{controls.remove(p,id);ui.controlOutput='控制脚本尚未预览。';markDirty(p);render();});break;}
-    case 'control-template': confirmChange('载入 Python 控制示例','替换所选脚本、输入和输出声明，启用状态保持关闭；示例要求存在 V1 阀门。',()=>{const p=project();controls.update(p,{source:controlTemplate(),language:'python',enabled:false,inputs:['V1.mass_flow_kg_s'],outputs:['V1.param.opening_ratio']});markDirty(p);render();});break;
+    case 'control-template': {
+      const interlock=d.kind==='interlock';
+      confirmChange(interlock?'载入机房联锁控制模板':'载入 Python 控制示例',
+        interlock?'替换所选脚本、输入和输出声明，启用状态保持关闭；模板要求存在两台循环泵、止回阀和供回水总管的 Discharge／Suction 节点。'
+          :'替换所选脚本、输入和输出声明，启用状态保持关闭；示例要求存在 V1 阀门。',
+        ()=>{const p=project();controls.update(p,interlock
+          ?{source:controlTemplate('interlock'),language:'python',enabled:false,
+            inputs:['Discharge.common.pressure_pa','Suction.common.pressure_pa'],
+            outputs:['Pump1.param.running','Pump2.param.running']}
+          :{source:controlTemplate(),language:'python',enabled:false,inputs:['V1.mass_flow_kg_s'],outputs:['V1.param.opening_ratio']});
+          markDirty(p);render();});break;
+    }
     case 'preview-control': {
       const owner=project(),scriptId=owner.selectedControlId;
       ui.controlOutput='正在执行一个控制周期…';document.getElementById('control-output').textContent=ui.controlOutput;
