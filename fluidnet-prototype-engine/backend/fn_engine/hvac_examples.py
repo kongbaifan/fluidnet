@@ -16,9 +16,6 @@ HVAC_EXAMPLES = {
     'hvac-plant-interlock': '暖通基础 · 机房联锁启停',
 }
 
-INTERLOCK_THRESHOLD_KG_S = .2
-INTERLOCK_CONFIRM_S = 2.
-INTERLOCK_SWITCH_S = 10.
 INTERLOCK_SOURCE = '''# 机房联锁：启动顺序 → 压差确认 → 低压差停机 → 工作泵切换。
 MIN_DP_PA = 20000.
 CONFIRM_S = 2.

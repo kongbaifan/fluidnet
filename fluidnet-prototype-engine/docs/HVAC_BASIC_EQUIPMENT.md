@@ -1,6 +1,6 @@
 # 暖通基础设备与理想测点
 
-> 更新日期：2026-11-02 ｜ 源码基线：`31f1da9` + 本轮新增
+> 更新日期：2026-11-02 ｜ 第一批功能提交：`ea567fe`；本次收尾基线：`d89e2e2`
 > 相关文档：[补全清单](HVAC_BASIC_EQUIPMENT_CHECKLIST.md)、[验收记录](HVAC_BASIC_EQUIPMENT_ACCEPTANCE.md)、[模块开发套件](MODULE_KIT.md)
 
 本轮把标准冷水机房与末端组网需要的基础设备做成了可直接拖入画布的模块，并新增了“理想测点”（仪表）：测点读取同一运行帧的已有变量，参与 PID 反馈、趋势曲线和报告，但不向网络增加方程。
@@ -67,6 +67,8 @@
 
 ## 3. 示例
 
+推荐从[标准机房基础案例](HVAC_STANDARD_PLANT.md)开始：运行双盘管机房、调平衡阀、查看仪表与报告、保存重载后复算。该流程已经通过真实界面与三回路守恒验收。
+
 风系统页 → “创建风侧示例”可一键创建七个暖通基础示例（`examples/hvac-basic/*.project.json` 是同一内容的可移植快照，由 `scripts/generate_hvac_examples.py` 生成）：
 
 | 示例 | 内容 | 验证要点 |
@@ -112,6 +114,7 @@ python -m pytest tests/test_hvac_equipment.py tests/test_hvac_reducer.py tests/t
 python scripts/generate_hvac_modules.py --check
 python scripts/generate_hvac_examples.py --check
 node tests/browser-hvac-equipment.mjs    # 需 playwright + Edge
+node tests/browser-hvac-plant.mjs        # 标准机房运行、调阀、报告与保存重载
 ```
 
 数值与证据见[验收记录](HVAC_BASIC_EQUIPMENT_ACCEPTANCE.md)。

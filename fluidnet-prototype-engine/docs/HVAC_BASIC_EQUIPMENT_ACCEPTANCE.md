@@ -1,6 +1,6 @@
 # 暖通基础设备与理想测点：验收记录
 
-> 验收日期：2026-11-02 ｜ 源码基线：`31f1da9`（本轮改动尚未提交）
+> 验收日期：2026-11-02 ｜ 第一批功能提交：`ea567fe`；本次收尾基线：`d89e2e2`
 > 使用与设计说明见[暖通基础设备与理想测点](HVAC_BASIC_EQUIPMENT.md)；需求来源见[暖通设备补全清单](HVAC_BASIC_EQUIPMENT_CHECKLIST.md)。
 
 ## 1. 交付范围
@@ -11,22 +11,23 @@
 | 设备定义与组合 | `backend/fn_engine/hvac_basic.py`（设备定义 + 冻结组合展开）、`scripts/generate_hvac_modules.py`（包与清单的一致性来源） |
 | 示例 | `backend/fn_engine/hvac_examples.py`、`examples/hvac-basic/*.project.json`、`scripts/generate_hvac_examples.py` |
 | 理想测点 | `backend/fn_engine/measurements.py`、`MeasurementSpec`（`models.py`）、编译期校验（`compiler.py`）、运行期求值（`solver.py` / `simulation.py`）、`trend` 历史保留（`jobs.py`）、模块版本迁移改写引用（`migrations.py`）、原型归一化（`bridge.py`）、风侧变量描述（`air_variables.py`） |
-| 界面 | 控制页“仪表与测点”面板（新增／编辑／移除、实时读数、加入曲线）、测点进入 PID 反馈选项与项目变量表、风系统页四个暖通示例入口、工作区模块数上限调整（64→256） |
+| 界面 | 控制页“仪表与测点”面板（新增／编辑／移除、实时读数、加入曲线）、测点进入 PID 反馈选项与项目变量表、风系统页七个暖通示例入口、工作区模块数上限调整（64→256） |
 | 契约与门禁 | `contracts/` 重新生成；`package.json` 与 `.github/workflows/ci.yml` 加入两个暖通生成脚本的 `--check` |
 
 ## 2. 验证结果
 
 | 检查 | 命令 | 结果 |
 | --- | --- | --- |
-| 暖通专项测试 | `python -m pytest tests/test_hvac_equipment.py tests/test_hvac_reducer.py tests/test_hvac_templates.py -q` | **84 passed**（105 s） |
-| 浏览器回归 | `node tests/browser-hvac-equipment.mjs` | **通过**：模块目录 68 个模块自动发现、风侧页创建暖通示例、测点读数非零、界面新增差值测点、PID 反馈选项包含新测点、加入曲线、保存后重载保留 4 个测点，`pageerror` 为空 |
+| 暖通专项测试 | `python -m pytest tests/test_hvac_equipment.py tests/test_hvac_reducer.py tests/test_hvac_templates.py -q` | **84 passed**（本次重跑 148.33 s） |
+| 基础设备浏览器回归 | `node tests/browser-hvac-equipment.mjs` | **通过**：模块目录 72 个模块自动发现、创建水力平衡示例、测点读数、差值测点、PID 反馈、曲线、机房联锁模板载入、保存重载保留 4 个测点，`pageerror` 为空 |
+| 标准机房浏览器验收 | `node tests/browser-hvac-plant.mjs` | **通过**：界面创建双盘管三回路案例、稳态运行、独立水侧质量／热平衡、仪表与 HTML／CSV 报告、平衡阀 80%→40% 调节、保存重载后复算一致，`pageerror` 为空（详见第 7 节） |
 | 类型检查 | `python -m mypy` | 92 个源文件无问题 |
 | Lint | `python -m ruff check backend tests scripts modules examples/control_templates` | All checks passed |
 | 契约一致性 | `python scripts/generate_contracts.py --check` | 90 个文件一致（本轮已重新生成 `contracts/`） |
 | 设备包一致性 | `python scripts/generate_hvac_modules.py --check` | HVAC equipment packages consistent |
 | 示例快照一致性 | `python scripts/generate_hvac_examples.py --check` | 7 HVAC examples verified |
-| 前端语法 | `npm run check` | 通过（含新增 `tests/browser-hvac-equipment.mjs`） |
-| 全量后端回归 | `python -m pytest -q --cov=fn_engine` | 见第 5 节 |
+| 前端语法 | `npm run check` | 通过（含两个暖通浏览器脚本） |
+| 历史全量后端回归 | `python -m pytest -q --cov=fn_engine` | 见第 5 节；本次收尾未重跑全量 |
 
 ## 3. 关键数值（本机实测）
 
@@ -61,6 +62,8 @@
 
 ## 5. 全量回归
 
+以下为基础设备与理想测点提交 `3cea2f3` 的历史全量记录，由 `c503fc1` 补录，早于成套模板、定压补水与联锁提交 `ea567fe`。本次收尾重新执行了第 2 节的 84 项暖通专项、两个浏览器脚本及类型／Lint／生成一致性检查；此处的覆盖率不代表当前全部改动的重测结果。
+
 `python -m pytest -q --cov=fn_engine`（本机 Python 3.11，单进程）：
 
 ```text
@@ -75,12 +78,27 @@ Required test coverage of 85.0% reached.
 
 ```powershell
 cd fluidnet-prototype-engine
-python -m pytest tests/test_hvac_equipment.py tests/test_hvac_reducer.py -q
+python -m pytest tests/test_hvac_equipment.py tests/test_hvac_reducer.py tests/test_hvac_templates.py -q
 python -m ruff check backend tests scripts modules examples/control_templates
 python -m mypy
 python scripts/generate_contracts.py --check
 python scripts/generate_hvac_modules.py --check
 python scripts/generate_hvac_examples.py --check
 npm run check
-$env:PYTHONPATH='backend'; node tests/browser-hvac-equipment.mjs
+$env:PYTHONPATH='backend'; npm run test:browser:hvac
 ```
+
+## 7. 标准机房主流程收尾（2026-11-02）
+
+操作见[标准机房基础案例](HVAC_STANDARD_PLANT.md)。复用现有 `hvac-basic-plant`，本次新增完整浏览器验收和操作说明，并清理 `hvac_examples.py` 中三项未使用的联锁阈值常量；控制脚本自己的压差阈值与时序仍为唯一配置来源。
+
+| 仪表 | 基准（阀 1 为 80%） | 阀 1 调到 40% | 保存重载后 |
+| --- | --- | --- | --- |
+| 支路 1 / m³/h | 3.417192 | 1.678946 | 1.678946 |
+| 支路 2 / m³/h | 4.427214 | 5.409521 | 5.409521 |
+| 供回水压差 / kPa | 14.669836 | 21.901980 | 21.901980 |
+| 第二盘管热功率 / kW | 4.661873 | 5.517035 | 5.517035 |
+
+三个接受结果均独立核算水量和热量。支路质量残差为零；冷冻水热平衡最大误差 `0.00532 W`，冷却水最大误差 `0.00344 W`。两个压力参考口无隐含补水，参考输入热量为零。保存重载前后项目摘要相同，四个仪表复算一致。
+
+证据：`artifacts/hvac-plant-validation.json`、`hvac-plant.project.json`、`hvac-plant.prototype.json`、`hvac-plant-report.html/csv` 与 `hvac-plant-*-1080p.png`。新增脚本已接入 `package.json` 的 `test:browser`、`check` 和专项 `test:browser:hvac`；既有 CI 从同一清单执行并收集产物。

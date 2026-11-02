@@ -10,6 +10,8 @@
 
 2026-10-30 后续方案：[自主建模与制冷设备扩展计划](docs/PLATFORM_EXTENSION_PLAN.md)。首批 PF-0/PF-1 已完成能力核对及自主建模流程补缺，见[首批验收](docs/PLATFORM_AUTHORING_ACCEPTANCE.md)；RF-0 已完成[制冷设备接口实验验证](docs/REFRIGERATION_EXTENSION_DESIGN.md)，RF-1 已交付[正式合同、SDK 与编译/Worker 接口](docs/REFRIGERATION_MODULE_CONTRACT.md)。RF-2/RF-3 已接通[整站运行、接受事务与制冷作者验证台](docs/REFRIGERATION_MODULE_EXECUTION.md)，提供线性/等百分比节流模板；RF-4 的[项目、版本和结果闭环](docs/REFRIGERATION_PROJECT_ACCEPTANCE.md)及 [PF-2 全阶段验收](docs/PLATFORM_EXTENSION_ACCEPTANCE.md)已完成：1723 项后端测试、91.05% 覆盖率、27 个浏览器脚本通过。
 
+2026-11-02 已完成[标准机房基础案例](docs/HVAC_STANDARD_PLANT.md)的完整流程验收：三回路运行、调平衡阀、仪表与 HTML／CSV 报告、保存重载后复算。后续设备细节按具体算例需求推进；第一批暖通结果见[验收记录](docs/HVAC_BASIC_EQUIPMENT_ACCEPTANCE.md)。
+
 ## 启动
 
 新增使用入口：[热耦合液体作者模块](docs/COUPLED_LIQUID_MODULES.md)提供含源码的完整水阀联算项目；[房间自动温控](docs/ROOM_TEMPERATURE_CONTROL.md)提供初始降温、负荷变化和设定变化三种风水联算案例。均复用现有保存、版本、控制和冻结报告流程；两条主线已完成，范围与最终结果见[综合验收](docs/COUPLED_MODULES_ROOM_CONTROL_ACCEPTANCE.md)。

@@ -12,6 +12,8 @@
 
 2026-11-02 源码进展：完成暖通第一批补全——[暖通基础设备与理想测点](fluidnet-prototype-engine/docs/HVAC_BASIC_EQUIPMENT.md)新增异径管、水侧三通、分水器／集水器（2/4/6/8 支路）、手动平衡阀、关断阀、Y 型过滤器、三通调节阀、含停机阻力的循环水泵、带开启／关闭压差的止回阀，以及空调箱／新风机组／风机盘管末端模板、定压补水装置和机房联锁控制模板；配合项目级仪表测点（两点差值、体积流量、热功率）与七个组网示例。核对清单见[补全清单](fluidnet-prototype-engine/docs/HVAC_BASIC_EQUIPMENT_CHECKLIST.md)，证据见[验收记录](fluidnet-prototype-engine/docs/HVAC_BASIC_EQUIPMENT_ACCEPTANCE.md)。
 
+同日完成[标准机房基础案例](fluidnet-prototype-engine/docs/HVAC_STANDARD_PLANT.md)的运行、调阀、仪表与报告、保存重载后复算验收；后续按具体算例需要补设备细节。
+
 当前发布版本 **v0.5.0（2026-10-22）**：冷库 A 版单库房案例（A0–A6）、B 版 NH₃/CO₂ 集总制冷站案例（B0–B3）与倍思鹿模块开发套件 v1 已交付；发布说明见 [RELEASE_NOTES](fluidnet-prototype-engine/docs/RELEASE_NOTES.md)，许可证见 [LICENSE](LICENSE)。
 
 | 目录 | 内容 |
