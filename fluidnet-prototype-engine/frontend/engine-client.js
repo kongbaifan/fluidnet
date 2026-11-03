@@ -726,7 +726,7 @@ window.createEngineClient = function (ui) {
       if (probe.auth?.required && !sessionStorage.getItem(TOKEN_KEY)) { health = probe; askToken('此计算服务要求访问令牌。'); return; }
       const [service,data,packages] = await Promise.all([request('/health'),request('/catalog'),request('/modules')]);
       health = service;
-      await services.loadWorkspace(forceWorkspace);
+      const workspaceWarning=await services.loadWorkspace(forceWorkspace);
       catalog=data;
       moduleCatalog=packages;
       for (const manifest of data.modules.filter(m=>m.ports.some(p=>p.domain==='thermal' || p.domain==='refrigerant') || ['duct','cooling_coil','humidifier','air_mixing_box','air_filter','air_room','cooling_tower_moist','water_coil','water_chiller'].includes(m.id))) {
@@ -770,7 +770,7 @@ window.createEngineClient = function (ui) {
           if (spec.maximum !== null) field[4]=display(spec.maximum);
         }
       }
-      ui.message(`计算服务 v${health.version} 已连接：稳态水力${health.capabilities?.tank_state ? '、水箱隐式积分' : ''}与准稳态时间序列可用。`);
+      ui.message(workspaceWarning || `计算服务 v${health.version} 已连接：稳态水力${health.capabilities?.tank_state ? '、水箱隐式积分' : ''}与准稳态时间序列可用。`,!!workspaceWarning);
       ui.render();
       await services.refreshArchives();
     } catch (error) { const local=/^本地草稿/.test(error.message||''); ui.message((local ? '' : '计算服务未连接，请通过启动脚本打开此页面。') + error.message,true); }

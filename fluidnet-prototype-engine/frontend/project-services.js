@@ -11,7 +11,14 @@ window.createProjectServices = function ({request, ui, normalize, health, authHe
     if (!health()?.capabilities?.persistent_workspace) return;
     const remote = await request('/workspace');
     if (remote.data && (force || !ui.state().dirty)) {
-      ui.restoreWorkspace(remote.data);
+      try { ui.restoreWorkspace(remote.data); }
+      catch (error) {
+        if (!/^本地草稿备份/.test(error.message || '')) throw error;
+        // The API is reachable, but replacing the local draft is unsafe. Keep
+        // its original revision: a newer server workspace must still reject a save.
+        ready=true;
+        return error.message+' 已保留当前草稿并连接服务；可导出备份或重试保存，服务器修订冲突仍会检查。';
+      }
       revision=remote.revision;
       projectRevisions={...(remote.project_revisions||{})};ui.state().projectRevisions=projectRevisions;
       ui.state().projectSavedKeys=Object.fromEntries(ui.state().projects.map(p=>[p.id,ui.parameterKey(p)]));
