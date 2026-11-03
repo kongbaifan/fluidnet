@@ -197,7 +197,7 @@ node scripts/render_architecture_diagrams.mjs
 | AR-4 | 已验证 | 公共会话提取提交 | 141 项专项、六例数值一致；ruff / mypy 通过 |
 | AR-5 | 已验证 | 热／制冷会话迁移提交 | 115 项专项、4 项公共边界、四个浏览器流程、六例结果一致 |
 | AR-6 | 已验证 | 会话接口与类型提交 | 49 项专项、26 项历史／调度复验、控制浏览器；严格类型通过 |
-| AR-7 | 完整验收门禁 | 代码 `0dbbee0` 与配套文档提交 | [本地验收记录](ARCHITECTURE_REFACTOR_ACCEPTANCE.md)、[PR #8 完整 CI](https://github.com/kongbaifan/fluidnet/pull/8/checks) |
+| AR-7 | 完整验收门禁 | 代码 `c0270cf` 与配套文档提交 | [本地验收记录](ARCHITECTURE_REFACTOR_ACCEPTANCE.md)、[PR #8 完整 CI](https://github.com/kongbaifan/fluidnet/pull/8/checks) |
 
 最终须同时满足：目标项目写入点均迁移至新入口；重复转换实现已清理；热／制冷会话不再依赖流体会话；公共预览与调度通过显式接口访问会话；旧项目、模块版本、控制、回滚、跨页计算及冻结报告兼容；最终提交的所需检查已完成；架构图与验收记录已更新。
 
