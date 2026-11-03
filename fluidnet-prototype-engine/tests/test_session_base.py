@@ -5,6 +5,8 @@ import pytest
 
 from fn_engine.compiler import compile_project
 from fn_engine.simulation import SimulationSession
+from fn_engine.refrigeration.examples import ideal_room_example
+from fn_engine.sessions import create_session
 from test_engine import reference_project
 from test_module_composites import group
 
@@ -62,3 +64,20 @@ def test_failed_device_cleanup_still_closes_controls_once():
         session.close()
     session.close()
     assert calls == ['device', 'control']
+
+
+def test_thermal_control_runs_without_placeholder_fluid_storage_or_branches():
+    network = compile_project(ideal_room_example())
+    for name in ('branches', 'storage'):
+        if hasattr(network, name):
+            delattr(network, name)
+    session = create_session(network, 10., 5.)
+    try:
+        initial = session.initialize()
+        session.update_controller('room_temperature', 'setpoint', 260.)
+        frame = session.advance()
+        assert frame.valid and frame.time_s > initial.time_s
+        assert frame.variables['controller.room_temperature.setpoint'] == 260.
+        assert not hasattr(network, 'trapped')
+    finally:
+        session.close()

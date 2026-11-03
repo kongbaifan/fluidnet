@@ -30,12 +30,12 @@
 | 拓扑编辑 | studio: 插入／删除／连接／移页／复制与 remember/undo；links 工具 | project-state + project-links | 跨页、删除、撤销重做与重算 | AR-2 已迁移 |
 | 当前与历史运行 | engine: applyRow / command / pollLive / confirmArchiveCache；studio: receiveArchives / showArchive | project-run-state | 迟到响应、增量帧、档案确认与历史 | AR-3 已迁移 |
 | 公共参数、控制与资源 | SimulationSession: 参数命令、PID／脚本、检查点、close | SessionBase + 物理钩子 | 控制、事务、困液、停止与部分初始化失败 | AR-4 已迁移 |
-| 热／制冷会话继承 | ThermalSession / ColdStoreSession / StationSession / CoupledStationSession | 非流体公共基类，保留域内步进 | 五域基线与失败回滚 | 待迁移 |
+| 热／制冷会话继承 | ThermalSession / ColdStoreSession / StationSession / CoupledStationSession | 非流体公共基类，保留域内步进 | 五域基线与失败回滚 | AR-5 已迁移 |
 | 调度与预览 | jobs 的会话访问；API `_control()` 与 `scripts.pending` | RunSession 协议及显式预览方法 | 后台运行、控制预览及类型门禁 | 待迁移 |
 
 ## 后续包记录
 
-AR-5～AR-7 待实施。各包完成后在此添加提交、实际检查和剩余问题，并同步迁移清单与计划进度。
+AR-6～AR-7 待实施。各包完成后在此添加提交、实际检查和剩余问题，并同步迁移清单与计划进度。
 
 ## AR-1 项目转换
 
@@ -60,3 +60,9 @@ AR-5～AR-7 待实施。各包完成后在此添加提交、实际检查和剩�
 提取 `SessionBase`：参数路由、PID／脚本所有权、参数修订、公共控制检查点和关闭流程；流体实例接入基类，困液开阀检查、湿空气校验、支路开闭与热输入副作用保留为流体钩子。参数路由显式遍历完整目标集；当前公开组合合同仍是一对一映射，未开放新合同能力。
 
 验证：113 项控制／状态／事务回归、9 项公共边界与组合测试、19 项后台运行测试通过；六个代表项目的输入身份、模块哈希、公开变量和守恒指标与基线一致。新增测试覆盖非法末项不产生部分写入、两个公开参数到真实 Worker 的生效及设备关闭异常时控制执行器仍恰好关闭一次。ruff 与现有 mypy 通过。
+
+## AR-5 热／制冷会话迁移
+
+`ThermalSession` 直接继承公共基类；冷库、集总制冷站与热耦合保留自己的热步进及接受事务。删除为继承而补的 `trapped` 占位状态。液体联算通过自身参数钩子维护内置阀门支路开闭并回滚，未将该职责放入公共层。
+
+验证：115 项热／制冷／控制／接受回归通过；公共边界四项单独复验通过，其中新增理想热系统在没有流体支路／储量占位字段时的控制运行；六例数值与模块身份一致。控制脚本、冷库 A、制冷站和液体作者四个浏览器流程通过，覆盖版本、报告、导入及重启复算。ruff、mypy 与 90 项生成合同一致性通过。

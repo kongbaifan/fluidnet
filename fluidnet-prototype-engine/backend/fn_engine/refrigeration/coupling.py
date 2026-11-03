@@ -157,6 +157,26 @@ class CoupledStationSession(StationSession):
             self.module_adapter = CoupledLiquidModules(network)
             self.runners = self.module_adapter.runners
 
+    def validate_parameter_values(self,instance_id,parameters):
+        definition=self.network.modules[self.network.instances[instance_id].module_id]
+        if definition.solver_model=='pump_curve' and parameters.get('speed_ratio',1)<=0:
+            raise CompilationError('PARAMETER_RANGE','当前泵模型转速必须大于零')
+
+    def apply_parameter_changes(self,instance_id,parameters):
+        definition=self.network.modules[self.network.instances[instance_id].module_id]
+        for branch in self.network.fluid_network.branches:
+            if branch.instance_id==instance_id and definition.runtime=='builtin' and branch.solver_model=='valve':
+                branch.closed=parameters['opening_ratio']==0
+
+    def capture_parameter_effects(self):
+        return [branch.closed for branch in self.network.fluid_network.branches]
+
+    def restore_parameter_effects(self,effects):
+        liquid=self.network.fluid_network
+        for branch,closed in zip(liquid.branches,effects,strict=True):
+            branch.closed=closed
+        liquid.parameters={iid:self.network.parameters[iid] for iid in liquid.instances}
+
     def _init_state(self):
         super()._init_state()
         self._fluid_warm = None

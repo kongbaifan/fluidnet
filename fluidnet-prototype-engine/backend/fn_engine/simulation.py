@@ -21,11 +21,6 @@ from . import trapped as tr
 
 
 class SimulationSession(SessionBase):
-    # 困液状态（I0–I4）：只有通用流体执行域的 __init__ 会填充；
-    # ThermalSession/StationSession/ColdStoreSession 不调用父类 __init__，因此这里给类级空默认。
-    trapped: dict = {}
-    trapped_ledgers: dict = {}
-
     def __init__(self, network, duration_s, dt_s, keep=None):
         """`duration_s=None` runs until stopped. `keep` bounds the frames held here (the caller
         publishes them); without it every frame is kept and the run is limited to 2001 frames."""
