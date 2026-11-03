@@ -1,42 +1,38 @@
 flowchart TB
   subgraph CLIENT["客户端"]
-    UI["浏览器 Studio<br/>engine-client / project-services / 功能脚本<br/>画布、模块、控制、风系统、批量、结果"]
-    EXTERNAL["外部调用方<br/>Python / JavaScript / Unity 等<br/>规范 Project JSON"]
+    UI["浏览器 Studio<br/>建模 · 模块 · 控制 · 结果"]
+    EXT["外部客户端<br/>Python / JavaScript / 三维界面"]
   end
   subgraph MAIN["单个 Python 服务进程"]
-    API["FastAPI · api / air_api / batch_api<br/>静态前端、鉴权、REST、变量订阅<br/>bridge / models · 归一化与合同校验"]
-    AUTHOR["模块平台<br/>目录、模板、设计函数、验证台、不可变版本"]
-    BATCH["BatchService<br/>固定修订与快照 · 工况顺序执行"]
-    RUN["同步 compute_run / 后台 RunManager<br/>调度线程 + 2 个计算线程"]
-    COMPILER["compiler + composites<br/>展开组合、校验拓扑、分派执行域"]
-    SESSION["sessions.create_session<br/>五类会话、PID、参数修订、控制采样"]
-    NUM["数值计算<br/>水力 / 焓输运 / 湿空气 / 制冷 / 热耦合"]
-    PROP["properties + moist_air<br/>CoolProp · 按回路物性<br/>可选外部 REFPROP"]
-    TX["module_transactions + runtime / batch<br/>候选校验、主进程接受、管道 RPC"]
-    RECORD["RunFrame 与内存运行记录<br/>最新帧、窗口历史、抽稀概览、事件与回执"]
-    WRITER["归档写线程 _ArchiveWriter<br/>帧合并落盘 · 关键边界等待确认"]
+    API["FastAPI 接入层<br/>静态页面 · 鉴权 · REST / WS"]
+    AUTHOR["模块平台<br/>目录 · 验证台 · 不可变版本"]
+    BATCH["批量工况<br/>BatchService · 顺序调度"]
+    RUN["编译与运行编排<br/>compiler · RunManager · sessions"]
+    NUM["数值内核与物性<br/>水力 · 热力 · 湿空气 · 制冷<br/>NumPy / SciPy / CoolProp"]
+    TX["代码执行与接受事务<br/>runtime / batch / control<br/>主进程确认候选状态"]
+    RESULT["统一结果与归档<br/>RunFrame · 测点 · 曲线<br/>后台归档线程"]
     API --> AUTHOR
+    API --> RUN
     API --> BATCH --> RUN
-    API --> RUN --> COMPILER
-    COMPILER --> SESSION --> NUM
-    SESSION --> TX
+    AUTHOR -->|真实试算| RUN
+    RUN --> NUM
     NUM --> TX
-    NUM --> PROP
-    SESSION --> RECORD
-    RUN --> RECORD --> WRITER
+    RUN -->|控制与状态| TX
+    RUN --> RESULT
   end
-  subgraph CHILD["独立 Python 子进程"]
-    MW["设备模块 Worker<br/>initialize / evaluate / commit_step / finalize<br/>及声明的扩展回调"]
-    CW["控制脚本 Worker<br/>initialize / step / finalize"]
-  end
-  subgraph DATA["本机持久化与备份"]
-    DB[("SQLite 工作区<br/>项目与修订、运行档案、独立批次结果")]
-    PKG[("模块版本目录<br/>manifest / module / design / release / evidence")]
-  end
-  UI -->|HTTP JSON / 增量轮询| API
-  EXTERNAL -->|REST / 变量 stream| API
-  TX -->|行式 JSON RPC| MW
-  SESSION -->|控制提案 RPC| CW
-  AUTHOR -->|保存及发现版本| PKG
-  AUTHOR -->|验证台复用| COMPILER
-  WRITER --> DB
+  WORKER["独立 Python Worker 子进程<br/>设备代码 / 控制脚本"]
+  DB[("SQLite 工作区<br/>项目修订 · 运行 · 批次")]
+  PKG[("模块版本目录<br/>合同 · 源码 · 验证证据")]
+  UI -->|HTTP / 增量轮询| API
+  EXT -->|REST / 变量订阅| API
+  TX <-->|JSON RPC| WORKER
+  API -->|保存项目| DB
+  BATCH -->|固定快照与结果| DB
+  RESULT -->|持久确认| DB
+  AUTHOR <-->|发布 / 加载| PKG
+  classDef client fill:#eaf4ff,stroke:#79a4cc;
+  classDef worker fill:#fff4df,stroke:#c7a255;
+  classDef data fill:#eaf6ef,stroke:#80aa90;
+  class UI,EXT client;
+  class WORKER worker;
+  class DB,PKG data;

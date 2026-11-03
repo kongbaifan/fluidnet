@@ -6,7 +6,7 @@ sequenceDiagram
   participant B as BatchService
   participant J as RunManager
   U->>A: 保存项目/工作区 + 预期修订
-  A->>D: 事务保存画布、草稿、源码、绑定及控制
+  A->>D: 事务保存全部画布、跨页连接、草稿及固定绑定
   alt 修订冲突
     D-->>A: 修订冲突
     A-->>U: HTTP 409，保留本地草稿

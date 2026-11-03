@@ -7,7 +7,7 @@ sequenceDiagram
   S->>R: 创建实例执行器
   R->>W: initialize(ctx)
   loop 同一物理步的数值试算
-    S->>R: evaluate(trial_ports, accepted_state)
+    S->>R: evaluate(trial_ports, accepted_state, 可选 trial_channels)
     R->>W: evaluate，只读已接受状态
     W-->>R: 通路关系、观察量及诊断
     R-->>S: 组装全网方程所需关系

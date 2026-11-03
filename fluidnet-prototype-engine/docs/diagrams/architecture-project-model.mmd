@@ -1,0 +1,24 @@
+flowchart TB
+  subgraph BROWSER["浏览器"]
+    STATE["项目编辑状态<br/>pages：设备 / 布局 / 连接<br/>已应用参数 + 草稿 + 模块快照"]
+    LINKS["项目级连接工具<br/>project-links.js<br/>占用检查 · 移页 · 跳转 · 删除"]
+    ADAPTER["计算请求适配<br/>engine-client.js<br/>选择项目与已应用参数"]
+    SAVE["保存与导入导出<br/>project-services.js<br/>modeling-workflows.js"]
+    LINKS -->|编辑同一连接集合| STATE
+    STATE --> ADAPTER
+    STATE <-->|界面项目文档| SAVE
+  end
+  subgraph SERVER["Python 服务"]
+    BRIDGE["原型归一化<br/>bridge.normalize_prototype_export<br/>合并各页设备与连接，转换单位"]
+    PROJECT["规范 Project 合同<br/>instances + connections<br/>模块快照 · 控制 · 工况 · 测点"]
+    COMPILE["compile_project<br/>按端口连接构建网络<br/>展开组合并选择物理执行域"]
+    RUN["统一运行与 RunFrame<br/>同一运行 ID / 时间轴<br/>变量按设备 ID 定位"]
+    BRIDGE --> PROJECT --> COMPILE --> RUN
+  end
+  DB[("SQLite<br/>工作区 / 单项目修订")]
+  ADAPTER -->|POST /prototype/normalize| BRIDGE
+  SAVE <-->|保存 / 载入 / 修订恢复| DB
+  PROJECT -.->|规范 JSON：按 page_id 恢复分组| SAVE
+  RUN -->|轮询帧，更新各页读数| STATE
+  classDef data fill:#eaf6ef,stroke:#80aa90;
+  class PROJECT,DB data;

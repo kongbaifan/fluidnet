@@ -29,8 +29,9 @@ try {
 }
 const source = await readFile(path.join(root, 'docs', 'ARCHITECTURE_AND_SEQUENCE.md'), 'utf8');
 const blocks = [...source.matchAll(/<!-- diagram: ([a-z0-9-]+) -->\s*```mermaid\r?\n([\s\S]*?)\r?\n```/g)];
-if (blocks.length !== 8 || new Set(blocks.map(b => b[1])).size !== blocks.length) {
-  throw new Error(`Expected eight uniquely named diagram blocks, found ${blocks.length}`);
+const diagramCount = [...source.matchAll(/^```mermaid\s*$/gm)].length;
+if (!blocks.length || blocks.length !== diagramCount || new Set(blocks.map(b => b[1])).size !== blocks.length) {
+  throw new Error(`Every Mermaid diagram needs a unique diagram marker: ${blocks.length} markers for ${diagramCount} diagrams`);
 }
 
 const browser = await chromium.launch({ channel: 'msedge', headless: true });

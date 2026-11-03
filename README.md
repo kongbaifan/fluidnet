@@ -2,7 +2,7 @@
 
 当前项目是 [FluidNet Prototype Engine](fluidnet-prototype-engine/README.md)：可编程流体模块平台，包含 Pydantic 契约、网络水力求解、独立 Worker 和模块版本管理。启动、使用和开发说明见该目录。
 
-当前源码的[架构图与核心时序图（2026-10-31）](fluidnet-prototype-engine/docs/ARCHITECTURE_AND_SEQUENCE.md)覆盖五类执行域、风水三回路与房间温控、模块接受事务、版本发布和批量工况，附 SVG、PNG 与可编辑 Mermaid 源码。
+当前源码的[架构图与核心时序图（2026-11-03）](fluidnet-prototype-engine/docs/ARCHITECTURE_AND_SEQUENCE.md)按四张架构图与六张时序图梳理多画布与计算项目、五类执行域、暖通设备与理想测点、风水温控、模块事务和保存批量流程，附 SVG、PNG 与可编辑 Mermaid 源码。
 
 2026-10-29 源码进展：风系统完整主线已接通，包含湿空气联合求解、房间热湿动态、冷却塔水耗、中文结果页与报告、旧项目迁移和批量方案。见[使用说明](fluidnet-prototype-engine/docs/AIR_SIDE_USER_GUIDE.md)及[实施验收](fluidnet-prototype-engine/docs/AIR_SIDE_IMPLEMENTATION_ACCEPTANCE.md)。
 

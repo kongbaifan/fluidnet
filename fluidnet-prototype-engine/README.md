@@ -187,7 +187,7 @@ examples/             项目控制脚本模板
 docs/                架构、字段、算法、接口、模块套件与发布说明
 ```
 
-- [最新架构图与时序图（2026-10-31）](docs/ARCHITECTURE_AND_SEQUENCE.md)
+- [最新架构图与时序图（2026-11-03）](docs/ARCHITECTURE_AND_SEQUENCE.md)
 - [架构源码索引、进程与存储](docs/ARCHITECTURE_MAP.md)
 - [架构与扩展边界](docs/ARCHITECTURE.md)
 - [数据合同与变量定义](docs/DATA_CONTRACT.md)
