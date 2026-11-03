@@ -162,7 +162,6 @@ window.createProjectServices = function ({request, ui, normalize, health, authHe
     }
     for(const c of data.connections||[]) {
       const pageId=nodes.get(c.source.instance_id).pageId;
-      if(pageId!==nodes.get(c.target.instance_id).pageId)throw Error('跨画布连接暂不能导入，请先将相连设备放到同一页。');
       pages.get(pageId).edges.push([c.id,c.source.instance_id,c.source.port_id,c.target.instance_id,c.target.port_id]);
     }
     if(!pages.size)throw Error('规范项目没有设备。');

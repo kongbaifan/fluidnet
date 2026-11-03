@@ -70,3 +70,5 @@ npm run test:browser:hvac
 运行生成 `artifacts/hvac-plant-validation.json`（三个工况的数值与残差）、`hvac-plant.project.json`、`hvac-plant.prototype.json`、HTML／CSV 报告及 1080p 截图。脚本也接入全量 `test:browser`，由既有 CI 收集这些产物。完整暖通检查见[验收记录](HVAC_BASIC_EQUIPMENT_ACCEPTANCE.md)。
 
 本例先验收稳态计算；泵切换、压差确认和联锁停机由 `hvac-plant-interlock` 及暖通专项测试单独覆盖。液体储热、厂家性能曲线和多机启停按具体需求另行推进。
+
+同日已支持[多画布连接](CROSS_PAGE_CONNECTIONS.md)：可把本案例拆为机房、末端和空气画布，连接保持完整，由同一次运行求解。`node tests/browser-hvac-plant.mjs --multi-page` 从界面完成拆页、基准比较、调阀、报告和保存重载验收。

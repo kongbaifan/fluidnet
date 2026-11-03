@@ -12,6 +12,8 @@
 
 2026-11-02 已完成[标准机房基础案例](docs/HVAC_STANDARD_PLANT.md)的完整流程验收：三回路运行、调平衡阀、仪表与 HTML／CSV 报告、保存重载后复算。后续设备细节按具体算例需求推进；第一批暖通结果见[验收记录](docs/HVAC_BASIC_EQUIPMENT_ACCEPTANCE.md)。
 
+同日补齐[多画布连接](docs/CROSS_PAGE_CONNECTIONS.md)：跨页选择端口、连接列表与双向跳转、设备移页、全项目端口占用检查，以及保存和导入；两支路管网与标准机房均可拆页后统一计算。
+
 ## 启动
 
 新增使用入口：[热耦合液体作者模块](docs/COUPLED_LIQUID_MODULES.md)提供含源码的完整水阀联算项目；[房间自动温控](docs/ROOM_TEMPERATURE_CONTROL.md)提供初始降温、负荷变化和设定变化三种风水联算案例。均复用现有保存、版本、控制和冻结报告流程；两条主线已完成，范围与最终结果见[综合验收](docs/COUPLED_MODULES_ROOM_CONTROL_ACCEPTANCE.md)。

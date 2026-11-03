@@ -274,6 +274,7 @@ function initialState(){
 const root=document.getElementById('fn-studio');
 const page=document.getElementById('page');
 const controls=window.FluidNetControls;
+const links=window.FluidNetLinks;
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const icon=name=>ICONS[name]||ICONS.Box;
 const number=(n,d=2)=>n !== null && n !== undefined && Number.isFinite(Number(n))?Number(n).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d}):'—';
@@ -300,7 +301,7 @@ const mod=(id=state.selectedModule)=>state.modules.find(m=>m.id===id)||state.mod
 const instance=id=>project().pages.flatMap(p=>p.nodes).find(n=>n.id===id);
 const moduleOf=n=>ownerOfInstance(n)?.moduleSnapshots?.[n.moduleId] || mod(n.moduleId);
 const model=(id=state.selectedModel)=>state.models.find(m=>m.id===id);
-const paramDefs=n=>moduleOf(n).runtime === 'python' ? manifestFields(moduleOf(n).manifest) : PARAM_DEFS[moduleOf(n).kind]||[];
+const paramDefs=n=>moduleOf(n).manifest ? manifestFields(moduleOf(n).manifest) : PARAM_DEFS[moduleOf(n).kind]||[];
 const pendingCount=n=>deviceParamIds(n).filter(id=>!sameValue(n.draft[id],n.params[id])).length+instanceCustomPending(n)+(n.draftModelId&&(n.draftModelId!==n.modelId||n.draftModelVersion!==n.modelVersion)?1:0);
 const anyPending=()=>state.projects.reduce((sum,p)=>sum+p.pages.flatMap(p=>p.nodes).reduce((s,n)=>s+pendingCount(n),0),0);
 const statusText=run=>({ready:'就绪',running:'运行中',paused:'已暂停',stopped:'已停止',completed:'已完成',failed:'失败',solving:'求解中'}[run.status]||'就绪');
@@ -510,6 +511,12 @@ function renderProjects(){let list=state.projects.filter(p=>(p.name+p.descriptio
 function symbol(n,mini=false){const kind=moduleOf(n).kind;let s='';const stroke='var(--muted)',fill='var(--surface)';if(kind==='junction')s=`<circle r="5" fill="var(--orange)"/>`;else if(kind==='source')s=`<circle r="17" fill="var(--blue-soft)" stroke="var(--blue)" stroke-width="1.3"/><text y="4" text-anchor="middle" font-size="13" fill="var(--blue)">P</text>`;else if(kind==='pump')s=`<circle r="18" fill="var(--soft)" stroke="${stroke}" stroke-width="1.3"/><path d="M -5 -9 L 10 0 L -5 9 Z" fill="none" stroke="${stroke}" stroke-width="1.5"/><path d="M -13 22 H 13" stroke="${stroke}" stroke-width="2"/>`;else if(kind==='valve'||kind==='check')s=`<path d="M -15 -10 L 15 10 V -10 L -15 10 Z" fill="${fill}" stroke="var(--accent)" stroke-width="1.4"/>${kind==='check'?'<path d="M 0 -13 V 13" stroke="var(--accent)"/>':''}`;else if(kind==='pipe')s=`<rect x="-22" y="-5" width="44" height="10" rx="2" fill="${fill}" stroke="var(--accent)" stroke-width="1.3"/>`;else if(kind==='tank')s=`<rect x="-20" y="-28" width="40" height="56" rx="7" fill="var(--blue-soft)" stroke="${stroke}" stroke-width="1.3"/><path d="M -18 0 Q -9 -5 0 0 T 18 0" fill="none" stroke="var(--blue)"/>`;else if(kind==='exchanger')s=`<rect x="-29" y="-32" width="58" height="64" rx="5" fill="${fill}" stroke="${stroke}"/><path d="M -25 -17 H 23 M -25 17 H 23 M -10 -23 L 10 23 M 0 -23 L 20 23" stroke="var(--orange)" fill="none"/>`;else s=`<rect x="-18" y="-18" width="36" height="36" rx="6" fill="var(--soft)" stroke="${stroke}"/><text y="4" text-anchor="middle" fill="var(--text)" font-size="11">${kind==='heater'?'Q':kind==='pid'?'PID':kind==='sensor'?'F':'ƒ'}</text>`;return `<g transform="rotate(${n.rotation||0})">${s}</g>`;}
 function portOffset(n,p){if(moduleOf(n).kind==='source')return {x:/^B[24](?:-|$)/.test(n.id)?-28:28,y:0};if(moduleOf(n).kind==='junction'){const flip=/^N2(?:-|$)/.test(n.id)?-1:1;return p.id==='in0'?{x:-24*flip,y:0}:{x:24*flip,y:p.id==='out0'?-18:18};}const m=moduleOf(n);if(m.category==='制冷站设备'){const side=m.ports.filter(q=>q.direction===p.direction),i=side.indexOf(p);return {x:p.direction==='in'?-32:32,y:side.length>1?-21+42*i/(side.length-1):0};}return {x:p.direction==='in'?-32:32,y:m.kind==='exchanger'?(p.id.endsWith('0')?-19:19):0};}
 function endpoint(pg,nodeId,portId){const n=pg.nodes.find(n=>n.id===nodeId);if(!n)return null;const p=moduleOf(n).ports.find(p=>p.id===portId);if(!p)return null;const d=portOffset(n,p);const a=(n.rotation||0)*Math.PI/180;return {x:n.x+d.x*Math.cos(a)-d.y*Math.sin(a),y:n.y+d.x*Math.sin(a)+d.y*Math.cos(a),node:n,port:p};}
+function globalEndpoint(owner,nodeId,portId){const found=links.locate(owner,nodeId);return found?endpoint(found.page,nodeId,portId):null;}
+function pageLinkStrip(pg){
+  const entries=links.cross(project(),pg.id);
+  if(!entries.length)return '';
+  return `<div class="cross-page-strip" aria-label="当前画布跨页连接">${entries.map(link=>`<button type="button" data-action="jump-page-link" data-id="${esc(link.edge[0])}" data-node="${esc(link.remote[0])}" title="跳转到 ${esc(link.remotePage.name)} · ${esc(link.remote.join(':'))}">${icon('ArrowRightLeft')}<span>${esc(link.local.join(':'))} ↔ ${esc(link.remotePage.name)} · ${esc(link.remote.join(':'))}</span>${icon('ArrowUpRight')}</button>`).join('')}</div>`;
+}
 function routeLine(a,b){const mid=(a.x+b.x)/2;return Math.abs(a.y-b.y)<2?`M ${a.x} ${a.y} H ${b.x}`:`M ${a.x} ${a.y} H ${mid} V ${b.y} H ${b.x}`;}
 // Trend-history runs (RunFrame.full=false) carry only curve variables between key frames; device
 // panels and canvas readings show the most recent full row instead of blanking out.
@@ -525,9 +532,9 @@ const CIRCUIT_COLORS=['var(--orange)','#2f80ed','#27ae60','#9b51e0','#eb5757','#
 function circuitOfPort(key){const circuits=engine.circuits?.(project().id)||[];return circuits.length>1?circuits.find(c=>c.ports.includes(key)):null;}
 function circuitLabel(c){return `回路 ${c.id+1} · ${c.fluid.fluid}${c.source==='project'?'（项目默认）':' · '+c.source}`;}
 function networkMarkup(pg,mini=false){const lines=pg.edges.map(([id,a,ap,b,bp])=>{const e1=endpoint(pg,a,ap),e2=endpoint(pg,b,bp);if(!e1||!e2)return '';const d=routeLine(e1,e2),c=circuitOfPort(a+':'+ap);return `<path d="${d}" class="net-line${ui.selectedEdge===id?' selected':''}"${c?` style="stroke:${CIRCUIT_COLORS[c.id%CIRCUIT_COLORS.length]}"`:''}>${c?`<title>${esc(circuitLabel(c))}</title>`:''}</path>${mini?'':`<path d="${d}" class="net-hit" data-edge="${id}" role="button" aria-label="连接 ${a} 到 ${b}" tabindex="0"/>`}`;}).join('');
-  const nodes=pg.nodes.map(n=>{const m=moduleOf(n);return `<g transform="translate(${n.x},${n.y})" class="net-node${!mini&&ui.selectedNode===n.id?' selected':''}" ${mini?'':`data-node="${n.id}" tabindex="0" role="button" aria-label="${esc(n.id+' '+n.name)}"`}><rect class="node-hit" x="-28" y="-35" width="56" height="101" fill="transparent" pointer-events="all"/><rect class="node-selection" x="-27" y="-28" width="54" height="56" rx="5"/>${portStubs(n)}${symbol(n,mini)}${mini?'':internalChannelsMarkup(n)}${!mini&&project().run.history.length&&ui.pageGrid!==null?`<text class="node-reading" x="0" y="-43" text-anchor="middle">${number(flowFor(n),3)}</text>`:''}${m.ports.map(p=>{const offset=portOffset(n,p),connected=pg.edges.some(e=>(e[1]===n.id&&e[2]===p.id)||(e[3]===n.id&&e[4]===p.id));return `<g transform="rotate(${n.rotation||0})"><g class="port-group${ui.connecting?.nodeId===n.id&&ui.connecting?.portId===p.id?' pending':''}" ${mini?'':`data-port-node="${n.id}" data-port-id="${p.id}" role="button" aria-label="${esc(n.id+' '+p.label)}" tabindex="0"`}><title>${esc(n.id+' · '+p.label+' · '+DOMAINS[p.domain].label)}${connected?' · 已连接':''}</title><circle cx="${offset.x}" cy="${offset.y}" r="${mini?3:3.5}" class="net-port${connected?' connected':''}"/>${mini?'':`<circle cx="${offset.x}" cy="${offset.y}" r="10" class="port-hit"/>`}</g></g>`;}).join('')}${mini?'':`<text class="node-code" x="0" y="44" text-anchor="middle">${esc(n.id)}</text><text class="node-name" x="0" y="60" text-anchor="middle">${esc(n.name)}</text>${quickCanvasMarkup(n,m)}`}</g>`;}).join('');return lines+nodes;}
+  const nodes=pg.nodes.map(n=>{const m=moduleOf(n);return `<g transform="translate(${n.x},${n.y})" class="net-node${!mini&&ui.selectedNode===n.id?' selected':''}" ${mini?'':`data-node="${n.id}" tabindex="0" role="button" aria-label="${esc(n.id+' '+n.name)}"`}><rect class="node-hit" x="-28" y="-35" width="56" height="101" fill="transparent" pointer-events="all"/><rect class="node-selection" x="-27" y="-28" width="54" height="56" rx="5"/>${portStubs(n)}${symbol(n,mini)}${mini?'':internalChannelsMarkup(n)}${!mini&&project().run.history.length&&ui.pageGrid!==null?`<text class="node-reading" x="0" y="-43" text-anchor="middle">${number(flowFor(n),3)}</text>`:''}${m.ports.map(p=>{const offset=portOffset(n,p),connected=!!links.atPort(project(),n.id,p.id);return `<g transform="rotate(${n.rotation||0})"><g class="port-group${ui.connecting?.nodeId===n.id&&ui.connecting?.portId===p.id?' pending':''}" ${mini?'':`data-port-node="${n.id}" data-port-id="${p.id}" role="button" aria-label="${esc(n.id+' '+p.label)}" tabindex="0"`}><title>${esc(n.id+' · '+p.label+' · '+DOMAINS[p.domain].label)}${connected?' · 已连接':''}</title><circle cx="${offset.x}" cy="${offset.y}" r="${mini?3:3.5}" class="net-port${connected?' connected':''}"/>${mini?'':`<circle cx="${offset.x}" cy="${offset.y}" r="10" class="port-hit"/>`}</g></g>`;}).join('')}${mini?'':`<text class="node-code" x="0" y="44" text-anchor="middle">${esc(n.id)}</text><text class="node-name" x="0" y="60" text-anchor="middle">${esc(n.name)}</text>${quickCanvasMarkup(n,m)}`}</g>`;}).join('');return lines+nodes;}
 function fluidBadge(p){const circuits=engine.circuits?.(p.id)||[];if(new Set(circuits.map(c=>c.fluid.fluid)).size>1)return `多工质 · ${circuits.length} 个回路`;const declared=new Set((p.circuitFluids||[]).map(c=>c.fluid||c.medium).filter(Boolean));if(!circuits.length&&declared.size>1)return `多工质 · ${[...declared].join(' / ')}`;return p.fluid||(MEDIA.find(m=>m[0]===p.medium)||MEDIA[0])[1];}
-function renderWorkbench(){const p=project(),pg=activePage(),selected=instance(ui.selectedNode);return `<div class="workbench${ui.showLibrary?' show-library':''}${ui.showChart?' with-chart':''}"><aside class="canvas-library" id="canvas-library"><div class="library-heading"><strong>模块库</strong><small class="muted">${state.modules.length} 类</small>${ibtn('toggle-library','关闭模块库','PanelLeftClose')}</div><label class="search">${icon('Search')}<input placeholder="查找模块" aria-label="画布模块搜索" data-filter="canvasModuleSearch"></label><div class="library-scroll" id="canvas-library-list">${libraryMarkup()}</div><div class="selected-properties" id="selected-properties">${propertiesMarkup(selected)}</div></aside><div class="canvas-column"><div class="canvas-bar"><div class="canvas-pages">${pgTabs()}${ibtn('new-canvas','新增画布','Plus')}</div><div class="canvas-tools">${workflows.scenarioToolbar(p)}${coldStorage.couplingToolbar(p)}${ibtn('toggle-library',ui.showLibrary?'收起模块库':'展开模块库',ui.showLibrary?'PanelLeftClose':'PanelLeftOpen',`aria-expanded="${ui.showLibrary}" aria-controls="canvas-library"`)}${ibtn('select-mode','选择设备','MousePointer2')}${ibtn('connect-mode','连接端口','Cable')}<span class="tool-divider"></span>${ibtn('undo','撤销 Ctrl+Z','Undo2',undoStack.length?'':'disabled')}${ibtn('redo','重做 Ctrl+Y','Redo2',redoStack.length?'':'disabled')}${ibtn('fit','适应画布','Scan')}${ibtn('grid','显示点阵','Grid2X2','class="optional"')}${ibtn('validate','检查连接','ListChecks')}</div></div><div id="canvas-device-tools">${deviceToolsMarkup(selected)}</div><div class="canvas-area${ui.pageGrid?' grid':''}" id="network-area"><div class="canvas-caption"><span>${esc(pg.name)}</span><span class="muted">${p.caseId==='cold-room-ideal-v1'?'库房热平衡 · W':p.run.history.length?'质量流量 · kg/s':'单击选择 · 双击参数'}</span>${badge(p.caseId==='cold-room-ideal-v1'?'传热系统':fluidBadge(p),'blue')}</div>${pg.nodes.length?`<svg id="network" class="network-svg" viewBox="${networkViewBox(pg)}" role="group" aria-label="${esc(p.name+' '+pg.name+' 管网画布')}">${networkMarkup(pg)}</svg>`:`<div class="empty" style="padding-top:18%">${icon('Network')}<h3>在这里搭建新系统</h3><p>从左侧选择模块，再点击画布放置设备。</p>${btn('insert-defaults','放入泵阀示例','Plus','','primary')}</div><svg id="network" class="network-svg" viewBox="-35 -5 1140 510" style="position:absolute;inset:0" aria-label="空画布"></svg>`}<div class="runbar" aria-label="主系统运行控制"><button data-action="run-project" data-command="run" class="go" ${['running','solving'].includes(p.run.status)?'disabled':''}>${icon('Play')}<span>${p.run.status==='paused'?'继续':'运行'}</span></button><button data-action="run-project" data-command="pause" ${p.run.status==='running'?'':'disabled'}>${icon('Pause')}暂停</button><button data-action="run-project" data-command="step" ${['running','solving'].includes(p.run.status)?'disabled':''}>${icon('StepForward')}单步</button><button data-action="run-project" data-command="stop" ${['ready','stopped'].includes(p.run.status)?'disabled':''}>${icon('Square')}停止</button><span class="spacer"></span><button data-action="toggle-chart" aria-label="${ui.showChart?'收起同屏曲线':'展开同屏曲线'}" aria-expanded="${ui.showChart}" class="${ui.showChart?'active':''}">${icon('Activity')}曲线</button></div><div id="canvas-inspection" class="canvas-inspection" role="status" hidden></div><div class="canvas-bottom"><span data-canvas-hint>${ui.placing?'点击画布放置 '+mod(ui.placing).name:ui.connecting?'选择另一个空闲端口 · Esc 取消':'双击设备编辑参数 · 拖动空白处平移'}</span><div class="zoom">${ibtn('zoom-out','缩小','Minus')}<span>${Math.round(pg.zoom*100)}%</span>${ibtn('zoom-in','放大','Plus')}</div></div></div>${renderWorkbenchChart()}${coldStorage.markup(p)}<div class="canvas-info"><span data-result-status></span><span class="optional">${pg.nodes.length} 个设备 · ${pg.edges.length} 条连接</span><span class="push"></span>${btn('nav','项目设置','Settings2','data-route="settings"','ghost small')}${btn('nav','控制逻辑','Code2','data-route="controls"','ghost small')}</div></div><aside id="inspector-dock" aria-hidden="true"></aside></div>`;}
+function renderWorkbench(){const p=project(),pg=activePage(),selected=instance(ui.selectedNode);return `<div class="workbench${ui.showLibrary?' show-library':''}${ui.showChart?' with-chart':''}"><aside class="canvas-library" id="canvas-library"><div class="library-heading"><strong>模块库</strong><small class="muted">${state.modules.length} 类</small>${ibtn('toggle-library','关闭模块库','PanelLeftClose')}</div><label class="search">${icon('Search')}<input placeholder="查找模块" aria-label="画布模块搜索" data-filter="canvasModuleSearch"></label><div class="library-scroll" id="canvas-library-list">${libraryMarkup()}</div><div class="selected-properties" id="selected-properties">${propertiesMarkup(selected)}</div></aside><div class="canvas-column"><div class="canvas-bar"><div class="canvas-pages">${pgTabs()}${ibtn('new-canvas','新增画布','Plus')}</div><div class="canvas-tools">${workflows.scenarioToolbar(p)}${coldStorage.couplingToolbar(p)}${ibtn('toggle-library',ui.showLibrary?'收起模块库':'展开模块库',ui.showLibrary?'PanelLeftClose':'PanelLeftOpen',`aria-expanded="${ui.showLibrary}" aria-controls="canvas-library"`)}${ibtn('select-mode','选择设备','MousePointer2')}${ibtn('connect-mode','连接端口','Cable')}${ibtn('page-links','跨页连接','ArrowRightLeft')}<span class="tool-divider"></span>${ibtn('undo','撤销 Ctrl+Z','Undo2',undoStack.length?'':'disabled')}${ibtn('redo','重做 Ctrl+Y','Redo2',redoStack.length?'':'disabled')}${ibtn('fit','适应画布','Scan')}${ibtn('grid','显示点阵','Grid2X2','class="optional"')}${ibtn('validate','检查连接','ListChecks')}</div></div>${pageLinkStrip(pg)}<div id="canvas-device-tools">${deviceToolsMarkup(selected)}</div><div class="canvas-area${ui.pageGrid?' grid':''}" id="network-area"><div class="canvas-caption"><span>${esc(pg.name)}</span><span class="muted">${p.caseId==='cold-room-ideal-v1'?'库房热平衡 · W':p.run.history.length?'质量流量 · kg/s':'单击选择 · 双击参数'}</span>${badge(p.caseId==='cold-room-ideal-v1'?'传热系统':fluidBadge(p),'blue')}</div>${pg.nodes.length?`<svg id="network" class="network-svg" viewBox="${networkViewBox(pg)}" role="group" aria-label="${esc(p.name+' '+pg.name+' 管网画布')}">${networkMarkup(pg)}</svg>`:`<div class="empty" style="padding-top:18%">${icon('Network')}<h3>在这里搭建新系统</h3><p>从左侧选择模块，再点击画布放置设备。</p>${btn('insert-defaults','放入泵阀示例','Plus','','primary')}</div><svg id="network" class="network-svg" viewBox="-35 -5 1140 510" style="position:absolute;inset:0" aria-label="空画布"></svg>`}<div class="runbar" aria-label="主系统运行控制"><button data-action="run-project" data-command="run" class="go" ${['running','solving'].includes(p.run.status)?'disabled':''}>${icon('Play')}<span>${p.run.status==='paused'?'继续':'运行'}</span></button><button data-action="run-project" data-command="pause" ${p.run.status==='running'?'':'disabled'}>${icon('Pause')}暂停</button><button data-action="run-project" data-command="step" ${['running','solving'].includes(p.run.status)?'disabled':''}>${icon('StepForward')}单步</button><button data-action="run-project" data-command="stop" ${['ready','stopped'].includes(p.run.status)?'disabled':''}>${icon('Square')}停止</button><span class="spacer"></span><button data-action="toggle-chart" aria-label="${ui.showChart?'收起同屏曲线':'展开同屏曲线'}" aria-expanded="${ui.showChart}" class="${ui.showChart?'active':''}">${icon('Activity')}曲线</button></div><div id="canvas-inspection" class="canvas-inspection" role="status" hidden></div><div class="canvas-bottom"><span data-canvas-hint>${ui.placing?'点击画布放置 '+mod(ui.placing).name:ui.connecting?'可切换画布选择另一个空闲端口 · Esc 取消':'双击设备编辑参数 · 拖动空白处平移'}</span><div class="zoom">${ibtn('zoom-out','缩小','Minus')}<span>${Math.round(pg.zoom*100)}%</span>${ibtn('zoom-in','放大','Plus')}</div></div></div>${renderWorkbenchChart()}${coldStorage.markup(p)}<div class="canvas-info"><span data-result-status></span><span class="optional">${pg.nodes.length} 个设备 · ${pg.edges.length} 条连接</span><span class="push"></span>${btn('nav','项目设置','Settings2','data-route="settings"','ghost small')}${btn('nav','控制逻辑','Code2','data-route="controls"','ghost small')}</div></div><aside id="inspector-dock" aria-hidden="true"></aside></div>`;}
 function pgTabs(){return project().pages.map(p=>`<button data-action="canvas-tab" data-id="${p.id}" class="${p.id===project().activePage?'active':''}">${esc(p.name)}</button>`).join('');}
 function libraryMarkup(query=''){return moduleGroupNames().map(c=>{const modules=state.modules.filter(m=>m.category===c&&(m.name+m.code).toLowerCase().includes(query.toLowerCase()));return modules.length?`<div class="library-caption">${icon('ChevronDown')}${esc(c)}</div>${modules.map(m=>`<button class="library-item${ui.placing===m.id?' active':''}" data-action="place-module" data-id="${m.id}" draggable="true" data-drag-module="${m.id}">${icon(m.icon)}<span>${m.name}</span><small>${m.runtime === 'python' ? 'Python' : m.code.slice(0,2)}</small></button>`).join('')}`:'';}).join('');}
 function propertiesMarkup(n){if(n){const m=moduleOf(n);return `<div class="row spread"><h3>对象属性</h3>${badge(n.id,'warn')}</div><dl><dt>名称</dt><dd>${esc(n.name)}</dd><dt>模块</dt><dd>${esc(m.name)}</dd>${m.runtime==='python'?`<dt>模块版本</dt><dd data-module-binding>v${m.version} · ${esc((m.manifest.definition_hash || m.contentHash).slice(0,12))}</dd>`:''}<dt>型号</dt><dd>${esc(model(n.modelId)?.name||'自定义参数')}</dd>${paramDefs(n).slice(0,2).map(f=>`<dt>${f[1].replace('阀门','').replace('流量系数 ','')}</dt><dd>${number(n.params[f[0]],f[0]==='opening'?0:2)} ${f[2]}</dd>`).join('')}</dl><div class="row gap-6">${btn('open-device','详细参数','SlidersHorizontal',`data-id="${n.id}"`,'small')}${ibtn('delete-node','删除选中设备','Trash2',`data-id="${n.id}"`)}</div>`;}return `<h3>画布属性</h3><dl><dt>画布</dt><dd>${esc(activePage().name)}</dd><dt>介质</dt><dd>${esc(fluidBadge(project()))}</dd><dt>选择</dt><dd>${ui.selectedEdge?'已选连接 '+esc(ui.selectedEdge):'单击设备或连接'}</dd></dl>${ui.selectedEdge?btn('delete-edge','删除连接','Trash2',`data-id="${ui.selectedEdge}"`,'small'):btn('nav','管理模块','Boxes','data-route="modules"','small ghost')}`;}
@@ -1437,7 +1444,7 @@ function openModuleDoc(id) {
 // 画布操作与模块定义共用端口 / 通路，不根据图形猜测内部连接。
 function deviceToolsMarkup(n) {
   if (!n) return '';
-  return `<div class="device-tools" role="toolbar" aria-label="选中设备操作"><strong>${esc(n.id)} · ${esc(n.name)}</strong>${ibtn('open-device', '参数与型号', 'SlidersHorizontal', `data-id="${n.id}"`)}${ibtn('device-variables', '查看全部变量', 'Table2', `data-id="${n.id}"`)}${ibtn('choose-device-model', '选择设备型号', 'Database', `data-id="${n.id}"`)}${ibtn('rotate-device', '顺时针旋转 90° · R', 'RotateCw', `data-id="${n.id}"`)}${ibtn('rotate-device', '逆时针旋转 90° · Shift+R', 'RotateCcw', `data-id="${n.id}" data-direction="-1"`)}${ibtn('device-definition', '查看模块定义', 'Box', `data-id="${n.id}"`)}</div>`;
+  return `<div class="device-tools" role="toolbar" aria-label="选中设备操作"><strong>${esc(n.id)} · ${esc(n.name)}</strong>${ibtn('open-device', '参数与型号', 'SlidersHorizontal', `data-id="${n.id}"`)}${ibtn('device-variables', '查看全部变量', 'Table2', `data-id="${n.id}"`)}${ibtn('choose-device-model', '选择设备型号', 'Database', `data-id="${n.id}"`)}${ibtn('rotate-device', '顺时针旋转 90° · R', 'RotateCw', `data-id="${n.id}"`)}${ibtn('rotate-device', '逆时针旋转 90° · Shift+R', 'RotateCcw', `data-id="${n.id}" data-direction="-1"`)}${ibtn('device-definition', '查看模块定义', 'Box', `data-id="${n.id}"`)}${ibtn('move-device-page','移到其他画布','Layers',`data-id="${n.id}"`)}</div>`;
 }
 function syncDeviceSelection() {
   if (ui.route !== 'workbench') return;
@@ -1522,7 +1529,7 @@ function paintCanvasInspection() {
   const node = root.querySelector(`#network [data-node="${n.id}"]`); node?.classList.add('inspecting');
   const channels = internalChannels(n).filter(c => !p || c.input === p.id || c.output === p.id);
   node?.querySelectorAll('[data-channel-id]').forEach(el => el.classList.toggle('channel-active', channels.some(c => c.id === el.dataset.channelId)));
-  const edge = p && activePage().edges.find(e => e[1] === n.id && e[2] === p.id || e[3] === n.id && e[4] === p.id);
+  const edge = p && links.atPort(project(),n.id,p.id);
   const connected = edge ? `已连接 ${edge[1] === n.id ? edge[3] : edge[1]}` : '未连接';
   hint.textContent = p ? `${n.id} · ${p.label} (${p.name}) · ${DOMAINS[p.domain].label}${p.direction === 'in' ? '入口' : '出口'} · ${channels.map(c => c.name).join(' / ') || '未绑定内部通路'} · ${connected}` : `${n.id} · ${n.name} · ${channels.length ? channels.map(c => c.name).join(' / ') : '未设置内部通路'} · 双击参数，R 旋转`;
 }
@@ -1795,7 +1802,11 @@ function floatBody(f, n) {
   const m = moduleOf(n), run = project().run;
   if (f.tab === 'variables') return instanceVariablesBody(f, n);
   if (f.tab === 'results') return `<div class="notice">${icon('Info')}主系统 · ${statusText(run)} · ${clockLabel(run.time)}</div><div class="metric-row"><div class="metric"><span>质量流量 · kg/s</span><strong>${number(flowFor(n), 3)}</strong></div><div class="metric"><span>温度 · °C</span><strong>${number(outletTemperature(n), 1)}</strong></div></div>${btn('device-curve', '将流量加入曲线', 'Activity', `data-id="${n.id}"`)}`;
-  if (f.tab === 'connections') return `<div class="stack">${m.ports.map(p => { const pg = project().pages.find(pg => pg.nodes.some(x => x.id === n.id)), edge = pg.edges.find(e => e[1] === n.id && e[2] === p.id || e[3] === n.id && e[4] === p.id); return `<div class="list-row" style="padding:10px 0"><div class="grow"><strong>${esc(p.name)} · ${esc(p.label)}</strong><small>${DOMAINS[p.domain].label} · ${edge ? esc(edge[1] + ' ↔ ' + edge[3]) : '未连接'}</small></div>${edge ? btn('delete-edge', '断开', 'X', `data-id="${edge[0]}"`, 'small') : badge('空闲')}</div>`; }).join('')}</div>`;
+  if (f.tab === 'connections') return `<div class="stack">${m.ports.map(port => {
+    const edge=links.atPort(project(),n.id,port.id),remote=edge&&(edge[1]===n.id?edge.slice(3,5):edge.slice(1,3)),destination=remote&&links.locate(project(),remote[0]);
+    const cross=destination&&destination.page.id!==links.locate(project(),n.id).page.id;
+    return `<div class="list-row" style="padding:10px 0"><div class="grow"><strong>${esc(port.label)}</strong><small>${esc(DOMAINS[port.domain].label)} · ${edge?esc((cross?destination.page.name+' · ':'')+remote.join(':')):'未连接'}</small></div>${cross?ibtn('jump-page-link','跳到连接设备','ArrowUpRight',`data-id="${esc(edge[0])}" data-node="${esc(remote[0])}"`)+btn('edit-page-link','修改','Pencil',`data-id="${esc(edge[0])}"`,'small'):''}${edge?btn('delete-edge','断开','X',`data-id="${esc(edge[0])}"`,'small'):btn('add-page-link','跨页连接','ArrowRightLeft',`data-node="${esc(n.id)}" data-port="${esc(port.id)}"`,'small')}</div>`;
+  }).join('')}</div>`;
   return `<label class="field"><span>设备名称</span><input data-instance-name="${n.id}" value="${esc(n.name)}" aria-label="${n.id} 设备名称" maxlength="50"></label><div class="field" style="margin-top:13px"><span>选择型号 → 进入待应用草稿</span><select data-instance-model="${n.id}" aria-label="${n.id} 设备型号">${option('', '自定义参数', n.draftModelId || n.modelId)}${state.models.filter(v => v.moduleId === m.id && !v.archived).map(v => option(v.id, v.name + ' · v' + v.version, n.draftModelId || n.modelId)).join('')}</select></div><div class="row spread" style="margin-top:12px"><strong>常用参数</strong><span class="badge ${pendingCount(n) ? 'warn' : 'good'}" data-pending-for="${n.id}">${pendingCount(n)} 项待应用</span></div>${paramDefs(n).filter(f => m.variables.find(v => v.param === f[0])?.display !== false).map(f => `<div class="parameter-row${n.draft[f[0]] !== n.params[f[0]] ? ' edited' : ''}"><div class="param-title"><div class="parameter-label-actions"><strong>${f[1]}</strong>${ibtn('device-variables', '查看 ' + f[1] + ' 的全部变量', 'Table2', `data-id="${n.id}" data-variable="param:${f[0]}"`)}</div><small>当前 ${number(n.params[f[0]], f[0] === 'opening' ? 0 : 2)} ${f[2]}</small>${quickFieldMarkup(n, m, f)}</div><input type="number" step="any" min="${f[3]}" max="${f[4]}" data-instance-param="${f[0]}" data-id="${n.id}" value="${n.draft[f[0]]}" aria-label="${n.id} ${f[1]}草稿" ${m.quickParam === f[0] && m.quickType === "display" ? "readonly" : ""}><span class="muted">${f[2]}</span></div>`).join('') || '<p class="muted" style="margin:14px 0">此模块没有常用可调参数。</p>'}${deviceExtraParamRows(n, m)}<div class="row wrap" style="margin-top:16px">${btn('device-definition', '完整模块定义', 'Box', `data-id="${n.id}"`, 'small ghost')}${btn('save-instance-model', '保存为型号', 'Database', `data-id="${n.id}"`, 'small')}</div>`;
 }
 function quickCanvasMarkup(n, m) {
@@ -1891,9 +1902,9 @@ function newInstance(moduleId, point, selectedModel) {
   remember();
   const node = makeInstance(uid(m.kind === 'valve' ? 'V' : m.kind === 'pump' ? 'P' : 'D'), m.kind, m.name, point?.x ?? 250 + pg.nodes.length % 5 * 110, point?.y ?? 140 + Math.floor(pg.nodes.length / 5) * 100);
   node.moduleId = m.id;
-  if (m.runtime === 'python') { node.params=manifestParamDefaults(m.manifest); node.draft=clone(node.params); }
+  if (m.manifest) { node.params=manifestParamDefaults(m.manifest); node.draft=clone(node.params); }
   if (selectedModel) { node.params = clone(selectedModel.params); node.draft = clone(node.params); node.modelId = selectedModel.id; node.modelVersion = selectedModel.version; }
-  else if (m.id !== m.kind) { node.modelId = null; node.params = Object.fromEntries((PARAM_DEFS[m.kind] || []).map(f => [f[0], m.values['param:' + f[0]] ?? f[6]])); node.draft = clone(node.params); }
+  else if (m.id !== m.kind) { node.modelId = null; if (!m.manifest) { node.params = Object.fromEntries((PARAM_DEFS[m.kind] || []).map(f => [f[0], m.values['param:' + f[0]] ?? f[6]])); node.draft = clone(node.params); } }
   ensureInstanceVariables(node, m);
   if (selectedModel?.values) for (const v of m.variables.filter(v => v.origin === 'custom')) {
     const value = clone(selectedModel.values[v.id] ?? node.variableState.values[v.id]);
@@ -1902,40 +1913,94 @@ function newInstance(moduleId, point, selectedModel) {
   pg.nodes.push(node); engine.pinProject(project()); ui.selectedNode = node.id; ui.placing = null; if (innerWidth <= 500) ui.showLibrary = false;
   markDirty(project()); render(); return node;
 }
+function assertLinksIdle(owner=project()){
+  if(owner.run.live || ['running','solving','paused'].includes(owner.run.status))throw Error('请先停止运行，再修改连接或移动设备；切换画布可直接进行。');
+}
+function jumpPageLink(id,nodeId){
+  const owner=project(),edge=links.find(owner,id),target=links.locate(owner,nodeId);
+  if(!edge || !target || ![edge[1],edge[3]].includes(nodeId))throw Error('跨页连接已失效，请检查连接列表。');
+  closeDialog();owner.activePage=target.page.id;ui.connecting=null;ui.selectedNode=nodeId;ui.selectedEdge='';
+  fitNetwork(target.page);render();openDevice(nodeId);
+}
+function pageLinksDialog(){
+  const owner=project(),entries=links.cross(owner),errors=links.validate(owner,moduleOf,false);
+  openDialog('跨页连接',owner.name,`<div class="stack">${btn('add-page-link','新建跨页连接','Plus','','primary')}${entries.map(link=>`<div class="list-row" data-page-link="${esc(link.edge[0])}"><div class="grow"><strong>${esc(link.localPage.name)} · ${esc(link.local.join(':'))}</strong><small>↔ ${esc(link.remotePage.name)} · ${esc(link.remote.join(':'))}</small></div>${ibtn('jump-page-link','跳到起点','ChevronLeft',`data-id="${esc(link.edge[0])}" data-node="${esc(link.local[0])}"`)}${ibtn('jump-page-link','跳到终点','ArrowRight',`data-id="${esc(link.edge[0])}" data-node="${esc(link.remote[0])}"`)}${btn('edit-page-link','修改','Pencil',`data-id="${esc(link.edge[0])}"`,'small')}${btn('delete-edge','断开','X',`data-id="${esc(link.edge[0])}"`,'small')}</div>`).join('')||'<p>暂无跨页连接。也可以在设备的“连接”页签选择跨页端口。</p>'}${errors.map(error=>`<p role="alert">${esc(error.text)}</p>`).join('')}</div>`,null,'',true);
+}
+function pageLinkDialog(nodeId,portId,edgeId){
+  assertLinksIdle();const owner=project(),existing=edgeId&&links.find(owner,edgeId);
+  if(edgeId&&!existing)throw Error('连接已不存在，请重新打开。');
+  if(existing){nodeId=existing[1];portId=existing[2];}
+  const sources=owner.pages.flatMap(pg=>pg.nodes.flatMap(node=>moduleOf(node).ports
+    .filter(port=>(!nodeId||(node.id===nodeId&&port.id===portId))&&!links.atPort(owner,node.id,port.id,edgeId))
+    .map(port=>[node.id+':'+port.id,pg.name+' · '+node.id+' · '+port.label])));
+  if(owner.pages.length<2)throw Error('请先新增另一张画布。');
+  if(!sources.length)throw Error('没有可用起点；请先断开已有连接。');
+  closeDialog();
+  openDialog(existing?'修改跨页连接':'新建跨页连接','连接属于同一项目，跨页两端由同一次计算求解。',
+    selectField('source','起点端口',sources,sources[0][0])+selectField('targetPage','目标画布',[], '')+selectField('target','目标端口',[], ''),data=>{
+      if(project()!==owner)throw Error('项目已切换，请重新选择。');
+      assertLinksIdle(owner);const source=data.source.split(':'),target=data.target.split(':');
+      const start=links.locate(owner,source[0]),end=links.locate(owner,target[0]);
+      if(!start||!end||start.page===end.page)throw Error('请选择其他画布上的有效端口。');
+      links.check(owner,source,target,moduleOf,edgeId);remember();
+      links.connect(owner,edgeId||uid('edge'),source,target,moduleOf,!!edgeId);
+      ui.connecting=null;markDirty(owner);persistLocal();render();msg('跨页连接已保存到项目，重新运行后生效。');
+    },existing?'应用修改':'建立连接');
+  const form=document.getElementById('dialog-form'),sourceSelect=form.elements.source,pageSelect=form.elements.targetPage,targetSelect=form.elements.target;
+  function refreshTargets(){
+    const source=sourceSelect.value.split(':'),start=links.locate(owner,source[0]);
+    const port=moduleOf(start.node).ports.find(port=>port.id===source[1]);
+    const previous=pageSelect.value;
+    pageSelect.innerHTML=owner.pages.filter(pg=>pg!==start.page).map(pg=>option(pg.id,pg.name,previous||links.locate(owner,existing?.[3])?.page.id)).join('');
+    const targetPage=owner.pages.find(pg=>pg.id===pageSelect.value);
+    targetSelect.innerHTML=(targetPage?.nodes||[]).flatMap(node=>moduleOf(node).ports
+      .filter(candidate=>candidate.domain===port.domain&&(port.domain==='fluid'||candidate.direction!==port.direction)&&!links.atPort(owner,node.id,candidate.id,edgeId))
+      .map(candidate=>option(node.id+':'+candidate.id,node.id+' · '+candidate.label,existing?existing[3]+':'+existing[4]:''))).join('')||'<option value="">没有兼容的空闲端口</option>';
+  }
+  sourceSelect.addEventListener('change',()=>{pageSelect.value='';refreshTargets();});
+  pageSelect.addEventListener('change',refreshTargets);refreshTargets();
+}
+function moveDevicePage(id){
+  assertLinksIdle();const owner=project(),found=links.locate(owner,id);
+  if(!found)return;
+  const targets=owner.pages.filter(pg=>pg!==found.page);
+  if(!targets.length)throw Error('请先新增另一张画布。');
+  openDialog('移动设备到其他画布','已有连接和变量引用会保留，跨页连接自动显示在两端画布。',selectField('page','目标画布',targets.map(pg=>[pg.id,pg.name]),targets[0].id),data=>{
+    if(project()!==owner)throw Error('项目已切换，请重新选择。');assertLinksIdle(owner);
+    const target=owner.pages.find(pg=>pg.id===data.page);
+    if(!target||target.nodes.length>=64)throw Error('目标画布不存在或已达到设备上限。');
+    remember();links.move(owner,id,target.id);found.node.x=150+(target.nodes.length-1)%5*160;found.node.y=150+Math.floor((target.nodes.length-1)/5)*150;
+    fitNetwork(found.page);fitNetwork(target);owner.activePage=target.id;ui.selectedNode=id;ui.connecting=null;
+    markDirty(owner);persistLocal();render();msg('设备已移动，已有连接保持不变。');
+  },'移动设备');
+}
 function validateNetwork(p = project()) {
-  const errors = [];
+  const errors = links.validate(p, moduleOf);
   if (!p.pages.some(pg => pg.nodes.length)) errors.push({ text: '项目没有设备。' });
   for (const pg of p.pages) {
-    const used = new Set();
-    for (const [id, na, pa, nb, pb] of pg.edges) {
-      const a = endpoint(pg, na, pa), b = endpoint(pg, nb, pb);
-      if (!a || !b) { errors.push({ text: `${id}：连接端口不存在。`, page: pg.id, node: na }); continue; }
-      if (a.port.domain !== b.port.domain) errors.push({ text: `${id}：两端领域不一致。`, page: pg.id, node: na });
-      for (const key of [na + ':' + pa, nb + ':' + pb]) { if (used.has(key)) errors.push({ text: `${key}：端口重复连接。`, page: pg.id, node: na }); used.add(key); }
-    }
     for (const n of pg.nodes) {
       const m = moduleOf(n);
-      for (const p of m.ports) if (p.required !== false && !used.has(n.id + ':' + p.id)) errors.push({ text: `${n.id} · ${p.label} 尚未连接。`, page: pg.id, node: n.id });
       for (const text of checkChannels(m)) errors.push({ text: `${n.id} · ${text}`, page: pg.id, node: n.id });
     }
   }
   return errors;
 }
 function connectPort(nodeId, portId) {
-  const pg = activePage(), next = endpoint(pg, nodeId, portId);
+  assertLinksIdle();
+  const owner = project(), next = globalEndpoint(owner, nodeId, portId);
   if (!next) return;
-  const used = pg.edges.some(e => e[1] === nodeId && e[2] === portId || e[3] === nodeId && e[4] === portId);
+  const used = links.atPort(owner, nodeId, portId);
   if (used) throw Error('此端口已经连接。请先断开原连接，或使用连接节点分支。');
   if (!ui.connecting) { ui.connecting = { nodeId, portId }; render(); return; }
   const first = ui.connecting;
   if (first.nodeId === nodeId) { ui.connecting = null; render(); return; }
-  const previous = endpoint(pg, first.nodeId, first.portId);
-  if (previous.port.domain !== next.port.domain) throw Error('两端的物理类型必须相同。');
-  if (next.port.domain !== 'fluid' && previous.port.direction === next.port.direction) throw Error('此类端口需要输入与输出相连。');
-  remember(); pg.edges.push([uid('edge'), first.nodeId, first.portId, nodeId, portId]); ui.connecting = null;
+  const source = [first.nodeId, first.portId], target = [nodeId, portId];
+  links.check(owner, source, target, moduleOf);
+  remember(); links.connect(owner, uid('edge'), source, target, moduleOf); ui.connecting = null;
   markDirty(project()); render(); msg('连接已建立。');
 }
 function deleteNode(id) {
+  assertLinksIdle();
   const owner=project(),pg=owner.pages.find(pg=>pg.nodes.some(n=>n.id===id));if(!pg)return;
   const references=coldStorage.couplingReferences(owner,[id]);
   const key=projectParameterKey(owner);
@@ -1945,21 +2010,22 @@ function deleteNode(id) {
     if(projectParameterKey(owner)!==key)throw Error('确认期间项目发生变化，请重新选择要删除的设备。');
     const targetPage=owner.pages.find(page=>page.nodes.some(node=>node.id===id));
     if(!targetPage)throw Error('设备已不存在，请重新选择。');
-    const links=coldStorage.couplingReferences(owner,[id]);
-    if(links.length)coldStorage.assertCouplingIdle(owner);
-    remember();targetPage.nodes=targetPage.nodes.filter(n=>n.id!==id);targetPage.edges=targetPage.edges.filter(e=>e[1]!==id&&e[3]!==id);
-    if(links.length){
-      const removed=new Set(links.map(link=>link.id));
+    assertLinksIdle(owner);
+    const couplingLinks=coldStorage.couplingReferences(owner,[id]);
+    if(couplingLinks.length)coldStorage.assertCouplingIdle(owner);
+    remember();links.removeNodes(owner,[id]);
+    if(couplingLinks.length){
+      const removed=new Set(couplingLinks.map(link=>link.id));
       owner.thermalCouplings=owner.thermalCouplings.filter(link=>!removed.has(link.id));
       coldStorage.syncCouplingCharts(owner);
     }
     ui.floats=ui.floats.filter(f=>f.id!==id);ui.selectedNode='';ui.connecting=null;
-    markDirty(owner);persistLocal();render();msg(links.length?'设备、关联连接与热耦合已删除，可撤销。':'设备与关联连接已删除，可撤销。');
+    markDirty(owner);persistLocal();render();msg(couplingLinks.length?'设备、关联连接与热耦合已删除，可撤销。':'设备与关联连接已删除，可撤销。');
   };
   if(references.length)confirmChange('删除热耦合设备',`删除 ${id} 将同时解除热耦合 ${references.map(link=>link.id).join('、')}。相关当前曲线也会移除，已保存运行记录保留。`,remove,'删除并解除耦合');
   else remove();
 }
-function deleteEdge(id) { remember(); project().pages.forEach(pg => pg.edges = pg.edges.filter(e => e[0] !== id)); ui.selectedEdge = ''; markDirty(project()); render(); }
+function deleteEdge(id) { assertLinksIdle(); remember(); links.remove(project(),id); closeDialog(); ui.selectedEdge = ''; markDirty(project()); render(); }
 function copyDevice(id = ui.selectedNode) { const n = instance(id); if (n) { ui.clipboard = clone(n); msg(`${n.id} 已复制；Ctrl+V 粘贴。`); } }
 function pasteDevice() {
   if (!ui.clipboard) return;
@@ -2216,8 +2282,11 @@ function validateImport(data) {
     for (const pg of p.pages) {
       if (!safeId(pg.id) || !Array.isArray(pg.nodes) || pg.nodes.length > 64 || !Array.isArray(pg.edges)) throw Error('画布结构不合法。');
       for (const n of pg.nodes) { const m = p.moduleSnapshots?.[n.moduleId] || data.modules.find(m => m.id === n.moduleId); if (!safeId(n.id) || !m || !Number.isFinite(n.x) || !Number.isFinite(n.y)) throw Error('设备引用不合法。'); readParams(n.params, m.kind, '', m.manifest ? manifestFields(m.manifest) : undefined); readParams(n.draft, m.kind, '', m.manifest ? manifestFields(m.manifest) : undefined); validateInstanceVariableState(n, m); }
-      for (const e of pg.edges) if (!Array.isArray(e) || e.length !== 5 || !safeId(e[0]) || !pg.nodes.some(n => n.id === e[1] && (p.moduleSnapshots?.[n.moduleId] || data.modules.find(m => m.id === n.moduleId)).ports.some(p => p.id === e[2])) || !pg.nodes.some(n => n.id === e[3] && (p.moduleSnapshots?.[n.moduleId] || data.modules.find(m => m.id === n.moduleId)).ports.some(p => p.id === e[4]))) throw Error('连接引用不存在。');
+      for (const e of pg.edges) if (!Array.isArray(e) || e.length !== 5 || !safeId(e[0])) throw Error('连接格式不合法。');
     }
+    if(!unique(p.pages.map(pg=>pg.id)))throw Error('画布标识重复。');
+    const connectionErrors=links.validate(p,n=>p.moduleSnapshots?.[n.moduleId]||data.modules.find(m=>m.id===n.moduleId),false);
+    if(connectionErrors.length)throw Error(connectionErrors.map(error=>error.text).join('；'));
     numeric(p.solver.dt, .01, 60); numeric(p.solver.duration, 1, 86400);
   }
   if (!data.projects.some(p => p.id === data.activeProject) || !data.modules.some(m => m.id === data.bench.moduleId) || !data.bench.run?.values || !Array.isArray(data.bench.run.history) || !Array.isArray(data.bench.run.events)) throw Error('当前项目或测试引用无效。');
@@ -2309,7 +2378,12 @@ function handleAction(action, el) {
         ui.selectedNode = ''; ui.connecting = null; markDirty(project()); render();
       }, pg ? '保存名称' : '新增画布'); break;
     }
-    case 'canvas-tab': project().activePage = id; ui.selectedNode = ''; ui.selectedEdge = ''; ui.connecting = null; render(); break;
+    case 'canvas-tab': project().activePage = id; ui.selectedNode = ''; ui.selectedEdge = ''; render(); break;
+    case 'page-links': pageLinksDialog(); break;
+    case 'add-page-link': pageLinkDialog(d.node, d.port); break;
+    case 'edit-page-link': pageLinkDialog(null, null, id); break;
+    case 'jump-page-link': jumpPageLink(id, d.node); break;
+    case 'move-device-page': moveDevicePage(id); break;
     case 'new-module-group': moduleGroupDialog(); break;
     case 'rename-module-group': moduleGroupDialog(d.value); break;
     case 'delete-module-group': removeModuleGroup(d.value); break;
@@ -2404,7 +2478,7 @@ function handleAction(action, el) {
     case 'delete-port': {
       const m = mod();
       if (m.channels.some(c => c.input === id || c.output === id)) throw Error('先解除此端口的内部通路绑定，再删除。');
-      if (state.projects.some(p => p.pages.some(pg => pg.edges.some(e => [1, 3].some(i => pg.nodes.find(n => n.id === e[i])?.moduleId === m.id && e[i + 1] === id))))) throw Error('项目中仍有连接使用此端口，请先断开连接。');
+      if (state.projects.some(p => p.pages.some(pg => pg.edges.some(e => [1, 3].some(i => p.pages.flatMap(page=>page.nodes).find(n => n.id === e[i])?.moduleId === m.id && e[i + 1] === id))))) throw Error('项目中仍有连接使用此端口，请先断开连接。');
       m.ports = m.ports.filter(p => p.id !== id); refreshPortVariables(m); ui.editorPort = ''; markDirty(m); render(); break;
     }
     case 'add-channel': {
@@ -2866,6 +2940,7 @@ function normalizeState() {
     if (p.run.status === 'solving') p.run.status = 'ready';
     p.run.events ||= []; p.run.history ||= []; p.run.values ||= emptyRun().values;
     for (const pg of p.pages) { pg.zoom ||= 1; pg.pan ||= [0, 0]; for (const n of pg.nodes) { const m = moduleOf(n); if (m.runtime === 'python') for (const spec of manifestParamSpecs(m.manifest)) { if (!(spec.id in n.params)) n.params[spec.id] = clone(spec.default); if (!n.draft || !(spec.id in n.draft)) { n.draft ||= clone(n.params); n.draft[spec.id] = clone(n.params[spec.id]); } } n.draft ||= clone(n.params); validateInstanceVariableState(n, m); ensureInstanceVariables(n, m, p); } }
+    links.rehome(p);
     const variables = projectVariables(p);
     for (const field of ['input', 'output']) if (!variables.some(v => v.id === p.controlConfig[field])) {
       const legacy = variables.find(v => v.legacyId === p.controlConfig[field]); if (legacy) p.controlConfig[field] = legacy.id;

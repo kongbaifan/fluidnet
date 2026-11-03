@@ -14,6 +14,8 @@
 
 同日完成[标准机房基础案例](fluidnet-prototype-engine/docs/HVAC_STANDARD_PLANT.md)的运行、调阀、仪表与报告、保存重载后复算验收；后续按具体算例需要补设备细节。
 
+同日补齐[多画布连接](fluidnet-prototype-engine/docs/CROSS_PAGE_CONNECTIONS.md)，支持把同一个系统拆到多张画布，跨页连接、跳转、保存和导入后仍统一计算。
+
 当前发布版本 **v0.5.0（2026-10-22）**：冷库 A 版单库房案例（A0–A6）、B 版 NH₃/CO₂ 集总制冷站案例（B0–B3）与倍思鹿模块开发套件 v1 已交付；发布说明见 [RELEASE_NOTES](fluidnet-prototype-engine/docs/RELEASE_NOTES.md)，许可证见 [LICENSE](LICENSE)。
 
 | 目录 | 内容 |

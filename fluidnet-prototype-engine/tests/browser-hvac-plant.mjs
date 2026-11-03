@@ -9,6 +9,8 @@ import {FHD_CONTEXT,captureFhd} from './browser-viewport.mjs';
 const directory=mkdtempSync(join(tmpdir(),'fluidnet-hvac-plant-'));
 const browser=await chromium.launch({channel:'msedge',headless:true});
 const errors=[];
+const multiPage=process.argv.includes('--multi-page');
+let partitionedEvidence=null;
 let launched,page;
 async function api(path,body) {
   const response=await page.request.fetch(launched.base+'/api/v1'+path,
@@ -68,6 +70,33 @@ async function savedProject() {
     return state.projects.find(project=>project.id===state.activeProject);
   });
 }
+async function partitionPlant(){
+  const owner=await savedProject(),source=owner.activePage;
+  await page.getByRole('button',{name:'编辑拓扑',exact:true}).click();
+  async function canvas(name){
+    await page.locator('[data-action="new-canvas"]').first().click();
+    await page.getByRole('dialog').locator('[name="name"]').fill(name);
+    await page.getByRole('dialog').locator('button[type="submit"]').click();
+    return page.locator('.canvas-pages [data-action="canvas-tab"].active').getAttribute('data-id');
+  }
+  const terminal=await canvas('末端'),plant=await canvas('机房');
+  for(const [destination,ids] of [[terminal,['Coil','Coil2','Balance1','Balance2','Header','Collector']],
+    [plant,['Chiller','ChilledPump','CoolingPump','Tower','ChilledRef','CoolingRef','ChilledJoin','CoolingJoin','Strainer','Reducer','Isolation']]]){
+    for(const id of ids){
+      await page.locator('[data-action="canvas-tab"][data-id="'+source+'"]').click();
+      await page.getByRole('button',{name:'适应画布',exact:true}).click();
+      await page.locator('[data-node="'+id+'"]').click();
+      await page.locator('[data-action="move-device-page"][data-id="'+id+'"]').click();
+      await page.getByRole('dialog').locator('[name="page"]').selectOption(destination);
+      await page.getByRole('dialog').locator('button[type="submit"]').click();
+    }
+  }
+  await page.locator('[data-action="page-links"]').click();
+  await expect(page.locator('[data-page-link]')).toHaveCount(4);
+  await page.getByRole('dialog').getByRole('button',{name:'关闭',exact:true}).click();
+  await captureFhd(page,'artifacts/hvac-multi-page-topology.png');
+  await page.locator('.rail-link[data-route="air"]').click();
+}
 try {
   launched=await launchEngine({args:['--data-dir',join(directory,'data')],env:{FLUIDNET_MODULE_STORE:join(directory,'modules')}});
   page=await (await browser.newContext({...FHD_CONTEXT,acceptDownloads:true})).newPage();
@@ -84,11 +113,17 @@ try {
   await page.getByRole('button',{name:'应用设置',exact:true}).click();
   const baseline=await runProject(),baselineEvidence=verifyPlant(baseline);
   expect(baseline.mode).toBe('steady');
+  if(multiPage){
+    await partitionPlant();const partitioned=await runProject();partitionedEvidence=verifyPlant(partitioned);
+    expect(new Set(partitioned.request.project.instances.map(node=>node.page_id)).size).toBe(3);
+    for(const meter of baseline.request.project.measurements)
+      expect(partitioned.frame.variables['measurement.'+meter.id]).toBeCloseTo(baseline.frame.variables['measurement.'+meter.id],6);
+  }
   await expect(page.getByRole('heading',{name:'空气回路',exact:true})).toBeVisible();
   await expect(page.getByRole('heading',{name:'液体回路',exact:true})).toBeVisible();
   await expect(page.locator('[data-air-value="Chiller.out0.temperature_k"]')).not.toHaveText('—');
   expect(await page.locator('[data-air-value="Chiller.out0.humidity_ratio_kg_kg"]').count()).toBe(0);
-  await captureFhd(page,'artifacts/hvac-plant-circuits.png');
+  await captureFhd(page,(multiPage?'artifacts/hvac-multi-page-':'artifacts/hvac-plant-')+'circuits.png');
   await page.locator('.rail-link[data-route="controls"]').click();
   await expect(page.locator('[data-meter-card]')).toHaveCount(4);
   for(const id of ['branch1-flow','branch2-flow','supply-dp','coil2-power'])
@@ -96,13 +131,13 @@ try {
   await expect(page.locator('[data-meter-card="branch1-flow"]')).toContainText('m³/h');
   await expect(page.locator('[data-meter-card="supply-dp"]')).toContainText('kPa');
   await expect(page.locator('[data-meter-card="coil2-power"]')).toContainText('kW');
-  await captureFhd(page,'artifacts/hvac-plant-meters.png');
+  await captureFhd(page,(multiPage?'artifacts/hvac-multi-page-':'artifacts/hvac-plant-')+'meters.png');
   await page.locator('.rail-link[data-route="air"]').click();
   mkdirSync('artifacts',{recursive:true});
   for(const [name,extension] of [['HTML 报告','html'],['CSV','csv']]) {
     const pending=page.waitForEvent('download');
     await page.getByRole('button',{name,exact:true}).click();
-    const target='artifacts/hvac-plant-report.'+extension;
+    const target=(multiPage?'artifacts/hvac-multi-page-':'artifacts/hvac-plant-')+'report.'+extension;
     await (await pending).saveAs(target);
     const report=readFileSync(target,'utf8');
     for(const meter of baseline.request.project.measurements) {
@@ -113,6 +148,8 @@ try {
   }
   // 经普通设备面板把支路 1 平衡阀由 80% 调到 40%，真实网络应重新分配水量。
   await page.getByRole('button',{name:'编辑拓扑',exact:true}).click();
+  const valvePage=(await savedProject()).pages.find(pg=>pg.nodes.some(node=>node.id==='Balance1'));
+  await page.locator('[data-action="canvas-tab"][data-id="'+valvePage.id+'"]').click();
   await page.getByRole('button',{name:'适应画布',exact:true}).click();
   await page.locator('[data-node="Balance1"]').first().dblclick();
   const valve=page.getByRole('region',{name:'Balance1 设备参数',exact:true});
@@ -140,8 +177,8 @@ try {
   expect(normalized.circuit_fluids).toEqual(changed.request.project.circuit_fluids);
   expect(normalized.measurements).toEqual(changed.request.project.measurements);
   expect(normalized.instances.find(instance=>instance.id==='Balance1').parameters.opening_ratio).toBe(.4);
-  writeFileSync('artifacts/hvac-plant.prototype.json',JSON.stringify(exported,null,2)+'\n');
-  writeFileSync('artifacts/hvac-plant.project.json',JSON.stringify(normalized,null,2)+'\n');
+  writeFileSync((multiPage?'artifacts/hvac-multi-page.':'artifacts/hvac-plant.')+'prototype.json',JSON.stringify(exported,null,2)+'\n');
+  writeFileSync((multiPage?'artifacts/hvac-multi-page.':'artifacts/hvac-plant.')+'project.json',JSON.stringify(normalized,null,2)+'\n');
   await page.reload();
   await expect(page.getByRole('button',{name:'运行计算',exact:true})).toBeEnabled({timeout:15000});
   const reloaded=await runProject(),reloadedEvidence=verifyPlant(reloaded);
@@ -149,16 +186,16 @@ try {
     expect(reloaded.frame.variables['measurement.'+meter.id]).toBeCloseTo(changed.frame.variables['measurement.'+meter.id],6);
   await page.locator('.rail-link[data-route="controls"]').click();
   await expect(page.locator('[data-meter-card]')).toHaveCount(4);
-  await captureFhd(page,'artifacts/hvac-plant-reloaded.png');
+  await captureFhd(page,(multiPage?'artifacts/hvac-multi-page-':'artifacts/hvac-plant-')+'reloaded.png');
   expect(errors).toEqual([]);
   const evidence={case:'hvac-basic-plant',mode:'steady',baseline:baselineEvidence,
-    valve40:changedEvidence,reloaded:reloadedEvidence,meters:normalized.measurements.length,errors};
-  writeFileSync('artifacts/hvac-plant-validation.json',JSON.stringify(evidence,null,2)+'\n');
+    partitioned:partitionedEvidence,valve40:changedEvidence,reloaded:reloadedEvidence,meters:normalized.measurements.length,errors};
+  writeFileSync((multiPage?'artifacts/hvac-multi-page-':'artifacts/hvac-plant-')+'validation.json',JSON.stringify(evidence,null,2)+'\n');
   console.log(JSON.stringify(evidence));
 } catch(error) {
   console.error(error,errors,launched?.log());
   process.exitCode=1;
-  await captureFhd(page,'artifacts/hvac-plant-failure.png').catch(()=>{});
+  await captureFhd(page,(multiPage?'artifacts/hvac-multi-page-':'artifacts/hvac-plant-')+'failure.png').catch(()=>{});
 } finally {
   await browser.close();
   await launched?.stop();

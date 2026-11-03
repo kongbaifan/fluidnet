@@ -809,6 +809,10 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 #fn-studio .batch-legend i { display:inline-block;width:16px;height:3px;margin-right:6px;vertical-align:middle; }
 #fn-studio .batch-provenance { font-size:12px;color:var(--muted);overflow-wrap:anywhere; }
 #fn-studio .batch-provenance p { margin-top:8px; }
+.cross-page-strip{display:flex;flex-wrap:wrap;gap:6px;padding:7px 14px;border-bottom:1px solid var(--line);max-height:94px;overflow:auto;background:var(--blue-soft)}
+.cross-page-strip button{display:flex;align-items:center;gap:5px;max-width:100%;padding:4px 8px;border:1px solid var(--line);border-radius:5px;background:var(--surface);color:var(--blue);font-size:11px;text-align:left}
+.cross-page-strip button span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cross-page-strip svg{width:13px;height:13px;flex:none}
 </style>
 <link rel="stylesheet" href="air-side.css">
 </head>
@@ -825,6 +829,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   </div>
   <script src="module-test-editor.js"></script>
   <script src="control-programs.js"></script>
+  <script src="project-links.js"></script>
   <script src="project-services.js"></script>
   <script src="engine-client.js"></script>
   <script src="modeling-workflows.js"></script>
