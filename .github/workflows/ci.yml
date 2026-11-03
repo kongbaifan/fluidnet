@@ -80,6 +80,17 @@ jobs:
         run: |
           python -c "import platform,numpy; print(platform.python_version(), platform.processor()); numpy.show_runtime()"
           python -m pytest tests/test_coupled_liquid_examples.py::test_portable_file_contains_frozen_source_and_roundtrips_without_path 'tests/test_hvac_templates.py::test_makeup_water_matches_the_leak_through_the_real_network[0.02]' -q
+          $defaultNumericExit = $LASTEXITCODE
+          # 对照本地基线的 BLAS 内核；默认环境失败仍然阻塞，不能被对照结果覆盖。
+          $originalBlasCore = $env:OPENBLAS_CORETYPE
+          try {
+            $env:OPENBLAS_CORETYPE = 'Haswell'
+            python -c "import ctypes,numpy; from pathlib import Path; lib=ctypes.CDLL(str(next((Path(numpy.__file__).parent.parent/'numpy.libs').glob('libscipy_openblas*.dll')))); core=lib.scipy_openblas_get_corename64_; core.restype=ctypes.c_char_p; print('Baseline BLAS:',core().decode())"
+            python -m pytest tests/test_coupled_liquid_examples.py::test_portable_file_contains_frozen_source_and_roundtrips_without_path 'tests/test_hvac_templates.py::test_makeup_water_matches_the_leak_through_the_real_network[0.02]' -q
+            $baselineNumericExit = $LASTEXITCODE
+          } finally { $env:OPENBLAS_CORETYPE = $originalBlasCore }
+          if ($defaultNumericExit -ne 0) { exit $defaultNumericExit }
+          if ($baselineNumericExit -ne 0) { exit $baselineNumericExit }
       # 覆盖率 floor 配置在 pyproject.toml [tool.coverage.report].fail_under，
       # 低于 floor 时 pytest 以非零退出码失败。
       - name: 后端测试 + 覆盖率
