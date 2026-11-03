@@ -1,6 +1,6 @@
 # FluidNet 架构索引、进程与存储
 
-核对日期：**2026-11-03**；源码基线 `c0270cf`；引擎声明版本 `0.5.0`。完整的四张架构图与六张核心时序图统一维护于 [ARCHITECTURE_AND_SEQUENCE.md](ARCHITECTURE_AND_SEQUENCE.md)，本页补充进程、存储和源码导航。
+核对日期：**2026-11-03**；源码基线 `8563631`；引擎声明版本 `0.5.0`。完整的四张架构图与六张核心时序图统一维护于 [ARCHITECTURE_AND_SEQUENCE.md](ARCHITECTURE_AND_SEQUENCE.md)，本页补充进程、存储和源码导航。
 
 后续内部整理见 [架构整理执行计划](ARCHITECTURE_REFACTOR_PLAN.md)：按项目转换、编辑状态、运行结果、公共会话和全量验收分八个工作包实施，AR-0～AR-6 已完成，完整门禁见 [PR #8 检查](https://github.com/kongbaifan/fluidnet/pull/8/checks)。
 
