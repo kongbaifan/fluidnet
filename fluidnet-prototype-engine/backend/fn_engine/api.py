@@ -379,8 +379,7 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
         try:
             session = create_session(compile_project(project), script.sample_s, script.sample_s)
             session.initialize()
-            session._control()
-            result = session.scripts[script.id].pending[0]
+            result = session.preview_control(script.id)
             return {**result, 'content_hash': script.content_hash, 'time_s': 0., 'applied': False}
         except ValueError as error:
             detail = diagnostic(error).model_dump(mode='json')

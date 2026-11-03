@@ -1,15 +1,49 @@
 """Shared session commands and lifecycle, independent of concrete physics domains."""
+from abc import ABC, abstractmethod
 from collections import deque
+from collections.abc import Mapping
+from typing import Any, Protocol, TypedDict, cast
 from copy import deepcopy
 import math
 
 from .compiler import CompilationError, runtime_parameter, validated_parameters
-from .models import PIDController
+from .models import Diagnostic, ModuleDefinition, ModuleInstance, ParameterSpec, PIDController, Project, RunFrame
+from .controllers import PID
+from .control import ScriptControl
 
 
-def close_resources(resources):
+Parameters = dict[str, Any]
+FrameBuffer = list[RunFrame] | deque[RunFrame]
+
+
+class SessionNetwork(Protocol):
+    """Only the project contract is shared; physical storage belongs to each domain."""
+    project: Project
+    modules: dict[str, ModuleDefinition]
+    instances: dict[str, ModuleInstance]
+    parameters: dict[str, Parameters]
+
+
+class Closable(Protocol):
+    def close(self, force: bool = False) -> None: ...
+
+
+class ParameterExecutor(Closable, Protocol):
+    def update_parameters(self, parameters: Parameters) -> None: ...
+
+
+class ControlCheckpoint(TypedDict):
+    parameters: dict[str, Parameters]
+    revision: int
+    controllers: dict[str, PID]
+    diagnostics: list[Diagnostic]
+    scripts: dict[str, dict[str, Any]]
+    effects: object
+
+
+def close_resources(resources: Mapping[str, Closable] | Closable) -> None:
     if hasattr(resources,'close'):
-        resources.close()
+        cast(Closable, resources).close()
         return
     for resource in resources.values():
         try:
@@ -18,8 +52,9 @@ def close_resources(resources):
             pass
 
 
-class SessionBase:
-    def __init__(self,network,duration_s,dt_s,keep=None):
+class SessionBase(ABC):
+    report_keys: frozenset[str] = frozenset()
+    def __init__(self, network: SessionNetwork, duration_s: float | None, dt_s: float, keep: int | None = None) -> None:
         if not (math.isfinite(dt_s) and dt_s>0) or duration_s is not None and not (math.isfinite(duration_s) and duration_s>0):
             raise ValueError('运行时长和步长必须为有限正数')
         if keep is None and (duration_s is None or duration_s>2000*dt_s):
@@ -28,36 +63,57 @@ class SessionBase:
         self.duration,self.dt=duration_s,dt_s
         self.time=0.
         self.index=self.sequence=self.revision=0
-        self.frames=deque(maxlen=keep) if keep else []
-        self.runners,self.controllers,self.scripts={},{},{}
+        self.frames: FrameBuffer = deque(maxlen=keep) if keep else []
+        self.runners: dict[str, ParameterExecutor] = {}
+        self.controllers: dict[str, PID] = {}
+        self.scripts: dict[str, ScriptControl] = {}
         self.script_owners={key:script.id for script in network.project.control_scripts if script.enabled for key in script.outputs}
         for public,destinations in getattr(network,'composite_maps',{}).get('parameters',{}).items():
             if public in self.script_owners:
                 for target,parameter in destinations:
                     self.script_owners[f'{target}.param.{parameter}']=self.script_owners[public]
-        self.diagnostics=[]
+        self.diagnostics: list[Diagnostic] = []
         self.closed=False
-        self._control_base=None
+        self._control_base: ControlCheckpoint | None = None
 
-    def validate_parameter_values(self,instance_id,parameters):
+    @abstractmethod
+    def initialize(self) -> RunFrame: ...
+
+    @abstractmethod
+    def advance(self) -> RunFrame: ...
+
+    @abstractmethod
+    def snapshot(self) -> RunFrame: ...
+
+    def preview_control(self, script_id: str) -> dict[str, Any]:
+        """Preview one sample on an initialized disposable session, without accepting it."""
+        runner = self.scripts.get(script_id)
+        if runner is None:
+            raise CompilationError('CONTROL_SCRIPT_UNKNOWN', f'控制脚本不存在：{script_id}')
+        self._control()
+        if runner.pending is None:
+            raise CompilationError('CONTROL_PREVIEW_UNAVAILABLE', f'控制脚本没有待接受提案：{script_id}')
+        return cast(dict[str, Any], deepcopy(runner.pending[0]))
+
+    def validate_parameter_values(self, instance_id: str, parameters: Parameters) -> None:
         """Validate domain-specific effects before any parameter in a batch changes."""
 
-    def validate_parameter_batch(self,candidates):
+    def validate_parameter_batch(self, candidates: dict[str, Parameters]) -> None:
         """Validate relationships across all proposed device parameters."""
 
-    def apply_parameter_changes(self,instance_id,parameters):
+    def apply_parameter_changes(self, instance_id: str, parameters: Parameters) -> None:
         """Apply already validated physical side effects; parameters are stored by the base."""
 
-    def capture_parameter_effects(self):
+    def capture_parameter_effects(self) -> object:
         return None
 
-    def restore_parameter_effects(self,effects):
+    def restore_parameter_effects(self, effects: object) -> None:
         """Restore the physical side effects owned by this domain."""
 
-    def close_domain_resources(self):
+    def close_domain_resources(self) -> None:
         close_resources(self.runners)
 
-    def _apply_parameters(self,instance_id,parameters):
+    def _apply_parameters(self, instance_id: str, parameters: Parameters) -> bool:
         if parameters==self.network.parameters[instance_id]:
             return False
         if instance_id in self.runners:
@@ -67,18 +123,18 @@ class SessionBase:
         return True
 
     @property
-    def done(self):
+    def done(self) -> bool:
         return self.duration is not None and bool(self.frames) and self.time >= self.duration - 1e-12
 
 
-    def parameter_spec(self, instance_id, parameter_id):
+    def parameter_spec(self, instance_id: str, parameter_id: str) -> ParameterSpec:
         instance = self.network.instances.get(instance_id)
         if instance is None:
             raise CompilationError('PARAMETER_TARGET_MISSING', '目标设备不存在')
-        return runtime_parameter(instance, self.network.modules[instance.module_id], parameter_id)
+        return cast(ParameterSpec, runtime_parameter(instance, self.network.modules[instance.module_id], parameter_id))
 
 
-    def _candidate_parameters(self, instance_id, values, controlled=False, script_id=None):
+    def _candidate_parameters(self, instance_id: str, values: Parameters, controlled: bool = False, script_id: str | None = None) -> Parameters:
         """Validated parameters of an instance after `values`; nothing is changed yet."""
         for parameter_id in values:
             self._check_script_owner(f'{instance_id}.param.{parameter_id}', script_id)
@@ -93,16 +149,16 @@ class SessionBase:
         instance = self.network.instances[instance_id]
         definition = self.network.modules[instance.module_id]
         candidate = instance.model_copy(update={'parameters': self.network.parameters[instance_id] | values})
-        parameters = validated_parameters(candidate, definition)
+        parameters = cast(Parameters, validated_parameters(candidate, definition))
         self.validate_parameter_values(instance_id,parameters)
         return parameters
 
 
-    def set_parameter(self, instance_id, parameter_id, value, controlled=False):
+    def set_parameter(self, instance_id: str, parameter_id: str, value: Any, controlled: bool = False) -> None:
         destinations = getattr(self.network,'composite_maps',{}).get('parameters',{}).get(f'{instance_id}.param.{parameter_id}')
         if destinations:
             self._check_script_owner(f'{instance_id}.param.{parameter_id}')
-            patches = {}
+            patches: dict[str, Parameters] = {}
             for target, parameter in destinations:
                 patches.setdefault(target,{})[parameter] = value
             candidates = {target:self._candidate_parameters(target,values,controlled) for target,values in patches.items()}
@@ -115,7 +171,7 @@ class SessionBase:
         if changed:
             self.revision += 1
 
-    def _candidate_controller(self, controller_id, values):
+    def _candidate_controller(self, controller_id: str, values: Parameters) -> PIDController:
         pid = self.controllers.get(controller_id)
         if pid is None or not set(values) <= {'setpoint', 'mode', 'manual_output'}:
             raise CompilationError('PID_COMMAND_INVALID', f'控制器 {controller_id} 或可调字段 {sorted(values)} 不存在'
@@ -123,7 +179,7 @@ class SessionBase:
         return PIDController.model_validate(pid.config.model_dump() | values)
 
 
-    def _apply_controller(self, controller_id, config):
+    def _apply_controller(self, controller_id: str, config: PIDController) -> None:
         pid = self.controllers[controller_id]
         if config.mode != pid.config.mode:
             pid.reset = True
@@ -131,19 +187,19 @@ class SessionBase:
         pid.next_s = self.time
 
 
-    def update_controller(self, controller_id, field, value):
+    def update_controller(self, controller_id: str, field: str, value: Any) -> None:
         self._check_script_owner(f'controller.{controller_id}.{field}')
         self._apply_controller(controller_id, self._candidate_controller(controller_id, {field: value}))
         self.revision += 1
 
 
-    def _check_script_owner(self, key, script_id=None):
+    def _check_script_owner(self, key: str, script_id: str | None = None) -> None:
         owner = self.script_owners.get(key)
         if owner and owner != script_id:
             raise CompilationError('PARAMETER_CONTROLLED', f'{key} 由 Python 脚本 {owner} 控制')
 
 
-    def write_variables(self, values, script_id=None):
+    def write_variables(self, values: Parameters, script_id: str | None = None) -> None:
         """Write several variables at one frame boundary: all of them or none.
 
         Keys follow the frame: `<instance>.param.<parameter>` for runtime parameters and
@@ -151,7 +207,8 @@ class SessionBase:
         """
         if not values:
             raise CompilationError('VARIABLE_WRITE_EMPTY', '没有要写入的变量')
-        parameters, controllers = {}, {}
+        parameters: dict[str, Parameters] = {}
+        controllers: dict[str, Parameters] = {}
         for key, value in values.items():
             self._check_script_owner(key, script_id)
             destinations = getattr(self.network,'composite_maps',{}).get('parameters',{}).get(key)
@@ -184,7 +241,7 @@ class SessionBase:
             self.revision += 1
 
 
-    def _control(self):
+    def _control(self) -> None:
         variables = self.snapshot().variables
         for runner in self.scripts.values():
             if runner.next_s <= self.time + 1e-10:
@@ -201,7 +258,7 @@ class SessionBase:
             self.set_parameter(pid.config.instance_id, pid.config.parameter_id, pid.output, controlled=True)
 
 
-    def _capture_control(self):
+    def _capture_control(self) -> ControlCheckpoint:
         fields = ('state', 'pending', 'next_s', 'last_s', 'samples', 'last_values')
         return {'parameters': deepcopy(self.network.parameters), 'revision': self.revision,
             'controllers': deepcopy(self.controllers), 'diagnostics': list(self.diagnostics),
@@ -210,7 +267,7 @@ class SessionBase:
             'effects': self.capture_parameter_effects()}
 
 
-    def _rollback_control(self):
+    def _rollback_control(self) -> None:
         base = self._control_base
         if base is None:
             return
@@ -230,7 +287,7 @@ class SessionBase:
                 worker.close(force=True)
 
 
-    def close(self):
+    def close(self) -> None:
         if not self.closed:
             self.closed = True
             # Both groups must be attempted: a failing runner close must not leak the

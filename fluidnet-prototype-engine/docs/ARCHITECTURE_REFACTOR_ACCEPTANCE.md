@@ -5,7 +5,7 @@
 ## AR-0 基线
 
 - Python 3.11.0；Node 24.15.0；Edge 157.0.4341.36。核心依赖为 FastAPI 0.137.1、Pydantic 2.13.4、NumPy 2.3.2、SciPy 1.17.1、CoolProp 8.0.0，测试使用 pytest 8.4.1。
-- 原始基线 [CI](https://github.com/kongbaifan/fluidnet/actions/runs/41608687342) 的前端两次在 `browser-module-assertions.mjs:47` 等待保存响应超时；[模块 CI](https://github.com/kongbaifan/fluidnet/actions/runs/41608687518) 通过。后端远端状态在最终验收时再记录。
+- 原始基线 [CI](https://github.com/kongbaifan/fluidnet/actions/runs/41608687342) 的前端两次在 `browser-module-assertions.mjs:47` 等待保存响应超时；[模块 CI](https://github.com/kongbaifan/fluidnet/actions/runs/41608687518) 通过。原始后端与 SDK CI 最终通过，原始前端失败已由 AR-0 独立修复。
 - 本地原始基线：计划 F/S 后端专项 233 项通过，耗时 374.95 秒；UI 32 项通过；语法、ruff、mypy、合同与扩展示例一致性检查通过。
 - 数值快照：普通流体、理想热系统、冷库 A、集总制冷站、制冷液体热耦合及多画布机房，各记录 0、5、10 秒共三帧。输入摘要、模块版本与双哈希、公开变量、守恒指标、诊断代码和参数修订保存在 [baseline-numerics.json](architecture-refactor/baseline-numerics.json)。采集脚本为 [architecture_snapshot.py](../scripts/architecture_snapshot.py)。
 
@@ -31,11 +31,11 @@
 | 当前与历史运行 | engine: applyRow / command / pollLive / confirmArchiveCache；studio: receiveArchives / showArchive | project-run-state | 迟到响应、增量帧、档案确认与历史 | AR-3 已迁移 |
 | 公共参数、控制与资源 | SimulationSession: 参数命令、PID／脚本、检查点、close | SessionBase + 物理钩子 | 控制、事务、困液、停止与部分初始化失败 | AR-4 已迁移 |
 | 热／制冷会话继承 | ThermalSession / ColdStoreSession / StationSession / CoupledStationSession | 非流体公共基类，保留域内步进 | 五域基线与失败回滚 | AR-5 已迁移 |
-| 调度与预览 | jobs 的会话访问；API `_control()` 与 `scripts.pending` | RunSession 协议及显式预览方法 | 后台运行、控制预览及类型门禁 | 待迁移 |
+| 调度与预览 | jobs 的会话访问；API `_control()` 与 `scripts.pending` | RunSession 协议及显式预览方法 | 后台运行、控制预览及类型门禁 | AR-6 已迁移 |
 
 ## 后续包记录
 
-AR-6～AR-7 待实施。各包完成后在此添加提交、实际检查和剩余问题，并同步迁移清单与计划进度。
+AR-7 待完整验收。各包完成后在此添加提交、实际检查和剩余问题，并同步迁移清单与计划进度。
 
 ## AR-1 项目转换
 
@@ -66,3 +66,11 @@ AR-6～AR-7 待实施。各包完成后在此添加提交、实际检查和剩�
 `ThermalSession` 直接继承公共基类；冷库、集总制冷站与热耦合保留自己的热步进及接受事务。删除为继承而补的 `trapped` 占位状态。液体联算通过自身参数钩子维护内置阀门支路开闭并回滚，未将该职责放入公共层。
 
 验证：115 项热／制冷／控制／接受回归通过；公共边界四项单独复验通过，其中新增理想热系统在没有流体支路／储量占位字段时的控制运行；六例数值与模块身份一致。控制脚本、冷库 A、制冷站和液体作者四个浏览器流程通过，覆盖版本、报告、导入及重启复算。ruff、mypy 与 90 项生成合同一致性通过。
+
+## AR-6 显式会话接口与类型门禁
+
+补齐 `RunSession` 的帧、报告变量、命令、快照和预览接口，调度使用公开报告变量属性。API 改调用 `preview_control`，不再读取会话的私有控制方法和待接受提案；预览返回分离副本，修改返回值不会污染待接受状态。
+
+公共基类、网络／资源协议、控制检查点和工厂接口已注解；`mypy-session.ini` 对两个接口文件启用 strict，允许调用尚未注解的既有编译器／Worker 函数，并以 silent 模式分析其导入类型，不扩大旧物理模块的检查范围。此门禁已加入 CI。
+
+验证：49 项公共边界／控制／事务／运行测试通过；调度公开属性修改后，26 项历史和运行测试复验通过；控制脚本浏览器通过。新增提案副本及未知脚本无副作用测试。严格类型、全引擎现有 mypy、ruff 与 90 个合同文件一致性通过。

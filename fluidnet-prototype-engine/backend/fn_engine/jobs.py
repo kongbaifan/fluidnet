@@ -415,7 +415,7 @@ class RunManager:
         index = job.published
         script_outputs = {key for script in request.project.control_scripts if script.enabled for key in script.outputs}
         # Sessions may name variables their reports need on every frame (cold store: the standard curves).
-        report_keys = getattr(job.session, 'report_keys', ())
+        report_keys = job.session.report_keys if job.session is not None else ()
         trend = {k for k in row['variables'] if k in request.trend_variables or k in script_outputs or k in report_keys
                  or '.state.' in k or k.startswith(('controller.', 'script.', 'measurement.'))}
         if request.history == 'trend':

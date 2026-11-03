@@ -74,6 +74,8 @@ jobs:
       # 当前范围已清零并阻塞回归；未注解函数体的覆盖仍按模块逐步收紧。
       - name: mypy 类型检查
         run: python -m mypy
+      - name: 公共会话接口严格类型检查
+        run: python -m mypy --config-file mypy-session.ini
       # 覆盖率 floor 配置在 pyproject.toml [tool.coverage.report].fail_under，
       # 低于 floor 时 pytest 以非零退出码失败。
       - name: 后端测试 + 覆盖率

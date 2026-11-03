@@ -1,6 +1,6 @@
 # 架构整理执行计划
 
-制定日期：2026-11-03。代码基线：`7424576`；配套说明为本地已更新的 [当前架构图](ARCHITECTURE_AND_SEQUENCE.md)。状态：**实施中：AR-0～AR-5 已验证，AR-6～AR-7 待实施**。
+制定日期：2026-11-03。代码基线：`7424576`；配套说明为本地已更新的 [当前架构图](ARCHITECTURE_AND_SEQUENCE.md)。状态：**实施中：AR-0～AR-6 已验证，AR-7 待完整验收**。
 
 目标是降低新增设备、控制和建模功能时的连锁改动：保留现有单服务架构、物理求解器、Worker 接受事务和持久化机制，集中项目状态的写入入口，并消除热／制冷会话对流体会话的继承依赖。
 
@@ -108,6 +108,7 @@ npm run check
 npm run test:ui
 python -m ruff check backend tests scripts modules examples/control_templates
 python -m mypy
+python -m mypy --config-file mypy-session.ini
 python scripts/generate_contracts.py --check
 npm run check:extension-examples
 ```
@@ -195,7 +196,7 @@ node scripts/render_architecture_diagrams.mjs
 | AR-3 | 已验证 | 运行状态提取提交 | 51 UI、六个运行／归档／跨页浏览器流程 |
 | AR-4 | 已验证 | 公共会话提取提交 | 141 项专项、六例数值一致；ruff / mypy 通过 |
 | AR-5 | 已验证 | 热／制冷会话迁移提交 | 115 项专项、4 项公共边界、四个浏览器流程、六例结果一致 |
-| AR-6 | 待实施 | — | — |
+| AR-6 | 已验证 | 会话接口与类型提交 | 49 项专项、26 项历史／调度复验、控制浏览器；严格类型通过 |
 | AR-7 | 待实施 | — | — |
 
 最终须同时满足：目标项目写入点均迁移至新入口；重复转换实现已清理；热／制冷会话不再依赖流体会话；公共预览与调度通过显式接口访问会话；旧项目、模块版本、控制、回滚、跨页计算及冻结报告兼容；最终提交的所需检查已完成；架构图与验收记录已更新。
