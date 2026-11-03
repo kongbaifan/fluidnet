@@ -1,6 +1,6 @@
 # FluidNet 当前架构图与核心时序
 
-核对日期：**2026-11-03（北京时间）**。源码基线：`7424576`；引擎声明版本 `0.5.0`。本页描述当前开发源码，包含暖通基础设备、标准机房、理想测点、多画布连接及自定义压降接口；不等同于 2026-10-22 的 v0.5.0 发布包范围。
+核对日期：**2026-11-03（北京时间）**。源码基线：`0dbbee0`；引擎声明版本 `0.5.0`。本页描述当前开发源码，包含暖通基础设备、标准机房、理想测点、多画布连接、自定义压降接口，以及本轮项目状态和公共会话整理；不等同于 2026-10-22 的 v0.5.0 发布包范围。
 
 项目由浏览器 Studio、单个 Python 服务、独立代码 Worker 和本机存储组成。**画布是编辑视图，物理回路由端口连通性决定；多个画布归一化为一个 Project，再选择对应的执行域。** 内置设备由主进程计算，Python 设备返回网络关系；全网求解和状态接受仍由主进程负责。
 
@@ -28,14 +28,14 @@
 ```mermaid
 flowchart TB
   subgraph CLIENT["客户端"]
-    UI["浏览器 Studio<br/>建模 · 模块 · 控制 · 结果"]
+    UI["浏览器 Studio<br/>project-model / state / run-state<br/>建模 · 模块 · 控制 · 结果"]
     EXT["外部客户端<br/>Python / JavaScript / 三维界面"]
   end
   subgraph MAIN["单个 Python 服务进程"]
     API["FastAPI 接入层<br/>静态页面 · 鉴权 · REST / WS"]
     AUTHOR["模块平台<br/>目录 · 验证台 · 不可变版本"]
     BATCH["批量工况<br/>BatchService · 顺序调度"]
-    RUN["编译与运行编排<br/>compiler · RunManager · sessions"]
+    RUN["编译与运行编排<br/>compiler · RunManager<br/>SessionBase / sessions"]
     NUM["数值内核与物性<br/>水力 · 热力 · 湿空气 · 制冷<br/>NumPy / SciPy / CoolProp"]
     TX["代码执行与接受事务<br/>runtime / batch / control<br/>主进程确认候选状态"]
     RESULT["统一结果与归档<br/>RunFrame · 测点 · 曲线<br/>后台归档线程"]
@@ -68,6 +68,8 @@ flowchart TB
 
 Studio 通过 HTTP 增量轮询读取运行历史和状态；WebSocket 提供外部变量订阅。规范化、编译、数值计算、物性和模块状态接受都在主服务进程内。稳态直接进入求解器，动态由五类会话推进；后台运行使用一个调度线程和两个计算线程，批量工况依次提交到同一个 `RunManager`。
 
+`SessionBase` 统一命令、控制采样、参数修订、公共检查点和资源生命周期；`RunSession` 是调度和 API 的显式接口，控制预览调用 `preview_control`。各域的求解、物理副作用及接受点仍由对应会话实现。热／制冷会话不再继承流体会话。
+
 内置设备不经过 Python 设备 Worker；组合模块先展开成叶子设备，再按各叶子的运行类型执行。设备 Worker 可按实例分片，控制脚本使用独立执行器。Worker 隔离进程与生命周期，尚不是操作系统权限沙箱。REFPROP 是可选的本地物性后端。CLI 的 `--headless` 关闭前端挂载，保留 API。
 
 模块版本在文件目录持久化，项目、运行和批次由 SQLite 保存。普通帧通过 `_ArchiveWriter` 合并落盘，保存回执与运行持久确认的具体边界见第 5、10 图。归档 Studio、旧便携包及 `output/` 概念稿不在当前启动链路中。
@@ -81,9 +83,9 @@ Studio 通过 HTTP 增量轮询读取运行历史和状态；WebSocket 提供外
 ```mermaid
 flowchart TB
   subgraph BROWSER["浏览器"]
-    STATE["项目编辑状态<br/>pages：设备 / 布局 / 连接<br/>已应用参数 + 草稿 + 模块快照"]
+    STATE["项目编辑状态<br/>project-state：编辑与撤销<br/>pages / 已应用参数 / 草稿"]
     LINKS["项目级连接工具<br/>project-links.js<br/>占用检查 · 移页 · 跳转 · 删除"]
-    ADAPTER["计算请求适配<br/>engine-client.js<br/>选择项目与已应用参数"]
+    ADAPTER["计算请求适配<br/>project-model：纯转换<br/>engine-client：HTTP 请求"]
     SAVE["保存与导入导出<br/>project-services.js<br/>modeling-workflows.js"]
     LINKS -->|编辑同一连接集合| STATE
     STATE --> ADAPTER
@@ -105,6 +107,8 @@ flowchart TB
   class PROJECT,DB data;
 ```
 
+`project-model.js` 负责参数默认值、显示单位、项目文档和导入／升级的纯转换；服务脚本负责 HTTP 与修订回执。`project-state.js` 集中编辑操作和失败替换回滚，`project-run-state.js` 校验运行归属、合并帧并生成历史展示。迟到响应不能覆盖被替换的项目／运行，轮询不将旧配置结果重新标为当前。
+
 跨页连接沿用 `[连接ID, 起点设备, 起点端口, 终点设备, 终点端口]`，只在起点画布的 `edges` 中存储一次；另一端的连接标记由同一条记录派生。`project-links.js` 在整个项目内检索端口、移页并调整连接存放位置。界面最多八张画布，每页最多 64 台设备。
 
 归一化汇总全部画布后形成同一个 `Project`，`page_id` 保留界面分组信息；压力节点、工质回路和参考边界由连接及设备合同确定。**移页不新增边界、不复制设备，也不单独启动求解。** 编辑拓扑或移页先停止运行；运行中切页与跳转复用已有运行。
@@ -125,8 +129,8 @@ flowchart TB
   C --> A["cold_store<br/>refrigeration/cold_store"]
   C --> R["refrigeration<br/>refrigeration/station"]
   C --> K["coupled · thermal_couplings<br/>refrigeration/coupling"]
-  F --> FS["SimulationSession<br/>水箱、管段热容、困液、房间热湿状态"]
-  T --> TS["ThermalSession<br/>理想冷源 + 库房热平衡"]
+  F --> FS["SimulationSession<br/>共享 SessionBase<br/>水箱、管段、困液、房间状态"]
+  T --> TS["ThermalSession<br/>共享 SessionBase<br/>理想冷源 + 库房热平衡"]
   A --> AS["ColdStoreSession<br/>冷库 A · 库房/货物 + R290 机组"]
   R --> RS["StationSession<br/>集总制冷站 · 容器质量/内能"]
   K --> KS["CoupledStationSession<br/>制冷站 + 无储量液体网络"]
@@ -513,4 +517,6 @@ node scripts/render_architecture_diagrams.mjs
 
 线程、存储与源码导航见 [架构索引](ARCHITECTURE_MAP.md)。本次验证范围为源码调用链核对、Mermaid 实际渲染、图片检查和文档链接检查；不代表重新执行全量物理或浏览器回归。
 
-本轮更新：以 `7424576` 为基线刷新日期与入口；补充多画布计算投影、暖通设备生成与运行链路、组合结果和测点的先后顺序、自定义压降的适用域；统一十张图的导航与导出。
+本轮更新：以 `0dbbee0` 为基线刷新日期与入口；补充多画布计算投影、暖通设备生成与运行链路、组合结果和测点的先后顺序、自定义压降的适用域；统一十张图的导航与导出。
+
+架构整理的工作包、验证记录和完整 CI 门禁见 [执行计划](ARCHITECTURE_REFACTOR_PLAN.md)、[验收记录](ARCHITECTURE_REFACTOR_ACCEPTANCE.md)及 [PR #8 检查](https://github.com/kongbaifan/fluidnet/pull/8/checks)。图中的代码分层描述 `0dbbee0`，完整门禁状态以对应 PR 提交的检查结果为准。

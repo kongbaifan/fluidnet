@@ -1,8 +1,8 @@
 # FluidNet 架构索引、进程与存储
 
-核对日期：**2026-11-03**；源码基线 `7424576`；引擎声明版本 `0.5.0`。完整的四张架构图与六张核心时序图统一维护于 [ARCHITECTURE_AND_SEQUENCE.md](ARCHITECTURE_AND_SEQUENCE.md)，本页补充进程、存储和源码导航。
+核对日期：**2026-11-03**；源码基线 `0dbbee0`；引擎声明版本 `0.5.0`。完整的四张架构图与六张核心时序图统一维护于 [ARCHITECTURE_AND_SEQUENCE.md](ARCHITECTURE_AND_SEQUENCE.md)，本页补充进程、存储和源码导航。
 
-后续内部整理见 [架构整理执行计划](ARCHITECTURE_REFACTOR_PLAN.md)：按项目转换、编辑状态、运行结果、公共会话和全量验收分八个工作包实施，目前尚未开始。
+后续内部整理见 [架构整理执行计划](ARCHITECTURE_REFACTOR_PLAN.md)：按项目转换、编辑状态、运行结果、公共会话和全量验收分八个工作包实施，AR-0～AR-6 已完成，完整门禁见 [PR #8 检查](https://github.com/kongbaifan/fluidnet/pull/8/checks)。
 
 ## 1. 系统与执行域
 
@@ -12,7 +12,7 @@
 
 系统是一个提供静态前端与 API 的 Python 服务，编译与数值求解均在该服务进程内。用户设备代码与项目控制脚本在独立 Worker 子进程执行。内置设备直接由平台计算，自定义设备返回关系与候选输出，由主进程组装全网方程并决定接受状态。
 
-`compiler.compile_project` 先检查作者角色、测点合同并展开组合，再根据热耦合、端口域与冷库类型分派。`sessions.create_session` 创建 `SimulationSession`、`ThermalSession`、`ColdStoreSession`、`StationSession` 或 `CoupledStationSession`。湿空气及空气/冷冻水/冷却水三回路仍走默认流体会话；没有单独的空气执行域。
+`compiler.compile_project` 先检查作者角色、测点合同并展开组合，再根据热耦合、端口域与冷库类型分派。`SessionBase` 提供不依赖具体物理求解器的公共控制、参数命令、修订和生命周期；`RunSession` 为调度和 API 定义显式接口。`ThermalSession` 与 `SimulationSession` 分别继承公共基类，冷库／制冷会话继续复用热步进。`sessions.create_session` 创建 `SimulationSession`、`ThermalSession`、`ColdStoreSession`、`StationSession` 或 `CoupledStationSession`。湿空气及空气/冷冻水/冷却水三回路仍走默认流体会话；没有单独的空气执行域。
 
 画布分组只影响编辑视图；跨页连接由 `project-links.js` 按项目检索，归一化汇入同一个 `Project.instances/connections`。暖通组合先展开成叶子设备，求解结果再映射回公开设备变量并计算理想测点。标准机房的空气、冷冻水和冷却水三回路与画布分组没有一一对应关系。
 
@@ -48,7 +48,7 @@
 | 数据 | 所在位置 | 保留与恢复 |
 | --- | --- | --- |
 | 工作区、项目与草稿 | `WorkspaceStore`，默认 `.runtime/workspace/workspace.sqlite3` | 工作区与单项目最近 5 个修订；乐观修订冲突返回 409 |
-| 浏览器备份与偏好 | `localStorage` | 草稿恢复和界面偏好；恢复／替换单项目时备份该项目及绑定；服务确认保存后才标记已保存 |
+| 浏览器备份与偏好 | `localStorage` | 草稿恢复和界面偏好；恢复／替换单项目时备份该项目及绑定；备份失败保留本地数据与原修订，服务仍可连接；服务确认保存后才标记已保存 |
 | 浏览器令牌 | `sessionStorage` | 当前标签页使用 |
 | 用户模块版本 | 默认 `.runtime/module-packages/module-ID/vN/` | 不可变版本，包含 manifest、源码、可选设计函数、release 与证据；可配置目录 |
 | 同步运行 | API 内存记录与启用后的 SQLite 归档 | 内存最近 20 条；动态请求最多 2001 帧 |
@@ -66,6 +66,8 @@ CLI 默认启用持久工作区，直接调用 `create_app(data_root=None)` 则�
 
 | 领域 | 主要源码 |
 | --- | --- |
+| 项目转换、编辑与运行归属 | [project-model.js](../frontend/project-model.js)、[project-state.js](../frontend/project-state.js)、[project-run-state.js](../frontend/project-run-state.js)；服务脚本保留 HTTP，界面脚本保留 DOM |
+| 公共会话与类型门禁 | [session_base.py](../backend/fn_engine/session_base.py)、[sessions.py](../backend/fn_engine/sessions.py)、[mypy-session.ini](../mypy-session.ini) |
 | 多画布、保存与导入 | [project-links.js](../frontend/project-links.js)、[project-services.js](../frontend/project-services.js)、[modeling-workflows.js](../frontend/modeling-workflows.js)、[engine-client.js](../frontend/engine-client.js) |
 | 暖通包与示例生成 | [hvac_basic.py](../backend/fn_engine/hvac_basic.py)、[hvac_examples.py](../backend/fn_engine/hvac_examples.py)、[generate_hvac_modules.py](../scripts/generate_hvac_modules.py)、[generate_hvac_examples.py](../scripts/generate_hvac_examples.py)；运行时加载 [modules/](../modules/) |
 | 理想测点 | [measurements.py](../backend/fn_engine/measurements.py)、[air_variables.py](../backend/fn_engine/air_variables.py)；经组合变量映射后计算，报告读取冻结目录 |

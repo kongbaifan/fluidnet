@@ -1,8 +1,8 @@
 flowchart TB
   subgraph BROWSER["浏览器"]
-    STATE["项目编辑状态<br/>pages：设备 / 布局 / 连接<br/>已应用参数 + 草稿 + 模块快照"]
+    STATE["项目编辑状态<br/>project-state：编辑与撤销<br/>pages / 已应用参数 / 草稿"]
     LINKS["项目级连接工具<br/>project-links.js<br/>占用检查 · 移页 · 跳转 · 删除"]
-    ADAPTER["计算请求适配<br/>engine-client.js<br/>选择项目与已应用参数"]
+    ADAPTER["计算请求适配<br/>project-model：纯转换<br/>engine-client：HTTP 请求"]
     SAVE["保存与导入导出<br/>project-services.js<br/>modeling-workflows.js"]
     LINKS -->|编辑同一连接集合| STATE
     STATE --> ADAPTER

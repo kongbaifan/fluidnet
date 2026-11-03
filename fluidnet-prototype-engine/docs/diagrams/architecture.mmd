@@ -1,13 +1,13 @@
 flowchart TB
   subgraph CLIENT["客户端"]
-    UI["浏览器 Studio<br/>建模 · 模块 · 控制 · 结果"]
+    UI["浏览器 Studio<br/>project-model / state / run-state<br/>建模 · 模块 · 控制 · 结果"]
     EXT["外部客户端<br/>Python / JavaScript / 三维界面"]
   end
   subgraph MAIN["单个 Python 服务进程"]
     API["FastAPI 接入层<br/>静态页面 · 鉴权 · REST / WS"]
     AUTHOR["模块平台<br/>目录 · 验证台 · 不可变版本"]
     BATCH["批量工况<br/>BatchService · 顺序调度"]
-    RUN["编译与运行编排<br/>compiler · RunManager · sessions"]
+    RUN["编译与运行编排<br/>compiler · RunManager<br/>SessionBase / sessions"]
     NUM["数值内核与物性<br/>水力 · 热力 · 湿空气 · 制冷<br/>NumPy / SciPy / CoolProp"]
     TX["代码执行与接受事务<br/>runtime / batch / control<br/>主进程确认候选状态"]
     RESULT["统一结果与归档<br/>RunFrame · 测点 · 曲线<br/>后台归档线程"]
