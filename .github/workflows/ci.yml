@@ -76,6 +76,10 @@ jobs:
         run: python -m mypy
       - name: 公共会话接口严格类型检查
         run: python -m mypy --config-file mypy-session.ini
+      - name: 数值运行环境与快速基线
+        run: |
+          python -c "import platform,numpy; print(platform.python_version(), platform.processor()); numpy.show_runtime()"
+          python -m pytest tests/test_coupled_liquid_examples.py::test_portable_file_contains_frozen_source_and_roundtrips_without_path 'tests/test_hvac_templates.py::test_makeup_water_matches_the_leak_through_the_real_network[0.02]' -q
       # 覆盖率 floor 配置在 pyproject.toml [tool.coverage.report].fail_under，
       # 低于 floor 时 pytest 以非零退出码失败。
       - name: 后端测试 + 覆盖率
