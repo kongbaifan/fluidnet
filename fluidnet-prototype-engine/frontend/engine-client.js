@@ -9,15 +9,8 @@ window.createEngineClient = function (ui) {
   // localStorage is short (studio.js persistLocal trims only the stored copy, never these in-memory rows).
   const LIVE_ROWS = 2001;
   const overviews = new Map();  // run id -> {rows, stride, total, at}
-  function archiveCacheMetadata(runId, record, historyRows) {
-    if (typeof runId !== 'string' || !runId || record?.id !== runId
-        || typeof record.persisted_at !== 'string' || !record.persisted_at.trim()
-        || !Number.isInteger(historyRows) || historyRows <= 0
-        || !Number.isInteger(record.total_rows) || record.total_rows < historyRows
-        || !Number.isInteger(record.persisted_rows) || record.persisted_rows < record.total_rows
-        || !Number.isFinite(record.frame?.time_s) || record.frame.time_s < 0) return null;
-    return {id:runId,rows:record.persisted_rows,time_s:record.frame.time_s,persisted_at:record.persisted_at};
-  }
+  const runState=window.FluidNetProjectRunState;
+  const archiveCacheMetadata=runState.archiveCacheMetadata;
   async function confirmArchiveCache(owner, run, record, historyRows, refresh, signal) {
     let metadata = archiveCacheMetadata(run.id,record,historyRows);
     if (!metadata && refresh && run.id) {
@@ -26,9 +19,8 @@ window.createEngineClient = function (ui) {
       try { metadata=archiveCacheMetadata(run.id,await request('/runs/'+encodeURIComponent(run.id),undefined,signal),historyRows); }
       catch (error) { if(signal?.aborted)throw error;metadata=null; }
     }
-    if (owner.run !== run) return;
-    if (metadata) run.archiveCache=metadata;
-    else delete run.archiveCache;
+    if (owner.run !== run || !ui.state().projects.includes(owner)) return;
+    runState.setArchiveCache(run,metadata);
   }
   let catalog = null, moduleCatalog = null, health = null;
   // Polling a backgrounded run is bounded twice on purpose: a backend that never leaves
@@ -456,16 +448,13 @@ window.createEngineClient = function (ui) {
     }
     return row;
   }
-  function applyRow(owner,row) {
-    const run = owner.run;
-    if(!run.overviewBindings)run.overviewBindings=overviewBindings(owner);
-    if(!run.chartBindings)run.chartBindings=clone((ui.state().charts?.extra||[]).filter(binding=>binding.projectId===owner.id));
-    run.time = row.t;
-    run.values = {q:row.q,a:row.a,b:row.b,pressure:row.pressure,temperature:row.temperature};
-    run.history.push(row);
-    run.parameterKey = ui.parameterKey(owner);
+  function prepareRun(owner) {
+    runState.prepare(owner.run,{overviewBindings:overviewBindings(owner),
+      chartBindings:(ui.state().charts?.extra||[]).filter(binding=>binding.projectId===owner.id),parameterKey:ui.parameterKey(owner)});
   }
+  function applyRow(owner,row) { prepareRun(owner);runState.append(owner.run,row); }
   async function command(scope, action, projectId) {
+    if(scope!=='bench')projectId ||= ui.state().activeProject;
     if (initializing) await initializing;
     if (scope !== 'bench' && health?.capabilities?.live_runs) {
       const owner = ui.state().projects.find(p => p.id === (projectId || ui.state().activeProject));
@@ -536,7 +525,8 @@ window.createEngineClient = function (ui) {
     const controller = new AbortController(); pending.set(owner.id,controller);
     const before = key(owner);
     const old = owner.run;
-    owner.run = {...ui.emptyRun(),status:'solving',source:'engine'};
+    owner.run = {...ui.emptyRun(),status:'solving',source:'engine',parameterKey:ui.parameterKey(owner)};
+    const ticket=runState.capture(ui.state(),owner);
     ui.render();
     try {
       const project = await normalize(owner,controller.signal);
@@ -549,6 +539,7 @@ window.createEngineClient = function (ui) {
         let data = await request('/runs' + (mode === 'dynamic' ? '?background=true' : ''),payload,controller.signal);
         // Publish the backend id immediately so a stop pressed while this run is still being
         // polled can cancel the real task instead of only aborting the local request.
+        runState.assertCurrent(ui.state(),ticket);
         owner.run.runId = data.run_id;
         const pollStarted = performance.now();
         let polls = 0;
@@ -578,6 +569,7 @@ window.createEngineClient = function (ui) {
         delete body.history; delete body.trend_variables;
         data = await submit(body);
       }
+      runState.assertCurrent(ui.state(),ticket);
       if (data.status === 'cancelled') {
         owner.run.runId = null; owner.run.status='stopped';
         owner.run.events.push({t:owner.run.time,text:'后端运行已取消,本地回放同步停止。'});
@@ -589,6 +581,7 @@ window.createEngineClient = function (ui) {
       const stopped = data.status === 'failed' ? (data.frame?.diagnostics || []).find(d => STOP_CODES.has(d.code)) : null;
       if (data.status === 'failed' && !stopped) throw Error(await failureDetail(data,controller.signal));
       const history = await request(`/runs/${data.run_id}/history`,undefined,controller.signal);
+      runState.assertCurrent(ui.state(),ticket);
       if (before !== key(owner)) throw Error('计算期间项目已变化，请重新运行当前参数。');
       if (!history.rows.length) throw Error(stopped.message);
       const rows = history.rows.map(f => rowFromFrame(owner,f));
@@ -632,6 +625,7 @@ window.createEngineClient = function (ui) {
         : (history.rows[0]?.diagnostics || []).some(d => d.code === 'DYNAMIC_IMPLICIT_EULER')
           ? '动态结果已更新；水箱与管道热容按隐式 Euler 积分。' : '准稳态结果已更新；未包含热惯性和液位变化。');
     } catch (error) {
+      if(!runState.isCurrent(ui.state(),ticket))return;
       if (error.name !== 'AbortError') {
         owner.run.status='failed';
         owner.run.events.push({t:0,text:error.message});
@@ -725,50 +719,36 @@ window.createEngineClient = function (ui) {
     } catch (error) { const local=/^本地草稿/.test(error.message||''); ui.message((local ? '' : '计算服务未连接，请通过启动脚本打开此页面。') + error.message,true); }
   }
   async function pollLive(owner) {
-    const id = owner.run.runId;
-    if (!id || livePolling.has(id)) return;
+    const ticket=runState.capture(ui.state(),owner),id=ticket.run.runId;
+    if(!id || livePolling.has(id))return;
     livePolling.add(id);
     try {
-      const data = await request('/runs/' + id);
-      const history = await request(`/runs/${id}/history?offset=${owner.run.offset || 0}`);
-      if (owner.run.runId !== id) return;
-      await confirmArchiveCache(owner,owner.run,data,history.total_rows,
-        ['completed','failed','cancelled','interrupted'].includes(data.status));
-      if (owner.run.runId !== id) return;
-      // `truncated`: frames older than the server window were skipped; the curve shows a gap.
-      for (const frame of history.rows) applyRow(owner, rowFromFrame(owner,frame));
-      if (owner.run.history.length > LIVE_ROWS) owner.run.history.splice(0, owner.run.history.length - LIVE_ROWS);
-      owner.run.offset = history.total_rows;
-      if (ui.state().charts.range === 'all' && Date.now() - (overviews.get(id)?.at || 0) > 2000) loadOverview(owner);
-      if (data.frame?.valid && owner.run.history.length) {
-        const row = rowFromFrame(owner,data.frame);
-        const last = owner.run.history.at(-1);
-        if (last.t === row.t) owner.run.history[owner.run.history.length-1] = row;
-        owner.run.time=row.t; owner.run.values={q:row.q,a:row.a,b:row.b,pressure:row.pressure,temperature:row.temperature};
-      }
-      owner.run.events = data.events.map(e=>({t:e.time_s,text:e.message || (e.command_id ? `${e.command?.action || '命令'} ${e.command_status} · ${e.command_id}` : e.type)}));
-      if (data.status === 'failed') owner.run.events.push(...(data.frame?.diagnostics || []).map(d=>({t:data.frame.time_s,text:d.message})));
-      const oldStatus=owner.run.status;
-      owner.run.status = ({queued:'solving',cancelled:'stopped',interrupted:'stopped'})[data.status] || data.status;
-      owner.run.parameterKey=ui.parameterKey(owner);
-      owner.run.connectionError='';
-      if (['completed','failed','cancelled','interrupted'].includes(data.status)) {
-        owner.run.live=false; owner.run.runId=null; ui.persist();
-      }
-      if(oldStatus!==owner.run.status) ui.render(); else ui.refresh();
+      const data=await request('/runs/'+id);
+      const history=await request(`/runs/${id}/history?offset=${ticket.run.offset || 0}`);
+      if(!runState.isCurrent(ui.state(),ticket) || owner.run.runId!==id)return;
+      await confirmArchiveCache(owner,ticket.run,data,history.total_rows,['completed','failed','cancelled','interrupted'].includes(data.status));
+      if(!runState.isCurrent(ui.state(),ticket) || owner.run.runId!==id)return;
+      prepareRun(owner);
+      const outcome=runState.mergeLive(ticket.run,data,history.rows.map(frame=>rowFromFrame(owner,frame)),{
+        totalRows:history.total_rows,latest:data.frame?.valid?rowFromFrame(owner,data.frame):null,limit:LIVE_ROWS});
+      if(ui.state().charts.range==='all' && Date.now()-(overviews.get(id)?.at||0)>2000)loadOverview(owner);
+      if(outcome.terminal)ui.persist();
+      if(outcome.changed)ui.render();else ui.refresh();
     } catch(error) {
-      owner.run.connectionError=error.message;
-      ui.message('运行连接中断，正在重连：'+error.message,true);
-    } finally { livePolling.delete(id); }
+      if(!runState.isCurrent(ui.state(),ticket) || owner.run.runId!==id)return;
+      ticket.run.connectionError=error.message;ui.message('运行连接中断，正在重连：'+error.message,true);
+    } finally {livePolling.delete(id);}
   }
   async function confirmedCommand(owner, body) {
-    const id=owner.run.runId;
+    const ticket=runState.capture(ui.state(),owner),id=ticket.run.runId;
     if (!id) throw Error('没有活动运行');
     const command={command_id:crypto.randomUUID(),...body};
     const receipt=await request(`/runs/${id}/command`,command);
+    runState.assertCurrent(ui.state(),ticket);
     if(receipt.command_status==='rejected') throw Error(receipt.message);
     for(let i=0;i<200;i++) {
       const {events}=await request(`/runs/${id}/events`);
+      runState.assertCurrent(ui.state(),ticket);
       const event=events.findLast(e=>e.command_id===receipt.command_id);
       if(event?.command_status==='rejected') throw Error(event.message);
       if(event?.command_status==='applied') { await pollLive(owner); return event; }
@@ -777,6 +757,7 @@ window.createEngineClient = function (ui) {
     throw Error('命令已接收，尚未确认生效；请查看运行事件，勿重复提交。');
   }
   async function liveCommand(owner, action) {
+    let controller=null;
     try {
       if(owner.run.live && owner.run.runId) {
         try {
@@ -793,24 +774,30 @@ window.createEngineClient = function (ui) {
       }
       if(action==='pause'||action==='stop') return;
       if(pending.has(owner.id)) return;
-      pending.set(owner.id,new AbortController());
-      const project=await normalize(owner);
+      controller=new AbortController();pending.set(owner.id,controller);
+      const ticket=runState.capture(ui.state(),owner),before=key(owner),parameterKey=ui.parameterKey(owner);
+      const project=await normalize(owner,controller.signal);
+      runState.assertCurrent(ui.state(),ticket);
+      if(before!==key(owner))throw Error('请求期间项目已变化，请重新运行。');
       const result=await request('/runs?background=true',{project,mode:'dynamic',...services.runMetadata(owner),duration_s:owner.solver.continuous ? null : owner.solver.duration,
         dt_s:owner.solver.dt,execution_mode:owner.solver.executionMode || 'realtime',speed_ratio:owner.solver.speedRatio || 1,
         start_paused:action==='step',history:'trend',trend_variables:trendVariables(owner),
-        ...(owner.solver.historyWindow ? {history_window:Math.min(20001,Math.max(10,owner.solver.historyWindow))} : {})});
-      owner.run={...ui.emptyRun(),source:'engine',status:'solving',id:result.run_id,runId:result.run_id,live:true,offset:0};
+        ...(owner.solver.historyWindow ? {history_window:Math.min(20001,Math.max(10,owner.solver.historyWindow))} : {})},controller.signal);
+      runState.assertCurrent(ui.state(),ticket);
+      if(before!==key(owner))throw Error('请求期间项目已变化，原请求可在运行档案查看，请重新运行。');
+      owner.run={...ui.emptyRun(),source:'engine',status:'solving',id:result.run_id,runId:result.run_id,live:true,offset:0,parameterKey};
       ui.persist();ui.render();
       if(action==='step') await confirmedCommand(owner,{action:'step'});
       await pollLive(owner);
     } catch(error) {ui.message(error.message,true);}
-    finally {pending.delete(owner.id);}
+    finally {if(controller && pending.get(owner.id)===controller)pending.delete(owner.id);}
   }
   async function loadOverview(owner) {
-    const id = owner.run.id;
+    const ticket=runState.capture(ui.state(),owner),id=ticket.run.id;
     if (!id || owner.run.source !== 'engine') return null;
     try {
       const data = await request(`/runs/${id}/overview`);
+      if(!runState.isCurrent(ui.state(),ticket))return null;
       const entry = {rows: data.rows.map(frame => rowFromFrame(owner, frame)), stride: data.stride, total: data.total_rows, at: Date.now()};
       overviews.set(id, entry);
       ui.refresh();
@@ -822,6 +809,7 @@ window.createEngineClient = function (ui) {
     }
   }
   async function applyParameters(owner,node) {
+    const ticket=runState.capture(ui.state(),owner),beforeKey=ui.parameterKey(owner);
     const m=ui.moduleOf(node), definition=m.manifest || catalog.modules.find(d=>d.id===m.kind);
     const bindings=m.manifest ? null : catalog.prototype_parameter_bindings[m.kind];
     const edits=Object.entries(node.draft).filter(([key,value])=>JSON.stringify(value)!==JSON.stringify(node.params[key])).map(([key,value])=>{
@@ -835,9 +823,11 @@ window.createEngineClient = function (ui) {
     // and applied value intact until the whole batch has been acknowledged.
     await confirmedCommand(owner,{action:'write',values:Object.fromEntries(edits.map(edit=>[
       `${node.id}.param.${edit.id}`,edit.canonical]))});
+    runState.assertCurrent(ui.state(),ticket);
     window.FluidNetProjectState.assertCurrent(ui.state(),owner);
+    const currentKey=ui.parameterKey(owner);
     window.FluidNetProjectState.applyParameters(owner,node,Object.fromEntries(edits.map(edit=>[edit.key,edit.value])));
-    owner.run.parameterKey=ui.parameterKey(owner);ui.persist();ui.render();
+    runState.advanceParameterKey(owner.run,beforeKey,currentKey,ui.parameterKey(owner));ui.persist();ui.render();
   }
   const services=window.createProjectServices({request,ui,normalize,health:()=>health,authHeaders,pinProject,moduleFromManifest});
   return {...services,archiveCacheMetadata,overviewBindings,overviewValues,refrigerationReportAvailable,request,normalize,moduleFromManifest,whenReady:()=>initializing || Promise.resolve(),command,tick,validate,init,applyParameters,loadOverview,authHeaders,signOut:()=>{sessionStorage.removeItem(TOKEN_KEY);location.reload();},overview:id=>overviews.get(id),circuits:id=>circuitsByProject.get(id)||[],confirmedCommand,portValue,observation,manifestPayload,contractText,checkModule,saveModule,runDesign,versions,loadVersion,newModule,newTemplate,newComposite,updateContractItem,bindModule,pinProject,moduleForInsert,get catalog(){return catalog;},get health(){return health;}};

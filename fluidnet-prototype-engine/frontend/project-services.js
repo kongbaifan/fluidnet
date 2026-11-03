@@ -55,7 +55,8 @@ window.createProjectServices = function ({request, ui, normalize, health, authHe
   }
   async function refreshArchives() {
     if (!health()) return;
-    try { const result=await request('/runs'); ui.archives(result.runs || []); }
+    const observed=ui.state().projects.filter(p=>p.run.live).map(owner=>({owner,run:owner.run}));
+    try { const result=await request('/runs'); ui.archives(result.runs || [],observed); }
     catch(error) { ui.message('运行档案读取失败：'+error.message,true); }
   }
   async function openArchive(id) {

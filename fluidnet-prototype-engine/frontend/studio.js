@@ -135,6 +135,7 @@ const SERIES = { q:{name:'主管流量',short:'主管',unit:'kg/s',color:'blue'}
 const clone = v => JSON.parse(JSON.stringify(v));
 const projectModel=window.FluidNetProjectModel;
 const projectState=window.FluidNetProjectState;
+const projectRunState=window.FluidNetProjectRunState;
 const {manifestFields,manifestParamSpecs,manifestParamDefaults}=projectModel;
 const defaultsFor = id => Object.fromEntries((PARAM_DEFS[id]||[]).map(f=>[f[0],f[6]]));
 // Full parameter model for Python modules: numbers drive the numeric quick controls,
@@ -441,27 +442,17 @@ root.addEventListener('change',async event=>{
     openDialog('备份已恢复',result.message,`<div class="stack"><p>修订 ${result.revision}</p><p class="mono">${esc(result.directory)}</p><pre class="code-preview">${esc(result.command)}</pre></div>`,null,'',true);
   }catch(error){msg(error.message,true);}
 });
-function receiveArchives(runs){
-  ui.archivedRuns=runs;
-  for(const p of state.projects)if(p.run.live && !runs.some(r=>r.id===p.run.runId)){
-    p.run.live=false;p.run.runId=null;p.run.status='stopped';p.run.events.push({t:p.run.time,text:'原运行已过期，请新建运行。'});
-  }
+function receiveArchives(runs,observed){
+  ui.archivedRuns=runs;projectRunState.reconcileArchives(state,runs,observed);
   if(ui.route==='runs')render();
 }
 function showArchive(record,overview){
-  const source=record.request.project;
-  const overviewBindings=engine.overviewBindings(source);
-  const history=overview.rows.map(frame=>({t:frame.time_s,canonical:frame.variables,variables:{},variableValues:{},diagnostics:frame.diagnostics,metrics:frame.metrics,
-    ...engine.overviewValues(overviewBindings,frame.variables)}));
-  const item={id:record.id,name:source.name,projectName:source.name,projectId:state.projects.find(p=>p.id===source.id)?.id,
-    scope:'project',status:record.status,mode:record.mode==='steady'?'稳态':'动态',time:record.frame?.time_s||0,
-    history,overviewBindings,events:record.events.map(e=>({t:e.time_s,text:e.message||e.type})),
-    params:Object.fromEntries(source.instances.map(n=>[n.id,n.parameters])),source:'engine',sample:false,
-    archive:record,archiveStride:overview.stride,totalRows:overview.total_rows,
-    chartBindings:source.thermal_couplings?.length?clone(state.charts.extra.filter(v=>v.projectId===source.id&&!isCouplingChart(v)))
-      .concat(coldStorage.couplingChartBindings({id:source.id,thermalCouplings:source.thermal_couplings})):undefined};
-  state.records=state.records.filter(r=>r.id!==item.id);state.records.unshift(item);state.records=state.records.slice(0,30);
-  ui.selectedRecord=item.id;render();
+  const source=record.request.project,overviewBindings=engine.overviewBindings(source);
+  const chartBindings=source.thermal_couplings?.length?clone(state.charts.extra.filter(v=>v.projectId===source.id&&!isCouplingChart(v)))
+    .concat(coldStorage.couplingChartBindings({id:source.id,thermalCouplings:source.thermal_couplings})):undefined;
+  const item=projectRunState.archiveRecord(record,overview,{projectId:state.projects.find(p=>p.id===source.id)?.id,
+    overviewBindings,overviewValues:engine.overviewValues,chartBindings});
+  projectRunState.rememberArchive(state,item);ui.selectedRecord=item.id;render();
 }
 function log(text,kind='INFO'){state.messages.unshift({time:new Date().toLocaleTimeString('zh-CN',{hour12:false}),kind,text});state.messages=state.messages.slice(0,80);}
 function isCouplingChart(binding) {

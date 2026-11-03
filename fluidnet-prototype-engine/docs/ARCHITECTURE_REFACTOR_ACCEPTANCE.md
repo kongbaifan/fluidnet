@@ -28,14 +28,14 @@
 | 项目替换与恢复 | studio: restoreWorkspace / replaceState / import；workflows: applyDocument | project-state | 工作区修订、并发冲突、失败草稿、导入替换 | AR-2 已迁移 |
 | 参数草稿和应用 | studio: 参数输入／库值／设备型号应用；engine: applyParameters / command | project-state | 批量参数、运行应用、草稿保存及撤销 | AR-2 已迁移 |
 | 拓扑编辑 | studio: 插入／删除／连接／移页／复制与 remember/undo；links 工具 | project-state + project-links | 跨页、删除、撤销重做与重算 | AR-2 已迁移 |
-| 当前与历史运行 | engine: applyRow / command / pollLive / confirmArchiveCache；studio: receiveArchives / showArchive | project-run-state | 迟到响应、增量帧、档案确认与历史 | 待迁移 |
+| 当前与历史运行 | engine: applyRow / command / pollLive / confirmArchiveCache；studio: receiveArchives / showArchive | project-run-state | 迟到响应、增量帧、档案确认与历史 | AR-3 已迁移 |
 | 公共参数、控制与资源 | SimulationSession: 参数命令、PID／脚本、检查点、close | SessionBase + 物理钩子 | 控制、事务、困液、停止与部分初始化失败 | 待迁移 |
 | 热／制冷会话继承 | ThermalSession / ColdStoreSession / StationSession / CoupledStationSession | 非流体公共基类，保留域内步进 | 五域基线与失败回滚 | 待迁移 |
 | 调度与预览 | jobs 的会话访问；API `_control()` 与 `scripts.pending` | RunSession 协议及显式预览方法 | 后台运行、控制预览及类型门禁 | 待迁移 |
 
 ## 后续包记录
 
-AR-3～AR-7 待实施。各包完成后在此添加提交、实际检查和剩余问题，并同步迁移清单与计划进度。
+AR-4～AR-7 待实施。各包完成后在此添加提交、实际检查和剩余问题，并同步迁移清单与计划进度。
 
 ## AR-1 项目转换
 
@@ -48,3 +48,9 @@ AR-3～AR-7 待实施。各包完成后在此添加提交、实际检查和剩�
 新增 `project-state.js`：集中项目文档合并、工作区替换回滚、参数草稿／确认值、设备与画布插入、跨页连接操作和画布快照恢复。节点写入拒绝被替换的对象；撤销记录绑定项目 ID；导入失败同时恢复参数定义缓存。初始化／规范化阶段的新对象构造仍由原有工厂负责，其他编辑器的模块草稿不在本包迁移范围。
 
 验证：45 项 UI 测试；跨页管网、项目工作流、工作区、参数整批写入、热耦合建模、旧档案迁移和多画布机房七个浏览器流程通过。新增测试覆盖待应用草稿独立、批量参数与自定义变量、旧引用拒绝、失败连接保留、跨项目撤销拒绝、失败替换回滚与其他项目草稿保护。
+
+## AR-3 运行与历史状态
+
+新增 `project-run-state.js`，集中结果归属、帧合并、结果过期标识、归档缓存确认与历史记录构造。异步回调绑定项目对象及运行对象，不仅比较可复用的 ID；轮询不会将旧结果重新标记为当前配置；保存参数回执只在对应配置仍一致时推进结果标识。旧档案列表不会停止请求发出后新建的运行。
+
+验证：51 项 UI 测试，含一个真实适配器延迟响应测试；运行控制、持续运行、参数批次、旧档案迁移、工作区和跨页管网六个浏览器流程通过。
