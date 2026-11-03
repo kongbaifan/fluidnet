@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 
 const context=vm.createContext({window:{createProjectServices:()=>({})}});
+vm.runInContext(readFileSync(new URL('../frontend/project-model.js',import.meta.url),'utf8'),context);
 vm.runInContext(readFileSync(new URL('../frontend/engine-client.js',import.meta.url),'utf8'),context);
 const {archiveCacheMetadata}=context.window.createEngineClient({});
 const plain=value=>JSON.parse(JSON.stringify(value));

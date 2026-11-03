@@ -136,53 +136,9 @@ window.createEngineClient = function (ui) {
     if (cancel.unsupported) return `已${verb}本地结果回放(后端未实现任务${verb},服务端任务未被中断)。`;
     return `已${verb}本地结果回放(服务端任务未能确认${verb}:${cancel.error.message || '未知原因'})。`;
   }
-  function manifestParamDef(spec) {
-    const unit = spec.unit || {};
-    const display = unit.display_unit || '';
-    const scale = Number(unit.display_scale || 1);
-    const offset = Number(unit.display_offset || 0);
-    const toDisplay = value => Number(value) / scale + offset;
-    const minimum = spec.minimum === null || spec.minimum === undefined ? -1e12 : toDisplay(spec.minimum);
-    const maximum = spec.maximum === null || spec.maximum === undefined ? 1e12 : toDisplay(spec.maximum);
-    const step = spec.value_type === 'boolean' ? 1 : (Math.abs(maximum - minimum) > 100 ? 1 : .01);
-    return [spec.id, spec.label, display, minimum, maximum, step, toDisplay(spec.default)];
-  }
-  function moduleFromManifest(manifest) {
-    // Catalog icons come from studio.js ICONS; unknown ids intentionally fall back to Box.
-    const icon = {water_coil:'Snowflake',water_chiller:'Snowflake',duct:'Wind',cooling_coil:'Snowflake',humidifier:'Droplets',air_mixing_box:'GitMerge',air_filter:'Filter',air_room:'Home',cooling_tower_moist:'Wind',pipe_fitting:'GitBranch',pipe_reducer:'GitBranch',check_valve:'ArrowRightLeft',fan_coil_unit:'Wind',cooling_tower:'Sun',fan:'Wind',pump_variable_speed:'Gauge',capillary_tube:'Minus',valve_equal_percentage:'SlidersHorizontal'}[manifest.id] || 'Box';
-    const parameterDefs = (manifest.parameters || []).filter(p => p.value_type === 'number').map(manifestParamDef);
-    const ports = (manifest.ports || []).map((p, index) => ({
-      id:p.id, name:p.id.toUpperCase(), label:p.label || p.id, direction:p.direction === 'bidirectional' ? (index ? 'out' : 'in') : p.direction,
-      domain:p.domain || 'fluid', required:p.required !== false, x:p.direction === 'in' ? 20 : 80,
-      y:['water_coil','water_chiller'].includes(manifest.id) ? (index<2?30:70) : manifest.ports.length > 2 ? (index % 2 ? 70 : 30) : 50
-    }));
-    const variables = [];
-    for (const p of ports) {
-      if (p.domain === 'fluid') for (const [suffix,label,unit,value] of [['FLOW','质量流量','kg/s',0],['PRE','绝对压力','MPa',0],['TEMP','温度','°C',20]]) {
-        variables.push({id:p.id + ':' + suffix,name:p.name + '_' + suffix,label:p.label + ' · ' + label,unit,type:'double',port:p.id,origin:'port',display:['FLOW','PRE'].includes(suffix),writable:p.direction === 'in',value});
-      }
-    }
-    for (const f of parameterDefs) variables.push({id:'param:' + f[0],name:f[0].toUpperCase(),label:f[1],unit:f[2],type:'double',port:'',origin:'parameter',param:f[0],display:true,writable:true,value:f[6]});
-    variables.push({id:'system:step',name:'S_T',label:'时间步长',unit:'ms',type:'int',port:'',origin:'system',display:false,writable:true,value:100},
-      {id:'system:run',name:'RUN_S',label:'运行状态',unit:'—',type:'int',port:'',origin:'system',display:false,writable:false,value:0},
-      {id:'system:mix',name:'MIX',label:'工质质量比例',unit:'—',type:'double[8]',port:'',origin:'system',display:false,writable:true,value:[1,0,0,0,0,0,0,0]},
-      {id:'system:form',name:'FORM',label:'工质编号',unit:'—',type:'int[8]',port:'',origin:'system',display:false,writable:true,value:[125,0,0,0,0,0,0,0]});
-    for (const v of manifest.variables || []) {
-      if (!['derived','state'].includes(v.source)) continue;
-      variables.push({id:'runtime:' + v.id,name:v.id.replace(/[^A-Za-z0-9_]/g,'_').toUpperCase(),label:v.label,
-        unit:v.unit?.display_unit || '',type:'double',port:'',origin:'runtime',canonicalId:v.id,unitSpec:v.unit,
-        note:manifest.runtime==='builtin'?'引擎计算值':'Worker 返回值',display:true,writable:false,value:null});
-    }
-    for (const v of variables) v.note ||= v.label;
-    const values = Object.fromEntries(variables.map(v => [v.id,clone(v.value)]));
-    const m = {id:manifest.id,kind:manifest.id,name:manifest.name,code:manifest.id.toUpperCase(),category:manifest.category || '自定义模块',icon,description:manifest.description || '',version:manifest.version || 1,
-      runtime:manifest.runtime || 'python',entrypoint:manifest.entrypoint || '',contentHash:manifest.content_hash || '',packagePath:manifest.package_path || '',manifest,
-      ports,channels:(manifest.channels || []).map(c => ({id:c.id,name:c.name,input:c.input_port,output:c.output_port,kind:c.relation,enabled:c.enabled !== false})),
-      parameters:manifest.parameters || [],parameterDefs,variables,customVars:[],quickParam:parameterDefs[0]?.[0] || '',quickType:'number',drawing:{shape:'rectangle',width:32,height:30,label:manifest.name},step:100,precision:4,dirty:false,
-      source:{runtime:manifest.source?.runtime || '',header:'',design:['','','']},designSource:typeof manifest.source?.design === 'string' ? manifest.source.design : '',sourceFormat:'python-v1',values,banks:[clone(values),clone(values),clone(values)],bankNames:manifest.bank_names || ['额定工况','部分负荷','调试备份']};
-    if(manifest.execution_role)m.testConditions=window.ModuleTestEditor.defaultConditions(manifest);
-    return m;
-  }
+  const model=window.FluidNetProjectModel;
+  const manifestParamDef=model.manifestParamDef;
+  const moduleFromManifest=manifest=>model.moduleFromManifest(manifest,window.ModuleTestEditor?.defaultConditions);
   function manifestPayload(m) {
     if (m.manifest) {
       const {package:ref, validation_evidence:evidence, ...definition} = m.manifest;
@@ -264,8 +220,8 @@ window.createEngineClient = function (ui) {
     const result=await request('/modules/design',{module:definition,parameters});
     if (JSON.stringify(m.banks[bank])!==before) throw Error('计算期间库值已变化，请重新执行设计函数。');
     const changes=result.changes.map(change => {
-      const spec=definition.parameters.find(p=>p.id===change.id), unit=spec?.unit;
-      const display=value => unit && typeof value==='number' ? value/Number(unit.display_scale || 1)+Number(unit.display_offset || 0) : value;
+      const spec=definition.parameters.find(p=>p.id===change.id);
+      const display=value => model.toDisplay(spec,value);
       const variable=m.variables.find(v=>v.id==='param:'+change.id);
       return {...change, label:spec?.label || change.id, before:display(change.before), after:display(change.after), variableId:variable && spec.value_type==='number' ? variable.id : null};
     });
@@ -343,14 +299,7 @@ window.createEngineClient = function (ui) {
     if (!channels.length) return null;
     return channels.reduce((sum, c) => sum + (Number(variables[`D1.${c.id}.mass_flow_kg_s`]) || 0), 0);
   }
-  function testParameters(module, values) {
-    return Object.fromEntries(Object.entries(values).map(([key, value]) => {
-      const spec = (module.parameters || []).find(p => p.id === key);
-      if (spec && spec.value_type && spec.value_type !== 'number') return [key, value];
-      const unit = spec?.unit;
-      return [key, unit ? (Number(value) - Number(unit.display_offset || 0)) * Number(unit.display_scale || 1) : Number(value)];
-    }));
-  }
+  const testParameters=model.canonicalParameters;
   function rowFromModuleTest(owner, body) {
     const vars = body.evaluation?.variables || {}, state = body.committed?.state || body.state || {};
     return {t:body.frame.time_s, canonical:body.frame.variables, variables:vars, variableValues:{}, diagnostics:body.frame.diagnostics,metrics:body.frame.metrics,q:traceFlow(owner.module, body.frame.variables),a:null,b:null,pressure:owner.boundary.outlet,temperature:owner.boundary.temperature,state,relations:body.evaluation?.relations || []};
@@ -764,7 +713,7 @@ window.createEngineClient = function (ui) {
         for (const field of ui.parameterDefinitions[kind] || []) {
           const spec=m.parameters.find(p => p.id === bindings[field[0]]);
           if (!spec?.unit) continue;
-          const display = value => value / spec.unit.display_scale + spec.unit.display_offset;
+          const display = value => model.toDisplay(spec,value);
           field[2]=spec.unit.display_unit; field[6]=display(spec.default);
           if (spec.minimum !== null) field[3]=display(spec.minimum);
           if (spec.maximum !== null) field[4]=display(spec.maximum);
@@ -878,7 +827,7 @@ window.createEngineClient = function (ui) {
     const edits=Object.entries(node.draft).filter(([key,value])=>JSON.stringify(value)!==JSON.stringify(node.params[key])).map(([key,value])=>{
       const id=bindings?.[key] || key, spec=definition.parameters.find(p=>p.id===id);
       if(!spec?.runtime || !spec.writable) throw Error(`${spec?.label || key} 不能在运行中修改，请停止后应用。`);
-      const canonical=spec.unit ? (Number(value)-spec.unit.display_offset)*spec.unit.display_scale : value;
+      const canonical=spec.unit ? model.toCanonical(spec,value) : value;
       return {key,value:clone(value),id,canonical:clone(canonical)};
     });
     if (!edits.length) return;

@@ -8,6 +8,7 @@ function fixture(serverRevision, message='本地草稿备份失败：存储空�
   const state={workspaceRevision:4,projectRevisions:{p:2},projects:[],dirty:false};
   const calls=[];
   const context=vm.createContext({window:{FluidNetControls:{}},console});
+  vm.runInContext(readFileSync(new URL('../frontend/project-model.js',import.meta.url),'utf8'),context);
   vm.runInContext(source,context);
   const services=context.window.createProjectServices({
     ui:{state:()=>state,restoreWorkspace:()=>{throw Error(message);},parameterKey:()=>'',persist:()=>{}},

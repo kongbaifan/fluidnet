@@ -5,6 +5,7 @@ import vm from 'node:vm';
 
 const plain=value=>JSON.parse(JSON.stringify(value));
 const context=vm.createContext({window:{}});
+vm.runInContext(readFileSync(new URL('../frontend/project-model.js',import.meta.url),'utf8'),context);
 vm.runInContext(readFileSync(new URL('../frontend/control-programs.js',import.meta.url),'utf8'),context);
 vm.runInContext(readFileSync(new URL('../frontend/project-services.js',import.meta.url),'utf8'),context);
 const module={id:'author',version:2,parameters:[

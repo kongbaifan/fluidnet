@@ -133,25 +133,11 @@ const FLUIDS = [['water','水',125],['air','空气',3],['ammonia','氨',4],['co2
 const MEDIA = [['water','纯液态水'],['air','空气'],['ammonia','氨'],['co2','二氧化碳'],['r134a','R134a'],['meg30','乙二醇溶液 30%']];
 const SERIES = { q:{name:'主管流量',short:'主管',unit:'kg/s',color:'blue'},a:{name:'A 路流量',short:'A 路',unit:'kg/s',color:'orange'},b:{name:'B 路流量',short:'B 路',unit:'kg/s',color:'green'},pressure:{name:'出口压力',short:'压力',unit:'kPa',color:'blue'},temperature:{name:'出口温度',short:'温度',unit:'°C',color:'orange'} };
 const clone = v => JSON.parse(JSON.stringify(v));
-function manifestFields(manifest) {
-  return manifest.parameters.filter(p => p.value_type === 'number').map(p => {
-    const display = value => value / (p.unit?.display_scale || 1) + (p.unit?.display_offset || 0);
-    return [p.id,p.label,p.unit?.display_unit || '',p.minimum == null ? -1e12 : display(p.minimum),p.maximum == null ? 1e12 : display(p.maximum),'any',display(p.default)];
-  });
-}
+const projectModel=window.FluidNetProjectModel;
+const {manifestFields,manifestParamSpecs,manifestParamDefaults}=projectModel;
 const defaultsFor = id => Object.fromEntries((PARAM_DEFS[id]||[]).map(f=>[f[0],f[6]]));
 // Full parameter model for Python modules: numbers drive the numeric quick controls,
 // while boolean/text/curve keep their own editors instead of being forced into a number input.
-function manifestParamSpecs(manifest) {
-  return (manifest?.parameters || []).map(p => {
-    const display=value=>value==null?null:p.value_type==='number'&&p.unit?value/p.unit.display_scale+p.unit.display_offset:clone(value);
-    return {id:p.id,label:p.label,value_type:p.value_type || 'number',unit:p.unit || null,
-      minimum:display(p.minimum),maximum:display(p.maximum),default:display(p.default),writable:p.writable!==false,runtime:!!p.runtime};
-  });
-}
-function manifestParamDefaults(manifest) {
-  return Object.fromEntries(manifestParamSpecs(manifest).map(p => [p.id, clone(p.default)]));
-}
 function deviceParamSpecs(n) {
   const m = moduleOf(n);
   if (m.manifest) return manifestParamSpecs(m.manifest);
@@ -760,7 +746,7 @@ document.addEventListener('click',async event=>{
       const definition=model.modules.find(m=>m.id===n.module_id), params={};
       for(const [uiName,id] of Object.entries(bindings[n.module_id] || {})) {
         const spec=definition.parameters.find(p=>p.id===id), value=n.parameters[id] ?? spec.default;
-        params[uiName]=spec.unit ? value/spec.unit.display_scale+spec.unit.display_offset : value;
+        params[uiName]=projectModel.toDisplay(spec,value);
       }
       return makeInstance(n.id,n.module_id,n.name,100+i*180,230,params);
     });

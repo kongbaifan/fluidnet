@@ -97,12 +97,8 @@ window.createProjectServices = function ({request, ui, normalize, health, authHe
     return receipt;
   }
   function projectDocument(owner) {
-    prepare(owner);
-    pinProject(owner);
-    const p=clone(owner),used=new Set(p.pages.flatMap(pg=>pg.nodes.map(n=>n.moduleId)));
-    p.moduleSnapshots=Object.fromEntries([...used].map(id=>[id,clone(p.moduleSnapshots?.[id]||ui.state().modules.find(m=>m.id===id))]));
-    return {format:'fluidnet-project',schema:1,project:p,modules:Object.values(p.moduleSnapshots),
-      models:clone(ui.state().models.filter(m=>used.has(m.moduleId))),charts:clone(ui.state().charts.extra.filter(c=>c.projectId===p.id))};
+    prepare(owner);pinProject(owner);
+    return window.FluidNetProjectModel.projectDocument(owner,ui.state());
   }
   function projectReceipt(id,receipt) {
     projectRevisions[id]=receipt.revision;ui.state().projectRevisions={...projectRevisions};
@@ -134,112 +130,15 @@ window.createProjectServices = function ({request, ui, normalize, health, authHe
     return request('/project-upgrades/preview',{project:await normalize(owner),module_id:id,target_version:version,migration});
   }
   async function exchangeDocument(data) {
-    if(data.format==='fluidnet-project' && data.schema===1)return clone(data);
-    if(data.format==='fluidnet-studio-prototype') {
-      const p=data.projects.find(p=>p.id===data.activeProject)||data.projects[0];
-      return {format:'fluidnet-project',schema:1,project:clone(p),modules:clone(data.modules),
-        models:clone(data.models||[]),charts:clone((data.charts?.extra||[]).filter(c=>c.projectId===p.id))};
+    if(data.schema_version===1 && Array.isArray(data.instances) && Array.isArray(data.modules)) {
+      const validation=await request('/projects/validate',data);
+      if(!validation.valid)throw Error(validation.diagnostics.map(d=>d.message).join('；'));
     }
-    if(data.schema_version!==1 || !Array.isArray(data.instances) || !Array.isArray(data.modules))
-      throw Error('请选择单项目、完整原型或规范 Project JSON 文件。');
-    const validation=await request('/projects/validate',data);
-    if(!validation.valid)throw Error(validation.diagnostics.map(d=>d.message).join('；'));
-    const definitions=new Map(data.modules.map(m=>[m.id,m]));
-    const snapshots=Object.fromEntries(data.modules.map(m=>[m.id,{...moduleFromManifest(clone(m)),frozen:true}]));
-    const display=(definition,values)=>Object.fromEntries(Object.entries(values).map(([id,value])=>{
-      const spec=definition.parameters.find(p=>p.id===id);
-      return [id,spec?.unit ? value/(spec.unit.display_scale ?? 1)+(spec.unit.display_offset ?? 0) : clone(value)];
-    }));
-    const pages=new Map(),nodes=new Map();
-    for(const n of data.instances) {
-      const definition=definitions.get(n.module_id),pageId=n.page_id || 'main';
-      if(!pages.has(pageId))pages.set(pageId,{id:pageId,name:pageId,zoom:1,pan:[0,0],nodes:[],edges:[]});
-      const defaults=Object.fromEntries(definition.parameters.map(p=>[p.id,clone(p.default)]));
-      const params=display(definition,{...defaults,...n.parameters});
-      const node={id:n.id,moduleId:n.module_id,name:n.name,x:n.position?.x ?? 100+nodes.size%5*180,
-        y:n.position?.y ?? 150+Math.floor(nodes.size/5)*130,rotation:n.rotation||0,params,
-        draft:display(definition,{...defaults,...n.parameters,...n.draft_parameters}),modelId:n.model_id||null,
-        modelVersion:n.model_version||1,draftModelId:null,package:clone(n.package||null)};
-      if((n.banks||[]).length>3)throw Error('当前画布最多支持三组设备库值。');
-      if(n.banks?.length) {
-        const banks=[0,1,2].map(i=>Object.fromEntries(Object.entries(display(definition,{...defaults,...n.banks[i]?.values})).map(([k,v])=>['param:'+k,v])));
-        node.variableState={schema:1,values:{},draft:{},banks,bankNames:[0,1,2].map(i=>n.banks[i]?.name || snapshots[n.module_id].bankNames[i])};
-      }
-      nodes.set(n.id,{node,pageId});pages.get(pageId).nodes.push(node);
-    }
-    for(const c of data.connections||[]) {
-      const pageId=nodes.get(c.source.instance_id).pageId;
-      pages.get(pageId).edges.push([c.id,c.source.instance_id,c.source.port_id,c.target.instance_id,c.target.port_id]);
-    }
-    if(!pages.size)throw Error('规范项目没有设备。');
-    const p=ui.makeProject(data.id,data.name,data.description||'',[...pages.values()][0]);
-    Object.assign(p,{pages:[...pages.values()],activePage:pages.keys().next().value,moduleSnapshots:snapshots,
-      fluid:data.fluid?.fluid||'Water',fluidConfig:clone(data.fluid||{}),fluidReference:data.fluid?.reference||'mass',
-      circuitFluids:(data.circuit_fluids||[]).map(c=>({id:c.id,anchor:clone(c.anchor),fluid:c.fluid.fluid,fluidConfig:clone(c.fluid),fluidReference:c.fluid.reference})),
-      solverOptions:clone(data.solver||{}),controllers:clone(data.controllers||[]),events:clone(data.events||[]),
-      thermalCouplings:clone(data.thermal_couplings||[]),selectedVariables:clone(data.selected_variables||[]),measurements:clone(data.measurements||[]),
-      controlPrograms:[],controlScripts:[],controlEnabled:false,controlInputs:'',controlOutputs:'',
-      scenarios:(data.scenarios||[]).map(s=>({...clone(s),overrides:Object.fromEntries(Object.entries(s.overrides).map(([id,values])=>
-        [id,display(definitions.get(nodes.get(id).node.moduleId),values)]))}))});
-    const solver=data.solver||{};
-    p.solver={mode:'dynamic',duration:60,dt:Math.min(10,solver.dynamic_step_s||.1),
-      dynamicStep:solver.dynamic_step_s||.1,pressureAtol:solver.pressure_tolerance_pa??1,massAtol:solver.mass_tolerance_kg_s??1e-8,
-      maxIter:solver.max_iterations??80,hydraulicMethod:solver.hydraulic_method||'dense',moduleMixedJacobian:Boolean(solver.module_mixed_jacobian)};
-    controls.replaceScripts(p,data.control_scripts||[]);
-    return {format:'fluidnet-project',schema:1,project:p,modules:Object.values(snapshots),models:[],charts:[]};
+    return window.FluidNetProjectModel.exchangeDocument(data,{makeProject:ui.makeProject,moduleFromManifest,replaceScripts:controls.replaceScripts});
   }
   function upgradeDocument(owner,preview) {
-    const document=projectDocument(owner),snapshot={...moduleFromManifest(clone(preview.module)),frozen:true};
-    document.project.moduleSnapshots[snapshot.id]=snapshot;
-    document.modules=document.modules.map(m=>m.id===snapshot.id?snapshot:m);
-    const canonical=new Map(preview.project.instances.map(n=>[n.id,n]));
-    const display=(values,partial=false)=>Object.fromEntries(preview.module.parameters.filter(p=>!partial || p.id in values)
-      .map(p=>[p.id,p.unit?values[p.id]/p.unit.display_scale+p.unit.display_offset:clone(values[p.id])]));
-    for(const pg of document.project.pages)for(const n of pg.nodes)if(n.moduleId===snapshot.id){
-      const node=canonical.get(n.id);n.params=display(node.parameters);n.draft=display(node.draft_parameters);n.package=node.package;
-      for(const [index,bank] of (n.variableState?.banks || []).entries()){
-        for(const key of Object.keys(bank))if(key.startsWith('param:'))delete bank[key];
-        const values=display(node.banks[index]?.values || node.parameters);
-        for(const spec of preview.module.parameters)bank['param:'+spec.id]=clone(values[spec.id]);
-      }
-      for(const [field,values] of [['values',n.params],['draft',n.draft]])if(n.variableState?.[field]){
-        for(const key of Object.keys(n.variableState[field]))if(key.startsWith('param:'))delete n.variableState[field][key];
-        for(const [key,value] of Object.entries(values))n.variableState[field]['param:'+key]=clone(value);
-      }
-    }
-    const affected=new Set(owner.pages.flatMap(pg=>pg.nodes).filter(n=>n.moduleId===snapshot.id).map(n=>n.id));
-    const migration=preview.migration || {};
-    const reference=key=>{
-      const dot=key.indexOf('.');if(dot<0||!affected.has(key.slice(0,dot)))return key;
-      const id=key.slice(0,dot),suffix=key.slice(dot+1);
-      if(suffix in (migration.variables || {}))return id+'.'+migration.variables[suffix];
-      const parts=suffix.split('.');if(parts[0]==='param')parts[1]=migration.parameters?.[parts[1]] || parts[1];else parts[0]=migration.ports?.[parts[0]] || migration.channels?.[parts[0]] || parts[0];
-      return id+'.'+parts.join('.');
-    };
-    for(const pg of document.project.pages)for(const edge of pg.edges){
-      if(affected.has(edge[1]))edge[2]=migration.ports?.[edge[2]] || edge[2];
-      if(affected.has(edge[3]))edge[4]=migration.ports?.[edge[4]] || edge[4];
-    }
-    document.project.scenarios=clone(preview.project.scenarios);
-    for(const scenario of document.project.scenarios || [])for(const id of Object.keys(scenario.overrides)) {
-      scenario.overrides[id]=affected.has(id) ? display(scenario.overrides[id],true)
-        : clone(owner.scenarios.find(s=>s.id===scenario.id).overrides[id]);
-    }
-    document.project.controllers=clone(preview.project.controllers);
-    document.project.selectedVariables=clone(preview.project.selected_variables||[]);
-    document.project.measurements=clone(preview.project.measurements||[]);
-    controls.replaceScripts(document.project,preview.project.control_scripts);
-    for(const chart of document.charts || []){
-      if(chart.canonicalKey)chart.canonicalKey=reference(chart.canonicalKey);
-      if(chart.identifier)chart.identifier=reference(chart.identifier);
-      if(affected.has(chart.nodeId) && chart.variableId){const old=chart.variableId;chart.variableId=migration.variables?.[old] || old;chart.sampleKey=chart.nodeId+':'+chart.variableId;}
-    }
-    for(const model of document.models || [])if(model.moduleId===snapshot.id){
-      const before=owner.moduleSnapshots[snapshot.id].manifest.parameters;
-      const values={};for(const spec of before){const target=migration.parameters?.[spec.id] ?? (preview.module.parameters.some(p=>p.id===spec.id)?spec.id:null);if(target&&spec.id in model.params){const canonical=spec.unit?(model.params[spec.id]-spec.unit.display_offset)*spec.unit.display_scale:model.params[spec.id];const conversion=migration.unit_conversions?.[spec.id];values[target]=conversion?canonical*conversion.scale+conversion.offset:canonical;}}
-      model.params=display(Object.fromEntries(preview.module.parameters.map(p=>[p.id,p.id in values?values[p.id]:p.default])));model.sourceModuleVersion=preview.to_version;
-    }
-    document.project.run=ui.emptyRun();return document;
+    return window.FluidNetProjectModel.upgradeDocument(owner,preview,{document:projectDocument(owner),
+      moduleFromManifest,replaceScripts:controls.replaceScripts,emptyRun:ui.emptyRun});
   }
   return {prepare,previewControl,loadWorkspace,saveWorkspace,refreshArchives,openArchive,deleteArchive,exportRunReport,
     projectDocument,exchangeDocument,saveProject,restoreProject,deleteProject,previewUpgrade,upgradeDocument,

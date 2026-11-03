@@ -23,8 +23,8 @@
 
 | 范围 | 原入口／调用者 | 目标入口 | 行为证据 | 状态 |
 | --- | --- | --- | --- | --- |
-| manifest、参数、显示单位 | studio: manifestFields / manifestParamSpecs / manifestParamDefaults；engine: manifestParamDef / moduleFromManifest / testParameters / runDesign | project-model | 项目交换、参数类型、作者模块验证 | 待迁移 |
-| 项目文档、导入与升级 | services: projectDocument / exchangeDocument / upgradeDocument | project-model；服务层保留 HTTP 与固定版本准备 | project-exchange / browser-workflows / browser-refrigeration-projects | 待迁移 |
+| manifest、参数、显示单位 | studio: manifestFields / manifestParamSpecs / manifestParamDefaults；engine: manifestParamDef / moduleFromManifest / testParameters / runDesign | project-model | 项目交换、参数类型、作者模块验证 | AR-1 已迁移 |
+| 项目文档、导入与升级 | services: projectDocument / exchangeDocument / upgradeDocument | project-model；服务层保留 HTTP 与固定版本准备 | project-exchange / browser-workflows / browser-refrigeration-projects | AR-1 已迁移 |
 | 项目替换与恢复 | studio: restoreWorkspace / replaceState / import；workflows: applyDocument | project-state | 工作区修订、并发冲突、失败草稿、导入替换 | 待迁移 |
 | 参数草稿和应用 | studio: 参数输入／库值／设备型号应用；engine: applyParameters / command | project-state | 批量参数、运行应用、草稿保存及撤销 | 待迁移 |
 | 拓扑编辑 | studio: 插入／删除／连接／移页／复制与 remember/undo；links 工具 | project-state + project-links | 跨页、删除、撤销重做与重算 | 待迁移 |
@@ -35,4 +35,10 @@
 
 ## 后续包记录
 
-AR-1～AR-7 尚未实施。各包完成后在此添加提交、实际检查和剩余问题，并同步迁移清单与计划进度。
+AR-2～AR-7 待实施。各包完成后在此添加提交、实际检查和剩余问题，并同步迁移清单与计划进度。
+
+## AR-1 项目转换
+
+新增纯转换模块 `project-model.js`，集中 manifest、显示单位、参数默认值、项目文档、规范导入和升级转换。服务层保留 HTTP 校验与固定版本准备；现有脚本加载及测试宿主同步加载新模块。
+
+验证：38 项 UI 单元测试；项目工作流、制冷项目导入／升级／回退、完整模块作者流程、参数整批写入四个浏览器流程通过；语法检查通过。新增单位测试覆盖温度与温差、开度、功率、体积流量及非数值参数。
