@@ -810,8 +810,9 @@ window.createEngineClient = function (ui) {
     }
   }
   function applyController(owner,controllerId,field,value) {
+    const ticket=runState.capture(ui.state(),owner);
     const job=(controllerWrites.get(owner) || Promise.resolve()).catch(()=>{}).then(async()=>{
-      const ticket=runState.capture(ui.state(),owner),beforeKey=ui.parameterKey(owner);
+      const beforeKey=ui.parameterKey(owner);
       runState.assertCurrent(ui.state(),ticket);
       const controller=owner.controllers.find(c=>c.id===controllerId);
       if(!controller)throw Error('控制器已不存在，请重新选择。');

@@ -63,3 +63,28 @@ test('a delayed real adapter response does not overwrite a replacement run',asyn
   deliver();await pending;
   assert.equal(owner.run,replacement);assert.equal(owner.run.status,'running');assert.equal(owner.run.history[0].q,42);
 });
+
+test('queued controller edits cannot move to a replacement run after the first request fails',async()=>{
+  let deliver,posted;
+  const submitted=new Promise(resolve=>{posted=resolve;});
+  const owner={id:'p',controllers:[{id:'pid',setpoint:1}],run:{id:'old',runId:'old',live:true}};
+  const state={projects:[owner]},requests=[];
+  const host=vm.createContext({window:{createProjectServices:()=>({})},crypto,sessionStorage:{getItem:()=>null},
+    fetch:async path=>{
+      requests.push(path);
+      if(path==='/api/v1/runs/old/command'){
+        posted();return new Promise(resolve=>{deliver=()=>resolve({ok:true,status:202,
+          json:async()=>({command_id:'old-command',command_status:'accepted'})});});
+      }
+      throw Error('An old queued command reached '+path);
+    }});
+  for(const file of ['project-model.js','project-run-state.js','engine-client.js'])
+    vm.runInContext(readFileSync(new URL('../frontend/'+file,import.meta.url),'utf8'),host);
+  const client=host.window.createEngineClient({state:()=>state,parameterKey:p=>JSON.stringify(p.controllers)});
+  const results=Promise.allSettled([client.applyController(owner,'pid','setpoint',2),client.applyController(owner,'pid','setpoint',3)]);
+  await submitted;owner.run={id:'new',runId:'new',live:true};deliver();
+  const settled=await results;
+  assert.equal(requests.length,1);
+  assert.ok(settled.every(result=>result.status==='rejected' && result.reason.name==='AbortError'));
+  assert.equal(owner.controllers[0].setpoint,1);
+});
