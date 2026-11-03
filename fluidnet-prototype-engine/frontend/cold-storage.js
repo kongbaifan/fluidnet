@@ -57,7 +57,7 @@ window.createColdStorageUI = function (ui) {
       [id,Object.fromEntries(Object.entries(values).map(([key,value])=>[key,display(specs(id).find(x=>x.id===key),value)]))]))}));
     p.activeScenarioId='A-S01';
     p.solver={...p.solver,mode:'dynamic',duration:DURATIONS['A-S01'],dt:30,executionMode:'fast',historyWindow:DURATIONS['A-S01']/30+1};
-    state().projects.push(p);ui.normalizeState();
+    window.FluidNetProjectState.addProject(state(),p);ui.normalizeState();
     charts(p,[['ROOM1','runtime:state.temperature_k','库温','°C','ROOM1.state.temperature_k',1,-273.15],
       ['ROOM1','runtime:state.goods_temperature_k','货温','°C','ROOM1.state.goods_temperature_k',1,-273.15],
       ['CU1','runtime:cooling_power_w','机组制冷量','kW','CU1.cooling_power_w',1000,0],
@@ -103,7 +103,7 @@ window.createColdStorageUI = function (ui) {
       scenarios:model.scenarios.map(s=>({id:s.id,name:s.name,events:s.events,overrides:{}})),activeScenarioId:'B-S01'});
     p.controlConfig={...(p.controlConfig||{}),name:'上层启停 · 液泵 · 满足度',period:script.sample_s*1000};
     p.solver={...p.solver,mode:'dynamic',duration:DURATIONS['B-S01'],dt:30,executionMode:'fast',historyWindow:DURATIONS['B-S01']/30+1};
-    state().projects.push(p);ui.normalizeState();
+    window.FluidNetProjectState.addProject(state(),p);ui.normalizeState();
     charts(p,[['ROOM1','runtime:state.temperature_k','库房 1 库温','°C','ROOM1.state.temperature_k',1,-273.15],
       ['ROOM2','runtime:state.temperature_k','库房 2 库温','°C','ROOM2.state.temperature_k',1,-273.15],
       ['LP1','runtime:state.pressure_pa','低压桶压力','MPa','LP1.state.pressure_pa',1e6,0],
@@ -170,7 +170,7 @@ window.createColdStorageUI = function (ui) {
       pressureAtol:model.solver.pressure_tolerance_pa,massAtol:model.solver.mass_tolerance_kg_s,maxIter:model.solver.max_iterations,
       hydraulicMethod:model.solver.hydraulic_method,moduleMixedJacobian:model.solver.module_mixed_jacobian,
       executionMode:'fast',historyWindow:2001};
-    state().projects.push(p);ui.normalizeState();
+    window.FluidNetProjectState.addProject(state(),p);ui.normalizeState();
     syncCouplingCharts(p);
     ui.ui().showChart=true;
     ui.ui().workbenchChart=state().charts.extra.find(c=>c.projectId===p.id&&c.couplingId)?.id;

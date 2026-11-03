@@ -228,7 +228,7 @@ window.createAirSideUI = function (ui) {
     const controlled=!!canonical.controllers?.length;
     p.solver={...p.solver,mode:controlled||['ahu-room','chiller-air-loop','hvac-pump-switch'].includes(name)?'dynamic':'steady',duration:controlled?2400:name==='chiller-air-loop'?20:name==='ahu-room'?120:10,dt:controlled?30:name==='hvac-pump-switch'?1:2,
       executionMode:'fast',moduleMixedJacobian:false,pressureAtol:1,massAtol:1e-8};
-    state().projects.push(p);ui.normalizeState();view(p);persistView(p);forgetProject();ui.openProject(p.id);ui.navigate('air');ui.persist();
+    window.FluidNetProjectState.addProject(state(),p);ui.normalizeState();view(p);persistView(p);forgetProject();ui.openProject(p.id);ui.navigate('air');ui.persist();
     msg('风侧示例已创建，可运行计算并保存项目。');
     } finally {model.creating=false;ui.render();}
   }
@@ -289,8 +289,8 @@ window.createAirSideUI = function (ui) {
         for(const definition of next.modules){const m=engine().moduleFromManifest(definition);m.frozen=definition.runtime==='python';p.moduleSnapshots[m.id]=m;}
         for(const node of p.pages.flatMap(pg=>pg.nodes)){
           const inst=next.instances.find(i=>i.id===node.id),definition=next.modules.find(m=>m.id===inst.module_id);
-          node.params=Object.fromEntries(definition.parameters.map(spec=>{const value=inst.parameters[spec.id]??spec.default;return [spec.id,spec.unit?value/spec.unit.display_scale+spec.unit.display_offset:value];}));
-          node.draft=clone(node.params);
+          const params=window.FluidNetProjectModel.displayParameters(definition,Object.fromEntries(definition.parameters.map(spec=>[spec.id,inst.parameters[spec.id]??spec.default])));
+          window.FluidNetProjectState.updateNode(p,node,{params,draft:clone(params)});
         }
         persistView(p);invalidate();ui.render();msg('迁移已应用到草稿，请保存新修订并重新计算。');
       },'备份并应用迁移');

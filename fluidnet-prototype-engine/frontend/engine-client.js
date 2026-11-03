@@ -835,7 +835,8 @@ window.createEngineClient = function (ui) {
     // and applied value intact until the whole batch has been acknowledged.
     await confirmedCommand(owner,{action:'write',values:Object.fromEntries(edits.map(edit=>[
       `${node.id}.param.${edit.id}`,edit.canonical]))});
-    Object.assign(node.params,Object.fromEntries(edits.map(edit=>[edit.key,edit.value])));
+    window.FluidNetProjectState.assertCurrent(ui.state(),owner);
+    window.FluidNetProjectState.applyParameters(owner,node,Object.fromEntries(edits.map(edit=>[edit.key,edit.value])));
     owner.run.parameterKey=ui.parameterKey(owner);ui.persist();ui.render();
   }
   const services=window.createProjectServices({request,ui,normalize,health:()=>health,authHeaders,pinProject,moduleFromManifest});

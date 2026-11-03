@@ -134,6 +134,7 @@ const MEDIA = [['water','纯液态水'],['air','空气'],['ammonia','氨'],['co2
 const SERIES = { q:{name:'主管流量',short:'主管',unit:'kg/s',color:'blue'},a:{name:'A 路流量',short:'A 路',unit:'kg/s',color:'orange'},b:{name:'B 路流量',short:'B 路',unit:'kg/s',color:'green'},pressure:{name:'出口压力',short:'压力',unit:'kPa',color:'blue'},temperature:{name:'出口温度',short:'温度',unit:'°C',color:'orange'} };
 const clone = v => JSON.parse(JSON.stringify(v));
 const projectModel=window.FluidNetProjectModel;
+const projectState=window.FluidNetProjectState;
 const {manifestFields,manifestParamSpecs,manifestParamDefaults}=projectModel;
 const defaultsFor = id => Object.fromEntries((PARAM_DEFS[id]||[]).map(f=>[f[0],f[6]]));
 // Full parameter model for Python modules: numbers drive the numeric quick controls,
@@ -387,7 +388,7 @@ function backupLocalDraft(key){
   }catch(error){if(!/^本地草稿备份失败/.test(error.message||''))throw Error('本地草稿备份失败：'+(error.message||'未知错误')+'，请先导出原型再继续。');throw error;}
   throw Error('本地草稿备份失败：存储空间不足，请先导出原型再继续。');
 }
-function markDirty(target){editRevision++;if(savePhase==='saved')savePhase='';state.dirty=true;if(target)target.dirty=true;root.querySelectorAll("[data-float-save]").forEach(el=>el.textContent="草稿未保存");syncChrome();}
+function markDirty(target){editRevision++;if(savePhase==='saved')savePhase='';projectState.markDirty(state,target);root.querySelectorAll("[data-float-save]").forEach(el=>el.textContent="草稿未保存");syncChrome();}
 async function saveAll(){
   if(savePhase==='saving')return;
   const owner=state, version=editRevision, payload=clone(state);
@@ -408,12 +409,18 @@ async function saveAll(){
     msg(`工作区已保存 · 修订 ${receipt.revision}${state.dirty?' · 仍有后续修改未保存':''}${anyPending()?` · ${anyPending()} 项参数待应用`:''}`);
   }catch(error){savePhase='error';saveError=error.message;state.dirty=true;persistLocal();syncChrome();msg('保存失败：'+error.message,true);}
 }
+function replaceWorkspaceState(data,beforeReplace=()=>{}) {
+  const definitions=clone(PARAM_DEFS);
+  try {
+    return projectState.replaceWorkspace(data,{get:()=>state,set:value=>{state=value;},
+      validate:incoming=>{validateImport(incoming);beforeReplace();},normalize:normalizeState});
+  } catch(error) {
+    for(const key of Object.keys(PARAM_DEFS))delete PARAM_DEFS[key];
+    Object.assign(PARAM_DEFS,definitions);throw error;
+  }
+}
 function restoreWorkspace(data){
-  const incoming=clone(data);
-  validateImport(incoming);
-  backupLocalDraft(STORAGE_KEY+'-before-workspace');
-  const previous=state;
-  try{state=incoming;normalizeState();}catch(error){state=previous;throw error;}
+  replaceWorkspaceState(data,()=>backupLocalDraft(STORAGE_KEY+'-before-workspace'));
   ui.floats=[];ui.selectedNode='';undoStack=[];redoStack=[];
   editRevision++;savePhase='';saveError='';render();
 }
@@ -461,19 +468,17 @@ function isCouplingChart(binding) {
   return Boolean(binding.couplingId||binding.couplingTotal||binding.canonicalKey?.startsWith('coupling.')||binding.canonicalKey?.startsWith('metrics.coupling_'));
 }
 function canvasEditSnapshot(owner=project()) {
-  return clone({pages:owner.pages,activePage:owner.activePage,thermalCouplings:owner.thermalCouplings,
-    charts:state.charts.extra.filter(binding=>binding.projectId===owner.id),workbenchChart:ui.workbenchChart,showChart:ui.showChart});
+  return projectState.canvasSnapshot(owner,state.charts.extra,ui);
 }
 function remember(){undoStack.push(canvasEditSnapshot());if(undoStack.length>30)undoStack.shift();redoStack=[];}
 function undo(redo=false) {
   const from=redo?redoStack:undoStack,to=redo?undoStack:redoStack;if(!from.length)return;
-  const owner=project(),next=from.at(-1);
+  const owner=project(),next=from.at(-1),canvasEditSnapshotFromCurrent=canvasEditSnapshot(owner);
   // Restoring a canvas can also remove or restore a coupling endpoint. A live run
   // owns its original topology, including when paused.
   if(owner.thermalCouplings?.length||next.thermalCouplings?.length)coldStorage.assertCouplingIdle(owner);
-  to.push(canvasEditSnapshot(owner));from.pop();owner.pages=next.pages;owner.activePage=next.activePage;
-  if('thermalCouplings' in next)owner.thermalCouplings=next.thermalCouplings;else delete owner.thermalCouplings;
-  state.charts.extra=state.charts.extra.filter(binding=>binding.projectId!==owner.id).concat(next.charts);
+  const restoredCharts=projectState.restoreCanvas(owner,next,state.charts.extra);
+  to.push(canvasEditSnapshotFromCurrent);from.pop();state.charts.extra=restoredCharts;
   ui.workbenchChart=next.workbenchChart;ui.showChart=next.showChart;
   ui.selectedNode='';ui.selectedEdge='';ui.connecting=null;ui.pinnedChart=null;
   ui.floats=ui.floats.filter(f=>instance(f.id));markDirty(owner);persistLocal();render();msg(redo?'已重做':'已撤销');
@@ -753,7 +758,7 @@ document.addEventListener('click',async event=>{
     const pg={id:'main',name:'控制回路',zoom:1,pan:[0,0],nodes,edges:model.connections.map(c=>[c.id,c.source.instance_id,c.source.port_id,c.target.instance_id,c.target.port_id])};
     const owner=makeProject(uid('project'),model.name,'内置 PID 验收示例',pg);
     owner.controllers=model.controllers;owner.solver.duration=button.dataset.kind==='level'?600:1200;owner.solver.dt=1;
-    state.projects.push(owner);normalizeState();markDirty(owner);openProject(owner.id);
+    projectState.addProject(state,owner);normalizeState();markDirty(owner);openProject(owner.id);
   }catch(error){msg(error.message,true);}
 });
 const meterKinds = {value:'单点测量',difference:'两点差值',volume_flow:'体积流量',thermal_power:'热功率'};
@@ -991,13 +996,8 @@ function validateInstanceEdits(n, values, m = moduleOf(n)) {
   }
 }
 function commitInstanceEdits(n, values) {
-  const data = ensureInstanceVariables(n);
-  for (const v of moduleOf(n).variables.filter(instanceWritable)) {
-    if (v.origin === 'parameter') n.params[v.param] = n.draft[v.param] = values[v.id];
-    else { data.values[v.id] = clone(values[v.id]); data.draft[v.id] = clone(values[v.id]); }
-  }
-  // Boolean/text/curve parameters have no projected variable row, so commit every declared draft.
-  for (const spec of deviceParamSpecs(n)) if (spec.id in n.draft) n.params[spec.id] = clone(n.draft[spec.id]);
+  ensureInstanceVariables(n);
+  projectState.commitEdits(ownerOfInstance(n),n,values,moduleOf(n).variables.filter(instanceWritable),deviceParamSpecs(n));
 }
 function instanceBankDiff(n, bank) {
   const data = ensureInstanceVariables(n);
@@ -1010,7 +1010,7 @@ function applyInstanceBank(n, bank) {
   openDialog(`库值 ${bank + 1} → ${n.id} · ${n.name}`, `仅应用可编辑参数与自定义变量，端口结果和项目系统设置保持只读。${pendingCount(n) ? '确认后会替换这台设备已有的待应用草稿。' : ''}`,
     diffMarkup(differences.map(v => [`${v.label} · ${v.unit}`, instanceVariableValue(n, v), values[v.id]])), () => {
       validateInstanceEdits(n, values); remember(); commitInstanceEdits(n, values);
-      n.draftModelId = null; n.draftModelVersion = null;
+      projectState.updateNode(ownerOfInstance(n),n,{draftModelId:null,draftModelVersion:null});
       owner.run.events.push({ t: owner.run.time, kind: 'parameters', text: `${n.id} 应用库值 ${bank + 1}：${differences.map(v => `${v.name}=${values[v.id]}`).join('，')}` });
       markDirty(owner); render(); msg(`${n.id} 的库值 ${bank + 1} 已应用`);
     }, '确认应用', true);
@@ -1087,7 +1087,7 @@ function editInstanceArray(n, id, source) {
   const data = ensureInstanceVariables(n), value = source < 0 ? instanceDraftValue(n, v) : data.banks[source][id];
   openDialog(`${n.id} · ${v.label}`, source < 0 ? '编辑待应用草稿，确认应用后才改变当前值。' : `编辑这台设备的库值 ${source + 1}。`, `<div class="fields">${value.map((n, i) => field('item' + i, `[${i}]`, n, `type="number" step="${v.type.startsWith('int') ? '1' : 'any'}" required`)).join('')}</div>`, fields => {
     const result = value.map((_, i) => numeric(fields['item' + i], -1e12, 1e12, v.type.startsWith('int')));
-    if (source < 0) data.draft[id] = result; else data.banks[source][id] = result;
+    projectState.setVariableDraft(ownerOfInstance(n),n,v,source,result);
     markDirty(ownerOfInstance(n)); renderFloats();
   }, '保存到草稿');
 }
@@ -1095,8 +1095,7 @@ function updateInstanceVariableInput(el) {
   const n = instance(el.dataset.id), v = moduleOf(n).variables.find(v => v.id === el.dataset.instanceValue);
   if (!v || !instanceWritable(v) || v.type.endsWith('[8]')) return;
   const source = Number(el.dataset.instanceSource), data = ensureInstanceVariables(n), value = el.value === '' ? '' : Number(el.value);
-  if (source < 0) { if (v.origin === 'parameter') n.draft[v.param] = value; else data.draft[v.id] = value; }
-  else data.banks[source][v.id] = value;
+  projectState.setVariableDraft(ownerOfInstance(n),n,v,source,value);
   el.closest('td').classList.toggle('edited', !sameValue(instanceVariableValue(n, v), value));
   const shell = el.closest('.floater');
   const pending = shell.querySelector('[data-pending-for]'); if (pending) pending.textContent = `${pendingCount(n)} 项待应用`;
@@ -1178,7 +1177,7 @@ function startModeling() {
   if (!p) {
     if (state.projects.length >= 20) throw Error('项目数量已达上限，请从项目管理打开已有项目。');
     p = makeProject(uid('project'), '泵阀并联管网', '调参并观察两条支路的流量。', waterPage());
-    state.projects.push(p); normalizeState(); markDirty(p);
+    projectState.addProject(state,p); normalizeState(); markDirty(p);
   }
   ui.showChart = true; ui.showLibrary = false; ui.workbenchChart = 'flow'; ui.pinnedChart = null;
   openProject(p.id);
@@ -1442,7 +1441,7 @@ function syncDeviceSelection() {
 }
 function rotateDevice(id, direction = 1) {
   const n = activePage().nodes.find(n => n.id === id); if (!n) return;
-  remember(); n.rotation = ((n.rotation || 0) + direction * 90 + 360) % 360;
+  remember(); projectState.updateNode(project(),n,{rotation:((n.rotation || 0) + direction * 90 + 360) % 360});
   ui.selectedNode = n.id; markDirty(project()); render();
   root.querySelector(`#network [data-node="${n.id}"]`)?.focus({ preventScroll: true });
 }
@@ -1729,25 +1728,27 @@ function createModelDialog(existingId) {
 function stageModel(n, id) {
   const item = model(id);
   if (!item || item.archived || item.moduleId !== n.moduleId) throw Error('请选择同一模块的在用型号。');
-  n.draft = {...n.draft, ...clone(item.params)}; n.draftModelId = id; n.draftModelVersion = item.version;
+  projectState.setDraft(ownerOfInstance(n),n,item.params); projectState.updateNode(ownerOfInstance(n),n,{draftModelId:id,draftModelVersion:item.version});
   const data = ensureInstanceVariables(n);
   for (const v of moduleOf(n).variables.filter(v => v.origin === 'custom' && instanceWritable(v))) data.draft[v.id] = clone(item.values?.[v.id] ?? data.values[v.id]);
   markDirty(project());
 }
 function applyInstanceDialog(n) {
+  const owner=ownerOfInstance(n);
   const values = instanceEdits(n);
   const rows = moduleOf(n).variables.filter(v => instanceWritable(v) && !sameValue(instanceVariableValue(n, v), values[v.id])).map(v => [`${v.label} · ${v.unit}`, instanceVariableValue(n, v), values[v.id]]);
   for (const p of deviceParamSpecs(n).filter(p => p.value_type !== 'number' && !sameValue(n.draft[p.id], n.params[p.id])))
     rows.push([`${p.label} · ${PARAM_TYPE_LABELS[p.value_type] || p.value_type}`, parameterValueText(n.params[p.id], p.value_type), parameterValueText(n.draft[p.id], p.value_type)]);
   if (n.draftModelId) rows.unshift(['来源型号', `${model(n.modelId)?.name || '自定义'} v${n.modelVersion || 1}`, `${model(n.draftModelId)?.name} v${n.draftModelVersion}`]);
   openDialog(`应用到 ${n.id} · ${n.name}`, '保存保留草稿；确认应用后参数生效，并在运行事件中记录时间。', diffMarkup(rows), async () => {
+    projectState.assertCurrent(state,owner);projectState.node(owner,n);
     validateInstanceEdits(n, values);
-    if (project().run.live) { try { await engine.applyParameters(project(), n); } catch (error) { msg(error.message, true); } return; }
+    if (owner.run.live) { try { await engine.applyParameters(owner, n); } catch (error) { msg(error.message, true); } return; }
     remember(); commitInstanceEdits(n, values);
-    if (n.draftModelId) { n.modelId = n.draftModelId; n.modelVersion = n.draftModelVersion; }
-    n.draftModelId = null; n.draftModelVersion = null;
-    project().run.events.push({ t: project().run.time, kind: 'parameters', text: `${n.id} 参数已应用：${rows.map(([label, , value]) => `${label}=${value}`).join('，')}` });
-    markDirty(project()); render(); msg(`${n.id} 参数已应用 · ${clockLabel(project().run.time)}`);
+    if (n.draftModelId) projectState.updateNode(owner,n,{modelId:n.draftModelId,modelVersion:n.draftModelVersion});
+    projectState.updateNode(ownerOfInstance(n),n,{draftModelId:null,draftModelVersion:null});
+    owner.run.events.push({ t: owner.run.time, kind: 'parameters', text: `${n.id} 参数已应用：${rows.map(([label, , value]) => `${label}=${value}`).join('，')}` });
+    markDirty(owner); render(); msg(`${n.id} 参数已应用 · ${clockLabel(owner.run.time)}`);
   }, '确认应用', true);
 }
 function windowBounds(f) {
@@ -1863,7 +1864,7 @@ function createModuleExample(id) {
       pg.edges.push(['in'+index,a,'out0','V1',c.input],['out'+index,'V1',c.output,b,'out0']);
     });
     const p=makeProject(uid('project'),m.name+' · 多通路验收','各通路独立边界',pg);p.moduleSnapshots={[m.id]:clone(m)};
-    p.solver.duration=1;p.solver.dt=.1;state.projects.push(p);normalizeState();markDirty(p);openProject(p.id);return;
+    p.solver.duration=1;p.solver.dt=.1;projectState.addProject(state,p);normalizeState();markDirty(p);openProject(p.id);return;
   }
   if (state.projects.length >= 20) throw Error('项目数量已达到上限。');
   const params=Object.fromEntries((m.parameterDefs || PARAM_DEFS[m.kind] || []).map(f=>[f[0],f[6]]));
@@ -1880,7 +1881,7 @@ function createModuleExample(id) {
   const p=makeProject(uid('project'),m.name+' · 管网验收','压力源 → 管道 → Python 模块 → 出口',pg);
   if(m.frozen) p.moduleSnapshots={[m.id]:clone(m)};
   p.solver.duration=1; p.solver.dt=.1;
-  state.projects.push(p); normalizeState(); markDirty(p); ui.showLibrary=true; openProject(p.id);
+  projectState.addProject(state,p); normalizeState(); markDirty(p); ui.showLibrary=true; openProject(p.id);
 }
 function newInstance(moduleId, point, selectedModel) {
   const m = engine.bindModule(project(),moduleId), pg = activePage();
@@ -1896,7 +1897,7 @@ function newInstance(moduleId, point, selectedModel) {
     const value = clone(selectedModel.values[v.id] ?? node.variableState.values[v.id]);
     node.variableState.values[v.id] = clone(value); node.variableState.draft[v.id] = clone(value); node.variableState.banks[0][v.id] = clone(value);
   }
-  pg.nodes.push(node); engine.pinProject(project()); ui.selectedNode = node.id; ui.placing = null; if (innerWidth <= 500) ui.showLibrary = false;
+  projectState.addNode(project(),pg.id,node); engine.pinProject(project()); ui.selectedNode = node.id; ui.placing = null; if (innerWidth <= 500) ui.showLibrary = false;
   markDirty(project()); render(); return node;
 }
 function assertLinksIdle(owner=project()){
@@ -1929,7 +1930,7 @@ function pageLinkDialog(nodeId,portId,edgeId){
       const start=links.locate(owner,source[0]),end=links.locate(owner,target[0]);
       if(!start||!end||start.page===end.page)throw Error('请选择其他画布上的有效端口。');
       links.check(owner,source,target,moduleOf,edgeId);remember();
-      links.connect(owner,edgeId||uid('edge'),source,target,moduleOf,!!edgeId);
+      projectState.connect(owner,edgeId||uid('edge'),source,target,moduleOf,!!edgeId);
       ui.connecting=null;markDirty(owner);persistLocal();render();msg('跨页连接已保存到项目，重新运行后生效。');
     },existing?'应用修改':'建立连接');
   const form=document.getElementById('dialog-form'),sourceSelect=form.elements.source,pageSelect=form.elements.targetPage,targetSelect=form.elements.target;
@@ -1955,7 +1956,7 @@ function moveDevicePage(id){
     if(project()!==owner)throw Error('项目已切换，请重新选择。');assertLinksIdle(owner);
     const target=owner.pages.find(pg=>pg.id===data.page);
     if(!target||target.nodes.length>=64)throw Error('目标画布不存在或已达到设备上限。');
-    remember();links.move(owner,id,target.id);found.node.x=150+(target.nodes.length-1)%5*160;found.node.y=150+Math.floor((target.nodes.length-1)/5)*150;
+    remember();projectState.moveNode(owner,id,target.id);projectState.updateNode(owner,found.node,{x:150+(target.nodes.length-1)%5*160,y:150+Math.floor((target.nodes.length-1)/5)*150});
     fitNetwork(found.page);fitNetwork(target);owner.activePage=target.id;ui.selectedNode=id;ui.connecting=null;
     markDirty(owner);persistLocal();render();msg('设备已移动，已有连接保持不变。');
   },'移动设备');
@@ -1982,7 +1983,7 @@ function connectPort(nodeId, portId) {
   if (first.nodeId === nodeId) { ui.connecting = null; render(); return; }
   const source = [first.nodeId, first.portId], target = [nodeId, portId];
   links.check(owner, source, target, moduleOf);
-  remember(); links.connect(owner, uid('edge'), source, target, moduleOf); ui.connecting = null;
+  remember(); projectState.connect(owner, uid('edge'), source, target, moduleOf); ui.connecting = null;
   markDirty(project()); render(); msg('连接已建立。');
 }
 function deleteNode(id) {
@@ -1999,7 +2000,7 @@ function deleteNode(id) {
     assertLinksIdle(owner);
     const couplingLinks=coldStorage.couplingReferences(owner,[id]);
     if(couplingLinks.length)coldStorage.assertCouplingIdle(owner);
-    remember();links.removeNodes(owner,[id]);
+    remember();projectState.removeNodes(owner,[id]);
     if(couplingLinks.length){
       const removed=new Set(couplingLinks.map(link=>link.id));
       owner.thermalCouplings=owner.thermalCouplings.filter(link=>!removed.has(link.id));
@@ -2011,12 +2012,12 @@ function deleteNode(id) {
   if(references.length)confirmChange('删除热耦合设备',`删除 ${id} 将同时解除热耦合 ${references.map(link=>link.id).join('、')}。相关当前曲线也会移除，已保存运行记录保留。`,remove,'删除并解除耦合');
   else remove();
 }
-function deleteEdge(id) { assertLinksIdle(); remember(); links.remove(project(),id); closeDialog(); ui.selectedEdge = ''; markDirty(project()); render(); }
+function deleteEdge(id) { assertLinksIdle(); remember(); projectState.removeConnection(project(),id); closeDialog(); ui.selectedEdge = ''; markDirty(project()); render(); }
 function copyDevice(id = ui.selectedNode) { const n = instance(id); if (n) { ui.clipboard = clone(n); msg(`${n.id} 已复制；Ctrl+V 粘贴。`); } }
 function pasteDevice() {
   if (!ui.clipboard) return;
   remember(); const n = clone(ui.clipboard); n.id = uid('D'); n.name += ' 副本'; n.x += 60; n.y += 60;
-  activePage().nodes.push(n); ui.selectedNode = n.id; markDirty(project()); render();
+  projectState.addNode(project(),activePage().id,n); ui.selectedNode = n.id; markDirty(project()); render();
 }
 function commandRun(scope, command, projectId) { return engine.command(scope, command, projectId); }
 function refreshLive() {
@@ -2288,8 +2289,7 @@ function importDialog() {
       state.moduleGroups = mergedGroups;
       state.modules.push(...clone(incoming.modules.filter(m => !state.modules.some(v => v.id === m.id)))); state.models.push(...clone(incoming.models));
     } else {
-      backupLocalDraft(STORAGE_KEY + '-before-import');
-      state = {...clone(incoming),workspaceRevision:state.workspaceRevision}; state.projects.forEach(p => { if (p.run.status === 'running') p.run.status = 'paused'; }); if (state.bench.run.status === 'running') state.bench.run.status = 'paused';
+      replaceWorkspaceState({...incoming,workspaceRevision:state.workspaceRevision},()=>backupLocalDraft(STORAGE_KEY+'-before-import')); state.projects.forEach(p => { if (p.run.status === 'running') p.run.status = 'paused'; }); if (state.bench.run.status === 'running') state.bench.run.status = 'paused';
     }
     ui.floats = []; undoStack = []; redoStack = []; ui.selectedNode = ''; normalizeState(); markDirty(); navigate('home'); msg('导入已应用；点击保存原型以保留。');
   }, '应用导入');
@@ -2345,7 +2345,7 @@ function handleAction(action, el) {
         if (state.projects.length >= 20) throw Error('当前原型最多保存 20 个项目。');
         const name = data.name.trim(); if (!name) throw Error('请输入项目名称。');
         const pg = data.template === 'water' ? waterPage() : data.template === 'heat' ? heatPage() : data.template === 'tank' ? tankPage() : { id: 'main', name: '主系统', nodes: [], edges: [], zoom: 1, pan: [0, 0] };
-        const p = makeProject(uid('project'), name, '', pg); if (data.template === 'blank' || data.template === 'heat') p.controlPrograms=[]; state.projects.push(p); normalizeState(); markDirty(p); openProject(p.id);
+        const p = makeProject(uid('project'), name, '', pg); if (data.template === 'blank' || data.template === 'heat') p.controlPrograms=[]; projectState.addProject(state,p); normalizeState(); markDirty(p); openProject(p.id);
       }, '创建项目'); break;
     case 'duplicate-project': {
       if(state.projects.length>=20)throw Error('最多保存 20 个项目。');
@@ -2353,14 +2353,14 @@ function handleAction(action, el) {
       const p=clone(original);p.id=uid('project');p.name+=' 副本';p.run=emptyRun();p.modified='本地草稿';
       const copiedCharts=clone(state.charts.extra.filter(binding=>binding.projectId===original.id));
       for(const binding of copiedCharts){binding.id=uid('chart');binding.projectId=p.id;}
-      state.projects.push(p);state.charts.extra.push(...copiedCharts);markDirty(p);persistLocal();render();break;
+      projectState.addProject(state,p);state.charts.extra.push(...copiedCharts);markDirty(p);persistLocal();render();break;
     }
     case 'new-canvas':
     case 'rename-canvas': {
       const pg = action === 'rename-canvas' && project().pages.find(pg => pg.id === id);
       openDialog(pg ? '重命名画布' : '新增画布', project().name, field('name', '画布名称', pg?.name || `画布 ${project().pages.length + 1}`, 'required maxlength="40"'), data => {
         const name = data.name.trim(); if (!name) throw Error('请输入画布名称。'); if (!pg && project().pages.length >= 8) throw Error('当前原型每个项目最多演示 8 张画布。');
-        remember(); if (pg) pg.name = name; else { const next = { id: uid('canvas'), name, nodes: [], edges: [], zoom: 1, pan: [0, 0] }; project().pages.push(next); project().activePage = next.id; }
+        remember(); if (pg) pg.name = name; else { const next = { id: uid('canvas'), name, nodes: [], edges: [], zoom: 1, pan: [0, 0] }; projectState.addCanvas(project(),next); }
         ui.selectedNode = ''; ui.connecting = null; markDirty(project()); render();
       }, pg ? '保存名称' : '新增画布'); break;
     }
@@ -2612,7 +2612,7 @@ function setInstanceParamDraft(el) {
     : type === 'text' ? el.value
     : type === 'curve' ? parseCurveDraft(el.value)
     : el.value === '' ? '' : Number(el.value);
-  n.draft[d.instanceParam] = value;
+  projectState.setDraft(ownerOfInstance(n),n,{[d.instanceParam]:value});
   el.closest('.parameter-row')?.classList.toggle('edited', !sameValue(value, n.params[d.instanceParam]));
   markDirty(project());
 }
@@ -2662,7 +2662,7 @@ function handleInput(el) {
     const apply = float?.querySelector('[data-action="apply-instance"]'); if (apply) apply.disabled = !pendingCount(n);
     return;
   }
-  if (d.instanceName) { const n = instance(d.instanceName); if (value.trim()) n.name = value; markDirty(project()); return; }
+  if (d.instanceName) { const n = instance(d.instanceName); if (value.trim()) projectState.updateNode(ownerOfInstance(n),n,{name:value}); markDirty(project()); return; }
   if (d.valueId) {
     const v = mod().variables.find(v => v.id === d.valueId); if (Number(d.bank) < 0 || !v.writable) return;
     mod().banks[Number(d.bank)][d.valueId] = value === '' ? '' : Number(value); el.closest('td')?.classList.add('edited'); markDirty(mod()); return;
@@ -2719,9 +2719,9 @@ function handleChange(el) {
     root.querySelector('[data-design-select]').focus({ preventScroll: true }); return;
   }
   else if (d.instanceModel) {
-    const n = instance(d.instanceModel); if (value) stageModel(n, value); else { n.draftModelId = null; n.draftModelVersion = null; markDirty(project()); }
+    const n = instance(d.instanceModel); if (value) stageModel(n, value); else { projectState.updateNode(ownerOfInstance(n),n,{draftModelId:null,draftModelVersion:null}); markDirty(project()); }
   }
-  else if (d.instanceSwitch) { const n = instance(d.id), f = paramDefs(n).find(f => f[0] === d.instanceSwitch); n.draft[f[0]] = el.checked ? f[4] : f[3]; markDirty(project()); }
+  else if (d.instanceSwitch) { const n = instance(d.id), f = paramDefs(n).find(f => f[0] === d.instanceSwitch); projectState.setDraft(ownerOfInstance(n),n,{[f[0]]:el.checked ? f[4] : f[3]}); markDirty(project()); }
   else if (d.instanceParam) { setInstanceParamDraft(el); redraw = false; }  // a blur-driven change must not replace the float DOM mid-click
   else if ('benchModule' in d) { setBench(value); return; }
   else if (d.benchParam) { setBenchParam(el); }
@@ -2776,7 +2776,7 @@ root.addEventListener('pointermove', e => {
     windowBounds(f); const el = root.querySelector(`[data-float-id="${f.id}"]`); Object.assign(el.style, { left: f.x + 'px', top: f.y + 'px', width: f.w + 'px', height: (f.minimized ? 46 : f.h) + 'px' });
   } else if (pointer.kind === 'node') {
     const svg = document.getElementById('network'), p = svgPoint(svg, e), n = instance(pointer.id);
-    n.x = Math.round(pointer.original.x + p.x - pointer.origin.x); n.y = Math.round(pointer.original.y + p.y - pointer.origin.y); svg.innerHTML = networkMarkup(activePage());
+    projectState.updateNode(project(),n,{x:Math.round(pointer.original.x + p.x - pointer.origin.x),y:Math.round(pointer.original.y + p.y - pointer.origin.y)}); svg.innerHTML = networkMarkup(activePage());
   } else if (pointer.kind === 'pan') {
     const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(pointer.matrix); activePage().pan = [pointer.original[0] + p.x - pointer.origin.x, pointer.original[1] + p.y - pointer.origin.y];
     const pg = activePage(); document.getElementById('network').setAttribute('viewBox', networkViewBox(pg));
@@ -2951,7 +2951,7 @@ scenarioBatches=window.createScenarioBatchesUI({engine:()=>engine,ui:()=>ui,proj
 workflows=window.createModelingWorkflows({state:()=>state,engine:()=>engine,ui:()=>ui,project,
   esc,btn,openDialog,closeDialog,msg,clone,uid,emptyRun,confirm:confirmChange,paramSpecs:deviceParamSpecs,
   projectKey:projectParameterKey,dirty:markDirty,render,persist:()=>persistLocal(),download:downloadFile,
-  replaceState:next=>{validateImport(next);const previous=state;try{state=next;normalizeState();ui.floats=[];ui.selectedNode='';undoStack=[];redoStack=[];}catch(error){state=previous;throw error;}}});
+  replaceState:next=>{replaceWorkspaceState(next);ui.floats=[];ui.selectedNode='';undoStack=[];redoStack=[];}});
 coldStorage=window.createColdStorageUI({state:()=>state,engine:()=>engine,ui:()=>ui,makeInstance,makeProject,project,
   uid,normalizeState,markDirty,persist:()=>persistLocal(),openProject,msg,esc,btn,openDialog,closeDialog,render,fitNetwork,remember,moduleOf,
   download:downloadFile,projectKey:projectParameterKey});
