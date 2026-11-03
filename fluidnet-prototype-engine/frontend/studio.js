@@ -273,7 +273,7 @@ const badge=(label,type='')=>`<span class="badge ${type}">${label}</span>`;
 const empty=(title,description,action='')=>`<div class="empty">${icon('FolderOpen')}<h3>${title}</h3><p>${description}</p>${action}</div>`;
 const option=(value,label,current)=>`<option value="${esc(value)}"${String(value)===String(current)?' selected':''}>${esc(label)}</option>`;
 const clockLabel=t=>`t = ${number(t,1)} s`;
-let recovery='', editRevision=0, savePhase='', saveError='', localSaveError='', localSaveTrimmed=false;
+let recovery='', editRevision=0, savePhase='', saveError='', localSaveError='', localSaveTrimmed=false, saveInFlight=false;
 let state=initialState();
 try { const saved=JSON.parse(localStorage.getItem(STORAGE_KEY)||'null');if(saved&&saved.schema===1&&Array.isArray(saved.projects)&&saved.projects.length&&Array.isArray(saved.modules)&&saved.modules.length&&Array.isArray(saved.models)){state=saved;state.projects.forEach(p=>{if(p.run.status==='running')p.run.status='paused';});if(state.bench.run.status==='running')state.bench.run.status='paused';} } catch { recovery='上次原型记录无法读取，已打开内置示例。'; }
 const ui={route:'home',theme:matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light',moduleTab:'drawing',selectedNode:'',selectedEdge:'',editorPort:'',category:'全部模块',moduleSearch:'',moduleView:'cards',projectSearch:'',projectFilter:'all',projectView:'grid',bank:0,allBanks:false,variableSearch:'',onlyCommon:false,valueSearch:'',arrayVar:'system:form',codeKind:'runtime',designIndex:0,modelSearch:'',modelFilter:'all',modelTab:'parameters',benchTab:'results',settingsTab:'project',connectionTab:'variables',selectedConnector:'serial1',nodeDomain:'fluid',nodeTab:'definition',selectedRecord:'DEMO-003',runFilter:'all',pageGrid:false,placing:null,connecting:null,canvasMode:'select',floats:[],frontId:'',floatSerial:0,taskDrawer:false,selectedChart:'q',clipboard:null,showLibrary:innerWidth>500,showChart:false,workbenchChart:'flow',compileOutput:'尚未检查。可检查 Python 括号与字符串，或预览模块调用流程。',controlOutput:'控制脚本尚未预览。',connectionSearch:'',guideStep:0};
@@ -391,15 +391,17 @@ function backupLocalDraft(key){
 }
 function markDirty(target){editRevision++;if(savePhase==='saved')savePhase='';projectState.markDirty(state,target);root.querySelectorAll("[data-float-save]").forEach(el=>el.textContent="草稿未保存");syncChrome();}
 async function saveAll(){
-  if(savePhase==='saving')return;
-  const owner=state, version=editRevision, payload=clone(state);
-  payload.dirty=false;payload.savedAt=new Date().toISOString();payload.projects.forEach(p=>p.dirty=false);
-  payload.modules.forEach(m=>{if(m.runtime!=='python')m.dirty=false;});
-  savePhase='saving';saveError='';syncChrome();
-  // 本地草稿先落盘：失败不再静默——persistLocal 会按策略裁剪副本重试，仍失败则显示可见错误，
-  // 内存中的 state 保持完整，用户仍可导出原型。
-  persistLocal();
+  if(saveInFlight)return;
+  saveInFlight=true;savePhase='saving';saveError='';syncChrome();
   try{
+    // Startup may load a newer workspace and its module catalog. Capture the
+    // payload only afterwards, and keep a separate lock across that replacement.
+    await engine.whenReady();
+    const owner=state, version=editRevision, payload=clone(state);
+    payload.dirty=false;payload.savedAt=new Date().toISOString();payload.projects.forEach(p=>p.dirty=false);
+    payload.modules.forEach(m=>{if(m.runtime!=='python')m.dirty=false;});
+    savePhase='saving';syncChrome();
+    persistLocal();
     const receipt=await engine.saveWorkspace(payload);
     if(state===owner){
       state.workspaceRevision=receipt.revision;state.savedAt=receipt.saved_at;
@@ -409,6 +411,7 @@ async function saveAll(){
     savePhase='saved';syncChrome();updateFloatBodies();
     msg(`工作区已保存 · 修订 ${receipt.revision}${state.dirty?' · 仍有后续修改未保存':''}${anyPending()?` · ${anyPending()} 项参数待应用`:''}`);
   }catch(error){savePhase='error';saveError=error.message;state.dirty=true;persistLocal();syncChrome();msg('保存失败：'+error.message,true);}
+  finally{saveInFlight=false;}
 }
 function replaceWorkspaceState(data,beforeReplace=()=>{}) {
   const definitions=clone(PARAM_DEFS);

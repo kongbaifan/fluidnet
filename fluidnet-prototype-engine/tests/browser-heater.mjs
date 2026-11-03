@@ -11,7 +11,10 @@ const launched = await launchEngine({args: ['--data-dir', join(dir, 'data')],
 const browser = await chromium.launch({channel: 'msedge', headless: true});
 const page = await browser.newPage({...FHD_CONTEXT});
 const errors = [];
+let releaseCatalog=()=>{};
+let workspacePosts=0;
 page.on('pageerror', error => errors.push(error.message));
+page.on('request',request=>{if(request.method()==='POST' && new URL(request.url()).pathname==='/api/v1/workspace')workspacePosts++;});
 const state = () => page.evaluate(() => JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
 const dialog = () => page.getByRole('dialog');
 const runButton = () => page.locator('[data-action="run-project"][data-command="run"]').first();
@@ -52,9 +55,21 @@ async function run(powerW) {
 }
 
 try {
+  // A real user can save immediately after opening the page, before the catalog
+  // and durable workspace have finished loading. Hold only startup metadata.
+  const catalogReady=new Promise(resolve=>{releaseCatalog=resolve;});
+  await page.route(launched.base+'/api/v1/catalog',async route=>{await catalogReady;await route.continue();});
   await page.goto(launched.base);
   await page.locator('[data-action="start-modeling"]').click();
-  const initial = await save(), library = (await state()).modules;
+  const initialSave=save();initialSave.catch(()=>{});
+  await expect(page.locator('[data-save-status]')).toContainText('正在保存');
+  await page.locator('[data-action="save"]').first().click();
+  expect(workspacePosts).toBe(0);
+  releaseCatalog();
+  const initial = await initialSave, library = (await state()).modules;
+  expect(workspacePosts).toBe(1);
+  const stored=await(await page.request.get(launched.base+'/api/v1/workspace')).json();
+  expect(stored.data.modules.map(module=>module.id)).toEqual(library.map(module=>module.id));
   await page.locator('.rail-link[data-route="projects"]').click();
   await page.locator('[data-action="wf-manage"][data-id="' + initial.id + '"]').click();
   const downloaded = page.waitForEvent('download');
@@ -121,11 +136,12 @@ try {
   console.log(JSON.stringify({beforeHeatW: first.frame.variables['H1.heat_w'],
     afterHeatW: second.frame.variables['H1.heat_w'], errors}));
 } catch (error) {
-  console.error(error, errors, launched.log());
+  console.error(error, errors, launched.log(),await page.locator('[data-save-status]').getAttribute('title').catch(()=>null));
   process.exitCode = 1;
   mkdirSync('artifacts', {recursive: true});
   await captureFhd(page, 'artifacts/heater-ui-failure.png').catch(() => {});
 } finally {
+  releaseCatalog();
   await browser.close();
   await launched.stop();
 }
