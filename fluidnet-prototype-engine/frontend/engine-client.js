@@ -2,6 +2,7 @@
 window.createEngineClient = function (ui) {
   const clone = value => JSON.parse(JSON.stringify(value));
   const queues = new Map(), pending = new Map();
+  const controllerWrites = new Map();
   const livePolling = new Set();
   const circuitsByProject = new Map();  // project id -> circuits of the last successful check
   // A browser keeps at most this many live rows (the server window); older rows come from /overview.
@@ -449,8 +450,8 @@ window.createEngineClient = function (ui) {
     return row;
   }
   function prepareRun(owner) {
-    runState.prepare(owner.run,{overviewBindings:overviewBindings(owner),
-      chartBindings:(ui.state().charts?.extra||[]).filter(binding=>binding.projectId===owner.id),parameterKey:ui.parameterKey(owner)});
+    runState.prepare(owner.run,{overviewBindings:owner.run.overviewBindings || overviewBindings(owner),
+      chartBindings:owner.run.chartBindings || (ui.state().charts?.extra||[]).filter(binding=>binding.projectId===owner.id),parameterKey:ui.parameterKey(owner)});
   }
   function applyRow(owner,row) { prepareRun(owner);runState.append(owner.run,row); }
   async function command(scope, action, projectId) {
@@ -808,6 +809,23 @@ window.createEngineClient = function (ui) {
       return null;
     }
   }
+  function applyController(owner,controllerId,field,value) {
+    const job=(controllerWrites.get(owner) || Promise.resolve()).catch(()=>{}).then(async()=>{
+      const ticket=runState.capture(ui.state(),owner),beforeKey=ui.parameterKey(owner);
+      runState.assertCurrent(ui.state(),ticket);
+      const controller=owner.controllers.find(c=>c.id===controllerId);
+      if(!controller)throw Error('控制器已不存在，请重新选择。');
+      await confirmedCommand(owner,{action:'controller',controller_id:controllerId,parameter_id:field,value});
+      runState.assertCurrent(ui.state(),ticket);
+      if(owner.controllers.find(c=>c.id===controllerId)!==controller)throw Error('控制器已被替换。');
+      const currentKey=ui.parameterKey(owner);
+      controller[field]=value;
+      runState.advanceParameterKey(owner.run,beforeKey,currentKey,ui.parameterKey(owner));
+      ui.dirty(owner);ui.persist();
+    });
+    controllerWrites.set(owner,job);
+    return job.finally(()=>{if(controllerWrites.get(owner)===job)controllerWrites.delete(owner);});
+  }
   async function applyParameters(owner,node) {
     const ticket=runState.capture(ui.state(),owner),beforeKey=ui.parameterKey(owner);
     const m=ui.moduleOf(node), definition=m.manifest || catalog.modules.find(d=>d.id===m.kind);
@@ -830,5 +848,5 @@ window.createEngineClient = function (ui) {
     runState.advanceParameterKey(owner.run,beforeKey,currentKey,ui.parameterKey(owner));ui.persist();ui.render();
   }
   const services=window.createProjectServices({request,ui,normalize,health:()=>health,authHeaders,pinProject,moduleFromManifest});
-  return {...services,archiveCacheMetadata,overviewBindings,overviewValues,refrigerationReportAvailable,request,normalize,moduleFromManifest,whenReady:()=>initializing || Promise.resolve(),command,tick,validate,init,applyParameters,loadOverview,authHeaders,signOut:()=>{sessionStorage.removeItem(TOKEN_KEY);location.reload();},overview:id=>overviews.get(id),circuits:id=>circuitsByProject.get(id)||[],confirmedCommand,portValue,observation,manifestPayload,contractText,checkModule,saveModule,runDesign,versions,loadVersion,newModule,newTemplate,newComposite,updateContractItem,bindModule,pinProject,moduleForInsert,get catalog(){return catalog;},get health(){return health;}};
+  return {...services,archiveCacheMetadata,overviewBindings,overviewValues,refrigerationReportAvailable,request,normalize,moduleFromManifest,whenReady:()=>initializing || Promise.resolve(),command,tick,validate,init,applyController,applyParameters,loadOverview,authHeaders,signOut:()=>{sessionStorage.removeItem(TOKEN_KEY);location.reload();},overview:id=>overviews.get(id),circuits:id=>circuitsByProject.get(id)||[],confirmedCommand,portValue,observation,manifestPayload,contractText,checkModule,saveModule,runDesign,versions,loadVersion,newModule,newTemplate,newComposite,updateContractItem,bindModule,pinProject,moduleForInsert,get catalog(){return catalog;},get health(){return health;}};
 };

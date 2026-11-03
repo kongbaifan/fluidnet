@@ -62,6 +62,14 @@ try {
   await card.locator('[data-pid-field="mode"]').selectOption('manual');
   await card.locator('[data-pid-field="manual_output"]').fill('1500');
   await card.locator('[data-pid-field="manual_output"]').blur();
+  await expect.poll(async()=>page.evaluate(()=>{
+    const state=JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1'));
+    const p=state.projects.find(p=>p.id===state.activeProject);
+    const current=p.controllers.find(c=>c.id==='temperature');
+    const accepted=JSON.parse(p.run.parameterKey).controllers.find(c=>c.id==='temperature');
+    return current.manual_output===1500 && current.mode==='manual' && accepted.manual_output===1500
+      && accepted.mode==='manual' && accepted.setpoint===304.15;
+  }),{timeout:15000}).toBe(true);
   await page.locator('[data-action="save"]').first().click();
   await page.reload();
   await expect(page.locator('[data-pid-card="temperature"]')).toBeVisible();

@@ -167,7 +167,7 @@ window.createAirSideUI = function (ui) {
       field('setpoint','目标设定 / '+(unit?.display_unit||'规范单位'),current,'type="number" step="any"'),async data=>{
         const value=Number(data.setpoint);if(!String(data.setpoint).trim()||!Number.isFinite(value))throw Error('请填写有限数值。');
         const canonical=unit?(value-unit.display_offset)*unit.display_scale:value;
-        if(p.run.live)await engine().confirmedCommand(p,{action:'controller',controller_id:id,parameter_id:'setpoint',value:canonical});
+        if(p.run.live)await engine().applyController(p,id,'setpoint',canonical);
         c.setpoint=canonical;persistView(p);invalidate();ui.render();
       },'应用设定');
   }

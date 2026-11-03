@@ -865,7 +865,7 @@ document.addEventListener('change',async event=>{
   if(!c) return;
   try {
     const value=['mode','measurement','target'].includes(key)?el.value:Number(el.value);
-    if(p.run.live) await engine.confirmedCommand(p,{action:'controller',controller_id:c.id,parameter_id:key,value});
+    if(p.run.live) await engine.applyController(p,c.id,key,value);
     if(key==='target') {
       [c.instance_id,c.parameter_id]=value.split('.');
       const spec=pidOptions(p).targets.find(t=>t[0]===value)[2];
