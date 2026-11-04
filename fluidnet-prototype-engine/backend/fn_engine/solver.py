@@ -693,13 +693,19 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
             counters.method_fallback = 'dense'
         result, drops, balance, closed, constraints, ok = attempt(cold)
     if not ok and analytic_supported:
-        # 解析 Jacobian 的已知退化：q=0 是 q|q| 项的驻点，Newton 步可能停在零流量假收敛点
-        # （gtol 满足但压力残差不为 0）。只允许一次可诊断回退到有限差分，容差不放宽。
+        # Budget exhaustion can leave a useful iterate near a valve's opening threshold.
+        # Preserve that progress for the existing numeric fallback; restarting cold can
+        # enter a different closed-valve basin depending on the BLAS kernel. A stationary
+        # false convergence (e.g. q=0 in q|q|) still restarts cold. No extra attempt or
+        # accepted-state mutation is introduced, and both physical tolerances still apply.
+        fallback_start = result.x if result.status == 0 and np.all(np.isfinite(result.x)) else cold
         jacobian_mode = 'finite_difference'
-        jacobian_reason = '解析 Jacobian 在零流量驻点假收敛，已回退有限差分（仅一次）'
+        jacobian_reason = '解析／混合 Jacobian 未收敛，已回退有限差分（仅一次，容差未放宽）'
+        if fallback_start is not cold:
+            jacobian_reason += '；迭代上限后保留末次试算点'
         if counters is not None:
             counters.jacobian_fallback = 'finite_difference'
-        result, drops, balance, closed, constraints, ok = attempt(cold, numeric_jacobian=True)
+        result, drops, balance, closed, constraints, ok = attempt(fallback_start, numeric_jacobian=True)
     pressures, flows = unpack(result.x)
     # Zero-flow and forced-flow relations do not determine a pressure difference.
     # Every pressure component left after removing them needs its own reference.

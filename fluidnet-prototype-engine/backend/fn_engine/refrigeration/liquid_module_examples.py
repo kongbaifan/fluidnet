@@ -16,6 +16,16 @@ LAYOUT = {'LP1': (140, 95), 'K1': (340, 50), 'EC1': (560, 50), 'HP1': (760, 130)
 
 def coupled_liquid_module_example(coolant='Water', module=None):
     project = thermal_coupling_example(coolant)
+    # This portable reference is a reproducible authoring input, not a binary
+    # dump of the sizing solver's last bits. Publish derived device sizes at
+    # ten significant digits, well within the model's existing tolerances.
+    # Only new example construction uses this precision; saved user projects
+    # and simulation results retain their original values.
+    sized = {'K1': 'displacement_m3_s', 'EC1': 'ua_w_k', 'EV1': 'kv_m3_h'}
+    for instance in project.instances:
+        parameter = sized.get(instance.id)
+        if parameter:
+            instance.parameters[parameter] = float(format(instance.parameters[parameter], '.10g'))
     definition = (module or load_module_package(ROOT / 'modules/coupled_liquid_valve')).model_copy(deep=True)
     definition.package_path = None
     definition.content_hash = module_content_hash(definition)

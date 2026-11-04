@@ -4536,7 +4536,7 @@
       },
       "rotation": 0,
       "parameters": {
-        "displacement_m3_s": 0.005510256814865798,
+        "displacement_m3_s": 0.005510256815,
         "load_ratio": 0.8
       },
       "draft_parameters": {},
@@ -4556,7 +4556,7 @@
       },
       "rotation": 0,
       "parameters": {
-        "ua_w_k": 1245.339739743794,
+        "ua_w_k": 1245.33974,
         "wet_bulb_temperature_k": 293.15,
         "fan_power_w": 120.0,
         "fan_ratio": 1.0,
@@ -4600,7 +4600,7 @@
       },
       "rotation": 0,
       "parameters": {
-        "kv_m3_h": 0.04716700270745527,
+        "kv_m3_h": 0.04716700271,
         "opening_ratio": 0.5
       },
       "draft_parameters": {},
