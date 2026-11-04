@@ -470,10 +470,20 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
                 counters.residual_calls += 1
                 counters.timing_s['residual'] = counters.timing_s.get('residual', 0.) + (time.perf_counter() - started)
 
-    def residual(vector):
+    def residual(vector, valve_reference=None):
         drops, balance, _, constraints = physical_residual(vector)
         _, flows = unpack(vector)
         scaled = drops / PRESSURE_SCALE
+        if valve_reference is not None:
+            # Equivalent open-valve equation: remove the opening^-2 pole from
+            # pressure-dependent laws near closure. Constant openings retain
+            # their original scale. Closed/forced rows below remain exact flow
+            # constraints, and acceptance still checks unscaled physical drops.
+            for idx, branch in enumerate(network.branches):
+                key = (branch.instance_id, branch.channel_id)
+                relation = final_relations.get(key)
+                if idx not in constraints and relation is not None and relation.kind == 'valve':
+                    scaled[idx] *= relation.parameters['opening_ratio']**2 / valve_reference.get(key, 1.)
         for idx, value in constraints.items():
             scaled[idx] = value
         return np.concatenate((scaled, balance))
@@ -655,7 +665,7 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
     else:
         start = cold
 
-    def attempt(vector, numeric_jacobian=False):
+    def attempt(vector, numeric_jacobian=False, scale_valves=False):
         started = time.perf_counter()
         if counters is not None:
             counters.solver_attempts += 1
@@ -668,7 +678,13 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
             sparse_options['jac'] = analytic_jacobian
         elif method == 'sparse':
             sparse_options['jac_sparsity'] = pattern_csr
-        result = least_squares(residual, vector, max_nfev=options.max_iterations, xtol=1e-12, ftol=1e-12, gtol=1e-12, x_scale='jac', **sparse_options)
+        target_residual = residual
+        if scale_valves:
+            residual(vector)
+            valve_reference = {key: relation.parameters['opening_ratio']**2 or 1.
+                               for key, relation in final_relations.items() if relation.kind == 'valve'}
+            target_residual = lambda trial: residual(trial, valve_reference)
+        result = least_squares(target_residual, vector, max_nfev=options.max_iterations, xtol=1e-12, ftol=1e-12, gtol=1e-12, x_scale='jac', **sparse_options)
         if counters is not None:
             counters.nfev += int(result.nfev)
             counters.njev += int(getattr(result, 'njev', 0) or 0)
@@ -693,19 +709,22 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
             counters.method_fallback = 'dense'
         result, drops, balance, closed, constraints, ok = attempt(cold)
     if not ok and analytic_supported:
-        # Budget exhaustion can leave a useful iterate near a valve's opening threshold.
-        # Preserve that progress for the existing numeric fallback; restarting cold can
-        # enter a different closed-valve basin depending on the BLAS kernel. A stationary
-        # false convergence (e.g. q=0 in q|q|) still restarts cold. No extra attempt or
-        # accepted-state mutation is introduced, and both physical tolerances still apply.
-        fallback_start = result.x if result.status == 0 and np.all(np.isfinite(result.x)) else cold
+        # Preserve useful progress after budget exhaustion. Pressure-dependent module
+        # valves additionally use an equivalent scaled equation to escape the closure
+        # pole; their last iterate remains useful even after xtol stagnation. Pure
+        # quadratic zero-flow false convergence still restarts cold. This reuses the
+        # existing single numeric fallback, with unchanged physical acceptance gates.
+        scale_valves = any(relation.kind == 'valve' for relation in final_relations.values())
+        fallback_start = result.x if (result.status == 0 or scale_valves) and np.all(np.isfinite(result.x)) else cold
         jacobian_mode = 'finite_difference'
         jacobian_reason = '解析／混合 Jacobian 未收敛，已回退有限差分（仅一次，容差未放宽）'
         if fallback_start is not cold:
-            jacobian_reason += '；迭代上限后保留末次试算点'
+            jacobian_reason += '；保留末次试算点'
+        if scale_valves:
+            jacobian_reason += '；阀门开度平方等价缩放'
         if counters is not None:
             counters.jacobian_fallback = 'finite_difference'
-        result, drops, balance, closed, constraints, ok = attempt(fallback_start, numeric_jacobian=True)
+        result, drops, balance, closed, constraints, ok = attempt(fallback_start, numeric_jacobian=True, scale_valves=scale_valves)
     pressures, flows = unpack(result.x)
     # Zero-flow and forced-flow relations do not determine a pressure difference.
     # Every pressure component left after removing them needs its own reference.

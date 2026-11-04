@@ -140,6 +140,45 @@ def test_makeup_water_matches_the_leak_through_the_real_network(opening):
     assert values['Makeup.state.Check.throughput_kg'] > 0
 
 
+@pytest.mark.parametrize('opening', [.01, .015, .025, .03])
+def test_adjacent_small_makeup_flows_conserve_mass_at_different_temperatures(opening):
+    project = hvac_example('hvac-closed-loop-makeup')
+    next(instance for instance in project.instances if instance.id == 'Leak').parameters['opening_ratio'] = opening
+    frame = dynamic_frames(project, 20., 1.)[-1]
+    assert frame.valid
+    assert frame.metrics['pressure_residual_pa'] <= project.solver.pressure_tolerance_pa
+    assert frame.metrics['mass_residual_kg_s'] <= project.solver.mass_tolerance_kg_s
+    values = frame.variables
+    # Cold makeup and heated leakage have different densities. Conservation is
+    # in kg/s; equal m³/s is not the physical law at these larger temperature rises.
+    assert values['Makeup.makeup_in.mass_flow_kg_s'] > 0
+    assert values['Makeup.makeup_in.mass_flow_kg_s'] == pytest.approx(
+        values['Leak.main.mass_flow_kg_s'], rel=1e-6, abs=project.solver.mass_tolerance_kg_s)
+
+
+def test_tiny_makeup_flow_hydraulics_keep_original_physical_residuals():
+    project = hvac_example('hvac-closed-loop-makeup')
+    next(instance for instance in project.instances if instance.id == 'Leak').parameters['opening_ratio'] = .005
+    project.solver.thermal = False
+    project.control_scripts = []
+    project.solver.hydraulic_diagnostics = True
+    frame = solve_steady(compile_project(project))
+    assert frame.valid
+    assert frame.metrics['pressure_residual_pa'] <= project.solver.pressure_tolerance_pa
+    assert frame.metrics['mass_residual_kg_s'] <= project.solver.mass_tolerance_kg_s
+    assert frame.variables['measurement.makeup-flow'] == pytest.approx(frame.variables['measurement.leak-flow'], rel=2e-2)
+
+
+def test_extremely_small_makeup_flow_keeps_liquid_phase_guard():
+    from fn_engine.thermal import ThermalError
+    project = hvac_example('hvac-closed-loop-makeup')
+    next(instance for instance in project.instances if instance.id == 'Leak').parameters['opening_ratio'] = .005
+    # 4 kW at this flow enters the two-phase region: hydraulic robustness must
+    # reveal the physical limit, rather than accepting an invalid liquid state.
+    with pytest.raises(ThermalError, match='twophase'):
+        dynamic_frames(project, 1., 1.)
+
+
 def test_makeup_unit_keeps_the_pressure_reference_outside_the_composition():
     project = hvac_example('hvac-closed-loop-makeup')
     # 组合里没有压力边界；定压由外部 MakeupSource 提供。
