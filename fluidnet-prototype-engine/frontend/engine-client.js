@@ -234,6 +234,7 @@ window.createEngineClient = function (ui) {
     try {
       const result=await request(`/modules/${encodeURIComponent(m.id)}/versions/${version}`);
       applyManifest(m,result.module); m.publishedManifest=clone(result.module); m.dirty=false;
+      if(result.module.sdk?.capabilities?.includes('composite.refrigeration.open.v1') && result.test_conditions?.host_project)m.testConditions=clone(result.test_conditions);
       ui.persist(); ui.render(); ui.message(`已载入 v${version}；现有项目继续使用已绑定快照。`);
     } catch(error) { ui.moduleOutput(m,'载入失败：'+error.message); }
   }
@@ -243,18 +244,19 @@ window.createEngineClient = function (ui) {
     try {
       const definition=manifestPayload(m), before=JSON.stringify(definition);
       const test=clone(m.testConditions || {});
+      if(definition.sdk?.capabilities?.includes('composite.refrigeration.open.v1') && !test.host_project)throw Error('开放设备组缺少宿主工况，请在已连接的制冷项目中重新封装后发布。');
       // Test the declared defaults on every save; prior bench results cannot authorize changed code.
       const bench=ui.state().bench;
-      if (bench?.moduleId===m.id) Object.assign(test,{inlet_pressure_pa:bench.boundary.inlet*1000,outlet_pressure_pa:bench.boundary.outlet*1000,temperature_k:bench.boundary.temperature+273.15,dt_s:bench.run.step,duration_s:bench.run.step});
+      if (bench?.moduleId===m.id) Object.assign(test,test.host_project ? {dt_s:bench.run.step,duration_s:bench.run.step} : {inlet_pressure_pa:bench.boundary.inlet*1000,outlet_pressure_pa:bench.boundary.outlet*1000,temperature_k:bench.boundary.temperature+273.15,dt_s:bench.run.step,duration_s:bench.run.step});
       if(definition.execution_role && bench?.moduleId===m.id)test.fluid={fluid:bench.boundary.fluid || test.fluid?.fluid || 'Ammonia',phase_policy:'any'};
-      ui.moduleOutput(m,'正在校验并进行 Worker 试算，通过后写入新版本…');
+      ui.moduleOutput(m,test.host_project?'正在校验并代入原宿主网络试算，通过后写入新版本…':'正在校验并进行 Worker 试算，通过后写入新版本…');
       const release=await request('/modules/versions',{module:definition,expected_latest_version:m.latestVersion ?? (m.publishedManifest?.version || 0),release_notes:m.releaseNotes || '',test});
       let unchanged=false;
       try { unchanged=before===JSON.stringify(manifestPayload(m)); } catch { /* Keep incomplete JSON edited during the save. */ }
       m.latestVersion=release.module.version;
       m.publishedManifest=clone(release.module);
       if (unchanged) { applyManifest(m,release.module); m.dirty=false; }
-      ui.moduleOutput(m,`✓ v${release.module.version} 已保存到后端\n✓ Worker 试算通过，流量 ${traceFlow(m, release.test_result.frame.variables)} kg/s\n源码 SHA-256：${release.package.content_hash}\n契约 SHA-256：${release.package.definition_hash}`+(unchanged?'':'\n保存期间的新编辑已保留为草稿。'));
+      ui.moduleOutput(m,`✓ v${release.module.version} 已保存到后端\n✓ ${test.host_project?'宿主网络试算通过，工况来源：'+test.host_project.name:'Worker 试算通过'+(traceFlow(m,release.test_result.frame.variables)===null?'':'，流量 '+traceFlow(m,release.test_result.frame.variables)+' kg/s')}\n源码 SHA-256：${release.package.content_hash}\n契约 SHA-256：${release.package.definition_hash}`+(unchanged?'':'\n保存期间的新编辑已保留为草稿。'));
       await versions(m);
       if (!ui.persist()) { ui.message(`后端 v${release.module.version} 已保存，浏览器草稿存储失败（存储空间不足），请导出原型；内存中的修改未丢失。`,true); return; }
       ui.message(`模块 v${release.module.version} 已保存；已有项目版本保持绑定。`);
@@ -281,7 +283,8 @@ window.createEngineClient = function (ui) {
     const sourceProject=await normalize(owner);
     const definition=await request('/modules/composites/from-group',{project:sourceProject,instance_ids:ids,id,name});
     const m=moduleFromManifest(definition);m.latestVersion=0;m.dirty=true;
-    if(definition.sdk?.capabilities?.includes('composite.refrigeration.v1'))m.testConditions={fluid:clone(sourceProject.fluid),duration_s:.1,dt_s:.1};
+    if(definition.sdk?.capabilities?.includes('composite.refrigeration.open.v1'))m.testConditions=await request('/modules/composites/test-context',{project:sourceProject,instance_ids:ids,module:definition});
+    else if(definition.sdk?.capabilities?.includes('composite.refrigeration.v1'))m.testConditions={fluid:clone(sourceProject.fluid),duration_s:.1,dt_s:.1};
     ui.parameterDefinitions[m.kind]=m.parameterDefs;return m;
   }
   function updateContractItem(m,section,oldId,item) {
@@ -493,13 +496,16 @@ window.createEngineClient = function (ui) {
       try {
         const parameters = testParameters(module, owner.params);
         const definition=manifestPayload(module);
-        const fluid=definition.execution_role ? {fluid:{fluid:owner.boundary.fluid || module.testConditions?.fluid?.fluid || 'Ammonia',phase_policy:'any'}} : {};
-        const body = await request('/modules/test',{module:definition,...fluid,parameters,inlet_pressure_pa:Number(owner.boundary.inlet) * 1000,outlet_pressure_pa:Number(owner.boundary.outlet) * 1000,temperature_k:Number(owner.boundary.temperature) + 273.15,dt_s:owner.run.step,duration_s:owner.run.step},controller.signal);
-        const row = rowFromModuleTest(owner, body);
+        const host=definition.sdk?.capabilities?.includes('composite.refrigeration.open.v1');
+        if(host && !module.testConditions?.host_project)throw Error('开放设备组缺少宿主工况，请在已连接的制冷项目中重新封装，或载入含宿主工况的模块草稿。');
+        const conditions=host ? clone(module.testConditions) : {inlet_pressure_pa:Number(owner.boundary.inlet)*1000,outlet_pressure_pa:Number(owner.boundary.outlet)*1000,temperature_k:Number(owner.boundary.temperature)+273.15,...(module.testConditions?.fluid ? {fluid:clone(module.testConditions.fluid)} : {})};
+        if(definition.execution_role)conditions.fluid={fluid:owner.boundary.fluid || module.testConditions?.fluid?.fluid || 'Ammonia',phase_policy:'any'};
+        const body = await request('/modules/test',{...conditions,module:definition,parameters,dt_s:owner.run.step,duration_s:owner.run.step},controller.signal);
+        const row = {...rowFromModuleTest(owner, body),...(host?{pressure:null,temperature:null}:{})};
         owner.run.history = body.history.map(f => ({...row,t:f.time_s,canonical:f.variables,q:traceFlow(module, f.variables)}));
-        owner.run.time = row.t; owner.run.values = {q:row.q,a:null,b:null,pressure:owner.boundary.outlet,temperature:body.execution_domain==='refrigeration' ? body.frame.variables['D1.in0.temperature_k']-273.15 : owner.boundary.temperature};
-        owner.run.worker = {status:'completed',contentHash:body.content_hash,version:module.version,evaluation:body.evaluation,initialState:body.state,committed:body.committed,executionDomain:body.execution_domain,refrigeration:body.refrigeration_evaluation};
-        owner.run.events = [{t:owner.run.time,text:`Worker evaluate 完成，${body.evaluation.relations.length} 条关系已注册。`},{t:owner.run.time,text:`commit_step 完成，状态提交 ${Object.keys(body.committed.state || {}).length} 项。`}]; owner.run.id = body.content_hash; owner.run.status = action === 'step' ? 'paused' : 'completed'; ui.dirty(); ui.render(); ui.message('Python 模块 Worker 测试完成。');
+        owner.run.time = row.t; owner.run.values = {q:row.q,a:null,b:null,pressure:host?null:owner.boundary.outlet,temperature:host?null:body.execution_domain==='refrigeration' ? body.frame.variables['D1.in0.temperature_k']-273.15 : owner.boundary.temperature};
+        owner.run.worker = {status:'completed',contentHash:body.content_hash,version:module.version,evaluation:body.evaluation,initialState:body.state,committed:body.committed,executionDomain:body.execution_domain,refrigeration:body.refrigeration_evaluation,hostProject:host?conditions.host_project.name:null};
+        owner.run.events = [{t:owner.run.time,text:host?`宿主网络试算完成：${conditions.host_project.name}。`:`Worker evaluate 完成，${body.evaluation.relations.length} 条关系已注册。`},{t:owner.run.time,text:host?`返回 ${Object.keys(body.evaluation.variables).length} 个设备组公开变量。`:`commit_step 完成，状态提交 ${Object.keys(body.committed.state || {}).length} 项。`}]; owner.run.id = body.content_hash; owner.run.status = action === 'step' ? 'paused' : 'completed'; ui.dirty(); ui.render(); ui.message(host?'开放设备组宿主网络测试完成。':'Python 模块 Worker 测试完成。');
       } catch (error) { if(error.name !== 'AbortError') { owner.run.status='failed'; owner.run.failureReplay=error.detail?.replay||null;owner.run.diagnostics=error.detail?.diagnostics||(error.detail?.message?[error.detail]:[{message:error.message}]);owner.run.events=[{t:owner.run.time,text:error.message}]; ui.message('模块测试失败：' + error.message,true); } ui.render(); }
       finally { if(pending.get('__bench') === controller) pending.delete('__bench'); }
       return;

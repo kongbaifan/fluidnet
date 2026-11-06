@@ -833,6 +833,8 @@ class ChannelTestBoundary(StrictModel):
 
 
 class ModuleTestConditions(StrictModel):
+    host_project: Project | None = Field(default=None,exclude_if=lambda v:v is None)
+    host_instance_id: Identifier = Field(default='D1',exclude_if=lambda v:v=='D1')
     moist_air: bool = Field(default=False,exclude_if=lambda v:not v)
     moist_air_options: MoistAirOptions | None = Field(default=None,exclude_if=lambda v:v is None)
     humidity_ratio_kg_kg: float = Field(default=.008,ge=0,le=.05,exclude_if=lambda v:v==.008)
@@ -901,6 +903,12 @@ class ModuleGroupRequest(StrictModel):
     instance_ids: list[Identifier] = Field(min_length=1,max_length=100)
     id: Identifier
     name: str = Field(min_length=1,max_length=80)
+
+
+class CompositeTestContextRequest(StrictModel):
+    project: Project
+    instance_ids: list[Identifier] = Field(min_length=1,max_length=100)
+    module: ModuleDefinition
 
 
 class ModuleTestResponse(StrictModel):

@@ -840,7 +840,9 @@ class StationSession(ThermalSession):
                 self._check_vessels(point)
                 self._cache = key, point
             except devices.DeviceRangeError as error:
-                raise SolveFailed(error.code, f't={self.time:g}s {error}', error.instance_id, list(self.frames)) from error
+                from ..composites import map_failure
+                failure=SolveFailed(error.code, f't={self.time:g}s {error}', error.instance_id, list(self.frames))
+                raise map_failure(network=self.network,error=failure) from error
         return self._cache[1]
 
     def snapshot(self):

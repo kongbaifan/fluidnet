@@ -52,8 +52,16 @@ output=root/'contracts'
 from fn_engine.system_inspection import SystemInspection, InspectionComparison
 from fn_engine.equipment_library import LibraryItem, LibraryCatalog, LibraryRequest
 from fn_engine.coil_geometry import CoilGeometryRequest, CoilGeometryResponse
+from fn_engine.models import CompositeTestContextRequest
+from fn_engine.performance_data import (PerformanceImport, PerformancePreview, PerformanceVersion,
+    PerformanceSummary, PerformanceList, PerformanceReference, PerformanceProposalRequest, PerformanceProposal, PerformanceComparison)
 
 models = [
+    ('composite-test-context-request',CompositeTestContextRequest),
+    ('performance-import',PerformanceImport),('performance-preview',PerformancePreview),
+    ('performance-version',PerformanceVersion),('performance-summary',PerformanceSummary),
+    ('performance-list',PerformanceList),('performance-reference',PerformanceReference),('performance-proposal-request',PerformanceProposalRequest),
+    ('performance-proposal',PerformanceProposal),('performance-comparison',PerformanceComparison),
     ('system-inspection',SystemInspection),('inspection-comparison',InspectionComparison),
     ('equipment-library-item',LibraryItem),('equipment-library',LibraryCatalog),('equipment-library-request',LibraryRequest),
     ('coil-geometry-request',CoilGeometryRequest),('coil-geometry-response',CoilGeometryResponse),

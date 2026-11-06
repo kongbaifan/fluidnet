@@ -31,9 +31,12 @@ window.EquipmentSelection = (() => {
   }
   function fingerprint(owner,node,definition) {
     return JSON.stringify({params:node.params,draft:node.draft,definition,fluid:owner.fluid,
-      fluidConfig:owner.fluidConfig,fluidReference:owner.fluidReference,circuitFluids:owner.circuitFluids});
+      fluidConfig:owner.fluidConfig,fluidReference:owner.fluidReference,circuitFluids:owner.circuitFluids,performanceData:node.performanceData,performanceDataDraft:node.performanceDataDraft});
   }
   function assertModelCompatible(item,definition) {
+    const entries=Object.values(item?.performanceData||item?.selection?.performanceData||{});
+    if(entries.some(entry=>item.moduleId!==definition.id||item.moduleVersion!==definition.version||entry.definitionHash!==definition.definition_hash||entry.contentHash!==definition.content_hash))
+      throw Error('性能资料型号绑定的模块版本与目标设备不同，请使用相同版本或重新导入资料。');
     if (!item?.selection) return;
     if (item.moduleId!==definition.id || item.moduleVersion!==definition.version ||
         item.selection.definitionHash && item.selection.definitionHash!==definition.definition_hash ||
@@ -64,8 +67,11 @@ window.EquipmentSelection = (() => {
     }
     function provenance(id){
       const node=instance(id),item=node&&getState().models.find(m=>m.id===(node.draftModelId||node.modelId));
-      if(!item?.selection){openDialog('型号设计资料',node?.name||'', '<p>当前型号未记录设计来源。可通过设备选型保存带来源的型号。</p>');return;}
-      openDialog('型号设计资料',`${node.id} · ${item.name} · 模块v${item.moduleVersion}`,`<p>以下为保存型号时的规范单位输入与来源，后续修改设备参数不会改写此记录。</p><pre class="code-preview">${esc(JSON.stringify(item.selection,null,2))}</pre>`,null,'',true);
+      if(!node)return;
+      const definition=engine.manifestPayload(moduleOf(node)),api=window.FluidNetPerformanceData;
+      const current=api?.references(node,definition,node.params,'current')||{},draft=api?.references(node,definition,node.draft)||{};
+      const data={当前参数资料:current,草稿资料:draft,保存型号时的来源:item?.selection||item?.performanceData||null};
+      openDialog('型号设计资料',`${node.id} · ${item?.name||'自定义参数'} · 模块v${definition.version}`,`<p>当前与草稿仅列出曲线及参考条件仍一致的资料。型号来源为保存时的记录。</p><pre class="code-preview">${esc(JSON.stringify(data,null,2))}</pre>`,null,'',true);
     }
     function geometry(id){
       const node=instance(id),owner=ownerOfInstance(node),module=moduleOf(node),definition=engine.manifestPayload(module);
@@ -126,7 +132,7 @@ window.EquipmentSelection = (() => {
                       item={id:uid('model'),moduleId:definition.id,moduleVersion:definition.version,name,description:note,sourceLabel:note,
                         version:1,params:clone(params),values,bank:1,archived:false,
                         selection:{designHash:result.design_hash,definitionHash:definition.definition_hash||null,contentHash:definition.content_hash||null,
-                          fluid:clone(fluids[index].config),inputs:model().canonicalParameters(definition,inputs)},
+                          fluid:clone(fluids[index].config),inputs:model().canonicalParameters(definition,inputs),performanceData:window.FluidNetPerformanceData?.references(node,definition,inputs)||{}},
                         versions:[{version:1,note,params:clone(params),values:clone(values)}]};
                     }
                     window.FluidNetProjectState.setDraft(owner,node,params);

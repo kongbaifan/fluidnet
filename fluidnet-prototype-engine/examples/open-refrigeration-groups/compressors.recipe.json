@@ -1,0 +1,113 @@
+{
+  "source_project": "source.project.json",
+  "instance_ids": [
+    "Compressor-1",
+    "Compressor-2",
+    "Suction",
+    "Discharge"
+  ],
+  "module_id": "open_compressors",
+  "module_name": "压缩机组",
+  "host_project": "compressors.project.json",
+  "host_instance_id": "D1",
+  "duration_s": 0.2,
+  "dt_s": 0.1,
+  "public_ports": [
+    {
+      "id": "Discharge_in2",
+      "label": "Discharge · 汇入 3",
+      "domain": "refrigerant",
+      "direction": "in",
+      "required": false,
+      "circuit": "group0"
+    },
+    {
+      "id": "Discharge_in3",
+      "label": "Discharge · 汇入 4",
+      "domain": "refrigerant",
+      "direction": "in",
+      "required": false,
+      "circuit": "group0"
+    },
+    {
+      "id": "Discharge_out0",
+      "label": "Discharge · 分出 1",
+      "domain": "refrigerant",
+      "direction": "out",
+      "required": false,
+      "circuit": "group0"
+    },
+    {
+      "id": "Discharge_out1",
+      "label": "Discharge · 分出 2",
+      "domain": "refrigerant",
+      "direction": "out",
+      "required": false,
+      "circuit": "group0"
+    },
+    {
+      "id": "Discharge_out2",
+      "label": "Discharge · 分出 3",
+      "domain": "refrigerant",
+      "direction": "out",
+      "required": false,
+      "circuit": "group0"
+    },
+    {
+      "id": "Discharge_out3",
+      "label": "Discharge · 分出 4",
+      "domain": "refrigerant",
+      "direction": "out",
+      "required": false,
+      "circuit": "group0"
+    },
+    {
+      "id": "Suction_in0",
+      "label": "Suction · 汇入 1",
+      "domain": "refrigerant",
+      "direction": "in",
+      "required": false,
+      "circuit": "group0"
+    },
+    {
+      "id": "Suction_in1",
+      "label": "Suction · 汇入 2",
+      "domain": "refrigerant",
+      "direction": "in",
+      "required": false,
+      "circuit": "group0"
+    },
+    {
+      "id": "Suction_in2",
+      "label": "Suction · 汇入 3",
+      "domain": "refrigerant",
+      "direction": "in",
+      "required": false,
+      "circuit": "group0"
+    },
+    {
+      "id": "Suction_in3",
+      "label": "Suction · 汇入 4",
+      "domain": "refrigerant",
+      "direction": "in",
+      "required": false,
+      "circuit": "group0"
+    },
+    {
+      "id": "Suction_out2",
+      "label": "Suction · 分出 3",
+      "domain": "refrigerant",
+      "direction": "out",
+      "required": false,
+      "circuit": "group0"
+    },
+    {
+      "id": "Suction_out3",
+      "label": "Suction · 分出 4",
+      "domain": "refrigerant",
+      "direction": "out",
+      "required": false,
+      "circuit": "group0"
+    }
+  ]
+}

@@ -22,7 +22,7 @@ function fixture({live=true,reject=false,delay=false}={}){
       if(path==='/api/v1/runs/run1')return {ok:true,json:async()=>({id:'run1',status:'paused',events:[]})};
       throw Error(path);
     }});
-  for(const name of ['project-model','project-state','project-run-state','parameter-batch','engine-client'])vm.runInContext(readFileSync(new URL('../frontend/'+name+'.js',import.meta.url),'utf8'),host);
+  for(const name of ['project-model','project-state','project-run-state','performance-library','parameter-batch','engine-client'])vm.runInContext(readFileSync(new URL('../frontend/'+name+'.js',import.meta.url),'utf8'),host);
   const engine=host.window.createEngineClient({state:()=>state,moduleOf:()=>module,parameterKey:key,persist:()=>{},render:()=>{},refresh:()=>{},message:()=>{},dirty:()=>{}});
   const apply=()=>engine.applyParameterBatch(owner,nodes.map(node=>({node,proposed:{opening:40}})));
   return {nodes,owner,state,definition,requests,engine,apply,sent,release:()=>release?.()};
@@ -87,4 +87,70 @@ test('canonical and display aliases cannot silently write the same parameter twi
   const describe=()=>({definition:{parameters:[{id:'opening_ratio',label:'开度',unit:{display_scale:.01}}]},bindings:{opening:'opening_ratio'}});
   for(const proposed of [{opening:40,opening_ratio:50},{opening_ratio:50}])assert.throws(()=>host.window.FluidNetParameterBatch.prepare(state,owner,[{node,proposed}],describe),/别名/);
   assert.equal(node.params.opening,80);
+});
+
+function performanceFixture(options={}){
+  const f=fixture(options);
+  Object.assign(f.definition,{definition_hash:'contract-v1',content_hash:'source-v1'});
+  f.definition.parameters.push({id:'head_curve',label:'扬程曲线',value_type:'curve',runtime:true,writable:true});
+  const entry=version=>({provenance:{id:'pump-data',version},parameterValues:{head_curve:[[0,40+version],[20,0]]},definitionHash:'contract-v1',contentHash:'source-v1'});
+  for(const node of f.nodes){node.params.head_curve=plain(entry(1).parameterValues.head_curve);node.draft.head_curve=plain(node.params.head_curve);node.performanceData={head_curve:entry(1)};}
+  const model={id:'curve-model',moduleId:'valve',moduleVersion:1,version:2,params:{head_curve:plain(entry(2).parameterValues.head_curve)},performanceData:{head_curve:entry(2)}};
+  f.state.models.push(model);
+  const applyModel=()=>f.engine.applyParameterBatch(f.owner,f.nodes.map(node=>({node,proposed:plain(model.params),model:{id:model.id,version:model.version}})));
+  return {...f,entry,model,applyModel};
+}
+
+test('batch model receipt promotes frozen matching performance provenance with its parameters',async()=>{
+  const f=performanceFixture({delay:true}),pending=f.applyModel();await f.sent;
+  assert.equal(f.nodes[0].performanceData.head_curve.provenance.version,1);
+  f.model.performanceData.head_curve.provenance.version=999;
+  f.release();await pending;
+  for(const n of f.nodes){assert.equal(n.performanceData.head_curve.provenance.version,2);assert.deepEqual(plain(n.params.head_curve),[[0,42],[20,0]]);}
+  f.nodes[0].performanceData.head_curve.provenance.version=3;
+  assert.equal(f.nodes[1].performanceData.head_curve.provenance.version,2);
+});
+
+test('batch model supports selection provenance and retains a preexisting pending source and curve',async()=>{
+  const f=performanceFixture({live:false});f.model.selection={performanceData:f.model.performanceData};delete f.model.performanceData;
+  const node=f.nodes[0];node.performanceDataDraft={head_curve:f.entry(3)};node.draft.head_curve=plain(f.entry(3).parameterValues.head_curve);
+  await f.applyModel();
+  assert.equal(node.performanceData.head_curve.provenance.version,2);
+  assert.equal(node.performanceDataDraft.head_curve.provenance.version,3);
+  assert.deepEqual(plain(node.draft.head_curve),[[0,43],[20,0]]);
+  assert.deepEqual(plain(f.nodes[1].draft.head_curve),[[0,42],[20,0]]);
+});
+
+test('new performance draft staged during acknowledgement survives batch promotion',async()=>{
+  const f=performanceFixture({delay:true}),pending=f.applyModel();await f.sent;
+  f.nodes[0].performanceDataDraft={head_curve:f.entry(4)};f.nodes[0].draft.head_curve=plain(f.entry(4).parameterValues.head_curve);
+  f.release();await pending;
+  assert.equal(f.nodes[0].performanceData.head_curve.provenance.version,2);
+  assert.equal(f.nodes[0].performanceDataDraft.head_curve.provenance.version,4);
+  assert.deepEqual(plain(f.nodes[0].draft.head_curve),[[0,44],[20,0]]);
+});
+
+test('ordinary batch edits retain matching current sources and remove edited curve claims',async()=>{
+  const f=performanceFixture({live:false});await f.apply();
+  assert.equal(f.nodes[0].performanceData.head_curve.provenance.version,1);
+  await f.engine.applyParameterBatch(f.owner,f.nodes.map(node=>({node,proposed:{head_curve:[[0,99],[20,0]]}})));
+  assert.deepEqual(plain(f.nodes.map(n=>n.performanceData)),[{},{}]);
+});
+
+test('invalid or stale model source cannot be attached to newly applied parameters',async()=>{
+  for(const fault of ['curve','contract','runtime']){
+    const f=performanceFixture({live:false}),entry=f.model.performanceData.head_curve;
+    if(fault==='curve')entry.parameterValues.head_curve[0][1]=99;
+    if(fault==='contract')entry.definitionHash='old-contract';
+    if(fault==='runtime')entry.contentHash='old-runtime';
+    await f.applyModel();assert.deepEqual(plain(f.nodes.map(n=>n.performanceData)),[{},{}]);
+  }
+});
+
+test('rejection and replaced second target preserve all performance provenance atomically',async()=>{
+  for(const fault of ['rejection','replacement']){
+    const f=performanceFixture({delay:true,reject:fault==='rejection'}),before=plain(f.nodes),pending=f.applyModel();await f.sent;
+    if(fault==='replacement')f.owner.pages[0].nodes=[f.nodes[0],{...f.nodes[1]}];
+    f.release();await assert.rejects(pending);assert.deepEqual(plain(f.nodes),before);
+  }
 });

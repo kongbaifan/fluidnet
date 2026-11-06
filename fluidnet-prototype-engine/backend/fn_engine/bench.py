@@ -55,6 +55,9 @@ def bench_channels(module: ModuleDefinition) -> list:
 
 def run_module_test(request: ModuleTestRequest) -> ModuleTestResponse:
     module = request.module
+    if module.composite and module.sdk and 'composite.refrigeration.open.v1' in module.sdk.capabilities:
+        from .refrigeration.group_testing import run_host_test
+        return run_host_test(request)
     if module.composite and module.sdk and 'composite.refrigeration.v1' in module.sdk.capabilities:
         return _test_refrigeration_group(request)
     if module.execution_role:

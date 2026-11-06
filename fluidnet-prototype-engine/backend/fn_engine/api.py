@@ -1,5 +1,5 @@
 from __future__ import annotations
-from .models import ModuleTemplateRequest,ModuleGroupRequest,ModuleTestSuiteRequest,ModuleTestSuiteResponse
+from .models import ModuleTemplateRequest,ModuleGroupRequest,ModuleTestSuiteRequest,ModuleTestSuiteResponse,CompositeTestContextRequest,ModuleTestConditions
 from .models import ModuleReplayRequest, ModuleReplayResponse, ModuleFailureResponse
 from .system_inspection import SystemInspection, InspectionComparison
 from .equipment_library import LibraryCatalog, LibraryRequest
@@ -204,6 +204,8 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
     lock = Lock()
     archive = WorkspaceStore(data_root) if data_root is not None else None
     manager = RunManager(apply_scenario, archive)
+    from .performance_data import PerformanceStore, performance_router
+    performance_store = PerformanceStore(archive)
     from .batch_api import batch_router
     from .batches import BatchService
     batch_service = BatchService(archive, manager) if archive is not None else None
@@ -226,11 +228,13 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
             except Exception:  # pragma: no cover - defensive teardown
                 logger.exception('FluidNet run manager shutdown failed')
             finally:
+                performance_store.close()
                 if archive:
                     archive.close()
 
     app = FastAPI(title='FluidNet Prototype Engine', version=__version__, lifespan=lifespan)
     app.include_router(batch_router(batch_service))
+    app.include_router(performance_router(performance_store))
     @app.exception_handler(RequestValidationError)
     async def request_validation_error(request: Request, error: RequestValidationError):
         # Rejected JSON numbers (including overflow such as 1e999) must not make
@@ -546,6 +550,12 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
             if name in ('refrigeration-modular-room', 'refrigeration-modular-two-room'):
                 from .refrigeration.modular_examples import modular_room_example
                 return modular_room_example() if name == 'refrigeration-modular-room' else modular_room_example(2, 2)
+            if name == 'refrigeration-open-group-station':
+                from .refrigeration.group_examples import grouped_station_example
+                return grouped_station_example()
+            if name in ('refrigeration-open-compressors', 'refrigeration-open-liquid-supply', 'refrigeration-open-air-coolers'):
+                from .refrigeration.group_examples import open_group_example
+                return open_group_example(name.removeprefix('refrigeration-open-'))[2]
             if name == 'refrigeration-modular-cascade':
                 from .refrigeration.modular_examples import modular_cascade_example
                 return modular_cascade_example()
@@ -645,6 +655,15 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
         from .composites import module_from_group
         try:
             return module_from_group(request.project,request.instance_ids,request.id,request.name)
+        except ValueError as error:
+            raise HTTPException(422,detail=str(error)) from error
+
+    @app.post('/api/v1/modules/composites/test-context', response_model=ModuleTestConditions,
+              responses=protected_error_responses(422, 'INTERNAL_ERROR'))
+    def composite_test_context(request: CompositeTestContextRequest):
+        from .refrigeration.group_testing import test_context
+        try:
+            return test_context(request)
         except ValueError as error:
             raise HTTPException(422,detail=str(error)) from error
 

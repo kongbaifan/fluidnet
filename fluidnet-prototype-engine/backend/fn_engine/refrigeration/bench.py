@@ -12,6 +12,11 @@ from .module_adapter import evaluate_throttle, flow_variables, state_variables, 
 
 
 def effective_test_conditions(module, conditions):
+    if module.composite and module.sdk and 'composite.refrigeration.open.v1' in module.sdk.capabilities and conditions.host_project:
+        # The frozen host owns the physical fluid; do not persist the ordinary bench's Water default.
+        fields=conditions.model_dump(mode='json',exclude={'module'})
+        fields['fluid']=conditions.host_project.fluid.model_dump(mode='json')
+        return ModuleTestConditions.model_validate(fields)
     if module.composite and module.sdk and 'composite.refrigeration.v1' in module.sdk.capabilities:
         fields=conditions.model_dump(mode='json',exclude_unset=True,exclude={'module'})
         defaults={'fluid':{'fluid':module.applicability.fluids[0] if module.applicability.fluids else 'R134a','phase_policy':'any'}}

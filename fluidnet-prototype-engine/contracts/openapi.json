@@ -1112,6 +1112,578 @@
         }
       }
     },
+    "/api/v1/performance-data": {
+      "get": {
+        "tags": [
+          "performance-data"
+        ],
+        "summary": "Listing",
+        "operationId": "listing_api_v1_performance_data_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PerformanceList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "STORAGE_FAILED：工作区存储故障（磁盘空间或目录权限）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/performance-data/preview": {
+      "post": {
+        "tags": [
+          "performance-data"
+        ],
+        "summary": "Preview File",
+        "operationId": "preview_file_api_v1_performance_data_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PerformanceImport"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PerformancePreview"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "PERFORMANCE_INVALID：性能资料、单位、参考条件或目标曲线合同无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/performance-data/versions": {
+      "post": {
+        "tags": [
+          "performance-data"
+        ],
+        "summary": "Save",
+        "operationId": "save_api_v1_performance_data_versions_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PerformanceImport"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PerformanceVersion"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "PERFORMANCE_VERSION_CONFLICT：性能资料末版已变化",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "PERFORMANCE_INVALID：性能资料、单位、参考条件或目标曲线合同无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "STORAGE_FAILED：工作区存储故障（磁盘空间或目录权限）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/performance-data/proposal": {
+      "post": {
+        "tags": [
+          "performance-data"
+        ],
+        "summary": "Propose",
+        "operationId": "propose_api_v1_performance_data_proposal_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PerformanceProposalRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PerformanceProposal"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "PERFORMANCE_NOT_FOUND：性能资料版本不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "PERFORMANCE_INVALID：性能资料、单位、参考条件或目标曲线合同无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "STORAGE_FAILED：工作区存储故障（磁盘空间或目录权限）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/performance-data/compare": {
+      "get": {
+        "tags": [
+          "performance-data"
+        ],
+        "summary": "Compare Versions",
+        "operationId": "compare_versions_api_v1_performance_data_compare_get",
+        "parameters": [
+          {
+            "name": "left_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Left Id"
+            }
+          },
+          {
+            "name": "left_version",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Left Version"
+            }
+          },
+          {
+            "name": "right_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Right Id"
+            }
+          },
+          {
+            "name": "right_version",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Right Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PerformanceComparison"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "PERFORMANCE_NOT_FOUND：性能资料版本不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "PERFORMANCE_INVALID：性能资料、单位、参考条件或目标曲线合同无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "STORAGE_FAILED：工作区存储故障（磁盘空间或目录权限）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/performance-data/{identifier}/versions/{version}": {
+      "get": {
+        "tags": [
+          "performance-data"
+        ],
+        "summary": "Get",
+        "operationId": "get_api_v1_performance_data__identifier__versions__version__get",
+        "parameters": [
+          {
+            "name": "identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identifier"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PerformanceVersion"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "PERFORMANCE_NOT_FOUND：性能资料版本不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "STORAGE_FAILED：工作区存储故障（磁盘空间或目录权限）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/performance-data/{identifier}/versions/{version}/export": {
+      "get": {
+        "tags": [
+          "performance-data"
+        ],
+        "summary": "Export",
+        "operationId": "export_api_v1_performance_data__identifier__versions__version__export_get",
+        "parameters": [
+          {
+            "name": "identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identifier"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "原始性能资料文件，按导入格式逐字节下载",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "PERFORMANCE_NOT_FOUND：性能资料版本不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "STORAGE_FAILED：工作区存储故障（磁盘空间或目录权限）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/health": {
       "get": {
         "summary": "Health",
@@ -3286,6 +3858,74 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ModuleDefinition"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "请求体或计算结果校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/modules/composites/test-context": {
+      "post": {
+        "summary": "Composite Test Context",
+        "operationId": "composite_test_context_api_v1_modules_composites_test_context_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompositeTestContextRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModuleTestConditions"
                 }
               }
             }
@@ -7971,6 +8611,34 @@
         ],
         "title": "CompositeParameterTarget"
       },
+      "CompositeTestContextRequest": {
+        "properties": {
+          "project": {
+            "$ref": "#/components/schemas/Project"
+          },
+          "instance_ids": {
+            "items": {
+              "type": "string",
+              "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Instance Ids"
+          },
+          "module": {
+            "$ref": "#/components/schemas/ModuleDefinition"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "project",
+          "instance_ids",
+          "module"
+        ],
+        "title": "CompositeTestContextRequest"
+      },
       "Connection": {
         "properties": {
           "id": {
@@ -11496,6 +12164,22 @@
       },
       "ModuleTestConditions": {
         "properties": {
+          "host_project": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Project"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "host_instance_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+            "title": "Host Instance Id",
+            "default": "D1"
+          },
           "moist_air": {
             "type": "boolean",
             "title": "Moist Air",
@@ -11583,6 +12267,22 @@
       },
       "ModuleTestRequest": {
         "properties": {
+          "host_project": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Project"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "host_instance_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+            "title": "Host Instance Id",
+            "default": "D1"
+          },
           "moist_air": {
             "type": "boolean",
             "title": "Moist Air",
@@ -12339,6 +13039,590 @@
           "parameter_id"
         ],
         "title": "ParameterSweep"
+      },
+      "PerformanceComparison": {
+        "properties": {
+          "left": {
+            "$ref": "#/components/schemas/PerformanceVersion"
+          },
+          "right": {
+            "$ref": "#/components/schemas/PerformanceVersion"
+          },
+          "comparable": {
+            "type": "boolean",
+            "title": "Comparable"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "samples": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Samples"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "left",
+          "right",
+          "comparable",
+          "reason"
+        ],
+        "title": "PerformanceComparison"
+      },
+      "PerformanceImport": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,79}$",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "pump_head",
+              "fan_pressure",
+              "efficiency"
+            ],
+            "title": "Kind"
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "csv",
+              "json"
+            ],
+            "title": "Format"
+          },
+          "file_name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "File Name",
+            "default": "curve.csv"
+          },
+          "content_base64": {
+            "type": "string",
+            "maxLength": 2796210,
+            "minLength": 1,
+            "title": "Content Base64"
+          },
+          "flow_unit": {
+            "type": "string",
+            "enum": [
+              "m3/h",
+              "m3/s",
+              "L/s"
+            ],
+            "title": "Flow Unit"
+          },
+          "value_unit": {
+            "type": "string",
+            "enum": [
+              "m",
+              "Pa",
+              "kPa",
+              "1",
+              "%"
+            ],
+            "title": "Value Unit"
+          },
+          "flow_column": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Flow Column",
+            "default": "flow"
+          },
+          "value_column": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Value Column",
+            "default": "value"
+          },
+          "source": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Source"
+          },
+          "manufacturer": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Manufacturer",
+            "default": ""
+          },
+          "model_name": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Model Name",
+            "default": ""
+          },
+          "reference_fluid": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Reference Fluid",
+            "default": "Water"
+          },
+          "reference_density_kg_m3": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Reference Density Kg M3"
+          },
+          "reference_speed_rpm": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Reference Speed Rpm"
+          },
+          "valid_flow_min": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid Flow Min"
+          },
+          "valid_flow_max": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid Flow Max"
+          },
+          "expected_latest_version": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Expected Latest Version",
+            "default": 0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "format",
+          "content_base64",
+          "flow_unit",
+          "value_unit",
+          "source",
+          "reference_density_kg_m3",
+          "reference_speed_rpm"
+        ],
+        "title": "PerformanceImport"
+      },
+      "PerformanceList": {
+        "properties": {
+          "persistent": {
+            "type": "boolean",
+            "title": "Persistent"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PerformanceSummary"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "persistent",
+          "items"
+        ],
+        "title": "PerformanceList"
+      },
+      "PerformancePreview": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "source_points": {
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Source Points"
+          },
+          "points_m3_h": {
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Points M3 H"
+          },
+          "canonical_value_unit": {
+            "type": "string",
+            "title": "Canonical Value Unit"
+          },
+          "valid_flow_m3_h": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Valid Flow M3 H"
+          },
+          "source_hash": {
+            "type": "string",
+            "title": "Source Hash"
+          },
+          "content_hash": {
+            "type": "string",
+            "title": "Content Hash"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "source_points",
+          "points_m3_h",
+          "canonical_value_unit",
+          "valid_flow_m3_h",
+          "source_hash",
+          "content_hash",
+          "warnings"
+        ],
+        "title": "PerformancePreview"
+      },
+      "PerformanceProposal": {
+        "properties": {
+          "parameters": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Parameters"
+          },
+          "provenance": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Provenance"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "parameters",
+          "provenance",
+          "warnings"
+        ],
+        "title": "PerformanceProposal"
+      },
+      "PerformanceProposalRequest": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,79}$",
+            "title": "Id"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Version"
+          },
+          "module": {
+            "$ref": "#/components/schemas/ModuleDefinition"
+          },
+          "parameter_id": {
+            "type": "string",
+            "title": "Parameter Id"
+          },
+          "fluid": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FluidConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "parameters": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Parameters"
+          },
+          "references": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/PerformanceReference"
+            },
+            "type": "object",
+            "title": "References"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "version",
+          "module",
+          "parameter_id"
+        ],
+        "title": "PerformanceProposalRequest"
+      },
+      "PerformanceReference": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,79}$",
+            "title": "Id"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Version"
+          },
+          "content_hash": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Content Hash"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "version",
+          "content_hash"
+        ],
+        "title": "PerformanceReference"
+      },
+      "PerformanceSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "manufacturer": {
+            "type": "string",
+            "title": "Manufacturer"
+          },
+          "model_name": {
+            "type": "string",
+            "title": "Model Name"
+          },
+          "reference_fluid": {
+            "type": "string",
+            "title": "Reference Fluid"
+          },
+          "reference_density_kg_m3": {
+            "type": "number",
+            "title": "Reference Density Kg M3"
+          },
+          "reference_speed_rpm": {
+            "type": "number",
+            "title": "Reference Speed Rpm"
+          },
+          "source_hash": {
+            "type": "string",
+            "title": "Source Hash"
+          },
+          "content_hash": {
+            "type": "string",
+            "title": "Content Hash"
+          },
+          "point_count": {
+            "type": "integer",
+            "title": "Point Count"
+          },
+          "valid_flow_m3_h": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Valid Flow M3 H"
+          },
+          "canonical_value_unit": {
+            "type": "string",
+            "title": "Canonical Value Unit"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "version",
+          "created_at",
+          "source",
+          "manufacturer",
+          "model_name",
+          "reference_fluid",
+          "reference_density_kg_m3",
+          "reference_speed_rpm",
+          "source_hash",
+          "content_hash",
+          "point_count",
+          "valid_flow_m3_h",
+          "canonical_value_unit"
+        ],
+        "title": "PerformanceSummary"
+      },
+      "PerformanceVersion": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "source_points": {
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Source Points"
+          },
+          "points_m3_h": {
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Points M3 H"
+          },
+          "canonical_value_unit": {
+            "type": "string",
+            "title": "Canonical Value Unit"
+          },
+          "valid_flow_m3_h": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Valid Flow M3 H"
+          },
+          "source_hash": {
+            "type": "string",
+            "title": "Source Hash"
+          },
+          "content_hash": {
+            "type": "string",
+            "title": "Content Hash"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "import_data": {
+            "$ref": "#/components/schemas/PerformanceImport"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "source_points",
+          "points_m3_h",
+          "canonical_value_unit",
+          "valid_flow_m3_h",
+          "source_hash",
+          "content_hash",
+          "warnings",
+          "version",
+          "created_at",
+          "import_data"
+        ],
+        "title": "PerformanceVersion"
       },
       "PortSpec": {
         "properties": {

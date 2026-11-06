@@ -1,0 +1,117 @@
+{
+  "$defs": {
+    "PerformanceSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "version": {
+          "title": "Version",
+          "type": "integer"
+        },
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        },
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "manufacturer": {
+          "title": "Manufacturer",
+          "type": "string"
+        },
+        "model_name": {
+          "title": "Model Name",
+          "type": "string"
+        },
+        "reference_fluid": {
+          "title": "Reference Fluid",
+          "type": "string"
+        },
+        "reference_density_kg_m3": {
+          "title": "Reference Density Kg M3",
+          "type": "number"
+        },
+        "reference_speed_rpm": {
+          "title": "Reference Speed Rpm",
+          "type": "number"
+        },
+        "source_hash": {
+          "title": "Source Hash",
+          "type": "string"
+        },
+        "content_hash": {
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "point_count": {
+          "title": "Point Count",
+          "type": "integer"
+        },
+        "valid_flow_m3_h": {
+          "items": {
+            "type": "number"
+          },
+          "title": "Valid Flow M3 H",
+          "type": "array"
+        },
+        "canonical_value_unit": {
+          "title": "Canonical Value Unit",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "kind",
+        "version",
+        "created_at",
+        "source",
+        "manufacturer",
+        "model_name",
+        "reference_fluid",
+        "reference_density_kg_m3",
+        "reference_speed_rpm",
+        "source_hash",
+        "content_hash",
+        "point_count",
+        "valid_flow_m3_h",
+        "canonical_value_unit"
+      ],
+      "title": "PerformanceSummary",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "persistent": {
+      "title": "Persistent",
+      "type": "boolean"
+    },
+    "items": {
+      "items": {
+        "$ref": "#/$defs/PerformanceSummary"
+      },
+      "title": "Items",
+      "type": "array"
+    }
+  },
+  "required": [
+    "persistent",
+    "items"
+  ],
+  "title": "PerformanceList",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

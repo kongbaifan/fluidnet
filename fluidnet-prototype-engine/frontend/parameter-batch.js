@@ -54,9 +54,11 @@ window.FluidNetParameterBatch = (() => {
           const owned=controller(owner,node.id,id);if(owned)throw Error(`${node.id} ${spec.label} 由 ${owned} 控制`);
           values[`${node.id}.param.${id}`]=canonical;
         }
-        return {key,value:clone(input),draft:clone(node.draft?.[key]),changed};
+        return {key,id,value:clone(input),draft:clone(node.draft?.[key]),changed};
       });
-      return {node,edits,definition:JSON.stringify(definition),selected:clone(selected),
+      const performanceData=clone(selected?selected.performanceData||selected.selection?.performanceData||{}:node.performanceData||{});
+      if((Object.keys(performanceData).length||node.performanceDataDraft)&&!window.FluidNetPerformanceData?.references)throw Error('性能资料合同未加载，请重新打开后应用');
+      return {node,edits,definition:JSON.stringify(definition),selected:clone(selected),performanceData,
         draftModelId:node.draftModelId,draftModelVersion:node.draftModelVersion};
     });
     return {items,values};
@@ -66,13 +68,21 @@ window.FluidNetParameterBatch = (() => {
     // Prepare every object before promotion: a missing/replaced second node cannot leave the first updated.
     const patches=plan.items.map(item=>{
       const n=window.FluidNetProjectState.node(owner,item.node);
-      if(JSON.stringify(describe(n).definition)!==item.definition)throw Error('设备绑定版本已变化，请检查运行档案');
+      const {definition,bindings}=describe(n);
+      if(JSON.stringify(definition)!==item.definition)throw Error('设备绑定版本已变化，请检查运行档案');
       const params=clone(n.params),draft=clone(n.draft||{});
+      const display=values=>Object.fromEntries(Object.entries(values).map(([key,value])=>[bindings?.[key]||key,value]));
+      const performance=window.FluidNetPerformanceData,protectedDraft=new Set();
+      // A pending source owns its matching curve draft, including one staged while waiting for acknowledgement.
+      if(n.performanceDataDraft&&performance)for(const [key,entry] of Object.entries(performance.references(n,definition,display(draft)))){
+        if(!equal(entry,n.performanceData?.[key]))for(const id of Object.keys(entry.parameterValues))protectedDraft.add(id);
+      }
       for(const e of item.edits){
         params[e.key]=clone(e.value);
-        if(equal(draft[e.key],e.draft))draft[e.key]=clone(e.value);
+        if(equal(draft[e.key],e.draft)&&!protectedDraft.has(e.id))draft[e.key]=clone(e.value);
       }
       const patch={params,draft};
+      if(performance)patch.performanceData=performance.references({performanceData:item.performanceData},definition,display(params),'current');
       if(item.selected){patch.modelId=item.selected.id;patch.modelVersion=item.selected.version;}
       else if(item.edits.some(e=>e.changed)){patch.modelId=null;patch.modelVersion=1;}
       if(n.draftModelId===item.draftModelId&&n.draftModelVersion===item.draftModelVersion&&

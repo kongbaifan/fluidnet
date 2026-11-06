@@ -158,6 +158,8 @@ class ThermalSession(SessionBase):
             frames = list(self.frames)
             if isinstance(error, SolveFailed):
                 error.frames = frames
+                from ..composites import map_failure
+                map_failure(self.network,error)
                 raise
             diagnostic = getattr(error, 'diagnostic', None)
             failure = SolveFailed(getattr(error, 'code', diagnostic.code if diagnostic else 'STEP_EXECUTION_FAILED'),
@@ -165,6 +167,8 @@ class ThermalSession(SessionBase):
             if diagnostic is not None:
                 failure.diagnostic = diagnostic
                 failure.diagnostics = getattr(error, 'diagnostics', [diagnostic])
+            from ..composites import map_failure
+            map_failure(self.network,failure)
             raise failure from error
         else:
             self._control_base = None

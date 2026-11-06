@@ -1,0 +1,96 @@
+{
+  "source_project": "source.project.json",
+  "instance_ids": [
+    "Pump",
+    "Supply",
+    "Valve"
+  ],
+  "module_id": "open_liquid_supply",
+  "module_name": "泵与节流供液组",
+  "host_project": "liquid-supply.project.json",
+  "host_instance_id": "D1",
+  "duration_s": 0.2,
+  "dt_s": 0.1,
+  "public_ports": [
+    {
+      "id": "Pump_in0",
+      "label": "Pump · 吸入",
+      "domain": "refrigerant",
+      "direction": "in",
+      "required": true,
+      "circuit": "group0"
+    },
+    {
+      "id": "Supply_in1",
+      "label": "Supply · 汇入 2",
+      "domain": "refrigerant",
+      "direction": "in",
+      "required": false,
+      "circuit": "group0"
+    },
+    {
+      "id": "Supply_in2",
+      "label": "Supply · 汇入 3",
+      "domain": "refrigerant",
+      "direction": "in",
+      "required": false,
+      "circuit": "group0"
+    },
+    {
+      "id": "Supply_in3",
+      "label": "Supply · 汇入 4",
+      "domain": "refrigerant",
+      "direction": "in",
+      "required": false,
+      "circuit": "group0"
+    },
+    {
+      "id": "Supply_out0",
+      "label": "Supply · 分出 1",
+      "domain": "refrigerant",
+      "direction": "out",
+      "required": false,
+      "circuit": "group0"
+    },
+    {
+      "id": "Supply_out1",
+      "label": "Supply · 分出 2",
+      "domain": "refrigerant",
+      "direction": "out",
+      "required": false,
+      "circuit": "group0"
+    },
+    {
+      "id": "Supply_out2",
+      "label": "Supply · 分出 3",
+      "domain": "refrigerant",
+      "direction": "out",
+      "required": false,
+      "circuit": "group0"
+    },
+    {
+      "id": "Supply_out3",
+      "label": "Supply · 分出 4",
+      "domain": "refrigerant",
+      "direction": "out",
+      "required": false,
+      "circuit": "group0"
+    },
+    {
+      "id": "Valve_in0",
+      "label": "Valve · 高压液进口",
+      "domain": "refrigerant",
+      "direction": "in",
+      "required": true,
+      "circuit": "group1"
+    },
+    {
+      "id": "Valve_out0",
+      "label": "Valve · 低压两相出口",
+      "domain": "refrigerant",
+      "direction": "out",
+      "required": true,
+      "circuit": "group1"
+    }
+  ]
+}
