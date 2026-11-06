@@ -1,0 +1,421 @@
+{
+  "name": "模块组装 · 同库冷风机独立电融霜",
+  "fluid": {
+    "backend": "coolprop",
+    "fluid": "R134a",
+    "composition": {},
+    "reference": "mass",
+    "phase_policy": "any"
+  },
+  "duration_s": 600.0,
+  "dt_s": 30.0,
+  "solver": {
+    "module_mixed_jacobian": false,
+    "module_cache": false,
+    "pressure_tolerance_pa": 1.0,
+    "mass_tolerance_kg_s": 1e-08,
+    "max_iterations": 80,
+    "dynamic_step_s": 10.0,
+    "thermal": true,
+    "property_coupling": "reference",
+    "thermal_tolerance_k": 1e-06,
+    "max_thermal_iterations": 50,
+    "max_coupling_iterations": 20,
+    "coupling_density_rtol": 1e-06,
+    "thermal_acceleration": "none",
+    "coupling_acceleration": "none",
+    "moist_air": false,
+    "max_step_halvings": 6,
+    "hydraulic_method": "dense",
+    "hydraulic_diagnostics": false,
+    "analytic_jacobian": true,
+    "series_compression": false,
+    "hydraulic_blocks": false,
+    "module_parallelism": 1,
+    "batch_modules": true,
+    "time_step": {
+      "enabled": false,
+      "mass_atol_kg": 1e-09,
+      "energy_atol_j": 0.001,
+      "temperature_atol_k": 1e-05,
+      "rtol": 1e-06,
+      "min_internal_step_s": 0.001,
+      "max_internal_step_s": null,
+      "safety": 0.9,
+      "growth_factor": 2.0,
+      "shrink_factor": 0.5
+    }
+  },
+  "instances": [
+    {
+      "id": "Low",
+      "module_id": "lp_drum",
+      "name": "低压循环桶",
+      "page_id": "main",
+      "position": {
+        "x": 100.0,
+        "y": 320.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "volume_m3": 0.6,
+        "height_m": 1.5,
+        "temperature_k": 248.15,
+        "level_ratio": 0.4
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "High",
+      "module_id": "hp_receiver",
+      "name": "高压贮液器",
+      "page_id": "main",
+      "position": {
+        "x": 640.0,
+        "y": 120.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "volume_m3": 0.3,
+        "height_m": 1.5,
+        "temperature_k": 308.15,
+        "level_ratio": 0.5
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "Condenser",
+      "module_id": "evaporative_condenser",
+      "name": "蒸发式冷凝器",
+      "page_id": "main",
+      "position": {
+        "x": 460.0,
+        "y": 120.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "ua_w_k": 525.7475073,
+        "wet_bulb_temperature_k": 293.15,
+        "fan_power_w": 300.0,
+        "fan_ratio": 1.0,
+        "return_gas_ratio": 1.0
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "Valve",
+      "module_id": "expansion_valve",
+      "name": "供液节流阀",
+      "page_id": "main",
+      "position": {
+        "x": 640.0,
+        "y": 320.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "kv_m3_h": 0.09607245407,
+        "opening_ratio": 0.5
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "Pump",
+      "module_id": "refrigerant_pump",
+      "name": "制冷剂液泵",
+      "page_id": "main",
+      "position": {
+        "x": 280.0,
+        "y": 520.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "rated_mass_flow_kg_s": 0.12,
+        "rated_pressure_rise_pa": 80000.0,
+        "speed_ratio": 1.0
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "Compressor",
+      "module_id": "refrigerant_compressor",
+      "name": "压缩机 1",
+      "page_id": "main",
+      "position": {
+        "x": 280.0,
+        "y": 120.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "displacement_m3_s": 0.01219334587,
+        "load_ratio": 0.75
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "Cooler",
+      "module_id": "air_cooler",
+      "name": "冷风机 1",
+      "page_id": "main",
+      "position": {
+        "x": 640.0,
+        "y": 520.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "ua_w_k": 385.7142857,
+        "fan_power_w": 200.0,
+        "fan_ratio": 1.0
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "Room",
+      "module_id": "cold_room_multi",
+      "name": "库房 1",
+      "page_id": "main",
+      "position": {
+        "x": 820.0,
+        "y": 520.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "temperature_k": 255.15,
+        "heat_capacity_j_k": 2000000.0,
+        "ambient_temperature_k": 305.15,
+        "ground_temperature_k": 283.15,
+        "wall_ua_w_k": 30.0,
+        "roof_ua_w_k": 20.0,
+        "floor_ua_w_k": 10.0,
+        "heat_input_w": 2220.0
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "CoolerB",
+      "module_id": "defrost_air_cooler",
+      "name": "独立电融霜冷风机",
+      "page_id": "main",
+      "position": {
+        "x": 640.0,
+        "y": 520.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "ua_w_k": 385.7142857,
+        "fan_power_w": 200.0,
+        "fan_ratio": 1.0,
+        "defrost_duration_s": 120.0,
+        "drip_duration_s": 60.0,
+        "defrost_room_fraction": 0.6
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "Supply",
+      "module_id": "refrigerant_header",
+      "name": "供液分配",
+      "page_id": "main",
+      "position": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "rotation": 0,
+      "parameters": {},
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "Return",
+      "module_id": "refrigerant_header",
+      "name": "回液汇集",
+      "page_id": "main",
+      "position": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "rotation": 0,
+      "parameters": {},
+      "draft_parameters": {},
+      "banks": []
+    }
+  ],
+  "connections": [
+    {
+      "id": "link-1",
+      "source": {
+        "instance_id": "Low",
+        "port_id": "vapor"
+      },
+      "target": {
+        "instance_id": "Compressor",
+        "port_id": "suction"
+      }
+    },
+    {
+      "id": "link-2",
+      "source": {
+        "instance_id": "Compressor",
+        "port_id": "discharge"
+      },
+      "target": {
+        "instance_id": "Condenser",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "link-3",
+      "source": {
+        "instance_id": "Condenser",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "High",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "link-4",
+      "source": {
+        "instance_id": "High",
+        "port_id": "liquid"
+      },
+      "target": {
+        "instance_id": "Valve",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "link-5",
+      "source": {
+        "instance_id": "Valve",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Low",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "link-6",
+      "source": {
+        "instance_id": "Low",
+        "port_id": "liquid"
+      },
+      "target": {
+        "instance_id": "Pump",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "multi-0",
+      "source": {
+        "instance_id": "Pump",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Supply",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "multi-1",
+      "source": {
+        "instance_id": "Return",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Low",
+        "port_id": "in1"
+      }
+    },
+    {
+      "id": "multi-2",
+      "source": {
+        "instance_id": "Supply",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Cooler",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "multi-3",
+      "source": {
+        "instance_id": "Cooler",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Return",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "multi-4",
+      "source": {
+        "instance_id": "Cooler",
+        "port_id": "heat"
+      },
+      "target": {
+        "instance_id": "Room",
+        "port_id": "heat0"
+      }
+    },
+    {
+      "id": "multi-5",
+      "source": {
+        "instance_id": "Supply",
+        "port_id": "out1"
+      },
+      "target": {
+        "instance_id": "CoolerB",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "multi-6",
+      "source": {
+        "instance_id": "CoolerB",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Return",
+        "port_id": "in1"
+      }
+    },
+    {
+      "id": "multi-7",
+      "source": {
+        "instance_id": "CoolerB",
+        "port_id": "heat"
+      },
+      "target": {
+        "instance_id": "Room",
+        "port_id": "heat1"
+      }
+    }
+  ],
+  "events": [
+    {
+      "id": "request",
+      "type": "set_variable",
+      "time_s": 60.0,
+      "instance_id": null,
+      "duration_s": null,
+      "heat_w": null,
+      "mass_kg": null,
+      "temperature_k": null,
+      "key": "CoolerB.param.defrost_request",
+      "value": 1.0
+    }
+  ]
+}

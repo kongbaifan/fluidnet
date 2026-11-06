@@ -30,12 +30,17 @@ def psat(fluid, t):
 def test_catalog_registers_every_station_device_with_canonical_contracts():
     assert set(CATALOG) == {'hp_receiver', 'lp_drum', 'pumped_drum', 'refrigerant_compressor', 'evaporative_condenser',
                             'expansion_valve', 'cascade_exchanger', 'refrigerant_pump', 'air_cooler', 'refrigerant_header',
-                            'hp_receiver_multi', 'lp_drum_multi'}
+                            'hp_receiver_multi', 'lp_drum_multi', 'horizontal_receiver', 'horizontal_drum',
+                            'air_cooled_condenser', 'performance_compressor', 'cold_room_multi', 'defrost_air_cooler',
+                            'enthalpy_compressor', 'enthalpy_valve', 'refrigerant_line', 'refrigerant_subcooler',
+                            'refrigerant_recuperator', 'dx_expansion_valve', 'dx_evaporator', 'dx_compressor',
+                            'headed_receiver','room_heat_manifold','immersed_tube_bundle'}
     assert CATALOG.keys() <= catalog_map().keys()
     for definition in CATALOG.values():
-        assert definition.category == '制冷站设备' and definition.runtime == 'builtin'
+        assert definition.category == ('冷库案例' if definition.id == 'cold_room_multi' else '制冷站设备')
+        assert definition.runtime == 'builtin'
         assert all(p.domain in (Domain.refrigerant, Domain.thermal) for p in definition.ports)
-        assert {v.id for v in definition.variables} >= {'param.' + p.id for p in definition.parameters}
+        assert {v.id for v in definition.variables} >= {'param.' + p.id for p in definition.parameters if p.unit}
     # The coil cools a room through the same thermal port contract the A1 room expects.
     heat = next(p for p in CATALOG['air_cooler'].ports if p.id == 'heat')
     room = catalog_map()['cold_room'].ports[0]

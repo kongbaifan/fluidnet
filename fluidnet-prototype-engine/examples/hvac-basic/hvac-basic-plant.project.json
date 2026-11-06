@@ -6593,7 +6593,7 @@
       "name": "水冷冷水机组",
       "version": 1,
       "category": "热力设备",
-      "description": "单级蒸气压缩循环，蒸发器与冷凝器各接一条水通路；把冷冻水出水压到设定值，满载不足时出水温度上漂。负荷比在 0–1 连续变化，不模拟最小负荷启停；Q冷凝 = Q制冷 + 压缩轴功。",
+      "description": "单级蒸气压缩循环，蒸发器与冷凝器各接一条水通路；把冷冻水出水压到设定值，满载不足时出水温度上漂。默认连续调节；可选最小水量保护和低负荷周期平均运行，不模拟逐次启停瞬态；Q冷凝 = Q制冷 + 压缩轴功。",
       "ports": [
         {
           "id": "in0",
@@ -6644,6 +6644,57 @@
           "minimum": 0.0,
           "maximum": 1.0,
           "runtime": true,
+          "writable": true
+        },
+        {
+          "id": "evaporator_min_flow_kg_s",
+          "label": "冷冻水最小质量流量（0 不启用保护）",
+          "value_type": "number",
+          "default": 0.0,
+          "unit": {
+            "quantity": "mass_flow",
+            "canonical_unit": "kg/s",
+            "display_unit": "kg/s",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "condenser_min_flow_kg_s",
+          "label": "冷却水最小质量流量（0 不启用保护）",
+          "value_type": "number",
+          "default": 0.0,
+          "unit": {
+            "quantity": "mass_flow",
+            "canonical_unit": "kg/s",
+            "display_unit": "kg/s",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "minimum_load_ratio",
+          "label": "最小运行负荷比（低负荷周期平均；0 连续调节）",
+          "value_type": "number",
+          "default": 0.0,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "runtime": false,
           "writable": true
         },
         {
@@ -7110,6 +7161,57 @@
             "canonical_unit": "1",
             "display_unit": "%",
             "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "compressor_load_ratio",
+          "label": "开机期间负荷比",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "cycling_ratio",
+          "label": "周期平均开机比例",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "low_load_cycling",
+          "label": "低负荷周期平均运行",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
             "display_offset": 0.0
           },
           "source": "derived",
@@ -8085,6 +8187,57 @@
           "writable": false,
           "sampleable": true,
           "parameter_id": "running",
+          "port_id": null
+        },
+        {
+          "id": "param.evaporator_min_flow_kg_s",
+          "label": "冷冻水最小质量流量（0 不启用保护）",
+          "quantity": "mass_flow",
+          "unit": {
+            "quantity": "mass_flow",
+            "canonical_unit": "kg/s",
+            "display_unit": "kg/s",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "evaporator_min_flow_kg_s",
+          "port_id": null
+        },
+        {
+          "id": "param.condenser_min_flow_kg_s",
+          "label": "冷却水最小质量流量（0 不启用保护）",
+          "quantity": "mass_flow",
+          "unit": {
+            "quantity": "mass_flow",
+            "canonical_unit": "kg/s",
+            "display_unit": "kg/s",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "condenser_min_flow_kg_s",
+          "port_id": null
+        },
+        {
+          "id": "param.minimum_load_ratio",
+          "label": "最小运行负荷比（低负荷周期平均；0 连续调节）",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "minimum_load_ratio",
           "port_id": null
         },
         {

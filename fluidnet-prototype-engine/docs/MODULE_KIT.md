@@ -1,5 +1,7 @@
 # 模块开发套件 v1
 
+> **2026-11-05 使用说明**：本文保留早期 schema 1 / 普通流体模块套件的示例与行号，不作为所有执行域的当前能力清单。现行标准以可执行 Pydantic 合同、SDK 能力表和[模块开发与运行合同](modules/DEVELOPMENT_GUIDE.md)为准；支持 schema 1–4，SDK 最高 0.8.0，具体版本按能力协商，旧包不自动升级。制冷站已开放受限等焓节流作者角色，热耦合液体侧已有受限阀门／阻力作者模块，本文旧“只接受内置”表述按历史范围理解。L1–L4分层沿用，物理状态、执行域和新设备的交付要求见[设备路线与标准](REFRIGERATION_HVAC_EQUIPMENT_ROADMAP.md)。
+
 > 适用 `fluidnet-prototype-engine` 0.5.0，`schema_version = 1`（`backend/fn_engine/__init__.py:1`）。合同唯一来源是 `backend/fn_engine/models.py` 的 Pydantic v2 模型；本文件是施工手册，冲突时以模型为准。
 > 核对基准：`docs/DATA_CONTRACT.md`、`docs/ARCHITECTURE.md`、`modules/programmable_valve/*`、`backend/fn_engine/{runtime,models,packages,compiler,solver,thermal,bench,worker,bridge,module_validation,design}.py`、`tests/test_module_versions.py`、`tests/test_platform_contracts.py`。
 
@@ -262,7 +264,7 @@ assert [f.variables['V1.state.commit_count'] for f in solve_dynamic(net, .25, .1
 
 ### L4 参考算例（解析解/倍思鹿对照）
 
-- 阀门解析解：`Δp = 1e5·(ρ/1000)·Q|Q|/Kv²`，`Kv = kv_m3_h·opening`（`solver.py:104-106`）→ `Q = Kv·sqrt(Δp/(1e5·ρ/1000))`、`m = ρQ/3600`。250 kPa → 120 kPa、Kv=5、ρ=998.2 应得 `m ≈ 50 kg/s`。
+- 阀门解析解：`Δp = 1e5·(ρ/1000)·Q|Q|/Kv²`，`Kv = kv_m3_h·opening`（`solver.py:104-106`）→ `Q = Kv·sqrt(Δp/(1e5·ρ/1000))`、`m = ρQ/3600`。250 kPa → 120 kPa、Kv=5、ρ=998.2 应得 `Q ≈ 5.706 m³/h`、`m ≈ 1.582 kg/s`。
 - 与倍思鹿/厂商样本对照口径见 `docs/BASELU_COMPARISON.md`；建议容差：流量相对 1e-3、压降相对 1e-6（求解器自身验收 1 Pa / 1e-8 kg/s，`solver.py:362`）。
 - 能量：`frame.metrics['energy_residual_w']` 相对全网焓流规模 ≤ 1e-6（`ALGORITHM.md:210`）；带 `heat_w` 的模块必须在这条线上。
 

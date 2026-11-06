@@ -1,6 +1,15 @@
 /* Pure conversions between module contracts, project documents and display values. */
 window.FluidNetProjectModel = (() => {
   const clone=value=>value===undefined?undefined:JSON.parse(JSON.stringify(value));
+  function workspaceContentEqual(left,right) {
+    if(!left||!right||typeof left!=='object'||typeof right!=='object')return false;
+    // These top-level fields are receipt metadata/cache rebuilt after a workspace save/load.
+    // Every project, draft, layout, code, run and dirty marker still participates.
+    const metadata=new Set(['savedAt','workspaceRevision','projectRevisions','projectSavedKeys']);
+    const stable=(value,root=false)=>Array.isArray(value)?value.map(v=>stable(v))
+      :value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().filter(k=>!root||!metadata.has(k)).map(k=>[k,stable(value[k])])):value;
+    return JSON.stringify(stable(left,true))===JSON.stringify(stable(right,true));
+  }
   function toDisplay(spec,value) {
     if(value==null)return value;
     return spec?.unit && (!spec.value_type || spec.value_type==='number')
@@ -30,7 +39,7 @@ window.FluidNetProjectModel = (() => {
   }
   function moduleFromManifest(manifest, defaultConditions) {
     // Catalog icons come from studio.js ICONS; unknown ids intentionally fall back to Box.
-    const icon = {water_coil:'Snowflake',water_chiller:'Snowflake',duct:'Wind',cooling_coil:'Snowflake',humidifier:'Droplets',air_mixing_box:'GitMerge',air_filter:'Filter',air_room:'Home',cooling_tower_moist:'Wind',pipe_fitting:'GitBranch',pipe_reducer:'GitBranch',check_valve:'ArrowRightLeft',fan_coil_unit:'Wind',cooling_tower:'Sun',fan:'Wind',pump_variable_speed:'Gauge',capillary_tube:'Minus',valve_equal_percentage:'SlidersHorizontal'}[manifest.id] || 'Box';
+    const icon = {coupled_tower_pool:'Droplets',enthalpy_recovery:'ArrowRightLeft',hydronic_boiler:'Flame',geometry_bend:'CornerDownRight',gas_expansion_tank:'Database',tower_pool:'Database',air_source_heat_pump:'Flame',air_recovery_sensible:'ArrowRightLeft',enthalpy_compressor:'Gauge',enthalpy_valve:'SlidersHorizontal',refrigerant_line:'Minus',refrigerant_subcooler:'Snowflake',refrigerant_recuperator:'ArrowRightLeft',dx_expansion_valve:'SlidersHorizontal',dx_evaporator:'Snowflake',dx_compressor:'Gauge',air_cooled_chiller:'Snowflake',closed_buffer_tank:'Database',performance_compressor:'Gauge',cold_room_multi:'Home',defrost_air_cooler:'Snowflake',air_branch_box:'GitBranch',fan_performance:'Wind',plate_exchanger:'ArrowRightLeft',differential_bypass_valve:'SlidersHorizontal',pressure_independent_valve:'SlidersHorizontal',horizontal_receiver:'Database',horizontal_drum:'Database',air_cooled_condenser:'Wind',cold_room:'Home',storage_room:'Home',lp_drum:'Database',hp_receiver:'Database',pumped_drum:'Database',cascade_exchanger:'ArrowRightLeft',refrigerant_compressor:'Gauge',evaporative_condenser:'Wind',expansion_valve:'SlidersHorizontal',refrigerant_pump:'Gauge',air_cooler:'Snowflake',refrigerant_header:'GitMerge',water_coil:'Snowflake',water_chiller:'Snowflake',duct:'Wind',cooling_coil:'Snowflake',humidifier:'Droplets',air_mixing_box:'GitMerge',air_filter:'Filter',air_room:'Home',cooling_tower_moist:'Wind',pipe_fitting:'GitBranch',pipe_reducer:'GitBranch',check_valve:'ArrowRightLeft',fan_coil_unit:'Wind',cooling_tower:'Sun',fan:'Wind',pump_variable_speed:'Gauge',capillary_tube:'Minus',valve_equal_percentage:'SlidersHorizontal'}[manifest.id] || 'Box';
     const parameterDefs = (manifest.parameters || []).filter(p => p.value_type === 'number').map(manifestParamDef);
     const ports = (manifest.ports || []).map((p, index) => ({
       id:p.id, name:p.id.toUpperCase(), label:p.label || p.id, direction:p.direction === 'bidirectional' ? (index ? 'out' : 'in') : p.direction,
@@ -125,7 +134,7 @@ function manifestParamDefaults(manifest) {
       fluid:data.fluid?.fluid||'Water',fluidConfig:clone(data.fluid||{}),fluidReference:data.fluid?.reference||'mass',
       circuitFluids:(data.circuit_fluids||[]).map(c=>({id:c.id,anchor:clone(c.anchor),fluid:c.fluid.fluid,fluidConfig:clone(c.fluid),fluidReference:c.fluid.reference})),
       solverOptions:clone(data.solver||{}),controllers:clone(data.controllers||[]),events:clone(data.events||[]),
-      thermalCouplings:clone(data.thermal_couplings||[]),selectedVariables:clone(data.selected_variables||[]),measurements:clone(data.measurements||[]),
+      couplingMode:data.coupling_mode||'legacy',thermalCouplings:clone(data.thermal_couplings||[]),selectedVariables:clone(data.selected_variables||[]),measurements:clone(data.measurements||[]),
       controlPrograms:[],controlScripts:[],controlEnabled:false,controlInputs:'',controlOutputs:'',
       scenarios:(data.scenarios||[]).map(s=>({...clone(s),overrides:Object.fromEntries(Object.entries(s.overrides).map(([id,values])=>
         [id,display(definitions.get(nodes.get(id).node.moduleId),values)]))}))});
@@ -189,6 +198,6 @@ function manifestParamDefaults(manifest) {
     }
     document.project.run=emptyRun();return document;
   }
-  return {toDisplay,toCanonical,displayParameters,canonicalParameters,manifestParamDef,moduleFromManifest,
+  return {workspaceContentEqual,toDisplay,toCanonical,displayParameters,canonicalParameters,manifestParamDef,moduleFromManifest,
     manifestFields,manifestParamSpecs,manifestParamDefaults,projectDocument,exchangeDocument,upgradeDocument};
 })();

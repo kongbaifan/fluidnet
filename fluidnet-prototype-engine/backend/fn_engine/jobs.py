@@ -499,7 +499,7 @@ class RunManager:
                 extra_events.append(self._event_data(job, 'command', key, 'rejected', '运行已结束'))
             if error:
                 diagnostic = getattr(error, 'diagnostic', DiagnosticError(error))
-                if accepted_fault and job.record.get('frame'):
+                if (accepted_fault or getattr(error, 'session_unusable', False)) and job.record.get('frame'):
                     accepted=RunFrame.model_validate(job.record['frame'])
                     frame=accepted.model_copy(update={'status':'failed','valid':False,
                         'diagnostics':[*accepted.diagnostics,diagnostic]}).model_dump(mode='json')
@@ -524,6 +524,10 @@ class RunManager:
             view['events'] = events
             view['status'] = status
             view['frame'] = frame
+            from .module_replay import failure_snapshot
+            module_failure = failure_snapshot(error) if error else None
+            if module_failure is not None:
+                view['module_failure'] = module_failure
             total_rows = job.published
             window = job.request.history_window
             overview = self._overview_payload(job)
@@ -538,6 +542,8 @@ class RunManager:
             job.record['status'] = status
             job.record['frame'] = frame
             job.record['events'] = events
+            if module_failure is not None:
+                job.record['module_failure'] = module_failure
             job.finishing = False
             # Keep every active job; only completed records count toward retention.
             ended = [key for key, value in self.jobs.items() if value.record['status'] in TERMINAL]
@@ -597,6 +603,10 @@ class RunManager:
                     receipt = job.receipts[key][0]
                     receipt.update(command_status='rejected', message=str(failure))
                     self._event(job, 'command', key, 'rejected', str(failure))
+                if getattr(failure, 'session_unusable', False):
+                    # Parent inputs were rolled back, but an executor is no longer
+                    # synchronized. Preserve the rejection and terminate this run.
+                    raise
             self._persist(job)
 
     def _tick(self, job):

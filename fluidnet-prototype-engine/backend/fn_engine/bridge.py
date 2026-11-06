@@ -40,7 +40,7 @@ PARAMETER_BINDINGS = {
 
 # 新风侧设备使用合同参数 ID；UI 值仍按 UnitSpec 显示单位保存。
 for _air_definition in catalog_map().values():
-    if _air_definition.id in ('duct','cooling_coil','humidifier','air_mixing_box','air_filter','air_room','cooling_tower_moist','water_coil','water_chiller'):
+    if _air_definition.id in ('duct','cooling_coil','humidifier','air_mixing_box','air_filter','air_room','cooling_tower_moist','water_coil','water_chiller','air_cooled_chiller','air_source_heat_pump','closed_buffer_tank','hydronic_buffer_tank','gas_expansion_tank','tower_pool','coupled_tower_pool','enthalpy_recovery'):
         PARAMETER_BINDINGS[_air_definition.id] = {p.id:p.id for p in _air_definition.parameters}
 
 
@@ -210,7 +210,7 @@ def normalize_prototype_export(data: dict[str, Any]) -> Project:
         modules=list(definitions.values()),instances=instances,connections=connections,import_diagnostics=diagnostics,
         controllers=raw.get('controllers', []),
         control_scripts=raw.get('controlScripts', []),
-        thermal_couplings=couplings,
+        coupling_mode=raw.get('couplingMode','legacy'), thermal_couplings=couplings,
         scenarios=scenarios,selected_variables=deepcopy(raw.get('selectedVariables', [])),
         measurements=deepcopy(raw.get('measurements', [])),
         events=deepcopy(raw.get('events', [])),

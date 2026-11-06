@@ -1,0 +1,3221 @@
+{
+  "schema_version": 1,
+  "id": "Own-group_parallel_pumps",
+  "name": "Own · 双支路并联泵组",
+  "description": "",
+  "fluid": {
+    "backend": "coolprop",
+    "fluid": "Water",
+    "composition": {},
+    "reference": "mass",
+    "phase_policy": "liquid"
+  },
+  "modules": [
+    {
+      "schema_version": 1,
+      "id": "source",
+      "name": "压力边界",
+      "version": 1,
+      "category": "边界与节点",
+      "description": "",
+      "ports": [
+        {
+          "id": "out0",
+          "label": "out0",
+          "domain": "fluid",
+          "direction": "out",
+          "required": true,
+          "circuit": "fluid"
+        }
+      ],
+      "parameters": [
+        {
+          "id": "pressure_pa",
+          "label": "绝对压力",
+          "value_type": "number",
+          "default": 201325.0,
+          "unit": {
+            "quantity": "pressure",
+            "canonical_unit": "Pa",
+            "display_unit": "kPa",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "minimum": 1.0,
+          "maximum": null,
+          "runtime": true,
+          "writable": true
+        },
+        {
+          "id": "temperature_k",
+          "label": "边界温度",
+          "value_type": "number",
+          "default": 293.15,
+          "unit": {
+            "quantity": "temperature",
+            "canonical_unit": "K",
+            "display_unit": "°C",
+            "display_scale": 1.0,
+            "display_offset": -273.15
+          },
+          "minimum": 1.0,
+          "maximum": null,
+          "runtime": true,
+          "writable": true
+        },
+        {
+          "id": "humidity_ratio_kg_kg",
+          "label": "边界含湿量（湿空气模式）",
+          "value_type": "number",
+          "default": 0.0,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": 0.2,
+          "runtime": true,
+          "writable": true
+        }
+      ],
+      "variables": [
+        {
+          "id": "out0.pressure_pa",
+          "label": "out0 绝对压力",
+          "quantity": "pressure",
+          "unit": {
+            "quantity": "pressure",
+            "canonical_unit": "Pa",
+            "display_unit": "kPa",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "port",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": "out0"
+        },
+        {
+          "id": "out0.mass_flow_kg_s",
+          "label": "out0 端口流量（流入设备为正）",
+          "quantity": "mass_flow",
+          "unit": {
+            "quantity": "mass_flow",
+            "canonical_unit": "kg/s",
+            "display_unit": "kg/s",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "port",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": "out0"
+        },
+        {
+          "id": "out0.temperature_k",
+          "label": "out0 温度",
+          "quantity": "temperature",
+          "unit": {
+            "quantity": "temperature",
+            "canonical_unit": "K",
+            "display_unit": "°C",
+            "display_scale": 1.0,
+            "display_offset": -273.15
+          },
+          "source": "port",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": "out0"
+        },
+        {
+          "id": "out0.enthalpy_j_kg",
+          "label": "out0 比焓",
+          "quantity": "specific_enthalpy",
+          "unit": {
+            "quantity": "specific_enthalpy",
+            "canonical_unit": "J/kg",
+            "display_unit": "kJ/kg",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "port",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": "out0"
+        },
+        {
+          "id": "out0.density_kg_m3",
+          "label": "out0 密度",
+          "quantity": "density",
+          "unit": {
+            "quantity": "density",
+            "canonical_unit": "kg/m³",
+            "display_unit": "kg/m³",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "port",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": "out0"
+        },
+        {
+          "id": "out0.viscosity_pa_s",
+          "label": "out0 动力黏度",
+          "quantity": "dynamic_viscosity",
+          "unit": {
+            "quantity": "dynamic_viscosity",
+            "canonical_unit": "Pa·s",
+            "display_unit": "mPa·s",
+            "display_scale": 0.001,
+            "display_offset": 0.0
+          },
+          "source": "port",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": "out0"
+        },
+        {
+          "id": "out0.specific_heat_j_kg_k",
+          "label": "out0 定压比热",
+          "quantity": "specific_heat",
+          "unit": {
+            "quantity": "specific_heat",
+            "canonical_unit": "J/(kg·K)",
+            "display_unit": "kJ/(kg·K)",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "port",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": "out0"
+        },
+        {
+          "id": "out0.quality",
+          "label": "out0 干度（单相为空）",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "port",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": "out0"
+        },
+        {
+          "id": "param.pressure_pa",
+          "label": "绝对压力",
+          "quantity": "pressure",
+          "unit": {
+            "quantity": "pressure",
+            "canonical_unit": "Pa",
+            "display_unit": "kPa",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "pressure_pa",
+          "port_id": null
+        },
+        {
+          "id": "param.temperature_k",
+          "label": "边界温度",
+          "quantity": "temperature",
+          "unit": {
+            "quantity": "temperature",
+            "canonical_unit": "K",
+            "display_unit": "°C",
+            "display_scale": 1.0,
+            "display_offset": -273.15
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "temperature_k",
+          "port_id": null
+        },
+        {
+          "id": "param.humidity_ratio_kg_kg",
+          "label": "边界含湿量（湿空气模式）",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "humidity_ratio_kg_kg",
+          "port_id": null
+        }
+      ],
+      "channels": [],
+      "solver_model": "pressure_source",
+      "state_model": null,
+      "thermal_model": null,
+      "source_format": "python-v1",
+      "source": {},
+      "runtime": "builtin",
+      "entrypoint": "",
+      "content_hash": null,
+      "definition_hash": null,
+      "package_path": null,
+      "bank_names": [
+        "额定工况",
+        "部分负荷",
+        "调试备份"
+      ]
+    },
+    {
+      "schema_version": 3,
+      "id": "group_parallel_pumps",
+      "name": "双支路并联泵组",
+      "version": 1,
+      "category": "暖通基础设备",
+      "description": "双支路并联泵组：内部展开为固定版本部件，按节点质量与焓守恒求解。",
+      "ports": [
+        {
+          "id": "out0",
+          "label": "公共排出口",
+          "domain": "fluid",
+          "direction": "in",
+          "required": true,
+          "circuit": "fluid0"
+        },
+        {
+          "id": "in0",
+          "label": "公共吸入口",
+          "domain": "fluid",
+          "direction": "in",
+          "required": true,
+          "circuit": "fluid1"
+        }
+      ],
+      "parameters": [
+        {
+          "id": "A_Pump_running",
+          "label": "A · Pump · 启停（0／1）",
+          "value_type": "number",
+          "default": 1.0,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "runtime": true,
+          "writable": true
+        },
+        {
+          "id": "A_Pump_speed_ratio",
+          "label": "A · Pump · 转速比",
+          "value_type": "number",
+          "default": 1.0,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.05,
+          "maximum": 2.0,
+          "runtime": true,
+          "writable": true
+        },
+        {
+          "id": "A_Strainer_loading_ratio",
+          "label": "A · Strainer · 污堵比例",
+          "value_type": "number",
+          "default": 0.0,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "runtime": true,
+          "writable": true
+        },
+        {
+          "id": "B_Pump_running",
+          "label": "B · Pump · 启停（0／1）",
+          "value_type": "number",
+          "default": 1.0,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "runtime": true,
+          "writable": true
+        },
+        {
+          "id": "B_Pump_speed_ratio",
+          "label": "B · Pump · 转速比",
+          "value_type": "number",
+          "default": 1.0,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.05,
+          "maximum": 2.0,
+          "runtime": true,
+          "writable": true
+        },
+        {
+          "id": "B_Strainer_loading_ratio",
+          "label": "B · Strainer · 污堵比例",
+          "value_type": "number",
+          "default": 0.0,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "runtime": true,
+          "writable": true
+        },
+        {
+          "id": "Split_elevation_m",
+          "label": "Split · 标高（当前仅支持零标高）",
+          "value_type": "number",
+          "default": 0.0,
+          "unit": {
+            "quantity": "length",
+            "canonical_unit": "m",
+            "display_unit": "m",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": 0.0,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "Join_elevation_m",
+          "label": "Join · 标高（当前仅支持零标高）",
+          "value_type": "number",
+          "default": 0.0,
+          "unit": {
+            "quantity": "length",
+            "canonical_unit": "m",
+            "display_unit": "m",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": 0.0,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "A_Strainer_diameter_m",
+          "label": "A · Strainer · 通路内径",
+          "value_type": "number",
+          "default": 0.05,
+          "unit": {
+            "quantity": "length",
+            "canonical_unit": "m",
+            "display_unit": "mm",
+            "display_scale": 0.001,
+            "display_offset": 0.0
+          },
+          "minimum": 0.001,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "A_Strainer_rated_flow_m3_h",
+          "label": "A · Strainer · 额定流量",
+          "value_type": "number",
+          "default": 10.0,
+          "unit": {
+            "quantity": "volume_flow",
+            "canonical_unit": "m³/h",
+            "display_unit": "m³/h",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.001,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "A_Strainer_clean_pressure_drop_pa",
+          "label": "A · Strainer · 干净时额定压降",
+          "value_type": "number",
+          "default": 5000.0,
+          "unit": {
+            "quantity": "pressure",
+            "canonical_unit": "Pa",
+            "display_unit": "kPa",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.001,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "A_Strainer_loaded_multiplier",
+          "label": "A · Strainer · 完全污堵压降倍数",
+          "value_type": "number",
+          "default": 3.0,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 1.0,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "A_Pump_head_curve",
+          "label": "A · Pump · 流量 m³/h—扬程 m",
+          "value_type": "curve",
+          "default": [
+            [
+              0,
+              20
+            ],
+            [
+              10,
+              18
+            ],
+            [
+              20,
+              12
+            ],
+            [
+              30,
+              0
+            ]
+          ],
+          "unit": null,
+          "minimum": null,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "A_Pump_efficiency_ratio",
+          "label": "A · Pump · 水泵效率",
+          "value_type": "number",
+          "default": 0.75,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.05,
+          "maximum": 1.0,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "A_Pump_motor_efficiency",
+          "label": "A · Pump · 电机效率",
+          "value_type": "number",
+          "default": 0.9,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.05,
+          "maximum": 1.0,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "A_Pump_diameter_m",
+          "label": "A · Pump · 停机通路内径",
+          "value_type": "number",
+          "default": 0.05,
+          "unit": {
+            "quantity": "length",
+            "canonical_unit": "m",
+            "display_unit": "mm",
+            "display_scale": 0.001,
+            "display_offset": 0.0
+          },
+          "minimum": 0.001,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "A_Pump_stopped_loss_coefficient",
+          "label": "A · Pump · 停机被动阻力 K",
+          "value_type": "number",
+          "default": 20.0,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.001,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "A_Check_kv_m3_h",
+          "label": "A · Check · 全开 Kv",
+          "value_type": "number",
+          "default": 50.0,
+          "unit": {
+            "quantity": "flow_coefficient",
+            "canonical_unit": "m³/h",
+            "display_unit": "m³/h",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.001,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "A_Check_opening_pressure_pa",
+          "label": "A · Check · 开启压差",
+          "value_type": "number",
+          "default": 1000.0,
+          "unit": {
+            "quantity": "pressure",
+            "canonical_unit": "Pa",
+            "display_unit": "kPa",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "A_Check_closing_pressure_pa",
+          "label": "A · Check · 关闭压差",
+          "value_type": "number",
+          "default": 500.0,
+          "unit": {
+            "quantity": "pressure",
+            "canonical_unit": "Pa",
+            "display_unit": "kPa",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "B_Strainer_diameter_m",
+          "label": "B · Strainer · 通路内径",
+          "value_type": "number",
+          "default": 0.05,
+          "unit": {
+            "quantity": "length",
+            "canonical_unit": "m",
+            "display_unit": "mm",
+            "display_scale": 0.001,
+            "display_offset": 0.0
+          },
+          "minimum": 0.001,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "B_Strainer_rated_flow_m3_h",
+          "label": "B · Strainer · 额定流量",
+          "value_type": "number",
+          "default": 10.0,
+          "unit": {
+            "quantity": "volume_flow",
+            "canonical_unit": "m³/h",
+            "display_unit": "m³/h",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.001,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "B_Strainer_clean_pressure_drop_pa",
+          "label": "B · Strainer · 干净时额定压降",
+          "value_type": "number",
+          "default": 5000.0,
+          "unit": {
+            "quantity": "pressure",
+            "canonical_unit": "Pa",
+            "display_unit": "kPa",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.001,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "B_Strainer_loaded_multiplier",
+          "label": "B · Strainer · 完全污堵压降倍数",
+          "value_type": "number",
+          "default": 3.0,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 1.0,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "B_Pump_head_curve",
+          "label": "B · Pump · 流量 m³/h—扬程 m",
+          "value_type": "curve",
+          "default": [
+            [
+              0,
+              20
+            ],
+            [
+              10,
+              18
+            ],
+            [
+              20,
+              12
+            ],
+            [
+              30,
+              0
+            ]
+          ],
+          "unit": null,
+          "minimum": null,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "B_Pump_efficiency_ratio",
+          "label": "B · Pump · 水泵效率",
+          "value_type": "number",
+          "default": 0.75,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.05,
+          "maximum": 1.0,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "B_Pump_motor_efficiency",
+          "label": "B · Pump · 电机效率",
+          "value_type": "number",
+          "default": 0.9,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.05,
+          "maximum": 1.0,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "B_Pump_diameter_m",
+          "label": "B · Pump · 停机通路内径",
+          "value_type": "number",
+          "default": 0.05,
+          "unit": {
+            "quantity": "length",
+            "canonical_unit": "m",
+            "display_unit": "mm",
+            "display_scale": 0.001,
+            "display_offset": 0.0
+          },
+          "minimum": 0.001,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "B_Pump_stopped_loss_coefficient",
+          "label": "B · Pump · 停机被动阻力 K",
+          "value_type": "number",
+          "default": 20.0,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.001,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "B_Check_kv_m3_h",
+          "label": "B · Check · 全开 Kv",
+          "value_type": "number",
+          "default": 50.0,
+          "unit": {
+            "quantity": "flow_coefficient",
+            "canonical_unit": "m³/h",
+            "display_unit": "m³/h",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.001,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "B_Check_opening_pressure_pa",
+          "label": "B · Check · 开启压差",
+          "value_type": "number",
+          "default": 1000.0,
+          "unit": {
+            "quantity": "pressure",
+            "canonical_unit": "Pa",
+            "display_unit": "kPa",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "B_Check_closing_pressure_pa",
+          "label": "B · Check · 关闭压差",
+          "value_type": "number",
+          "default": 500.0,
+          "unit": {
+            "quantity": "pressure",
+            "canonical_unit": "Pa",
+            "display_unit": "kPa",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        }
+      ],
+      "variables": [
+        {
+          "id": "A.Check.flowing",
+          "label": "A · Check · 当前导通",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.A.Check.is_open",
+          "label": "A · Check · 接受状态导通",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.A.Check.throughput_kg",
+          "label": "A · Check · 累计正向通过质量",
+          "quantity": "mass",
+          "unit": {
+            "quantity": "mass",
+            "canonical_unit": "kg",
+            "display_unit": "kg",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "A.Pump.is_running",
+          "label": "A · Pump · 实际启停",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "A.Pump.pump_shaft_power_w",
+          "label": "A · Pump · 轴功率",
+          "quantity": "power",
+          "unit": {
+            "quantity": "power",
+            "canonical_unit": "W",
+            "display_unit": "kW",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "A.Pump.electric_power_w",
+          "label": "A · Pump · 电功率",
+          "quantity": "power",
+          "unit": {
+            "quantity": "power",
+            "canonical_unit": "W",
+            "display_unit": "kW",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.A.Pump.electric_energy_j",
+          "label": "A · Pump · 累计耗电",
+          "quantity": "energy",
+          "unit": {
+            "quantity": "energy",
+            "canonical_unit": "J",
+            "display_unit": "kWh",
+            "display_scale": 3600000.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.A.Pump.throughput_kg",
+          "label": "A · Pump · 累计通过质量",
+          "quantity": "mass",
+          "unit": {
+            "quantity": "mass",
+            "canonical_unit": "kg",
+            "display_unit": "kg",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "A.Strainer.loss_coefficient",
+          "label": "A · Strainer · 等效阻力 K",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "A.Strainer.actual_drop_pa",
+          "label": "A · Strainer · 实测压差",
+          "quantity": "pressure",
+          "unit": {
+            "quantity": "pressure",
+            "canonical_unit": "Pa",
+            "display_unit": "kPa",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.A.Strainer.throughput_kg",
+          "label": "A · Strainer · 累计通过质量",
+          "quantity": "mass",
+          "unit": {
+            "quantity": "mass",
+            "canonical_unit": "kg",
+            "display_unit": "kg",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "B.Check.flowing",
+          "label": "B · Check · 当前导通",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.B.Check.is_open",
+          "label": "B · Check · 接受状态导通",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.B.Check.throughput_kg",
+          "label": "B · Check · 累计正向通过质量",
+          "quantity": "mass",
+          "unit": {
+            "quantity": "mass",
+            "canonical_unit": "kg",
+            "display_unit": "kg",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "B.Pump.is_running",
+          "label": "B · Pump · 实际启停",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "B.Pump.pump_shaft_power_w",
+          "label": "B · Pump · 轴功率",
+          "quantity": "power",
+          "unit": {
+            "quantity": "power",
+            "canonical_unit": "W",
+            "display_unit": "kW",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "B.Pump.electric_power_w",
+          "label": "B · Pump · 电功率",
+          "quantity": "power",
+          "unit": {
+            "quantity": "power",
+            "canonical_unit": "W",
+            "display_unit": "kW",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.B.Pump.electric_energy_j",
+          "label": "B · Pump · 累计耗电",
+          "quantity": "energy",
+          "unit": {
+            "quantity": "energy",
+            "canonical_unit": "J",
+            "display_unit": "kWh",
+            "display_scale": 3600000.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.B.Pump.throughput_kg",
+          "label": "B · Pump · 累计通过质量",
+          "quantity": "mass",
+          "unit": {
+            "quantity": "mass",
+            "canonical_unit": "kg",
+            "display_unit": "kg",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "B.Strainer.loss_coefficient",
+          "label": "B · Strainer · 等效阻力 K",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "B.Strainer.actual_drop_pa",
+          "label": "B · Strainer · 实测压差",
+          "quantity": "pressure",
+          "unit": {
+            "quantity": "pressure",
+            "canonical_unit": "Pa",
+            "display_unit": "kPa",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.B.Strainer.throughput_kg",
+          "label": "B · Strainer · 累计通过质量",
+          "quantity": "mass",
+          "unit": {
+            "quantity": "mass",
+            "canonical_unit": "kg",
+            "display_unit": "kg",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        }
+      ],
+      "channels": [],
+      "solver_model": "generic",
+      "state_model": null,
+      "thermal_model": null,
+      "source_format": "python-v1",
+      "source": {
+        "runtime": "class Module:\n    def initialize(self,ctx): pass\n    def evaluate(self,ctx): pass\n    def commit_step(self,ctx,dt): pass\n    def finalize(self,ctx): pass\n"
+      },
+      "runtime": "python",
+      "entrypoint": "module:Module",
+      "content_hash": "7745a90a996269e1d4ffa34b751ae3e0baeee14d2a4116dcb5c650083bb63400",
+      "definition_hash": "4403abc18e8829a53e4df750b5e24a8f588d1e23404e210065d4127ef1ccba81",
+      "package_path": "E:\\liuwangjisuan\\fluidnet-prototype-engine\\modules\\group_parallel_pumps",
+      "bank_names": [
+        "额定工况",
+        "部分负荷",
+        "调试备份"
+      ],
+      "sdk": {
+        "api_version": "0.5.0",
+        "capabilities": [
+          "composite.v1"
+        ],
+        "state_contract_version": 1
+      },
+      "applicability": {
+        "execution_domains": [
+          "fluid"
+        ],
+        "phases": [
+          "liquid",
+          "gas"
+        ],
+        "fluids": [],
+        "limits": [],
+        "assumptions": [
+          "组合展开复用子模块精确版本；外端口和公开参数一对一映射。"
+        ]
+      },
+      "hydraulic_dependencies": {},
+      "dependency_mode": "conservative",
+      "pure_evaluate": false,
+      "composite": {
+        "children": [
+          {
+            "id": "A",
+            "module_id": "group_pump_branch",
+            "version": 1,
+            "content_hash": "7745a90a996269e1d4ffa34b751ae3e0baeee14d2a4116dcb5c650083bb63400",
+            "definition_hash": "94937adff3b47e26c858254e4933a2bb713741da9e82a06bc1ae02b86d8e7c7c",
+            "parameters": {}
+          },
+          {
+            "id": "B",
+            "module_id": "group_pump_branch",
+            "version": 1,
+            "content_hash": "7745a90a996269e1d4ffa34b751ae3e0baeee14d2a4116dcb5c650083bb63400",
+            "definition_hash": "94937adff3b47e26c858254e4933a2bb713741da9e82a06bc1ae02b86d8e7c7c",
+            "parameters": {}
+          },
+          {
+            "id": "Join",
+            "module_id": "hvac_junction_3",
+            "version": 1,
+            "content_hash": null,
+            "definition_hash": "f1379c7a3d05932b549a462ff25e50d872c8135758e1315789cd02a0ba05b66b",
+            "parameters": {}
+          },
+          {
+            "id": "Split",
+            "module_id": "hvac_junction_3",
+            "version": 1,
+            "content_hash": null,
+            "definition_hash": "f1379c7a3d05932b549a462ff25e50d872c8135758e1315789cd02a0ba05b66b",
+            "parameters": {}
+          }
+        ],
+        "modules": [
+          {
+            "schema_version": 3,
+            "id": "group_pump_branch",
+            "name": "循环泵支路（过滤/水泵/止回）",
+            "version": 1,
+            "category": "暖通基础设备",
+            "description": "循环泵支路（过滤/水泵/止回）：内部展开为固定版本部件，按节点质量与焓守恒求解。",
+            "ports": [
+              {
+                "id": "out0",
+                "label": "排出口",
+                "domain": "fluid",
+                "direction": "out",
+                "required": true,
+                "circuit": "fluid0"
+              },
+              {
+                "id": "in0",
+                "label": "吸入口",
+                "domain": "fluid",
+                "direction": "in",
+                "required": true,
+                "circuit": "fluid0"
+              }
+            ],
+            "parameters": [
+              {
+                "id": "Pump_running",
+                "label": "Pump · 启停（0／1）",
+                "value_type": "number",
+                "default": 1.0,
+                "unit": {
+                  "quantity": "ratio",
+                  "canonical_unit": "1",
+                  "display_unit": "1",
+                  "display_scale": 1.0,
+                  "display_offset": 0.0
+                },
+                "minimum": 0.0,
+                "maximum": 1.0,
+                "runtime": true,
+                "writable": true
+              },
+              {
+                "id": "Pump_speed_ratio",
+                "label": "Pump · 转速比",
+                "value_type": "number",
+                "default": 1.0,
+                "unit": {
+                  "quantity": "ratio",
+                  "canonical_unit": "1",
+                  "display_unit": "1",
+                  "display_scale": 1.0,
+                  "display_offset": 0.0
+                },
+                "minimum": 0.05,
+                "maximum": 2.0,
+                "runtime": true,
+                "writable": true
+              },
+              {
+                "id": "Strainer_loading_ratio",
+                "label": "Strainer · 污堵比例",
+                "value_type": "number",
+                "default": 0.0,
+                "unit": {
+                  "quantity": "ratio",
+                  "canonical_unit": "1",
+                  "display_unit": "%",
+                  "display_scale": 0.01,
+                  "display_offset": 0.0
+                },
+                "minimum": 0.0,
+                "maximum": 1.0,
+                "runtime": true,
+                "writable": true
+              },
+              {
+                "id": "Strainer_diameter_m",
+                "label": "Strainer · 通路内径",
+                "value_type": "number",
+                "default": 0.05,
+                "unit": {
+                  "quantity": "length",
+                  "canonical_unit": "m",
+                  "display_unit": "mm",
+                  "display_scale": 0.001,
+                  "display_offset": 0.0
+                },
+                "minimum": 0.001,
+                "maximum": null,
+                "runtime": false,
+                "writable": true
+              },
+              {
+                "id": "Strainer_rated_flow_m3_h",
+                "label": "Strainer · 额定流量",
+                "value_type": "number",
+                "default": 10.0,
+                "unit": {
+                  "quantity": "volume_flow",
+                  "canonical_unit": "m³/h",
+                  "display_unit": "m³/h",
+                  "display_scale": 1.0,
+                  "display_offset": 0.0
+                },
+                "minimum": 0.001,
+                "maximum": null,
+                "runtime": false,
+                "writable": true
+              },
+              {
+                "id": "Strainer_clean_pressure_drop_pa",
+                "label": "Strainer · 干净时额定压降",
+                "value_type": "number",
+                "default": 5000.0,
+                "unit": {
+                  "quantity": "pressure",
+                  "canonical_unit": "Pa",
+                  "display_unit": "kPa",
+                  "display_scale": 1000.0,
+                  "display_offset": 0.0
+                },
+                "minimum": 0.001,
+                "maximum": null,
+                "runtime": false,
+                "writable": true
+              },
+              {
+                "id": "Strainer_loaded_multiplier",
+                "label": "Strainer · 完全污堵压降倍数",
+                "value_type": "number",
+                "default": 3.0,
+                "unit": {
+                  "quantity": "ratio",
+                  "canonical_unit": "1",
+                  "display_unit": "1",
+                  "display_scale": 1.0,
+                  "display_offset": 0.0
+                },
+                "minimum": 1.0,
+                "maximum": null,
+                "runtime": false,
+                "writable": true
+              },
+              {
+                "id": "Pump_head_curve",
+                "label": "Pump · 流量 m³/h—扬程 m",
+                "value_type": "curve",
+                "default": [
+                  [
+                    0,
+                    20
+                  ],
+                  [
+                    10,
+                    18
+                  ],
+                  [
+                    20,
+                    12
+                  ],
+                  [
+                    30,
+                    0
+                  ]
+                ],
+                "unit": null,
+                "minimum": null,
+                "maximum": null,
+                "runtime": false,
+                "writable": true
+              },
+              {
+                "id": "Pump_efficiency_ratio",
+                "label": "Pump · 水泵效率",
+                "value_type": "number",
+                "default": 0.75,
+                "unit": {
+                  "quantity": "ratio",
+                  "canonical_unit": "1",
+                  "display_unit": "1",
+                  "display_scale": 1.0,
+                  "display_offset": 0.0
+                },
+                "minimum": 0.05,
+                "maximum": 1.0,
+                "runtime": false,
+                "writable": true
+              },
+              {
+                "id": "Pump_motor_efficiency",
+                "label": "Pump · 电机效率",
+                "value_type": "number",
+                "default": 0.9,
+                "unit": {
+                  "quantity": "ratio",
+                  "canonical_unit": "1",
+                  "display_unit": "1",
+                  "display_scale": 1.0,
+                  "display_offset": 0.0
+                },
+                "minimum": 0.05,
+                "maximum": 1.0,
+                "runtime": false,
+                "writable": true
+              },
+              {
+                "id": "Pump_diameter_m",
+                "label": "Pump · 停机通路内径",
+                "value_type": "number",
+                "default": 0.05,
+                "unit": {
+                  "quantity": "length",
+                  "canonical_unit": "m",
+                  "display_unit": "mm",
+                  "display_scale": 0.001,
+                  "display_offset": 0.0
+                },
+                "minimum": 0.001,
+                "maximum": null,
+                "runtime": false,
+                "writable": true
+              },
+              {
+                "id": "Pump_stopped_loss_coefficient",
+                "label": "Pump · 停机被动阻力 K",
+                "value_type": "number",
+                "default": 20.0,
+                "unit": {
+                  "quantity": "ratio",
+                  "canonical_unit": "1",
+                  "display_unit": "1",
+                  "display_scale": 1.0,
+                  "display_offset": 0.0
+                },
+                "minimum": 0.001,
+                "maximum": null,
+                "runtime": false,
+                "writable": true
+              },
+              {
+                "id": "Check_kv_m3_h",
+                "label": "Check · 全开 Kv",
+                "value_type": "number",
+                "default": 50.0,
+                "unit": {
+                  "quantity": "flow_coefficient",
+                  "canonical_unit": "m³/h",
+                  "display_unit": "m³/h",
+                  "display_scale": 1.0,
+                  "display_offset": 0.0
+                },
+                "minimum": 0.001,
+                "maximum": null,
+                "runtime": false,
+                "writable": true
+              },
+              {
+                "id": "Check_opening_pressure_pa",
+                "label": "Check · 开启压差",
+                "value_type": "number",
+                "default": 1000.0,
+                "unit": {
+                  "quantity": "pressure",
+                  "canonical_unit": "Pa",
+                  "display_unit": "kPa",
+                  "display_scale": 1000.0,
+                  "display_offset": 0.0
+                },
+                "minimum": 0.0,
+                "maximum": null,
+                "runtime": false,
+                "writable": true
+              },
+              {
+                "id": "Check_closing_pressure_pa",
+                "label": "Check · 关闭压差",
+                "value_type": "number",
+                "default": 500.0,
+                "unit": {
+                  "quantity": "pressure",
+                  "canonical_unit": "Pa",
+                  "display_unit": "kPa",
+                  "display_scale": 1000.0,
+                  "display_offset": 0.0
+                },
+                "minimum": 0.0,
+                "maximum": null,
+                "runtime": false,
+                "writable": true
+              }
+            ],
+            "variables": [
+              {
+                "id": "Check.flowing",
+                "label": "Check · 当前导通",
+                "quantity": "ratio",
+                "unit": {
+                  "quantity": "ratio",
+                  "canonical_unit": "1",
+                  "display_unit": "1",
+                  "display_scale": 1.0,
+                  "display_offset": 0.0
+                },
+                "source": "derived",
+                "writable": false,
+                "sampleable": true,
+                "parameter_id": null,
+                "port_id": null
+              },
+              {
+                "id": "state.Check.is_open",
+                "label": "Check · 接受状态导通",
+                "quantity": "ratio",
+                "unit": {
+                  "quantity": "ratio",
+                  "canonical_unit": "1",
+                  "display_unit": "1",
+                  "display_scale": 1.0,
+                  "display_offset": 0.0
+                },
+                "source": "state",
+                "writable": false,
+                "sampleable": true,
+                "parameter_id": null,
+                "port_id": null
+              },
+              {
+                "id": "state.Check.throughput_kg",
+                "label": "Check · 累计正向通过质量",
+                "quantity": "mass",
+                "unit": {
+                  "quantity": "mass",
+                  "canonical_unit": "kg",
+                  "display_unit": "kg",
+                  "display_scale": 1.0,
+                  "display_offset": 0.0
+                },
+                "source": "state",
+                "writable": false,
+                "sampleable": true,
+                "parameter_id": null,
+                "port_id": null
+              },
+              {
+                "id": "Pump.is_running",
+                "label": "Pump · 实际启停",
+                "quantity": "ratio",
+                "unit": {
+                  "quantity": "ratio",
+                  "canonical_unit": "1",
+                  "display_unit": "1",
+                  "display_scale": 1.0,
+                  "display_offset": 0.0
+                },
+                "source": "derived",
+                "writable": false,
+                "sampleable": true,
+                "parameter_id": null,
+                "port_id": null
+              },
+              {
+                "id": "Pump.pump_shaft_power_w",
+                "label": "Pump · 轴功率",
+                "quantity": "power",
+                "unit": {
+                  "quantity": "power",
+                  "canonical_unit": "W",
+                  "display_unit": "kW",
+                  "display_scale": 1000.0,
+                  "display_offset": 0.0
+                },
+                "source": "derived",
+                "writable": false,
+                "sampleable": true,
+                "parameter_id": null,
+                "port_id": null
+              },
+              {
+                "id": "Pump.electric_power_w",
+                "label": "Pump · 电功率",
+                "quantity": "power",
+                "unit": {
+                  "quantity": "power",
+                  "canonical_unit": "W",
+                  "display_unit": "kW",
+                  "display_scale": 1000.0,
+                  "display_offset": 0.0
+                },
+                "source": "derived",
+                "writable": false,
+                "sampleable": true,
+                "parameter_id": null,
+                "port_id": null
+              },
+              {
+                "id": "state.Pump.electric_energy_j",
+                "label": "Pump · 累计耗电",
+                "quantity": "energy",
+                "unit": {
+                  "quantity": "energy",
+                  "canonical_unit": "J",
+                  "display_unit": "kWh",
+                  "display_scale": 3600000.0,
+                  "display_offset": 0.0
+                },
+                "source": "state",
+                "writable": false,
+                "sampleable": true,
+                "parameter_id": null,
+                "port_id": null
+              },
+              {
+                "id": "state.Pump.throughput_kg",
+                "label": "Pump · 累计通过质量",
+                "quantity": "mass",
+                "unit": {
+                  "quantity": "mass",
+                  "canonical_unit": "kg",
+                  "display_unit": "kg",
+                  "display_scale": 1.0,
+                  "display_offset": 0.0
+                },
+                "source": "state",
+                "writable": false,
+                "sampleable": true,
+                "parameter_id": null,
+                "port_id": null
+              },
+              {
+                "id": "Strainer.loss_coefficient",
+                "label": "Strainer · 等效阻力 K",
+                "quantity": "ratio",
+                "unit": {
+                  "quantity": "ratio",
+                  "canonical_unit": "1",
+                  "display_unit": "1",
+                  "display_scale": 1.0,
+                  "display_offset": 0.0
+                },
+                "source": "derived",
+                "writable": false,
+                "sampleable": true,
+                "parameter_id": null,
+                "port_id": null
+              },
+              {
+                "id": "Strainer.actual_drop_pa",
+                "label": "Strainer · 实测压差",
+                "quantity": "pressure",
+                "unit": {
+                  "quantity": "pressure",
+                  "canonical_unit": "Pa",
+                  "display_unit": "kPa",
+                  "display_scale": 1000.0,
+                  "display_offset": 0.0
+                },
+                "source": "derived",
+                "writable": false,
+                "sampleable": true,
+                "parameter_id": null,
+                "port_id": null
+              },
+              {
+                "id": "state.Strainer.throughput_kg",
+                "label": "Strainer · 累计通过质量",
+                "quantity": "mass",
+                "unit": {
+                  "quantity": "mass",
+                  "canonical_unit": "kg",
+                  "display_unit": "kg",
+                  "display_scale": 1.0,
+                  "display_offset": 0.0
+                },
+                "source": "state",
+                "writable": false,
+                "sampleable": true,
+                "parameter_id": null,
+                "port_id": null
+              }
+            ],
+            "channels": [],
+            "solver_model": "generic",
+            "state_model": null,
+            "thermal_model": null,
+            "source_format": "python-v1",
+            "source": {
+              "runtime": "class Module:\n    def initialize(self,ctx): pass\n    def evaluate(self,ctx): pass\n    def commit_step(self,ctx,dt): pass\n    def finalize(self,ctx): pass\n"
+            },
+            "runtime": "python",
+            "entrypoint": "module:Module",
+            "content_hash": "7745a90a996269e1d4ffa34b751ae3e0baeee14d2a4116dcb5c650083bb63400",
+            "definition_hash": "94937adff3b47e26c858254e4933a2bb713741da9e82a06bc1ae02b86d8e7c7c",
+            "bank_names": [
+              "额定工况",
+              "部分负荷",
+              "调试备份"
+            ],
+            "sdk": {
+              "api_version": "0.5.0",
+              "capabilities": [
+                "composite.v1"
+              ],
+              "state_contract_version": 1
+            },
+            "applicability": {
+              "execution_domains": [
+                "fluid"
+              ],
+              "phases": [
+                "liquid",
+                "gas"
+              ],
+              "fluids": [],
+              "limits": [],
+              "assumptions": [
+                "组合展开复用子模块精确版本；外端口和公开参数一对一映射。"
+              ]
+            },
+            "hydraulic_dependencies": {},
+            "dependency_mode": "conservative",
+            "pure_evaluate": false,
+            "composite": {
+              "children": [
+                {
+                  "id": "Check",
+                  "module_id": "hvac_check_valve",
+                  "version": 1,
+                  "content_hash": "7b2b9277bccec9d57e9f034fc8313d1dae4bcdca128625acf0a5f0548ac9bf55",
+                  "definition_hash": "6fbd073db9b6511438b15975caef8f4f5ce2f858f344f75e60be7ed2a86ec42e",
+                  "parameters": {}
+                },
+                {
+                  "id": "Pump",
+                  "module_id": "hvac_water_pump",
+                  "version": 1,
+                  "content_hash": "66009cf760f485ed31f1986ced4ee560263bf2a85e5e3af2a8e4cdd585d9e2c6",
+                  "definition_hash": "2dd5db9a33f65a40c4ad66b5afae3bd1282c29eb8355cd3c9a0ba65f53e14bfd",
+                  "parameters": {}
+                },
+                {
+                  "id": "Strainer",
+                  "module_id": "water_strainer",
+                  "version": 1,
+                  "content_hash": "7ee780f7c87aef542be8d888b889610cef6f46f9360caa71bee91a41b9ce76ed",
+                  "definition_hash": "d0a0ee86e710f1d2b54cf21f420b4bcee7c4e16768a5ef96070b6bd8417dea3e",
+                  "parameters": {}
+                }
+              ],
+              "modules": [
+                {
+                  "schema_version": 3,
+                  "id": "hvac_check_valve",
+                  "name": "止回阀（开启／关闭压差）",
+                  "version": 1,
+                  "category": "暖通基础设备",
+                  "description": "止回阀（开启／关闭压差）：单相基础设备，型号参数须按工程资料填写。",
+                  "ports": [
+                    {
+                      "id": "in0",
+                      "label": "入口",
+                      "domain": "fluid",
+                      "direction": "in",
+                      "required": true,
+                      "circuit": "fluid"
+                    },
+                    {
+                      "id": "out0",
+                      "label": "出口",
+                      "domain": "fluid",
+                      "direction": "out",
+                      "required": true,
+                      "circuit": "fluid"
+                    }
+                  ],
+                  "parameters": [
+                    {
+                      "id": "kv_m3_h",
+                      "label": "全开 Kv",
+                      "value_type": "number",
+                      "default": 50.0,
+                      "unit": {
+                        "quantity": "flow_coefficient",
+                        "canonical_unit": "m³/h",
+                        "display_unit": "m³/h",
+                        "display_scale": 1.0,
+                        "display_offset": 0.0
+                      },
+                      "minimum": 0.001,
+                      "maximum": null,
+                      "runtime": false,
+                      "writable": true
+                    },
+                    {
+                      "id": "opening_pressure_pa",
+                      "label": "开启压差",
+                      "value_type": "number",
+                      "default": 1000.0,
+                      "unit": {
+                        "quantity": "pressure",
+                        "canonical_unit": "Pa",
+                        "display_unit": "kPa",
+                        "display_scale": 1000.0,
+                        "display_offset": 0.0
+                      },
+                      "minimum": 0.0,
+                      "maximum": null,
+                      "runtime": false,
+                      "writable": true
+                    },
+                    {
+                      "id": "closing_pressure_pa",
+                      "label": "关闭压差",
+                      "value_type": "number",
+                      "default": 500.0,
+                      "unit": {
+                        "quantity": "pressure",
+                        "canonical_unit": "Pa",
+                        "display_unit": "kPa",
+                        "display_scale": 1000.0,
+                        "display_offset": 0.0
+                      },
+                      "minimum": 0.0,
+                      "maximum": null,
+                      "runtime": false,
+                      "writable": true
+                    }
+                  ],
+                  "variables": [
+                    {
+                      "id": "flowing",
+                      "label": "当前导通",
+                      "quantity": "ratio",
+                      "unit": {
+                        "quantity": "ratio",
+                        "canonical_unit": "1",
+                        "display_unit": "1",
+                        "display_scale": 1.0,
+                        "display_offset": 0.0
+                      },
+                      "source": "derived",
+                      "writable": false,
+                      "sampleable": true,
+                      "parameter_id": null,
+                      "port_id": null
+                    },
+                    {
+                      "id": "state.is_open",
+                      "label": "接受状态导通",
+                      "quantity": "ratio",
+                      "unit": {
+                        "quantity": "ratio",
+                        "canonical_unit": "1",
+                        "display_unit": "1",
+                        "display_scale": 1.0,
+                        "display_offset": 0.0
+                      },
+                      "source": "state",
+                      "writable": false,
+                      "sampleable": true,
+                      "parameter_id": null,
+                      "port_id": null
+                    },
+                    {
+                      "id": "state.throughput_kg",
+                      "label": "累计正向通过质量",
+                      "quantity": "mass",
+                      "unit": {
+                        "quantity": "mass",
+                        "canonical_unit": "kg",
+                        "display_unit": "kg",
+                        "display_scale": 1.0,
+                        "display_offset": 0.0
+                      },
+                      "source": "state",
+                      "writable": false,
+                      "sampleable": true,
+                      "parameter_id": null,
+                      "port_id": null
+                    }
+                  ],
+                  "channels": [
+                    {
+                      "id": "main",
+                      "name": "主通路",
+                      "input_port": "in0",
+                      "output_port": "out0",
+                      "relation": "resistance",
+                      "solver_model": "generic",
+                      "enabled": true
+                    }
+                  ],
+                  "solver_model": "generic",
+                  "state_model": null,
+                  "thermal_model": null,
+                  "source_format": "python-v1",
+                  "source": {
+                    "runtime": "import math\nclass Module:\n    def initialize(self,ctx):\n        p=ctx.parameters\n        if p['closing_pressure_pa']>p['opening_pressure_pa']:\n            raise ValueError('关闭压差不能大于开启压差')\n        ctx.state.setdefault('is_open',False)\n        ctx.state.setdefault('throughput_kg',0.)\n    def opening(self,ctx):\n        p=ctx.parameters\n        delta=ctx.port('in0').pressure_pa-ctx.port('out0').pressure_pa\n        threshold=p['closing_pressure_pa'] if ctx.state['is_open'] else p['opening_pressure_pa']\n        return math.sqrt(1-threshold/delta) if delta>threshold and delta>0 else 0.\n    def evaluate(self,ctx):\n        ctx.net.valve(channel='main',kv=ctx.parameters['kv_m3_h'],opening=self.opening(ctx),density_kg_m3=ctx.port('in0').density_kg_m3)\n        ctx.var('flowing',int(self.opening(ctx)>0))\n    def observe(self,ctx):\n        ctx.var('flowing',int(self.opening(ctx)>0 and ctx.channel('main').mass_flow_kg_s>1e-8))\n    def commit_step(self,ctx,dt_s):\n        ctx.state['is_open']=self.opening(ctx)>0\n        ctx.state['throughput_kg']+=abs(ctx.channel('main').mass_flow_kg_s)*dt_s\n    def finalize(self,ctx): pass\n"
+                  },
+                  "runtime": "python",
+                  "entrypoint": "module:Module",
+                  "content_hash": "7b2b9277bccec9d57e9f034fc8313d1dae4bcdca128625acf0a5f0548ac9bf55",
+                  "definition_hash": "6fbd073db9b6511438b15975caef8f4f5ce2f858f344f75e60be7ed2a86ec42e",
+                  "bank_names": [
+                    "额定工况",
+                    "部分负荷",
+                    "调试备份"
+                  ],
+                  "sdk": {
+                    "api_version": "0.6.0",
+                    "capabilities": [
+                      "air.pass_through.v1",
+                      "evaluate.pure.v1",
+                      "hydraulic.signed_start.v1",
+                      "net.resistance",
+                      "net.valve",
+                      "observe.v1",
+                      "state.transactions.v1"
+                    ],
+                    "state_contract_version": 1
+                  },
+                  "applicability": {
+                    "execution_domains": [
+                      "fluid"
+                    ],
+                    "phases": [
+                      "liquid",
+                      "gas"
+                    ],
+                    "fluids": [],
+                    "limits": [],
+                    "assumptions": [
+                      "单相、无独立物理储量；设备默认参数为演示参数。"
+                    ]
+                  },
+                  "hydraulic_dependencies": {},
+                  "dependency_mode": "conservative",
+                  "pure_evaluate": true
+                },
+                {
+                  "schema_version": 3,
+                  "id": "hvac_water_pump",
+                  "name": "循环水泵（含停机阻力）",
+                  "version": 1,
+                  "category": "暖通基础设备",
+                  "description": "循环水泵（含停机阻力）：单相基础设备，型号参数须按工程资料填写。",
+                  "ports": [
+                    {
+                      "id": "in0",
+                      "label": "入口",
+                      "domain": "fluid",
+                      "direction": "in",
+                      "required": true,
+                      "circuit": "fluid"
+                    },
+                    {
+                      "id": "out0",
+                      "label": "出口",
+                      "domain": "fluid",
+                      "direction": "out",
+                      "required": true,
+                      "circuit": "fluid"
+                    }
+                  ],
+                  "parameters": [
+                    {
+                      "id": "running",
+                      "label": "启停（0／1）",
+                      "value_type": "number",
+                      "default": 1.0,
+                      "unit": {
+                        "quantity": "ratio",
+                        "canonical_unit": "1",
+                        "display_unit": "1",
+                        "display_scale": 1.0,
+                        "display_offset": 0.0
+                      },
+                      "minimum": 0.0,
+                      "maximum": 1.0,
+                      "runtime": true,
+                      "writable": true
+                    },
+                    {
+                      "id": "speed_ratio",
+                      "label": "转速比",
+                      "value_type": "number",
+                      "default": 1.0,
+                      "unit": {
+                        "quantity": "ratio",
+                        "canonical_unit": "1",
+                        "display_unit": "1",
+                        "display_scale": 1.0,
+                        "display_offset": 0.0
+                      },
+                      "minimum": 0.05,
+                      "maximum": 2.0,
+                      "runtime": true,
+                      "writable": true
+                    },
+                    {
+                      "id": "head_curve",
+                      "label": "流量 m³/h—扬程 m",
+                      "value_type": "curve",
+                      "default": [
+                        [
+                          0,
+                          20
+                        ],
+                        [
+                          10,
+                          18
+                        ],
+                        [
+                          20,
+                          12
+                        ],
+                        [
+                          30,
+                          0
+                        ]
+                      ],
+                      "unit": null,
+                      "minimum": null,
+                      "maximum": null,
+                      "runtime": false,
+                      "writable": true
+                    },
+                    {
+                      "id": "efficiency_ratio",
+                      "label": "水泵效率",
+                      "value_type": "number",
+                      "default": 0.75,
+                      "unit": {
+                        "quantity": "ratio",
+                        "canonical_unit": "1",
+                        "display_unit": "1",
+                        "display_scale": 1.0,
+                        "display_offset": 0.0
+                      },
+                      "minimum": 0.05,
+                      "maximum": 1.0,
+                      "runtime": false,
+                      "writable": true
+                    },
+                    {
+                      "id": "motor_efficiency",
+                      "label": "电机效率",
+                      "value_type": "number",
+                      "default": 0.9,
+                      "unit": {
+                        "quantity": "ratio",
+                        "canonical_unit": "1",
+                        "display_unit": "1",
+                        "display_scale": 1.0,
+                        "display_offset": 0.0
+                      },
+                      "minimum": 0.05,
+                      "maximum": 1.0,
+                      "runtime": false,
+                      "writable": true
+                    },
+                    {
+                      "id": "diameter_m",
+                      "label": "停机通路内径",
+                      "value_type": "number",
+                      "default": 0.05,
+                      "unit": {
+                        "quantity": "length",
+                        "canonical_unit": "m",
+                        "display_unit": "mm",
+                        "display_scale": 0.001,
+                        "display_offset": 0.0
+                      },
+                      "minimum": 0.001,
+                      "maximum": null,
+                      "runtime": false,
+                      "writable": true
+                    },
+                    {
+                      "id": "stopped_loss_coefficient",
+                      "label": "停机被动阻力 K",
+                      "value_type": "number",
+                      "default": 20.0,
+                      "unit": {
+                        "quantity": "ratio",
+                        "canonical_unit": "1",
+                        "display_unit": "1",
+                        "display_scale": 1.0,
+                        "display_offset": 0.0
+                      },
+                      "minimum": 0.001,
+                      "maximum": null,
+                      "runtime": false,
+                      "writable": true
+                    }
+                  ],
+                  "variables": [
+                    {
+                      "id": "is_running",
+                      "label": "实际启停",
+                      "quantity": "ratio",
+                      "unit": {
+                        "quantity": "ratio",
+                        "canonical_unit": "1",
+                        "display_unit": "1",
+                        "display_scale": 1.0,
+                        "display_offset": 0.0
+                      },
+                      "source": "derived",
+                      "writable": false,
+                      "sampleable": true,
+                      "parameter_id": null,
+                      "port_id": null
+                    },
+                    {
+                      "id": "pump_shaft_power_w",
+                      "label": "轴功率",
+                      "quantity": "power",
+                      "unit": {
+                        "quantity": "power",
+                        "canonical_unit": "W",
+                        "display_unit": "kW",
+                        "display_scale": 1000.0,
+                        "display_offset": 0.0
+                      },
+                      "source": "derived",
+                      "writable": false,
+                      "sampleable": true,
+                      "parameter_id": null,
+                      "port_id": null
+                    },
+                    {
+                      "id": "electric_power_w",
+                      "label": "电功率",
+                      "quantity": "power",
+                      "unit": {
+                        "quantity": "power",
+                        "canonical_unit": "W",
+                        "display_unit": "kW",
+                        "display_scale": 1000.0,
+                        "display_offset": 0.0
+                      },
+                      "source": "derived",
+                      "writable": false,
+                      "sampleable": true,
+                      "parameter_id": null,
+                      "port_id": null
+                    },
+                    {
+                      "id": "state.electric_energy_j",
+                      "label": "累计耗电",
+                      "quantity": "energy",
+                      "unit": {
+                        "quantity": "energy",
+                        "canonical_unit": "J",
+                        "display_unit": "kWh",
+                        "display_scale": 3600000.0,
+                        "display_offset": 0.0
+                      },
+                      "source": "state",
+                      "writable": false,
+                      "sampleable": true,
+                      "parameter_id": null,
+                      "port_id": null
+                    },
+                    {
+                      "id": "state.throughput_kg",
+                      "label": "累计通过质量",
+                      "quantity": "mass",
+                      "unit": {
+                        "quantity": "mass",
+                        "canonical_unit": "kg",
+                        "display_unit": "kg",
+                        "display_scale": 1.0,
+                        "display_offset": 0.0
+                      },
+                      "source": "state",
+                      "writable": false,
+                      "sampleable": true,
+                      "parameter_id": null,
+                      "port_id": null
+                    }
+                  ],
+                  "channels": [
+                    {
+                      "id": "main",
+                      "name": "主通路",
+                      "input_port": "in0",
+                      "output_port": "out0",
+                      "relation": "resistance",
+                      "solver_model": "pump_curve",
+                      "enabled": true
+                    }
+                  ],
+                  "solver_model": "generic",
+                  "state_model": null,
+                  "thermal_model": null,
+                  "source_format": "python-v1",
+                  "source": {
+                    "runtime": "import math\ndef validate(curve):\n    if len(curve)<2 or curve[0][0]!=0 or curve[-1][1]!=0:\n        raise ValueError('泵曲线须从零流量开始并以零扬程结束')\n    for a,b in zip(curve,curve[1:]):\n        if not all(math.isfinite(v) and v>=0 for v in (*a,*b)) or b[0]<=a[0] or b[1]>=a[1]:\n            raise ValueError('泵曲线流量须递增，扬程须递减')\ndef inverse(curve,head):\n    for (q0,h0),(q1,h1) in zip(curve,curve[1:]):\n        if head>=h1: return max(0.,q0+(q1-q0)*(h0-head)/(h0-h1))\n    return curve[-1][0]\nclass Module:\n    def initialize(self,ctx):\n        validate(ctx.parameters['head_curve'])\n        ctx.state.setdefault('electric_energy_j',0.)\n        ctx.state.setdefault('throughput_kg',0.)\n    def evaluate(self,ctx):\n        p=ctx.parameters\n        density=ctx.port('in0').density_kg_m3\n        active=p['running']>=.5\n        if active:\n            rise=max(0.,ctx.port('out0').pressure_pa-ctx.port('in0').pressure_pa)\n            flow=inverse(p['head_curve'],rise/(density*9.80665*p['speed_ratio']**2))*p['speed_ratio']/3600.\n            loss=rise*flow*(1/p['efficiency_ratio']-1)\n            ctx.net.pump(channel='main',head_curve=p['head_curve'],speed_ratio=p['speed_ratio'],density_kg_m3=density,heat_w=loss)\n        else:\n            ctx.net.resistance(channel='main',diameter_m=p['diameter_m'],loss_coefficient=p['stopped_loss_coefficient'],density_kg_m3=density)\n        ctx.var('is_running',int(active))\n    def observe(self,ctx):\n        c=ctx.channel('main'); p=ctx.parameters\n        hydraulic=max(0.,-c.pressure_drop_pa*c.mass_flow_kg_s/ctx.port('in0').density_kg_m3) if p['running']>=.5 else 0.\n        shaft=hydraulic/p['efficiency_ratio']\n        ctx.var('pump_shaft_power_w',shaft)\n        ctx.var('electric_power_w',shaft/p['motor_efficiency'])\n    def commit_step(self,ctx,dt_s):\n        c=ctx.channel('main'); p=ctx.parameters\n        power=max(0.,-c.pressure_drop_pa*c.mass_flow_kg_s/ctx.port('in0').density_kg_m3)/(p['efficiency_ratio']*p['motor_efficiency']) if p['running']>=.5 else 0.\n        ctx.state['electric_energy_j']+=power*dt_s\n        ctx.state['throughput_kg']+=abs(c.mass_flow_kg_s)*dt_s\n    def finalize(self,ctx): pass\n"
+                  },
+                  "runtime": "python",
+                  "entrypoint": "module:Module",
+                  "content_hash": "66009cf760f485ed31f1986ced4ee560263bf2a85e5e3af2a8e4cdd585d9e2c6",
+                  "definition_hash": "2dd5db9a33f65a40c4ad66b5afae3bd1282c29eb8355cd3c9a0ba65f53e14bfd",
+                  "bank_names": [
+                    "额定工况",
+                    "部分负荷",
+                    "调试备份"
+                  ],
+                  "sdk": {
+                    "api_version": "0.6.0",
+                    "capabilities": [
+                      "air.pass_through.v1",
+                      "evaluate.pure.v1",
+                      "hydraulic.signed_start.v1",
+                      "net.pump",
+                      "net.resistance",
+                      "net.valve",
+                      "observe.v1",
+                      "state.transactions.v1"
+                    ],
+                    "state_contract_version": 1
+                  },
+                  "applicability": {
+                    "execution_domains": [
+                      "fluid"
+                    ],
+                    "phases": [
+                      "liquid",
+                      "gas"
+                    ],
+                    "fluids": [],
+                    "limits": [],
+                    "assumptions": [
+                      "单相、无独立物理储量；设备默认参数为演示参数。"
+                    ]
+                  },
+                  "hydraulic_dependencies": {},
+                  "dependency_mode": "conservative",
+                  "pure_evaluate": true
+                },
+                {
+                  "schema_version": 3,
+                  "id": "water_strainer",
+                  "name": "Y 型过滤器／除污器",
+                  "version": 1,
+                  "category": "暖通基础设备",
+                  "description": "Y 型过滤器／除污器：单相基础设备，型号参数须按工程资料填写。",
+                  "ports": [
+                    {
+                      "id": "in0",
+                      "label": "入口",
+                      "domain": "fluid",
+                      "direction": "in",
+                      "required": true,
+                      "circuit": "fluid"
+                    },
+                    {
+                      "id": "out0",
+                      "label": "出口",
+                      "domain": "fluid",
+                      "direction": "out",
+                      "required": true,
+                      "circuit": "fluid"
+                    }
+                  ],
+                  "parameters": [
+                    {
+                      "id": "diameter_m",
+                      "label": "通路内径",
+                      "value_type": "number",
+                      "default": 0.05,
+                      "unit": {
+                        "quantity": "length",
+                        "canonical_unit": "m",
+                        "display_unit": "mm",
+                        "display_scale": 0.001,
+                        "display_offset": 0.0
+                      },
+                      "minimum": 0.001,
+                      "maximum": null,
+                      "runtime": false,
+                      "writable": true
+                    },
+                    {
+                      "id": "rated_flow_m3_h",
+                      "label": "额定流量",
+                      "value_type": "number",
+                      "default": 10.0,
+                      "unit": {
+                        "quantity": "volume_flow",
+                        "canonical_unit": "m³/h",
+                        "display_unit": "m³/h",
+                        "display_scale": 1.0,
+                        "display_offset": 0.0
+                      },
+                      "minimum": 0.001,
+                      "maximum": null,
+                      "runtime": false,
+                      "writable": true
+                    },
+                    {
+                      "id": "clean_pressure_drop_pa",
+                      "label": "干净时额定压降",
+                      "value_type": "number",
+                      "default": 5000.0,
+                      "unit": {
+                        "quantity": "pressure",
+                        "canonical_unit": "Pa",
+                        "display_unit": "kPa",
+                        "display_scale": 1000.0,
+                        "display_offset": 0.0
+                      },
+                      "minimum": 0.001,
+                      "maximum": null,
+                      "runtime": false,
+                      "writable": true
+                    },
+                    {
+                      "id": "loading_ratio",
+                      "label": "污堵比例",
+                      "value_type": "number",
+                      "default": 0.0,
+                      "unit": {
+                        "quantity": "ratio",
+                        "canonical_unit": "1",
+                        "display_unit": "%",
+                        "display_scale": 0.01,
+                        "display_offset": 0.0
+                      },
+                      "minimum": 0.0,
+                      "maximum": 1.0,
+                      "runtime": true,
+                      "writable": true
+                    },
+                    {
+                      "id": "loaded_multiplier",
+                      "label": "完全污堵压降倍数",
+                      "value_type": "number",
+                      "default": 3.0,
+                      "unit": {
+                        "quantity": "ratio",
+                        "canonical_unit": "1",
+                        "display_unit": "1",
+                        "display_scale": 1.0,
+                        "display_offset": 0.0
+                      },
+                      "minimum": 1.0,
+                      "maximum": null,
+                      "runtime": false,
+                      "writable": true
+                    }
+                  ],
+                  "variables": [
+                    {
+                      "id": "loss_coefficient",
+                      "label": "等效阻力 K",
+                      "quantity": "ratio",
+                      "unit": {
+                        "quantity": "ratio",
+                        "canonical_unit": "1",
+                        "display_unit": "1",
+                        "display_scale": 1.0,
+                        "display_offset": 0.0
+                      },
+                      "source": "derived",
+                      "writable": false,
+                      "sampleable": true,
+                      "parameter_id": null,
+                      "port_id": null
+                    },
+                    {
+                      "id": "actual_drop_pa",
+                      "label": "实测压差",
+                      "quantity": "pressure",
+                      "unit": {
+                        "quantity": "pressure",
+                        "canonical_unit": "Pa",
+                        "display_unit": "kPa",
+                        "display_scale": 1000.0,
+                        "display_offset": 0.0
+                      },
+                      "source": "derived",
+                      "writable": false,
+                      "sampleable": true,
+                      "parameter_id": null,
+                      "port_id": null
+                    },
+                    {
+                      "id": "state.throughput_kg",
+                      "label": "累计通过质量",
+                      "quantity": "mass",
+                      "unit": {
+                        "quantity": "mass",
+                        "canonical_unit": "kg",
+                        "display_unit": "kg",
+                        "display_scale": 1.0,
+                        "display_offset": 0.0
+                      },
+                      "source": "state",
+                      "writable": false,
+                      "sampleable": true,
+                      "parameter_id": null,
+                      "port_id": null
+                    }
+                  ],
+                  "channels": [
+                    {
+                      "id": "main",
+                      "name": "主通路",
+                      "input_port": "in0",
+                      "output_port": "out0",
+                      "relation": "resistance",
+                      "solver_model": "generic",
+                      "enabled": true
+                    }
+                  ],
+                  "solver_model": "generic",
+                  "state_model": null,
+                  "thermal_model": null,
+                  "source_format": "python-v1",
+                  "source": {
+                    "runtime": "import math\nclass Module:\n    def initialize(self,ctx): ctx.state.setdefault('throughput_kg',0.)\n    def evaluate(self,ctx):\n        p=ctx.parameters\n        density=ctx.port('in0').density_kg_m3\n        area=math.pi*p['diameter_m']**2/4.\n        speed=p['rated_flow_m3_h']/3600./area\n        coefficient=2*p['clean_pressure_drop_pa']*(1+p['loading_ratio']*(p['loaded_multiplier']-1))/(density*speed**2)\n        ctx.net.resistance(channel='main',diameter_m=p['diameter_m'],loss_coefficient=coefficient,density_kg_m3=density)\n        ctx.var('loss_coefficient',coefficient)\n    def observe(self,ctx): ctx.var('actual_drop_pa',ctx.channel('main').pressure_drop_pa)\n    def commit_step(self,ctx,dt_s): ctx.state['throughput_kg']+=abs(ctx.channel('main').mass_flow_kg_s)*dt_s\n    def finalize(self,ctx): pass\n"
+                  },
+                  "runtime": "python",
+                  "entrypoint": "module:Module",
+                  "content_hash": "7ee780f7c87aef542be8d888b889610cef6f46f9360caa71bee91a41b9ce76ed",
+                  "definition_hash": "d0a0ee86e710f1d2b54cf21f420b4bcee7c4e16768a5ef96070b6bd8417dea3e",
+                  "bank_names": [
+                    "额定工况",
+                    "部分负荷",
+                    "调试备份"
+                  ],
+                  "sdk": {
+                    "api_version": "0.6.0",
+                    "capabilities": [
+                      "air.pass_through.v1",
+                      "evaluate.pure.v1",
+                      "hydraulic.signed_start.v1",
+                      "net.resistance",
+                      "net.valve",
+                      "observe.v1",
+                      "state.transactions.v1"
+                    ],
+                    "state_contract_version": 1
+                  },
+                  "applicability": {
+                    "execution_domains": [
+                      "fluid"
+                    ],
+                    "phases": [
+                      "liquid",
+                      "gas"
+                    ],
+                    "fluids": [],
+                    "limits": [],
+                    "assumptions": [
+                      "单相、无独立物理储量；设备默认参数为演示参数。"
+                    ]
+                  },
+                  "hydraulic_dependencies": {},
+                  "dependency_mode": "conservative",
+                  "pure_evaluate": true
+                }
+              ],
+              "connections": [
+                {
+                  "id": "link0",
+                  "source": {
+                    "instance_id": "Strainer",
+                    "port_id": "out0"
+                  },
+                  "target": {
+                    "instance_id": "Pump",
+                    "port_id": "in0"
+                  }
+                },
+                {
+                  "id": "link1",
+                  "source": {
+                    "instance_id": "Pump",
+                    "port_id": "out0"
+                  },
+                  "target": {
+                    "instance_id": "Check",
+                    "port_id": "in0"
+                  }
+                }
+              ],
+              "external_ports": {
+                "out0": {
+                  "instance_id": "Check",
+                  "port_id": "out0"
+                },
+                "in0": {
+                  "instance_id": "Strainer",
+                  "port_id": "in0"
+                }
+              },
+              "parameter_maps": {
+                "Pump_running": [
+                  {
+                    "instance_id": "Pump",
+                    "parameter_id": "running"
+                  }
+                ],
+                "Pump_speed_ratio": [
+                  {
+                    "instance_id": "Pump",
+                    "parameter_id": "speed_ratio"
+                  }
+                ],
+                "Strainer_loading_ratio": [
+                  {
+                    "instance_id": "Strainer",
+                    "parameter_id": "loading_ratio"
+                  }
+                ],
+                "Strainer_diameter_m": [
+                  {
+                    "instance_id": "Strainer",
+                    "parameter_id": "diameter_m"
+                  }
+                ],
+                "Strainer_rated_flow_m3_h": [
+                  {
+                    "instance_id": "Strainer",
+                    "parameter_id": "rated_flow_m3_h"
+                  }
+                ],
+                "Strainer_clean_pressure_drop_pa": [
+                  {
+                    "instance_id": "Strainer",
+                    "parameter_id": "clean_pressure_drop_pa"
+                  }
+                ],
+                "Strainer_loaded_multiplier": [
+                  {
+                    "instance_id": "Strainer",
+                    "parameter_id": "loaded_multiplier"
+                  }
+                ],
+                "Pump_head_curve": [
+                  {
+                    "instance_id": "Pump",
+                    "parameter_id": "head_curve"
+                  }
+                ],
+                "Pump_efficiency_ratio": [
+                  {
+                    "instance_id": "Pump",
+                    "parameter_id": "efficiency_ratio"
+                  }
+                ],
+                "Pump_motor_efficiency": [
+                  {
+                    "instance_id": "Pump",
+                    "parameter_id": "motor_efficiency"
+                  }
+                ],
+                "Pump_diameter_m": [
+                  {
+                    "instance_id": "Pump",
+                    "parameter_id": "diameter_m"
+                  }
+                ],
+                "Pump_stopped_loss_coefficient": [
+                  {
+                    "instance_id": "Pump",
+                    "parameter_id": "stopped_loss_coefficient"
+                  }
+                ],
+                "Check_kv_m3_h": [
+                  {
+                    "instance_id": "Check",
+                    "parameter_id": "kv_m3_h"
+                  }
+                ],
+                "Check_opening_pressure_pa": [
+                  {
+                    "instance_id": "Check",
+                    "parameter_id": "opening_pressure_pa"
+                  }
+                ],
+                "Check_closing_pressure_pa": [
+                  {
+                    "instance_id": "Check",
+                    "parameter_id": "closing_pressure_pa"
+                  }
+                ]
+              },
+              "output_aliases": {
+                "Check.flowing": "Check.flowing",
+                "state.Check.is_open": "Check.state.is_open",
+                "state.Check.throughput_kg": "Check.state.throughput_kg",
+                "Pump.is_running": "Pump.is_running",
+                "Pump.pump_shaft_power_w": "Pump.pump_shaft_power_w",
+                "Pump.electric_power_w": "Pump.electric_power_w",
+                "state.Pump.electric_energy_j": "Pump.state.electric_energy_j",
+                "state.Pump.throughput_kg": "Pump.state.throughput_kg",
+                "Strainer.loss_coefficient": "Strainer.loss_coefficient",
+                "Strainer.actual_drop_pa": "Strainer.actual_drop_pa",
+                "state.Strainer.throughput_kg": "Strainer.state.throughput_kg"
+              }
+            }
+          },
+          {
+            "schema_version": 1,
+            "id": "hvac_junction_3",
+            "name": "理想汇合节点",
+            "version": 1,
+            "category": "边界与节点",
+            "description": "",
+            "ports": [
+              {
+                "id": "p0",
+                "label": "连接 0",
+                "domain": "fluid",
+                "direction": "in",
+                "required": true,
+                "circuit": "fluid"
+              },
+              {
+                "id": "p1",
+                "label": "连接 1",
+                "domain": "fluid",
+                "direction": "out",
+                "required": true,
+                "circuit": "fluid"
+              },
+              {
+                "id": "p2",
+                "label": "连接 2",
+                "domain": "fluid",
+                "direction": "out",
+                "required": true,
+                "circuit": "fluid"
+              }
+            ],
+            "parameters": [
+              {
+                "id": "elevation_m",
+                "label": "标高（当前仅支持零标高）",
+                "value_type": "number",
+                "default": 0.0,
+                "unit": {
+                  "quantity": "length",
+                  "canonical_unit": "m",
+                  "display_unit": "m",
+                  "display_scale": 1.0,
+                  "display_offset": 0.0
+                },
+                "minimum": 0.0,
+                "maximum": 0.0,
+                "runtime": false,
+                "writable": true
+              }
+            ],
+            "variables": [],
+            "channels": [],
+            "solver_model": "junction",
+            "state_model": null,
+            "thermal_model": null,
+            "source_format": "python-v1",
+            "source": {},
+            "runtime": "builtin",
+            "entrypoint": "",
+            "content_hash": null,
+            "definition_hash": "f1379c7a3d05932b549a462ff25e50d872c8135758e1315789cd02a0ba05b66b",
+            "bank_names": [
+              "额定工况",
+              "部分负荷",
+              "调试备份"
+            ]
+          }
+        ],
+        "connections": [
+          {
+            "id": "link0",
+            "source": {
+              "instance_id": "Split",
+              "port_id": "p1"
+            },
+            "target": {
+              "instance_id": "A",
+              "port_id": "in0"
+            }
+          },
+          {
+            "id": "link1",
+            "source": {
+              "instance_id": "Split",
+              "port_id": "p2"
+            },
+            "target": {
+              "instance_id": "B",
+              "port_id": "in0"
+            }
+          },
+          {
+            "id": "link2",
+            "source": {
+              "instance_id": "A",
+              "port_id": "out0"
+            },
+            "target": {
+              "instance_id": "Join",
+              "port_id": "p1"
+            }
+          },
+          {
+            "id": "link3",
+            "source": {
+              "instance_id": "B",
+              "port_id": "out0"
+            },
+            "target": {
+              "instance_id": "Join",
+              "port_id": "p2"
+            }
+          }
+        ],
+        "external_ports": {
+          "out0": {
+            "instance_id": "Join",
+            "port_id": "p0"
+          },
+          "in0": {
+            "instance_id": "Split",
+            "port_id": "p0"
+          }
+        },
+        "parameter_maps": {
+          "A_Pump_running": [
+            {
+              "instance_id": "A",
+              "parameter_id": "Pump_running"
+            }
+          ],
+          "A_Pump_speed_ratio": [
+            {
+              "instance_id": "A",
+              "parameter_id": "Pump_speed_ratio"
+            }
+          ],
+          "A_Strainer_loading_ratio": [
+            {
+              "instance_id": "A",
+              "parameter_id": "Strainer_loading_ratio"
+            }
+          ],
+          "B_Pump_running": [
+            {
+              "instance_id": "B",
+              "parameter_id": "Pump_running"
+            }
+          ],
+          "B_Pump_speed_ratio": [
+            {
+              "instance_id": "B",
+              "parameter_id": "Pump_speed_ratio"
+            }
+          ],
+          "B_Strainer_loading_ratio": [
+            {
+              "instance_id": "B",
+              "parameter_id": "Strainer_loading_ratio"
+            }
+          ],
+          "Split_elevation_m": [
+            {
+              "instance_id": "Split",
+              "parameter_id": "elevation_m"
+            }
+          ],
+          "Join_elevation_m": [
+            {
+              "instance_id": "Join",
+              "parameter_id": "elevation_m"
+            }
+          ],
+          "A_Strainer_diameter_m": [
+            {
+              "instance_id": "A",
+              "parameter_id": "Strainer_diameter_m"
+            }
+          ],
+          "A_Strainer_rated_flow_m3_h": [
+            {
+              "instance_id": "A",
+              "parameter_id": "Strainer_rated_flow_m3_h"
+            }
+          ],
+          "A_Strainer_clean_pressure_drop_pa": [
+            {
+              "instance_id": "A",
+              "parameter_id": "Strainer_clean_pressure_drop_pa"
+            }
+          ],
+          "A_Strainer_loaded_multiplier": [
+            {
+              "instance_id": "A",
+              "parameter_id": "Strainer_loaded_multiplier"
+            }
+          ],
+          "A_Pump_head_curve": [
+            {
+              "instance_id": "A",
+              "parameter_id": "Pump_head_curve"
+            }
+          ],
+          "A_Pump_efficiency_ratio": [
+            {
+              "instance_id": "A",
+              "parameter_id": "Pump_efficiency_ratio"
+            }
+          ],
+          "A_Pump_motor_efficiency": [
+            {
+              "instance_id": "A",
+              "parameter_id": "Pump_motor_efficiency"
+            }
+          ],
+          "A_Pump_diameter_m": [
+            {
+              "instance_id": "A",
+              "parameter_id": "Pump_diameter_m"
+            }
+          ],
+          "A_Pump_stopped_loss_coefficient": [
+            {
+              "instance_id": "A",
+              "parameter_id": "Pump_stopped_loss_coefficient"
+            }
+          ],
+          "A_Check_kv_m3_h": [
+            {
+              "instance_id": "A",
+              "parameter_id": "Check_kv_m3_h"
+            }
+          ],
+          "A_Check_opening_pressure_pa": [
+            {
+              "instance_id": "A",
+              "parameter_id": "Check_opening_pressure_pa"
+            }
+          ],
+          "A_Check_closing_pressure_pa": [
+            {
+              "instance_id": "A",
+              "parameter_id": "Check_closing_pressure_pa"
+            }
+          ],
+          "B_Strainer_diameter_m": [
+            {
+              "instance_id": "B",
+              "parameter_id": "Strainer_diameter_m"
+            }
+          ],
+          "B_Strainer_rated_flow_m3_h": [
+            {
+              "instance_id": "B",
+              "parameter_id": "Strainer_rated_flow_m3_h"
+            }
+          ],
+          "B_Strainer_clean_pressure_drop_pa": [
+            {
+              "instance_id": "B",
+              "parameter_id": "Strainer_clean_pressure_drop_pa"
+            }
+          ],
+          "B_Strainer_loaded_multiplier": [
+            {
+              "instance_id": "B",
+              "parameter_id": "Strainer_loaded_multiplier"
+            }
+          ],
+          "B_Pump_head_curve": [
+            {
+              "instance_id": "B",
+              "parameter_id": "Pump_head_curve"
+            }
+          ],
+          "B_Pump_efficiency_ratio": [
+            {
+              "instance_id": "B",
+              "parameter_id": "Pump_efficiency_ratio"
+            }
+          ],
+          "B_Pump_motor_efficiency": [
+            {
+              "instance_id": "B",
+              "parameter_id": "Pump_motor_efficiency"
+            }
+          ],
+          "B_Pump_diameter_m": [
+            {
+              "instance_id": "B",
+              "parameter_id": "Pump_diameter_m"
+            }
+          ],
+          "B_Pump_stopped_loss_coefficient": [
+            {
+              "instance_id": "B",
+              "parameter_id": "Pump_stopped_loss_coefficient"
+            }
+          ],
+          "B_Check_kv_m3_h": [
+            {
+              "instance_id": "B",
+              "parameter_id": "Check_kv_m3_h"
+            }
+          ],
+          "B_Check_opening_pressure_pa": [
+            {
+              "instance_id": "B",
+              "parameter_id": "Check_opening_pressure_pa"
+            }
+          ],
+          "B_Check_closing_pressure_pa": [
+            {
+              "instance_id": "B",
+              "parameter_id": "Check_closing_pressure_pa"
+            }
+          ]
+        },
+        "output_aliases": {
+          "A.Check.flowing": "A.Check.flowing",
+          "state.A.Check.is_open": "A.state.Check.is_open",
+          "state.A.Check.throughput_kg": "A.state.Check.throughput_kg",
+          "A.Pump.is_running": "A.Pump.is_running",
+          "A.Pump.pump_shaft_power_w": "A.Pump.pump_shaft_power_w",
+          "A.Pump.electric_power_w": "A.Pump.electric_power_w",
+          "state.A.Pump.electric_energy_j": "A.state.Pump.electric_energy_j",
+          "state.A.Pump.throughput_kg": "A.state.Pump.throughput_kg",
+          "A.Strainer.loss_coefficient": "A.Strainer.loss_coefficient",
+          "A.Strainer.actual_drop_pa": "A.Strainer.actual_drop_pa",
+          "state.A.Strainer.throughput_kg": "A.state.Strainer.throughput_kg",
+          "B.Check.flowing": "B.Check.flowing",
+          "state.B.Check.is_open": "B.state.Check.is_open",
+          "state.B.Check.throughput_kg": "B.state.Check.throughput_kg",
+          "B.Pump.is_running": "B.Pump.is_running",
+          "B.Pump.pump_shaft_power_w": "B.Pump.pump_shaft_power_w",
+          "B.Pump.electric_power_w": "B.Pump.electric_power_w",
+          "state.B.Pump.electric_energy_j": "B.state.Pump.electric_energy_j",
+          "state.B.Pump.throughput_kg": "B.state.Pump.throughput_kg",
+          "B.Strainer.loss_coefficient": "B.Strainer.loss_coefficient",
+          "B.Strainer.actual_drop_pa": "B.Strainer.actual_drop_pa",
+          "state.B.Strainer.throughput_kg": "B.state.Strainer.throughput_kg"
+        }
+      }
+    }
+  ],
+  "instances": [
+    {
+      "id": "Own-Equipment",
+      "module_id": "group_parallel_pumps",
+      "name": "双支路并联泵组",
+      "page_id": "main",
+      "position": {
+        "x": 450.0,
+        "y": 250.0
+      },
+      "rotation": 0,
+      "parameters": {},
+      "draft_parameters": {},
+      "banks": [],
+      "model_id": null,
+      "model_version": null,
+      "package": null
+    },
+    {
+      "id": "Own-Boundary0",
+      "module_id": "source",
+      "name": "公共排出口边界",
+      "page_id": "main",
+      "position": {
+        "x": 100.0,
+        "y": 100.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "pressure_pa": 250000.0,
+        "temperature_k": 293.15,
+        "humidity_ratio_kg_kg": 0.003
+      },
+      "draft_parameters": {},
+      "banks": [],
+      "model_id": null,
+      "model_version": null,
+      "package": null
+    },
+    {
+      "id": "Own-Boundary1",
+      "module_id": "source",
+      "name": "公共吸入口边界",
+      "page_id": "main",
+      "position": {
+        "x": 100.0,
+        "y": 210.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "pressure_pa": 250000.0,
+        "temperature_k": 293.15,
+        "humidity_ratio_kg_kg": 0.003
+      },
+      "draft_parameters": {},
+      "banks": [],
+      "model_id": null,
+      "model_version": null,
+      "package": null
+    }
+  ],
+  "connections": [
+    {
+      "id": "connection0",
+      "source": {
+        "instance_id": "Own-Boundary0",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Own-Equipment",
+        "port_id": "out0"
+      }
+    },
+    {
+      "id": "connection1",
+      "source": {
+        "instance_id": "Own-Boundary1",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Own-Equipment",
+        "port_id": "in0"
+      }
+    }
+  ],
+  "scenarios": [],
+  "selected_variables": [],
+  "import_diagnostics": [],
+  "solver": {
+    "module_mixed_jacobian": false,
+    "module_cache": false,
+    "pressure_tolerance_pa": 1.0,
+    "mass_tolerance_kg_s": 1e-08,
+    "max_iterations": 80,
+    "dynamic_step_s": 0.1,
+    "thermal": true,
+    "property_coupling": "node",
+    "thermal_tolerance_k": 1e-06,
+    "max_thermal_iterations": 50,
+    "max_coupling_iterations": 60,
+    "coupling_density_rtol": 1e-06,
+    "thermal_acceleration": "none",
+    "coupling_acceleration": "none",
+    "moist_air": false,
+    "max_step_halvings": 6,
+    "hydraulic_method": "dense",
+    "hydraulic_diagnostics": false,
+    "analytic_jacobian": true,
+    "series_compression": false,
+    "hydraulic_blocks": false,
+    "module_parallelism": 1,
+    "batch_modules": true,
+    "time_step": {
+      "enabled": false,
+      "mass_atol_kg": 1e-09,
+      "energy_atol_j": 0.001,
+      "temperature_atol_k": 1e-05,
+      "rtol": 1e-06,
+      "min_internal_step_s": 0.001,
+      "max_internal_step_s": null,
+      "safety": 0.9,
+      "growth_factor": 2.0,
+      "shrink_factor": 0.5
+    }
+  },
+  "controllers": [],
+  "control_scripts": [],
+  "circuit_fluids": [],
+  "events": []
+}

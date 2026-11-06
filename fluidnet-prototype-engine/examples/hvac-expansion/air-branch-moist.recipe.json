@@ -1,0 +1,174 @@
+{
+  "name": "air-branch-moist",
+  "fluid": {
+    "backend": "coolprop",
+    "fluid": "Air",
+    "composition": {},
+    "reference": "mass",
+    "phase_policy": "gas"
+  },
+  "solver": {
+    "module_mixed_jacobian": false,
+    "module_cache": false,
+    "pressure_tolerance_pa": 1.0,
+    "mass_tolerance_kg_s": 1e-08,
+    "max_iterations": 80,
+    "dynamic_step_s": 0.1,
+    "thermal": true,
+    "property_coupling": "node",
+    "thermal_tolerance_k": 1e-06,
+    "max_thermal_iterations": 50,
+    "max_coupling_iterations": 60,
+    "coupling_density_rtol": 1e-06,
+    "thermal_acceleration": "none",
+    "coupling_acceleration": "none",
+    "moist_air": true,
+    "moist_air_options": {
+      "contract_version": 1,
+      "property_backend": "coolprop_ha",
+      "humidity_tolerance_kg_kg": 1e-08,
+      "max_iterations": 120,
+      "relaxation": 0.7,
+      "moisture_atol_kg_s": 1e-09,
+      "moisture_rtol": 1e-06,
+      "energy_atol_w": 0.001,
+      "energy_rtol": 1e-06,
+      "flow_zero_tolerance_kg_s": 1e-10,
+      "supersaturation_policy": "error"
+    },
+    "max_step_halvings": 6,
+    "hydraulic_method": "dense",
+    "hydraulic_diagnostics": false,
+    "analytic_jacobian": true,
+    "series_compression": false,
+    "hydraulic_blocks": false,
+    "module_parallelism": 1,
+    "batch_modules": true,
+    "time_step": {
+      "enabled": false,
+      "mass_atol_kg": 1e-09,
+      "energy_atol_j": 0.001,
+      "temperature_atol_k": 1e-05,
+      "rtol": 1e-06,
+      "min_internal_step_s": 0.001,
+      "max_internal_step_s": null,
+      "safety": 0.9,
+      "growth_factor": 2.0,
+      "shrink_factor": 0.5
+    }
+  },
+  "duration_s": 2.0,
+  "dt_s": 1.0,
+  "instances": [
+    {
+      "id": "Supply",
+      "module_id": "source",
+      "name": "Supply",
+      "page_id": "main",
+      "position": {
+        "x": 110.0,
+        "y": 130.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "pressure_pa": 101525.0,
+        "temperature_k": 298.15,
+        "humidity_ratio_kg_kg": 0.008
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "ReturnA",
+      "module_id": "source",
+      "name": "ReturnA",
+      "page_id": "main",
+      "position": {
+        "x": 440.0,
+        "y": 130.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "pressure_pa": 101325.0,
+        "temperature_k": 298.15,
+        "humidity_ratio_kg_kg": 0.008
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "ReturnB",
+      "module_id": "source",
+      "name": "ReturnB",
+      "page_id": "main",
+      "position": {
+        "x": 770.0,
+        "y": 130.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "pressure_pa": 101325.0,
+        "temperature_k": 298.15,
+        "humidity_ratio_kg_kg": 0.008
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "Box-Own",
+      "module_id": "air_branch_box",
+      "name": "分支箱",
+      "page_id": "main",
+      "position": {
+        "x": 110.0,
+        "y": 350.0
+      },
+      "rotation": 0,
+      "parameters": {},
+      "draft_parameters": {},
+      "banks": [],
+      "package": {
+        "module_id": "air_branch_box",
+        "version": "1.0.0",
+        "content_hash": "7745a90a996269e1d4ffa34b751ae3e0baeee14d2a4116dcb5c650083bb63400",
+        "definition_hash": "cc07568c984cfba7bc6e8ce0652662167b8dfa42cbbb23fb47790bf18d3e71b1"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "id": "edge-0",
+      "source": {
+        "instance_id": "Supply",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Box-Own",
+        "port_id": "common"
+      }
+    },
+    {
+      "id": "edge-1",
+      "source": {
+        "instance_id": "Box-Own",
+        "port_id": "branch1"
+      },
+      "target": {
+        "instance_id": "ReturnA",
+        "port_id": "out0"
+      }
+    },
+    {
+      "id": "edge-2",
+      "source": {
+        "instance_id": "Box-Own",
+        "port_id": "branch2"
+      },
+      "target": {
+        "instance_id": "ReturnB",
+        "port_id": "out0"
+      }
+    }
+  ],
+  "circuit_fluids": []
+}

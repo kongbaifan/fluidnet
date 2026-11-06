@@ -9,6 +9,7 @@ import math
 
 from ..models import Diagnostic
 from .cycle import DeviceRangeError, compress, displaced_flow
+from .vessel_geometry import horizontal_height_ratio, horizontal_volume, headed_volume, headed_height_ratio
 
 TWO_PHASE = 'twophase'
 
@@ -32,14 +33,16 @@ class VesselState:
     vapor_enthalpy_j_kg: float
     liquid_density_kg_m3: float
     vapor_density_kg_m3: float
+    level_height_ratio: float | None = None
+    volume_m3: float | None = None
 
     def variables(self, prefix):
         return {f'{prefix}.state.{key}' if key in STATE_KEYS else f'{prefix}.{key}': value
-                for key, value in asdict(self).items()}
+                for key, value in asdict(self).items() if value is not None}
 
 
 STATE_KEYS = {'pressure_pa', 'temperature_k', 'mass_kg', 'internal_energy_j', 'liquid_mass_kg',
-              'vapor_mass_kg', 'quality', 'level_ratio', 'level_m'}
+              'vapor_mass_kg', 'quality', 'level_ratio', 'level_m', 'level_height_ratio'}
 
 
 def saturated(service, temperature):
@@ -47,9 +50,22 @@ def saturated(service, temperature):
     return service.state_tq(temperature, 0.), service.state_tq(temperature, 1.)
 
 
+def vessel_dimensions(params):
+    """Return (volume, level-height scale, horizontal); legacy vessels keep their original inputs."""
+    if 'diameter_m' in params or 'length_m' in params:
+        if not {'diameter_m', 'length_m'} <= params.keys() or {'volume_m3', 'height_m'} & params.keys():
+            raise DeviceRangeError('VESSEL_GEOMETRY_INVALID', '卧式圆筒仅使用内径和直筒长度，不能同时填写容积或立式高度')
+        try:
+            return (headed_volume if params.get('hemispherical_heads',0.) else horizontal_volume)(params['diameter_m'], params['length_m']), params['diameter_m'], True
+        except (ValueError, OverflowError) as error:
+            raise DeviceRangeError('VESSEL_GEOMETRY_INVALID', str(error)) from error
+    return params['volume_m3'], params['height_m'], False
+
+
 def vessel_initial(service, params):
     """(M, U) of a vessel filled to `level_ratio` (liquid volume fraction) at saturation `temperature_k`."""
-    volume, level = params['volume_m3'], params['level_ratio']
+    volume, _, _ = vessel_dimensions(params)
+    level = params['level_ratio']
     if not 0 < level < 1:
         raise DeviceRangeError('VESSEL_PHASE_RANGE', '初始液位必须在 0 与 1 之间（不含端点）')
     liquid, vapor = saturated(service, params['temperature_k'])
@@ -61,7 +77,7 @@ def vessel_initial(service, params):
 
 def vessel_state(service, params, mass, internal_energy):
     """Pressure, level and phase enthalpies of a closed volume from its stored mass and internal energy."""
-    volume, height = params['volume_m3'], params['height_m']
+    volume, height, horizontal = vessel_dimensions(params)
     if not (math.isfinite(mass) and math.isfinite(internal_energy)) or mass <= 0:
         raise DeviceRangeError('VESSEL_PHASE_RANGE', '容器存量必须为有限正数')
     state = service.state_du(mass / volume, internal_energy / mass)
@@ -71,9 +87,13 @@ def vessel_state(service, params, mass, internal_energy):
     vapor_mass = state.quality * mass
     liquid_mass = mass - vapor_mass
     level = liquid_mass / liquid.density_kg_m3 / volume
+    if horizontal and not 0. <= level <= 1.:
+        raise DeviceRangeError('VESSEL_PHASE_RANGE', '卧式圆筒计算液体体积分数超出 0–1')
+    height_ratio = (headed_height_ratio(level,params['diameter_m'],params['length_m']) if params.get('hemispherical_heads',0.) else horizontal_height_ratio(level)) if horizontal else level
     return VesselState(state.pressure_pa, state.temperature_k, mass, internal_energy, liquid_mass, vapor_mass,
-                       state.quality, level, level * height, liquid.enthalpy_j_kg, vapor.enthalpy_j_kg,
-                       liquid.density_kg_m3, vapor.density_kg_m3)
+                       state.quality, level, height_ratio * height, liquid.enthalpy_j_kg, vapor.enthalpy_j_kg,
+                       liquid.density_kg_m3, vapor.density_kg_m3,
+                       height_ratio if horizontal else None, volume if horizontal else None)
 
 
 def check_vessel(params, state):

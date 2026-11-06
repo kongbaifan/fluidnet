@@ -62,6 +62,8 @@ class ThermalResult:
     # Pipes with thermal_cells > 0: branch -> cell enthalpies (start→end port order) and stored power, W.
     cell_enthalpies: dict[int, np.ndarray] = field(default_factory=dict)
     cell_power_w: dict[int, float] = field(default_factory=dict)
+    # Fixed thermal-mass buffers share the accepted cell-state carrier, not the pipe model.
+    buffer_outputs: dict[int, dict] = field(default_factory=dict)
     # 湿空气模式（SolverOptions.moist_air=True）：节点含湿量、盘管/加湿器输出与水分账。
     humidity_ratio: np.ndarray | None = None
     coil_outputs: dict[str, dict] = field(default_factory=dict)
@@ -138,7 +140,7 @@ def _node_labels(network: CompiledNetwork) -> list[str]:
     for key, node in network.port_nodes.items():
         instance_id = key.split(':', 1)[0]
         model = network.modules[network.instances[instance_id].module_id].solver_model
-        if model == 'tank':
+        if model in ('tank', 'expansion_tank', 'tower_pool', 'coupled_tower_pool'):
             labels[node] = instance_id
             preferred.add(node)
         elif model not in ('pressure_source', 'junction') and node not in preferred:
@@ -206,6 +208,7 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
     (dt_s, {node: TankState}) is given; then each tank is an implicit-Euler storage node:
     h·(M_old/dt + Σin w) = M_old·h_old/dt + Σin w·h_in + Q − UA·(T − T_amb).
     """
+    from .expansion_tank import ExpansionStorage
     options = network.project.solver
     relations = relations or {}
     n, branches = len(network.node_keys), network.branches
@@ -327,8 +330,10 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
             kinds[j] = 'cooling_tower_moist'
             if flows[j] < -flow_eps:
                 raise ThermalError('AIR_REVERSE_FLOW_UNSUPPORTED', '湿空气冷却塔只支持水侧正向流动', branch.instance_id)
-        elif definition.runtime == 'builtin' and definition.solver_model == 'water_chiller':
+        elif definition.runtime == 'builtin' and definition.solver_model in ('water_chiller', 'air_cooled_chiller', 'air_source_heat_pump'):
             kinds[j] = 'water_chiller'
+        elif definition.runtime == 'builtin' and definition.solver_model == 'closed_buffer_tank':
+            kinds[j] = 'closed_buffer_tank'
         elif branch.solver_model in ('pipe', 'duct'):
             kinds[j] = 'pipe'
             pipe_ua[j] = float(params.get('heat_loss_ua_w_k', 0.0) or 0.0)
@@ -357,8 +362,8 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
         else:
             diagnostics.append(Diagnostic(code='THERMAL_EXCHANGER_NO_FLOW', severity='info', instance_id=instance_id,
                                           message=f'{instance_id} 至少一侧无流量，本次不交换热量'))
-    nonlinear = ('water_chiller' in kinds or 'cooling_tower_moist' in kinds or module_heat is not None or bool(exchangers) or any(pipe_ua[j] > 0 for j in flowing)
-                 or any(storage[node].heat_loss_ua_w_k > 0 for node in finite)
+    nonlinear = ('closed_buffer_tank' in kinds or 'water_chiller' in kinds or 'cooling_tower_moist' in kinds or module_heat is not None or bool(exchangers) or any(pipe_ua[j] > 0 for j in flowing)
+                 or any(storage[node].heat_loss_ua_w_k > 0 or hasattr(storage[node], 'gas_constant_j') or hasattr(storage[node], 'sink_energy') for node in finite)
                  or any(pipe_cells[j] > 0 for j in flowing))
 
     # Which nodes does inflow determine? Anything else sits on a closed circulation.
@@ -381,7 +386,7 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
 
     # A lossy pipe relaxes towards ambient, which also fixes the level of a closed loop it sits in.
     # Tanks fix their own enthalpy (held state or stored energy), so loops through them are well posed.
-    seeds = set(supply) | set(storage) | {downstream[j] for j in flowing
+    seeds = set(supply) | set(storage) | {downstream[j] for j in flowing if kinds[j] == 'closed_buffer_tank'} | {downstream[j] for j in flowing
                                         if kinds[j] in ('pipe', 'saturated_coil') and pipe_ua[j] > 0}
     if 'water_chiller' in kinds:
         # Neither liquid side may acquire a hidden heat sink from a fallback temperature pin.
@@ -435,8 +440,16 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
             if node in fixed_rows:
                 continue
             spec = storage[node]
+            if hasattr(spec, 'gas_constant_j'):
+                mass = old.mass_kg - dt_s * net_out[node]
+                diagonal, rhs, _, _ = spec.energy_terms(old, mass, float(pressures[node]), float(h[node]), dt_s)
+                terms[node] = (diagonal, rhs)
+                continue
             diagonal = old.mass_kg / dt_s
             rhs = old.mass_kg * old.enthalpy_j_kg / dt_s + spec.heat_input_w
+            if hasattr(spec, 'sink_energy'):
+                diagonal -= spec.loss_mass_rate()
+                rhs -= spec.sink_energy(states[node])
             if spec.heat_loss_ua_w_k > 0:
                 cp = states[node].specific_heat_j_kg_k
                 offset = states[node].temperature_k - h[node] / cp
@@ -446,6 +459,27 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
         return terms
 
     chains: dict[int, tuple[list, float]] = {}  # flowing pipe with cells -> (cell relations, cell mass), last pass
+
+    def buffer_candidate(j, h):
+        forced=getattr(network,'coupled_buffer_enthalpies',{})
+        iid=branches[j].instance_id
+        if iid in forced:
+            from .buffer_tank import liquid_state
+            params=network.parameters[iid];enthalpy=forced[iid]
+            state=svc(downstream[j]).state_ph(float(pressures[downstream[j]]),enthalpy)
+            if not params['minimum_temperature_k']<=state.temperature_k<=params['maximum_temperature_k']:
+                raise ValueError('耦合缓冲温度超出范围')
+            liquid_state(svc(downstream[j]),float(pressures[downstream[j]]),state.temperature_k,iid)
+            loss=params['heat_loss_ua_w_k']*(state.temperature_k-params['ambient_temperature_k'])
+            power=(float(weight[j]) if j in flowing else 0.)*(float(h[upstream[j]])-enthalpy)+params['heat_input_w']-loss
+            return enthalpy,{'state.enthalpy_j_kg':enthalpy,'state.temperature_k':state.temperature_k,
+                'state.mass_kg':params['mass_kg'],'state.stored_energy_j':params['mass_kg']*enthalpy,
+                'state.stored_power_w':power,'ambient_heat_loss_w':loss,'energy_residual_w':0.}
+        from .buffer_tank import candidate as buffer_trial
+        old = float(cell_old[j][0]) if j in cell_old else None
+        return buffer_trial(network.parameters[branches[j].instance_id], svc(downstream[j]),
+            float(pressures[downstream[j]]), float(h[upstream[j]]), float(weight[j]) if j in flowing else 0.,
+            old, dt_s, branches[j].instance_id)
 
     def environment_h(j, states, h, node):
         """Enthalpy the pipe wall relaxes to; across a phase boundary only sensible heat (see below)."""
@@ -499,6 +533,10 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
             if j in coupled:
                 weights[j] = {}
                 consts[j] = coupled[j].outlet_state.enthalpy_j_kg
+                continue
+            if kinds[j] == 'closed_buffer_tank':
+                weights[j] = {}
+                consts[j] = buffer_candidate(j, h)[0]
                 continue
             if kinds[j] == 'pipe' and pipe_cells[j] > 0:
                 a, offset, cells, mass = cell_chain(j, states, h)
@@ -624,7 +662,7 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
         assert states is not None  # Nonlinear iterations always evaluate node states above.
         change = max((abs(candidate[k] - h[k]) / (states[k].specific_heat_j_kg_k or 4180.0) for k in range(n)), default=0.0)
         if change < options.thermal_tolerance_k:
-            if module_heat is not None or saturated_coils or 'cooling_tower_moist' in kinds or 'water_chiller' in kinds:
+            if module_heat is not None or saturated_coils or 'cooling_tower_moist' in kinds or 'water_chiller' in kinds or 'closed_buffer_tank' in kinds:
                 used_heat = heat.copy()
                 final_states = node_states(candidate)
                 final_weights, final_consts = relations_for(final_states, candidate)
@@ -660,7 +698,7 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
     else:
         raise ThermalError('THERMAL_NOT_CONVERGED', f'热力迭代 {options.max_thermal_iterations} 次未收敛，请检查换热与散热参数')
 
-    if module_heat is not None or saturated_coils or 'cooling_tower_moist' in kinds or 'water_chiller' in kinds:
+    if module_heat is not None or saturated_coils or 'cooling_tower_moist' in kinds or 'water_chiller' in kinds or 'closed_buffer_tank' in kinds:
         used_heat = heat.copy()
         final_states = node_states(h)
         weights, consts = relations_for(final_states, h)
@@ -716,8 +754,13 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
                     instance_id=branches[j].instance_id,message='飘水限制可达到的浓缩倍数；已输出实际值'))
 
     # Cell enthalpies (start→end port order) and the power each pipe stores in its cells.
-    cell_enthalpies, cell_power = {}, {}
+    cell_enthalpies, cell_power, buffer_outputs = {}, {}, {}
     for j in range(m):
+        if kinds[j] == 'closed_buffer_tank':
+            buffer_h, buffer_outputs[j] = buffer_candidate(j, h)
+            cell_enthalpies[j] = np.array([buffer_h])
+            cell_power[j] = buffer_outputs[j]['state.stored_power_w']
+            continue
         if kinds[j] != 'pipe' or pipe_cells[j] <= 0:
             continue
         if j in chains:
@@ -760,8 +803,19 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
     storage_power = dict(stream_net)
     for node, old in finite.items():
         spec = storage[node]
+        if isinstance(spec, ExpansionStorage):
+            mass = old.mass_kg - dt_s * net_out[node]
+            _, _, stored, gas_work = spec.energy_terms(old, mass, float(pressures[node]), float(h[node]), dt_s)
+            loss = spec.heat_loss_ua_w_k * (states[node].temperature_k - spec.ambient_temperature_k)
+            residual_tank = stored - stream_net[node] - spec.heat_input_w + loss - gas_work
+            if abs(residual_tank) > 1e-4 + ENERGY_RTOL * max(abs(stored), abs(stream_net[node]), 1.):
+                raise ThermalError('THERMAL_ENERGY_IMBALANCE', '气垫罐液体内能与气体功未闭合', spec.instance_id)
+            storage_power[node] = stored
+            continue
         loss = spec.heat_loss_ua_w_k * (states[node].temperature_k - spec.ambient_temperature_k)
         storage_power[node] = stream_net[node] + spec.heat_input_w - loss
+        sink = spec.sink_energy(states[node]) if hasattr(spec, 'sink_energy') else 0.
+        storage_power[node] -= sink
         if node in fixed_rows:
             continue
         # Own balance: (M_old·h − M_old·h_old)/dt + Σin w·h = Σin w·h_in + Q − loss. The loss was
@@ -769,6 +823,7 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
         inflow = sum(weight[j] * outlet_h[j] for j in flowing if downstream[j] == node)
         tank_residual = old.mass_kg * (h[node] - old.enthalpy_j_kg) / dt_s + inflow_total[node] * h[node] - inflow \
             - spec.heat_input_w + loss
+        tank_residual += sink - spec.loss_mass_rate()*h[node]
         tank_scale = 1.0 + old.mass_kg * abs(h[node]) / dt_s + abs(inflow) + abs(spec.heat_input_w)
         if abs(tank_residual) > ENERGY_RTOL * tank_scale + 10 * spec.heat_loss_ua_w_k * options.thermal_tolerance_k:
             raise ThermalError('THERMAL_ENERGY_IMBALANCE', f'{spec.instance_id} 储能方程残差 {tank_residual:.6g} W 超出容差',
@@ -802,6 +857,6 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
                          boundary_supply=supply, boundary_states=boundary_states, port_states=port_states,
                          reference_heat_w=float(reference_heat), energy_residual_w=residual, iterations=iterations,
                          diagnostics=diagnostics, storage_power_w=storage_power,
-                         cell_enthalpies=cell_enthalpies, cell_power_w=cell_power,
+                         cell_enthalpies=cell_enthalpies, cell_power_w=cell_power, buffer_outputs=buffer_outputs,
                          coil_outputs=coil_outputs)
 

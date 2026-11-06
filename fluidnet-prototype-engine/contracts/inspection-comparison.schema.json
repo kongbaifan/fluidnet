@@ -1,0 +1,42 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "left_run_id": {
+      "title": "Left Run Id",
+      "type": "string"
+    },
+    "right_run_id": {
+      "title": "Right Run Id",
+      "type": "string"
+    },
+    "same_project": {
+      "title": "Same Project",
+      "type": "boolean"
+    },
+    "differences": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Differences",
+      "type": "array"
+    },
+    "notes": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Notes",
+      "type": "array"
+    }
+  },
+  "required": [
+    "left_run_id",
+    "right_run_id",
+    "same_project",
+    "differences",
+    "notes"
+  ],
+  "title": "InspectionComparison",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

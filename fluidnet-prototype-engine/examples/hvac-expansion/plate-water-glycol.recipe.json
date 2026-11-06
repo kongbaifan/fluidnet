@@ -1,0 +1,205 @@
+{
+  "name": "plate-water-glycol",
+  "fluid": {
+    "backend": "coolprop",
+    "fluid": "Water",
+    "composition": {},
+    "reference": "mass",
+    "phase_policy": "liquid"
+  },
+  "solver": {
+    "module_mixed_jacobian": false,
+    "module_cache": false,
+    "pressure_tolerance_pa": 1.0,
+    "mass_tolerance_kg_s": 1e-08,
+    "max_iterations": 80,
+    "dynamic_step_s": 0.1,
+    "thermal": true,
+    "property_coupling": "node",
+    "thermal_tolerance_k": 1e-06,
+    "max_thermal_iterations": 50,
+    "max_coupling_iterations": 60,
+    "coupling_density_rtol": 1e-06,
+    "thermal_acceleration": "none",
+    "coupling_acceleration": "none",
+    "moist_air": false,
+    "max_step_halvings": 6,
+    "hydraulic_method": "dense",
+    "hydraulic_diagnostics": false,
+    "analytic_jacobian": true,
+    "series_compression": false,
+    "hydraulic_blocks": false,
+    "module_parallelism": 1,
+    "batch_modules": true,
+    "time_step": {
+      "enabled": false,
+      "mass_atol_kg": 1e-09,
+      "energy_atol_j": 0.001,
+      "temperature_atol_k": 1e-05,
+      "rtol": 1e-06,
+      "min_internal_step_s": 0.001,
+      "max_internal_step_s": null,
+      "safety": 0.9,
+      "growth_factor": 2.0,
+      "shrink_factor": 0.5
+    }
+  },
+  "duration_s": 2.0,
+  "dt_s": 1.0,
+  "instances": [
+    {
+      "id": "HotIn",
+      "module_id": "source",
+      "name": "HotIn",
+      "page_id": "main",
+      "position": {
+        "x": 110.0,
+        "y": 130.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "pressure_pa": 220000.0,
+        "temperature_k": 333.15,
+        "humidity_ratio_kg_kg": 0.008
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "HotOut",
+      "module_id": "source",
+      "name": "HotOut",
+      "page_id": "main",
+      "position": {
+        "x": 440.0,
+        "y": 130.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "pressure_pa": 200000.0,
+        "temperature_k": 333.15,
+        "humidity_ratio_kg_kg": 0.008
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "ColdIn",
+      "module_id": "source",
+      "name": "ColdIn",
+      "page_id": "main",
+      "position": {
+        "x": 770.0,
+        "y": 130.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "pressure_pa": 220000.0,
+        "temperature_k": 293.15,
+        "humidity_ratio_kg_kg": 0.008
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "ColdOut",
+      "module_id": "source",
+      "name": "ColdOut",
+      "page_id": "main",
+      "position": {
+        "x": 110.0,
+        "y": 350.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "pressure_pa": 200000.0,
+        "temperature_k": 293.15,
+        "humidity_ratio_kg_kg": 0.008
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "Plate-Own",
+      "module_id": "plate_exchanger",
+      "name": "板式换热器",
+      "page_id": "main",
+      "position": {
+        "x": 440.0,
+        "y": 350.0
+      },
+      "rotation": 0,
+      "parameters": {},
+      "draft_parameters": {},
+      "banks": [],
+      "package": {
+        "module_id": "plate_exchanger",
+        "version": "1.0.0",
+        "content_hash": "0ef82160929c9ea6353b5a66b648a384f7107e0f8d89d641c4239c412b9e1c0c",
+        "definition_hash": "3ac073f376c8df5ed94396517b16f717634caa6734960bcb4562ea18e1ec38de"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "id": "edge-0",
+      "source": {
+        "instance_id": "HotIn",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Plate-Own",
+        "port_id": "hot_in"
+      }
+    },
+    {
+      "id": "edge-1",
+      "source": {
+        "instance_id": "Plate-Own",
+        "port_id": "hot_out"
+      },
+      "target": {
+        "instance_id": "HotOut",
+        "port_id": "out0"
+      }
+    },
+    {
+      "id": "edge-2",
+      "source": {
+        "instance_id": "ColdIn",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Plate-Own",
+        "port_id": "cold_in"
+      }
+    },
+    {
+      "id": "edge-3",
+      "source": {
+        "instance_id": "Plate-Own",
+        "port_id": "cold_out"
+      },
+      "target": {
+        "instance_id": "ColdOut",
+        "port_id": "out0"
+      }
+    }
+  ],
+  "circuit_fluids": [
+    {
+      "id": "glycol",
+      "anchor": {
+        "instance_id": "ColdIn",
+        "port_id": "out0"
+      },
+      "fluid": {
+        "backend": "coolprop",
+        "fluid": "INCOMP::MEG[0.3]",
+        "composition": {},
+        "reference": "mass",
+        "phase_policy": "liquid"
+      }
+    }
+  ]
+}

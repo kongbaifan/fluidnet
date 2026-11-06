@@ -1,0 +1,242 @@
+{
+  "name": "水盘管与混合缓冲箱",
+  "fluid": {
+    "backend": "coolprop",
+    "fluid": "Air",
+    "composition": {},
+    "reference": "mass",
+    "phase_policy": "gas"
+  },
+  "solver": {
+    "module_mixed_jacobian": false,
+    "module_cache": false,
+    "pressure_tolerance_pa": 1.0,
+    "mass_tolerance_kg_s": 1e-08,
+    "max_iterations": 80,
+    "dynamic_step_s": 1.0,
+    "thermal": true,
+    "property_coupling": "node",
+    "thermal_tolerance_k": 1e-06,
+    "max_thermal_iterations": 50,
+    "max_coupling_iterations": 80,
+    "coupling_density_rtol": 1e-06,
+    "thermal_acceleration": "none",
+    "coupling_acceleration": "none",
+    "moist_air": true,
+    "moist_air_options": {
+      "contract_version": 1,
+      "property_backend": "coolprop_ha",
+      "humidity_tolerance_kg_kg": 1e-10,
+      "max_iterations": 160,
+      "relaxation": 0.7,
+      "moisture_atol_kg_s": 1e-09,
+      "moisture_rtol": 1e-06,
+      "energy_atol_w": 0.001,
+      "energy_rtol": 1e-06,
+      "flow_zero_tolerance_kg_s": 1e-10,
+      "supersaturation_policy": "error"
+    },
+    "max_step_halvings": 6,
+    "hydraulic_method": "dense",
+    "hydraulic_diagnostics": false,
+    "analytic_jacobian": true,
+    "series_compression": false,
+    "hydraulic_blocks": false,
+    "module_parallelism": 1,
+    "batch_modules": true,
+    "time_step": {
+      "enabled": false,
+      "mass_atol_kg": 1e-09,
+      "energy_atol_j": 0.001,
+      "temperature_atol_k": 1e-05,
+      "rtol": 1e-06,
+      "min_internal_step_s": 0.001,
+      "max_internal_step_s": null,
+      "safety": 0.9,
+      "growth_factor": 2.0,
+      "shrink_factor": 0.5
+    }
+  },
+  "duration_s": 2.0,
+  "dt_s": 1.0,
+  "instances": [
+    {
+      "id": "AirIn",
+      "module_id": "source",
+      "name": "AirIn",
+      "page_id": "main",
+      "position": {
+        "x": 100.0,
+        "y": 100.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "pressure_pa": 101425.0,
+        "temperature_k": 300.15,
+        "humidity_ratio_kg_kg": 0.01
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "AirOut",
+      "module_id": "source",
+      "name": "AirOut",
+      "page_id": "main",
+      "position": {
+        "x": 430.0,
+        "y": 100.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "pressure_pa": 101325.0,
+        "temperature_k": 300.15,
+        "humidity_ratio_kg_kg": 0.01
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "WaterIn",
+      "module_id": "source",
+      "name": "WaterIn",
+      "page_id": "main",
+      "position": {
+        "x": 760.0,
+        "y": 100.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "pressure_pa": 201000.0,
+        "temperature_k": 280.15,
+        "humidity_ratio_kg_kg": 0
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "WaterOut",
+      "module_id": "source",
+      "name": "WaterOut",
+      "page_id": "main",
+      "position": {
+        "x": 100.0,
+        "y": 350.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "pressure_pa": 200000.0,
+        "temperature_k": 280.15,
+        "humidity_ratio_kg_kg": 0
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "Buffer",
+      "module_id": "hydronic_buffer_tank",
+      "name": "风水混合缓冲箱",
+      "page_id": "main",
+      "position": {
+        "x": 430.0,
+        "y": 350.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "mass_kg": 30.0,
+        "temperature_k": 290.15,
+        "heat_loss_ua_w_k": 10.0,
+        "ambient_temperature_k": 293.15
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "Coil",
+      "module_id": "water_coil",
+      "name": "真实水盘管",
+      "page_id": "main",
+      "position": {
+        "x": 760.0,
+        "y": 350.0
+      },
+      "rotation": 0,
+      "parameters": {},
+      "draft_parameters": {},
+      "banks": []
+    }
+  ],
+  "connections": [
+    {
+      "id": "edge-0",
+      "source": {
+        "instance_id": "AirIn",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Coil",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "edge-1",
+      "source": {
+        "instance_id": "Coil",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "AirOut",
+        "port_id": "out0"
+      }
+    },
+    {
+      "id": "edge-2",
+      "source": {
+        "instance_id": "WaterIn",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Buffer",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "edge-3",
+      "source": {
+        "instance_id": "Buffer",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Coil",
+        "port_id": "in1"
+      }
+    },
+    {
+      "id": "edge-4",
+      "source": {
+        "instance_id": "Coil",
+        "port_id": "out1"
+      },
+      "target": {
+        "instance_id": "WaterOut",
+        "port_id": "out0"
+      }
+    }
+  ],
+  "circuit_fluids": [
+    {
+      "id": "water",
+      "anchor": {
+        "instance_id": "Buffer",
+        "port_id": "in0"
+      },
+      "fluid": {
+        "backend": "coolprop",
+        "fluid": "Water",
+        "composition": {},
+        "reference": "mass",
+        "phase_policy": "liquid"
+      }
+    }
+  ]
+}

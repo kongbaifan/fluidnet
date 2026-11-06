@@ -1,0 +1,1304 @@
+{
+  "schema_version": 3,
+  "id": "group_secondary_exchanger",
+  "name": "双侧换热与平衡阀组",
+  "version": 1,
+  "category": "暖通基础设备",
+  "description": "双侧换热与平衡阀组：内部展开为固定版本部件，按节点质量与焓守恒求解。",
+  "ports": [
+    {
+      "id": "cold_in",
+      "label": "冷侧入口",
+      "domain": "fluid",
+      "direction": "in",
+      "required": true,
+      "circuit": "fluid0"
+    },
+    {
+      "id": "hot_out",
+      "label": "热侧出口",
+      "domain": "fluid",
+      "direction": "out",
+      "required": true,
+      "circuit": "fluid1"
+    },
+    {
+      "id": "cold_out",
+      "label": "冷侧出口",
+      "domain": "fluid",
+      "direction": "out",
+      "required": true,
+      "circuit": "fluid0"
+    },
+    {
+      "id": "hot_in",
+      "label": "热侧入口",
+      "domain": "fluid",
+      "direction": "in",
+      "required": true,
+      "circuit": "fluid1"
+    }
+  ],
+  "parameters": [
+    {
+      "id": "ColdValve_opening_ratio",
+      "label": "ColdValve · 预设／开度",
+      "value_type": "number",
+      "default": 1.0,
+      "unit": {
+        "quantity": "ratio",
+        "canonical_unit": "1",
+        "display_unit": "%",
+        "display_scale": 0.01,
+        "display_offset": 0.0
+      },
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "runtime": true,
+      "writable": true
+    },
+    {
+      "id": "HotValve_opening_ratio",
+      "label": "HotValve · 预设／开度",
+      "value_type": "number",
+      "default": 1.0,
+      "unit": {
+        "quantity": "ratio",
+        "canonical_unit": "1",
+        "display_unit": "%",
+        "display_scale": 0.01,
+        "display_offset": 0.0
+      },
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "runtime": true,
+      "writable": true
+    },
+    {
+      "id": "Exchanger_clean_ua_w_k",
+      "label": "Exchanger · 清洁UA",
+      "value_type": "number",
+      "default": 2000.0,
+      "unit": {
+        "quantity": "conductance",
+        "canonical_unit": "W/K",
+        "display_unit": "kW/K",
+        "display_scale": 1000.0,
+        "display_offset": 0.0
+      },
+      "minimum": 0.0,
+      "maximum": null,
+      "runtime": false,
+      "writable": true
+    },
+    {
+      "id": "Exchanger_hot_fouling_resistance_k_w",
+      "label": "Exchanger · 热侧总污垢热阻",
+      "value_type": "number",
+      "default": 0.0,
+      "unit": {
+        "quantity": "thermal_resistance",
+        "canonical_unit": "K/W",
+        "display_unit": "K/W",
+        "display_scale": 1.0,
+        "display_offset": 0.0
+      },
+      "minimum": 0.0,
+      "maximum": null,
+      "runtime": false,
+      "writable": true
+    },
+    {
+      "id": "Exchanger_cold_fouling_resistance_k_w",
+      "label": "Exchanger · 冷侧总污垢热阻",
+      "value_type": "number",
+      "default": 0.0,
+      "unit": {
+        "quantity": "thermal_resistance",
+        "canonical_unit": "K/W",
+        "display_unit": "K/W",
+        "display_scale": 1.0,
+        "display_offset": 0.0
+      },
+      "minimum": 0.0,
+      "maximum": null,
+      "runtime": false,
+      "writable": true
+    },
+    {
+      "id": "Exchanger_hot_diameter_m",
+      "label": "Exchanger · 热侧通路内径",
+      "value_type": "number",
+      "default": 0.04,
+      "unit": {
+        "quantity": "length",
+        "canonical_unit": "m",
+        "display_unit": "mm",
+        "display_scale": 0.001,
+        "display_offset": 0.0
+      },
+      "minimum": 0.001,
+      "maximum": null,
+      "runtime": false,
+      "writable": true
+    },
+    {
+      "id": "Exchanger_hot_loss_coefficient",
+      "label": "Exchanger · 热侧阻力K",
+      "value_type": "number",
+      "default": 5.0,
+      "unit": {
+        "quantity": "ratio",
+        "canonical_unit": "1",
+        "display_unit": "1",
+        "display_scale": 1.0,
+        "display_offset": 0.0
+      },
+      "minimum": 0.001,
+      "maximum": null,
+      "runtime": false,
+      "writable": true
+    },
+    {
+      "id": "Exchanger_cold_diameter_m",
+      "label": "Exchanger · 冷侧通路内径",
+      "value_type": "number",
+      "default": 0.04,
+      "unit": {
+        "quantity": "length",
+        "canonical_unit": "m",
+        "display_unit": "mm",
+        "display_scale": 0.001,
+        "display_offset": 0.0
+      },
+      "minimum": 0.001,
+      "maximum": null,
+      "runtime": false,
+      "writable": true
+    },
+    {
+      "id": "Exchanger_cold_loss_coefficient",
+      "label": "Exchanger · 冷侧阻力K",
+      "value_type": "number",
+      "default": 12.0,
+      "unit": {
+        "quantity": "ratio",
+        "canonical_unit": "1",
+        "display_unit": "1",
+        "display_scale": 1.0,
+        "display_offset": 0.0
+      },
+      "minimum": 0.001,
+      "maximum": null,
+      "runtime": false,
+      "writable": true
+    },
+    {
+      "id": "HotValve_kv_m3_h",
+      "label": "HotValve · 全开 Kv",
+      "value_type": "number",
+      "default": 16.0,
+      "unit": {
+        "quantity": "flow_coefficient",
+        "canonical_unit": "m³/h",
+        "display_unit": "m³/h",
+        "display_scale": 1.0,
+        "display_offset": 0.0
+      },
+      "minimum": 0.001,
+      "maximum": null,
+      "runtime": false,
+      "writable": true
+    },
+    {
+      "id": "HotValve_characteristic_curve",
+      "label": "HotValve · 位置—相对流通能力曲线",
+      "value_type": "curve",
+      "default": [
+        [
+          0,
+          0
+        ],
+        [
+          0.25,
+          0.15
+        ],
+        [
+          0.5,
+          0.4
+        ],
+        [
+          0.75,
+          0.7
+        ],
+        [
+          1,
+          1
+        ]
+      ],
+      "unit": null,
+      "minimum": null,
+      "maximum": null,
+      "runtime": false,
+      "writable": true
+    },
+    {
+      "id": "HotValve_operation_mode",
+      "label": "HotValve · 操作方式（modulating／on_off）",
+      "value_type": "text",
+      "default": "modulating",
+      "unit": null,
+      "minimum": null,
+      "maximum": null,
+      "runtime": false,
+      "writable": true
+    },
+    {
+      "id": "ColdValve_kv_m3_h",
+      "label": "ColdValve · 全开 Kv",
+      "value_type": "number",
+      "default": 16.0,
+      "unit": {
+        "quantity": "flow_coefficient",
+        "canonical_unit": "m³/h",
+        "display_unit": "m³/h",
+        "display_scale": 1.0,
+        "display_offset": 0.0
+      },
+      "minimum": 0.001,
+      "maximum": null,
+      "runtime": false,
+      "writable": true
+    },
+    {
+      "id": "ColdValve_characteristic_curve",
+      "label": "ColdValve · 位置—相对流通能力曲线",
+      "value_type": "curve",
+      "default": [
+        [
+          0,
+          0
+        ],
+        [
+          0.25,
+          0.15
+        ],
+        [
+          0.5,
+          0.4
+        ],
+        [
+          0.75,
+          0.7
+        ],
+        [
+          1,
+          1
+        ]
+      ],
+      "unit": null,
+      "minimum": null,
+      "maximum": null,
+      "runtime": false,
+      "writable": true
+    },
+    {
+      "id": "ColdValve_operation_mode",
+      "label": "ColdValve · 操作方式（modulating／on_off）",
+      "value_type": "text",
+      "default": "modulating",
+      "unit": null,
+      "minimum": null,
+      "maximum": null,
+      "runtime": false,
+      "writable": true
+    }
+  ],
+  "variables": [
+    {
+      "id": "ColdValve.effective_opening",
+      "label": "ColdValve · 有效流通比例",
+      "quantity": "ratio",
+      "unit": {
+        "quantity": "ratio",
+        "canonical_unit": "1",
+        "display_unit": "1",
+        "display_scale": 1.0,
+        "display_offset": 0.0
+      },
+      "source": "derived",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": null,
+      "port_id": null
+    },
+    {
+      "id": "ColdValve.actual_drop_pa",
+      "label": "ColdValve · 实测压差",
+      "quantity": "pressure",
+      "unit": {
+        "quantity": "pressure",
+        "canonical_unit": "Pa",
+        "display_unit": "kPa",
+        "display_scale": 1000.0,
+        "display_offset": 0.0
+      },
+      "source": "derived",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": null,
+      "port_id": null
+    },
+    {
+      "id": "ColdValve.actual_volume_flow_m3_h",
+      "label": "ColdValve · 实际体积流量",
+      "quantity": "volume_flow",
+      "unit": {
+        "quantity": "volume_flow",
+        "canonical_unit": "m³/h",
+        "display_unit": "m³/h",
+        "display_scale": 1.0,
+        "display_offset": 0.0
+      },
+      "source": "derived",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": null,
+      "port_id": null
+    },
+    {
+      "id": "state.ColdValve.throughput_kg",
+      "label": "ColdValve · 累计通过质量",
+      "quantity": "mass",
+      "unit": {
+        "quantity": "mass",
+        "canonical_unit": "kg",
+        "display_unit": "kg",
+        "display_scale": 1.0,
+        "display_offset": 0.0
+      },
+      "source": "state",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": null,
+      "port_id": null
+    },
+    {
+      "id": "Exchanger.effective_ua_w_k",
+      "label": "Exchanger · 污垢后有效UA",
+      "quantity": "conductance",
+      "unit": {
+        "quantity": "conductance",
+        "canonical_unit": "W/K",
+        "display_unit": "kW/K",
+        "display_scale": 1000.0,
+        "display_offset": 0.0
+      },
+      "source": "derived",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": null,
+      "port_id": null
+    },
+    {
+      "id": "Exchanger.transferred_heat_w",
+      "label": "Exchanger · 冷侧得热",
+      "quantity": "power",
+      "unit": {
+        "quantity": "power",
+        "canonical_unit": "W",
+        "display_unit": "kW",
+        "display_scale": 1000.0,
+        "display_offset": 0.0
+      },
+      "source": "derived",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": null,
+      "port_id": null
+    },
+    {
+      "id": "state.Exchanger.transferred_energy_j",
+      "label": "Exchanger · 累计冷侧得热",
+      "quantity": "energy",
+      "unit": {
+        "quantity": "energy",
+        "canonical_unit": "J",
+        "display_unit": "kWh",
+        "display_scale": 3600000.0,
+        "display_offset": 0.0
+      },
+      "source": "state",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": null,
+      "port_id": null
+    },
+    {
+      "id": "Exchanger.hot_pressure_drop_pa",
+      "label": "Exchanger · hot压差",
+      "quantity": "pressure",
+      "unit": {
+        "quantity": "pressure",
+        "canonical_unit": "Pa",
+        "display_unit": "kPa",
+        "display_scale": 1000.0,
+        "display_offset": 0.0
+      },
+      "source": "derived",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": null,
+      "port_id": null
+    },
+    {
+      "id": "Exchanger.cold_pressure_drop_pa",
+      "label": "Exchanger · cold压差",
+      "quantity": "pressure",
+      "unit": {
+        "quantity": "pressure",
+        "canonical_unit": "Pa",
+        "display_unit": "kPa",
+        "display_scale": 1000.0,
+        "display_offset": 0.0
+      },
+      "source": "derived",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": null,
+      "port_id": null
+    },
+    {
+      "id": "HotValve.effective_opening",
+      "label": "HotValve · 有效流通比例",
+      "quantity": "ratio",
+      "unit": {
+        "quantity": "ratio",
+        "canonical_unit": "1",
+        "display_unit": "1",
+        "display_scale": 1.0,
+        "display_offset": 0.0
+      },
+      "source": "derived",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": null,
+      "port_id": null
+    },
+    {
+      "id": "HotValve.actual_drop_pa",
+      "label": "HotValve · 实测压差",
+      "quantity": "pressure",
+      "unit": {
+        "quantity": "pressure",
+        "canonical_unit": "Pa",
+        "display_unit": "kPa",
+        "display_scale": 1000.0,
+        "display_offset": 0.0
+      },
+      "source": "derived",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": null,
+      "port_id": null
+    },
+    {
+      "id": "HotValve.actual_volume_flow_m3_h",
+      "label": "HotValve · 实际体积流量",
+      "quantity": "volume_flow",
+      "unit": {
+        "quantity": "volume_flow",
+        "canonical_unit": "m³/h",
+        "display_unit": "m³/h",
+        "display_scale": 1.0,
+        "display_offset": 0.0
+      },
+      "source": "derived",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": null,
+      "port_id": null
+    },
+    {
+      "id": "state.HotValve.throughput_kg",
+      "label": "HotValve · 累计通过质量",
+      "quantity": "mass",
+      "unit": {
+        "quantity": "mass",
+        "canonical_unit": "kg",
+        "display_unit": "kg",
+        "display_scale": 1.0,
+        "display_offset": 0.0
+      },
+      "source": "state",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": null,
+      "port_id": null
+    }
+  ],
+  "channels": [],
+  "solver_model": "generic",
+  "state_model": null,
+  "thermal_model": null,
+  "source_format": "python-v1",
+  "runtime": "python",
+  "entrypoint": "module:Module",
+  "bank_names": [
+    "额定工况",
+    "部分负荷",
+    "调试备份"
+  ],
+  "sdk": {
+    "api_version": "0.5.0",
+    "capabilities": [
+      "composite.v1"
+    ],
+    "state_contract_version": 1
+  },
+  "applicability": {
+    "execution_domains": [
+      "fluid"
+    ],
+    "phases": [
+      "liquid",
+      "gas"
+    ],
+    "fluids": [],
+    "limits": [],
+    "assumptions": [
+      "组合展开复用子模块精确版本；外端口和公开参数一对一映射。"
+    ]
+  },
+  "hydraulic_dependencies": {},
+  "dependency_mode": "conservative",
+  "pure_evaluate": false,
+  "composite": {
+    "children": [
+      {
+        "id": "ColdValve",
+        "module_id": "water_balancing_valve",
+        "version": 1,
+        "content_hash": "29adbd4325a23eab9bc2f980a0b3dfd11a06053c4e54e92c0786dad1a528261f",
+        "definition_hash": "e7cd0cc676a75341687d884a34f2d4ab288f48fb4066467073156bf21aa22870",
+        "parameters": {}
+      },
+      {
+        "id": "Exchanger",
+        "module_id": "plate_exchanger",
+        "version": 1,
+        "content_hash": "0ef82160929c9ea6353b5a66b648a384f7107e0f8d89d641c4239c412b9e1c0c",
+        "definition_hash": "3ac073f376c8df5ed94396517b16f717634caa6734960bcb4562ea18e1ec38de",
+        "parameters": {}
+      },
+      {
+        "id": "HotValve",
+        "module_id": "water_balancing_valve",
+        "version": 1,
+        "content_hash": "29adbd4325a23eab9bc2f980a0b3dfd11a06053c4e54e92c0786dad1a528261f",
+        "definition_hash": "e7cd0cc676a75341687d884a34f2d4ab288f48fb4066467073156bf21aa22870",
+        "parameters": {}
+      }
+    ],
+    "modules": [
+      {
+        "schema_version": 3,
+        "id": "water_balancing_valve",
+        "name": "手动平衡阀",
+        "version": 1,
+        "category": "暖通基础设备",
+        "description": "手动平衡阀：单相基础设备，型号参数须按工程资料填写。",
+        "ports": [
+          {
+            "id": "in0",
+            "label": "入口",
+            "domain": "fluid",
+            "direction": "in",
+            "required": true,
+            "circuit": "fluid"
+          },
+          {
+            "id": "out0",
+            "label": "出口",
+            "domain": "fluid",
+            "direction": "out",
+            "required": true,
+            "circuit": "fluid"
+          }
+        ],
+        "parameters": [
+          {
+            "id": "opening_ratio",
+            "label": "预设／开度",
+            "value_type": "number",
+            "default": 1.0,
+            "unit": {
+              "quantity": "ratio",
+              "canonical_unit": "1",
+              "display_unit": "%",
+              "display_scale": 0.01,
+              "display_offset": 0.0
+            },
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "runtime": true,
+            "writable": true
+          },
+          {
+            "id": "kv_m3_h",
+            "label": "全开 Kv",
+            "value_type": "number",
+            "default": 16.0,
+            "unit": {
+              "quantity": "flow_coefficient",
+              "canonical_unit": "m³/h",
+              "display_unit": "m³/h",
+              "display_scale": 1.0,
+              "display_offset": 0.0
+            },
+            "minimum": 0.001,
+            "maximum": null,
+            "runtime": false,
+            "writable": true
+          },
+          {
+            "id": "characteristic_curve",
+            "label": "位置—相对流通能力曲线",
+            "value_type": "curve",
+            "default": [
+              [
+                0,
+                0
+              ],
+              [
+                0.25,
+                0.15
+              ],
+              [
+                0.5,
+                0.4
+              ],
+              [
+                0.75,
+                0.7
+              ],
+              [
+                1,
+                1
+              ]
+            ],
+            "unit": null,
+            "minimum": null,
+            "maximum": null,
+            "runtime": false,
+            "writable": true
+          },
+          {
+            "id": "operation_mode",
+            "label": "操作方式（modulating／on_off）",
+            "value_type": "text",
+            "default": "modulating",
+            "unit": null,
+            "minimum": null,
+            "maximum": null,
+            "runtime": false,
+            "writable": true
+          }
+        ],
+        "variables": [
+          {
+            "id": "effective_opening",
+            "label": "有效流通比例",
+            "quantity": "ratio",
+            "unit": {
+              "quantity": "ratio",
+              "canonical_unit": "1",
+              "display_unit": "1",
+              "display_scale": 1.0,
+              "display_offset": 0.0
+            },
+            "source": "derived",
+            "writable": false,
+            "sampleable": true,
+            "parameter_id": null,
+            "port_id": null
+          },
+          {
+            "id": "actual_drop_pa",
+            "label": "实测压差",
+            "quantity": "pressure",
+            "unit": {
+              "quantity": "pressure",
+              "canonical_unit": "Pa",
+              "display_unit": "kPa",
+              "display_scale": 1000.0,
+              "display_offset": 0.0
+            },
+            "source": "derived",
+            "writable": false,
+            "sampleable": true,
+            "parameter_id": null,
+            "port_id": null
+          },
+          {
+            "id": "actual_volume_flow_m3_h",
+            "label": "实际体积流量",
+            "quantity": "volume_flow",
+            "unit": {
+              "quantity": "volume_flow",
+              "canonical_unit": "m³/h",
+              "display_unit": "m³/h",
+              "display_scale": 1.0,
+              "display_offset": 0.0
+            },
+            "source": "derived",
+            "writable": false,
+            "sampleable": true,
+            "parameter_id": null,
+            "port_id": null
+          },
+          {
+            "id": "state.throughput_kg",
+            "label": "累计通过质量",
+            "quantity": "mass",
+            "unit": {
+              "quantity": "mass",
+              "canonical_unit": "kg",
+              "display_unit": "kg",
+              "display_scale": 1.0,
+              "display_offset": 0.0
+            },
+            "source": "state",
+            "writable": false,
+            "sampleable": true,
+            "parameter_id": null,
+            "port_id": null
+          }
+        ],
+        "channels": [
+          {
+            "id": "main",
+            "name": "主通路",
+            "input_port": "in0",
+            "output_port": "out0",
+            "relation": "resistance",
+            "solver_model": "generic",
+            "enabled": true
+          }
+        ],
+        "solver_model": "generic",
+        "state_model": null,
+        "thermal_model": null,
+        "source_format": "python-v1",
+        "source": {
+          "runtime": "import math\ndef fraction(curve, position):\n    if len(curve)<2 or curve[0][0]!=0 or curve[-1][0]!=1:\n        raise ValueError('特性曲线必须覆盖 0 到 1 的位置')\n    previous=-1.\n    last=-1.\n    for x,y in curve:\n        if not all(math.isfinite(v) for v in (x,y)) or not previous<x<=1 or not last<=y<=1 or y<0:\n            raise ValueError('位置必须递增，流通能力必须非递减且在 0 到 1 之间')\n        previous,last=x,y\n    for (x0,y0),(x1,y1) in zip(curve,curve[1:]):\n        if position<=x1:\n            return y0+(y1-y0)*(position-x0)/(x1-x0)\n    return curve[-1][1]\nclass Module:\n    def initialize(self,ctx):\n        fraction(ctx.parameters['characteristic_curve'],0.)\n        mode=ctx.parameters['operation_mode']\n        if mode not in ('modulating','on_off'):\n            raise ValueError('操作方式只能为 modulating 或 on_off')\n        ctx.state.setdefault('throughput_kg',0.)\n    def evaluate(self,ctx):\n        position=ctx.parameters['opening_ratio']\n        if ctx.parameters['operation_mode']=='on_off': position=1. if position>=.5 else 0.\n        effective=0. if position==0 else fraction(ctx.parameters['characteristic_curve'],position)\n        ctx.net.valve(channel='main',kv=ctx.parameters['kv_m3_h'],opening=effective,density_kg_m3=ctx.port('in0').density_kg_m3)\n        ctx.var('effective_opening',effective)\n    def observe(self,ctx):\n        ctx.var('actual_drop_pa',ctx.channel('main').pressure_drop_pa)\n        ctx.var('actual_volume_flow_m3_h',ctx.channel('main').mass_flow_kg_s/ctx.port('in0').density_kg_m3*3600.)\n    def commit_step(self,ctx,dt_s): ctx.state['throughput_kg']+=abs(ctx.channel('main').mass_flow_kg_s)*dt_s\n    def finalize(self,ctx): pass\n"
+        },
+        "runtime": "python",
+        "entrypoint": "module:Module",
+        "content_hash": "29adbd4325a23eab9bc2f980a0b3dfd11a06053c4e54e92c0786dad1a528261f",
+        "definition_hash": "e7cd0cc676a75341687d884a34f2d4ab288f48fb4066467073156bf21aa22870",
+        "bank_names": [
+          "额定工况",
+          "部分负荷",
+          "调试备份"
+        ],
+        "sdk": {
+          "api_version": "0.6.0",
+          "capabilities": [
+            "air.pass_through.v1",
+            "evaluate.pure.v1",
+            "hydraulic.signed_start.v1",
+            "net.resistance",
+            "net.valve",
+            "observe.v1",
+            "state.transactions.v1"
+          ],
+          "state_contract_version": 1
+        },
+        "applicability": {
+          "execution_domains": [
+            "fluid"
+          ],
+          "phases": [
+            "liquid",
+            "gas"
+          ],
+          "fluids": [],
+          "limits": [],
+          "assumptions": [
+            "单相、无独立物理储量；设备默认参数为演示参数。"
+          ]
+        },
+        "hydraulic_dependencies": {},
+        "dependency_mode": "conservative",
+        "pure_evaluate": true
+      },
+      {
+        "schema_version": 3,
+        "id": "plate_exchanger",
+        "name": "板式换热器（双侧阻力与污垢）",
+        "version": 1,
+        "category": "暖通基础设备",
+        "description": "普通单相双回路显热ε–NTU；独立两侧阻力，总污垢热阻K/W串联。反转一侧变并流，零流无热量；无持液热容，不支持湿空气/风水域。",
+        "ports": [
+          {
+            "id": "hot_in",
+            "label": "热侧入口",
+            "domain": "fluid",
+            "direction": "in",
+            "required": true,
+            "circuit": "hot"
+          },
+          {
+            "id": "hot_out",
+            "label": "热侧出口",
+            "domain": "fluid",
+            "direction": "out",
+            "required": true,
+            "circuit": "hot"
+          },
+          {
+            "id": "cold_in",
+            "label": "冷侧入口",
+            "domain": "fluid",
+            "direction": "in",
+            "required": true,
+            "circuit": "cold"
+          },
+          {
+            "id": "cold_out",
+            "label": "冷侧出口",
+            "domain": "fluid",
+            "direction": "out",
+            "required": true,
+            "circuit": "cold"
+          }
+        ],
+        "parameters": [
+          {
+            "id": "clean_ua_w_k",
+            "label": "清洁UA",
+            "value_type": "number",
+            "default": 2000.0,
+            "unit": {
+              "quantity": "conductance",
+              "canonical_unit": "W/K",
+              "display_unit": "kW/K",
+              "display_scale": 1000.0,
+              "display_offset": 0.0
+            },
+            "minimum": 0.0,
+            "maximum": null,
+            "runtime": false,
+            "writable": true
+          },
+          {
+            "id": "hot_fouling_resistance_k_w",
+            "label": "热侧总污垢热阻",
+            "value_type": "number",
+            "default": 0.0,
+            "unit": {
+              "quantity": "thermal_resistance",
+              "canonical_unit": "K/W",
+              "display_unit": "K/W",
+              "display_scale": 1.0,
+              "display_offset": 0.0
+            },
+            "minimum": 0.0,
+            "maximum": null,
+            "runtime": false,
+            "writable": true
+          },
+          {
+            "id": "cold_fouling_resistance_k_w",
+            "label": "冷侧总污垢热阻",
+            "value_type": "number",
+            "default": 0.0,
+            "unit": {
+              "quantity": "thermal_resistance",
+              "canonical_unit": "K/W",
+              "display_unit": "K/W",
+              "display_scale": 1.0,
+              "display_offset": 0.0
+            },
+            "minimum": 0.0,
+            "maximum": null,
+            "runtime": false,
+            "writable": true
+          },
+          {
+            "id": "hot_diameter_m",
+            "label": "热侧通路内径",
+            "value_type": "number",
+            "default": 0.04,
+            "unit": {
+              "quantity": "length",
+              "canonical_unit": "m",
+              "display_unit": "mm",
+              "display_scale": 0.001,
+              "display_offset": 0.0
+            },
+            "minimum": 0.001,
+            "maximum": null,
+            "runtime": false,
+            "writable": true
+          },
+          {
+            "id": "hot_loss_coefficient",
+            "label": "热侧阻力K",
+            "value_type": "number",
+            "default": 5.0,
+            "unit": {
+              "quantity": "ratio",
+              "canonical_unit": "1",
+              "display_unit": "1",
+              "display_scale": 1.0,
+              "display_offset": 0.0
+            },
+            "minimum": 0.001,
+            "maximum": null,
+            "runtime": false,
+            "writable": true
+          },
+          {
+            "id": "cold_diameter_m",
+            "label": "冷侧通路内径",
+            "value_type": "number",
+            "default": 0.04,
+            "unit": {
+              "quantity": "length",
+              "canonical_unit": "m",
+              "display_unit": "mm",
+              "display_scale": 0.001,
+              "display_offset": 0.0
+            },
+            "minimum": 0.001,
+            "maximum": null,
+            "runtime": false,
+            "writable": true
+          },
+          {
+            "id": "cold_loss_coefficient",
+            "label": "冷侧阻力K",
+            "value_type": "number",
+            "default": 12.0,
+            "unit": {
+              "quantity": "ratio",
+              "canonical_unit": "1",
+              "display_unit": "1",
+              "display_scale": 1.0,
+              "display_offset": 0.0
+            },
+            "minimum": 0.001,
+            "maximum": null,
+            "runtime": false,
+            "writable": true
+          }
+        ],
+        "variables": [
+          {
+            "id": "effective_ua_w_k",
+            "label": "污垢后有效UA",
+            "quantity": "conductance",
+            "unit": {
+              "quantity": "conductance",
+              "canonical_unit": "W/K",
+              "display_unit": "kW/K",
+              "display_scale": 1000.0,
+              "display_offset": 0.0
+            },
+            "source": "derived",
+            "writable": false,
+            "sampleable": true,
+            "parameter_id": null,
+            "port_id": null
+          },
+          {
+            "id": "transferred_heat_w",
+            "label": "冷侧得热",
+            "quantity": "power",
+            "unit": {
+              "quantity": "power",
+              "canonical_unit": "W",
+              "display_unit": "kW",
+              "display_scale": 1000.0,
+              "display_offset": 0.0
+            },
+            "source": "derived",
+            "writable": false,
+            "sampleable": true,
+            "parameter_id": null,
+            "port_id": null
+          },
+          {
+            "id": "state.transferred_energy_j",
+            "label": "累计冷侧得热",
+            "quantity": "energy",
+            "unit": {
+              "quantity": "energy",
+              "canonical_unit": "J",
+              "display_unit": "kWh",
+              "display_scale": 3600000.0,
+              "display_offset": 0.0
+            },
+            "source": "state",
+            "writable": false,
+            "sampleable": true,
+            "parameter_id": null,
+            "port_id": null
+          },
+          {
+            "id": "hot_pressure_drop_pa",
+            "label": "hot压差",
+            "quantity": "pressure",
+            "unit": {
+              "quantity": "pressure",
+              "canonical_unit": "Pa",
+              "display_unit": "kPa",
+              "display_scale": 1000.0,
+              "display_offset": 0.0
+            },
+            "source": "derived",
+            "writable": false,
+            "sampleable": true,
+            "parameter_id": null,
+            "port_id": null
+          },
+          {
+            "id": "cold_pressure_drop_pa",
+            "label": "cold压差",
+            "quantity": "pressure",
+            "unit": {
+              "quantity": "pressure",
+              "canonical_unit": "Pa",
+              "display_unit": "kPa",
+              "display_scale": 1000.0,
+              "display_offset": 0.0
+            },
+            "source": "derived",
+            "writable": false,
+            "sampleable": true,
+            "parameter_id": null,
+            "port_id": null
+          }
+        ],
+        "channels": [
+          {
+            "id": "hot",
+            "name": "hot",
+            "input_port": "hot_in",
+            "output_port": "hot_out",
+            "relation": "resistance",
+            "solver_model": "generic",
+            "enabled": true
+          },
+          {
+            "id": "cold",
+            "name": "cold",
+            "input_port": "cold_in",
+            "output_port": "cold_out",
+            "relation": "resistance",
+            "solver_model": "generic",
+            "enabled": true
+          }
+        ],
+        "solver_model": "generic",
+        "state_model": null,
+        "thermal_model": null,
+        "source_format": "python-v1",
+        "source": {
+          "runtime": "\"\"\"Independent hydraulic sides and lumped fouling resistances; no physical storage.\"\"\"\nfrom fn_sdk import heat_exchanger_effectiveness\n\n\nclass Module:\n    def initialize(self,ctx):\n        ctx.state.setdefault('transferred_energy_j',0.)\n\n    def ua(self,ctx):\n        clean=ctx.parameters['clean_ua_w_k']\n        return 1./(1./clean+ctx.parameters['hot_fouling_resistance_k_w']+ctx.parameters['cold_fouling_resistance_k_w']) if clean>0 else 0.\n\n    def evaluate(self,ctx):\n        for side in ('hot','cold'):\n            a,b=ctx.port(side+'_in'),ctx.port(side+'_out')\n            inlet=a if a.pressure_pa>=b.pressure_pa else b\n            ctx.net.resistance(channel=side,diameter_m=ctx.parameters[side+'_diameter_m'],\n                               loss_coefficient=ctx.parameters[side+'_loss_coefficient'],density_kg_m3=inlet.density_kg_m3)\n\n    def thermal(self,ctx):\n        qh,qc=ctx.channel('hot').mass_flow_kg_s,ctx.channel('cold').mass_flow_kg_s\n        hot=ctx.port('hot_in' if qh>=0 else 'hot_out')\n        cold=ctx.port('cold_in' if qc>=0 else 'cold_out')\n        ch,cc=abs(qh)*hot.specific_heat_j_kg_k,abs(qc)*cold.specific_heat_j_kg_k\n        epsilon=heat_exchanger_effectiveness(ua_w_k=self.ua(ctx),capacity_a_w_k=ch,capacity_b_w_k=cc,counterflow=(qh>=0)==(qc>=0))\n        power=epsilon*min(ch,cc)*(hot.temperature_k-cold.temperature_k)\n        ctx.heat('hot',-power);ctx.heat('cold',power)\n\n    def observe(self,ctx):\n        ctx.var('effective_ua_w_k',self.ua(ctx))\n        ctx.var('transferred_heat_w',ctx.channel('cold').heat_w)\n        for side in ('hot','cold'):\n            ctx.var(side+'_pressure_drop_pa',ctx.channel(side).pressure_drop_pa)\n\n    def commit_step(self,ctx,dt_s):\n        ctx.state['transferred_energy_j']+=ctx.channel('cold').heat_w*dt_s\n\n    def finalize(self,ctx):\n        pass\n"
+        },
+        "runtime": "python",
+        "entrypoint": "module:Module",
+        "content_hash": "0ef82160929c9ea6353b5a66b648a384f7107e0f8d89d641c4239c412b9e1c0c",
+        "definition_hash": "3ac073f376c8df5ed94396517b16f717634caa6734960bcb4562ea18e1ec38de",
+        "bank_names": [
+          "额定工况",
+          "部分负荷",
+          "调试备份"
+        ],
+        "sdk": {
+          "api_version": "0.6.0",
+          "capabilities": [
+            "evaluate.pure.v1",
+            "hydraulic.signed_start.v1",
+            "net.resistance",
+            "net.valve",
+            "observe.v1",
+            "state.transactions.v1",
+            "thermal.conservative.v1",
+            "thermal.v1"
+          ],
+          "state_contract_version": 1
+        },
+        "applicability": {
+          "execution_domains": [
+            "fluid"
+          ],
+          "phases": [
+            "liquid",
+            "gas"
+          ],
+          "fluids": [],
+          "limits": [],
+          "assumptions": [
+            "单相、无独立物理储量；设备默认参数为演示参数。"
+          ]
+        },
+        "hydraulic_dependencies": {},
+        "dependency_mode": "conservative",
+        "pure_evaluate": true
+      }
+    ],
+    "connections": [
+      {
+        "id": "link0",
+        "source": {
+          "instance_id": "HotValve",
+          "port_id": "out0"
+        },
+        "target": {
+          "instance_id": "Exchanger",
+          "port_id": "hot_in"
+        }
+      },
+      {
+        "id": "link1",
+        "source": {
+          "instance_id": "ColdValve",
+          "port_id": "out0"
+        },
+        "target": {
+          "instance_id": "Exchanger",
+          "port_id": "cold_in"
+        }
+      }
+    ],
+    "external_ports": {
+      "cold_in": {
+        "instance_id": "ColdValve",
+        "port_id": "in0"
+      },
+      "hot_out": {
+        "instance_id": "Exchanger",
+        "port_id": "hot_out"
+      },
+      "cold_out": {
+        "instance_id": "Exchanger",
+        "port_id": "cold_out"
+      },
+      "hot_in": {
+        "instance_id": "HotValve",
+        "port_id": "in0"
+      }
+    },
+    "parameter_maps": {
+      "ColdValve_opening_ratio": [
+        {
+          "instance_id": "ColdValve",
+          "parameter_id": "opening_ratio"
+        }
+      ],
+      "HotValve_opening_ratio": [
+        {
+          "instance_id": "HotValve",
+          "parameter_id": "opening_ratio"
+        }
+      ],
+      "Exchanger_clean_ua_w_k": [
+        {
+          "instance_id": "Exchanger",
+          "parameter_id": "clean_ua_w_k"
+        }
+      ],
+      "Exchanger_hot_fouling_resistance_k_w": [
+        {
+          "instance_id": "Exchanger",
+          "parameter_id": "hot_fouling_resistance_k_w"
+        }
+      ],
+      "Exchanger_cold_fouling_resistance_k_w": [
+        {
+          "instance_id": "Exchanger",
+          "parameter_id": "cold_fouling_resistance_k_w"
+        }
+      ],
+      "Exchanger_hot_diameter_m": [
+        {
+          "instance_id": "Exchanger",
+          "parameter_id": "hot_diameter_m"
+        }
+      ],
+      "Exchanger_hot_loss_coefficient": [
+        {
+          "instance_id": "Exchanger",
+          "parameter_id": "hot_loss_coefficient"
+        }
+      ],
+      "Exchanger_cold_diameter_m": [
+        {
+          "instance_id": "Exchanger",
+          "parameter_id": "cold_diameter_m"
+        }
+      ],
+      "Exchanger_cold_loss_coefficient": [
+        {
+          "instance_id": "Exchanger",
+          "parameter_id": "cold_loss_coefficient"
+        }
+      ],
+      "HotValve_kv_m3_h": [
+        {
+          "instance_id": "HotValve",
+          "parameter_id": "kv_m3_h"
+        }
+      ],
+      "HotValve_characteristic_curve": [
+        {
+          "instance_id": "HotValve",
+          "parameter_id": "characteristic_curve"
+        }
+      ],
+      "HotValve_operation_mode": [
+        {
+          "instance_id": "HotValve",
+          "parameter_id": "operation_mode"
+        }
+      ],
+      "ColdValve_kv_m3_h": [
+        {
+          "instance_id": "ColdValve",
+          "parameter_id": "kv_m3_h"
+        }
+      ],
+      "ColdValve_characteristic_curve": [
+        {
+          "instance_id": "ColdValve",
+          "parameter_id": "characteristic_curve"
+        }
+      ],
+      "ColdValve_operation_mode": [
+        {
+          "instance_id": "ColdValve",
+          "parameter_id": "operation_mode"
+        }
+      ]
+    },
+    "output_aliases": {
+      "ColdValve.effective_opening": "ColdValve.effective_opening",
+      "ColdValve.actual_drop_pa": "ColdValve.actual_drop_pa",
+      "ColdValve.actual_volume_flow_m3_h": "ColdValve.actual_volume_flow_m3_h",
+      "state.ColdValve.throughput_kg": "ColdValve.state.throughput_kg",
+      "Exchanger.effective_ua_w_k": "Exchanger.effective_ua_w_k",
+      "Exchanger.transferred_heat_w": "Exchanger.transferred_heat_w",
+      "state.Exchanger.transferred_energy_j": "Exchanger.state.transferred_energy_j",
+      "Exchanger.hot_pressure_drop_pa": "Exchanger.hot_pressure_drop_pa",
+      "Exchanger.cold_pressure_drop_pa": "Exchanger.cold_pressure_drop_pa",
+      "HotValve.effective_opening": "HotValve.effective_opening",
+      "HotValve.actual_drop_pa": "HotValve.actual_drop_pa",
+      "HotValve.actual_volume_flow_m3_h": "HotValve.actual_volume_flow_m3_h",
+      "state.HotValve.throughput_kg": "HotValve.state.throughput_kg"
+    }
+  }
+}

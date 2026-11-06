@@ -1,6 +1,6 @@
 # Python 模块公共 SDK
 
-当前 `fn_sdk.SDK_API_VERSION = '0.7.0'`，新增 schema 4 制冷角色的类型化 Worker 接口，见[RF-1 合同](../REFRIGERATION_MODULE_CONTRACT.md)。SDK、软件版本、模块整数版本和合同 schema 独立管理。下文 S0–S3 保留基础接口的历史说明；当前生命周期与状态接受规则见[开发指南](DEVELOPMENT_GUIDE.md)，湿空气与制冷增量见文末。
+当前 `fn_sdk.SDK_API_VERSION = '0.9.0'`（2026-11-06），新增受限完整闭合制冷组合能力；schema 4 制冷角色的类型化 Worker 接口保持原合同，见[RF-1 合同](../REFRIGERATION_MODULE_CONTRACT.md)。SDK、软件版本、模块整数版本和合同 schema 独立管理。下文 S0–S3 保留基础接口的历史说明；当前生命周期与状态接受规则见[开发指南](DEVELOPMENT_GUIDE.md)，湿空气与制冷增量见文末。
 
 ## 1. 导入与安装
 

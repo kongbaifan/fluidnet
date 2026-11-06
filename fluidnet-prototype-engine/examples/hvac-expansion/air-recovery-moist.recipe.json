@@ -1,0 +1,203 @@
+{
+  "name": "双风道显热回收",
+  "fluid": {
+    "backend": "coolprop",
+    "fluid": "Air",
+    "composition": {},
+    "reference": "mass",
+    "phase_policy": "gas"
+  },
+  "solver": {
+    "module_mixed_jacobian": false,
+    "module_cache": false,
+    "pressure_tolerance_pa": 1.0,
+    "mass_tolerance_kg_s": 1e-08,
+    "max_iterations": 80,
+    "dynamic_step_s": 0.1,
+    "thermal": true,
+    "property_coupling": "node",
+    "thermal_tolerance_k": 1e-06,
+    "max_thermal_iterations": 50,
+    "max_coupling_iterations": 60,
+    "coupling_density_rtol": 1e-06,
+    "thermal_acceleration": "none",
+    "coupling_acceleration": "none",
+    "moist_air": true,
+    "moist_air_options": {
+      "contract_version": 1,
+      "property_backend": "coolprop_ha",
+      "humidity_tolerance_kg_kg": 1e-08,
+      "max_iterations": 120,
+      "relaxation": 0.7,
+      "moisture_atol_kg_s": 1e-09,
+      "moisture_rtol": 1e-06,
+      "energy_atol_w": 0.001,
+      "energy_rtol": 1e-06,
+      "flow_zero_tolerance_kg_s": 1e-10,
+      "supersaturation_policy": "error"
+    },
+    "max_step_halvings": 6,
+    "hydraulic_method": "dense",
+    "hydraulic_diagnostics": false,
+    "analytic_jacobian": true,
+    "series_compression": false,
+    "hydraulic_blocks": false,
+    "module_parallelism": 1,
+    "batch_modules": true,
+    "time_step": {
+      "enabled": false,
+      "mass_atol_kg": 1e-09,
+      "energy_atol_j": 0.001,
+      "temperature_atol_k": 1e-05,
+      "rtol": 1e-06,
+      "min_internal_step_s": 0.001,
+      "max_internal_step_s": null,
+      "safety": 0.9,
+      "growth_factor": 2.0,
+      "shrink_factor": 0.5
+    }
+  },
+  "duration_s": 2.0,
+  "dt_s": 1.0,
+  "instances": [
+    {
+      "id": "Recovery",
+      "module_id": "air_recovery_sensible",
+      "name": "显热回收器",
+      "page_id": "main",
+      "position": {
+        "x": 430.0,
+        "y": 250.0
+      },
+      "rotation": 0,
+      "parameters": {},
+      "draft_parameters": {},
+      "banks": [],
+      "package": {
+        "module_id": "air_recovery_sensible",
+        "version": "1.0.0",
+        "content_hash": "f0c04c68cc48900b338c3ae3c6d5bf0b76d51789ccd19b3789fef37b2d602363",
+        "definition_hash": "cab6bb5faea8026916e1fd3f750152a2362910f6c6fa986566487f70712a3378"
+      }
+    },
+    {
+      "id": "exhaust_in",
+      "module_id": "source",
+      "name": "exhaust_in",
+      "page_id": "main",
+      "position": {
+        "x": 100.0,
+        "y": 140.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "pressure_pa": 101425.0,
+        "temperature_k": 303.15,
+        "humidity_ratio_kg_kg": 0.007
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "exhaust_out",
+      "module_id": "source",
+      "name": "exhaust_out",
+      "page_id": "main",
+      "position": {
+        "x": 760.0,
+        "y": 140.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "pressure_pa": 101325.0,
+        "temperature_k": 303.15,
+        "humidity_ratio_kg_kg": 0.007
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "supply_in",
+      "module_id": "source",
+      "name": "supply_in",
+      "page_id": "main",
+      "position": {
+        "x": 100.0,
+        "y": 360.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "pressure_pa": 101425.0,
+        "temperature_k": 283.15,
+        "humidity_ratio_kg_kg": 0.003
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "supply_out",
+      "module_id": "source",
+      "name": "supply_out",
+      "page_id": "main",
+      "position": {
+        "x": 760.0,
+        "y": 360.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "pressure_pa": 101325.0,
+        "temperature_k": 283.15,
+        "humidity_ratio_kg_kg": 0.003
+      },
+      "draft_parameters": {},
+      "banks": []
+    }
+  ],
+  "connections": [
+    {
+      "id": "exhaust_in",
+      "source": {
+        "instance_id": "exhaust_in",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Recovery",
+        "port_id": "exhaust_in"
+      }
+    },
+    {
+      "id": "exhaust_out",
+      "source": {
+        "instance_id": "Recovery",
+        "port_id": "exhaust_out"
+      },
+      "target": {
+        "instance_id": "exhaust_out",
+        "port_id": "out0"
+      }
+    },
+    {
+      "id": "supply_in",
+      "source": {
+        "instance_id": "supply_in",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Recovery",
+        "port_id": "supply_in"
+      }
+    },
+    {
+      "id": "supply_out",
+      "source": {
+        "instance_id": "Recovery",
+        "port_id": "supply_out"
+      },
+      "target": {
+        "instance_id": "supply_out",
+        "port_id": "out0"
+      }
+    }
+  ],
+  "circuit_fluids": []
+}

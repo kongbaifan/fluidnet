@@ -1,0 +1,32 @@
+import {chromium,expect} from '@playwright/test';
+import {testServer} from './browser-server.mjs';
+import {FHD_CONTEXT,captureFhd} from './browser-viewport.mjs';
+const server=await testServer(),browser=await chromium.launch({channel:'msedge',headless:true});
+const page=await browser.newPage({...FHD_CONTEXT}),errors=[];page.on('pageerror',e=>errors.push(e.message));
+try{
+ await page.goto(server.base);await expect(page.locator('#app-header')).toContainText('模块平台 · v');
+ await page.locator('[data-action="start-modeling"]').first().click();
+ await page.locator('[data-action="validate"]').first().click();
+ await expect(page.locator('[data-system-inspection]')).toContainText('当前项目预检 · 通过');
+ await page.locator('[data-action="close-dialog"]').last().click();
+ const started=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/v1/runs'&&r.request().method()==='POST');
+ await page.locator('[data-action="run-project"][data-command="step"]').first().click();const id=(await(await started).json()).run_id;
+ await expect(page.locator('#statusbar')).toContainText('已暂停');
+ await page.locator('[data-action="run-project"][data-command="stop"]').first().click();
+ const next=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/v1/runs'&&r.request().method()==='POST');
+ await page.locator('[data-action="run-project"][data-command="step"]').first().click();const second=(await(await next).json()).run_id;
+ await expect(page.locator('#statusbar')).toContainText('已暂停');await page.locator('[data-action="run-project"][data-command="stop"]').first().click();
+ await page.locator('.rail-link[data-route="runs"]').click();await page.locator('[data-action="refresh-archives"]').click();
+ await page.locator(`[data-action="open-archive"][data-id="${id}"]`).click();
+ await page.locator(`[data-action="inspect-run"][data-id="${id}"]`).click();
+ await expect(page.locator('[data-system-inspection]')).toContainText(id);
+ await expect(page.locator('[data-system-inspection]')).toContainText('质量方程残差');
+ await page.locator('[data-inspection-device="V1"] summary').click();
+ await expect(page.locator('[data-inspection-device="V1"]')).toContainText('V1.in0.pressure_pa');
+ await captureFhd(page,'artifacts/system-inspection.png');
+ await page.locator('[data-action="inspection-compare"]').click();await page.getByRole('dialog').locator('[name="other"]').selectOption(second);
+ await page.getByRole('dialog').locator('button[type="submit"]').click();
+ await expect(page.locator('[data-system-comparison]')).toContainText('V1.in0.pressure_pa');
+ expect(errors).toEqual([]);
+ console.log(JSON.stringify({preflight:true,frozenRun:true,actualInstance:true,errors}));
+}finally{await browser.close();await server.close();}

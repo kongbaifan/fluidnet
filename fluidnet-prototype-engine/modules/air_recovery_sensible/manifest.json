@@ -1,0 +1,264 @@
+{
+  "schema_version": 3,
+  "id": "air_recovery_sensible",
+  "name": "双风道显热回收器",
+  "version": 1,
+  "category": "暖通基础设备",
+  "description": "两条独立风路显热ε–NTU，无漏风、水分交换和储热；各路湿量透传，凝结/结霜不支持，端口温度须不低于0°C。旁通是UA折减，不隐含额外风路。",
+  "ports": [
+    {
+      "id": "exhaust_in",
+      "label": "排风入口",
+      "domain": "fluid",
+      "direction": "in",
+      "required": true,
+      "circuit": "exhaust"
+    },
+    {
+      "id": "exhaust_out",
+      "label": "排风出口",
+      "domain": "fluid",
+      "direction": "out",
+      "required": true,
+      "circuit": "exhaust"
+    },
+    {
+      "id": "supply_in",
+      "label": "新风入口",
+      "domain": "fluid",
+      "direction": "in",
+      "required": true,
+      "circuit": "supply"
+    },
+    {
+      "id": "supply_out",
+      "label": "新风出口",
+      "domain": "fluid",
+      "direction": "out",
+      "required": true,
+      "circuit": "supply"
+    }
+  ],
+  "parameters": [
+    {
+      "id": "ua_w_k",
+      "label": "清洁显热UA",
+      "value_type": "number",
+      "default": 1000.0,
+      "unit": {
+        "quantity": "conductance",
+        "canonical_unit": "W/K",
+        "display_unit": "kW/K",
+        "display_scale": 1000.0,
+        "display_offset": 0.0
+      },
+      "minimum": 0.0,
+      "maximum": null,
+      "runtime": false,
+      "writable": true
+    },
+    {
+      "id": "bypass_ratio",
+      "label": "等效换热旁通比例",
+      "value_type": "number",
+      "default": 0.0,
+      "unit": {
+        "quantity": "ratio",
+        "canonical_unit": "1",
+        "display_unit": "1",
+        "display_scale": 1.0,
+        "display_offset": 0.0
+      },
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "runtime": true,
+      "writable": true
+    },
+    {
+      "id": "exhaust_diameter_m",
+      "label": "排风等效内径",
+      "value_type": "number",
+      "default": 0.4,
+      "unit": {
+        "quantity": "length",
+        "canonical_unit": "m",
+        "display_unit": "mm",
+        "display_scale": 0.001,
+        "display_offset": 0.0
+      },
+      "minimum": 0.001,
+      "maximum": null,
+      "runtime": false,
+      "writable": true
+    },
+    {
+      "id": "exhaust_loss_coefficient",
+      "label": "排风阻力K",
+      "value_type": "number",
+      "default": 2.0,
+      "unit": {
+        "quantity": "ratio",
+        "canonical_unit": "1",
+        "display_unit": "1",
+        "display_scale": 1.0,
+        "display_offset": 0.0
+      },
+      "minimum": 0.001,
+      "maximum": null,
+      "runtime": false,
+      "writable": true
+    },
+    {
+      "id": "supply_diameter_m",
+      "label": "新风等效内径",
+      "value_type": "number",
+      "default": 0.4,
+      "unit": {
+        "quantity": "length",
+        "canonical_unit": "m",
+        "display_unit": "mm",
+        "display_scale": 0.001,
+        "display_offset": 0.0
+      },
+      "minimum": 0.001,
+      "maximum": null,
+      "runtime": false,
+      "writable": true
+    },
+    {
+      "id": "supply_loss_coefficient",
+      "label": "新风阻力K",
+      "value_type": "number",
+      "default": 2.0,
+      "unit": {
+        "quantity": "ratio",
+        "canonical_unit": "1",
+        "display_unit": "1",
+        "display_scale": 1.0,
+        "display_offset": 0.0
+      },
+      "minimum": 0.001,
+      "maximum": null,
+      "runtime": false,
+      "writable": true
+    }
+  ],
+  "variables": [
+    {
+      "id": "recovered_heat_w",
+      "label": "新风所得热量",
+      "quantity": "power",
+      "unit": {
+        "quantity": "power",
+        "canonical_unit": "W",
+        "display_unit": "kW",
+        "display_scale": 1000.0,
+        "display_offset": 0.0
+      },
+      "source": "derived",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": null,
+      "port_id": null
+    },
+    {
+      "id": "effective_ua_w_k",
+      "label": "等效UA",
+      "quantity": "conductance",
+      "unit": {
+        "quantity": "conductance",
+        "canonical_unit": "W/K",
+        "display_unit": "kW/K",
+        "display_scale": 1000.0,
+        "display_offset": 0.0
+      },
+      "source": "derived",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": null,
+      "port_id": null
+    },
+    {
+      "id": "state.recovered_energy_j",
+      "label": "累计新风所得热量",
+      "quantity": "energy",
+      "unit": {
+        "quantity": "energy",
+        "canonical_unit": "J",
+        "display_unit": "kWh",
+        "display_scale": 3600000.0,
+        "display_offset": 0.0
+      },
+      "source": "state",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": null,
+      "port_id": null
+    }
+  ],
+  "channels": [
+    {
+      "id": "exhaust",
+      "name": "exhaust",
+      "input_port": "exhaust_in",
+      "output_port": "exhaust_out",
+      "relation": "resistance",
+      "solver_model": "generic",
+      "enabled": true
+    },
+    {
+      "id": "supply",
+      "name": "supply",
+      "input_port": "supply_in",
+      "output_port": "supply_out",
+      "relation": "resistance",
+      "solver_model": "generic",
+      "enabled": true
+    }
+  ],
+  "solver_model": "generic",
+  "state_model": null,
+  "thermal_model": null,
+  "source_format": "python-v1",
+  "runtime": "python",
+  "entrypoint": "module:Module",
+  "bank_names": [
+    "额定工况",
+    "部分负荷",
+    "调试备份"
+  ],
+  "sdk": {
+    "api_version": "0.6.0",
+    "capabilities": [
+      "air.pass_through.v1",
+      "evaluate.pure.v1",
+      "hydraulic.signed_start.v1",
+      "net.resistance",
+      "net.valve",
+      "observe.v1",
+      "state.transactions.v1",
+      "thermal.conservative.v1",
+      "thermal.v1"
+    ],
+    "state_contract_version": 1
+  },
+  "applicability": {
+    "execution_domains": [
+      "fluid"
+    ],
+    "phases": [
+      "gas"
+    ],
+    "fluids": [
+      "Air",
+      "HEOS::Air"
+    ],
+    "limits": [],
+    "assumptions": [
+      "单相、无独立物理储量；设备默认参数为演示参数。"
+    ]
+  },
+  "hydraulic_dependencies": {},
+  "dependency_mode": "conservative",
+  "pure_evaluate": true
+}

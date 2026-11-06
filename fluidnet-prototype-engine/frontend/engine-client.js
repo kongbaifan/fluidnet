@@ -3,6 +3,7 @@ window.createEngineClient = function (ui) {
   const clone = value => JSON.parse(JSON.stringify(value));
   const queues = new Map(), pending = new Map();
   const controllerWrites = new Map();
+  const parameterWrites = new WeakSet();
   const livePolling = new Set();
   const circuitsByProject = new Map();  // project id -> circuits of the last successful check
   // A browser keeps at most this many live rows (the server window); older rows come from /overview.
@@ -162,16 +163,20 @@ window.createEngineClient = function (ui) {
     const draft=ui.state().modules.find(m=>m.id===id);
     if (draft?.runtime !== 'python') return draft;
     if (!draft.publishedManifest) throw Error('请先校验并保存模块版本，再插入项目。');
-    return {...moduleFromManifest(clone(draft.publishedManifest)),frozen:true};
+    return window.FluidNetPanelLayout?.copy(draft,{...moduleFromManifest(clone(draft.publishedManifest)),frozen:true}) || {...moduleFromManifest(clone(draft.publishedManifest)),frozen:true};
   }
   function bindModule(owner, id, legacy=false) {
     owner.moduleSnapshots ||= {};
     if (owner.moduleSnapshots[id]) return owner.moduleSnapshots[id];
     const m=ui.state().modules.find(item=>item.id===id);
-    if (m?.runtime !== 'python') return m;
+    if (m?.runtime !== 'python') {
+      if(m?.panelLayout) {owner.moduleSnapshots[id]={...clone(m),frozen:true};return owner.moduleSnapshots[id];}
+      return m;
+    }
     const source=m.publishedManifest || (legacy ? m.manifest : null);
     if (!source) throw Error('请先保存模块版本，再用于项目。');
     const snapshot={...moduleFromManifest(clone(source)),frozen:true};
+    window.FluidNetPanelLayout?.copy(m,snapshot);
     owner.moduleSnapshots[id]=snapshot;
     return snapshot;
   }
@@ -184,6 +189,7 @@ window.createEngineClient = function (ui) {
   function applyManifest(m, definition) {
     const keep={publishedManifest:m.publishedManifest,latestVersion:m.latestVersion,versions:m.versions,releaseNotes:m.releaseNotes};
     if(m.testConditions)keep.testConditions=clone(m.testConditions);
+    if(m.panelLayout)keep.panelLayout=clone(m.panelLayout);
     Object.assign(m,moduleFromManifest(definition),keep);
     ui.parameterDefinitions[m.kind]=m.parameterDefs;
     delete m.contractDraft;
@@ -272,8 +278,10 @@ window.createEngineClient = function (ui) {
     return m;
   }
   async function newComposite(owner,ids,id,name) {
-    const definition=await request('/modules/composites/from-group',{project:await normalize(owner),instance_ids:ids,id,name});
+    const sourceProject=await normalize(owner);
+    const definition=await request('/modules/composites/from-group',{project:sourceProject,instance_ids:ids,id,name});
     const m=moduleFromManifest(definition);m.latestVersion=0;m.dirty=true;
+    if(definition.sdk?.capabilities?.includes('composite.refrigeration.v1'))m.testConditions={fluid:clone(sourceProject.fluid),duration_s:.1,dt_s:.1};
     ui.parameterDefinitions[m.kind]=m.parameterDefs;return m;
   }
   function updateContractItem(m,section,oldId,item) {
@@ -377,7 +385,8 @@ window.createEngineClient = function (ui) {
     if(!p || !['completed','failed','cancelled','interrupted'].includes(record.status))return false;
     const definitions=new Map(p.modules.map(m=>[m.id,m]));
     const domains=new Set(p.instances.flatMap(n=>(definitions.get(n.module_id)?.ports||[]).map(port=>port.domain)));
-    return domains.has('refrigerant') && (p.thermal_couplings?.length ? domains.has('fluid') : !domains.has('fluid'));
+    return domains.has('refrigerant') && (p.thermal_couplings?.length ? domains.has('fluid') : !domains.has('fluid'))
+      || domains.has('fluid') && !domains.has('refrigerant') && !domains.has('thermal') && !p.thermal_couplings?.length;
   }
   function overviewValues(bindings, canonical) {
     return Object.fromEntries(['q','a','b','pressure','temperature'].map(key => {
@@ -479,6 +488,7 @@ window.createEngineClient = function (ui) {
       }
       if (['running','solving'].includes(owner.run.status)) return;
       const controller=new AbortController(); pending.set('__bench',controller);
+      owner.run.failureReplay=null;owner.run.diagnostics=[];
       owner.run.status = 'solving'; owner.run.source = 'engine'; ui.render();
       try {
         const parameters = testParameters(module, owner.params);
@@ -490,7 +500,7 @@ window.createEngineClient = function (ui) {
         owner.run.time = row.t; owner.run.values = {q:row.q,a:null,b:null,pressure:owner.boundary.outlet,temperature:body.execution_domain==='refrigeration' ? body.frame.variables['D1.in0.temperature_k']-273.15 : owner.boundary.temperature};
         owner.run.worker = {status:'completed',contentHash:body.content_hash,version:module.version,evaluation:body.evaluation,initialState:body.state,committed:body.committed,executionDomain:body.execution_domain,refrigeration:body.refrigeration_evaluation};
         owner.run.events = [{t:owner.run.time,text:`Worker evaluate 完成，${body.evaluation.relations.length} 条关系已注册。`},{t:owner.run.time,text:`commit_step 完成，状态提交 ${Object.keys(body.committed.state || {}).length} 项。`}]; owner.run.id = body.content_hash; owner.run.status = action === 'step' ? 'paused' : 'completed'; ui.dirty(); ui.render(); ui.message('Python 模块 Worker 测试完成。');
-      } catch (error) { if(error.name !== 'AbortError') { owner.run.status='failed'; owner.run.events=[{t:owner.run.time,text:error.message}]; ui.message('模块测试失败：' + error.message,true); } ui.render(); }
+      } catch (error) { if(error.name !== 'AbortError') { owner.run.status='failed'; owner.run.failureReplay=error.detail?.replay||null;owner.run.diagnostics=error.detail?.diagnostics||(error.detail?.message?[error.detail]:[{message:error.message}]);owner.run.events=[{t:owner.run.time,text:error.message}]; ui.message('模块测试失败：' + error.message,true); } ui.render(); }
       finally { if(pending.get('__bench') === controller) pending.delete('__bench'); }
       return;
     }
@@ -670,10 +680,29 @@ window.createEngineClient = function (ui) {
       if (probe.auth?.required && !sessionStorage.getItem(TOKEN_KEY)) { health = probe; askToken('此计算服务要求访问令牌。'); return; }
       const [service,data,packages] = await Promise.all([request('/health'),request('/catalog'),request('/modules')]);
       health = service;
+      // Restore validation must use backend bounds, including atmospheric-pressure air sources.
+      for (const [kind,bindings] of Object.entries(data.prototype_parameter_bindings)) {
+        const m = data.modules.find(m => m.id === kind);
+        if(!m)continue;
+        // Existing built-in display aliases remain stable; expose missing declared numeric fields.
+        const fields=ui.parameterDefinitions[kind];
+        if(fields)for(const spec of m.parameters.filter(p=>p.value_type==='number')) {
+          const displayKey=Object.keys(bindings).find(k=>bindings[k]===spec.id)||spec.id;
+          if(!fields.some(f=>f[0]===displayKey)){const field=manifestParamDef(spec);field[0]=displayKey;fields.push(field);}
+        }
+        for (const field of fields || []) {
+          const spec=m.parameters.find(p => p.id === bindings[field[0]]);
+          if (!spec?.unit) continue;
+          const display = value => model.toDisplay(spec,value);
+          field[2]=spec.unit.display_unit; field[6]=display(spec.default);
+          if (spec.minimum !== null) field[3]=display(spec.minimum);
+          if (spec.maximum !== null) field[4]=display(spec.maximum);
+        }
+      }
       const workspaceWarning=await services.loadWorkspace(forceWorkspace);
       catalog=data;
       moduleCatalog=packages;
-      for (const manifest of data.modules.filter(m=>m.ports.some(p=>p.domain==='thermal' || p.domain==='refrigerant') || ['duct','cooling_coil','humidifier','air_mixing_box','air_filter','air_room','cooling_tower_moist','water_coil','water_chiller'].includes(m.id))) {
+      for (const manifest of data.modules.filter(m=>m.ports.some(p=>p.domain==='thermal' || p.domain==='refrigerant') || ['duct','cooling_coil','humidifier','air_mixing_box','air_filter','air_room','cooling_tower_moist','water_coil','water_chiller','air_cooled_chiller','air_source_heat_pump','enthalpy_recovery','closed_buffer_tank','hydronic_buffer_tank','gas_expansion_tank','tower_pool','coupled_tower_pool'].includes(m.id))) {
         let m=ui.state().modules.find(m=>m.id===manifest.id);
         if(!m){m=moduleFromManifest(manifest);ui.state().modules.push(m);}
         ui.parameterDefinitions[m.kind]=manifest.parameters.filter(p=>p.value_type==='number').map(manifestParamDef);
@@ -702,17 +731,6 @@ window.createEngineClient = function (ui) {
       if (!benchModule?.manifest && !ui.state().bench.run.history.length) {
         const pythonModule=ui.state().modules.find(m=>m.runtime==='python' && m.manifest);
         if (pythonModule) { ui.state().bench.moduleId=pythonModule.id; ui.state().bench.params=Object.fromEntries(ui.parameterDefinitions[pythonModule.kind].map(f=>[f[0],f[6]])); }
-      }
-      for (const [kind,bindings] of Object.entries(data.prototype_parameter_bindings)) {
-        const m = data.modules.find(m => m.id === kind);
-        for (const field of ui.parameterDefinitions[kind] || []) {
-          const spec=m.parameters.find(p => p.id === bindings[field[0]]);
-          if (!spec?.unit) continue;
-          const display = value => model.toDisplay(spec,value);
-          field[2]=spec.unit.display_unit; field[6]=display(spec.default);
-          if (spec.minimum !== null) field[3]=display(spec.minimum);
-          if (spec.maximum !== null) field[4]=display(spec.maximum);
-        }
       }
       ui.message(workspaceWarning || `计算服务 v${health.version} 已连接：稳态水力${health.capabilities?.tank_state ? '、水箱隐式积分' : ''}与准稳态时间序列可用。`,!!workspaceWarning);
       ui.render();
@@ -759,6 +777,7 @@ window.createEngineClient = function (ui) {
   }
   async function liveCommand(owner, action) {
     let controller=null;
+    const entry=runState.capture(ui.state(),owner);
     try {
       if(owner.run.live && owner.run.runId) {
         try {
@@ -769,11 +788,20 @@ window.createEngineClient = function (ui) {
           // final state, then 运行/单步 start a new run instead of failing on the stale id.
           if(error.code!=='RUN_ALREADY_FINISHED') throw error;
           await pollLive(owner);
+          runState.assertCurrent(ui.state(),entry);
           owner.run.live=false; owner.run.runId=null; ui.persist();
-          if(action==='pause'||action==='stop') { ui.render(); return; }
+          if(action==='pause') { ui.render(); return; }
         }
       }
-      if(action==='pause'||action==='stop') return;
+      if(action==='stop') {
+        // A finished dynamic run has already released its server session. A visible Stop
+        // action still closes the local task, while retaining its frames and archive ID.
+        if(!owner.run.live && !owner.run.runId && !pending.has(owner.id)) {
+          owner.run.status='stopped';ui.persist();ui.render();
+        }
+        return;
+      }
+      if(action==='pause') return;
       if(pending.has(owner.id)) return;
       controller=new AbortController();pending.set(owner.id,controller);
       const ticket=runState.capture(ui.state(),owner),before=key(owner),parameterKey=ui.parameterKey(owner);
@@ -827,27 +855,61 @@ window.createEngineClient = function (ui) {
     controllerWrites.set(owner,job);
     return job.finally(()=>{if(controllerWrites.get(owner)===job)controllerWrites.delete(owner);});
   }
-  async function applyParameters(owner,node) {
+  async function applyParameters(owner,node,proposed=node.draft,onAccepted) {
+    if(parameterWrites.has(node))throw Error('设备参数正在应用，请等待确认后再提交。');
+    parameterWrites.add(node);
+    try{return await applySingleParameters(owner,node,proposed,onAccepted);}
+    finally{parameterWrites.delete(node);}
+  }
+  async function applySingleParameters(owner,node,proposed=node.draft,onAccepted) {
     const ticket=runState.capture(ui.state(),owner),beforeKey=ui.parameterKey(owner);
+    window.FluidNetProjectState.assertCurrent(ui.state(),owner);
+    window.FluidNetProjectState.node(owner,node);
     const m=ui.moduleOf(node), definition=m.manifest || catalog.modules.find(d=>d.id===m.kind);
     const bindings=m.manifest ? null : catalog.prototype_parameter_bindings[m.kind];
-    const edits=Object.entries(node.draft).filter(([key,value])=>JSON.stringify(value)!==JSON.stringify(node.params[key])).map(([key,value])=>{
+    const edits=Object.entries(proposed).filter(([key,value])=>JSON.stringify(value)!==JSON.stringify(node.params[key])).map(([key,value])=>{
       const id=bindings?.[key] || key, spec=definition.parameters.find(p=>p.id===id);
       if(!spec?.runtime || !spec.writable) throw Error(`${spec?.label || key} 不能在运行中修改，请停止后应用。`);
       const canonical=spec.unit ? model.toCanonical(spec,value) : value;
       return {key,value:clone(value),id,canonical:clone(canonical)};
     });
-    if (!edits.length) return;
+    if (!edits.length && !onAccepted) return;
     // One device-panel apply is one frame-boundary transaction. Keep every draft
     // and applied value intact until the whole batch has been acknowledged.
-    await confirmedCommand(owner,{action:'write',values:Object.fromEntries(edits.map(edit=>[
+    if(edits.length)await confirmedCommand(owner,{action:'write',values:Object.fromEntries(edits.map(edit=>[
       `${node.id}.param.${edit.id}`,edit.canonical]))});
     runState.assertCurrent(ui.state(),ticket);
     window.FluidNetProjectState.assertCurrent(ui.state(),owner);
+    window.FluidNetProjectState.node(owner,node);
     const currentKey=ui.parameterKey(owner);
     window.FluidNetProjectState.applyParameters(owner,node,Object.fromEntries(edits.map(edit=>[edit.key,edit.value])));
+    onAccepted?.();
     runState.advanceParameterKey(owner.run,beforeKey,currentKey,ui.parameterKey(owner));ui.persist();ui.render();
   }
+  async function applyParameterBatch(owner,entries) {
+    const ticket=runState.capture(ui.state(),owner),beforeKey=ui.parameterKey(owner),live=!!owner.run.live;
+    if(pending.has(owner.id)||!live&&['running','solving','paused'].includes(owner.run.status))throw Error('请先停止当前计算或回放，再批量编辑。');
+    const describe=node=>{
+      const m=ui.moduleOf(node);
+      return {definition:m.manifest||catalog?.modules.find(d=>d.id===m.kind),
+        bindings:m.manifest?null:catalog?.prototype_parameter_bindings[m.kind]};
+    };
+    const plan=window.FluidNetParameterBatch.prepare(ui.state(),owner,entries,describe);
+    for(const item of plan.items)if(parameterWrites.has(item.node))throw Error('设备参数正在应用，请等待确认后再提交。');
+    for(const item of plan.items)parameterWrites.add(item.node);
+    try {
+      let receipt;
+      if(live&&Object.keys(plan.values).length)receipt=await confirmedCommand(owner,{action:'write',values:plan.values});
+      runState.assertCurrent(ui.state(),ticket);
+      const currentKey=ui.parameterKey(owner);
+      window.FluidNetParameterBatch.commit(ui.state(),owner,plan,describe);
+      if(live)runState.advanceParameterKey(owner.run,beforeKey,currentKey,ui.parameterKey(owner));
+      owner.run.events ||= [];
+      owner.run.events.push({t:receipt?.time_s??owner.run.time,kind:'parameters',text:`批量应用 ${plan.items.length} 台设备、${Object.keys(plan.values).length} 项参数`});
+      ui.dirty(owner);ui.persist();ui.render();
+      return receipt;
+    } finally {for(const item of plan.items)parameterWrites.delete(item.node);}
+  }
   const services=window.createProjectServices({request,ui,normalize,health:()=>health,authHeaders,pinProject,moduleFromManifest});
-  return {...services,archiveCacheMetadata,overviewBindings,overviewValues,refrigerationReportAvailable,request,normalize,moduleFromManifest,whenReady:()=>initializing || Promise.resolve(),command,tick,validate,init,applyController,applyParameters,loadOverview,authHeaders,signOut:()=>{sessionStorage.removeItem(TOKEN_KEY);location.reload();},overview:id=>overviews.get(id),circuits:id=>circuitsByProject.get(id)||[],confirmedCommand,portValue,observation,manifestPayload,contractText,checkModule,saveModule,runDesign,versions,loadVersion,newModule,newTemplate,newComposite,updateContractItem,bindModule,pinProject,moduleForInsert,get catalog(){return catalog;},get health(){return health;}};
+  return {...services,cacheCircuits:(owner,items)=>{circuitsByProject.set(owner.id,items||[]);ui.render();},archiveCacheMetadata,overviewBindings,overviewValues,refrigerationReportAvailable,request,normalize,moduleFromManifest,whenReady:()=>initializing || Promise.resolve(),command,tick,validate,init,applyController,applyParameters,applyParameterBatch,isApplyingParameters:node=>parameterWrites.has(node),loadOverview,authHeaders,signOut:()=>{sessionStorage.removeItem(TOKEN_KEY);location.reload();},overview:id=>overviews.get(id),circuits:id=>circuitsByProject.get(id)||[],confirmedCommand,portValue,observation,manifestPayload,contractText,checkModule,saveModule,runDesign,versions,loadVersion,newModule,newTemplate,newComposite,updateContractItem,bindModule,pinProject,moduleForInsert,get catalog(){return catalog;},get health(){return health;}};
 };

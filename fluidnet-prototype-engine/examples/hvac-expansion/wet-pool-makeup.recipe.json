@@ -1,0 +1,274 @@
+{
+  "name": "湿接触冷却塔池 · 实际补排",
+  "fluid": {
+    "backend": "coolprop",
+    "fluid": "Water",
+    "composition": {},
+    "reference": "mass",
+    "phase_policy": "liquid"
+  },
+  "solver": {
+    "module_mixed_jacobian": false,
+    "module_cache": false,
+    "pressure_tolerance_pa": 1.0,
+    "mass_tolerance_kg_s": 1e-08,
+    "max_iterations": 80,
+    "dynamic_step_s": 10.0,
+    "thermal": true,
+    "property_coupling": "node",
+    "thermal_tolerance_k": 1e-08,
+    "max_thermal_iterations": 50,
+    "max_coupling_iterations": 60,
+    "coupling_density_rtol": 1e-06,
+    "thermal_acceleration": "none",
+    "coupling_acceleration": "none",
+    "moist_air": false,
+    "max_step_halvings": 6,
+    "hydraulic_method": "dense",
+    "hydraulic_diagnostics": false,
+    "analytic_jacobian": true,
+    "series_compression": false,
+    "hydraulic_blocks": false,
+    "module_parallelism": 1,
+    "batch_modules": true,
+    "time_step": {
+      "enabled": false,
+      "mass_atol_kg": 1e-09,
+      "energy_atol_j": 0.001,
+      "temperature_atol_k": 1e-05,
+      "rtol": 1e-06,
+      "min_internal_step_s": 0.001,
+      "max_internal_step_s": null,
+      "safety": 0.9,
+      "growth_factor": 2.0,
+      "shrink_factor": 0.5
+    }
+  },
+  "duration_s": 300.0,
+  "dt_s": 30.0,
+  "instances": [
+    {
+      "id": "Pool",
+      "module_id": "coupled_tower_pool",
+      "name": "Pool",
+      "page_id": "main",
+      "position": {
+        "x": 100.0,
+        "y": 140.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "temperature_k": 303.15
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "Pump",
+      "module_id": "pump",
+      "name": "Pump",
+      "page_id": "main",
+      "position": {
+        "x": 360.0,
+        "y": 140.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "speed_ratio": 0.6
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "Load",
+      "module_id": "heater",
+      "name": "Load",
+      "page_id": "main",
+      "position": {
+        "x": 620.0,
+        "y": 140.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "heat_input_w": 5000.0
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "Pipe",
+      "module_id": "pipe",
+      "name": "Pipe",
+      "page_id": "main",
+      "position": {
+        "x": 880.0,
+        "y": 140.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "length_m": 40.0,
+        "diameter_m": 0.04
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "Makeup",
+      "module_id": "source",
+      "name": "Makeup",
+      "page_id": "main",
+      "position": {
+        "x": 100.0,
+        "y": 360.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "pressure_pa": 200000.0,
+        "temperature_k": 293.15
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "MakeupValve",
+      "module_id": "valve",
+      "name": "MakeupValve",
+      "page_id": "main",
+      "position": {
+        "x": 360.0,
+        "y": 360.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "kv_m3_h": 1.0,
+        "opening_ratio": 0.02
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "DrainValve",
+      "module_id": "valve",
+      "name": "DrainValve",
+      "page_id": "main",
+      "position": {
+        "x": 620.0,
+        "y": 360.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "kv_m3_h": 1.0,
+        "opening_ratio": 0.0002
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "Drain",
+      "module_id": "source",
+      "name": "Drain",
+      "page_id": "main",
+      "position": {
+        "x": 880.0,
+        "y": 360.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "pressure_pa": 101325.0,
+        "temperature_k": 293.15
+      },
+      "draft_parameters": {},
+      "banks": []
+    }
+  ],
+  "connections": [
+    {
+      "id": "link-0",
+      "source": {
+        "instance_id": "Pool",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Pump",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "link-1",
+      "source": {
+        "instance_id": "Pump",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Load",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "link-2",
+      "source": {
+        "instance_id": "Load",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Pipe",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "link-3",
+      "source": {
+        "instance_id": "Pipe",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Pool",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "link-4",
+      "source": {
+        "instance_id": "Makeup",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "MakeupValve",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "link-5",
+      "source": {
+        "instance_id": "MakeupValve",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Pool",
+        "port_id": "in1"
+      }
+    },
+    {
+      "id": "link-6",
+      "source": {
+        "instance_id": "Pool",
+        "port_id": "out1"
+      },
+      "target": {
+        "instance_id": "DrainValve",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "link-7",
+      "source": {
+        "instance_id": "DrainValve",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Drain",
+        "port_id": "out0"
+      }
+    }
+  ]
+}

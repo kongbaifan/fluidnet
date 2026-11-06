@@ -20,6 +20,8 @@
 | GET /api/v1/modules | 无 | `ModuleCatalogResponse`：可安装模块包和内置模块清单、版本与内容哈希 | 500 `MODULE_STORAGE_ERROR`；401/403 |
 | POST /api/v1/modules/validate | ModuleDefinition | `ValidationResponse`：契约、Python 语法、Worker 入口与四阶段签名诊断 | 422（请求体校验）；401/403 |
 | POST /api/v1/modules/test | ModuleTestRequest | `ModuleTestResponse`：独立边界求解，返回 evaluation、committed、frame、history | 422（含 `MODULE_WORKER_IO_ERROR`）；401/403 |
+| POST /api/v1/modules/replay | ModuleReplayRequest：replay为调用前失败快照 | `ModuleReplayResponse`：独立Worker执行一个冻结回调、原诊断匹配情况及结果；[范围](MODULE_FAILURE_REPLAY.md) | 422（快照/哈希/阶段无效或Worker错误）；401/403 |
+| GET /api/v1/runs/{run_id}/module-failure | 无 | `ModuleFailureResponse`：run_id、replay或null、diagnostics；来自终态档案，失败候选不混入接受帧 | 404、507；401/403 |
 | POST /api/v1/modules/design | ModuleDesignRequest | `ModuleDesignResponse`：独立 Worker 执行 design.py；返回 design_hash、parameters、changes、diagnostics | 422（非法输出，含 `MODULE_WORKER_IO_ERROR`）；401/403 |
 | POST /api/v1/modules/versions | ModuleSaveRequest | **201** `ModuleVersionResponse`：校验试算通过后保存新版本 | 409 `MODULE_VERSION_CONFLICT`、422 `MODULE_SAVE_INVALID`、500 `MODULE_STORAGE_ERROR`；401/403 |
 | GET /api/v1/modules/{module_id}/versions | 无 | `ModuleVersionsResponse`：倒序版本记录，未知模块返回空列表 | 500 `MODULE_STORAGE_ERROR`；401/403 |
@@ -392,3 +394,6 @@ Worker RPC 超时默认 10 秒，超时返回 `MODULE_RUNTIME_TIMEOUT` 并终止
 ```
 
 完整对象见 `contracts/air-*.schema.json`、`contracts/moist-air-options.schema.json` 及 OpenAPI。示例可通过 `/examples/{name}` 获取，见[示例目录](../examples/air-side/README.md)。操作与质量基准见[风侧使用说明](AIR_SIDE_USER_GUIDE.md)。
+
+
+2026-11-06增补：设备组与设计库`GET /api/v1/equipment-library`、`POST /api/v1/equipment-library/project`；几何盘管`POST /api/v1/equipment-library/coil-geometry`；系统预检`POST /api/v1/project-inspection`；冻结解释`GET /api/v1/runs/{run_id}/inspection`；末帧对照`GET /api/v1/inspection/compare?a=...&b=...`。严格请求/响应见生成OpenAPI，使用与边界见[阶段交付](FORWARD_IMPLEMENTATION_PROGRESS.md)。

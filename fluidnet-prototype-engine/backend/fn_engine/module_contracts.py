@@ -24,6 +24,7 @@ SDK_CAPABILITIES['0.5.0'] = SDK_CAPABILITIES['0.5.0'] | {'hydraulic.signed_start
 SDK_CAPABILITIES['0.6.0'] = SDK_CAPABILITIES['0.5.0'] | {'air.properties.v1', 'air.pass_through.v1'}
 SDK_CAPABILITIES['0.7.0'] = SDK_CAPABILITIES['0.6.0'] | {THROTTLE_CAPABILITY}
 SDK_CAPABILITIES['0.8.0'] = SDK_CAPABILITIES['0.7.0'] | {'net.pressure_drop'}
+SDK_CAPABILITIES['0.9.0'] = SDK_CAPABILITIES['0.8.0'] | {'composite.refrigeration.v1'}
 STATE_CONTRACT_VERSIONS = frozenset({1})
 
 

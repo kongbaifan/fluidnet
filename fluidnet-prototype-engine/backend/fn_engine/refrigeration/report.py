@@ -364,12 +364,27 @@ def _station_author_fields(network, iid, definition):
 def station_series_keys(network):
     """Standard curves of a station run (rooms, vessel pressures/levels, actuators, controllers, energy)."""
     keys = []
-    for room, cooler in network.room_coolers.items():
-        keys += [(f'{room}.state.temperature_k', 'K'), (f'{room}.param.heat_input_w', 'W'), (f'{cooler}.param.fan_ratio', '1'),
-                 (f'{cooler}.refrigerant_heat_w', 'W')]
+    groups = network.room_cooler_groups or {room:[cooler] for room,cooler in network.room_coolers.items()}
+    for room, coolers in groups.items():
+        keys += [(f'{room}.state.temperature_k', 'K'), (f'{room}.param.heat_input_w', 'W'), (f'{room}.cooling_power_w','W')]
+        for cooler in coolers:
+            if network.kinds[cooler]=='dx_evaporator':
+                definition=network.modules[network.instances[cooler].module_id]
+                keys += [(f'{cooler}.{v.id}',v.unit.canonical_unit if v.unit else '1') for v in definition.variables if v.sampleable]
+                continue
+            keys += [(f'{cooler}.param.fan_ratio','1'), (f'{cooler}.refrigerant_heat_w','W'),
+                     (f'{cooler}.room_cooling_w','W'), (f'{cooler}.state.fan_energy_j','J')]
     for vessel in network.vessels:
         keys += [(f'{vessel}.state.pressure_pa', 'Pa'), (f'{vessel}.state.temperature_k', 'K'), (f'{vessel}.state.level_ratio', '1')]
+        definition = network.modules[network.instances[vessel].module_id]
+        if definition.id in ('horizontal_receiver', 'horizontal_drum','headed_receiver'):
+            keys += [(f'{vessel}.state.level_m', 'm'), (f'{vessel}.state.level_height_ratio', '1'),
+                     (f'{vessel}.volume_m3', 'm³')]
     for iid, kind in network.kinds.items():
+        if kind in ('air_cooled_condenser', 'performance_compressor','enthalpy_compressor','enthalpy_valve','refrigerant_line','refrigerant_subcooler','refrigerant_recuperator','dx_compressor','dx_expansion_valve') or kind in ('immersed_tube_bundle','room_heat_manifold','closed_buffer_tank') or network.instances[iid].module_id in ('defrost_air_cooler','headed_receiver'):
+            definition = network.modules[network.instances[iid].module_id]
+            keys += [(f'{iid}.{v.id}', v.unit.canonical_unit if v.unit else '1')
+                     for v in definition.variables if v.sampleable]
         keys += {'refrigerant_compressor': [(f'{iid}.param.running', '1'), (f'{iid}.param.load_ratio', '1'), (f'{iid}.electric_power_w', 'W')],
                  'evaporative_condenser': [(f'{iid}.param.fan_ratio', '1'), (f'{iid}.param.return_gas_ratio', '1'),
                                            (f'{iid}.param.wet_bulb_temperature_k', 'K'), (f'{iid}.heat_rejection_w', 'W')],
@@ -379,6 +394,12 @@ def station_series_keys(network):
     keys += [(f'controller.{c.id}.setpoint', '') for c in network.project.controllers]
     for iid, definition in _station_author_modules(network).items():
         keys += [(f'{iid}.{key}', unit) for key, (_, unit) in _station_author_fields(network, iid, definition).items()]
+    liquid=getattr(network,'fluid_network',None)
+    if liquid is not None:
+        for iid,instance in liquid.instances.items():
+            definition=liquid.modules[instance.module_id]
+            if definition.solver_model=='closed_buffer_tank':
+                keys += [(f'{iid}.{v.id}',v.unit.canonical_unit if v.unit else '1') for v in definition.variables if v.sampleable]
     for link in getattr(network, 'couplings', ()):
         keys += [(f'coupling.{link.id}.{key}', unit) for key, unit in (
             ('heat_w', 'W'), ('mass_flow_kg_s', 'kg/s'), ('fluid_inlet_temperature_k', 'K'),
@@ -409,7 +430,7 @@ def station_module_results(rows, network):
 
 def station_metrics(rows, network):
     last = rows[-1]['variables']
-    counters = [k for k in last if k.endswith(('.state.electric_energy_j', '.state.fan_energy_j'))]
+    counters = [k for k in last if k.endswith(('.state.electric_energy_j', '.state.fan_energy_j', '.state.heater_energy_j'))]
     electric = sum(last[k] for k in counters)
     controllers = {c.id: c for c in network.project.controllers}
 
@@ -475,13 +496,34 @@ def station_report(record, rows, network):
     actuator_targets=[]
     for iid,kind in network.kinds.items():
         for suffix,label in {'refrigerant_compressor':[('load_ratio','载量')],
+            'performance_compressor':[('load_ratio','载量'),('speed_ratio','转速')],
             'evaporative_condenser':[('fan_ratio','风机'),('return_gas_ratio','回气阀')],
+            'air_cooled_condenser':[('fan_ratio','风冷冷凝器转速')],
             'expansion_valve':[('opening_ratio','开度')]}.get(kind,[]):
             actuator_targets.append((f'{iid}.param.{suffix}',f'{iid} · {label}'))
     charts = (_chart(rows, [(f'{r}.state.temperature_k', r) for r in rooms], '库温', '°C', offset=-273.15)
               + _chart(rows, pressure_targets, '容器压力与控制目标', 'kPa', scale=1000.)
               + _chart(rows, [(f'{v}.state.level_ratio', v) for v in network.vessels], '容器液位', '1')
               + _chart(rows, actuator_targets, '执行器', '1'))
+    equipment_rows = []
+    for iid, instance in network.instances.items():
+        definition = network.modules[instance.module_id]
+        if definition.id not in ('horizontal_receiver', 'horizontal_drum', 'cold_room_multi','headed_receiver','room_heat_manifold','closed_buffer_tank') and network.kinds.get(iid) not in ('air_cooled_condenser','performance_compressor','air_cooler','enthalpy_compressor','enthalpy_valve','refrigerant_line','refrigerant_subcooler','refrigerant_recuperator','dx_compressor','dx_expansion_valve','dx_evaporator','immersed_tube_bundle'):
+            continue
+        for variable in definition.variables:
+            if variable.source == 'parameter':
+                continue
+            value = rows[-1]['variables'].get(f'{iid}.{variable.id}')
+            unit = variable.unit
+            display = (value / unit.display_scale + unit.display_offset) if value is not None and unit else value
+            equipment_rows.append((html.escape(iid), html.escape(variable.label),
+                                   '—' if display is None else f'{display:.6g}',
+                                   html.escape(unit.display_unit if unit else '')))
+    if equipment_rows:
+        charts += '<h2>扩展设备末帧结果</h2>' + _table(['设备', '变量', '值', '显示单位'], equipment_rows)
+        charts += '<p class="note">卧式容器几何按冻结模块定义；headed_receiver包含半球封头。风冷冷凝器使用环境空气边界、恒定盘管 UA。停风时出风温度未定义；风机热排向环境。</p>'
+        if any(kind == 'performance_compressor' for kind in network.kinds.values()):
+            charts += '<p class="note">性能压缩机默认曲线为人为教学假设，非厂家标定；饱和吸气，曲线域及运行包络按最终接受工作点检查。</p>'
     if coupled:
         last = rows[-1]['variables']
         links = network.couplings
@@ -493,13 +535,10 @@ def station_report(record, rows, network):
     events = _table(['ID', '时刻', '写入'], [(html.escape(e.id), f'{e.time_s / 3600:.3f} h', html.escape(f'{e.key} = {e.value:g}'))
                                          for e in network.events]) if network.events else '<p>本次运行没有日程事件。</p>'
     request = record['request']
-    boundary = ('集总制冷站与无储量单相液体回路通过浸没盘管联合求解；两侧不交换质量。液体侧允许内置设备和受限的 '
-                'Python 阀门/局部阻力；盘管、液体管道与作者设备均无独立储热。累计传热及平台通过质量取实际接受子步积分。'
-                '制冷剂压力由饱和容器存量决定，不含制冷剂管网两相压降、过冷/过热或机组启停储热。'
-                '控制器与日程以本次冻结项目为准。' if coupled else
-                '集总制冷站：压力只在饱和容器中，其余设备为代数关系；不计管路压降、换热器持液与过冷/过热；'
-                '单级压缩未计油冷，排气温度偏高。控制：吸气压力→压缩机载量、贮液器压力→回气阀、贮液器液位→节流阀、库温→冷风机风量，'
-                '上层脚本按载量增减压缩机、按回气阀开度增减冷凝器风机组、按冷风机风量调液泵。')
+    boundary = ('制冷剂M/U与液体回路通过有限UA联算；两侧不交换质量。storage_v1模式将闭式缓冲Mh加入同一状态向量，固定隐式步统一接受。'
+                '普通液体管程及作者设备无独立冷媒库存；具体设备限制来自冻结定义。' if coupled else
+                '集总制冷站：容器M/U决定饱和压力；专用单相流股管段计算p/h，浸没管束的壳侧库存只由显式连接的容器持有。'
+                '不支持通用两相管网、夹带或液面晃动；设备组装本身不生成控制。')
     return (f'<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>{title}</title><style>{STYLE}</style></head>'
             f'<body><h1>{title}</h1>'
             + _table(['项目', '内容'], [('项目', html.escape(request['project']['name'])), ('工况', html.escape(_scenario_name(record))),

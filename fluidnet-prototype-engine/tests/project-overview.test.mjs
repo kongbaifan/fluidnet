@@ -41,6 +41,8 @@ test('report availability uses the frozen run domain, status and used instances'
   record.request.project.instances=[{module_id:'unused_water'}];
   record.request.project.thermal_couplings=[{id:'coil'}];
   assert.equal(engine.refrigerationReportAvailable(record),false);
+  record.request.project.thermal_couplings=[];
+  assert.equal(engine.refrigerationReportAvailable(record),true);
 });
 
 test('overview follows device roles and actual custom IDs, with no example-name dependency',()=>{

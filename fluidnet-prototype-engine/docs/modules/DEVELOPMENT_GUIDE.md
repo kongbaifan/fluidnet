@@ -1,8 +1,12 @@
 # 模块开发与运行合同
 
-SDK API 当前为 0.7.0。引擎保留 schema 1/2/3 的冻结解析和规范化；schema 3 提供流体适用范围、依赖与组合，schema 4 新增显式制冷角色及类型化 Worker 协议。SDK、模块整数版本、合同版本独立编号。
+SDK API 当前为 0.9.0（2026-11-06 核对）。引擎保留 schema 1/2/3 的冻结解析和规范化；schema 3 提供流体适用范围、依赖与组合，schema 4 新增显式制冷角色及类型化 Worker 协议。SDK、模块整数版本、合同版本独立编号。
 
-不同项目类型的支持范围见[自主建模能力清单](../PLATFORM_CAPABILITIES.md)。普通单相网络支持作者设备；湿空气模块需声明相应能力；集总制冷站已支持 schema 4 作者等焓节流角色的正式 Worker 运行与接受事务；A 版冷库、A1 热节点和热耦合液体侧尚未开放 Python 设备。制冷边界验证台、线性/等百分比模板和发布已接通，详见[RF-2/RF-3 操作说明](../REFRIGERATION_MODULE_EXECUTION.md)。不能用修改端口类型或模型名称代替执行适配。
+不同项目类型的支持范围见[自主建模能力清单](../PLATFORM_CAPABILITIES.md)。普通单相网络支持作者设备；湿空气模块需声明相应能力；集总制冷站已支持 schema 4 作者等焓节流角色的正式 Worker 运行与接受事务；A 版冷库与 A1 热节点尚未开放 Python 设备；热耦合液体侧已支持受限的无储量 Python 阀门／局部阻力，见[热耦合液体作者设备](../COUPLED_LIQUID_MODULES.md)。制冷边界验证台、线性/等百分比模板和发布已接通，详见[RF-2/RF-3 操作说明](../REFRIGERATION_MODULE_EXECUTION.md)。SDK 0.8.0 的[自定义压降](../CUSTOM_PRESSURE_DROP.md)目前只开放普通单相无储量被动设备。不能用修改端口类型或模型名称代替执行适配。
+
+设备模型的后续增补与交付检查按[制冷与暖通设备路线](../REFRIGERATION_HVAC_EQUIPMENT_ROADMAP.md)执行；L1–L4验证层级继续采用模块开发套件的定义，具体工具按内置设备与Python作者模块分别选择。
+
+2026-11-06补充：SDK0.9新增受限闭合制冷设备组能力，原schema1–4保持；详见[新物理与组合](../FORWARD_PHYSICS_ACCEPTANCE.md)。现行实施入口见[当前进度](../FORWARD_IMPLEMENTATION_PROGRESS.md)。
 
 ## 作者流程
 

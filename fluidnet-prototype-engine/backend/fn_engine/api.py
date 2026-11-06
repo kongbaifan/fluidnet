@@ -1,5 +1,9 @@
 from __future__ import annotations
 from .models import ModuleTemplateRequest,ModuleGroupRequest,ModuleTestSuiteRequest,ModuleTestSuiteResponse
+from .models import ModuleReplayRequest, ModuleReplayResponse, ModuleFailureResponse
+from .system_inspection import SystemInspection, InspectionComparison
+from .equipment_library import LibraryCatalog, LibraryRequest
+from .coil_geometry import CoilGeometryRequest, CoilGeometryResponse
 
 import asyncio
 import logging
@@ -492,14 +496,38 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
     def catalog():
         return {'modules':builtin_catalog(), 'prototype_parameter_bindings':PARAMETER_BINDINGS}
 
+    @app.post('/api/v1/equipment-library/coil-geometry', response_model=CoilGeometryResponse,
+              responses=protected_error_responses(422, 'INTERNAL_ERROR'))
+    def coil_geometry_design(request: CoilGeometryRequest):
+        from .coil_geometry import design
+        return design(request)
+
+    @app.get('/api/v1/equipment-library', response_model=LibraryCatalog,
+             responses=protected_error_responses('INTERNAL_ERROR'))
+    def equipment_library():
+        from .equipment_library import catalog
+        return catalog()
+
+    @app.post('/api/v1/equipment-library/project', response_model=Project,
+              responses=protected_error_responses(422, 'INTERNAL_ERROR'))
+    def equipment_library_project(request: LibraryRequest):
+        from .equipment_library import build
+        try:
+            return build(request)
+        except ValueError as error:
+            raise HTTPException(422, detail=str(error)) from error
+
     @app.get('/api/v1/examples/{name}', response_model=Project,
              responses=protected_error_responses(404, 'INTERNAL_ERROR'))
     def example(name: str, topology: Literal['single', 'parallel', 'independent'] = 'single'):
         from .examples import pid_example
         from .air_examples import AIR_EXAMPLES, air_example
+        from .hvac_expansion_examples import HVAC_EXPANSION_EXAMPLES, example as hvac_expansion_example
         try:
             if name in AIR_EXAMPLES:
                 return air_example(name)
+            if name in HVAC_EXPANSION_EXAMPLES:
+                return hvac_expansion_example(name)
             if name == 'thermal-coupling':
                 from .refrigeration.coupling_examples import thermal_coupling_example
                 return thermal_coupling_example(topology=topology)
@@ -515,6 +543,50 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
             if name == 'cold-storage-nh3co2':
                 from .refrigeration.examples import station_case
                 return station_case()
+            if name in ('refrigeration-modular-room', 'refrigeration-modular-two-room'):
+                from .refrigeration.modular_examples import modular_room_example
+                return modular_room_example() if name == 'refrigeration-modular-room' else modular_room_example(2, 2)
+            if name == 'refrigeration-modular-cascade':
+                from .refrigeration.modular_examples import modular_cascade_example
+                return modular_cascade_example()
+            if name == 'refrigeration-modular-air-cooled':
+                from .refrigeration.modular_examples import modular_air_cooled_example
+                return modular_air_cooled_example()
+            if name == 'refrigeration-stream-line':
+                from .refrigeration.stream_example import stream_example
+                return stream_example()
+            if name == 'refrigeration-stream-subcooler':
+                from .refrigeration.stream_example import stream_example
+                return stream_example(subcooling=True)
+            if name == 'refrigeration-stream-recuperator':
+                from .refrigeration.stream_example import recuperator_example
+                return recuperator_example()
+            if name == 'refrigeration-dx':
+                from .refrigeration.dx_example import dx_example
+                return dx_example()
+            if name in ('closed-buffer-mixing', 'closed-buffer-cooling'):
+                from .buffer_example import buffer_example
+                return buffer_example(stagnant=name.endswith('cooling'))
+            if name == 'gas-expansion-fill':
+                from .expansion_example import expansion_example
+                return expansion_example()
+            if name in ('tower-pool-evaporation','tower-pool-makeup'):
+                from .tower_pool_example import tower_pool_example
+                return tower_pool_example(makeup=name.endswith('makeup'))
+            if name in ('wet-pool-makeup', 'wet-pool-no-makeup'):
+                from .coupled_tower_pool_example import coupled_tower_pool_example
+                return coupled_tower_pool_example(makeup=name=='wet-pool-makeup')
+            extension_examples = {
+                'refrigeration-performance-compressor': ('performance_example','performance_example'),
+                'refrigeration-multi-cooler': ('multi_cooler_example','multi_cooler_example'),
+                'refrigeration-two-stage': ('two_stage_example','modular_two_stage_example'),
+                'refrigeration-electric-defrost': ('defrost_example','defrost_example'),
+            }
+            if name in extension_examples:
+                from importlib import import_module
+                module_name, factory_name = extension_examples[name]
+                factory = getattr(import_module('.refrigeration.'+module_name, __package__), factory_name)
+                return factory()
             return pid_example(name)
         except KeyError:
             raise HTTPException(404, detail='示例不存在')
@@ -617,6 +689,18 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
             status, detail = _unexpected_failure(error)
             raise HTTPException(status, detail=detail) from error
 
+    @app.post('/api/v1/modules/replay', response_model=ModuleReplayResponse,
+              responses=protected_error_responses(422, 'MODULE_WORKER_IO_ERROR', 'INTERNAL_ERROR'))
+    def replay_module_callback(request: ModuleReplayRequest):
+        from .module_replay import replay_module
+        try:
+            return replay_module(request)
+        except ValueError as error:
+            raise HTTPException(422, detail=diagnostic(error).model_dump(mode='json')) from error
+        except Exception as error:
+            status, detail = _unexpected_failure(error)
+            raise HTTPException(status, detail=detail) from error
+
     @app.post('/api/v1/prototype/normalize', response_model=Project,
               responses=protected_error_responses(422, 'INTERNAL_ERROR'))
     def normalize(payload: dict):
@@ -638,6 +722,8 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
 
     def compute_run(run_id: str, request: RunRequest) -> dict:
         """Solve a synchronous run and always write a terminal record (background runs use RunManager)."""
+        from .module_replay import failure_snapshot
+        module_failure = None
         history: list[RunFrame] = []
         try:
             project = apply_scenario(request.project, request.scenario_id)
@@ -649,6 +735,7 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
             shape_history(history, request, project, network)
             frame, status = history[-1], 'completed'
         except SolveFailed as error:
+            module_failure = failure_snapshot(error)
             # A dynamic run that stopped at a tank limit or an unsolvable step keeps its accepted frames.
             history = list(error.frames)
             try:
@@ -660,12 +747,15 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
                              diagnostics=[error.diagnostic])
         except ValueError as error:
             history, status = [], 'failed'
+            module_failure = failure_snapshot(error)
             frame = RunFrame(status='failed',valid=False,time_s=0,diagnostics=[diagnostic(error)])
         events = [{'type':status, 'time_s':float(frame.time_s)}]
         history_rows = [f.model_dump(mode='json') for f in history]
         record = {'id':run_id,'status':status,'mode':request.mode,'request':request.model_dump(mode='json'),
                   'frame':frame.model_dump(mode='json'),'history':history_rows,
                   'events':events, 'total_rows':len(history)}
+        if module_failure is not None:
+            record['module_failure'] = module_failure
         from .air_variables import make_air_metadata
         record['air_metadata'] = make_air_metadata(request.project)
         if archive:
@@ -750,7 +840,32 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
     def run_status(run_id: str):
         record = get_run(run_id)
         # `history` is served by /runs/{id}/history; `events` stays visible here.
-        return {key:value for key,value in record.items() if key != 'history'}
+        return {key:value for key,value in record.items() if key not in {'history', 'module_failure'}}
+
+    @app.get('/api/v1/runs/{run_id}/module-failure', response_model=ModuleFailureResponse,
+             responses=protected_error_responses(404, 'STORAGE_FAILED', 'INTERNAL_ERROR'))
+    def run_module_failure(run_id: str):
+        record = get_run(run_id)
+        return {'run_id': run_id, 'replay': record.get('module_failure'),
+                'diagnostics': (record.get('frame') or {}).get('diagnostics', [])}
+
+    @app.get('/api/v1/runs/{run_id}/inspection', response_model=SystemInspection,
+             responses=protected_error_responses(404, 'STORAGE_FAILED', 'INTERNAL_ERROR'))
+    def inspect_run(run_id: str):
+        from .system_inspection import run_inspection
+        return run_inspection(get_run(run_id))
+
+    @app.get('/api/v1/inspection/compare', response_model=InspectionComparison,
+             responses=protected_error_responses(404, 'STORAGE_FAILED', 'INTERNAL_ERROR'))
+    def compare_inspection(a: str, b: str):
+        from .system_inspection import compare_runs
+        return compare_runs(get_run(a),get_run(b))
+
+    @app.post('/api/v1/project-inspection', response_model=SystemInspection,
+              responses=protected_error_responses(422, 'INTERNAL_ERROR'))
+    def inspect_project(project: Project):
+        from .system_inspection import project_check
+        return project_check(project)
 
     @app.post('/api/v1/runs/{run_id}/delete', response_model=RunDeleteResponse,
               responses=protected_error_responses(404, 409, 'STORAGE_FAILED', 'INTERNAL_ERROR'))
@@ -827,6 +942,10 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
             # 风侧报告使用运行时冻结的目录和实际帧，不编译当前设备版本、不重新求解。
             return record, rows, None, decimated
         request = RunRequest.model_validate(record['request'])
+        used = {i.module_id for i in request.project.instances}
+        domains = {p.domain.value for m in request.project.modules if m.id in used for p in m.ports}
+        if domains <= {'fluid', 'info', 'power', 'mech'} and not request.project.thermal_couplings:
+            return {**record, 'request': request.model_dump(mode='json')}, rows, None, decimated
         try:
             network = compile_project(apply_scenario(request.project, request.scenario_id))
         except ValueError as error:
@@ -862,6 +981,9 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
         if record.get('air_metadata'):
             from .air_report import csv_report
             return report_download(csv_report(record,rows,decimated),f'air-{run_id[:8]}.csv','text/csv; charset=utf-8')
+        if network is None:
+            from .equipment_report import csv_report
+            return report_download(csv_report(record,rows,decimated),f'equipment-{run_id[:8]}.csv','text/csv; charset=utf-8')
         content = station_csv(rows, network) if network.execution_domain in {'refrigeration', 'coupled'} else run_csv(rows, network)
         return report_download(content, f'cold-store-{run_id[:8]}.csv', 'text/csv; charset=utf-8')
 
@@ -874,6 +996,9 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
         if record.get('air_metadata'):
             from .air_report import html_report
             return report_download(html_report(record,rows,decimated),f'air-{run_id[:8]}.html','text/html; charset=utf-8')
+        if network is None:
+            from .equipment_report import html_report
+            return report_download(html_report(record,rows,decimated),f'equipment-{run_id[:8]}.html','text/html; charset=utf-8')
         content = (station_report if network.execution_domain in {'refrigeration', 'coupled'} else run_report)(record, rows, network)
         if decimated:
             content = content.replace('</h1>', '</h1><p><strong>历史窗口不含全部帧，曲线与峰值使用抽稀概览；'

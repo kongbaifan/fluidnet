@@ -42,13 +42,23 @@ from fn_engine._module_schema_v2 import ModuleDefinitionV2
 from fn_engine._module_schema_v3 import ModuleDefinitionV3
 from fn_engine._module_schema_v4 import ModuleDefinitionV4
 from fn_engine.models import RefrigerationEvaluateRequest, RefrigerationEvaluateResponse
+from fn_engine.models import ModuleReplaySnapshot, ModuleReplayRequest, ModuleReplayResponse, ModuleFailureResponse
 from fn_engine.refrigeration_models import RefrigerationThrottleInput, RefrigerationThrottleFlow
 
 root=Path(__file__).resolve().parents[1]
 output=root/'contracts'
 
 # 合同文件清单的唯一来源：schema 名与生成顺序都由这里给出，测试直接导入 models，避免名单漂移。
+from fn_engine.system_inspection import SystemInspection, InspectionComparison
+from fn_engine.equipment_library import LibraryItem, LibraryCatalog, LibraryRequest
+from fn_engine.coil_geometry import CoilGeometryRequest, CoilGeometryResponse
+
 models = [
+    ('system-inspection',SystemInspection),('inspection-comparison',InspectionComparison),
+    ('equipment-library-item',LibraryItem),('equipment-library',LibraryCatalog),('equipment-library-request',LibraryRequest),
+    ('coil-geometry-request',CoilGeometryRequest),('coil-geometry-response',CoilGeometryResponse),
+    ('module-replay-snapshot', ModuleReplaySnapshot), ('module-replay-request', ModuleReplayRequest),
+    ('module-replay-response', ModuleReplayResponse), ('module-failure-response', ModuleFailureResponse),
     ('moist-air-options',MoistAirOptions), ('air-property-request',AirPropertyRequest),
     ('air-property-response',AirPropertyResponse), ('air-grid-request',AirGridRequest),
     ('air-grid-response',AirGridResponse), ('air-variable-descriptor',AirVariableDescriptor),

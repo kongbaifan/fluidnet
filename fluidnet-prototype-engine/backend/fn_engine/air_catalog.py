@@ -59,7 +59,9 @@ def air_catalog():
             temperature('makeup_temperature_k','补水温度',293.15,273.15,323.15,True),
             number('loss_coefficient','水侧阻力系数',2.,'ratio','1',minimum=0.),
             number('diameter_m','水侧等效直径',.05,'length','m','mm',.001,1e-8,2.)])
-    return [mixing,air_filter,room,tower,water_coil(),water_chiller()]
+    from .air_source_heat_pump import definition as heat_pump_definition
+    from .enthalpy_recovery import definition as recovery_definition
+    return [mixing,air_filter,room,tower,water_coil(),water_chiller(),air_cooled_chiller(),heat_pump_definition(),recovery_definition()]
 
 
 def _derived(id, label, quantity, unit, display=None, scale=1., offset=0., source='derived'):
@@ -101,12 +103,15 @@ def water_chiller():
     celsius = lambda id, label: _derived(id, label, 'temperature', 'K', '°C', offset=-273.15)
     return ModuleDefinition(id='water_chiller', name='水冷冷水机组', category='热力设备', solver_model='water_chiller',
         description='单级蒸气压缩循环，蒸发器与冷凝器各接一条水通路；把冷冻水出水压到设定值，满载不足时出水温度上漂。'
-                    '负荷比在 0–1 连续变化，不模拟最小负荷启停；Q冷凝 = Q制冷 + 压缩轴功。',
+                    '默认连续调节；可选最小水量保护和低负荷周期平均运行，不模拟逐次启停瞬态；Q冷凝 = Q制冷 + 压缩轴功。',
         ports=[PortSpec(id='in0',label='冷冻水进水',direction=Direction.in_),PortSpec(id='out0',label='冷冻水出水',direction=Direction.out),
                PortSpec(id='in1',label='冷却水进水',direction=Direction.in_),PortSpec(id='out1',label='冷却水出水',direction=Direction.out)],
         channels=[channel('ch0','resistance'),channel('ch1','resistance_secondary','in1','out1')],
         parameters=[
             number('running','启停（1 运行 / 0 停机）',1.,'ratio','1',minimum=0.,maximum=1.,runtime=True),
+            number('evaporator_min_flow_kg_s','冷冻水最小质量流量（0 不启用保护）',0.,'mass_flow','kg/s',minimum=0.),
+            number('condenser_min_flow_kg_s','冷却水最小质量流量（0 不启用保护）',0.,'mass_flow','kg/s',minimum=0.),
+            _ratio('minimum_load_ratio','最小运行负荷比（低负荷周期平均；0 连续调节）',0.),
             _celsius('chilled_water_setpoint_k','冷冻水出水设定',280.15,runtime=True),
             ParameterSpec(id='refrigerant',label='制冷剂（CoolProp 名称）',value_type='text',default='HEOS::R134a'),
             number('rated_cooling_power_w','额定制冷量',35000.,'power','W','kW',1000.,minimum=1.),
@@ -132,12 +137,48 @@ def water_chiller():
         variables=[kw('cooling_power_w','制冷量'),kw('condenser_heat_w','冷凝排热'),kw('shaft_power_w','压缩轴功率'),
                    kw('electric_power_w','压缩机电功率'),_derived('cop','COP（制冷量/电功率）','ratio','1'),
                    _derived('load_ratio','负荷比','ratio','1','%',.01),
+                   _derived('compressor_load_ratio','开机期间负荷比','ratio','1','%',.01),
+                   _derived('cycling_ratio','周期平均开机比例','ratio','1','%',.01),
+                   _derived('low_load_cycling','低负荷周期平均运行','ratio','1'),
                    _derived('capacity_limited','满载仍未达设定','ratio','1'),
                    celsius('evaporating_temperature_k','蒸发温度'),celsius('condensing_temperature_k','冷凝温度'),
                    celsius('discharge_temperature_k','排气温度'),_derived('pressure_ratio','压比','ratio','1'),
                    _derived('refrigerant_mass_flow_kg_s','制冷剂质量流量','mass_flow','kg/s'),
                    _derived('state.cooling_energy_j','累计制冷量','energy','J','kWh',3600000.,source='state'),
                    _derived('state.electric_energy_j','累计耗电量','energy','J','kWh',3600000.,source='state')])
+
+
+def air_cooled_chiller():
+    """Single liquid loop, air condenser boundary; deliberately no air network ports."""
+    from .catalog import channel, number, _celsius, _ratio
+    reference=water_chiller().model_dump(mode='json')
+    remove={'condenser_min_flow_kg_s','condenser_ua_w_k','secondary_loss_coefficient','secondary_diameter_m'}
+    reference.update(id='air_cooled_chiller',name='风冷冷水机组',solver_model='air_cooled_chiller',
+        description='一个冷冻水回路与环境干空气边界。有限风量ε–NTU、循环热平衡与风机立方电耗；低负荷为周期平均，不模拟启停储热或实际风网。',
+        ports=[p for p in reference['ports'] if p['id'] in ('in0','out0')],
+        channels=[channel('ch0','resistance').model_dump(mode='json')],
+        parameters=[p for p in reference['parameters'] if p['id'] not in remove])
+    extra=[number('air_side_ua_w_k','空气侧恒定UA',6000.,'conductance','W/K','kW/K',1000.,minimum=.001),
+        number('rated_air_mass_flow_kg_s','额定有效空气质量流量',8.,'mass_flow','kg/s',minimum=.001),
+        number('air_specific_heat_j_kg_k','空气恒定比热',1006.,'specific_heat','J/(kg·K)','kJ/(kg·K)',1000.,minimum=1.),
+        _celsius('air_inlet_temperature_k','室外进风干球温度',303.15,runtime=True),
+        _ratio('fan_ratio','风机转速比',1.,runtime=True),
+        number('fan_power_w','额定风机电功率',1000.,'power','W','kW',1000.,minimum=0.)]
+    reference['parameters'] += [p.model_dump(mode='json') for p in extra]
+    reference['variables'] += [v.model_dump(mode='json') for v in [
+        _derived('compressor_electric_power_w','压缩机电功率','power','W','kW',1000.),
+        _derived('fan_power_w','周期平均风机电功率','power','W','kW',1000.),
+        _derived('system_cop','系统COP（包含风机）','ratio','1'),
+        _derived('air_inlet_temperature_k','室外进风温度','temperature','K','°C',offset=-273.15),
+        _derived('air_outlet_temperature_k','开机段盘管出风温度','temperature','K','°C',offset=-273.15),
+        _derived('air_mass_flow_kg_s','周期平均空气质量流量','mass_flow','kg/s'),
+        _derived('air_heat_rejection_w','空气侧平均排热','power','W','kW',1000.),
+        _derived('air_equation_residual_w','空气侧能量残差','power','W'),
+        _derived('state.fan_energy_j','累计风机电量','energy','J','kWh',3600000.,source='state')]]
+    for v in reference['variables']:
+        if v['id']=='electric_power_w':v['label']='机组总电功率（压缩机＋风机）'
+        if v['id']=='state.electric_energy_j':v['label']='累计机组总电量'
+    return ModuleDefinition.model_validate(reference)
 
 
 def upgrade_air_catalog(definitions):

@@ -108,3 +108,17 @@ AR-7 完整门禁见文末及 PR #8。各包完成后在此添加提交、实际
 CI 新增 Haswell 完整后端矩阵，并保留默认后端原检查名；两条完整后端、浏览器、SDK 与模块门均须通过最终提交。对应运行 ID、实际结论与覆盖率更新在 PR 验收说明，不预先将远端门禁写为通过。
 
 后备缩放补充验收：相邻小流量的开度平方奇点通过等价残差缩放处理，仅用于既有单次有限差分后备，最终仍检查未缩放的原压力与质量误差。原 2%／10%／60% 用例及其断言保持，新增 1%／1.5%／2.5%／3% 动态工况按不同温度下的 kg/s 守恒核算；0.5% 水力工况通过原门槛，其加热工况继续触发单相液体保护。Haswell、Sandybridge 的最终定向组各 **221 passed**（162.56 s、162.53 s）；真实 CI PowerShell 快速门在默认、Haswell、Sandybridge 各 **7 passed**（30.20 s、26.25 s、25.42 s）。六例原基线和现有 mypy 复验一致；两条后端覆盖率文件分别上传，避免矩阵产物同名冲突。
+
+### 最终完整 CI 确认（2026-11-04）
+
+已通过 GitHub 检查接口及完整日志核实 PR #8 的代码基线 `a165ece29ef863eddc77ef5f0d4ea82ab3deaf08`：
+
+| 检查 | 实际结果 |
+| --- | --- |
+| 默认后端 | 1871 passed、16 skipped，覆盖率 91.24%，2330.51 s |
+| Haswell 后端 | 1871 passed、16 skipped，覆盖率 91.24%，1724.37 s |
+| 前端 Node 24 + Edge | SUCCESS（完整浏览器链与 UI 单测） |
+| SDK strict | SUCCESS；128 passed，覆盖率 98.70% |
+| 模块检查与模块套件产物 | SUCCESS |
+
+证据：[完整 CI 41769980965](https://github.com/kongbaifan/fluidnet/actions/runs/41769980965)、[模块 CI 41769980753](https://github.com/kongbaifan/fluidnet/actions/runs/41769980753)。AR-7／NUM-1 在该基线完成验收。PR 仍为 OPEN，未执行合并；新功能分支的检查另行登记，不沿用此通过结论。

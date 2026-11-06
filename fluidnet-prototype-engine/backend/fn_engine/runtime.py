@@ -304,25 +304,29 @@ class InProcessModuleRunner:
         ctx._identity_read = False
         air_before = {key:port.humidity_ratio_kg_kg for key,port in ports.items()
                       if port.humidity_ratio_kg_kg is not None}
+        # Keep true callback inputs even if a failing callback mutates ctx before raising.
+        replay_inputs = deepcopy({'parameters': ctx.parameters, 'state': ctx.state,
+            'ports': ports, 'channels': ctx.channels,
+            'refrigeration': ctx._refrigeration.throttle if ctx._refrigeration is not None else None})
         try:
             if inspect.iscoroutinefunction(callback):
                 raise ValueError('模块生命周期回调必须是同步函数')
             callback(ctx, *args)
+            errors = [item for item in ctx.diagnostics if item.severity == 'error']
+            if errors:
+                raise RuntimeErrorBase('; '.join(item.message for item in errors), diagnostics=ctx.diagnostics)
             if air_before and any(ctx.ports[key].humidity_ratio_kg_kg != w for key,w in air_before.items()):
                 raise RuntimeErrorBase('湿空气透传模块不能改变端口含湿量',code='MODULE_AIR_CAPABILITY_MISMATCH')
         except Exception as error:
+            from .module_replay import capture_failure
             if isinstance(error, RuntimeErrorBase) and error.diagnostics:
+                if error.replay is None:
+                    error.replay = capture_failure(self.definition, self.fluid, self.port_fluids,
+                        ctx._execution, replay_inputs, next((d for d in error.diagnostics if d.severity == 'error'), error.diagnostics[0]))
                 raise
             diagnostic = exception_diagnostic(error, self.definition, ctx.execution)
-            replay = {'module': self.definition.model_dump(mode='json'), 'parameters': deepcopy(ctx.parameters),
-                'state': deepcopy(self.state), 'fluid': self.fluid.model_dump(mode='json'),
-                'port_fluids': {key: config.model_dump(mode='json') for key, config in self.port_fluids.items()},
-                'ports': {key: value.model_dump(mode='json') for key, value in ctx.ports.items()},
-                'channels': {key: value.model_dump(mode='json') for key, value in ctx.channels.items()},
-                'execution': ctx.execution.model_dump(mode='json'),
-                'content_hash': module_content_hash(self.definition), 'definition_hash': module_definition_hash(self.definition)}
-            if ctx._refrigeration is not None:
-                replay['refrigeration'] = ctx._refrigeration.throttle.model_dump(mode='json')
+            replay = capture_failure(self.definition, self.fluid, self.port_fluids,
+                                     ctx._execution, replay_inputs, diagnostic)
             raise RuntimeErrorBase(str(error), diagnostics=[diagnostic], replay=replay, code=diagnostic.code) from error
 
     def initialize(self, context=None):

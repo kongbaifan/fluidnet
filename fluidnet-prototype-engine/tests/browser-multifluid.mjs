@@ -31,7 +31,7 @@ try {
   await page.locator('[data-circuit-field="medium"][data-index="0"]').selectOption('meg30');
   await page.locator('.rail-link[data-route="workbench"]').click();
 
-  const checked = page.waitForResponse(r => new URL(r.url()).pathname.endsWith('/projects/validate'));
+  const checked = page.waitForResponse(r => new URL(r.url()).pathname.endsWith('/project-inspection'));
   await page.locator('[data-action="validate"]').first().click();
   const validation = await (await checked).json();
   expect(validation.valid).toBe(true);

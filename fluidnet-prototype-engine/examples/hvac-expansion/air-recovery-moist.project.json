@@ -1,0 +1,772 @@
+{
+  "schema_version": 1,
+  "id": "air-recovery-moist",
+  "name": "双风道显热回收",
+  "description": "",
+  "fluid": {
+    "backend": "coolprop",
+    "fluid": "Air",
+    "composition": {},
+    "reference": "mass",
+    "phase_policy": "gas"
+  },
+  "modules": [
+    {
+      "schema_version": 1,
+      "id": "source",
+      "name": "压力边界",
+      "version": 1,
+      "category": "边界与节点",
+      "description": "",
+      "ports": [
+        {
+          "id": "out0",
+          "label": "out0",
+          "domain": "fluid",
+          "direction": "out",
+          "required": true,
+          "circuit": "fluid"
+        }
+      ],
+      "parameters": [
+        {
+          "id": "pressure_pa",
+          "label": "绝对压力",
+          "value_type": "number",
+          "default": 201325.0,
+          "unit": {
+            "quantity": "pressure",
+            "canonical_unit": "Pa",
+            "display_unit": "kPa",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "minimum": 1.0,
+          "maximum": null,
+          "runtime": true,
+          "writable": true
+        },
+        {
+          "id": "temperature_k",
+          "label": "边界温度",
+          "value_type": "number",
+          "default": 293.15,
+          "unit": {
+            "quantity": "temperature",
+            "canonical_unit": "K",
+            "display_unit": "°C",
+            "display_scale": 1.0,
+            "display_offset": -273.15
+          },
+          "minimum": 1.0,
+          "maximum": null,
+          "runtime": true,
+          "writable": true
+        },
+        {
+          "id": "humidity_ratio_kg_kg",
+          "label": "边界含湿量（湿空气模式）",
+          "value_type": "number",
+          "default": 0.0,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": 0.2,
+          "runtime": true,
+          "writable": true
+        }
+      ],
+      "variables": [
+        {
+          "id": "out0.pressure_pa",
+          "label": "out0 绝对压力",
+          "quantity": "pressure",
+          "unit": {
+            "quantity": "pressure",
+            "canonical_unit": "Pa",
+            "display_unit": "kPa",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "port",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": "out0"
+        },
+        {
+          "id": "out0.mass_flow_kg_s",
+          "label": "out0 端口流量（流入设备为正）",
+          "quantity": "mass_flow",
+          "unit": {
+            "quantity": "mass_flow",
+            "canonical_unit": "kg/s",
+            "display_unit": "kg/s",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "port",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": "out0"
+        },
+        {
+          "id": "out0.temperature_k",
+          "label": "out0 温度",
+          "quantity": "temperature",
+          "unit": {
+            "quantity": "temperature",
+            "canonical_unit": "K",
+            "display_unit": "°C",
+            "display_scale": 1.0,
+            "display_offset": -273.15
+          },
+          "source": "port",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": "out0"
+        },
+        {
+          "id": "out0.enthalpy_j_kg",
+          "label": "out0 比焓",
+          "quantity": "specific_enthalpy",
+          "unit": {
+            "quantity": "specific_enthalpy",
+            "canonical_unit": "J/kg",
+            "display_unit": "kJ/kg",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "port",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": "out0"
+        },
+        {
+          "id": "out0.density_kg_m3",
+          "label": "out0 密度",
+          "quantity": "density",
+          "unit": {
+            "quantity": "density",
+            "canonical_unit": "kg/m³",
+            "display_unit": "kg/m³",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "port",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": "out0"
+        },
+        {
+          "id": "out0.viscosity_pa_s",
+          "label": "out0 动力黏度",
+          "quantity": "dynamic_viscosity",
+          "unit": {
+            "quantity": "dynamic_viscosity",
+            "canonical_unit": "Pa·s",
+            "display_unit": "mPa·s",
+            "display_scale": 0.001,
+            "display_offset": 0.0
+          },
+          "source": "port",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": "out0"
+        },
+        {
+          "id": "out0.specific_heat_j_kg_k",
+          "label": "out0 定压比热",
+          "quantity": "specific_heat",
+          "unit": {
+            "quantity": "specific_heat",
+            "canonical_unit": "J/(kg·K)",
+            "display_unit": "kJ/(kg·K)",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "port",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": "out0"
+        },
+        {
+          "id": "out0.quality",
+          "label": "out0 干度（单相为空）",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "port",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": "out0"
+        },
+        {
+          "id": "param.pressure_pa",
+          "label": "绝对压力",
+          "quantity": "pressure",
+          "unit": {
+            "quantity": "pressure",
+            "canonical_unit": "Pa",
+            "display_unit": "kPa",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "pressure_pa",
+          "port_id": null
+        },
+        {
+          "id": "param.temperature_k",
+          "label": "边界温度",
+          "quantity": "temperature",
+          "unit": {
+            "quantity": "temperature",
+            "canonical_unit": "K",
+            "display_unit": "°C",
+            "display_scale": 1.0,
+            "display_offset": -273.15
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "temperature_k",
+          "port_id": null
+        },
+        {
+          "id": "param.humidity_ratio_kg_kg",
+          "label": "边界含湿量（湿空气模式）",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "humidity_ratio_kg_kg",
+          "port_id": null
+        }
+      ],
+      "channels": [],
+      "solver_model": "pressure_source",
+      "state_model": null,
+      "thermal_model": null,
+      "source_format": "python-v1",
+      "source": {},
+      "runtime": "builtin",
+      "entrypoint": "",
+      "content_hash": null,
+      "definition_hash": null,
+      "package_path": null,
+      "bank_names": [
+        "额定工况",
+        "部分负荷",
+        "调试备份"
+      ]
+    },
+    {
+      "schema_version": 3,
+      "id": "air_recovery_sensible",
+      "name": "双风道显热回收器",
+      "version": 1,
+      "category": "暖通基础设备",
+      "description": "两条独立风路显热ε–NTU，无漏风、水分交换和储热；各路湿量透传，凝结/结霜不支持，端口温度须不低于0°C。旁通是UA折减，不隐含额外风路。",
+      "ports": [
+        {
+          "id": "exhaust_in",
+          "label": "排风入口",
+          "domain": "fluid",
+          "direction": "in",
+          "required": true,
+          "circuit": "exhaust"
+        },
+        {
+          "id": "exhaust_out",
+          "label": "排风出口",
+          "domain": "fluid",
+          "direction": "out",
+          "required": true,
+          "circuit": "exhaust"
+        },
+        {
+          "id": "supply_in",
+          "label": "新风入口",
+          "domain": "fluid",
+          "direction": "in",
+          "required": true,
+          "circuit": "supply"
+        },
+        {
+          "id": "supply_out",
+          "label": "新风出口",
+          "domain": "fluid",
+          "direction": "out",
+          "required": true,
+          "circuit": "supply"
+        }
+      ],
+      "parameters": [
+        {
+          "id": "ua_w_k",
+          "label": "清洁显热UA",
+          "value_type": "number",
+          "default": 1000.0,
+          "unit": {
+            "quantity": "conductance",
+            "canonical_unit": "W/K",
+            "display_unit": "kW/K",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "bypass_ratio",
+          "label": "等效换热旁通比例",
+          "value_type": "number",
+          "default": 0.0,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "runtime": true,
+          "writable": true
+        },
+        {
+          "id": "exhaust_diameter_m",
+          "label": "排风等效内径",
+          "value_type": "number",
+          "default": 0.4,
+          "unit": {
+            "quantity": "length",
+            "canonical_unit": "m",
+            "display_unit": "mm",
+            "display_scale": 0.001,
+            "display_offset": 0.0
+          },
+          "minimum": 0.001,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "exhaust_loss_coefficient",
+          "label": "排风阻力K",
+          "value_type": "number",
+          "default": 2.0,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.001,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "supply_diameter_m",
+          "label": "新风等效内径",
+          "value_type": "number",
+          "default": 0.4,
+          "unit": {
+            "quantity": "length",
+            "canonical_unit": "m",
+            "display_unit": "mm",
+            "display_scale": 0.001,
+            "display_offset": 0.0
+          },
+          "minimum": 0.001,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "supply_loss_coefficient",
+          "label": "新风阻力K",
+          "value_type": "number",
+          "default": 2.0,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.001,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        }
+      ],
+      "variables": [
+        {
+          "id": "recovered_heat_w",
+          "label": "新风所得热量",
+          "quantity": "power",
+          "unit": {
+            "quantity": "power",
+            "canonical_unit": "W",
+            "display_unit": "kW",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "effective_ua_w_k",
+          "label": "等效UA",
+          "quantity": "conductance",
+          "unit": {
+            "quantity": "conductance",
+            "canonical_unit": "W/K",
+            "display_unit": "kW/K",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.recovered_energy_j",
+          "label": "累计新风所得热量",
+          "quantity": "energy",
+          "unit": {
+            "quantity": "energy",
+            "canonical_unit": "J",
+            "display_unit": "kWh",
+            "display_scale": 3600000.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        }
+      ],
+      "channels": [
+        {
+          "id": "exhaust",
+          "name": "exhaust",
+          "input_port": "exhaust_in",
+          "output_port": "exhaust_out",
+          "relation": "resistance",
+          "solver_model": "generic",
+          "enabled": true
+        },
+        {
+          "id": "supply",
+          "name": "supply",
+          "input_port": "supply_in",
+          "output_port": "supply_out",
+          "relation": "resistance",
+          "solver_model": "generic",
+          "enabled": true
+        }
+      ],
+      "solver_model": "generic",
+      "state_model": null,
+      "thermal_model": null,
+      "source_format": "python-v1",
+      "source": {
+        "runtime": "\"\"\"Two isolated dry/moist-air streams exchanging sensible heat, without mass transfer.\"\"\"\nfrom fn_sdk import heat_exchanger_effectiveness\n\n\nclass Module:\n    def initialize(self,ctx):\n        ctx.state.setdefault('recovered_energy_j',0.)\n\n    def evaluate(self,ctx):\n        for side in ('exhaust','supply'):\n            a,b=ctx.port(side+'_in'),ctx.port(side+'_out')\n            upstream=a if a.pressure_pa>=b.pressure_pa else b\n            ctx.net.resistance(channel=side,diameter_m=ctx.parameters[side+'_diameter_m'],\n                loss_coefficient=ctx.parameters[side+'_loss_coefficient'],density_kg_m3=upstream.density_kg_m3)\n\n    def thermal(self,ctx):\n        flows={s:ctx.channel(s).mass_flow_kg_s for s in ('exhaust','supply')}\n        states={s:ctx.port(s+('_in' if q>=0 else '_out')) for s,q in flows.items()}\n        capacity={s:abs(flows[s])*states[s].specific_heat_j_kg_k for s in states}\n        eps=heat_exchanger_effectiveness(ua_w_k=ctx.parameters['ua_w_k']*(1-ctx.parameters['bypass_ratio']),\n            capacity_a_w_k=capacity['exhaust'],capacity_b_w_k=capacity['supply'],\n            counterflow=(flows['exhaust']>=0)==(flows['supply']>=0))\n        heat=eps*min(capacity.values())*(states['exhaust'].temperature_k-states['supply'].temperature_k)\n        ctx.heat('exhaust',-heat);ctx.heat('supply',heat)\n\n    def observe(self,ctx):\n        for side in ('exhaust','supply'):\n            for end in ('in','out'):\n                state=ctx.port(side+'_'+end)\n                if state.temperature_k is not None and state.temperature_k<273.15:\n                    raise ValueError('AIR_RECOVERY_FROST_RANGE: 首版显热回收仅适用于所有端口不低于0°C')\n                if state.relative_humidity is not None and state.relative_humidity>1.+1e-8:\n                    raise ValueError('AIR_RECOVERY_CONDENSATION: 首版不处理凝结或结霜')\n        ctx.var('recovered_heat_w',ctx.channel('supply').heat_w)\n        ctx.var('effective_ua_w_k',ctx.parameters['ua_w_k']*(1-ctx.parameters['bypass_ratio']))\n\n    def commit_step(self,ctx,dt_s):\n        ctx.state['recovered_energy_j']+=ctx.channel('supply').heat_w*dt_s\n\n    def finalize(self,ctx):pass\n"
+      },
+      "runtime": "python",
+      "entrypoint": "module:Module",
+      "content_hash": "f0c04c68cc48900b338c3ae3c6d5bf0b76d51789ccd19b3789fef37b2d602363",
+      "definition_hash": "cab6bb5faea8026916e1fd3f750152a2362910f6c6fa986566487f70712a3378",
+      "package_path": "E:\\liuwangjisuan\\fluidnet-prototype-engine\\modules\\air_recovery_sensible",
+      "bank_names": [
+        "额定工况",
+        "部分负荷",
+        "调试备份"
+      ],
+      "sdk": {
+        "api_version": "0.6.0",
+        "capabilities": [
+          "air.pass_through.v1",
+          "evaluate.pure.v1",
+          "hydraulic.signed_start.v1",
+          "net.resistance",
+          "net.valve",
+          "observe.v1",
+          "state.transactions.v1",
+          "thermal.conservative.v1",
+          "thermal.v1"
+        ],
+        "state_contract_version": 1
+      },
+      "applicability": {
+        "execution_domains": [
+          "fluid"
+        ],
+        "phases": [
+          "gas"
+        ],
+        "fluids": [
+          "Air",
+          "HEOS::Air"
+        ],
+        "limits": [],
+        "assumptions": [
+          "单相、无独立物理储量；设备默认参数为演示参数。"
+        ]
+      },
+      "hydraulic_dependencies": {},
+      "dependency_mode": "conservative",
+      "pure_evaluate": true
+    }
+  ],
+  "instances": [
+    {
+      "id": "Recovery",
+      "module_id": "air_recovery_sensible",
+      "name": "显热回收器",
+      "page_id": "main",
+      "position": {
+        "x": 430.0,
+        "y": 250.0
+      },
+      "rotation": 0,
+      "parameters": {},
+      "draft_parameters": {},
+      "banks": [],
+      "model_id": null,
+      "model_version": null,
+      "package": {
+        "module_id": "air_recovery_sensible",
+        "version": "1.0.0",
+        "content_hash": "f0c04c68cc48900b338c3ae3c6d5bf0b76d51789ccd19b3789fef37b2d602363",
+        "definition_hash": "cab6bb5faea8026916e1fd3f750152a2362910f6c6fa986566487f70712a3378"
+      }
+    },
+    {
+      "id": "exhaust_in",
+      "module_id": "source",
+      "name": "exhaust_in",
+      "page_id": "main",
+      "position": {
+        "x": 100.0,
+        "y": 140.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "pressure_pa": 101425.0,
+        "temperature_k": 303.15,
+        "humidity_ratio_kg_kg": 0.007
+      },
+      "draft_parameters": {},
+      "banks": [],
+      "model_id": null,
+      "model_version": null,
+      "package": null
+    },
+    {
+      "id": "exhaust_out",
+      "module_id": "source",
+      "name": "exhaust_out",
+      "page_id": "main",
+      "position": {
+        "x": 760.0,
+        "y": 140.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "pressure_pa": 101325.0,
+        "temperature_k": 303.15,
+        "humidity_ratio_kg_kg": 0.007
+      },
+      "draft_parameters": {},
+      "banks": [],
+      "model_id": null,
+      "model_version": null,
+      "package": null
+    },
+    {
+      "id": "supply_in",
+      "module_id": "source",
+      "name": "supply_in",
+      "page_id": "main",
+      "position": {
+        "x": 100.0,
+        "y": 360.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "pressure_pa": 101425.0,
+        "temperature_k": 283.15,
+        "humidity_ratio_kg_kg": 0.003
+      },
+      "draft_parameters": {},
+      "banks": [],
+      "model_id": null,
+      "model_version": null,
+      "package": null
+    },
+    {
+      "id": "supply_out",
+      "module_id": "source",
+      "name": "supply_out",
+      "page_id": "main",
+      "position": {
+        "x": 760.0,
+        "y": 360.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "pressure_pa": 101325.0,
+        "temperature_k": 283.15,
+        "humidity_ratio_kg_kg": 0.003
+      },
+      "draft_parameters": {},
+      "banks": [],
+      "model_id": null,
+      "model_version": null,
+      "package": null
+    }
+  ],
+  "connections": [
+    {
+      "id": "exhaust_in",
+      "source": {
+        "instance_id": "exhaust_in",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Recovery",
+        "port_id": "exhaust_in"
+      }
+    },
+    {
+      "id": "exhaust_out",
+      "source": {
+        "instance_id": "Recovery",
+        "port_id": "exhaust_out"
+      },
+      "target": {
+        "instance_id": "exhaust_out",
+        "port_id": "out0"
+      }
+    },
+    {
+      "id": "supply_in",
+      "source": {
+        "instance_id": "supply_in",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Recovery",
+        "port_id": "supply_in"
+      }
+    },
+    {
+      "id": "supply_out",
+      "source": {
+        "instance_id": "Recovery",
+        "port_id": "supply_out"
+      },
+      "target": {
+        "instance_id": "supply_out",
+        "port_id": "out0"
+      }
+    }
+  ],
+  "scenarios": [],
+  "selected_variables": [],
+  "import_diagnostics": [],
+  "solver": {
+    "module_mixed_jacobian": false,
+    "module_cache": false,
+    "pressure_tolerance_pa": 1.0,
+    "mass_tolerance_kg_s": 1e-08,
+    "max_iterations": 80,
+    "dynamic_step_s": 0.1,
+    "thermal": true,
+    "property_coupling": "node",
+    "thermal_tolerance_k": 1e-06,
+    "max_thermal_iterations": 50,
+    "max_coupling_iterations": 60,
+    "coupling_density_rtol": 1e-06,
+    "thermal_acceleration": "none",
+    "coupling_acceleration": "none",
+    "moist_air": true,
+    "moist_air_options": {
+      "contract_version": 1,
+      "property_backend": "coolprop_ha",
+      "humidity_tolerance_kg_kg": 1e-08,
+      "max_iterations": 120,
+      "relaxation": 0.7,
+      "moisture_atol_kg_s": 1e-09,
+      "moisture_rtol": 1e-06,
+      "energy_atol_w": 0.001,
+      "energy_rtol": 1e-06,
+      "flow_zero_tolerance_kg_s": 1e-10,
+      "supersaturation_policy": "error"
+    },
+    "max_step_halvings": 6,
+    "hydraulic_method": "dense",
+    "hydraulic_diagnostics": false,
+    "analytic_jacobian": true,
+    "series_compression": false,
+    "hydraulic_blocks": false,
+    "module_parallelism": 1,
+    "batch_modules": true,
+    "time_step": {
+      "enabled": false,
+      "mass_atol_kg": 1e-09,
+      "energy_atol_j": 0.001,
+      "temperature_atol_k": 1e-05,
+      "rtol": 1e-06,
+      "min_internal_step_s": 0.001,
+      "max_internal_step_s": null,
+      "safety": 0.9,
+      "growth_factor": 2.0,
+      "shrink_factor": 0.5
+    }
+  },
+  "controllers": [],
+  "control_scripts": [],
+  "circuit_fluids": [],
+  "events": []
+}

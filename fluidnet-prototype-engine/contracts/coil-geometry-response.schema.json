@@ -1,0 +1,44 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "parameters": {
+      "additionalProperties": {
+        "type": "number"
+      },
+      "title": "Parameters",
+      "type": "object"
+    },
+    "areas": {
+      "additionalProperties": {
+        "type": "number"
+      },
+      "title": "Areas",
+      "type": "object"
+    },
+    "effective_ua_w_k": {
+      "title": "Effective Ua W K",
+      "type": "number"
+    },
+    "source": {
+      "title": "Source",
+      "type": "string"
+    },
+    "assumptions": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Assumptions",
+      "type": "array"
+    }
+  },
+  "required": [
+    "parameters",
+    "areas",
+    "effective_ua_w_k",
+    "source",
+    "assumptions"
+  ],
+  "title": "CoilGeometryResponse",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

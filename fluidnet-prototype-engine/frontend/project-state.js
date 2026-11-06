@@ -70,13 +70,14 @@ window.FluidNetProjectState = (() => {
   function removeNodes(owner,ids) { return links.removeNodes(owner,ids); }
   function removeConnection(owner,id) { return links.remove(owner,id); }
   function canvasSnapshot(owner,charts,view) {
-    return clone({projectId:owner.id,pages:owner.pages,activePage:owner.activePage,thermalCouplings:owner.thermalCouplings,
+    return clone({projectId:owner.id,pages:owner.pages,activePage:owner.activePage,thermalCouplings:owner.thermalCouplings,measurements:owner.measurements,circuitFluids:owner.circuitFluids,
       charts:charts.filter(c=>c.projectId===owner.id),workbenchChart:view.workbenchChart,showChart:view.showChart});
   }
   function restoreCanvas(owner,snapshot,charts) {
     if(snapshot.projectId!==owner.id)throw Error('撤销记录属于另一个项目');
     const next=clone(snapshot);
     Object.assign(owner,{pages:next.pages,activePage:next.activePage});
+    for(const field of ['measurements','circuitFluids']){if(field in next)owner[field]=next[field];else delete owner[field];}
     if('thermalCouplings' in next)owner.thermalCouplings=next.thermalCouplings;else delete owner.thermalCouplings;
     return charts.filter(c=>c.projectId!==owner.id).concat(next.charts);
   }

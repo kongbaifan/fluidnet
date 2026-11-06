@@ -79,6 +79,10 @@ def main():
             _ensure_lazy_properties()
             from .design import run_in_worker
             return run_in_worker(message['definition'], message['parameters'], message['fluid'])
+        if action == 'replay':
+            _ensure_lazy_properties()
+            from .module_replay import replay_in_worker
+            return replay_in_worker(message['replay'])
         key = message.get('instance_id', 'default')
         runner = runners.get(key)
         if action == 'batch':

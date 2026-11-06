@@ -1953,11 +1953,20 @@
           "title": "Circuit Fluids",
           "type": "array"
         },
+        "coupling_mode": {
+          "default": "legacy",
+          "enum": [
+            "legacy",
+            "storage_v1"
+          ],
+          "title": "Coupling Mode",
+          "type": "string"
+        },
         "thermal_couplings": {
           "items": {
             "$ref": "#/$defs/ThermalCoupling"
           },
-          "maxItems": 2,
+          "maxItems": 8,
           "title": "Thermal Couplings",
           "type": "array"
         },

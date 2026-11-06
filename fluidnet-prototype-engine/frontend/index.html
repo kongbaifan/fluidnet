@@ -586,6 +586,20 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   #fn-studio .module-group-context .grow { flex-basis:100%; }
 }
 
+/* Device overview uses the same surface and typography as the workbench. */
+#fn-studio .device-identity { display:flex;align-items:center;gap:10px;margin-bottom:16px; }
+#fn-studio .device-identity small { display:block;color:var(--muted);margin-top:4px; }
+#fn-studio .device-result-source { color:var(--muted);font-size:12px;line-height:1.6;margin-bottom:10px; }
+#fn-studio .device-result-source.warn { color:var(--accent); }
+#fn-studio .device-result-source.good { color:var(--green); }
+#fn-studio .device-metrics { display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 16px;margin-bottom:16px; }
+#fn-studio .device-metric { padding:12px 0;border-bottom:1px solid var(--border);min-width:0; }
+#fn-studio .device-metric small { color:var(--muted);overflow-wrap:anywhere; }
+#fn-studio .device-metric strong { display:inline-block;font-size:24px;font-weight:550;font-variant-numeric:tabular-nums;margin-top:8px; }
+#fn-studio .device-metric>span { font-size:11px;margin-left:5px;color:var(--muted); }
+#fn-studio .device-operation, #fn-studio .device-port-summary { padding-top:14px;border-top:1px solid var(--border);margin-top:16px; }
+#fn-studio .device-port-summary>.row { padding:8px 0;color:var(--muted); }
+#fn-studio [data-parameter-owner] { color:var(--accent);display:block;white-space:normal;line-height:1.5; }
 /* 建模时按需展开工具，画布为参数停靠区保留真实空间。 */
 #fn-studio .workbench {
   --library-size:178px;
@@ -815,6 +829,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .cross-page-strip svg{width:13px;height:13px;flex:none}
 </style>
 <link rel="stylesheet" href="air-side.css">
+<link rel="stylesheet" href="path-trace.css">
 </head>
 <body>
   <div id="fn-studio" data-theme="light">
@@ -830,6 +845,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   <script src="module-test-editor.js"></script>
   <script src="control-programs.js"></script>
   <script src="project-links.js"></script>
+  <script src="path-trace.js"></script>
   <script src="project-model.js"></script>
   <script src="project-state.js"></script>
   <script src="project-run-state.js"></script>
@@ -839,6 +855,17 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   <script src="cold-storage.js"></script>
   <script src="scenario-batches.js"></script>
 <script src="air-side.js"></script>
+<script src="api-examples.js"></script>
+<script src="panel-layout.js"></script>
+<script src="device-panel.js"></script>
+<script src="module-replay.js"></script>
+<script src="equipment-selection.js"></script>
+<script src="equipment-library.js"></script>
+<script src="parameter-batch.js"></script>
+<script src="device-batch.js"></script>
+<script src="draft-store.js"></script>
+<script src="project-editing.js"></script>
+<script src="system-inspection.js"></script>
 <script src="studio.js"></script>
 </body>
 </html>

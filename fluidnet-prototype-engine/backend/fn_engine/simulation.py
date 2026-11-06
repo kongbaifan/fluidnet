@@ -84,6 +84,9 @@ class SimulationSession(SessionBase):
 
     def validate_parameter_values(self,instance_id,parameters):
         definition=self.network.modules[self.network.instances[instance_id].module_id]
+        if definition.solver_model == 'coupled_tower_pool':
+            from .coupled_tower_pool import validate_parameters
+            validate_parameters(parameters)
         if definition.solver_model == 'pump_curve' and parameters.get('speed_ratio', 1) <= 0:
             raise CompilationError('PARAMETER_RANGE', '当前泵模型转速必须大于零')
         if self.network.project.solver.moist_air or definition.solver_model in ('cooling_tower_moist', 'water_chiller'):
@@ -253,6 +256,12 @@ class SimulationSession(SessionBase):
 
     def snapshot(self):
         frame = s._with_states(self.view, s.snapshot(self.view, self.result, self.time, self.warning), self.result, self.tanks, self.service)
+        from .tower_pool import PoolStorage
+        for spec in self.network.storage.values():
+            if isinstance(spec, PoolStorage):
+                # Rates are fixed project inputs, so accepted time is their exact integral.
+                frame.variables[f'{spec.instance_id}.state.evaporated_kg'] = self.time*spec.evaporation_kg_s
+                frame.variables[f'{spec.instance_id}.state.drift_kg'] = self.time*spec.drift_kg_s
         protected = frame.variables.keys() - self.result.hydraulic.module_variables.keys()
         if protected & self.committed.keys():
             raise CompilationError('MODULE_OUTPUT_CONFLICT', 'commit_step 输出不能覆盖网络求解变量')
@@ -299,6 +308,7 @@ class SimulationSession(SessionBase):
                 diagnostic=getattr(error,'diagnostic',None)
                 code=getattr(error,'code',diagnostic.code if diagnostic else 'STEP_EXECUTION_FAILED')
                 failure=s.SolveFailed(code,str(error),frames=frames)
+                failure.replay=getattr(error,'replay',None)
                 if getattr(error,'diagnostics',None):
                     failure.diagnostics=error.diagnostics
                     failure.diagnostic=error.diagnostics[0]

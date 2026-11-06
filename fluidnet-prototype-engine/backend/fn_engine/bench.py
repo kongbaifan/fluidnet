@@ -55,6 +55,8 @@ def bench_channels(module: ModuleDefinition) -> list:
 
 def run_module_test(request: ModuleTestRequest) -> ModuleTestResponse:
     module = request.module
+    if module.composite and module.sdk and 'composite.refrigeration.v1' in module.sdk.capabilities:
+        return _test_refrigeration_group(request)
     if module.execution_role:
         from .refrigeration.bench import run_refrigeration_test
         return run_refrigeration_test(request)
@@ -183,3 +185,20 @@ def _test_composite(request,network):
             frame=session.frames[-1],history=list(session.frames))
     finally:
         session.close()
+
+
+def _test_refrigeration_group(request):
+    from .sessions import create_session
+    from .models import EvaluateResponse, CommitStepResponse
+    from .refrigeration.bench import effective_test_conditions
+    conditions=effective_test_conditions(request.module,request)
+    project=Project(id='refrigeration-group-test',name=request.module.name,fluid=conditions.fluid,modules=[request.module],
+        instances=[ModuleInstance(id='D1',module_id=request.module.id,name=request.module.name,parameters=request.parameters)],connections=[])
+    session=create_session(compile_project(project),request.duration_s,request.dt_s)
+    try:
+        session.initialize()
+        while not session.done:session.advance()
+        frame=session.frames[-1];public={k[3:]:v for k,v in frame.variables.items() if k.startswith('D1.')}
+        return ModuleTestResponse(module_id=request.module.id,content_hash=module_content_hash(request.module),state={},
+            evaluation=EvaluateResponse(variables=public),committed=CommitStepResponse(state={},variables=public),frame=frame,history=list(session.frames))
+    finally:session.close()

@@ -220,6 +220,16 @@ def builtin_catalog() -> list[ModuleDefinition]:
         if definition.solver_model == 'pump_curve':
             definition.variables.append(VariableSpec(id='shaft_power_w',label='估算轴功率',quantity='power',
                 unit=UnitSpec(quantity='power',canonical_unit='W',display_unit='W'),source='derived'))
+    from .buffer_tank import definition as buffer_tank_definition
+    definitions.append(buffer_tank_definition())
+    from .buffer_tank import hydronic_definition
+    definitions.append(hydronic_definition())
+    from .expansion_tank import definition as expansion_tank_definition
+    definitions.append(expansion_tank_definition())
+    from .tower_pool import definition as pool_definition
+    definitions.append(pool_definition())
+    from .coupled_tower_pool import definition as coupled_pool_definition
+    definitions.append(coupled_pool_definition())
     definitions.extend(thermal_catalog())
     definitions.extend(cold_store_catalog())
     definitions.extend(refrigeration_catalog())
@@ -438,7 +448,7 @@ def _switch(label='启停（1 运行 / 0 停机）'):
 
 def refrigeration_catalog() -> list[ModuleDefinition]:
     """Case-B lumped refrigeration-station devices; the fluid comes from each port's circuit."""
-    def vessel(id, name, description, defaults, required, extra_inlets=0):
+    def vessel(id, name, description, defaults, required, extra_inlets=0, horizontal=False):
         volume, height, temperature, level = defaults
         labels = ['进液/进气', '进液/进气 2'] + [f'进液/进气 {i + 1}' for i in range(2, 2 + extra_inlets)]
         return ModuleDefinition(id=id, name=name, category='制冷站设备', solver_model='saturated_vessel',
@@ -446,8 +456,10 @@ def refrigeration_catalog() -> list[ModuleDefinition]:
             ports=[_stream(f'in{i}', label, Direction.in_, f'in{i}' in required) for i, label in enumerate(labels)]
                   + [_stream('vapor', '气相出口', Direction.out, 'vapor' in required),
                      _stream('liquid', '液相出口', Direction.out, 'liquid' in required)],
-            parameters=[number('volume_m3', '容积', volume, 'volume', 'm³', minimum=.001),
-                        number('height_m', '液位换算高度（立式等截面）', height, 'length', 'm', minimum=.01),
+            parameters=([number('diameter_m', '圆筒内径', volume, 'length', 'm', minimum=.01),
+                         number('length_m', '直筒长度（不含封头）', height, 'length', 'm', minimum=.01)] if horizontal else
+                        [number('volume_m3', '容积', volume, 'volume', 'm³', minimum=.001),
+                         number('height_m', '液位换算高度（立式等截面）', height, 'length', 'm', minimum=.01)]) + [
                         _celsius('temperature_k', '初始饱和温度', temperature),
                         _ratio('level_ratio', '初始液位（液体体积占比）', level, minimum=.01, maximum=.99),
                         _ratio('min_level_ratio', '模型适用液位下限', .05),
@@ -465,7 +477,9 @@ def refrigeration_catalog() -> list[ModuleDefinition]:
                        _var('vapor_enthalpy_j_kg', '饱和气比焓', 'specific_enthalpy', 'J/kg', 'kJ/kg', 1000.),
                        _var('liquid_density_kg_m3', '饱和液密度', 'density', 'kg/m³'),
                        _var('vapor_density_kg_m3', '饱和气密度', 'density', 'kg/m³'),
-                       _var('net_inflow_kg_s', '净流入质量流量', 'mass_flow', 'kg/s')])
+                       _var('net_inflow_kg_s', '净流入质量流量', 'mass_flow', 'kg/s')] + ([
+                       _var('state.level_height_ratio', '液位高度占内径比例', 'ratio', '1', '%', .01, source='state'),
+                       _var('volume_m3', '圆筒几何容积（不含封头）', 'volume', 'm³')] if horizontal else []))
 
     receiver = vessel('hp_receiver', '高压贮液器',
         '饱和两相集总容器：由存量 M、内能 U 与容积反求压力和液位。冷凝液进 in0，供液从 liquid 出。',
@@ -483,6 +497,26 @@ def refrigeration_catalog() -> list[ModuleDefinition]:
     lp_drum_multi = vessel('lp_drum_multi', '低压循环桶（多支路）',
         '同一饱和容器的四个进口：可接入多路回气或供液支路；vapor/liquid 为气相、液相出口。',
         (4., 2., 243.15, .4), {'in0', 'vapor'}, extra_inlets=2)
+    horizontal_receiver = vessel('horizontal_receiver', '卧式圆筒贮液器',
+        '水平直圆筒：内径与长度决定容积，M/U 决定压力与液体体积分数；液位高度由圆截面弓形面积反算。'
+        '初始液位及适用上下限仍为体积分数，不是高度比例；不含封头、倾斜或液面晃动。',
+        (1.2, 3., 308.15, .62), {'in0', 'liquid'}, horizontal=True)
+    horizontal_drum = vessel('horizontal_drum', '卧式圆筒低压循环桶',
+        '水平直圆筒的饱和两相低压容器；内径与长度决定容积，气相出口接吸气、液相出口接泵或满液蒸发器。'
+        '液体体积分数和液位高度分别输出；不含封头、倾斜或液面晃动。',
+        (1.4, 3., 243.15, .4), {'in0', 'vapor'}, horizontal=True)
+    headed = horizontal_receiver.model_copy(deep=True,update={'id':'headed_receiver','name':'带半球封头及高度取口的容器'})
+    headed.description='水平直筒加两半球封头，M/U闪蒸；tap0..2按高度判断气液及液柱静压。取口相态不符合设备要求时停止；不模拟液面晃动、夹带或端口瞬时两相流。'
+    headed.ports = [port.model_copy(update={'required':False}) if port.id=='liquid' else port for port in headed.ports]
+    for variable in headed.variables:
+        if variable.id=='volume_m3':variable.label='圆筒加两半球封头容积'
+    headed.parameters += [number('hemispherical_heads','半球封头（固定开启）',1.,'ratio','1',minimum=1.,maximum=1.)]
+    for i,h in enumerate((.1,.5,.9)):
+        headed.ports.append(_stream(f'tap{i}',f'高度取口{i+1}',Direction.out,False))
+        headed.parameters.append(_ratio(f'tap{i}_height_ratio',f'取口{i+1}距底高度/内径',h))
+        headed.variables.extend([_var(f'tap{i}.pressure_pa',f'取口{i+1}静压','pressure','Pa','kPa',1000.),
+          _var(f'tap{i}.enthalpy_j_kg',f'取口{i+1}流出比焓','specific_enthalpy','J/kg'),
+          _var(f'tap{i}.submerged',f'取口{i+1}是否浸没','ratio','1')])
     compressor = ModuleDefinition(id='refrigerant_compressor', name='压缩机（强制流量）', category='制冷站设备',
         solver_model='refrigerant_compressor', description='吸气为吸气容器的饱和气；流量由排量、载量和容积效率决定，'
             '排气压力取排气侧容器压力。电机损耗排向机房，不进入制冷剂。',
@@ -571,11 +605,37 @@ def refrigeration_catalog() -> list[ModuleDefinition]:
         solver_model='refrigerant_header', description='汇流/分流节点：同一压力等级内的多台设备经集管连到一个容器端口。',
         ports=[_stream(f'in{i}', f'汇入 {i + 1}', Direction.in_, False) for i in range(4)]
               + [_stream(f'out{i}', f'分出 {i + 1}', Direction.out, False) for i in range(4)])
-    definitions = [receiver, lp_drum, co2_drum, receiver_multi, lp_drum_multi, compressor, condenser, valve, cascade,
-                   pump, cooler, header]
+    from .refrigeration.air_condenser import definition as air_condenser_definition
+    from .refrigeration.performance_compressor import definition as performance_compressor_definition
+    from .refrigeration.stream_devices import definitions as stream_definitions
+    from .refrigeration.dx_devices import definitions as dx_definitions
+    from .refrigeration.heat_manifold import definition as manifold_definition
+    room_multi = thermal_catalog()[0].model_copy(deep=True)
+    room_multi.id, room_multi.name = 'cold_room_multi', '库房热节点（多冷风机）'
+    room_multi.description = '一个库房热容接最多四个独立冷风机热端口；净冷量求和，风机热在各冷风机内扣除，不复制房间热容。'
+    room_multi.ports = [PortSpec(id=f'heat{i}',label=f'冷风机热输入 {i+1}',domain=Domain.thermal,
+        direction=Direction.in_,circuit='thermal',required=i==0) for i in range(4)]
+    room_multi.variables = [v for v in room_multi.variables if v.source != 'parameter']
+    defrost_cooler = cooler.model_copy(deep=True)
+    defrost_cooler.id, defrost_cooler.name = 'defrost_air_cooler', '泵供液冷风机（电融霜）'
+    defrost_cooler.description = '独立电融霜/滴水状态；请求上升沿触发，融霜与滴水停供液停风机；加热按显式份额进入库房/制冷剂。未模拟霜量或热气融霜。'
+    defrost_cooler.parameters.extend([
+        number('defrost_request','电融霜请求（0→1触发）',0.,'ratio','1',minimum=0.,maximum=1.,runtime=True),
+        number('defrost_heater_power_w','电融霜加热功率',1500.,'power','W','kW',1000.,minimum=0.),
+        number('defrost_duration_s','融霜加热时长',120.,'time','s',minimum=.01),
+        number('drip_duration_s','滴水时长',60.,'time','s',minimum=.01),
+        _ratio('defrost_room_fraction','融霜热进入库房比例',1.)])
+    defrost_cooler.variables.extend([
+        _var('heater_power_w','融霜电功率','power','W','kW',1000.),
+        _var('defrost_room_heat_w','融霜入库热量','power','W','kW',1000.),
+        _var('state.defrost_mode','阶段（0制冷/1融霜/2滴水）','count','1',source='state'),
+        _var('state.defrost_count','已完成融霜次数','count','1',source='state'),
+        _var('state.heater_energy_j','累计融霜电量','energy','J','kWh',3600000.,source='state')])
+    definitions = [receiver, lp_drum, co2_drum, receiver_multi, lp_drum_multi, horizontal_receiver, horizontal_drum, headed, compressor, condenser, air_condenser_definition(), valve, cascade,
+                   pump, cooler, header, performance_compressor_definition(), room_multi, defrost_cooler, *stream_definitions(), *dx_definitions(), manifold_definition()]
     for definition in definitions:
         definition.variables.extend(VariableSpec(id='param.' + p.id, label=p.label, source='parameter',
-            parameter_id=p.id, quantity=p.unit.quantity, unit=p.unit) for p in definition.parameters)
+            parameter_id=p.id, quantity=p.unit.quantity, unit=p.unit) for p in definition.parameters if p.unit is not None)
     return definitions
 
 

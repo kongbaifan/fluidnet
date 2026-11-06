@@ -1,0 +1,298 @@
+{
+  "name": "塔池 · 实际补排水",
+  "fluid": {
+    "backend": "coolprop",
+    "fluid": "Water",
+    "composition": {},
+    "reference": "mass",
+    "phase_policy": "liquid"
+  },
+  "solver": {
+    "module_mixed_jacobian": false,
+    "module_cache": false,
+    "pressure_tolerance_pa": 1.0,
+    "mass_tolerance_kg_s": 1e-08,
+    "max_iterations": 80,
+    "dynamic_step_s": 10.0,
+    "thermal": true,
+    "property_coupling": "node",
+    "thermal_tolerance_k": 1e-08,
+    "max_thermal_iterations": 50,
+    "max_coupling_iterations": 60,
+    "coupling_density_rtol": 1e-06,
+    "thermal_acceleration": "none",
+    "coupling_acceleration": "none",
+    "moist_air": false,
+    "max_step_halvings": 6,
+    "hydraulic_method": "dense",
+    "hydraulic_diagnostics": false,
+    "analytic_jacobian": true,
+    "series_compression": false,
+    "hydraulic_blocks": false,
+    "module_parallelism": 1,
+    "batch_modules": true,
+    "time_step": {
+      "enabled": false,
+      "mass_atol_kg": 1e-09,
+      "energy_atol_j": 0.001,
+      "temperature_atol_k": 1e-05,
+      "rtol": 1e-06,
+      "min_internal_step_s": 0.001,
+      "max_internal_step_s": null,
+      "safety": 0.9,
+      "growth_factor": 2.0,
+      "shrink_factor": 0.5
+    }
+  },
+  "duration_s": 300.0,
+  "dt_s": 30.0,
+  "instances": [
+    {
+      "id": "Pool",
+      "module_id": "tower_pool",
+      "name": "塔池",
+      "page_id": "main",
+      "position": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "area_m2": 1.0,
+        "level_m": 1.0,
+        "height_m": 2.0,
+        "temperature_k": 303.15,
+        "evaporation_kg_s": 0.001,
+        "drift_kg_s": 0.0001
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "Valve0",
+      "module_id": "valve",
+      "name": "Valve0",
+      "page_id": "main",
+      "position": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "opening_ratio": 0.0,
+        "kv_m3_h": 1.0
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "Boundary0",
+      "module_id": "source",
+      "name": "Boundary0",
+      "page_id": "main",
+      "position": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "pressure_pa": 111000.0,
+        "temperature_k": 293.15
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "Valve1",
+      "module_id": "valve",
+      "name": "Valve1",
+      "page_id": "main",
+      "position": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "opening_ratio": 0.02,
+        "kv_m3_h": 1.0
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "Boundary1",
+      "module_id": "source",
+      "name": "Boundary1",
+      "page_id": "main",
+      "position": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "pressure_pa": 200000.0,
+        "temperature_k": 293.15
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "Valve2",
+      "module_id": "valve",
+      "name": "Valve2",
+      "page_id": "main",
+      "position": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "opening_ratio": 0.0,
+        "kv_m3_h": 1.0
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "Boundary2",
+      "module_id": "source",
+      "name": "Boundary2",
+      "page_id": "main",
+      "position": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "pressure_pa": 111000.0,
+        "temperature_k": 293.15
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "Valve3",
+      "module_id": "valve",
+      "name": "Valve3",
+      "page_id": "main",
+      "position": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "opening_ratio": 0.0002,
+        "kv_m3_h": 1.0
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "Boundary3",
+      "module_id": "source",
+      "name": "Boundary3",
+      "page_id": "main",
+      "position": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "pressure_pa": 101325.0,
+        "temperature_k": 293.15
+      },
+      "draft_parameters": {},
+      "banks": []
+    }
+  ],
+  "connections": [
+    {
+      "id": "a0",
+      "source": {
+        "instance_id": "Boundary0",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Valve0",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "b0",
+      "source": {
+        "instance_id": "Valve0",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Pool",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "a1",
+      "source": {
+        "instance_id": "Boundary1",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Valve1",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "b1",
+      "source": {
+        "instance_id": "Valve1",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Pool",
+        "port_id": "in1"
+      }
+    },
+    {
+      "id": "a2",
+      "source": {
+        "instance_id": "Boundary2",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Valve2",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "b2",
+      "source": {
+        "instance_id": "Valve2",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Pool",
+        "port_id": "out0"
+      }
+    },
+    {
+      "id": "a3",
+      "source": {
+        "instance_id": "Boundary3",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Valve3",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "b3",
+      "source": {
+        "instance_id": "Valve3",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Pool",
+        "port_id": "out1"
+      }
+    }
+  ]
+}

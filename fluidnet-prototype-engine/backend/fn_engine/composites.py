@@ -2,7 +2,8 @@
 from copy import deepcopy
 import hashlib
 
-from .models import ModuleDefinition, ModuleInstance, Endpoint, Connection
+from .models import ModuleDefinition, ModuleInstance, Endpoint, Connection, FluidConfig
+from .properties import _parse_fluid
 from .runtime import module_content_hash, module_definition_hash
 
 MAX_DEPTH = 8
@@ -33,7 +34,7 @@ def expand_composites(project):
             raise ValueError(f'组合依赖版本冲突：{module.id}，不同版本不能同时进入项目')
         definitions[module.id] = module
 
-    def expand(instance, root, path, stack):
+    def expand(instance, root, path, stack, refrigeration=False):
         definition = definitions[instance.module_id]
         marker = (definition.id, definition.version)
         if marker in stack or len(stack) >= MAX_DEPTH:
@@ -45,7 +46,7 @@ def expand_composites(project):
             used_ids.add(name)
             if len(leaves) >= MAX_INSTANCES:
                 raise ValueError('组合展开超过 1000 个实例')
-            if any(port.domain != 'fluid' for port in definition.ports):
+            if path and any(port.domain != 'fluid' for port in definition.ports) and not (refrigeration and definition.runtime=='builtin' and all(port.domain in ('refrigerant','thermal') for port in definition.ports)):
                 raise ValueError('组合仅支持普通流体执行域')
             leaf = instance.model_copy(deep=True, update={'id':name})
             leaves.append(leaf)
@@ -61,6 +62,9 @@ def expand_composites(project):
             return port_map,parameter_map,variable_map
         if not definition.sdk or 'composite.v1' not in definition.sdk.capabilities:
             raise ValueError('组合模块必须声明 composite.v1')
+        refrigeration=bool(definition.sdk and 'composite.refrigeration.v1' in definition.sdk.capabilities)
+        if refrigeration and (definition.ports or definition.channels):raise ValueError('制冷组合首版仅封装完整闭合设备组，不公开未定边界端口')
+        if refrigeration and definition.applicability.fluids and _parse_fluid(project.fluid) not in {_parse_fluid(FluidConfig(fluid=name)) for name in definition.applicability.fluids}:raise ValueError('制冷闭合设备组的工质必须与冻结设计一致')
         spec = definition.composite
         first_leaf = len(leaves)
         if len({child.id for child in spec.children}) != len(spec.children):
@@ -109,7 +113,7 @@ def expand_composites(project):
                     if public_spec.value_type != target_spec.value_type or (a.canonical_unit if a else None) != (b.canonical_unit if b else None):
                         raise ValueError('组合参数类型或规范单位不匹配')
             nested = ModuleInstance(id=child_id,module_id=module.id,name=child_id,parameters=child_parameters[child_id])
-            results[child_id] = expand(nested,root,path+[child_id],stack+[marker])
+            results[child_id] = expand(nested,root,path+[child_id],stack+[marker],refrigeration)
         def endpoint(reference):
             if reference.instance_id not in results or reference.port_id not in results[reference.instance_id][0]:
                 raise ValueError('组合端口引用不存在')
@@ -225,6 +229,11 @@ def module_from_group(project, instance_ids, identifier, name):
     definitions = {module.id:module for module in project.modules}
     if any(definitions[instance.module_id].solver_model == 'pressure_source' for instance in selected.values()):
         raise ValueError('压力边界应保留在组合外部')
+    refrigeration=all(all(port.domain in ('refrigerant','thermal') for port in definitions[i.module_id].ports) for i in selected.values())
+    if refrigeration and (project.fluid.composition or '&' in project.fluid.fluid):
+        raise ValueError('制冷闭合组首版只支持纯制冷剂，不支持组分基准映射')
+    if refrigeration and (project.thermal_couplings or any(_parse_fluid(entry.fluid)!=_parse_fluid(project.fluid) for entry in project.circuit_fluids)):
+        raise ValueError('制冷闭合组首版只支持项目统一工质，不含跨域耦合或异工质锚点')
     children, embedded, edges, external, parameters, parameter_maps, outputs, variables = [], {}, [], {}, [], {}, {}, []
     occupied = set()
     for edge in project.connections:
@@ -246,8 +255,8 @@ def module_from_group(project, instance_ids, identifier, name):
     ports=[]
     for key, instance in sorted(selected.items()):
         definition = definitions[instance.module_id]
-        if any(port.domain != 'fluid' for port in definition.ports):
-            raise ValueError('组合只支持普通流体设备')
+        if any(port.domain != 'fluid' for port in definition.ports) and not (refrigeration and definition.runtime=='builtin'):
+            raise ValueError('组合只支持流体设备或完整内置制冷组')
         child = definition.model_copy(deep=True)
         child.definition_hash = module_definition_hash(child)
         if child.runtime == 'python':
@@ -260,6 +269,9 @@ def module_from_group(project, instance_ids, identifier, name):
                 union((key,channel.input_port),(key,channel.output_port))
         for port in child.ports:
             if (key,port.id) not in occupied:
+                if refrigeration:
+                    if port.required:raise ValueError('制冷组合必须选中完整闭合组，必连端口不能悬空')
+                    continue
                 public = f'{key}_{port.id}'
                 external[public] = {'instance_id':key,'port_id':port.id}
                 ports.append({**port.model_dump(mode='json'),'id':public,'label':key+' · '+port.label})
@@ -291,11 +303,12 @@ def module_from_group(project, instance_ids, identifier, name):
                 'input_port':entries[0]['id'],'output_port':entries[1]['id'],'relation':'resistance','solver_model':'generic'})
     payload={'schema_version':3,'id':identifier,'name':name,'runtime':'python','entrypoint':'module:Module',
         'ports':ports,'parameters':parameters,'variables':variables,'channels':channels,
-        'sdk':{'api_version':'0.5.0','capabilities':['composite.v1']},
+        'sdk':{'api_version':'0.9.0' if refrigeration else '0.5.0','capabilities':['composite.v1','composite.refrigeration.v1'] if refrigeration else ['composite.v1']},
         'source':{'runtime':'class Module:\n    def initialize(self,ctx): pass\n    def evaluate(self,ctx): pass\n    def commit_step(self,ctx,dt): pass\n    def finalize(self,ctx): pass\n'},
         'composite':{'children':children,'modules':list(embedded.values()),'connections':edges,
                      'external_ports':external,'parameter_maps':parameter_maps,'output_aliases':outputs},
         'applicability':{'assumptions':['组合展开复用子模块精确版本；外端口和公开参数一对一映射。']}}
+    if refrigeration:payload['applicability']['fluids']=[project.fluid.fluid]
     return ModuleDefinition.model_validate(payload)
 
 

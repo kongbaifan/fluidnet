@@ -71,10 +71,33 @@ DEVICE_FIELDS['water_chiller'] = {
     'cooling_power_w':('制冷量','power'), 'condenser_heat_w':('冷凝排热','power'),
     'shaft_power_w':('压缩轴功率','power'), 'electric_power_w':('压缩机电功率','power'),
     'cop':('COP（制冷量/电功率）','ratio'), 'load_ratio':('负荷比','rh'),
+    'compressor_load_ratio':('开机期间负荷比','rh'), 'cycling_ratio':('周期平均开机比例','rh'),
+    'low_load_cycling':('低负荷周期平均运行','bool'),
     'capacity_limited':('满载仍未达设定','bool'), 'evaporating_temperature_k':('蒸发温度','temperature'),
     'condensing_temperature_k':('冷凝温度','temperature'), 'discharge_temperature_k':('排气温度','temperature'),
     'pressure_ratio':('压比','ratio'), 'refrigerant_mass_flow_kg_s':('制冷剂质量流量','fluid_flow'),
     'state.cooling_energy_j':('累计制冷量','energy'), 'state.electric_energy_j':('累计耗电量','energy')}
+DEVICE_FIELDS['air_cooled_chiller'] = DEVICE_FIELDS['water_chiller'] | {
+    'electric_power_w':('机组总电功率','power'),'compressor_electric_power_w':('压缩机电功率','power'),
+    'fan_power_w':('周期平均风机功率','power'),'system_cop':('系统COP含风机','ratio'),
+    'air_inlet_temperature_k':('进风干球温度','temperature'),'air_outlet_temperature_k':('开机段盘管出风温度','temperature'),
+    'air_mass_flow_kg_s':('周期平均空气流量','fluid_flow'),'air_heat_rejection_w':('空气侧排热','power'),
+    'air_equation_residual_w':('空气能量残差','power'),'state.fan_energy_j':('累计风机电量','energy')}
+DEVICE_FIELDS['enthalpy_recovery']={
+    'sensible_heat_w':('显热传递','power'),'vapor_enthalpy_transfer_w':('水汽携带焓','power'),'total_heat_w':('总焓传递','power'),
+    'moisture_transfer_kg_s':('水汽迁移','water_flow'),'energy_residual_w':('双侧能量残差','power'),'moisture_residual_kg_s':('双侧湿量残差','water_flow'),
+    'exhaust_outlet_temperature_k':('排风出口温度','temperature'),'supply_outlet_temperature_k':('新风出口温度','temperature'),
+    'exhaust_outlet_humidity_ratio_kg_kg':('排风出口含湿量','humidity'),'supply_outlet_humidity_ratio_kg_kg':('新风出口含湿量','humidity'),
+    'state.transferred_energy_j':('累计焓传递','energy'),'state.transferred_water_kg':('累计水汽迁移','water')}
+DEVICE_FIELDS['air_source_heat_pump']={
+    'heating_power_w':('供热量','power'),'air_heat_extracted_w':('空气吸热','power'),
+    'shaft_power_w':('压缩轴功','power'),'compressor_electric_power_w':('压缩机电量','power'),
+    'fan_power_w':('风机电功率','power'),'electric_power_w':('总电功率','power'),'cop':('供热COP','ratio'),
+    'load_ratio':('负荷比','rh'),'capacity_limited':('容量不足','bool'),
+    'evaporating_temperature_k':('蒸发温度','temperature'),'condensing_temperature_k':('冷凝温度','temperature'),
+    'air_outlet_temperature_k':('空气出口温度','temperature'),'air_mass_flow_kg_s':('空气流量','fluid_flow'),
+    'water_equation_residual_w':('水侧残差','power'),'air_equation_residual_w':('空气侧残差','power'),
+    'state.heating_energy_j':('累计供热','energy'),'state.electric_energy_j':('累计电量','energy')}
 
 
 def air_port_keys(project):
@@ -103,7 +126,7 @@ def air_port_keys(project):
 
 def is_air_project(project):
     used={i.module_id for i in project.instances}
-    return project.solver.moist_air or any(m.id in used and m.solver_model in ('cooling_tower_moist', 'water_chiller') for m in project.modules)
+    return project.solver.moist_air or any(m.id in used and m.solver_model in ('cooling_tower_moist', 'water_chiller','air_cooled_chiller','air_source_heat_pump') for m in project.modules)
 
 
 def collect_air_variables(project):
@@ -224,6 +247,12 @@ def make_air_metadata(project):
     basis = 'dry_air' if project.solver.moist_air else 'water'
     if project.solver.moist_air and len(air_port_keys(project)) < port_count:
         basis = 'mixed'
+    cycling = any(definitions[i.module_id].solver_model in ('water_chiller','air_cooled_chiller') and
+        ({p.id:p.default for p in definitions[i.module_id].parameters} | i.parameters).get('minimum_load_ratio', 0.) > 0.
+        for i in project.instances)
+    cycling_assumptions = ['冷水机组低负荷采用周期平均运行：功率、制冷量和制冷剂流量为平均值，'
+        '蒸发/冷凝/排气温度与压力为开机工作点；开机比例不表示已模拟真实启停次数或时间。'
+        '两侧水泵持续通流，忽略启停损失、待机耗电及水温周期波动；液体回路无储热。'] if cycling else []
     return {'contract_version':1,'engine_version':__version__,'property_backend':'coolprop_ha',
         'property_version':CoolProp.__version__,'continuity_basis':basis,
         'enthalpy_basis':basis,
@@ -232,4 +261,4 @@ def make_air_metadata(project):
             ('水盘管按逆流干湿分段 ε–NTU 与真实液体回路联算；机组为集总单级循环，液体管路无储热。' if water_coil
              else '湿盘管采用外部规定机器露点，不含冷水侧/制冷剂侧真实耦合。'),
             '房间采用固定有效干空气存量；真实新风与平衡渗透须避免重复计入。',
-            '冷却塔为接触效能教学模型，空气为规定流股，不能用于填料设计或厂家选型。']}
+            '冷却塔为接触效能教学模型，空气为规定流股，不能用于填料设计或厂家选型。'] + cycling_assumptions}

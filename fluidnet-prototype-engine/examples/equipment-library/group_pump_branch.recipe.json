@@ -1,0 +1,126 @@
+{
+  "name": "Own · 循环泵支路（过滤/水泵/止回）",
+  "fluid": {
+    "backend": "coolprop",
+    "fluid": "Water",
+    "composition": {},
+    "reference": "mass",
+    "phase_policy": "liquid"
+  },
+  "solver": {
+    "module_mixed_jacobian": false,
+    "module_cache": false,
+    "pressure_tolerance_pa": 1.0,
+    "mass_tolerance_kg_s": 1e-08,
+    "max_iterations": 80,
+    "dynamic_step_s": 0.1,
+    "thermal": true,
+    "property_coupling": "node",
+    "thermal_tolerance_k": 1e-06,
+    "max_thermal_iterations": 50,
+    "max_coupling_iterations": 60,
+    "coupling_density_rtol": 1e-06,
+    "thermal_acceleration": "none",
+    "coupling_acceleration": "none",
+    "moist_air": false,
+    "max_step_halvings": 6,
+    "hydraulic_method": "dense",
+    "hydraulic_diagnostics": false,
+    "analytic_jacobian": true,
+    "series_compression": false,
+    "hydraulic_blocks": false,
+    "module_parallelism": 1,
+    "batch_modules": true,
+    "time_step": {
+      "enabled": false,
+      "mass_atol_kg": 1e-09,
+      "energy_atol_j": 0.001,
+      "temperature_atol_k": 1e-05,
+      "rtol": 1e-06,
+      "min_internal_step_s": 0.001,
+      "max_internal_step_s": null,
+      "safety": 0.9,
+      "growth_factor": 2.0,
+      "shrink_factor": 0.5
+    }
+  },
+  "duration_s": 2.0,
+  "dt_s": 1.0,
+  "instances": [
+    {
+      "id": "Own-Equipment",
+      "module_id": "group_pump_branch",
+      "name": "循环泵支路（过滤/水泵/止回）",
+      "page_id": "main",
+      "position": {
+        "x": 450.0,
+        "y": 250.0
+      },
+      "rotation": 0,
+      "parameters": {},
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "Own-Boundary0",
+      "module_id": "source",
+      "name": "排出口边界",
+      "page_id": "main",
+      "position": {
+        "x": 800.0,
+        "y": 100.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "pressure_pa": 260000.0,
+        "temperature_k": 293.15,
+        "humidity_ratio_kg_kg": 0.003
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "Own-Boundary1",
+      "module_id": "source",
+      "name": "吸入口边界",
+      "page_id": "main",
+      "position": {
+        "x": 100.0,
+        "y": 210.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "pressure_pa": 250000.0,
+        "temperature_k": 293.15,
+        "humidity_ratio_kg_kg": 0.003
+      },
+      "draft_parameters": {},
+      "banks": []
+    }
+  ],
+  "connections": [
+    {
+      "id": "connection0",
+      "source": {
+        "instance_id": "Own-Boundary0",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Own-Equipment",
+        "port_id": "out0"
+      }
+    },
+    {
+      "id": "connection1",
+      "source": {
+        "instance_id": "Own-Boundary1",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Own-Equipment",
+        "port_id": "in0"
+      }
+    }
+  ],
+  "circuit_fluids": []
+}

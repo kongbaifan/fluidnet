@@ -1,7 +1,13 @@
 # FluidNet Prototype Engine
 
+2026-11-05 [制冷与暖通设备首版整体交付](docs/EQUIPMENT_PROGRAM_DELIVERY.md)：按设备路线补齐性能、热连接、流股/DX、风水设备和储量模型；实际范围、定向验证及未涵盖的物理以该记录为准。
+
 基于现有 FluidNet Studio 交互原型建立的独立项目。前端继承画布、模块库、型号、设备属性、草稿/应用和曲线工作流；后端重新定义模块合同、网络编译、水力算法和 HTTP 接口，并提供基于 Pydantic 的契约层、CoolProp 单相物性服务、版本化 Python 模块包和独立 Worker 生命周期。
 
+2026-11-05 [设备模型扩展](docs/REFRIGERATION_EQUIPMENT_EXPANSION.md)：新增卧式圆筒贮液器、卧式低压循环桶与风冷冷凝器，可直接放入模块组装回路，包含独立模型说明和定向验证。
+
+2026-11-04 模块组装主线：新增“空白冷库画布”，可逐个放置制冷设备、配置工质并连接运行；提供单库、双库多压缩机及 NH₃/CO₂ 三份组装清单。入口与端口约定见[设备模块组装](docs/REFRIGERATION_MODULES.md)，本轮检查见[组装验收](docs/REFRIGERATION_MODULAR_ACCEPTANCE.md)。
+2026-11-04 新增[设备总览面板](docs/DEVICE_PANEL.md)与[机组运行范围](docs/CHILLER_OPERATING_LIMITS.md)：总览读取真实运行帧、区分设置与采样，机组提供可选最小流量保护和低负荷周期平均运行；[本轮定向验收](docs/DEVICE_PANEL_CHILLER_ACCEPTANCE.md)记录实际检查范围。
 本目录独立于原来的 `fluidnet/` 与 `web/`。原型来源为 `../output/visualizations/fluidnet-studio-prototype.html`。前端原型现拆分为 `frontend/index.html`(HTML/CSS 外壳与挂载点)与 `frontend/studio.js`(原内联 JavaScript),新增 `frontend/engine-client.js` 负责真实计算接口;新增 `frontend/project-services.js` 管理控制与工作区接口；`index.html` 按服务层、适配器、界面的顺序加载脚本,服务把 `frontend/` 目录以 `StaticFiles(html=True)` 挂载到 `/`,默认入口页即 `frontend/index.html`。
 
 2026-10-28 已完成[1080p 基线与批量工况计划](docs/NEXT_DEVELOPMENT_1080P_PLAN.md)的六个工作包，唯一界面设计与验收基准为 **1920×1080（16:9）**。从左侧“批量”或建模工具栏“批量工况”进入；操作见[使用说明](docs/SCENARIO_BATCHES.md)，验证范围见[本轮验收](docs/FHD_BATCH_ACCEPTANCE.md)。
@@ -198,6 +204,10 @@ docs/                架构、字段、算法、接口、模块套件与发布�
 - [暖通基础设备与理想测点](docs/HVAC_BASIC_EQUIPMENT.md)、[暖通设备补全清单](docs/HVAC_BASIC_EQUIPMENT_CHECKLIST.md)、[验收记录](docs/HVAC_BASIC_EQUIPMENT_ACCEPTANCE.md)
 - [API 请求与返回](docs/API.md)
 - [版本发布说明](docs/RELEASE_NOTES.md)
+- [设备选型、通路追踪与失败复现](docs/BASELU_WORKFLOW_ACCEPTANCE.md)
+- [多设备批量编辑与面板配置](docs/BATCH_PANEL_ACCEPTANCE.md)
+- [完整后续开发计划（2026-11-05）](docs/FORWARD_PLAN_2026_11_05.md)
+- [S0–S7实施交付与证据（2026-11-06）](docs/FORWARD_IMPLEMENTATION_PROGRESS.md)
 - [试用版验收记录](docs/TRIAL_ACCEPTANCE.md)
 - [原型适配说明](frontend/BACKEND_INTEGRATION.md)
 
@@ -210,7 +220,7 @@ python -m mypy                          # 当前检查范围已清零，CI 阻�
 python scripts/generate_contracts.py --check
 ```
 
-浏览器验证使用 Node 和 Playwright；`npm run test:browser` 依次运行 15 个脚本（含旧存档迁移、冷库 A/B 案例与模块开发工作流），各脚本使用临时端口与隔离的模块/工作区目录，无需预先启动服务：
+浏览器验证使用 Node 和 Playwright；`npm run test:browser` 依次运行 `package.json` 中登记的浏览器脚本（含旧存档迁移、冷库 A/B 案例与模块开发工作流），各脚本使用临时端口与隔离的模块/工作区目录，无需预先启动服务：
 
 ```powershell
 npm install

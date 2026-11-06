@@ -63,8 +63,14 @@ class StorageSpec:
     initial_temperature_k: float
     initial_enthalpy_j_kg: float
 
-    def pressure(self, mass_kg: float) -> float:
+    def pressure(self, mass_kg: float, enthalpy=None) -> float:
         return self.surface_pressure_pa + GRAVITY * mass_kg / self.area_m2
+
+    def pressure_slope(self, mass_kg: float, enthalpy=None) -> float:
+        return GRAVITY / self.area_m2
+
+    def loss_mass_rate(self) -> float:
+        return 0.
 
 
 @dataclass
@@ -140,11 +146,19 @@ def _registered_models() -> dict[str, ModuleDefinition]:
     return registered
 
 
+@functools.lru_cache(maxsize=1)
+def _registered_vessels() -> dict[tuple[str, str], ModuleDefinition]:
+    """A shared vessel solver supports independent vertical and horizontal geometry contracts."""
+    return {(m.id, m.solver_model):m for m in builtin_catalog() if m.solver_model == 'saturated_vessel'}
+
+
 def validated_parameters(instance, definition):
     # Registered model constraints remain authoritative for safety limits, while
     # the project definition owns defaults. This keeps custom package defaults
     # from being silently replaced by a same-shaped built-in model.
     registered = _registered_models().get(definition.solver_model) if definition.runtime == 'builtin' else None
+    if definition.runtime == 'builtin' and definition.solver_model == 'saturated_vessel':
+        registered = _registered_vessels().get((definition.id, definition.solver_model), registered)
     specs = {p.id: p for p in definition.parameters}
     if registered:
         for registered_spec in registered.parameters:
@@ -219,7 +233,7 @@ def assign_circuits(project, modules, nodes, node_count):
     circuits = DisjointSet(range(node_count))
     for inst in project.instances:
         definition = modules[inst.module_id]
-        if definition.solver_model in ('pressure_source', 'junction', 'tank'):
+        if definition.solver_model in ('pressure_source', 'junction', 'tank', 'expansion_tank', 'tower_pool', 'coupled_tower_pool'):
             continue
         for ch in definition.channels:
             if ch.enabled:
@@ -406,7 +420,9 @@ def compile_project(project: Project) -> CompiledNetwork:
         raise CompilationError('SCHEDULE_UNSUPPORTED', '只有冷库系统和集总制冷站执行运行日程', field='events')
     if Domain.refrigerant in used_domains:
         from .refrigeration.station import compile_station
-        return compile_station(project)
+        network=compile_station(project)
+        network.composite_maps=composite_maps
+        return network
     if Domain.thermal in used_domains:
         from .refrigeration.compile import compile_thermal_project
         return compile_thermal_project(project)
@@ -418,10 +434,12 @@ def compile_project(project: Project) -> CompiledNetwork:
     parameters, port_keys = {}, []
     supported = {'pressure_source', 'junction', 'valve', 'pipe', 'duct', 'pump_curve', 'heat_exchanger', 'tank',
                  'closed_volume', 'heater', 'cooling_coil', 'humidifier', 'air_mixing_box', 'air_filter', 'air_room',
-                 'cooling_tower_moist', 'water_coil', 'water_chiller'}
+                 'cooling_tower_moist', 'water_coil', 'water_chiller', 'air_cooled_chiller', 'air_source_heat_pump', 'closed_buffer_tank', 'expansion_tank'}
     # 湿空气网络只接受空气单相与内置风侧元件（Python 模块按干空气近似参与）。
+    supported.add('enthalpy_recovery')
     moist = project.solver.moist_air
     moist_models = {'pressure_source', 'junction', 'valve', 'pipe', 'duct', 'heater', 'cooling_coil', 'humidifier', 'air_mixing_box', 'air_filter', 'air_room'}
+    moist_models.add('enthalpy_recovery')
     if moist:
         fluid_name = (project.fluid.fluid or '').split('::')[-1]
         if project.fluid.phase_policy != 'gas' or fluid_name != 'Air':
@@ -441,7 +459,11 @@ def compile_project(project: Project) -> CompiledNetwork:
     elif project.solver.moist_air_options is not None:
         raise CompilationError('AIR_SOLVER_OPTIONS', '关闭湿空气模式时 moist_air_options 必须为空', field='solver.moist_air_options')
     # Built-in state models and the solver model each one belongs to.
-    state_models = {'open_tank': 'tank', 'closed_volume': 'closed_volume', 'moist_air_room': 'air_room'}
+    state_models = {'open_tank': 'tank', 'closed_volume': 'closed_volume', 'moist_air_room': 'air_room',
+                    'mixed_liquid_buffer': 'closed_buffer_tank', 'isothermal_gas_cushion': 'expansion_tank', 'open_pool_losses':'tower_pool'}
+    supported.add('tower_pool')
+    supported.add('coupled_tower_pool')
+    state_models['wet_contact_pool']='coupled_tower_pool'
     service = fluid_service(project)
     for inst in project.instances:
         definition = modules[inst.module_id]
@@ -449,7 +471,7 @@ def compile_project(project: Project) -> CompiledNetwork:
             definition.solver_model != 'tank'
         if definition.runtime != 'python' and (definition.solver_model not in supported or not state_ok):
             raise CompilationError('MODEL_NOT_SUPPORTED', f'{inst.id} 的模型 {definition.state_model or definition.solver_model} 尚未实现；不能生成替代计算结果', inst.id)
-        if definition.solver_model in ('cooling_coil', 'humidifier', 'air_room', 'air_mixing_box', 'water_coil') and not moist:
+        if definition.solver_model in ('cooling_coil', 'humidifier', 'air_room', 'air_mixing_box', 'water_coil', 'enthalpy_recovery') and not moist:
             raise CompilationError('MOIST_AIR_REQUIRED', f'{inst.id} 的 {definition.solver_model} 需要 SolverOptions.moist_air=True',
                                    inst.id)
         if definition.runtime == 'python':
@@ -478,6 +500,15 @@ def compile_project(project: Project) -> CompiledNetwork:
                 if module_definition_hash(definition) != definition.definition_hash:
                     raise CompilationError('MODULE_DEFINITION_HASH_MISMATCH', f'{inst.id} 的模块契约或源码与保存版本不一致', inst.id)
         parameters[inst.id] = validated_parameters(inst, definition)
+        if definition.solver_model in ('tower_pool','coupled_tower_pool') and (moist or not project.solver.thermal):
+            raise CompilationError('POOL_DOMAIN_UNSUPPORTED','真实塔池首版只支持普通纯水热力动态，不接受湿塔重复账目',inst.id)
+        if definition.solver_model == 'expansion_tank' and (
+                moist or not project.solver.thermal or project.solver.property_coupling != 'node'):
+            raise CompilationError('EXPANSION_DOMAIN_UNSUPPORTED',
+                '气垫膨胀罐需要普通液体热力动态及node物性联算，尚不支持湿空气或reference模式', inst.id)
+        if definition.solver_model == 'closed_buffer_tank' and ((moist and definition.id != 'hydronic_buffer_tank') or not project.solver.thermal):
+            raise CompilationError('BUFFER_DOMAIN_UNSUPPORTED',
+                '闭式缓冲水箱需要普通单相液体热力动态，尚不支持湿空气/风水联算或关闭热力', inst.id)
         if not definition.ports:
             raise CompilationError('PORTS_MISSING', f'{inst.id} 没有端口', inst.id)
         if definition.solver_model == 'pressure_source' and len(definition.ports) != 1:
@@ -499,7 +530,7 @@ def compile_project(project: Project) -> CompiledNetwork:
         dsu.union(source, target)
     for inst in project.instances:
         definition = modules[inst.module_id]
-        if definition.solver_model in ('junction', 'tank', 'closed_volume', 'air_mixing_box', 'air_room'):
+        if definition.solver_model in ('junction', 'tank', 'expansion_tank', 'tower_pool', 'coupled_tower_pool', 'closed_volume', 'air_mixing_box', 'air_room'):
             for p in definition.ports[1:]:
                 dsu.union(f'{inst.id}:{definition.ports[0].id}', f'{inst.id}:{p.id}')
         for port in definition.ports:
@@ -592,7 +623,7 @@ def compile_project(project: Project) -> CompiledNetwork:
                                            'humidity_ratio_kg_kg')
                 fixed_humidities.setdefault(node, humidity)
             continue
-        if definition.solver_model == 'tank':
+        if definition.solver_model in ('tank', 'expansion_tank', 'tower_pool', 'coupled_tower_pool'):
             node = nodes[f'{inst.id}:{definition.ports[0].id}']
             if node in storage:
                 raise CompilationError('STORAGE_CONFLICT', f'{inst.id} 与水箱 {storage[node].instance_id} 直接相连；'
@@ -600,7 +631,17 @@ def compile_project(project: Project) -> CompiledNetwork:
             if node in fixed:
                 raise CompilationError('STORAGE_CONFLICT', f'{inst.id} 与压力边界接在同一节点；水箱本身就是压力参考，'
                                        '不能再接压力边界', inst.id)
-            spec = tank_initial_state(inst.id, params, node, service_of(inst.id))
+            if definition.solver_model == 'coupled_tower_pool':
+                from .coupled_tower_pool import build_spec as coupled_pool_spec
+                spec = coupled_pool_spec(inst.id, params, node, service_of(inst.id))
+            elif definition.solver_model == 'tower_pool':
+                from .tower_pool import build_spec as pool_spec
+                spec = pool_spec(inst.id, params, node, service_of(inst.id))
+            elif definition.solver_model == 'expansion_tank':
+                from .expansion_tank import build_spec as expansion_spec
+                spec = expansion_spec(inst.id, params, node, service_of(inst.id))
+            else:
+                spec = tank_initial_state(inst.id, params, node, service_of(inst.id))
             storage[node] = spec
             fixed[node], fixed_temperatures[node] = spec.initial_pressure_pa, spec.initial_temperature_k
             continue
@@ -611,12 +652,14 @@ def compile_project(project: Project) -> CompiledNetwork:
         if covered != {p.id for p in definition.ports}:
             raise CompilationError('CHANNEL_COVERAGE', f'{inst.id} 存在未绑定到有效通路的端口', inst.id)
         for ch in channels:
-            expected = 'resistance' if definition.solver_model in ('heat_exchanger', 'heater', 'cooling_coil', 'humidifier', 'cooling_tower_moist') \
+            expected = 'resistance' if definition.solver_model in ('heat_exchanger', 'heater', 'cooling_coil', 'humidifier', 'cooling_tower_moist', 'air_cooled_chiller', 'air_source_heat_pump', 'closed_buffer_tank') \
                 else definition.solver_model
-            if definition.solver_model in ('water_coil', 'water_chiller'):
+            if definition.solver_model in ('water_coil', 'water_chiller', 'enthalpy_recovery'):
                 expected = 'resistance' if ch.id == 'ch0' else 'resistance_secondary'
-                if ch.id not in ('ch0', 'ch1') or (ch.input_port, ch.output_port) != (('in0', 'out0') if ch.id == 'ch0' else ('in1', 'out1')):
-                    raise CompilationError('CHANNEL_MODEL_INVALID', f'{inst.id} 双侧设备通路必须为 ch0(in0→out0)、ch1(in1→out1)', inst.id, ch.id)
+                expected_ports=(('exhaust_in','exhaust_out') if ch.id=='ch0' else ('supply_in','supply_out')) if definition.solver_model=='enthalpy_recovery' else (('in0', 'out0') if ch.id == 'ch0' else ('in1', 'out1'))
+                if ch.id not in ('ch0', 'ch1') or (ch.input_port, ch.output_port) != expected_ports:
+                    layout='ch0(exhaust_in→exhaust_out)、ch1(supply_in→supply_out)' if definition.solver_model=='enthalpy_recovery' else 'ch0(in0→out0)、ch1(in1→out1)'
+                    raise CompilationError('CHANNEL_MODEL_INVALID', f'{inst.id} 双侧设备通路必须为 {layout}', inst.id, ch.id)
             relation = 'pump_curve' if expected == 'pump_curve' else 'resistance'
             if definition.runtime != 'python' and (ch.solver_model != expected or ch.relation != relation):
                 raise CompilationError('CHANNEL_MODEL_INVALID', f'{inst.id}.{ch.id} 未注册的通路关系 {ch.solver_model}/{ch.relation}', inst.id, ch.id)
@@ -637,6 +680,12 @@ def compile_project(project: Project) -> CompiledNetwork:
     for node in range(len(roots)):
         if components.find(node) not in referenced:
             raise CompilationError('PRESSURE_REFERENCE_MISSING', f'子网络 {roots[node]} 缺少压力边界（关闭阀门也可能隔离回路）')
+    for branch in branches:
+        if modules[instances[branch.instance_id].module_id].solver_model == 'closed_buffer_tank':
+            from .buffer_tank import validate as validate_buffer
+            reference = next(value for node, value in fixed.items()
+                             if components.find(node) == components.find(branch.start_node))
+            validate_buffer(parameters[branch.instance_id], service_of(branch.instance_id), reference, branch.instance_id)
     validate_controllers(project, modules, instances)
     from .control import validate_scripts
     validate_scripts(project, modules, instances)
@@ -650,7 +699,7 @@ def compile_project(project: Project) -> CompiledNetwork:
                            node_circuit, circuit_fluids, circuit_sources, mixed, trapped=trapped,
                            fixed_humidities=fixed_humidities, air_nodes=air_nodes)
     network.composite_maps = composite_maps or getattr(project,'_composite_maps',{})
-    if moist or any(m.solver_model in ('cooling_tower_moist', 'water_chiller', 'water_coil') for m in modules.values()):
+    if moist or any(m.solver_model in ('cooling_tower_moist', 'water_chiller', 'water_coil', 'air_cooled_chiller', 'air_source_heat_pump') for m in modules.values()):
         from .air_compile import compile_air_network
         compile_air_network(network)
     from .module_scope import check_scope_configuration

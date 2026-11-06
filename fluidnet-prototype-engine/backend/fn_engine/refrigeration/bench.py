@@ -12,6 +12,10 @@ from .module_adapter import evaluate_throttle, flow_variables, state_variables, 
 
 
 def effective_test_conditions(module, conditions):
+    if module.composite and module.sdk and 'composite.refrigeration.v1' in module.sdk.capabilities:
+        fields=conditions.model_dump(mode='json',exclude_unset=True,exclude={'module'})
+        defaults={'fluid':{'fluid':module.applicability.fluids[0] if module.applicability.fluids else 'R134a','phase_policy':'any'}}
+        return ModuleTestConditions.model_validate({**defaults,**fields})
     if not module.execution_role:
         return conditions
     fields = conditions.model_dump(mode='json',exclude_unset=True,exclude={'module'})

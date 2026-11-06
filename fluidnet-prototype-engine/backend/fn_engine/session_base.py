@@ -41,6 +41,15 @@ class ControlCheckpoint(TypedDict):
     effects: object
 
 
+class ParameterRollbackError(CompilationError):
+    """Parent data were restored, but an executor could not confirm the old inputs."""
+    session_unusable = True
+
+    def __init__(self, failures: list[str]) -> None:
+        super().__init__('MODULE_WORKER_IO_ERROR',
+            '参数整批写入失败，原参数已恢复；执行器无法确认恢复，运行已停止：' + '；'.join(failures))
+
+
 def close_resources(resources: Mapping[str, Closable] | Closable) -> None:
     if hasattr(resources,'close'):
         cast(Closable, resources).close()
@@ -122,6 +131,74 @@ class SessionBase(ABC):
         self.apply_parameter_changes(instance_id,parameters)
         return True
 
+    def _commit_parameter_candidates(self, candidates: dict[str, Parameters],
+                                     configs: dict[str, PIDController]) -> None:
+        """Synchronize executors before promoting parent inputs, with compensating rollback.
+
+        The parameters RPC never executes user callbacks or changes accepted module state.
+        A lost acknowledgement is ambiguous, so even the failing executor is restored.
+        If restoration cannot be confirmed, the session is stopped instead of continuing
+        with mismatched parent/Worker inputs.
+        """
+        if self.closed:
+            raise CompilationError('MODULE_WORKER_IO_ERROR', '运行会话已关闭，不能再应用参数')
+        changed = {key: value for key, value in candidates.items() if value != self.network.parameters[key]}
+        if not changed and not configs:
+            return
+        previous = {key: deepcopy(self.network.parameters[key]) for key in changed}
+        controllers = {key: deepcopy(self.controllers[key]) for key in configs}
+        effects = self.capture_parameter_effects()
+        attempted: list[str] = []
+        promoted = False
+        try:
+            for key, value in changed.items():
+                if key in self.runners:
+                    attempted.append(key)
+                    self.runners[key].update_parameters(deepcopy(value))
+            promoted = True
+            for key, value in changed.items():
+                self.network.parameters[key] = value
+            for key, value in changed.items():
+                self.apply_parameter_changes(key, value)
+            for key, config in configs.items():
+                self._apply_controller(key, config)
+        except Exception as failure:
+            restoration_errors: list[str] = []
+            if promoted:
+                for key, value in previous.items():
+                    self.network.parameters[key] = value
+                self.controllers.update(controllers)
+                try:
+                    self.restore_parameter_effects(effects)
+                except Exception as error:
+                    restoration_errors.append(f'物理参数恢复失败：{error}')
+            for key in reversed(attempted):
+                runner = self.runners[key]
+                try:
+                    runner.update_parameters(deepcopy(previous[key]))
+                except Exception as error:
+                    restoration_errors.append(f'{key}：{error}')
+                    # Keep introspection truthful even when its process is unusable.
+                    if hasattr(runner, 'parameters'):
+                        runner.parameters = deepcopy(previous[key])
+                finally:
+                    cache = getattr(runner, '_parent_cache', None)
+                    if cache is not None:
+                        cache.clear()
+            if restoration_errors:
+                for runner in self.runners.values():
+                    try:
+                        getattr(runner, 'worker', runner).close(force=True)
+                    except Exception:
+                        pass
+                try:
+                    self.close()
+                except Exception as error:
+                    restoration_errors.append(f'会话资源关闭失败：{error}')
+                raise ParameterRollbackError(restoration_errors) from failure
+            raise
+        self.revision += 1
+
     @property
     def done(self) -> bool:
         return self.duration is not None and bool(self.frames) and self.time >= self.duration - 1e-12
@@ -165,11 +242,7 @@ class SessionBase(ABC):
         else:
             candidates = {instance_id:self._candidate_parameters(instance_id,{parameter_id:value},controlled)}
         self.validate_parameter_batch(candidates)
-        changed = False
-        for target, parameters in candidates.items():
-            changed = self._apply_parameters(target,parameters) or changed
-        if changed:
-            self.revision += 1
+        self._commit_parameter_candidates(candidates, {})
 
     def _candidate_controller(self, controller_id: str, values: Parameters) -> PIDController:
         pid = self.controllers.get(controller_id)
@@ -231,14 +304,7 @@ class SessionBase(ABC):
         configs = {cid: self._candidate_controller(cid, fields) for cid, fields in controllers.items()}
         candidates = {iid: self._candidate_parameters(iid, fields, script_id=script_id) for iid, fields in parameters.items()}
         self.validate_parameter_batch(candidates)
-        changed = False
-        for cid, config in configs.items():
-            self._apply_controller(cid, config)
-            changed = True
-        for iid, params in candidates.items():
-            changed = self._apply_parameters(iid, params) or changed
-        if changed:
-            self.revision += 1
+        self._commit_parameter_candidates(candidates, configs)
 
 
     def _control(self) -> None:

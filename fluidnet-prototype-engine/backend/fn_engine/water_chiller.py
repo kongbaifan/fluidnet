@@ -1,7 +1,7 @@
 """水冷冷水机组：单级蒸气压缩循环与蒸发器、冷凝器两条水通路。
 
 蒸发器、冷凝器按等温制冷剂侧 ε = 1 − exp(−UA/C_水)。机组把冷冻水出水温度压到设定值；
-满载仍达不到时出水温度上漂（capacity_limited）。负荷比在 0–1 连续变化，不模拟最小负荷启停。
+满载仍达不到时出水温度上漂（capacity_limited）。可选最小负荷的周期平均运行不模拟逐次启停瞬态。
 Q冷凝 = Q蒸发 + 压缩轴功；电机损失进入机房，不进入任何水回路。
 """
 import math
@@ -16,7 +16,8 @@ LOWEST_EVAPORATING_K = 233.15
 OUTPUT_KEYS = ('cooling_power_w', 'condenser_heat_w', 'shaft_power_w', 'electric_power_w', 'cop', 'load_ratio',
                'capacity_limited', 'evaporating_temperature_k', 'condensing_temperature_k', 'evaporating_pressure_pa',
                'condensing_pressure_pa', 'discharge_temperature_k', 'pressure_ratio', 'refrigerant_mass_flow_kg_s',
-               'evaporator_equation_residual_w', 'condenser_equation_residual_w')
+               'evaporator_equation_residual_w', 'condenser_equation_residual_w', 'compressor_load_ratio',
+               'cycling_ratio', 'low_load_cycling')
 
 
 def refrigerant_service(parameters):
@@ -29,7 +30,7 @@ def _effectiveness(ua, capacity):
 
 def _idle(evaporator_inlet, condenser_inlet):
     values = dict.fromkeys(OUTPUT_KEYS, 0.)
-    values.update(capacity_limited=False, cop=None, evaporating_temperature_k=None, condensing_temperature_k=None,
+    values.update(capacity_limited=False, low_load_cycling=False, cop=None, evaporating_temperature_k=None, condensing_temperature_k=None,
                   evaporating_pressure_pa=None, condensing_pressure_pa=None, discharge_temperature_k=None,
                   pressure_ratio=None)
     return {'active': False, 'evaporator_outlet_h': evaporator_inlet.enthalpy_j_kg,
@@ -57,13 +58,26 @@ def _condensing(service, params, displacement, t_evap, t_water, conductance, rej
     return brentq(residual, low, high, xtol=1e-9)
 
 
+def check_chiller_flow_limits(p, evaporator_flow_kg_s, condenser_flow_kg_s):
+    """Validate the supplied operating point, after the network's property iteration has converged."""
+    if p['running'] >= .5:
+        for side, flow, label in (('evaporator', evaporator_flow_kg_s, '冷冻水'), ('condenser', condenser_flow_kg_s, '冷却水')):
+            minimum = p.get(f'{side}_min_flow_kg_s', 0.)
+            if minimum > 0. and flow < minimum:
+                raise DeviceRangeError(f'CHILLER_{side.upper()}_LOW_FLOW',
+                    f'{label}质量流量 {flow:g} kg/s 低于机组最小值 {minimum:g} kg/s，拒绝运行点',
+                    field=f'{side}_min_flow_kg_s')
+
+
 def evaluate_chiller(evaporator_inlet, evaporator_flow_kg_s, condenser_inlet, condenser_flow_kg_s, parameters,
-                     evaporator_service, evaporator_outlet_pressure_pa, check=False):
-    """给定两侧进水状态求出水焓与机组输出；`check` 为真时按声明运行范围拒绝外推点。"""
+                     evaporator_service, evaporator_outlet_pressure_pa, check=False, *, check_min_flow=True):
+    """Check standalone operating points; network calls defer flow limits until the outer solve converges."""
     p = parameters
     flow_eps = 1e-9
     if evaporator_flow_kg_s < -flow_eps or condenser_flow_kg_s < -flow_eps:
         raise DeviceRangeError('CHILLER_REVERSE_FLOW', '冷水机组两侧都不支持反向流动')
+    if check and check_min_flow:
+        check_chiller_flow_limits(p, evaporator_flow_kg_s, condenser_flow_kg_s)
     if p['running'] < .5 or evaporator_flow_kg_s <= flow_eps:
         return _idle(evaporator_inlet, condenser_inlet)
     setpoint_h = evaporator_service.state_pt(evaporator_outlet_pressure_pa, p['chilled_water_setpoint_k']).enthalpy_j_kg
@@ -107,20 +121,51 @@ def evaluate_chiller(evaporator_inlet, evaporator_flow_kg_s, condenser_inlet, co
             raise DeviceRangeError('CHILLER_EVAPORATOR_INFEASIBLE', '满载工况下找不到与冷冻水平衡的蒸发温度')
         t_evap = brentq(surplus, t_evap, high, xtol=1e-9)
         t_cond = full_load(t_evap)[0]
+    duty = 1.
+    cycling = 0. < load < p.get('minimum_load_ratio', 0.)
+    if cycling:
+        load = p['minimum_load_ratio']
+
+        def on_point(te):
+            tc = _condensing(service, p, displacement, te, t_ci, g_c, lambda rates: load*rates['rejection_w'])
+            return tc, load*cycle_rates(service, p, displacement, te, tc, 1.)['cooling_w']
+
+        def on_surplus(te):
+            return on_point(te)[1]-g_e*(t_ei-te)
+
+        # The ON point must cool more than the average target. Find its own heat-exchanger balance.
+        high, low = t_evap, t_evap
+        while on_surplus(low) > 0 and low > LOWEST_EVAPORATING_K:
+            low = max(LOWEST_EVAPORATING_K, low-5.)
+        if on_surplus(low) > 0:
+            raise DeviceRangeError('CHILLER_EVAPORATOR_INFEASIBLE', '最小负荷运行点要求蒸发温度低于 −40 °C',
+                                   field='minimum_load_ratio')
+        t_evap = brentq(on_surplus, low, high, xtol=1e-9)
+        t_cond, on_cooling = on_point(t_evap)
+        duty = target/on_cooling
+        if not 0. < duty <= 1. + 1e-9:
+            raise DeviceRangeError('CHILLER_CYCLING_INFEASIBLE', '最小负荷运行点不能满足周期平均制冷需求')
+        duty = min(duty, 1.)
     point = cycle_point(service, p, displacement, t_evap, t_cond, load)
     if check:
         check_envelope(p, point)
-    cooling = point['cooling_power_w']
-    rejection = point['condenser_heat_w']
+    cooling = duty*point['cooling_power_w']
+    rejection = duty*point['condenser_heat_w']
     evaporator_h = evaporator_inlet.enthalpy_j_kg-cooling/evaporator_flow_kg_s
     condenser_h = condenser_inlet.enthalpy_j_kg+rejection/condenser_flow_kg_s
-    outputs = {'cooling_power_w': cooling, 'condenser_heat_w': rejection, 'shaft_power_w': point['shaft_power_w'],
-               'electric_power_w': point['electric_power_w'], 'cop': point['cop'], 'load_ratio': load,
+    outputs = {'cooling_power_w': cooling, 'condenser_heat_w': rejection, 'shaft_power_w': duty*point['shaft_power_w'],
+               'electric_power_w': duty*point['electric_power_w'], 'cop': point['cop'], 'load_ratio': duty*load,
+               'compressor_load_ratio': load, 'cycling_ratio': duty, 'low_load_cycling': cycling,
                'capacity_limited': limited, 'evaporating_temperature_k': t_evap, 'condensing_temperature_k': t_cond,
                'evaporating_pressure_pa': point['evaporating_pressure_pa'],
                'condensing_pressure_pa': point['condensing_pressure_pa'],
                'discharge_temperature_k': point['discharge_temperature_k'], 'pressure_ratio': point['pressure_ratio'],
-               'refrigerant_mass_flow_kg_s': point['mass_flow_kg_s'],
-               'evaporator_equation_residual_w': g_e*(t_ei-t_evap)-cooling,
-               'condenser_equation_residual_w': g_c*(t_cond-t_ci)-rejection}
-    return {'active': True, 'evaporator_outlet_h': evaporator_h, 'condenser_outlet_h': condenser_h, 'outputs': outputs}
+               'refrigerant_mass_flow_kg_s': duty*point['mass_flow_kg_s'],
+               'evaporator_equation_residual_w': duty*g_e*(t_ei-t_evap)-cooling,
+               'condenser_equation_residual_w': duty*g_c*(t_cond-t_ci)-rejection}
+    on_evaporator_h = evaporator_inlet.enthalpy_j_kg-point['cooling_power_w']/evaporator_flow_kg_s
+    if check and cycling:
+        evaporator_service.state_ph(evaporator_outlet_pressure_pa, on_evaporator_h)
+    return {'active': True, 'evaporator_outlet_h': evaporator_h, 'condenser_outlet_h': condenser_h, 'outputs': outputs,
+            'on_evaporator_outlet_h': on_evaporator_h,
+            'on_condenser_outlet_h': condenser_inlet.enthalpy_j_kg+point['condenser_heat_w']/condenser_flow_kg_s}

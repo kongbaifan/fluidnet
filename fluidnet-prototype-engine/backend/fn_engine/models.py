@@ -569,7 +569,8 @@ class Project(StrictModel):
     controllers: list[PIDController] = Field(default_factory=list)
     control_scripts: list[ControlScript] = Field(default_factory=list, max_length=16)
     circuit_fluids: list[CircuitFluid] = Field(default_factory=list, max_length=64)
-    thermal_couplings: list[ThermalCoupling] = Field(default_factory=list, max_length=2,
+    coupling_mode: Literal['legacy','storage_v1'] = Field(default='legacy',exclude_if=lambda v:v=='legacy')
+    thermal_couplings: list[ThermalCoupling] = Field(default_factory=list, max_length=8,
                                                    exclude_if=lambda value: not value)
     # Load/operation schedule; only cold-store projects execute it (others reject a non-empty list).
     events: list[ScheduleEvent] = Field(default_factory=list, max_length=500)
@@ -585,6 +586,8 @@ class Project(StrictModel):
         if any(i.module_id not in module_ids for i in self.instances):
             raise ValueError("实例引用了不存在的模块")
         instance_map = {i.id: i for i in self.instances}
+        if self.coupling_mode=='legacy' and len(self.thermal_couplings)>2:
+            raise ValueError('旧热耦合模式最多两条关系')
         if len({c.id for c in self.thermal_couplings}) != len(self.thermal_couplings):
             raise ValueError('热耦合关系 ID 重复')
         if len({(c.fluid_instance_id, c.fluid_channel_id) for c in self.thermal_couplings}) != len(self.thermal_couplings):
@@ -957,6 +960,45 @@ class ModuleDesignResponse(StrictModel):
     design_hash: str
     parameters: dict[str, Any] = Field(default_factory=dict)
     changes: list[ParameterChange] = Field(default_factory=list)
+    diagnostics: list[Diagnostic] = Field(default_factory=list)
+
+
+class ModuleReplaySnapshot(StrictModel):
+    """Inputs captured before one Python callback; never an accepted network frame."""
+    format_version: Literal[1]
+    capture_kind: Literal['callback_input']
+    module: ModuleDefinition
+    parameters: dict[str, Any]
+    state: dict[str, Any]
+    fluid: FluidConfig
+    port_fluids: dict[str, FluidConfig] = Field(default_factory=dict)
+    ports: dict[str, PortState] = Field(default_factory=dict)
+    channels: dict[str, ChannelState] = Field(default_factory=dict)
+    execution: ModuleExecutionInfo
+    refrigeration: RefrigerationThrottleInput | None = None
+    content_hash: str = Field(pattern=r'^[a-fA-F0-9]{64}$')
+    definition_hash: str = Field(pattern=r'^[a-fA-F0-9]{64}$')
+    failure: Diagnostic
+
+
+class ModuleReplayRequest(StrictModel):
+    replay: ModuleReplaySnapshot
+
+
+class ModuleReplayResponse(StrictModel):
+    module_id: str
+    status: Literal['failed', 'completed']
+    matched_failure: bool
+    execution: ModuleExecutionInfo
+    content_hash: str
+    definition_hash: str
+    diagnostics: list[Diagnostic] = Field(default_factory=list)
+    result: dict[str, Any] = Field(default_factory=dict)
+
+
+class ModuleFailureResponse(StrictModel):
+    run_id: str
+    replay: ModuleReplaySnapshot | None = None
     diagnostics: list[Diagnostic] = Field(default_factory=list)
 
 
