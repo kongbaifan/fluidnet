@@ -32,7 +32,7 @@ function fixture({rejection,delay=false}={}) {
     ensureInstanceVariables:()=>node.variableState,validateInstanceEdits:()=>{},
     markDirty:()=>{},remember:()=>{},render:()=>{},
   });
-  for(const name of ['project-model','project-state','project-run-state','performance-library','engine-client'])
+  for(const name of ['project-model','project-state','project-run-state','performance-library','module-service','engine-client'])
     vm.runInContext(readFileSync(new URL('../frontend/'+name+'.js',import.meta.url),'utf8'),host);
   host.projectState=host.window.FluidNetProjectState;host.projectRunState=host.window.FluidNetProjectRunState;
   host.engine=host.window.createEngineClient({state:()=>state,moduleOf:()=>module,parameterKey:key,

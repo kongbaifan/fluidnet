@@ -131,70 +131,92 @@ jobs:
           python scripts/generate_hvac_examples.py --check
           python scripts/generate_hvac_modules.py --check
 
-  frontend:
-    name: frontend (Node 24 + Edge)
+  frontend-checks:
+    name: frontend static and unit checks
     runs-on: windows-latest
-    # 安装与完整浏览器链分开计时；完整温控场景按仿真时长验证。
-    timeout-minutes: 60
+    timeout-minutes: 15
+    outputs:
+      matrix: ${{ steps.browser-matrix.outputs.matrix }}
     defaults:
       run:
         working-directory: fluidnet-prototype-engine
     steps:
       - uses: actions/checkout@v4
-      # 浏览器脚本用 tests/browser-server.mjs 启动 `python -m fn_engine serve`，所以前端 job 也要装后端依赖。
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      - name: 安装后端依赖（供浏览器测试启动引擎）
-        run: |
-          python -m pip install -r requirements.txt
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
           cache: npm
           cache-dependency-path: fluidnet-prototype-engine/package-lock.json
-      - name: 安装前端依赖
-        run: npm ci
-      # 前端门禁使用 `node --check` 语法检查（npm run check）。
-      # 暂不引入 eslint：新增 devDependency 必须同步 package-lock.json 才能保证 npm ci 可装，
-      # 当前以语法检查为前端质量门禁，eslint 待后续单独 PR 引入。
+      - run: npm ci
       - name: 前端语法检查
         run: npm run check
-      # windows-latest 自带 Edge，浏览器脚本用 chromium.launch({channel:'msedge',headless:true}) 无头运行。
-      # 逐个运行脚本：清单从 package.json 的 test:browser 解析，保持单一来源。
-      # 失败脚本先记 ::warning::（可见于 CI 注解，便于定位偶发 flake），单次重试；
-      # 两次都失败才终止，避免慢速 runner 的一次超时把整个前端门禁判红。
-      - name: 浏览器冒烟测试
-        timeout-minutes: 45
+      - name: 前端单元测试
+        run: npm run test:ui
+      - name: 核验浏览器清单并输出分组
+        id: browser-matrix
         shell: pwsh
         run: |
-          $command = (Get-Content package.json -Raw | ConvertFrom-Json).scripts.'test:browser'
-          $scripts = $command -split '&&' | ForEach-Object { $_.Trim() }
-          foreach ($script in $scripts) {
-            Write-Host "::group::$script"
-            # 清单里既有 `node <脚本>`，也有 `npm run <任务>`（如 test:ui），按原命令执行。
-            $run = {
-              if ($script -match '^npm run (\S+)$') { npm run $Matches[1] }
-              else {
-                $nodeArgs = ($script -replace '^node\s+', '') -split '\s+'
-                node @nodeArgs
-              }
-            }
-            & $run
-            if ($LASTEXITCODE -ne 0) {
-              Write-Host "::warning::$script failed on first attempt; retrying once (CI runner flake mitigation)"
-              & $run
-            }
-            if ($LASTEXITCODE -ne 0) {
-              Write-Host "::endgroup::"
-              throw "$script failed twice"
-            }
-            Write-Host "::endgroup::"
-          }
-      - name: 上传失败截图
-        if: failure()
+          node scripts/browser-groups.mjs --check
+          if ($LASTEXITCODE -ne 0) { throw 'Browser manifest validation failed' }
+          $browserMatrix = node scripts/browser-groups.mjs --matrix
+          if ($LASTEXITCODE -ne 0) { throw 'Browser matrix generation failed' }
+          "matrix=$browserMatrix" >> $env:GITHUB_OUTPUT
+
+  browser:
+    name: browser (${{ matrix.group }})
+    needs: frontend-checks
+    runs-on: windows-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix: ${{ fromJSON(needs.frontend-checks.outputs.matrix) }}
+    defaults:
+      run:
+        working-directory: fluidnet-prototype-engine
+    steps:
+      - uses: actions/checkout@v4
+      # 每个脚本仍使用现有 browser-server，独立临时目录和端口；组内顺序运行。
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: 安装后端依赖（供浏览器测试启动引擎）
+        run: python -m pip install -r requirements.txt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: fluidnet-prototype-engine/package-lock.json
+      - run: npm ci
+      # 所有 PR 都跑清单中的全部组，包括固定跨域 smoke；暂不按路径跳过集成门。
+      # 失败最多重试一次，恢复通过也显示 warning；永久失败使该组及汇总门失败。
+      - name: 浏览器分组验收
+        timeout-minutes: 45
+        run: node scripts/browser-groups.mjs --run --group ${{ matrix.group }} --retries 1 --ci
+      - name: 上传分组证据
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: browser-artifacts
+          name: browser-artifacts-${{ matrix.group }}
           path: fluidnet-prototype-engine/artifacts/
           if-no-files-found: ignore
+          retention-days: 7
+
+  # 保持既有 required-check 名称；该门必须等待全部矩阵项，不能只代表静态检查。
+  frontend:
+    name: frontend (Node 24 + Edge)
+    needs: [frontend-checks, browser]
+    if: always()
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - name: 汇总全部前端门禁
+        shell: pwsh
+        env:
+          STATIC_RESULT: ${{ needs.frontend-checks.result }}
+          BROWSER_RESULT: ${{ needs.browser.result }}
+        run: |
+          if ($env:STATIC_RESULT -ne 'success' -or $env:BROWSER_RESULT -ne 'success') {
+            throw "Frontend checks did not all pass: static=$env:STATIC_RESULT browser=$env:BROWSER_RESULT"
+          }
+          Write-Host 'All frontend static, unit and browser groups passed.'

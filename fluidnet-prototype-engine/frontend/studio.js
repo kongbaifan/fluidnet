@@ -146,7 +146,7 @@ function deviceParamSpecs(n) {
   const m = moduleOf(n);
   if (m.manifest) return manifestParamSpecs(m.manifest);
   const definition=engine?.catalog?.modules.find(d=>d.id===m.kind);
-  return (PARAM_DEFS[m.kind] || []).map(f => {
+  return moduleParamDefs(m).map(f => {
     const key=engine?.catalog?.prototype_parameter_bindings[m.kind]?.[f[0]]||f[0];
     const spec=definition?.parameters.find(p=>p.id===key);
     return {id:f[0], label:f[1], value_type:'number',unit:f[2] ? {display_unit:f[2]} : null,
@@ -285,24 +285,25 @@ let recovery='', editRevision=0, savePhase='', saveError='', localSaveError='', 
 let state=initialState();
 try { const saved=window.FluidNetDraftStore.parse(localStorage.getItem(STORAGE_KEY)||'null');if(saved&&saved.schema===1&&Array.isArray(saved.projects)&&saved.projects.length&&Array.isArray(saved.modules)&&saved.modules.length&&Array.isArray(saved.models)){state=saved;state.projects.forEach(p=>{if(p.run.status==='running')p.run.status='paused';});if(state.bench.run.status==='running')state.bench.run.status='paused';} } catch { recovery='上次原型记录无法读取，已打开内置示例。'; }
 const ui={route:'home',theme:matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light',moduleTab:'drawing',selectedNode:'',selectedEdge:'',editorPort:'',category:'全部模块',moduleSearch:'',moduleView:'cards',projectSearch:'',projectFilter:'all',projectView:'grid',bank:0,allBanks:false,variableSearch:'',onlyCommon:false,valueSearch:'',arrayVar:'system:form',codeKind:'runtime',designIndex:0,modelSearch:'',modelFilter:'all',modelTab:'parameters',benchTab:'results',settingsTab:'project',connectionTab:'variables',selectedConnector:'serial1',nodeDomain:'fluid',nodeTab:'definition',selectedRecord:'DEMO-003',runFilter:'all',pageGrid:false,placing:null,connecting:null,canvasMode:'select',floats:[],frontId:'',floatSerial:0,taskDrawer:false,selectedChart:'q',clipboard:null,showLibrary:innerWidth>500,showChart:false,workbenchChart:'flow',compileOutput:'尚未检查。可检查 Python 括号与字符串，或预览模块调用流程。',controlOutput:'控制脚本尚未预览。',connectionSearch:'',guideStep:0};
-try {const savedUI=JSON.parse(localStorage.getItem(UI_KEY)||'null');if(savedUI){for(const key of ['theme','moduleTab','settingsTab','connectionTab','bank','pageGrid','codeKind','designIndex','showLibrary','showChart','workbenchChart','moduleView'])if(savedUI[key]!==undefined)ui[key]=savedUI[key];}}catch{}
+try {const savedUI=JSON.parse(localStorage.getItem(UI_KEY)||'null');if(savedUI){for(const key of ['theme','moduleTab','settingsTab','connectionTab','bank','pageGrid','codeKind','designIndex','showLibrary','showChart','workbenchChart','moduleView','canvasModeValue','canvasLabels','canvasAnimate','canvasScales'])if(savedUI[key]!==undefined)ui[key]=savedUI[key];}}catch{}
 if (!['cards','list'].includes(ui.moduleView)) ui.moduleView = 'cards';
 if (['design','header'].includes(ui.moduleTab)) { ui.codeKind=ui.moduleTab; ui.moduleTab='code'; }
 if (!['runtime','design','header'].includes(ui.codeKind)) ui.codeKind='runtime';
 if (![0,1,2].includes(ui.designIndex)) ui.designIndex=0;
-let modal=null,contextMenu=null,pointer=null,toastTimer,runInterval,undoStack=[],redoStack=[],lastTick=0;
+let modal=null,contextMenu=null,toastTimer,runInterval,undoStack=[],redoStack=[],lastTick=0;
 const project=()=>state.projects.find(p=>p.id===state.activeProject)||state.projects[0];
 const activePage=()=>project().pages.find(p=>p.id===project().activePage)||project().pages[0];
 const mod=(id=state.selectedModule)=>state.modules.find(m=>m.id===id)||state.modules[0];
 const instance=id=>project().pages.flatMap(p=>p.nodes).find(n=>n.id===id);
 const moduleOf=n=>ownerOfInstance(n)?.moduleSnapshots?.[n.moduleId] || mod(n.moduleId);
 const model=(id=state.selectedModel)=>state.models.find(m=>m.id===id);
-const paramDefs=n=>moduleOf(n).manifest ? manifestFields(moduleOf(n).manifest) : PARAM_DEFS[moduleOf(n).kind]||[];
+const moduleParamDefs=m=>m.manifest?manifestFields(m.manifest):m.parameterDefs||PARAM_DEFS[m.kind]||[];
+const paramDefs=n=>moduleParamDefs(moduleOf(n));
 const pendingCount=n=>deviceParamIds(n).filter(id=>!sameValue(n.draft[id],n.params[id])).length+instanceCustomPending(n)+(n.draftModelId&&(n.draftModelId!==n.modelId||n.draftModelVersion!==n.modelVersion)?1:0)+(window.FluidNetPerformanceData?.pending(n)?1:0);
 const anyPending=()=>state.projects.reduce((sum,p)=>sum+p.pages.flatMap(p=>p.nodes).reduce((s,n)=>s+pendingCount(n),0),0);
 const statusText=run=>({ready:'就绪',running:'运行中',paused:'已暂停',stopped:'已停止',completed:'已完成',failed:'失败',solving:'求解中'}[run.status]||'就绪');
 function msg(text,error=false){const toast=document.getElementById('toast');toast.className='toast'+(error?' error':'');toast.innerHTML=icon(error?'Info':'CheckCircle2')+`<span>${esc(text)}</span>`;toast.hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>toast.hidden=true,3500);document.getElementById('announcement').textContent=text;}
-function saveUI(){try{localStorage.setItem(UI_KEY,JSON.stringify({theme:ui.theme,moduleTab:ui.moduleTab,settingsTab:ui.settingsTab,connectionTab:ui.connectionTab,bank:ui.bank,pageGrid:ui.pageGrid,codeKind:ui.codeKind,designIndex:ui.designIndex,showLibrary:ui.showLibrary,showChart:ui.showChart,workbenchChart:ui.workbenchChart,moduleView:ui.moduleView}));}catch{/* 界面偏好体积很小；失败只影响主题/页签记忆，草稿失败由 persistLocal 提示。 */}}
+function saveUI(){try{localStorage.setItem(UI_KEY,JSON.stringify({theme:ui.theme,moduleTab:ui.moduleTab,settingsTab:ui.settingsTab,connectionTab:ui.connectionTab,bank:ui.bank,pageGrid:ui.pageGrid,codeKind:ui.codeKind,designIndex:ui.designIndex,showLibrary:ui.showLibrary,showChart:ui.showChart,workbenchChart:ui.workbenchChart,moduleView:ui.moduleView,canvasModeValue:ui.canvasModeValue,canvasLabels:ui.canvasLabels,canvasAnimate:ui.canvasAnimate,canvasScales:ui.canvasScales}));}catch{/* 界面偏好体积很小；失败只影响主题/页签记忆，草稿失败由 persistLocal 提示。 */}}
 // 配额类存储异常：Chrome/Edge 的 QuotaExceededError、Firefox 的 NS_ERROR_DOM_QUOTA_REACHED，
 // 旧浏览器报 code 22（QUOTA_EXCEEDED_ERR）或 1014，另外按 name/message 兜底。
 function isQuotaError(error){
@@ -501,38 +502,26 @@ function thumbnail(p){return `<svg viewBox="0 0 1100 470" role="img" aria-label=
 function projectCard(p){return `<article class="project-card"><button class="project-preview" data-action="open-project" data-id="${p.id}" aria-label="打开 ${esc(p.name)}">${thumbnail(p)}${badge(p.id===state.activeProject?'当前项目':'示例','')}</button><div class="project-info"><h3>${esc(p.name)}</h3><div class="meta"><span>${p.pages.length} 张画布</span><span>·</span><span>${p.pages.reduce((s,c)=>s+c.nodes.length,0)} 个设备</span><span>·</span><span>${p.caseId==='cold-room-ideal-v1'?'库房热系统':esc(fluidBadge(p))}</span></div><div class="row spread"><small class="muted">${p.dirty?'草稿有修改':esc(p.modified||'示例项目')}</small><div class="row gap-6">${workflows.projectActions(p)}${ibtn('duplicate-project','复制项目','Copy',`data-id="${p.id}"`)}${btn('open-project','打开','ArrowUpRight',`data-id="${p.id}"`,'small')}</div></div></div></article>`;}
 function renderHome(){return `<div class="page-shell">${heading('工作从这里开始','继续建模，或从一个验证过操作流程的示例开始。',btn('import','导入原型','Upload')+btn('new-project','新建项目','Plus','','primary'),'FLUIDNET WORKSPACE')}${entryPathsMarkup()}<div class="home-main"><div class="stack gap-20"><section><div class="section-title"><h2>最近项目</h2>${btn('nav','全部项目','ChevronRight','data-route="projects"','ghost small')}</div><div class="project-grid">${state.projects.slice(0,3).map(projectCard).join('')}</div></section><section class="panel"><div class="panel-head"><h2>最近使用的模块</h2>${btn('nav','模块库','ArrowUpRight','data-route="modules"','ghost small')}</div>${['valve','pump','exchanger','tank'].map(id=>{const m=mod(id);return `<div class="list-row"><span class="object-icon">${icon(m.icon)}</span><div class="grow"><strong>${m.name}</strong><small>${m.code} · ${m.ports.length} 个端口 · ${m.channels.length} 条内部通路</small></div>${badge('v'+m.version)}${btn('edit-module','编辑定义','Pencil',`data-id="${id}"`,'ghost small')}</div>`;}).join('')}</section></div><aside class="home-aside stack"><section class="panel"><div class="panel-head"><h2>快捷入口</h2>${icon('Grid2X2')}</div><div class="quick-list">${[['new-module','新建算法模块','Box'],['nav','管理设备型号','Database','models'],['nav','查看运行记录','History','runs'],['nav','页面与使用指南','BookOpen','help']].map(([act,label,i,r])=>`<button data-action="${act}" ${r?`data-route="${r}"`:''}>${icon(i)}<span class="grow">${label}</span>${icon('ChevronRight')}</button>`).join('')}</div></section><section class="panel"><div class="panel-head"><h2>消息与任务</h2>${badge('本地原型')}</div><div class="timeline">${state.messages.slice(0,3).map(m=>`<div class="timeline-item"><span class="timeline-point">${icon('CheckCircle2')}</span><div>${esc(m.text)}<small>${m.time} · ${m.kind}</small></div></div>`).join('')}</div></section><section class="panel"><div class="panel-body stack"><div class="row">${icon('Info')}<strong>当前体验范围</strong></div><p class="muted" style="font-size:12px">主系统运行已接入真实水力与热力求解。含水箱或管道热容分段的项目按隐式 Euler 积分液位、水温与管内温度，其余动态为准稳态时间序列。动态运行是可暂停、单步和运行中改参数的会话；「控制」页可配置 PID（Lua 控制脚本尚未接入）。Python 模块支持独立验证与版本保存。</p>${btn('page-map','查看全部页面','LayoutDashboard','','small')}</div></section></aside></div></div>`;}
 function renderProjects(){let list=state.projects.filter(p=>(p.name+p.description).toLowerCase().includes(ui.projectSearch.toLowerCase()));if(ui.projectFilter==='current')list=list.filter(p=>p.id===state.activeProject);return `<div class="page-shell">${heading('项目管理','按项目保存、导入导出与恢复修订；运行记录独立保存。',workflows.projectToolbar()+btn('cs-create','−18°C 冷库案例','Thermometer')+btn('cs-create-station','NH₃/CO₂ 冷库案例','Wind')+btn('cs-create-coupled','制冷站热耦合','ArrowRightLeft')+btn('cs-create-dual','双盘管示例','Network')+btn('import','导入原型','Upload')+btn('new-project','新建项目','Plus','','primary'))}<div class="filterbar"><label class="search">${icon('Search')}<input aria-label="搜索项目" data-filter="projectSearch" placeholder="搜索项目名称" value="${esc(ui.projectSearch)}"></label><div class="segmented">${[['all','全部项目'],['current','当前项目']].map(([k,v])=>`<button data-action="project-filter" data-value="${k}" class="${ui.projectFilter===k?'active':''}">${v}</button>`).join('')}</div><span class="push"></span><span class="muted">${list.length} 个项目</span><div class="segmented">${['grid','list'].map(k=>`<button aria-label="${k==='grid'?'卡片视图':'列表视图'}" data-action="project-view" data-value="${k}" class="${ui.projectView===k?'active':''}">${icon(k==='grid'?'Grid2X2':'List')}</button>`).join('')}</div></div><div id="project-results" class="project-grid${ui.projectView==='list'?' project-list-view':''}">${list.map(projectCard).join('')||empty('没有匹配的项目','换个关键词，或新建一个项目。')}</div><div class="home-note"><span class="note-icon">${icon('Folder')}</span><div class="grow"><strong>项目与修订保存在服务器工作区</strong><p>“管理”可单独保存项目、导出及恢复修订；“保存原型”保存完整工作区。</p></div>${btn('export','导出原型','Download','data-format="prototype"','ghost')}</div></div>`;}
-function symbol(n,mini=false){const kind=moduleOf(n).kind;let s='';const stroke='var(--muted)',fill='var(--surface)';if(kind==='junction')s=`<circle r="5" fill="var(--orange)"/>`;else if(kind==='source')s=`<circle r="17" fill="var(--blue-soft)" stroke="var(--blue)" stroke-width="1.3"/><text y="4" text-anchor="middle" font-size="13" fill="var(--blue)">P</text>`;else if(kind==='pump')s=`<circle r="18" fill="var(--soft)" stroke="${stroke}" stroke-width="1.3"/><path d="M -5 -9 L 10 0 L -5 9 Z" fill="none" stroke="${stroke}" stroke-width="1.5"/><path d="M -13 22 H 13" stroke="${stroke}" stroke-width="2"/>`;else if(kind==='valve'||kind==='check')s=`<path d="M -15 -10 L 15 10 V -10 L -15 10 Z" fill="${fill}" stroke="var(--accent)" stroke-width="1.4"/>${kind==='check'?'<path d="M 0 -13 V 13" stroke="var(--accent)"/>':''}`;else if(kind==='pipe')s=`<rect x="-22" y="-5" width="44" height="10" rx="2" fill="${fill}" stroke="var(--accent)" stroke-width="1.3"/>`;else if(kind==='tank')s=`<rect x="-20" y="-28" width="40" height="56" rx="7" fill="var(--blue-soft)" stroke="${stroke}" stroke-width="1.3"/><path d="M -18 0 Q -9 -5 0 0 T 18 0" fill="none" stroke="var(--blue)"/>`;else if(kind==='exchanger')s=`<rect x="-29" y="-32" width="58" height="64" rx="5" fill="${fill}" stroke="${stroke}"/><path d="M -25 -17 H 23 M -25 17 H 23 M -10 -23 L 10 23 M 0 -23 L 20 23" stroke="var(--orange)" fill="none"/>`;else s=`<rect x="-18" y="-18" width="36" height="36" rx="6" fill="var(--soft)" stroke="${stroke}"/><text y="4" text-anchor="middle" fill="var(--text)" font-size="11">${kind==='heater'?'Q':kind==='pid'?'PID':kind==='sensor'?'F':'ƒ'}</text>`;return `<g transform="rotate(${n.rotation||0})">${s}</g>`;}
-function portOffset(n,p){if(moduleOf(n).kind==='source')return {x:/^B[24](?:-|$)/.test(n.id)?-28:28,y:0};if(moduleOf(n).kind==='junction'){const flip=/^N2(?:-|$)/.test(n.id)?-1:1;return p.id==='in0'?{x:-24*flip,y:0}:{x:24*flip,y:p.id==='out0'?-18:18};}const m=moduleOf(n);if(m.category==='制冷站设备'||m.ports.length>2&&m.kind!=='exchanger'){const side=m.ports.filter(q=>q.direction===p.direction),i=side.indexOf(p);return {x:p.direction==='in'?-32:32,y:side.length>1?-21+42*i/(side.length-1):0};}return {x:p.direction==='in'?-32:32,y:m.kind==='exchanger'?(p.id.endsWith('0')?-19:19):0};}
-function portHitRadius(n,p){
-  const m=moduleOf(n),side=m.ports.filter(q=>q.direction===p.direction);
-  return (m.category==='制冷站设备'||m.ports.length>2&&m.kind!=='exchanger')&&side.length>3
-    ? Math.min(10,18.9/(side.length-1)):10;
-}
-function endpoint(pg,nodeId,portId){const n=pg.nodes.find(n=>n.id===nodeId);if(!n)return null;const p=moduleOf(n).ports.find(p=>p.id===portId);if(!p)return null;const d=portOffset(n,p);const a=(n.rotation||0)*Math.PI/180;return {x:n.x+d.x*Math.cos(a)-d.y*Math.sin(a),y:n.y+d.x*Math.sin(a)+d.y*Math.cos(a),node:n,port:p};}
+let engineeringCanvas;
+function canvasView(){return engineeringCanvas ||= window.FluidNetCanvasWorkspace.create({getState:()=>state,project,activePage,moduleOf,ui,esc,btn,links,domains:DOMAINS,quick:quickCanvasMarkup,channels:internalChannelsMarkup,projectKey:projectParameterKey,selectedIds:groupSelected,engine:()=>engine,openDialog,closeDialog,render,saveUI,
+  locate:id=>{const found=links.locate(project(),id);if(!found)throw Error('设备已不存在');project().activePage=found.page.id;ui.selectedNode=id;fitNetwork(found.page);render();openDevice(id);}});}
+function portOffset(n,p){return window.FluidNetCanvasSymbols.portOffset(n,moduleOf(n),p);}
+function portHitRadius(n,p){return window.FluidNetCanvasSymbols.hitRadius(n,moduleOf(n),p);}
+function endpoint(pg,nodeId,portId){return canvasView().endpoint(pg,nodeId,portId);}
 function globalEndpoint(owner,nodeId,portId){const found=links.locate(owner,nodeId);return found?endpoint(found.page,nodeId,portId):null;}
 function pageLinkStrip(pg){
   const entries=links.cross(project(),pg.id);
   if(!entries.length)return '';
   return `<div class="cross-page-strip" aria-label="当前画布跨页连接">${entries.map(link=>`<button type="button" data-action="jump-page-link" data-id="${esc(link.edge[0])}" data-node="${esc(link.remote[0])}" title="跳转到 ${esc(link.remotePage.name)} · ${esc(link.remote.join(':'))}">${icon('ArrowRightLeft')}<span>${esc(link.local.join(':'))} ↔ ${esc(link.remotePage.name)} · ${esc(link.remote.join(':'))}</span>${icon('ArrowUpRight')}</button>`).join('')}</div>`;
 }
-function routeLine(a,b){const mid=(a.x+b.x)/2;return Math.abs(a.y-b.y)<2?`M ${a.x} ${a.y} H ${b.x}`:`M ${a.x} ${a.y} H ${mid} V ${b.y} H ${b.x}`;}
 // Trend-history runs (RunFrame.full=false) carry only curve variables between key frames; device
 // panels and canvas readings show the most recent full row instead of blanking out.
 function panelRow(run){const history=run?.history||[];for(let i=history.length-1;i>=0;i--)if(!history[i].partial)return history[i];return history.at(-1);}
 function replayingKeyFrame(run){return !!run?.history?.length&&!!run.history.at(-1).partial;}
-function flowFor(n){return panelRow(project().run)?.canonical?.[n.id+'.mass_flow_kg_s'] ?? null;}
-function outletTemperature(n){
-  const port=moduleOf(n).ports.find(port=>port.direction==='out' && port.domain==='fluid');
-  const value=port && panelRow(ownerOfInstance(n).run)?.canonical?.[`${n.id}.${port.id}.temperature_k`];
-  return Number.isFinite(value)?value-273.15:null;
-}
 const CIRCUIT_COLORS=['var(--orange)','#2f80ed','#27ae60','#9b51e0','#eb5757','#f2994a','#219653','#56ccf2'];
-function circuitOfPort(key){const circuits=engine.circuits?.(project().id)||[];return circuits.length>1?circuits.find(c=>c.ports.includes(key)):null;}
-function circuitLabel(c){return `回路 ${c.id+1} · ${c.fluid.fluid}${c.source==='project'?'（项目默认）':' · '+c.source}`;}
-function networkMarkup(pg,mini=false){const lines=pg.edges.map(([id,a,ap,b,bp])=>{const e1=endpoint(pg,a,ap),e2=endpoint(pg,b,bp);if(!e1||!e2)return '';const d=routeLine(e1,e2),c=circuitOfPort(a+':'+ap);return `<path d="${d}" data-trace-edge="${esc(id)}" class="net-line${ui.selectedEdge===id?' selected':''}"${c?` style="stroke:${CIRCUIT_COLORS[c.id%CIRCUIT_COLORS.length]}"`:''}>${c?`<title>${esc(circuitLabel(c))}</title>`:''}</path>${mini?'':`<path d="${d}" class="net-hit" data-edge="${id}" role="button" aria-label="连接 ${a} 到 ${b}" tabindex="0"/>`}`;}).join('');
-  const nodes=pg.nodes.map(n=>{const m=moduleOf(n);return `<g transform="translate(${n.x},${n.y})" class="net-node${!mini&&(ui.selectedNode===n.id||groupSelected().includes(n.id))?' selected':''}" ${mini?'':`data-node="${n.id}" tabindex="0" role="button" aria-label="${esc(n.id+' '+n.name)}"`}><rect class="node-hit" x="-28" y="-35" width="56" height="101" fill="transparent" pointer-events="all"/><rect class="node-selection" x="-27" y="-28" width="54" height="56" rx="5"/>${portStubs(n)}${symbol(n,mini)}${mini?'':internalChannelsMarkup(n)}${!mini&&project().run.history.length&&ui.pageGrid!==null?`<text class="node-reading" x="0" y="-43" text-anchor="middle">${number(flowFor(n),3)}</text>`:''}${m.ports.map(p=>{const offset=portOffset(n,p),hit=portHitRadius(n,p),connected=!!links.atPort(project(),n.id,p.id);return `<g transform="rotate(${n.rotation||0})"><g class="port-group${ui.connecting?.nodeId===n.id&&ui.connecting?.portId===p.id?' pending':''}" ${mini?'':`data-port-node="${n.id}" data-port-id="${p.id}" role="button" aria-label="${esc(n.id+' '+p.label)}" tabindex="0"`}><title>${esc(n.id+' · '+p.label+' · '+DOMAINS[p.domain].label)}${connected?' · 已连接':''}</title><circle cx="${offset.x}" cy="${offset.y}" r="${mini?Math.min(3,hit):Math.min(3.5,hit)}" class="net-port${connected?' connected':''}"/>${mini?'':`<circle cx="${offset.x}" cy="${offset.y}" r="${hit}" class="port-hit"/>`}</g></g>`;}).join('')}${mini?'':`<text class="node-code" x="0" y="44" text-anchor="middle">${esc(n.id)}</text><text class="node-name" x="0" y="60" text-anchor="middle">${esc(n.name)}</text>${quickCanvasMarkup(n,m)}`}</g>`;}).join('');return lines+nodes;}
+function networkMarkup(pg,mini=false){return canvasView().markup(pg,mini);}
 function fluidBadge(p){const circuits=engine.circuits?.(p.id)||[];if(new Set(circuits.map(c=>c.fluid.fluid)).size>1)return `多工质 · ${circuits.length} 个回路`;const declared=new Set((p.circuitFluids||[]).map(c=>c.fluid||c.medium).filter(Boolean));if(!circuits.length&&declared.size>1)return `多工质 · ${[...declared].join(' / ')}`;return p.fluid||(MEDIA.find(m=>m[0]===p.medium)||MEDIA[0])[1];}
-function renderWorkbench(){const p=project(),pg=activePage(),selected=instance(ui.selectedNode);return `<div class="workbench${ui.showLibrary?' show-library':''}${ui.showChart?' with-chart':''}"><aside class="canvas-library" id="canvas-library"><div class="library-heading"><strong>模块库</strong><small class="muted">${state.modules.length} 类</small>${ibtn('toggle-library','关闭模块库','PanelLeftClose')}</div><label class="search">${icon('Search')}<input placeholder="查找模块" aria-label="画布模块搜索" data-filter="canvasModuleSearch"></label><div class="library-scroll" id="canvas-library-list">${libraryMarkup()}</div><div class="selected-properties" id="selected-properties">${propertiesMarkup(selected)}</div></aside><div class="canvas-column"><div class="canvas-bar"><div class="canvas-pages">${pgTabs()}${ibtn('new-canvas','新增画布','Plus')}</div><div class="canvas-tools">${workflows.scenarioToolbar(p)}${coldStorage.couplingToolbar(p)}${coldStorage.assemblyToolbar(p)}${ibtn('toggle-library',ui.showLibrary?'收起模块库':'展开模块库',ui.showLibrary?'PanelLeftClose':'PanelLeftOpen',`aria-expanded="${ui.showLibrary}" aria-controls="canvas-library"`)}${ibtn('select-mode','选择设备','MousePointer2')}${ibtn('project-group-tools','多选与设备组操作','Boxes')}${ibtn('project-find','全项目查找','Search')}${ibtn('device-batch-edit','批量编辑设备','SlidersHorizontal')}${ibtn('connect-mode','连接端口','Cable')}${ibtn('page-links','跨页连接','ArrowRightLeft')}<span class="tool-divider"></span>${ibtn('undo','撤销 Ctrl+Z','Undo2',undoStack.length?'':'disabled')}${ibtn('redo','重做 Ctrl+Y','Redo2',redoStack.length?'':'disabled')}${ibtn('fit','适应画布','Scan')}${ibtn('grid','显示点阵','Grid2X2','class="optional"')}${ibtn('validate','检查连接','ListChecks')}</div></div>${pageLinkStrip(pg)}<div id="canvas-device-tools">${deviceToolsMarkup(selected)}</div><div class="canvas-area${ui.pageGrid?' grid':''}" id="network-area"><div class="canvas-caption"><span>${esc(pg.name)}</span><span class="muted">${p.caseId==='cold-room-ideal-v1'?'库房热平衡 · W':p.run.history.length?'质量流量 · kg/s':'单击选择 · 双击参数'}</span>${badge(p.caseId==='cold-room-ideal-v1'?'传热系统':fluidBadge(p),'blue')}</div>${pg.nodes.length?`<svg id="network" class="network-svg" viewBox="${networkViewBox(pg)}" role="group" aria-label="${esc(p.name+' '+pg.name+' 管网画布')}">${networkMarkup(pg)}</svg>`:`<div class="empty" style="padding-top:18%">${icon('Network')}<h3>在这里搭建新系统</h3><p>从左侧选择模块，再点击画布放置设备。</p>${p.modelingDomain==='refrigeration'?btn('cs-assembly-guide','查看设备与连接说明','ListChecks','','primary'):btn('insert-defaults','放入泵阀示例','Plus','','primary')}</div><svg id="network" class="network-svg" viewBox="-35 -5 1140 510" style="position:absolute;inset:0" aria-label="空画布"></svg>`}<div class="runbar" aria-label="主系统运行控制"><button data-action="run-project" data-command="run" class="go" ${['running','solving'].includes(p.run.status)?'disabled':''}>${icon('Play')}<span>${p.run.status==='paused'?'继续':'运行'}</span></button><button data-action="run-project" data-command="pause" ${p.run.status==='running'?'':'disabled'}>${icon('Pause')}暂停</button><button data-action="run-project" data-command="step" ${['running','solving'].includes(p.run.status)?'disabled':''}>${icon('StepForward')}单步</button><button data-action="run-project" data-command="stop" ${['ready','stopped'].includes(p.run.status)?'disabled':''}>${icon('Square')}停止</button><span class="spacer"></span><button data-action="toggle-chart" aria-label="${ui.showChart?'收起同屏曲线':'展开同屏曲线'}" aria-expanded="${ui.showChart}" class="${ui.showChart?'active':''}">${icon('Activity')}曲线</button></div><div id="canvas-inspection" class="canvas-inspection" role="status" hidden></div><div class="canvas-bottom"><span data-canvas-hint>${ui.placing?'点击画布放置 '+mod(ui.placing).name:ui.connecting?'可切换画布选择另一个空闲端口 · Esc 取消':'双击设备编辑参数 · 拖动空白处平移'}</span><div class="zoom">${ibtn('zoom-out','缩小','Minus')}<span>${Math.round(pg.zoom*100)}%</span>${ibtn('zoom-in','放大','Plus')}</div></div></div>${renderWorkbenchChart()}${coldStorage.markup(p)}<div class="canvas-info"><span data-result-status></span><span class="optional">${pg.nodes.length} 个设备 · ${pg.edges.length} 条连接</span><span class="push"></span>${btn('nav','项目设置','Settings2','data-route="settings"','ghost small')}${btn('nav','控制逻辑','Code2','data-route="controls"','ghost small')}</div></div><aside id="inspector-dock" aria-hidden="true"></aside></div>`;}
+function renderWorkbench(){const p=project(),pg=activePage(),selected=instance(ui.selectedNode);return `<div class="workbench${ui.showLibrary?' show-library':''}${ui.showChart?' with-chart':''}"><aside class="canvas-library" id="canvas-library"><div class="library-heading"><strong>模块库</strong><small class="muted">${state.modules.length} 类</small>${ibtn('toggle-library','关闭模块库','PanelLeftClose')}</div><label class="search">${icon('Search')}<input placeholder="查找模块" aria-label="画布模块搜索" data-filter="canvasModuleSearch"></label><div class="library-scroll" id="canvas-library-list">${libraryMarkup()}</div><div class="selected-properties" id="selected-properties">${propertiesMarkup(selected)}</div></aside><div class="canvas-column"><div class="canvas-bar"><div class="canvas-pages">${pgTabs()}${ibtn('new-canvas','新增画布','Plus')}</div><div class="canvas-tools">${workflows.scenarioToolbar(p)}${coldStorage.couplingToolbar(p)}${coldStorage.assemblyToolbar(p)}${ibtn('toggle-library',ui.showLibrary?'收起模块库':'展开模块库',ui.showLibrary?'PanelLeftClose':'PanelLeftOpen',`aria-expanded="${ui.showLibrary}" aria-controls="canvas-library"`)}${ibtn('select-mode','选择设备','MousePointer2')}${ibtn('project-group-tools','多选与设备组操作','Boxes')}${ibtn('project-find','全项目查找','Search')}${ibtn('device-batch-edit','批量编辑设备','SlidersHorizontal')}${ibtn('connect-mode','连接端口','Cable')}${ibtn('page-links','跨页连接','ArrowRightLeft')}<span class="tool-divider"></span>${ibtn('undo','撤销 Ctrl+Z','Undo2',undoStack.length?'':'disabled')}${ibtn('redo','重做 Ctrl+Y','Redo2',redoStack.length?'':'disabled')}${ibtn('fit','适应画布','Scan')}${ibtn('grid','显示点阵','Grid2X2','class="optional"')}${ibtn('validate','检查连接','ListChecks')}</div></div>${pageLinkStrip(pg)}${canvasView().tools()}<div id="canvas-device-tools">${deviceToolsMarkup(selected)}</div><div class="canvas-area${ui.pageGrid?' grid':''}" id="network-area"><div class="canvas-caption"><span>${esc(pg.name)}</span><span class="muted">${p.caseId==='cold-room-ideal-v1'?'库房热平衡 · W':p.run.history.length?'真实采样 · 结果图例见上方':'单击选择 · 双击参数'}</span>${badge(p.caseId==='cold-room-ideal-v1'?'传热系统':fluidBadge(p),'blue')}</div>${pg.nodes.length?`<svg id="network" class="network-svg" viewBox="${networkViewBox(pg)}" role="group" aria-label="${esc(p.name+' '+pg.name+' 管网画布')}">${networkMarkup(pg)}</svg>`:`<div class="empty" style="padding-top:18%">${icon('Network')}<h3>在这里搭建新系统</h3><p>从左侧选择模块，再点击画布放置设备。</p>${p.modelingDomain==='refrigeration'?btn('cs-assembly-guide','查看设备与连接说明','ListChecks','','primary'):btn('insert-defaults','放入泵阀示例','Plus','','primary')}</div><svg id="network" class="network-svg" viewBox="-35 -5 1140 510" style="position:absolute;inset:0" aria-label="空画布"></svg>`}<div class="runbar" aria-label="主系统运行控制"><button data-action="run-project" data-command="run" class="go" ${['running','solving'].includes(p.run.status)?'disabled':''}>${icon('Play')}<span>${p.run.status==='paused'?'继续':'运行'}</span></button><button data-action="run-project" data-command="pause" ${p.run.status==='running'?'':'disabled'}>${icon('Pause')}暂停</button><button data-action="run-project" data-command="step" ${['running','solving'].includes(p.run.status)?'disabled':''}>${icon('StepForward')}单步</button><button data-action="run-project" data-command="stop" ${['ready','stopped'].includes(p.run.status)?'disabled':''}>${icon('Square')}停止</button><span class="spacer"></span><button data-action="toggle-chart" aria-label="${ui.showChart?'收起同屏曲线':'展开同屏曲线'}" aria-expanded="${ui.showChart}" class="${ui.showChart?'active':''}">${icon('Activity')}曲线</button></div><div id="canvas-inspection" class="canvas-inspection" role="status" hidden></div><div class="canvas-bottom"><span data-canvas-hint>${ui.placing?'点击画布放置 '+mod(ui.placing).name:ui.connecting?'可切换画布选择另一个空闲端口 · Esc 取消':'双击设备编辑参数 · 拖动空白处平移'}</span><div class="zoom">${ibtn('zoom-out','缩小','Minus')}<span>${Math.round(pg.zoom*100)}%</span>${ibtn('zoom-in','放大','Plus')}</div></div></div>${renderWorkbenchChart()}${coldStorage.markup(p)}<div class="canvas-info"><span data-result-status></span><span class="optional">${pg.nodes.length} 个设备 · ${pg.edges.length} 条连接</span><span class="push"></span>${btn('nav','项目设置','Settings2','data-route="settings"','ghost small')}${btn('nav','控制逻辑','Code2','data-route="controls"','ghost small')}</div></div><aside id="inspector-dock" aria-hidden="true"></aside></div>`;}
 function pgTabs(){return project().pages.map(p=>`<button data-action="canvas-tab" data-id="${p.id}" class="${p.id===project().activePage?'active':''}">${esc(p.name)}</button>`).join('');}
 function libraryMarkup(query=''){return moduleGroupNames().map(c=>{const modules=state.modules.filter(m=>m.category===c&&(m.name+m.code).toLowerCase().includes(query.toLowerCase()));return modules.length?`<div class="library-caption">${icon('ChevronDown')}${esc(c)}</div>${modules.map(m=>`<button class="library-item${ui.placing===m.id?' active':''}" data-action="place-module" data-id="${m.id}" draggable="true" data-drag-module="${m.id}">${icon(m.icon)}<span>${m.name}</span><small>${m.runtime === 'python' ? 'Python' : m.code.slice(0,2)}</small></button>`).join('')}`:'';}).join('');}
 function propertiesMarkup(n){if(n){const m=moduleOf(n);return `<div class="row spread"><h3>对象属性</h3>${badge(n.id,'warn')}</div><dl><dt>名称</dt><dd>${esc(n.name)}</dd><dt>模块</dt><dd>${esc(m.name)}</dd>${m.runtime==='python'?`<dt>模块版本</dt><dd data-module-binding>v${m.version} · ${esc((m.manifest.definition_hash || m.contentHash).slice(0,12))}</dd>`:''}<dt>型号</dt><dd>${esc(model(n.modelId)?.name||'自定义参数')}</dd>${paramDefs(n).slice(0,2).map(f=>`<dt>${f[1].replace('阀门','').replace('流量系数 ','')}</dt><dd>${number(n.params[f[0]],f[0]==='opening'?0:2)} ${f[2]}</dd>`).join('')}</dl><div class="row gap-6">${btn('open-device','详细参数','SlidersHorizontal',`data-id="${n.id}"`,'small')}${ibtn('delete-node','删除选中设备','Trash2',`data-id="${n.id}"`)}</div>`;}return `<h3>画布属性</h3><dl><dt>画布</dt><dd>${esc(activePage().name)}</dd><dt>介质</dt><dd>${esc(fluidBadge(project()))}</dd><dt>选择</dt><dd>${ui.selectedEdge?'已选连接 '+esc(ui.selectedEdge):'单击设备或连接'}</dd></dl>${ui.selectedEdge?btn('delete-edge','删除连接','Trash2',`data-id="${ui.selectedEdge}"`,'small'):btn('nav','管理模块','Boxes','data-route="modules"','small ghost')}`;}
@@ -1003,7 +992,7 @@ function validateInstanceEdits(n, values, m = moduleOf(n)) {
     if (array && (!Array.isArray(value) || value.length !== 8)) throw Error(`${v.label}必须包含 8 项。`);
     try {
       for (const item of array ? value : [value]) numeric(item, -1e12, 1e12, v.type.startsWith('int'));
-      const def = (m.manifest ? manifestFields(m.manifest) : PARAM_DEFS[m.kind] || []).find(f => f[0] === v.param);
+      const def = moduleParamDefs(m).find(f => f[0] === v.param);
       if (def) numeric(value, def[3], def[4]);
     } catch (error) { throw Error(`${v.label}：${error.message}`); }
   }
@@ -1183,10 +1172,11 @@ function currentProjectPending() {
 function fitNetwork(pg = activePage()) {
   if (!pg.nodes.length) { pg.viewBounds = [-35, -5, 1140, 510]; }
   else {
-    const xs = pg.nodes.map(n => n.x), ys = pg.nodes.map(n => n.y);
-    pg.viewBounds = [Math.min(...xs) - 65, Math.min(...ys) - 65,
-      Math.max(240, Math.max(...xs) - Math.min(...xs) + 130),
-      Math.max(240, Math.max(...ys) - Math.min(...ys) + 170)];
+    const boxes=pg.nodes.map(n=>{const m=moduleOf(n),b=window.FluidNetCanvasSymbols.hitBounds(n,m),r=(n.rotation||0)*Math.PI/180;
+      const points=[[b.x,b.y],[b.x+b.width,b.y],[b.x,b.y+b.height],[b.x+b.width,b.y+b.height]].map(([x,y])=>({x:n.x+x*Math.cos(r)-y*Math.sin(r),y:n.y+x*Math.sin(r)+y*Math.cos(r)}));
+      return {left:Math.min(...points.map(p=>p.x)),right:Math.max(...points.map(p=>p.x)),top:Math.min(...points.map(p=>p.y))-16,bottom:Math.max(...points.map(p=>p.y),n.y+window.FluidNetCanvasSymbols.labelY(n,m)+48)};});
+    const left=Math.min(...boxes.map(b=>b.left))-30,top=Math.min(...boxes.map(b=>b.top))-30;
+    pg.viewBounds=[left,top,Math.max(240,Math.max(...boxes.map(b=>b.right))-left+30),Math.max(240,Math.max(...boxes.map(b=>b.bottom))-top+30)];
   }
   pg.zoom = 1; pg.pan = [0, 0];
 }
@@ -1198,7 +1188,7 @@ function networkViewBox(pg) {
 }
 
 function projectParameterKey(owner = project()) {
-  return JSON.stringify({scenarios:owner.scenarios||[],events:owner.events||[],activeScenarioId:owner.activeScenarioId||'',medium:owner.medium,fluid:owner.fluid,fluidReference:owner.fluidReference,fluidConfig:owner.fluidConfig,circuitFluids:owner.circuitFluids,couplingMode:owner.couplingMode,thermalCouplings:owner.thermalCouplings,solverOptions:owner.solverOptions,controllers:owner.controllers||[],controls:controls.key(owner), solver: owner.solver, modules: state.modules.filter(m => owner.pages.some(pg => pg.nodes.some(n => n.moduleId === m.id))).map(m => ({id:m.id,kind:m.kind,version:m.version,ports:m.ports,channels:m.channels})), pages: owner.pages.map(pg => ({
+  return JSON.stringify({scenarios:owner.scenarios||[],events:owner.events||[],activeScenarioId:owner.activeScenarioId||'',medium:owner.medium,fluid:owner.fluid,fluidReference:owner.fluidReference,fluidConfig:owner.fluidConfig,circuitFluids:owner.circuitFluids,couplingMode:owner.couplingMode,thermalCouplings:owner.thermalCouplings,solverOptions:owner.solverOptions,controllers:owner.controllers||[],controls:controls.key(owner), solver: owner.solver, modules: state.modules.filter(m => owner.pages.some(pg => pg.nodes.some(n => n.moduleId === m.id))).map(m => {const bound=owner.moduleSnapshots?.[m.id]||m;return {id:bound.id,kind:bound.kind,version:bound.version,definitionHash:bound.manifest?.definition_hash,ports:bound.ports.map(({id,domain,direction,required,circuit})=>({id,domain,direction,required,circuit})),channels:bound.channels};}), pages: owner.pages.map(pg => ({
     nodes: pg.nodes.map(n => ({ id: n.id, moduleId: n.moduleId, params: n.params, values: n.variableState?.values })),
     edges: pg.edges,
   })) });
@@ -1241,32 +1231,18 @@ function startModeling() {
   msg('先运行或单步，再修改开度、应用参数，观察底部两条支路的曲线。');
 }
 
-function isDocked(f) {
-  return !!f.docked && !f.minimized && innerWidth >= 1000;
-}
-
-function syncDockLayout() {
-  const workbench = root.querySelector('.workbench');
-  if (!workbench) return;
-  const active = ui.floats.find(f => instance(f.id) && isDocked(f));
-  workbench.classList.toggle('has-docked', !!active);
-  workbench.classList.toggle('has-docked-variables', active?.tab === 'variables');
-}
-
-function dockWindowBounds(f) {
-  const rect = document.getElementById('inspector-dock').getBoundingClientRect();
-  return { x: rect.left, y: rect.top, w: rect.width, h: rect.height };
-}
-
-function toggleDeviceDock(id) {
-  const f = ui.floats.find(f => f.id === id);
-  if (!f) return;
-  if (innerWidth < 1000 && !f.docked) { msg('较宽的窗口可将参数停靠到右侧；当前使用浮窗。'); return; }
-  const next = !f.docked;
-  for (const other of ui.floats) if (other.docked && other !== f) { other.docked = false; rememberWindow(other); }
-  f.docked = next; f.minimized = false; delete f.restore;
-  rememberWindow(f); markDirty(); renderFloats();
-}
+let deviceWindowsController;
+function deviceWindows(){return deviceWindowsController ||= window.FluidNetDeviceWindows.create({
+  windows:{list:()=>ui.floats,replace:value=>{ui.floats=value;},front:()=>ui.frontId,focus:id=>{ui.frontId=id;return ++ui.floatSerial;},route:()=>ui.route,select:id=>{ui.selectedNode=id;},project:()=>state.activeProject},
+  storage:{read:(projectId,id)=>state.windowPositions?.[projectId+':'+id],write:(projectId,id,value)=>{state.windowPositions||={};state.windowPositions[projectId+':'+id]=value;}},
+  elements:{root:()=>root,page:()=>page,layer:()=>document.getElementById('floating-layer'),dock:()=>document.getElementById('inspector-dock'),viewport:()=>({width:innerWidth,height:innerHeight})},
+  content:{node:instance,body:floatBody,footer:deviceWindowFooter,extras:deviceWindowExtras},chrome:{esc,icon,ibtn},
+  effects:{dirty:markDirty,selection:syncDeviceSelection,message:msg,retainFocus,rendered:()=>{syncWorkbenchStatus();requestAnimationFrame(()=>{resizeCharts();restoreChartCursor();});}}
+});}
+function isDocked(f){return deviceWindows().isDocked(f);}
+function syncDockLayout(){return deviceWindows().syncDockLayout();}
+function dockWindowBounds(){return deviceWindows().dockBounds();}
+function toggleDeviceDock(id){return deviceWindows().toggleDock(id);}
 
 function chartDockChoices() {
   const bindings=overviewSeries(project().run);
@@ -1494,14 +1470,7 @@ function rotateDevice(id, direction = 1) {
   ui.selectedNode = n.id; markDirty(project()); render();
   root.querySelector(`#network [data-node="${n.id}"]`)?.focus({ preventScroll: true });
 }
-function setDeviceTab(f, tab) {
-  f.tab = tab;
-  if (tab === 'variables' && !f.variablesOpened) {
-    const r = page.getBoundingClientRect(); f.variablesOpened = true;
-    f.w = Math.min(780, r.width - 16); f.h = Math.min(650, r.height - 16);
-    f.x = r.right - f.w - 12; f.y = r.top + 12;
-  }
-}
+function setDeviceTab(f,tab){return deviceWindows().setTab(f,tab);}
 function openDeviceVariables(id, variableId) {
   const n = instance(id); if (!n) return;
   openDevice(id);
@@ -1784,7 +1753,7 @@ function validateBank(m, bank) {
     const value = bank[v.id], arr = v.type.endsWith('[8]');
     if (arr && (!Array.isArray(value) || value.length !== 8)) throw Error(`${v.name} 必须含 8 项。`);
     for (const n of arr ? value : [value]) numeric(n, -1e12, 1e12, v.type.startsWith('int'));
-    const f = (m.manifest ? manifestFields(m.manifest) : PARAM_DEFS[m.kind] || []).find(f => f[0] === v.param);
+    const f = moduleParamDefs(m).find(f => f[0] === v.param);
     if (f) numeric(value, f[3], f[4]);
   }
   numeric(bank['system:step'], 1, 10000, true);
@@ -1864,24 +1833,9 @@ function applyInstanceDialog(n) {
     } catch(error) {msg(error.message,true);}
   }, '确认应用', true);
 }
-function windowBounds(f) {
-  const p = page.getBoundingClientRect(), minW = Math.min(320, p.width - 16);
-  f.w = clamp(f.w || 440, minW, p.width - 16);
-  f.h = clamp(f.h || 520, Math.min(270, p.height - 16), p.height - 16);
-  f.x = clamp(f.x ?? p.right - f.w - 20, p.left + 8, p.right - f.w - 8);
-  f.y = clamp(f.y ?? p.top + 28, p.top + 8, p.bottom - (f.minimized ? 46 : f.h) - 8);
-  return f;
-}
-function rememberWindow(f) { state.windowPositions ||= {}; state.windowPositions[windowKey(f.id)] = { x: f.x, y: f.y, w: f.w, h: f.h, pinned: f.pinned, docked: !!f.docked }; }
-function openDevice(id) {
-  if (!instance(id)) return;
-  ui.selectedNode = id;
-  let f = ui.floats.find(f => f.id === id);
-  if (!f) { f = { id, tab: 'parameters', ...(state.windowPositions?.[windowKey(id)] || {}), order: ++ui.floatSerial }; ui.floats.push(f); }
-  if (f.docked) for (const other of ui.floats) if (other !== f && other.docked) { other.docked = false; rememberWindow(other); }
-  f.tab = 'parameters'; f.minimized = false; f.order = ++ui.floatSerial; ui.frontId = id;
-  syncDeviceSelection(); renderFloats();
-}
+function windowBounds(f){return deviceWindows().bounds(f);}
+function rememberWindow(f){return deviceWindows().remember(f);}
+function openDevice(id){return deviceWindows().open(id);}
 const PARAM_TYPE_LABELS = {number:'数值', boolean:'布尔', text:'文本', curve:'曲线'};
 let devicePanel;
 function configureDevicePanel(id=null) {
@@ -1920,31 +1874,20 @@ function quickCanvasMarkup(n, m) {
   if (!def || m.variables.find(v => v.param === def[0])?.display === false) return '';
   return `<g data-quick-node="${n.id}" role="button" tabindex="0" aria-label="修改 ${esc(n.name + ' ' + def[1])}"><rect class="quick-param" x="-35" y="68" width="70" height="20" rx="4"/><text class="quick-param-label" x="0" y="82" text-anchor="middle">${number(n.params[def[0]], def[0] === 'opening' ? 0 : 1)} ${esc(def[2])}${m.quickType === 'display' ? '' : ' ▾'}</text></g>`;
 }
-function portStubs(n) {
-  return `<g transform="rotate(${n.rotation || 0})">${moduleOf(n).ports.map(p => { const d = portOffset(n, p); return `<path d="M ${d.x} ${d.y} H 0 V 0" fill="none" stroke="var(--${DOMAINS[p.domain].color})" stroke-width="1.3"/>`; }).join('')}</g>`;
+function deviceWindowFooter(f,n){
+  const bank=f.tab==='variables'?variableWindowState(f).source:-1;
+  const apply=bank<0?btn('apply-instance','预览并应用','Check',`data-id="${n.id}" ${pendingCount(n)?'':'disabled'}`,'primary small')
+    :btn('apply-instance-bank',`应用库值 ${bank+1}`,'Check',`data-id="${n.id}" data-bank="${bank}" ${instanceBankDiff(n,bank).length?'':'disabled'}`,'primary small');
+  return `<footer class="float-footer"><div class="float-save-state grow"><small data-float-save>${state.dirty?'草稿未保存':'草稿已保存'}</small><small data-float-keyframe ${replayingKeyFrame(project().run)?'':'hidden'}>回放：显示最近关键帧</small><small data-device-apply-status="${n.id}"></small></div>${btn('save','保存草稿','Save','title="保存整个原型；待应用参数保持草稿状态"','small')}${apply}</footer>`;
 }
-function renderFloats() {
-  const layer = document.getElementById('floating-layer');
-  syncDockLayout();
-  let html = '';
-  if (ui.route === 'workbench') html = ui.floats.filter(f => instance(f.id)).map(f => {
-    const bounds = isDocked(f) ? dockWindowBounds(f) : windowBounds(f); const n = instance(f.id);
-    const bank = f.tab === 'variables' ? variableWindowState(f).source : -1;
-    const apply = bank < 0
-      ? btn('apply-instance', '预览并应用', 'Check', `data-id="${n.id}" ${pendingCount(n) ? '' : 'disabled'}`, 'primary small')
-      : btn('apply-instance-bank', `应用库值 ${bank + 1}`, 'Check', `data-id="${n.id}" data-bank="${bank}" ${instanceBankDiff(n, bank).length ? '' : 'disabled'}`, 'primary small');
-    return `<section class="floater${isDocked(f) ? ' docked' : ''}${ui.frontId === f.id ? ' front' : ''}${f.minimized ? ' minimized' : ''}${f.tab === 'variables' ? ' variables-floater' : ''}" role="region" aria-label="${esc(n.id + ' 设备参数')}" data-float-id="${f.id}" style="left:${bounds.x}px;top:${bounds.y}px;width:${bounds.w}px;height:${f.minimized ? 46 : bounds.h}px;z-index:${50 + (f.pinned ? 50 : 0) + f.order % 40}">
-      <header class="float-head" data-float-move="${f.id}">${icon('SlidersHorizontal')}<strong class="float-title">${esc(n.id + ' · ' + n.name)}</strong>${ibtn('float-dock', f.docked ? '取消停靠' : '停靠到右侧', f.docked ? 'ExternalLink' : 'Columns2', `data-id="${f.id}" aria-pressed="${!!f.docked}" ${innerWidth < 1000 && !f.docked ? 'hidden' : ''}`)}${ibtn('float-pin', '置顶窗口', 'Pin', `data-id="${f.id}" aria-pressed="${!!f.pinned}"`)}${ibtn('float-max', '最大化或还原', 'Maximize2', `data-id="${f.id}"`)}${ibtn('float-min', f.minimized ? '还原窗口' : '收起窗口', f.minimized ? 'ChevronDown' : 'Minus', `data-id="${f.id}"`)}${ibtn('float-close', '关闭设备窗口', 'X', `data-id="${f.id}"`)}</header>
-      ${f.minimized ? '' : `<nav class="tabs float-tabs" aria-label="设备属性页签">${[['overview', '总览'], ['parameters', '参数与型号'], ['variables', '全部变量'], ['connections', '连接']].map(([id, label]) => `<button type="button" data-action="float-tab" data-id="${f.id}" data-value="${id}" class="${f.tab === id ? 'active' : ''}" aria-pressed="${f.tab === id}">${label}</button>`).join('')}</nav><div class="float-body">${floatBody(f, n)}</div><footer class="float-footer"><div class="float-save-state grow"><small data-float-save>${state.dirty ? '草稿未保存' : '草稿已保存'}</small><small data-float-keyframe ${replayingKeyFrame(project().run) ? '' : 'hidden'}>回放：显示最近关键帧</small><small data-device-apply-status="${n.id}"></small></div>${btn('save', '保存草稿', 'Save', 'title="保存整个原型；待应用参数保持草稿状态"', 'small')}${apply}</footer><button class="float-resize" data-float-resize="${f.id}" aria-label="调整窗口大小">${icon('Grip')}</button>`}
-    </section>`;
-  }).join('');
-  if (contextMenu) html += `<div class="context-menu" style="left:${contextMenu.x}px;top:${contextMenu.y}px">${deviceContextMarkup(contextMenu.id)}</div>`;
-  if (ui.taskDrawer) html += `<section class="task-drawer"><div class="panel-head"><h3>运行任务</h3>${ibtn('tasks', '关闭任务列表', 'X')}</div><div class="panel-body stack">${state.projects.filter(p => ['running', 'paused'].includes(p.run.status)).map(p => `<div class="row"><div class="grow"><strong>${esc(p.name)}</strong><small>${statusText(p.run)} · ${clockLabel(p.run.time)}</small></div>${btn('open-project', '查看', '', `data-id="${p.id}"`, 'small')}${btn('stop-task', '停止', '', `data-id="${p.id}"`, 'small')}</div>`).join('')}<small class="muted">切换页面或关闭查看窗口后，任务继续保留。</small></div></section>`;
-  layer.innerHTML = html;
-  syncWorkbenchStatus();
-  requestAnimationFrame(() => { resizeCharts(); restoreChartCursor(); });
+function deviceWindowExtras(){
+  let html='';
+  if(contextMenu)html+=`<div class="context-menu" style="left:${contextMenu.x}px;top:${contextMenu.y}px">${deviceContextMarkup(contextMenu.id)}</div>`;
+  if(ui.taskDrawer)html+=`<section class="task-drawer"><div class="panel-head"><h3>运行任务</h3>${ibtn('tasks','关闭任务列表','X')}</div><div class="panel-body stack">${state.projects.filter(p=>['running','paused'].includes(p.run.status)).map(p=>`<div class="row"><div class="grow"><strong>${esc(p.name)}</strong><small>${statusText(p.run)} · ${clockLabel(p.run.time)}</small></div>${btn('open-project','查看','',`data-id="${p.id}"`,'small')}${btn('stop-task','停止','',`data-id="${p.id}"`,'small')}</div>`).join('')}<small class="muted">切换页面或关闭查看窗口后，任务继续保留。</small></div></section>`;
+  return html;
 }
-function updateFloatBodies() { retainFocus(renderFloats); }
+function renderFloats(){return deviceWindows().render();}
+function updateFloatBodies(){return deviceWindows().updateBodies();}
 async function setBench(id, params) {
   if (['running', 'solving'].includes(state.bench.run.status)) throw Error('先停止当前单机测试，再切换被测设备。');
   const m = mod(id);
@@ -2176,18 +2119,6 @@ function projectFind(){
   const update=()=>{out.innerHTML=window.FluidNetProjectEditing.search(owner,input.value,moduleOf,engine.circuits(owner.id)||[]).map(({node,page})=>`<button type="button" class="btn ghost small" data-action="project-find-node" data-id="${esc(node.id)}" data-project="${esc(owner.id)}">${esc(page.name+' · '+node.id+' · '+node.name+' · '+moduleOf(node).name)}</button>`).join('')||'<p>没有匹配设备。</p>';};
   input.addEventListener('input',update);update();
 }
-root.addEventListener('pointerdown',e=>{
-  if(!e.shiftKey||e.button!==0||modal||ui.route!=='workbench'||!e.target.closest('#network')||e.target.closest('[data-port-node],[data-quick-node]'))return;
-  const n=e.target.closest('[data-node]');e.stopImmediatePropagation();e.preventDefault();
-  if(n){const ids=new Set(groupSelected());ids.has(n.dataset.node)?ids.delete(n.dataset.node):ids.add(n.dataset.node);groupSelection([...ids]);ui.ignoreClickUntil=Date.now()+350;return;}
-  const svg=document.getElementById('network'),point=svgPoint(svg,e),owner=project(),pg=activePage();
-  const box=document.createElementNS('http://www.w3.org/2000/svg','rect');box.setAttribute('fill','#4488aa22');box.setAttribute('stroke','#4488aa');box.setAttribute('pointer-events','none');svg.append(box);
-  const draw=event=>{if(!svg.isConnected)return;const p=svgPoint(svg,event);box.setAttribute('x',Math.min(p.x,point.x));box.setAttribute('y',Math.min(p.y,point.y));box.setAttribute('width',Math.abs(p.x-point.x));box.setAttribute('height',Math.abs(p.y-point.y));};
-  const cancel=()=>{document.removeEventListener('pointermove',draw,true);document.removeEventListener('pointerup',finish,true);document.removeEventListener('pointercancel',cancel,true);box.remove();};
-  const finish=event=>{cancel();
-    if(!svg.isConnected||project()!==owner||activePage()!==pg)return;const p=svgPoint(svg,event);groupSelection(pg.nodes.filter(n=>n.x>=Math.min(p.x,point.x)&&n.x<=Math.max(p.x,point.x)&&n.y>=Math.min(p.y,point.y)&&n.y<=Math.max(p.y,point.y)).map(n=>n.id));ui.ignoreClickUntil=Date.now()+350;};
-  document.addEventListener('pointermove',draw,true);document.addEventListener('pointerup',finish,true);document.addEventListener('pointercancel',cancel,true);
-},true);
 function copyDevice(id = ui.selectedNode) { const n = instance(id); if (n) { ui.clipboard = clone(n); msg(`${n.id} 已复制；Ctrl+V 粘贴。`); } }
 function pasteDevice() {
   if (!ui.clipboard) return;
@@ -2211,8 +2142,8 @@ function refreshLive() {
   }
   if (ui.route === 'workbench') refreshWorkbenchChart();
   restoreChartCursor();
-  if (ui.route === 'workbench' && !pointer) {
-    const svg = document.getElementById('network'); if (svg) svg.innerHTML = networkMarkup(activePage()); paintCanvasInspection();
+  if (ui.route === 'workbench' && !workspaceInput?.busy()) {
+    canvasView().refresh(); paintCanvasInspection();
     for (const f of ui.floats.filter(f => f.tab === 'results' && !f.minimized)) {
       const body = root.querySelector(`[data-float-id="${f.id}"] .float-body`); if (body) body.innerHTML = floatBody(f, instance(f.id));
     }
@@ -2455,7 +2386,7 @@ function validateImport(data) {
   for (const item of data.models) {
     const m = data.modules.find(m => m.id === item.moduleId);
     if (!safeId(item.id) || !m || typeof item.name !== 'string' || !Array.isArray(item.versions) || !item.versions.length) throw Error('型号引用或版本数据不完整。');
-    readParams(item.params, m.kind); validateModelVariables(item, m);
+    readParams(item.params, m.kind,'',moduleParamDefs(m)); validateModelVariables(item, m);
   }
   if (data.format === 'fluidnet-prototype-models') return;
   if (!Array.isArray(data.projects) || !data.projects.length || data.projects.length > 20 || !unique(data.projects.map(p => p.id)) || !data.bench || !data.charts || !Array.isArray(data.records) || !Array.isArray(data.messages) || !Array.isArray(data.connectors) || !Number.isInteger(data.serial)) throw Error('项目、测试或运行数据不完整。');
@@ -2465,7 +2396,7 @@ function validateImport(data) {
     const ids = p.pages.flatMap(pg => pg.nodes?.map(n => n.id) || []); if (!unique(ids)) throw Error('项目设备标识重复。');
     for (const pg of p.pages) {
       if (!safeId(pg.id) || !Array.isArray(pg.nodes) || pg.nodes.length > 64 || !Array.isArray(pg.edges)) throw Error('画布结构不合法。');
-      for (const n of pg.nodes) { const m = p.moduleSnapshots?.[n.moduleId] || data.modules.find(m => m.id === n.moduleId); if (!safeId(n.id) || !m || !Number.isFinite(n.x) || !Number.isFinite(n.y)) throw Error('设备引用不合法。'); readParams(n.params, m.kind, '', m.manifest ? manifestFields(m.manifest) : undefined); readParams(n.draft, m.kind, '', m.manifest ? manifestFields(m.manifest) : undefined); validateInstanceVariableState(n, m); }
+      for (const n of pg.nodes) { const m = p.moduleSnapshots?.[n.moduleId] || data.modules.find(m => m.id === n.moduleId); if (!safeId(n.id) || !m || !Number.isFinite(n.x) || !Number.isFinite(n.y)) throw Error('设备引用不合法。'); readParams(n.params, m.kind, '', moduleParamDefs(m)); readParams(n.draft, m.kind, '', moduleParamDefs(m)); validateInstanceVariableState(n, m); }
       for (const e of pg.edges) if (!Array.isArray(e) || e.length !== 5 || !safeId(e[0])) throw Error('连接格式不合法。');
     }
     if(!unique(p.pages.map(pg=>pg.id)))throw Error('画布标识重复。');
@@ -2504,10 +2435,7 @@ function chooseChartVariables(control = false) {
   } else openDialog('添加观察变量', '选择设备和物理量；曲线采样与主系统的仿真时间一致。', selectField('variable', '项目变量', variables.map(v => [v.id, `${v.identifier || v.id} · ${v.device} · ${v.name} / ${v.unit}`]), variables[0].id), data => addChartVariable(data.variable), '加入曲线');
 }
 function handleAction(action, el) {
-  if(action.startsWith('wf-')){workflows.action(action,el).catch(error=>msg(error.message,true));return;}
-  if(action.startsWith('batch-')){scenarioBatches.action(action,el).catch(error=>msg(error.message,true));return;}
-  if(action.startsWith('air-')){airSide.action(action,el).catch(error=>msg(error.message,true));return;}
-  if(action.startsWith('cs-')){coldStorage.action(action,el).catch(error=>msg(error.message,true));return;}
+  if(featureActions().dispatch(action,el))return;
   const d = el.dataset, id = d.id;
   const changes = { 'editor-tab': 'moduleTab', 'project-filter': 'projectFilter', 'project-view': 'projectView', 'module-category': 'category', 'module-view': 'moduleView', 'model-filter': 'modelFilter', 'bench-tab': 'benchTab', 'run-filter': 'runFilter', 'settings-tab': 'settingsTab', 'connection-tab': 'connectionTab', 'node-domain': 'nodeDomain' };
   if (changes[action]) { ui[changes[action]] = d.value; saveUI(); render(); return; }
@@ -2535,7 +2463,6 @@ function handleAction(action, el) {
     case 'toggle-chart': ui.showChart = !ui.showChart; ui.pinnedChart = null; saveUI(); retainFocus(); break;
     case 'full-curves': state.charts.source = 'live'; ui.pinnedChart = null; navigate('curves'); break;
     case 'release-cursor': ui.pinnedChart = null; ui.chartCursor = null; refreshWorkbenchChart(); break;
-    case 'float-dock': toggleDeviceDock(id); break;
     case 'guided-demo': state.selectedModule = 'valve'; ui.bank = 1; openEditor('valve', 'channels'); msg('从端口与通路开始，再编辑库值、保存型号并应用到项目。'); break;
     case 'new-project':
       openDialog('新建项目', '选择一份示例作为起点，或创建空白画布。', `<div class="stack">${field('name', '项目名称', '新管网项目', 'required maxlength="50"')}${selectField('template', '起始内容', [['blank', '空白画布'], ['cold-storage-blank', '空白冷库画布 · 自选设备组装'], ['water', '泵阀并联管网'], ['heat', '双侧换热机组'], ['tank', '水箱液位调节']], 'blank')}</div>`, data => {
@@ -2567,7 +2494,6 @@ function handleAction(action, el) {
         ui.selectedNode = ''; ui.connecting = null; markDirty(project()); render();
       }, pg ? '保存名称' : '新增画布'); break;
     }
-    case 'canvas-tab': project().activePage = id; ui.selectedNode = ''; ui.selectedEdge = ''; render(); break;
     case 'page-links': pageLinksDialog(); break;
     case 'add-page-link': pageLinkDialog(d.node, d.port); break;
     case 'edit-page-link': pageLinkDialog(null, null, id); break;
@@ -2589,7 +2515,6 @@ function handleAction(action, el) {
         const m=data.base.startsWith('template:') ? await engine.newTemplate(data.code.toLowerCase(),data.name.trim(),data.category,data.base.slice(9)) : engine.newModule(data.code.toLowerCase(),data.name.trim(),data.category,data.base); state.modules.push(m); markDirty(m); openEditor(m.id,'code');
       }, '创建模块'); break;
     case 'edit-contract-item': editContractItem(d.section,id); break;
-    case 'save-module-version': engine.saveModule(mod()); break;
     case 'create-composite': {
       const choices=activePage().nodes.filter(n=>moduleOf(n).manifest?.solver_model!=='pressure_source' && moduleOf(n).kind!=='source');
       openDialog('封装设备组','选择设备，生成带精确子版本绑定的组合草稿。',`<div class="fields">${field('id','组合标识','custom_group','required pattern="[A-Za-z][A-Za-z0-9_]*"')}${field('name','组合名称','设备组','required')}</div><div class="stack">${choices.map(n=>`<label class="check-label"><input name="node_${n.id}" type="checkbox" ${ui.selectedNode===n.id?'checked':''}>${esc(n.id+' · '+n.name)}</label>`).join('')}</div>`,async data=>{
@@ -2625,8 +2550,6 @@ function handleAction(action, el) {
     case 'module-test-suite': runAuthoringSuite(mod()); break;
     case 'cancel-module-suite': ui.moduleSuiteAbort?.abort(); break;
     case 'validate-module-contract': engine.checkModule(mod(),true); break;
-    case 'module-versions': engine.versions(mod()); break;
-    case 'load-module-version': engine.loadVersion(mod(),Number(d.version)); break;
     case 'edit-module': openEditor(id || state.selectedModule, d.tab || 'drawing'); break;
     case 'module-doc': openModuleDoc(id); break;
     case 'insert-module': navigate('workbench'); newInstance(id); break;
@@ -2661,17 +2584,7 @@ function handleAction(action, el) {
     case 'coil-geometry-design': openEquipmentSelection(id); equipmentSelection.geometry(id); break;
     case 'equipment-provenance': openEquipmentSelection(id); equipmentSelection.provenance(id); break;
     case 'save-instance-model': saveInstanceModel(id); break;
-    case 'delete-node': deleteNode(id || ui.selectedNode); break;
-    case 'delete-edge': deleteEdge(id || ui.selectedEdge); break;
-    case 'undo': undo(); break;
-    case 'redo': undo(true); break;
-    case 'select-mode': ui.canvasMode = 'select'; ui.connecting = null; ui.placing = null; render(); break;
-    case 'connect-mode': ui.canvasMode = 'connect'; ui.placing = null; msg('点击两个空闲端口建立连接，也可以拖动连线。'); break;
     case 'toggle-library': ui.showLibrary = !ui.showLibrary; saveUI(); retainFocus(); break;
-    case 'zoom-in': activePage().zoom = clamp(activePage().zoom * 1.2, .35, 3); render(); break;
-    case 'zoom-out': activePage().zoom = clamp(activePage().zoom / 1.2, .35, 3); render(); break;
-    case 'fit': fitNetwork(); render(); break;
-    case 'grid': ui.pageGrid = !ui.pageGrid; saveUI(); render(); break;
     case 'validate': systemInspection.check(); break;
     case 'locate-issue': closeDialog(); if (d.page) project().activePage = d.page; navigate('workbench'); if (id) openDevice(id); break;
     case 'select-picture': ui.editorPort = 'picture'; render(); break;
@@ -2739,8 +2652,6 @@ function handleAction(action, el) {
       if (!area || !mod().variables.some(v => v.name === variable)) break;
       area.setRangeText(variable, area.selectionStart, area.selectionEnd, 'end'); area.dispatchEvent(new Event('input', { bubbles: true })); area.focus(); break;
     }
-    case 'module-example': createModuleExample(id).catch(error=>msg(error.message,true)); break;
-    case 'test-module': setBench(id); break;
     case 'run-bench': commandRun('bench', d.command); break;
     case 'record-bench': recordRun('bench'); break;
     case 'run-project': commandRun('project', d.command); break;
@@ -2809,14 +2720,6 @@ function handleAction(action, el) {
     case 'import': importDialog(); break;
     case 'reset-windows': state.windowPositions = {}; ui.floats.forEach(f => { delete f.x; delete f.y; delete f.restore; f.docked = false; f.minimized = false; f.w = 440; f.h = 520; }); markDirty(); render(); msg('窗口位置已恢复。'); break;
     case 'reset-prototype': confirmChange('恢复内置示例', '替换当前原型草稿。可先取消并导出编辑内容。', () => { backupLocalDraft(STORAGE_KEY + '-before-reset'); state = initialState(); normalizeState(); ui.floats = []; ui.selectedNode = ''; undoStack = []; redoStack = []; state.dirty = true; navigate('home'); msg('已恢复示例；保存后更新浏览器记录。'); }, '恢复示例'); break;
-    case 'float-close': { const f = ui.floats.find(f => f.id === id); rememberWindow(f); ui.floats = ui.floats.filter(f => f.id !== id); renderFloats(); break; }
-    case 'device-panel-tab': case 'float-tab': {
-      const f = ui.floats.find(f => f.id === id); setDeviceTab(f, d.value);
-      renderFloats(); break;
-    }
-    case 'float-pin': { const f = ui.floats.find(f => f.id === id); f.pinned = !f.pinned; rememberWindow(f); renderFloats(); break; }
-    case 'float-min': { const f = ui.floats.find(f => f.id === id); f.minimized = !f.minimized; renderFloats(); break; }
-    case 'float-max': { const f = ui.floats.find(f => f.id === id), r = page.getBoundingClientRect(); f.docked = false; rememberWindow(f); if (f.restore) { Object.assign(f, f.restore); delete f.restore; } else { f.restore = { x: f.x, y: f.y, w: f.w, h: f.h }; Object.assign(f, { x: r.left + 8, y: r.top + 8, w: r.width - 16, h: r.height - 16 }); } renderFloats(); break; }
     // Handled by their own document listeners (PID panel, circuit fluids).
     case 'pid-example': case 'add-pid': case 'remove-pid': case 'add-circuit-fluid': case 'remove-circuit-fluid': break;
     default: throw Error(`尚未识别此操作：${action}`);
@@ -2897,6 +2800,7 @@ function handleInput(el) {
   if (d.projectField && ['name', 'description'].includes(d.projectField)) { if (d.projectField !== 'name' || value.trim()) project()[d.projectField] = value; markDirty(project()); }
 }
 function handleChange(el) {
+  if(canvasView().change(el))return;
   const d = el.dataset, value = el.value; let redraw = true;
   if ('apiVariable' in el.dataset) { apiContext.selected[ui.apiKind||'read']=el.value; apiPreview(); return; }
   if ('apiWrite' in el.dataset) { apiPreview(); return; }
@@ -2978,79 +2882,39 @@ function handleChange(el) {
   if (d.benchParam || d.benchBoundary || 'benchStep' in d) { const step=state.bench.run.step; state.bench.run={...emptyRun('bench'),step}; }
   if (redraw) retainFocus();
 }
-function svgPoint(svg, e) { return new DOMPoint(e.clientX, e.clientY).matrixTransform(svg.getScreenCTM().inverse()); }
-function setPointer(e, data) { pointer = { ...data, startX: e.clientX, startY: e.clientY, pointerId: e.pointerId, moved: false }; }
-root.addEventListener('pointerdown', e => {
-  if (e.button !== 0 || modal) return;
-  // Suppress only the click completing a drag; a new pointer press is a new action.
-  ui.ignoreClickUntil = 0;
-  const target = e.target, resize = target.closest('[data-float-resize]'), move = target.closest('[data-float-move]'), draw = target.closest('[data-draw-id]'), portEl = target.closest('[data-port-node]'), node = target.closest('[data-node]');
-  if (resize || move && !target.closest('button,input,select')) {
-    const f = ui.floats.find(f => f.id === (resize ? resize.dataset.floatResize : move.dataset.floatMove)); if (isDocked(f)) return; ui.frontId = f.id; f.order = ++ui.floatSerial;
-    setPointer(e, { kind: resize ? 'resize' : 'window', id: f.id, original: { x: f.x, y: f.y, w: f.w, h: f.h } }); e.preventDefault(); return;
-  }
-  if (draw && draw.dataset.drawId !== 'picture') {
-    const p = mod().ports.find(p => p.id === draw.dataset.drawId); ui.editorPort = p.id;
-    setPointer(e, { kind: 'draw-port', id: p.id, original: { x: p.x, y: p.y }, origin: svgPoint(document.getElementById('module-drawing'), e) }); e.preventDefault(); return;
-  }
-  if (portEl) { setPointer(e, { kind: 'port', nodeId: portEl.dataset.portNode, portId: portEl.dataset.portId }); e.preventDefault(); return; }
-  if (node && !target.closest('[data-quick-node]')) { const n = instance(node.dataset.node); ui.selectedNode = n.id; setPointer(e, { kind: 'node', id: n.id, original: { x: n.x, y: n.y }, origin: svgPoint(document.getElementById('network'), e) }); e.preventDefault(); return; }
-  if (target.closest('#network') && !target.closest('[data-edge]') && !ui.placing) setPointer(e, { kind: 'pan', original: [...activePage().pan], origin: svgPoint(document.getElementById('network'), e), matrix: document.getElementById('network').getScreenCTM().inverse() });
-});
-root.addEventListener('pointermove', e => {
-  if (!pointer || pointer.pointerId !== e.pointerId) { chartHover(e); return; }
-  const dx = e.clientX - pointer.startX, dy = e.clientY - pointer.startY;
-  if (!pointer.moved && Math.hypot(dx, dy) > 4) { pointer.moved = true; root.setPointerCapture(e.pointerId); if (pointer.kind === 'node') remember(); }
-  if (!pointer.moved) return;
-  if (pointer.kind === 'window' || pointer.kind === 'resize') {
-    const f = ui.floats.find(f => f.id === pointer.id);
-    if (pointer.kind === 'window') { f.x = pointer.original.x + dx; f.y = pointer.original.y + dy; } else { f.w = pointer.original.w + dx; f.h = pointer.original.h + dy; }
-    windowBounds(f); const el = root.querySelector(`[data-float-id="${f.id}"]`); Object.assign(el.style, { left: f.x + 'px', top: f.y + 'px', width: f.w + 'px', height: (f.minimized ? 46 : f.h) + 'px' });
-  } else if (pointer.kind === 'node') {
-    const svg = document.getElementById('network'), p = svgPoint(svg, e), n = instance(pointer.id);
-    projectState.updateNode(project(),n,{x:Math.round(pointer.original.x + p.x - pointer.origin.x),y:Math.round(pointer.original.y + p.y - pointer.origin.y)}); svg.innerHTML = networkMarkup(activePage());
-  } else if (pointer.kind === 'pan') {
-    const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(pointer.matrix); activePage().pan = [pointer.original[0] + p.x - pointer.origin.x, pointer.original[1] + p.y - pointer.origin.y];
-    const pg = activePage(); document.getElementById('network').setAttribute('viewBox', networkViewBox(pg));
-  } else if (pointer.kind === 'draw-port') {
-    const svg = document.getElementById('module-drawing'), p = svgPoint(svg, e), port = mod().ports.find(p => p.id === pointer.id);
-    port.x = Math.round(clamp(pointer.original.x + (p.x - pointer.origin.x) / 7.2, 5, 95)); port.y = Math.round(clamp(pointer.original.y + (p.y - pointer.origin.y) / 4.3, 10, 85)); svg.innerHTML = drawingSVG(mod());
-  }
-});
-root.addEventListener('pointerup', e => {
-  if (!pointer) return; const completed = pointer; pointer = null;
-  try { root.releasePointerCapture(e.pointerId); } catch {}
-  if (!completed.moved) return;
-  ui.ignoreClickUntil = Date.now() + 100;
-  if (completed.kind === 'port') {
-    const hit = document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-port-node]');
-    if (hit) try { ui.connecting = null; connectPort(completed.nodeId, completed.portId); connectPort(hit.dataset.portNode, hit.dataset.portId); } catch (err) { msg(err.message, true); }
-  } else if (['window', 'resize'].includes(completed.kind)) { rememberWindow(ui.floats.find(f => f.id === completed.id)); markDirty(); renderFloats(); }
-  else { markDirty(completed.kind === 'draw-port' ? mod() : project()); render(); }
-});
-root.addEventListener('pointercancel', () => { pointer = null; render(); });
-root.addEventListener('click', e => {
-  const target = e.target, action = target.closest('[data-action]');
-  if (Date.now() < (ui.ignoreClickUntil || 0) && !action) return;
-  try {
-    if (action && !action.disabled) { contextMenu = null; handleAction(action.dataset.action, action); return; }
-    if (modal) return;
-    const port = target.closest('[data-port-node]'), quick = target.closest('[data-quick-node]'), node = target.closest('[data-node]'), edge = target.closest('[data-edge]'), draw = target.closest('[data-draw-id]');
-    if (port) connectPort(port.dataset.portNode, port.dataset.portId);
-    else if (quick) openDevice(quick.dataset.quickNode);
-    else if (node) { ui.selectedNode = node.dataset.node; ui.selectedEdge = ''; syncDeviceSelection(); }
-    else if (edge) { ui.selectedEdge = edge.dataset.edge; ui.selectedNode = ''; render(); }
-    else if (draw) { ui.editorPort = draw.dataset.drawId; render(); }
-    else if (target.closest('#network') && ui.placing) newInstance(ui.placing, svgPoint(document.getElementById('network'), e));
-    else if (target.closest('[data-chart-hit]')) { ui.pinnedChart = ui.pinnedChart ? null : target.closest('svg').id; chartHover(e, true); }
-    else if (contextMenu) { contextMenu = null; renderFloats(); }
-  } catch (err) { msg(err.message, true); }
-});
-root.addEventListener('dblclick', e => { const n = e.target.closest('[data-node]'); if (n && !e.target.closest('[data-port-node]')) openDevice(n.dataset.node); });
-root.addEventListener('contextmenu', e => {
-  const n = e.target.closest('[data-node]'); if (!n) return; e.preventDefault(); ui.selectedNode = n.dataset.node;
-  contextMenu = { id: n.dataset.node, x: clamp(e.clientX, 70, innerWidth - 202), y: clamp(e.clientY, 60, innerHeight - 370) }; syncDeviceSelection(); renderFloats();
-});
+const svgPoint=(svg,event)=>window.FluidNetWorkspaceInteractions.svgPoint(svg,event);
+let workspaceInput,featureRouter;
+function workspaceInteractions(){return workspaceInput ||= window.FluidNetWorkspaceInteractions.create({
+  root,document,getView:()=>({modal:!!modal,route:ui.route,drawing:ui.moduleTab==='drawing',placing:ui.placing,selectedNode:ui.selectedNode,selectedEdge:ui.selectedEdge}),
+  canvas:{owner:project,page:activePage,node:instance,svg:()=>document.getElementById('network'),remember,
+    move:(node,x,y)=>{projectState.updateNode(project(),node,{x,y});canvasView().move(node.id);},
+    pan:value=>{activePage().pan=value;document.getElementById('network').setAttribute('viewBox',networkViewBox(activePage()));},
+    flush:()=>canvasView().flush(),commit:()=>{markDirty(project());render();},connect:connectPort,insert:newInstance,hasModule:id=>state.modules.some(m=>m.id===id),
+    rotate:rotateDevice,undo,copy:copyDevice,paste:pasteDevice,removeNode:deleteNode,removeEdge:deleteEdge,
+    pageSelect:id=>{if(!project().pages.some(p=>p.id===id))throw Error('画布已不存在');project().activePage=id;ui.selectedNode='';ui.selectedEdge='';render();},
+    zoom:factor=>{activePage().zoom=clamp(activePage().zoom*factor,.35,3);render();},fit:()=>{fitNetwork();render();},grid:()=>{ui.pageGrid=!ui.pageGrid;saveUI();render();}},
+  selection:{ids:groupSelected,group:groupSelection,node:id=>{ui.selectedNode=id;},single:id=>{ui.selectedNode=id;ui.selectedEdge='';syncDeviceSelection();},edge:id=>{ui.selectedEdge=id;ui.selectedNode='';render();},
+    clearConnection:()=>{ui.connecting=null;},mode:mode=>{ui.canvasMode=mode;ui.placing=null;if(mode==='select'){ui.connecting=null;render();}else msg('点击两个空闲端口建立连接，也可以拖动连线。');}},
+  editor:{current:mod,svg:()=>document.getElementById('module-drawing'),select:id=>{ui.editorPort=id;},
+    move:(id,x,y)=>{const p=mod().ports.find(p=>p.id===id);if(!p)throw Error('端口已不存在');p.x=x;p.y=y;document.getElementById('module-drawing').innerHTML=drawingSVG(mod());},
+    commit:()=>{markDirty(mod());render();},nudge:event=>{const p=mod().ports.find(p=>p.id===ui.editorPort);if(!p)return;event.preventDefault();p.x=clamp(p.x+(event.key==='ArrowRight'?1:event.key==='ArrowLeft'?-1:0),5,95);p.y=clamp(p.y+(event.key==='ArrowDown'?1:event.key==='ArrowUp'?-1:0),10,85);markDirty(mod());render();}},
+  windows:{beginPointer:event=>deviceWindows().beginPointer(event),movePointer:(ticket,x,y)=>deviceWindows().movePointer(ticket,x,y),finishPointer:ticket=>deviceWindows().finishPointer(ticket),open:openDevice},
+  charts:{hover:chartHover,pin:event=>{ui.pinnedChart=ui.pinnedChart?null:event.target.closest('svg').id;chartHover(event,true);}},
+  shell:{error:error=>msg(error.message,true),render,action:handleAction,clearContext:()=>{contextMenu=null;},dismissContext:()=>{if(contextMenu){contextMenu=null;renderFloats();}},
+    context:(id,x,y)=>{contextMenu={id,x:clamp(x,70,innerWidth-202),y:clamp(y,60,innerHeight-370)};syncDeviceSelection();renderFloats();}}
+});}
+function featureActions(){
+  if(featureRouter)return featureRouter;
+  const router=window.FluidNetActionRouter.create(error=>msg(error.message,true));
+  for(const [name,handler] of Object.entries(workspaceInteractions().actions))router.action(name,handler);
+  for(const name of deviceWindows().actionNames)router.action(name,(action,el)=>deviceWindows().action(action,el));
+  for(const [prefix,feature] of [['canvas-',()=>canvasView()],['wf-',()=>workflows],['batch-',()=>scenarioBatches],['air-',()=>airSide],['cs-',()=>coldStorage]])router.prefix(prefix,(action,el)=>feature().action(action,el));
+  for(const [name,handler] of Object.entries({
+    'save-module-version':()=>engine.saveModule(mod()),'module-versions':()=>engine.versions(mod()),'load-module-version':(_,el)=>engine.loadVersion(mod(),Number(el.dataset.version)),
+    'module-example':(_,el)=>createModuleExample(el.dataset.id),'test-module':(_,el)=>setBench(el.dataset.id)
+  }))router.action(name,handler);
+  return featureRouter=router;
+}
 function selectCodeTarget(kind) {
   if (!['runtime', 'header', 'design'].includes(kind)) return;
   ui.codeKind = kind;
@@ -3059,8 +2923,8 @@ function selectCodeTarget(kind) {
 }
 root.addEventListener('click', e => { if(e.target.closest('[data-trace-close]')) { ui.canvasInspection=null;paintCanvasInspection(); } });
 root.addEventListener('keydown', e => { if(e.key==='Escape') { ui.canvasInspection=null;paintCanvasInspection(); } });
-root.addEventListener('pointerover', e => { if (!pointer) showCanvasInspection(e.target); });
-root.addEventListener('pointerout', e => { if (!pointer) showCanvasInspection(e.relatedTarget); });
+root.addEventListener('pointerover', e => { if (!workspaceInput?.busy()) showCanvasInspection(e.target); });
+root.addEventListener('pointerout', e => { if (!workspaceInput?.busy()) showCanvasInspection(e.relatedTarget); });
 root.addEventListener('focusin', e => { if (e.target.closest('#network [data-node]')) showCanvasInspection(e.target); if (e.target.matches('textarea[data-code-kind]')) selectCodeTarget(e.target.dataset.codeKind); });
 root.addEventListener('focusout', e => { if (e.target.closest('#network [data-node]')) showCanvasInspection(e.relatedTarget); });
 root.addEventListener('scroll', e => { if (e.target.matches?.('textarea[data-code-kind]')) e.target.previousElementSibling.scrollTop = e.target.scrollTop; }, true);
@@ -3071,12 +2935,6 @@ root.addEventListener('submit', e => {
   const current = modal; if (!current?.onSubmit) return;
   try { current.onSubmit(Object.fromEntries(new FormData(e.target))); if (modal === current) closeDialog(); }
   catch (err) { const target = document.getElementById('dialog-error'); if (target) { target.hidden = false; target.textContent = err.message; } }
-});
-root.addEventListener('dragstart', e => { const el = e.target.closest('[data-drag-module]'); if (el) { e.dataTransfer.setData('text/plain', el.dataset.dragModule); e.dataTransfer.effectAllowed = 'copy'; } });
-root.addEventListener('dragover', e => { if (e.target.closest('#network-area')) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; } });
-root.addEventListener('drop', e => {
-  if (!e.target.closest('#network-area')) return; e.preventDefault();
-  const id = e.dataTransfer.getData('text/plain'); if (state.modules.some(m => m.id === id)) try { newInstance(id, svgPoint(document.getElementById('network'), e)); } catch (err) { msg(err.message, true); }
 });
 function chartHover(e, force = false) {
   const svg = e.target.closest?.('svg[data-chart]'); if (!svg || ui.pinnedChart && !force) return;
@@ -3094,28 +2952,12 @@ document.addEventListener('keydown', e => {
   }
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); saveAll(); return; }
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); pageMap(); return; }
-  if (e.key === 'Escape') { closeDialog(); contextMenu = null; ui.connecting = null; ui.placing = null; ui.pinnedChart = null; render(); return; }
+  if (e.key === 'Escape') { workspaceInput?.cancel(); closeDialog(); contextMenu = null; ui.connecting = null; ui.placing = null; ui.pinnedChart = null; render(); return; }
   if (edit) {
     if (e.key === 'Tab' && e.target.tagName === 'TEXTAREA' && (e.target.dataset.codeKind || 'controlCode' in e.target.dataset)) { e.preventDefault(); const el = e.target; el.setRangeText(el.dataset.codeKind ? '    ' : '  ', el.selectionStart, el.selectionEnd, 'end'); el.dispatchEvent(new Event('input', { bubbles: true })); }
     return;
   }
   if (modal) return;
-  if (e.key === 'Enter' || e.key === ' ') {
-    const p = e.target.closest('[data-port-node]'), n = e.target.closest('[data-node]'), draw = e.target.closest('[data-draw-id]');
-    if (p || n || draw) { e.preventDefault(); if (p) { try { connectPort(p.dataset.portNode, p.dataset.portId); } catch (err) { msg(err.message, true); } } else if (n) openDevice(n.dataset.node); else { ui.editorPort = draw.dataset.drawId; render(); } return; }
-  }
-  if (ui.route === 'workbench') {
-    if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === 'r' && ui.selectedNode) { e.preventDefault(); rotateDevice(ui.selectedNode, e.shiftKey ? -1 : 1); return; }
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(e.shiftKey); }
-    else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); undo(true); }
-    else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') copyDevice();
-    else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') { e.preventDefault(); pasteDevice(); }
-    else if (e.key === 'Delete') { if (ui.selectedNode) deleteNode(ui.selectedNode); else if (ui.selectedEdge) deleteEdge(ui.selectedEdge); }
-  }
-  if (ui.route === 'editor' && ui.moduleTab === 'drawing' && e.key.startsWith('Arrow')) {
-    const p = mod().ports.find(p => p.id === ui.editorPort); if (!p) return;
-    e.preventDefault(); p.x = clamp(p.x + (e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0), 5, 95); p.y = clamp(p.y + (e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0), 10, 85); markDirty(mod()); render();
-  }
 });
 // Saves and exports made before a built-in parameter existed (e.g. pipe heat loss / ambient)
 // get its default in module variables/values/banks, models and instances. Idempotent.
@@ -3190,6 +3032,7 @@ function normalizeState() {
 }
 const chartRegistry = new Map();
 engine = window.createEngineClient({state:()=>state, project, parameterKey:projectParameterKey, moduleOf,
+  prepareLegacyParameters:()=>backfillBuiltinParams(state),
   makeProject,
   persist:()=>persistLocal(),
   restoreWorkspace,validateWorkspace:validateImport,archives:receiveArchives,showArchive,
@@ -3222,6 +3065,7 @@ function routeFromLocation() {
   return 'home';
 }
 ui.route = routeFromLocation();
+workspaceInteractions().mount();
 render();
 engine.init();
 window.addEventListener('hashchange', () => { ui.route = routeFromLocation(); render(); });

@@ -1,5 +1,9 @@
 # FluidNet Prototype Engine
 
+2026-11-06 [前端功能拆分](docs/FRONTEND_FEATURE_BOUNDARIES.md)：工作台交互、设备浮窗、模块发布服务与动作分派独立，浏览器测试接入[统一CI分组](docs/FRONTEND_CI_GROUPS.md)。运行接受事务与物理合同保持原语义，培训继续暂缓。
+
+2026-11-06 [工程画布](docs/ENGINEERING_CANVAS.md)：设备图符和作者端口布局进入项目，支持真实温压流着色/流向、运行告警定位、实体避障及拖动增量更新。[前端接入说明](frontend/BACKEND_INTEGRATION.md)已更新；培训功能暂不开发。
+
 2026-11-06 [P1 交付与验收](docs/P1_DELIVERY.md)：开放端口制冷设备组可按压缩机、供液、冷风机分组后接成完整系统；性能资料库支持 CSV/JSON、不可变版本、曲线对照及带来源的设备选型和型号保存。
 
 2026-11-05 [制冷与暖通设备首版整体交付](docs/EQUIPMENT_PROGRAM_DELIVERY.md)：按设备路线补齐性能、热连接、流股/DX、风水设备和储量模型；实际范围、定向验证及未涵盖的物理以该记录为准。

@@ -1,0 +1,16 @@
+#fn-studio .canvas-visual-tools{display:flex;align-items:center;gap:10px;padding:6px 12px;border-bottom:1px solid var(--border);background:var(--surface);font-size:11px;flex-wrap:wrap}
+#fn-studio .canvas-visual-tools select{width:115px;padding:4px 6px;min-height:27px}
+#fn-studio .canvas-visual-tools label{display:flex;align-items:center;gap:5px}
+#fn-studio .canvas-visual-tools input[type=checkbox]{width:14px;height:14px}
+#fn-studio .canvas-legend{display:flex;align-items:center;gap:7px;flex:1;min-width:180px;color:var(--muted)}
+#fn-studio .canvas-legend-bar{width:70px;height:7px;background:linear-gradient(90deg,#2979b8,#7cc7b6,#efb14b,#b83435);border-radius:3px}
+#fn-studio .canvas-device-state{font-size:10px;fill:var(--canvas-device-stroke,var(--muted));pointer-events:none}
+#fn-studio .canvas-edge-label{font-size:10px;fill:var(--text);stroke:var(--surface);stroke-width:3px;paint-order:stroke;pointer-events:none}
+#fn-studio .canvas-flow-animation{fill:none;stroke-width:2.4;stroke-dasharray:5 14;opacity:.85;pointer-events:none;animation:canvas-flow 1.4s linear infinite;vector-effect:non-scaling-stroke}
+#fn-studio [data-flow-arrow]{pointer-events:none;vector-effect:non-scaling-stroke}
+#fn-studio .canvas-alert-list{display:flex;flex-direction:column;gap:8px}
+#fn-studio .canvas-alert-item{display:flex;align-items:flex-start;gap:10px;border-bottom:1px solid var(--border);padding:10px 0}
+#fn-studio .canvas-alert-item p{overflow-wrap:anywhere}
+#fn-studio .canvas-alert-item small{display:block;color:var(--muted)}
+@keyframes canvas-flow{to{stroke-dashoffset:-38}}
+@media(prefers-reduced-motion:reduce){#fn-studio .canvas-flow-animation{animation:none}}

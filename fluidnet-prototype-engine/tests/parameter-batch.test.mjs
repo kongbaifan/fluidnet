@@ -22,7 +22,7 @@ function fixture({live=true,reject=false,delay=false}={}){
       if(path==='/api/v1/runs/run1')return {ok:true,json:async()=>({id:'run1',status:'paused',events:[]})};
       throw Error(path);
     }});
-  for(const name of ['project-model','project-state','project-run-state','performance-library','parameter-batch','engine-client'])vm.runInContext(readFileSync(new URL('../frontend/'+name+'.js',import.meta.url),'utf8'),host);
+  for(const name of ['project-model','project-state','project-run-state','performance-library','parameter-batch','module-service','engine-client'])vm.runInContext(readFileSync(new URL('../frontend/'+name+'.js',import.meta.url),'utf8'),host);
   const engine=host.window.createEngineClient({state:()=>state,moduleOf:()=>module,parameterKey:key,persist:()=>{},render:()=>{},refresh:()=>{},message:()=>{},dirty:()=>{}});
   const apply=()=>engine.applyParameterBatch(owner,nodes.map(node=>({node,proposed:{opening:40}})));
   return {nodes,owner,state,definition,requests,engine,apply,sent,release:()=>release?.()};

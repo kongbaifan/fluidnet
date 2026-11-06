@@ -75,3 +75,14 @@ test('PID settings participate in stale-result detection without run-cache noise
   owner.controllers[0].kp=-.1;
   assert.notEqual(ctx.projectParameterKey(owner),original);
 });
+
+test('canvas layout and library drafts cannot invalidate a frozen project result',()=>{
+  const state=largeState(),{ctx}=context(state),owner=state.projects[0];
+  const module={id:'device',kind:'device',version:1,manifest:{definition_hash:'frozen'},ports:[{id:'in0',domain:'fluid',direction:'in',x:20,y:50}],channels:[]};
+  state.modules=[clone(module)];owner.pages=[{nodes:[{id:'D1',moduleId:'device',params:{a:1},x:10,y:20}],edges:[]}];owner.moduleSnapshots={device:clone(module)};
+  const original=ctx.projectParameterKey(owner);
+  owner.pages[0].nodes[0].x=200;owner.moduleSnapshots.device.ports[0].x=30;state.modules[0].version=2;state.modules[0].ports[0].domain='info';
+  assert.equal(ctx.projectParameterKey(owner),original);
+  owner.pages[0].nodes[0].params.a=2;assert.notEqual(ctx.projectParameterKey(owner),original);
+  owner.pages[0].nodes[0].params.a=1;owner.moduleSnapshots.device.manifest.definition_hash='new';assert.notEqual(ctx.projectParameterKey(owner),original);
+});

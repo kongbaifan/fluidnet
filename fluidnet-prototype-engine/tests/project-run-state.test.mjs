@@ -36,6 +36,8 @@ test('live result windows, final status and diagnostics come from one run record
   const result=runs.mergeLive(run,data,[row(0,0),row(1,1),row(2,2)],{totalRows:3,latest:row(2,2),limit:2});
   assert.equal(run.history.length,2);assert.equal(run.offset,3);assert.equal(run.status,'failed');
   assert.equal(run.runId,null);assert.equal(result.terminal,true);assert.equal(run.events.at(-1).text,'range');
+  assert.equal(run.diagnostics[0].message,'range');assert.equal(run.diagnosticTime,3);
+  data.frame.diagnostics[0].message='mutated';assert.equal(run.diagnostics[0].message,'range');
 });
 test('an archive listing started before a new run cannot stop the new run',()=>{
   const owner={id:'p',run:{live:true,runId:'old',events:[]}},state={projects:[owner]};
@@ -55,7 +57,7 @@ test('a delayed real adapter response does not overwrite a replacement run',asyn
       if(path.endsWith('/runs')){posted();return new Promise(resolve=>{deliver=()=>resolve({ok:true,status:201,json:async()=>({run_id:'old',status:'completed'})});});}
       throw Error(path);
     }});
-  for(const file of ['project-model.js','project-run-state.js','engine-client.js'])
+  for(const file of ['project-model.js','project-run-state.js','module-service.js','engine-client.js'])
     vm.runInContext(readFileSync(new URL('../frontend/'+file,import.meta.url),'utf8'),host);
   const client=host.window.createEngineClient({state:()=>state,parameterKey:p=>p.key,emptyRun:()=>({history:[],events:[]}),render:()=>{}});
   const pending=client.command('project','run','p');await submitted;
@@ -78,7 +80,7 @@ test('queued controller edits cannot move to a replacement run after the first r
       }
       throw Error('An old queued command reached '+path);
     }});
-  for(const file of ['project-model.js','project-run-state.js','engine-client.js'])
+  for(const file of ['project-model.js','project-run-state.js','module-service.js','engine-client.js'])
     vm.runInContext(readFileSync(new URL('../frontend/'+file,import.meta.url),'utf8'),host);
   const client=host.window.createEngineClient({state:()=>state,parameterKey:p=>JSON.stringify(p.controllers)});
   const results=Promise.allSettled([client.applyController(owner,'pid','setpoint',2),client.applyController(owner,'pid','setpoint',3)]);

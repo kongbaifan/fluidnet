@@ -1,0 +1,669 @@
+{
+  "schema": 1,
+  "groups": {
+    "smoke": "Cross-domain smoke",
+    "workspace": "Run, control and workspace",
+    "authoring": "Module authoring",
+    "hvac": "Air and water HVAC",
+    "refrigeration": "Refrigeration and coupling",
+    "workflows": "Equipment workflows and reports",
+    "equipment-hvac": "HVAC assembly recipes",
+    "equipment-refrigeration": "Refrigeration assembly recipes",
+    "canvas": "Engineering canvas and editing"
+  },
+  "helpers": {
+    "tests/browser-server.mjs": "Isolated service lifecycle shared by browser cases",
+    "tests/browser-viewport.mjs": "FHD viewport and screenshot helper",
+    "tests/browser-module-assertions.mjs": "Assertion workflow exercised by browser-module-workflow.mjs"
+  },
+  "cases": [
+    {
+      "id": "smoke",
+      "file": "tests/browser-smoke.mjs",
+      "args": [],
+      "group": "smoke"
+    },
+    {
+      "id": "heater",
+      "file": "tests/browser-heater.mjs",
+      "args": [],
+      "group": "hvac"
+    },
+    {
+      "id": "platform",
+      "file": "tests/browser-platform.mjs",
+      "args": [],
+      "group": "authoring"
+    },
+    {
+      "id": "authoring",
+      "file": "tests/browser-authoring.mjs",
+      "args": [],
+      "group": "authoring"
+    },
+    {
+      "id": "run-control",
+      "file": "tests/browser-run-control.mjs",
+      "args": [],
+      "group": "workspace"
+    },
+    {
+      "id": "pid",
+      "file": "tests/browser-pid.mjs",
+      "args": [],
+      "group": "workspace"
+    },
+    {
+      "id": "continuous",
+      "file": "tests/browser-continuous.mjs",
+      "args": [],
+      "group": "workspace"
+    },
+    {
+      "id": "multifluid",
+      "file": "tests/browser-multifluid.mjs",
+      "args": [],
+      "group": "workspace"
+    },
+    {
+      "id": "auth",
+      "file": "tests/browser-auth.mjs",
+      "args": [],
+      "group": "workspace"
+    },
+    {
+      "id": "workspace",
+      "file": "tests/browser-workspace.mjs",
+      "args": [],
+      "group": "workspace"
+    },
+    {
+      "id": "control-programs",
+      "file": "tests/browser-control-programs.mjs",
+      "args": [],
+      "group": "workspace"
+    },
+    {
+      "id": "workflows",
+      "file": "tests/browser-workflows.mjs",
+      "args": [],
+      "group": "smoke"
+    },
+    {
+      "id": "archive-migration",
+      "file": "tests/browser-archive-migration.mjs",
+      "args": [],
+      "group": "workspace"
+    },
+    {
+      "id": "cold-storage",
+      "file": "tests/browser-cold-storage.mjs",
+      "args": [],
+      "group": "refrigeration"
+    },
+    {
+      "id": "cold-storage-station",
+      "file": "tests/browser-cold-storage-station.mjs",
+      "args": [],
+      "group": "refrigeration"
+    },
+    {
+      "id": "module-catalog",
+      "file": "tests/browser-module-catalog.mjs",
+      "args": [],
+      "group": "authoring"
+    },
+    {
+      "id": "module-workflow",
+      "file": "tests/browser-module-workflow.mjs",
+      "args": [],
+      "group": "smoke"
+    },
+    {
+      "id": "thermal-coupling",
+      "file": "tests/browser-thermal-coupling.mjs",
+      "args": [],
+      "group": "refrigeration"
+    },
+    {
+      "id": "thermal-coupling-modeling",
+      "file": "tests/browser-thermal-coupling-modeling.mjs",
+      "args": [],
+      "group": "refrigeration"
+    },
+    {
+      "id": "dual-thermal-coupling",
+      "file": "tests/browser-dual-thermal-coupling.mjs",
+      "args": [],
+      "group": "refrigeration"
+    },
+    {
+      "id": "scenario-batches",
+      "file": "tests/browser-scenario-batches.mjs",
+      "args": [],
+      "group": "workspace"
+    },
+    {
+      "id": "air-side",
+      "file": "tests/browser-air-side.mjs",
+      "args": [],
+      "group": "hvac"
+    },
+    {
+      "id": "air-batches",
+      "file": "tests/browser-air-batches.mjs",
+      "args": [],
+      "group": "hvac"
+    },
+    {
+      "id": "chiller-air-loop",
+      "file": "tests/browser-chiller-air-loop.mjs",
+      "args": [],
+      "group": "smoke"
+    },
+    {
+      "id": "platform-authoring",
+      "file": "tests/browser-platform-authoring.mjs",
+      "args": [],
+      "group": "authoring"
+    },
+    {
+      "id": "refrigeration-authoring",
+      "file": "tests/browser-refrigeration-authoring.mjs",
+      "args": [],
+      "group": "refrigeration"
+    },
+    {
+      "id": "refrigeration-projects",
+      "file": "tests/browser-refrigeration-projects.mjs",
+      "args": [],
+      "group": "refrigeration"
+    },
+    {
+      "id": "coupled-liquid-author",
+      "file": "tests/browser-coupled-liquid-author.mjs",
+      "args": [],
+      "group": "refrigeration"
+    },
+    {
+      "id": "room-control",
+      "file": "tests/browser-room-control.mjs",
+      "args": [],
+      "group": "hvac"
+    },
+    {
+      "id": "room-control-workflows",
+      "file": "tests/browser-room-control-workflows.mjs",
+      "args": [],
+      "group": "hvac"
+    },
+    {
+      "id": "custom-relations",
+      "file": "tests/browser-custom-relations.mjs",
+      "args": [],
+      "group": "authoring"
+    },
+    {
+      "id": "hvac-equipment",
+      "file": "tests/browser-hvac-equipment.mjs",
+      "args": [],
+      "group": "hvac"
+    },
+    {
+      "id": "hvac-plant",
+      "file": "tests/browser-hvac-plant.mjs",
+      "args": [],
+      "group": "hvac"
+    },
+    {
+      "id": "cross-page",
+      "file": "tests/browser-cross-page.mjs",
+      "args": [],
+      "group": "canvas"
+    },
+    {
+      "id": "hvac-plant:multi-page",
+      "file": "tests/browser-hvac-plant.mjs",
+      "args": [
+        "--multi-page"
+      ],
+      "group": "hvac"
+    },
+    {
+      "id": "device-panel",
+      "file": "tests/browser-device-panel.mjs",
+      "args": [],
+      "group": "workflows"
+    },
+    {
+      "id": "api-examples",
+      "file": "tests/browser-api-examples.mjs",
+      "args": [],
+      "group": "workflows"
+    },
+    {
+      "id": "device-transactions",
+      "file": "tests/browser-device-transactions.mjs",
+      "args": [],
+      "group": "workflows"
+    },
+    {
+      "id": "refrigeration-modular",
+      "file": "tests/browser-refrigeration-modular.mjs",
+      "args": [],
+      "group": "smoke"
+    },
+    {
+      "id": "refrigeration-modular:cascade",
+      "file": "tests/browser-refrigeration-modular.mjs",
+      "args": [
+        "--cascade"
+      ],
+      "group": "refrigeration"
+    },
+    {
+      "id": "refrigeration-modular:equipment",
+      "file": "tests/browser-refrigeration-modular.mjs",
+      "args": [
+        "--equipment"
+      ],
+      "group": "refrigeration"
+    },
+    {
+      "id": "equipment-assembly:pressure_independent_valve.project",
+      "file": "tests/browser-equipment-assembly.mjs",
+      "args": [
+        "examples/regulating-valves/pressure_independent_valve.project.json"
+      ],
+      "group": "equipment-hvac"
+    },
+    {
+      "id": "equipment-assembly:differential_bypass_valve.project",
+      "file": "tests/browser-equipment-assembly.mjs",
+      "args": [
+        "examples/regulating-valves/differential_bypass_valve.project.json"
+      ],
+      "group": "equipment-hvac"
+    },
+    {
+      "id": "equipment-assembly:geometry_bend.project",
+      "file": "tests/browser-equipment-assembly.mjs",
+      "args": [
+        "examples/hvac-expansion/geometry_bend.project.json"
+      ],
+      "group": "equipment-hvac"
+    },
+    {
+      "id": "equipment-assembly:hydronic_boiler.project",
+      "file": "tests/browser-equipment-assembly.mjs",
+      "args": [
+        "examples/hvac-expansion/hydronic_boiler.project.json"
+      ],
+      "group": "equipment-hvac"
+    },
+    {
+      "id": "equipment-assembly:air-branch-dry.recipe",
+      "file": "tests/browser-equipment-assembly.mjs",
+      "args": [
+        "examples/hvac-expansion/air-branch-dry.recipe.json"
+      ],
+      "group": "equipment-hvac"
+    },
+    {
+      "id": "equipment-assembly:fan-running-dry.recipe",
+      "file": "tests/browser-equipment-assembly.mjs",
+      "args": [
+        "examples/hvac-expansion/fan-running-dry.recipe.json"
+      ],
+      "group": "equipment-hvac"
+    },
+    {
+      "id": "equipment-assembly:plate-water-glycol.recipe",
+      "file": "tests/browser-equipment-assembly.mjs",
+      "args": [
+        "examples/hvac-expansion/plate-water-glycol.recipe.json"
+      ],
+      "group": "equipment-hvac"
+    },
+    {
+      "id": "equipment-assembly:closed-buffer-mixing.recipe",
+      "file": "tests/browser-equipment-assembly.mjs",
+      "args": [
+        "examples/hvac-expansion/closed-buffer-mixing.recipe.json"
+      ],
+      "group": "equipment-hvac"
+    },
+    {
+      "id": "equipment-assembly:gas-expansion-fill.recipe",
+      "file": "tests/browser-equipment-assembly.mjs",
+      "args": [
+        "examples/hvac-expansion/gas-expansion-fill.recipe.json"
+      ],
+      "group": "equipment-hvac"
+    },
+    {
+      "id": "equipment-assembly:tower-pool-makeup.recipe",
+      "file": "tests/browser-equipment-assembly.mjs",
+      "args": [
+        "examples/hvac-expansion/tower-pool-makeup.recipe.json"
+      ],
+      "group": "equipment-hvac"
+    },
+    {
+      "id": "equipment-assembly:air-recovery-moist.recipe",
+      "file": "tests/browser-equipment-assembly.mjs",
+      "args": [
+        "examples/hvac-expansion/air-recovery-moist.recipe.json"
+      ],
+      "group": "equipment-hvac"
+    },
+    {
+      "id": "equipment-assembly:enthalpy-recovery.recipe",
+      "file": "tests/browser-equipment-assembly.mjs",
+      "args": [
+        "examples/hvac-expansion/enthalpy-recovery.recipe.json"
+      ],
+      "group": "equipment-hvac"
+    },
+    {
+      "id": "equipment-assembly:air-cooled-chiller.recipe",
+      "file": "tests/browser-equipment-assembly.mjs",
+      "args": [
+        "examples/hvac-expansion/air-cooled-chiller.recipe.json"
+      ],
+      "group": "equipment-hvac"
+    },
+    {
+      "id": "equipment-assembly:air-source-heat-pump.recipe",
+      "file": "tests/browser-equipment-assembly.mjs",
+      "args": [
+        "examples/hvac-expansion/air-source-heat-pump.recipe.json"
+      ],
+      "group": "equipment-hvac"
+    },
+    {
+      "id": "equipment-assembly:performance-compressor.recipe",
+      "file": "tests/browser-equipment-assembly.mjs",
+      "args": [
+        "examples/refrigeration-modular/performance-compressor.recipe.json"
+      ],
+      "group": "equipment-refrigeration"
+    },
+    {
+      "id": "equipment-assembly:multi-cooler.recipe",
+      "file": "tests/browser-equipment-assembly.mjs",
+      "args": [
+        "examples/refrigeration-modular/multi-cooler.recipe.json"
+      ],
+      "group": "equipment-refrigeration"
+    },
+    {
+      "id": "equipment-assembly:two-stage.recipe",
+      "file": "tests/browser-equipment-assembly.mjs",
+      "args": [
+        "examples/refrigeration-modular/two-stage.recipe.json"
+      ],
+      "group": "equipment-refrigeration"
+    },
+    {
+      "id": "equipment-assembly:electric-defrost.recipe",
+      "file": "tests/browser-equipment-assembly.mjs",
+      "args": [
+        "examples/refrigeration-modular/electric-defrost.recipe.json"
+      ],
+      "group": "equipment-refrigeration"
+    },
+    {
+      "id": "equipment-assembly:stream-line.recipe",
+      "file": "tests/browser-equipment-assembly.mjs",
+      "args": [
+        "examples/refrigeration-modular/stream-line.recipe.json"
+      ],
+      "group": "equipment-refrigeration"
+    },
+    {
+      "id": "equipment-assembly:stream-subcooler.recipe",
+      "file": "tests/browser-equipment-assembly.mjs",
+      "args": [
+        "examples/refrigeration-modular/stream-subcooler.recipe.json"
+      ],
+      "group": "equipment-refrigeration"
+    },
+    {
+      "id": "equipment-assembly:stream-recuperator.recipe",
+      "file": "tests/browser-equipment-assembly.mjs",
+      "args": [
+        "examples/refrigeration-modular/stream-recuperator.recipe.json"
+      ],
+      "group": "equipment-refrigeration"
+    },
+    {
+      "id": "equipment-assembly:dx.recipe",
+      "file": "tests/browser-equipment-assembly.mjs",
+      "args": [
+        "examples/refrigeration-modular/dx.recipe.json"
+      ],
+      "group": "equipment-refrigeration"
+    },
+    {
+      "id": "equipment-assembly:wet-pool-makeup.recipe",
+      "file": "tests/browser-equipment-assembly.mjs",
+      "args": [
+        "examples/hvac-expansion/wet-pool-makeup.recipe.json"
+      ],
+      "group": "equipment-hvac"
+    },
+    {
+      "id": "design-library",
+      "file": "tests/browser-design-library.mjs",
+      "args": [],
+      "group": "workflows"
+    },
+    {
+      "id": "project-editing",
+      "file": "tests/browser-project-editing.mjs",
+      "args": [],
+      "group": "canvas"
+    },
+    {
+      "id": "system-inspection",
+      "file": "tests/browser-system-inspection.mjs",
+      "args": [],
+      "group": "workflows"
+    },
+    {
+      "id": "forward-integration",
+      "file": "tests/browser-forward-integration.mjs",
+      "args": [],
+      "group": "workflows"
+    },
+    {
+      "id": "refrigeration-group",
+      "file": "tests/browser-refrigeration-group.mjs",
+      "args": [],
+      "group": "refrigeration"
+    },
+    {
+      "id": "device-batch",
+      "file": "tests/browser-device-batch.mjs",
+      "args": [],
+      "group": "workflows"
+    },
+    {
+      "id": "panel-layout",
+      "file": "tests/browser-panel-layout.mjs",
+      "args": [],
+      "group": "workflows"
+    },
+    {
+      "id": "equipment-selection",
+      "file": "tests/browser-equipment-selection.mjs",
+      "args": [],
+      "group": "workflows"
+    },
+    {
+      "id": "path-trace",
+      "file": "tests/browser-path-trace.mjs",
+      "args": [],
+      "group": "canvas"
+    },
+    {
+      "id": "module-replay",
+      "file": "tests/browser-module-replay.mjs",
+      "args": [],
+      "group": "workflows"
+    },
+    {
+      "id": "performance-data",
+      "file": "tests/browser-performance-data.mjs",
+      "args": [],
+      "group": "workflows"
+    },
+    {
+      "id": "open-refrigeration-groups",
+      "file": "tests/browser-open-refrigeration-groups.mjs",
+      "args": [],
+      "group": "refrigeration"
+    },
+    {
+      "id": "engineering-canvas",
+      "file": "tests/browser-engineering-canvas.mjs",
+      "args": [],
+      "group": "canvas"
+    },
+    {
+      "id": "canvas-symbols",
+      "file": "tests/browser-canvas-symbols.mjs",
+      "args": [],
+      "group": "canvas"
+    },
+    {
+      "id": "canvas-performance",
+      "file": "tests/browser-canvas-performance.mjs",
+      "args": [],
+      "group": "canvas"
+    },
+    {
+      "id": "module-assertion-boundaries",
+      "file": "tests/browser-module-assertion-boundaries.mjs",
+      "args": [],
+      "group": "authoring"
+    },
+    {
+      "id": "parameter-batch",
+      "file": "tests/browser-parameter-batch.mjs",
+      "args": [],
+      "group": "workspace"
+    },
+    {
+      "id": "device-windows",
+      "file": "tests/browser-device-windows.mjs",
+      "args": [],
+      "group": "canvas"
+    }
+  ],
+  "suites": {
+    "batches": [
+      "scenario-batches"
+    ],
+    "air": [
+      "air-side",
+      "air-batches"
+    ],
+    "chiller": [
+      "chiller-air-loop"
+    ],
+    "platform-authoring": [
+      "platform-authoring"
+    ],
+    "refrigeration-authoring": [
+      "refrigeration-authoring"
+    ],
+    "refrigeration-projects": [
+      "refrigeration-projects"
+    ],
+    "coupled-author": [
+      "coupled-liquid-author"
+    ],
+    "room-control": [
+      "room-control",
+      "room-control-workflows"
+    ],
+    "custom-relations": [
+      "custom-relations"
+    ],
+    "hvac": [
+      "hvac-equipment",
+      "hvac-plant"
+    ],
+    "cross-page": [
+      "cross-page",
+      "hvac-plant:multi-page"
+    ],
+    "device-panel": [
+      "device-panel"
+    ],
+    "review-fixes": [
+      "device-transactions",
+      "api-examples"
+    ],
+    "refrigeration-modular": [
+      "refrigeration-modular",
+      "refrigeration-modular:cascade"
+    ],
+    "refrigeration-equipment": [
+      "refrigeration-modular:equipment"
+    ],
+    "forward": [
+      "design-library",
+      "project-editing",
+      "system-inspection",
+      "forward-integration",
+      "refrigeration-group"
+    ],
+    "batch-and-panels": [
+      "device-batch",
+      "panel-layout"
+    ],
+    "baselu-workflows": [
+      "equipment-selection",
+      "path-trace",
+      "module-replay"
+    ],
+    "equipment-expansion": [
+      "equipment-assembly:pressure_independent_valve.project",
+      "equipment-assembly:differential_bypass_valve.project",
+      "equipment-assembly:geometry_bend.project",
+      "equipment-assembly:hydronic_boiler.project",
+      "equipment-assembly:air-branch-dry.recipe",
+      "equipment-assembly:fan-running-dry.recipe",
+      "equipment-assembly:plate-water-glycol.recipe",
+      "equipment-assembly:closed-buffer-mixing.recipe",
+      "equipment-assembly:gas-expansion-fill.recipe",
+      "equipment-assembly:tower-pool-makeup.recipe",
+      "equipment-assembly:air-recovery-moist.recipe",
+      "equipment-assembly:enthalpy-recovery.recipe",
+      "equipment-assembly:air-cooled-chiller.recipe",
+      "equipment-assembly:air-source-heat-pump.recipe",
+      "equipment-assembly:performance-compressor.recipe",
+      "equipment-assembly:multi-cooler.recipe",
+      "equipment-assembly:two-stage.recipe",
+      "equipment-assembly:electric-defrost.recipe",
+      "equipment-assembly:stream-line.recipe",
+      "equipment-assembly:stream-subcooler.recipe",
+      "equipment-assembly:stream-recuperator.recipe",
+      "equipment-assembly:dx.recipe",
+      "equipment-assembly:wet-pool-makeup.recipe"
+    ],
+    "p1": [
+      "performance-data",
+      "open-refrigeration-groups"
+    ],
+    "canvas": [
+      "engineering-canvas",
+      "canvas-symbols",
+      "canvas-performance",
+      "device-windows"
+    ]
+  }
+}

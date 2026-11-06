@@ -38,6 +38,8 @@ window.FluidNetProjectRunState = (() => {
       if(run.history.at(-1).t===latest.t)append(run,latest);else present(run,latest);
     }
     run.events=data.events.map(e=>({t:e.time_s,text:e.message || (e.command_id?`${e.command?.action || '命令'} ${e.command_status} · ${e.command_id}`:e.type)}));
+    run.diagnostics=clone(data.frame?.diagnostics||[]);
+    run.diagnosticTime=data.frame?.time_s??run.time;
     if(data.status==='failed')run.events.push(...(data.frame?.diagnostics||[]).map(d=>({t:data.frame.time_s,text:d.message})));
     const changed=run.status!==({queued:'solving',cancelled:'stopped',interrupted:'stopped'}[data.status]||data.status);
     run.status=({queued:'solving',cancelled:'stopped',interrupted:'stopped'})[data.status]||data.status;
