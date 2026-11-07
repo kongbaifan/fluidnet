@@ -11,7 +11,7 @@ from scipy.optimize import least_squares
 from scipy.sparse import csr_matrix, lil_matrix
 
 from .compiler import CompilationError, CompiledBranch, CompiledNetwork, TankState, instance_fluids, service_at
-from .hydraulic_derivatives import (GRAVITY, MU_WATER, RHO_WATER, branch_drop_and_slope,
+from .hydraulic_derivatives import (HYDRAULIC_RELATIONS, GRAVITY, MU_WATER, RHO_WATER, branch_drop_and_slope,
                                     branch_drop_value, pipe_drop, pump_head)
 from .model_types.protocol import CommitStepRequest, EvaluateRequest, NetworkRelation
 from .model_types.base import Diagnostic, FluidState, PortState
@@ -510,7 +510,7 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
 
     # Python module rows retain full relation dependencies, using grouped sparse
     # differences; the built-in equations and continuity rows use analytic slopes.
-    analytic_models = {'valve', 'pipe', 'duct', 'pump_curve', 'resistance', 'resistance_secondary', 'air_filter'}
+    analytic_models = HYDRAULIC_RELATIONS.keys()
     if python_runners:
         builtins_supported = all(branch.instance_id in python_runners or branch.solver_model in analytic_models for branch in network.branches)
         analytic_supported = options.module_mixed_jacobian and options.analytic_jacobian and builtins_supported

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from .hydraulic_derivatives import HYDRAULIC_RELATIONS
+
 import functools
 import math
 from dataclasses import dataclass, field
@@ -435,11 +437,12 @@ def compile_project(project: Project) -> CompiledNetwork:
         raise CompilationError('EMPTY_NETWORK', '项目没有设备')
     diagnostics = list(project.import_diagnostics)
     parameters, port_keys = {}, []
-    supported = {'pressure_source', 'junction', 'valve', 'pipe', 'duct', 'pump_curve', 'heat_exchanger', 'tank',
-                 'closed_volume', 'heater', 'cooling_coil', 'humidifier', 'air_mixing_box', 'air_filter', 'air_room',
+    supported = {'pressure_source', 'junction', 'heat_exchanger', 'tank',
+                 'closed_volume', 'heater', 'cooling_coil', 'humidifier', 'air_mixing_box', 'air_room',
                  'cooling_tower_moist', 'water_coil', 'water_chiller', 'air_cooled_chiller', 'air_source_heat_pump', 'closed_buffer_tank', 'expansion_tank'}
     # 湿空气网络只接受空气单相与内置风侧元件（Python 模块按干空气近似参与）。
     supported.add('enthalpy_recovery')
+    supported.update(key for key, relation in HYDRAULIC_RELATIONS.items() if relation.direct_device)
     moist = project.solver.moist_air
     moist_models = {'pressure_source', 'junction', 'valve', 'pipe', 'duct', 'heater', 'cooling_coil', 'humidifier', 'air_mixing_box', 'air_filter', 'air_room'}
     moist_models.add('enthalpy_recovery')
@@ -663,7 +666,8 @@ def compile_project(project: Project) -> CompiledNetwork:
                 if ch.id not in ('ch0', 'ch1') or (ch.input_port, ch.output_port) != expected_ports:
                     layout='ch0(exhaust_in→exhaust_out)、ch1(supply_in→supply_out)' if definition.solver_model=='enthalpy_recovery' else 'ch0(in0→out0)、ch1(in1→out1)'
                     raise CompilationError('CHANNEL_MODEL_INVALID', f'{inst.id} 双侧设备通路必须为 {layout}', inst.id, ch.id)
-            relation = 'pump_curve' if expected == 'pump_curve' else 'resistance'
+            registered_relation = HYDRAULIC_RELATIONS.get(expected)
+            relation = registered_relation.channel_relation if registered_relation else 'resistance'
             if definition.runtime != 'python' and (ch.solver_model != expected or ch.relation != relation):
                 raise CompilationError('CHANNEL_MODEL_INVALID', f'{inst.id}.{ch.id} 未注册的通路关系 {ch.solver_model}/{ch.relation}', inst.id, ch.id)
             start, end = nodes[f'{inst.id}:{ch.input_port}'], nodes[f'{inst.id}:{ch.output_port}']
