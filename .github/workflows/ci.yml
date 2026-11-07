@@ -156,6 +156,8 @@ jobs:
         working-directory: fluidnet-prototype-engine
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
@@ -169,12 +171,26 @@ jobs:
       - name: 核验浏览器清单并输出分组
         id: browser-matrix
         shell: pwsh
+        env:
+          IMPACT_BASE: ${{ github.event.pull_request.base.sha }}
+          IMPACT_HEAD: ${{ github.event.pull_request.head.sha }}
         run: |
           node scripts/browser-groups.mjs --check
           if ($LASTEXITCODE -ne 0) { throw 'Browser manifest validation failed' }
-          $browserMatrix = node scripts/browser-groups.mjs --matrix
-          if ($LASTEXITCODE -ne 0) { throw 'Browser matrix generation failed' }
+          if ($env:IMPACT_BASE -and $env:IMPACT_HEAD) {
+            $browserMatrix = node scripts/browser-impact.mjs --base $env:IMPACT_BASE --head $env:IMPACT_HEAD --matrix --output artifacts/browser-impact.json
+          } else {
+            $browserMatrix = node scripts/browser-impact.mjs --all --matrix --output artifacts/browser-impact.json
+          }
+          if ($LASTEXITCODE -ne 0) { throw 'Browser impact selection failed' }
           "matrix=$browserMatrix" >> $env:GITHUB_OUTPUT
+          Get-Content artifacts/browser-impact.json >> $env:GITHUB_STEP_SUMMARY
+      - name: 上传浏览器选组依据
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-impact
+          path: fluidnet-prototype-engine/artifacts/browser-impact.json
+          if-no-files-found: error
 
   browser:
     name: browser (${{ matrix.group }})
@@ -202,7 +218,7 @@ jobs:
           cache: npm
           cache-dependency-path: fluidnet-prototype-engine/package-lock.json
       - run: npm ci
-      # 所有 PR 都跑清单中的全部组，包括固定跨域 smoke；暂不按路径跳过集成门。
+      # PR 仅对已审阅的叶子变更缩小范围；smoke 固定执行，未知/共享/身份变更回退全部组。
       # 失败最多重试一次，恢复通过也显示 warning；永久失败使该组及汇总门失败。
       - name: 浏览器分组验收
         timeout-minutes: 45
@@ -224,7 +240,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 5
     steps:
-      - name: 汇总全部前端门禁
+      - name: 汇总本次前端门禁
         shell: pwsh
         env:
           STATIC_RESULT: ${{ needs.frontend-checks.result }}
@@ -233,4 +249,4 @@ jobs:
           if ($env:STATIC_RESULT -ne 'success' -or $env:BROWSER_RESULT -ne 'success') {
             throw "Frontend checks did not all pass: static=$env:STATIC_RESULT browser=$env:BROWSER_RESULT"
           }
-          Write-Host 'All frontend static, unit and browser groups passed.'
+          Write-Host 'All frontend static, unit and selected browser groups passed.'

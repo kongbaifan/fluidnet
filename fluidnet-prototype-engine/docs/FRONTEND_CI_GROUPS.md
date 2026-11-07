@@ -48,3 +48,9 @@ node scripts/browser-groups.mjs --run --case smoke
 ## 本轮验证
 
 清单校验、矩阵与suite dry-list、Node单测和语法检查通过。单测覆盖漏登记拒绝、缺recipe、重复调用、helper豁免、参数变体、选择去重、重试与永久失败、spawn失败/退出码，以及无shell的argv/环境传递；没有运行全量浏览器或pytest。远程GitHub Actions尚未由本轮验证，矩阵配置不等于远端全部通过。
+
+## AC-1：PR 影响范围选择（2026-11-07）
+
+`scripts/browser-impact.mjs` 在 PR 的 base/head 提交之间取 merge-base，使用 NUL 分隔的 Git 路径，不通过 shell 拼接。固定 smoke；已审阅叶子文件和已登记浏览器入口可缩小组，所有参数变体一起选择。共享前端、后端、合同、脚本、未知路径和新增/删除/重命名一律回退全部组；无法读取比较基线也回退全部组。master push 继续完整覆盖。
+
+CI 上传 `browser-impact.json`（完整理由和选定组），required check 仍等待静态检查和所选浏览器矩阵成功。本地 `node scripts/browser-impact.mjs --base <commit> --head HEAD` 仅生成计划，不执行浏览器。初次验收：影响选择与现有执行器共14项单测通过；含真实临时Git仓库重命名、参数变体、未知及共享输入。远端CI未触发，不宣称实际节省的分钟数。
