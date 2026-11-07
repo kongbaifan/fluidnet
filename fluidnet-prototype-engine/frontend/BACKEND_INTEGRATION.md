@@ -1,6 +1,6 @@
 # 前端与真实引擎接入
 
-更新日期：2026-11-06。本文描述当前接入边界；早期原型的静态演示说明见 `PROTOTYPE_BASELINE.md`，不代表当前运行能力。设备物理范围以模块合同和对应设计/验收文档为准。
+更新日期：2026-11-07。本文描述当前接入边界；早期原型的静态演示说明见 `PROTOTYPE_BASELINE.md`，不代表当前运行能力。设备物理范围以模块合同和对应设计/验收文档为准。
 
 ## 入口与证据
 
@@ -13,11 +13,13 @@
 
 ## 启动与模块
 
-启动读取 `/health`、`/catalog`、`/modules`，把内置目录和版本化Python模块包合并到模块库。图形、默认值、参数类型、单位、范围、变量与可写属性来自合同及明确的展示适配。
+启动读取 `/health`、`/catalog`、`/modules`，把内置目录和版本化Python模块包合并到模块库；可选的 `/catalog/presentation` 提供登记设备的图标和画布符号族。旧后端缺少该端点时使用兼容展示，计算目录仍可用。默认值、参数类型、单位、范围、变量与可写属性继续来自物理合同；展示元数据不参与模块哈希或物理兼容判断。
 
 `project-model.js` 做显示/规范单位转换及项目文档组装；`project-state.js` 管理项目/参数/拓扑写入；`project-run-state.js` 管理运行归属、帧与归档；`project-services.js` 管理保存、项目与控制接口；`engine-client.js` 负责模块、计算请求和轮询。功能页面及新的 `canvas-*.js` 通过依赖注入使用这些模块。`index.html` 明确列出加载顺序，目前没有前端构建步骤。
 
 模块领域逻辑现由 `module-service.js` 承担，engine-client保留原接口代理。`workspace-interactions.js`统一指针捕获并将画布、作者端口和窗口手势分别交给对应功能；`device-windows.js`只管理展示窗口；`action-router.js`按功能登记动作，未知动作继续交给shell。参数接受事务与这些界面模块分开。
+
+`module-editor-view.js`负责作者页面展示，`run-results-view.js`负责曲线和运行记录展示，`workspace-storage.js`负责浏览器草稿、服务端保存确认及恢复回滚。保存回执通过原工作区对象与编辑修订核对，迟到回执不能清除后来编辑或替换工作区的未保存状态。加载方式仍为普通脚本与显式依赖注入；ES Module迁移的评估结论见[前端功能边界](../docs/FRONTEND_FEATURE_BOUNDARIES.md)。
 
 模块的 `publishedManifest` 是可插入版本，编辑器草稿不进入运行。项目 `moduleSnapshots` 固定模块定义及展示布局，Python实例携带版本/双哈希引用。新发布不会自动改变旧项目。模块作者图形和同ID端口布局在新插入时复制到项目展示快照，不改物理manifest或其哈希。
 

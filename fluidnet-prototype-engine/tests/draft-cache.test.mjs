@@ -3,19 +3,16 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 
-const source=readFileSync(new URL('../frontend/studio.js',import.meta.url),'utf8');
 const clone=value=>JSON.parse(JSON.stringify(value));
 function context(state,quota=Infinity){
-  const stored=new Map(),messages=[];
-  const ctx=vm.createContext({state,clone,localSaveError:'',localSaveTrimmed:false,
-    syncChrome:()=>{},msg:(...args)=>messages.push(args),
-    localStorage:{setItem:(key,value)=>{if(value.length>quota){const error=Error('quota');error.name='QuotaExceededError';throw error;}stored.set(key,value);}},
-    controls:{key:()=>''}});
-  vm.runInContext(source.match(/^const STORAGE_KEY = .*;$/m)[0],ctx);
-  vm.runInContext(source.match(/^const LOCAL_DRAFT_STEPS = .*;$/m)[0],ctx);
-  vm.runInContext(source.slice(source.indexOf('function isQuotaError('),source.indexOf('function markDirty(')),ctx);
-  vm.runInContext(source.slice(source.indexOf('function projectParameterKey('),source.indexOf('function workbenchResultState(')),ctx);
-  return {ctx,stored,messages};
+  const stored=new Map(),messages=[],status={localError:'',trimmed:false};
+  const ctx=vm.createContext({window:{}});
+  for(const file of ['workspace-storage.js','project-model.js'])vm.runInContext(readFileSync(new URL('../frontend/'+file,import.meta.url),'utf8'),ctx);
+  const api=ctx.window.FluidNetWorkspaceStorage.create({read:()=>state,key:'fluidnet-prototype-engine-v1',
+    storage:{setItem:(key,value)=>{if(value.length>quota){const error=Error('quota');error.name='QuotaExceededError';throw error;}stored.set(key,value);}},
+    status:()=>status,changed:patch=>Object.assign(status,patch),message:(...args)=>messages.push(args)});
+  return {ctx:{persistLocal:api.persist,compactArchivedDraft:ctx.window.FluidNetWorkspaceStorage.compactArchivedDraft,
+    projectParameterKey:owner=>ctx.window.FluidNetProjectModel.parameterKey(owner,state.modules,()=> '')},stored,messages};
 }
 function largeState(){
   const history=Array.from({length:81},(_,i)=>({t:i*30,partial:false,canonical:{temperature:300-i/20,payload:'x'.repeat(4000)}}));

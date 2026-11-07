@@ -21,21 +21,16 @@ test('duplicate workspace restore ignores only top-level receipt metadata, never
 });
 
 test('workspace restore compares equally normalized content and rolls back if different-draft backup fails',()=>{
-  const src=readFileSync(new URL('../frontend/studio.js',import.meta.url),'utf8');
-  const original={dirty:false,modules:[],draft:{opening:55},derived:['default']};
-  const ctx=vm.createContext({window:{},state:original,PARAM_DEFS:{valve:'original'},clone:structuredClone,
-    ui:{floats:[],selectedNode:''},undoStack:[],redoStack:[],editRevision:0,savePhase:'',saveError:'',STORAGE_KEY:'test',render:()=>{},backups:[]});
-  for(const name of ['project-model.js','project-state.js'])vm.runInContext(readFileSync(new URL('../frontend/'+name,import.meta.url),'utf8'),ctx);
-  vm.runInContext(`const projectState=window.FluidNetProjectState,projectModel=window.FluidNetProjectModel;
-    function validateImport(){}function normalizeState(){state.derived||=['default'];PARAM_DEFS.valve='normalized';}
-    function backupLocalDraft(key,source){backups.push({key,source});throw Error('quota');}`,ctx);
-  vm.runInContext(src.slice(src.indexOf('function replaceWorkspaceState('),src.indexOf('async function workspaceTools(')),ctx);
-  ctx.restoreWorkspace({dirty:false,modules:[],draft:{opening:55}});
-  assert.equal(ctx.backups.length,0);assert.equal(ctx.state.draft.opening,55);
-  const accepted=ctx.state;ctx.PARAM_DEFS.valve='kept';
-  assert.throws(()=>ctx.restoreWorkspace({dirty:false,modules:[],draft:{opening:66}}),/quota/);
-  assert.equal(ctx.state,accepted);assert.equal(ctx.PARAM_DEFS.valve,'kept');
-  assert.equal(ctx.backups[0].source,accepted);assert.equal(ctx.backups[0].source.draft.opening,55);
+  let state={dirty:false,modules:[],draft:{opening:55},derived:['default']};const definitions={valve:'original'},backups=[];
+  const ctx=vm.createContext({window:{}});
+  for(const name of ['project-model.js','project-state.js','workspace-storage.js'])vm.runInContext(readFileSync(new URL('../frontend/'+name,import.meta.url),'utf8'),ctx);
+  const api=ctx.window.FluidNetWorkspaceStorage.create({read:()=>state,write:value=>{state=value;},definitions,validate:()=>{},
+    normalize:()=>{state.derived||=['default'];definitions.valve='normalized';},projectState:ctx.window.FluidNetProjectState,model:ctx.window.FluidNetProjectModel,
+    key:'test',storage:{setItem:(key,text)=>{backups.push({key,source:JSON.parse(text)});throw Error('quota');}},resetView:()=>{},changed:()=>{},render:()=>{}});
+  api.restore({dirty:false,modules:[],draft:{opening:55}});assert.equal(backups.length,0);assert.equal(state.draft.opening,55);
+  const accepted=state;definitions.valve='kept';assert.throws(()=>api.restore({dirty:false,modules:[],draft:{opening:66}}),/备份失败/);
+  assert.equal(state,accepted);assert.equal(definitions.valve,'kept');assert.deepEqual(backups[0].source,JSON.parse(JSON.stringify(accepted)));
+
 });
 
 test('display and canonical conversions agree for absolute temperatures, differences, opening and power',()=>{
