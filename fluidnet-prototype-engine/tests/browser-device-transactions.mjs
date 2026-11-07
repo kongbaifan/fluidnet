@@ -31,7 +31,21 @@ async function bank(value){
 try {
   await page.goto(server.base);await expect(page.locator('#app-header')).toContainText('模块平台 · v');
   await page.locator('[data-action="start-modeling"]').first().click();
+  // Curve inputs parse on blur. Their apply control must refresh even when no number was edited.
+  await panel().locator('[data-action="float-close"]').click();
+  await page.locator('[data-node="P1"]').dblclick();
+  const pump=page.locator('[data-float-id="P1"]'),curve=pump.locator('[data-instance-param="head_curve"]');
+  const points=[[0,21],[10,18],[20,12],[30,0]];
+  await curve.fill(JSON.stringify(points));await curve.blur();
+  await expect(pump.locator('[data-action="apply-instance"]')).toBeEnabled();
+  await pump.locator('[data-action="apply-instance"]').click();
+  await page.getByRole('dialog').locator('button[type="submit"]').click();
+  const pumpState=owner(await saved()).pages.flatMap(p=>p.nodes).find(n=>n.id==='P1');
+  expect(pumpState.params.head_curve).toEqual(points);
+  await pump.locator('[data-action="float-close"]').click();
+  await page.locator('[data-node="V1"]').dblclick();
   const first=await step();
+  expect((await api('/runs/'+first)).request.project.instances.find(n=>n.id==='P1').parameters.head_curve).toEqual(points);
   await panel().locator('input[type="number"][data-instance-param="opening"]').fill('55');
   await bank(40);
   await expect(page.locator('#announcement')).toContainText('库值 1 已应用');
@@ -95,6 +109,6 @@ try {
   await expect(bound).toHaveAttribute('data-bound-version',String(version));
   await captureFhd(page,'artifacts/device-bound-definition.png');
   expect(errors).toEqual([]);
-  console.log(JSON.stringify({bankWriteConfirmed:true,controlledBankRejected:true,boundVersion:version,libraryVersion:version+1,errors}));
+  console.log(JSON.stringify({curveOnlyApplied:true,bankWriteConfirmed:true,controlledBankRejected:true,boundVersion:version,libraryVersion:version+1,errors}));
 }catch(error){console.error(error,errors);await captureFhd(page,'artifacts/device-transactions-failure.png').catch(()=>{});process.exitCode=1;}
 finally{await browser.close();await server.close();}

@@ -155,3 +155,12 @@ test('a rejected acknowledgement releases its device lock for a later valid prev
   f.owner.run.live=false;f.owner.run.status='ready';
   await f.apply(f.proposal());assert.equal(f.node.params.opening,40);
 });
+
+test('a curve-only offline draft survives preview and commits a deep copy',async()=>{
+  const f=fixture();f.owner.run.live=false;f.node.draft.opening=80;
+  const curve=[[0,6],[6,4],[12,0]];f.node.draft.head_curve=curve;
+  const proposal=f.proposal(-1);curve[0][1]=99;
+  await f.apply(proposal);
+  assert.deepEqual(plain(f.node.params.head_curve),[[0,6],[6,4],[12,0]]);
+  assert.equal(f.node.draft.head_curve[0][1],6);assert.equal(curve[0][1],99);assert.equal(f.requests.length,0);
+});

@@ -628,9 +628,7 @@ function editMeter(p,existing,kind) {
       markDirty(p);render();
     },'保存测点');
 }
-document.addEventListener('click',event=>{
-  const button=event.target.closest('[data-action="add-meter"],[data-action="edit-meter"],[data-action="remove-meter"],[data-action="meter-curve"]');
-  if(!button)return;
+function measurementAction(action,button){
   const p=project(),m=p.measurements?.find(m=>m.id===button.dataset.id);
   try {
     if(button.dataset.action==='meter-curve'){if(m)addChartVariable('measurement.'+m.id,m.label);return;}
@@ -643,7 +641,7 @@ document.addEventListener('click',event=>{
       markDirty(p);render();
     } else editMeter(p,m,m?.kind||button.dataset.kind);
   }catch(error){msg(error.message,true);}
-});
+}
 function pidOptions(p) {
   const measurements=[],targets=[];
   for(const node of p.pages.flatMap(pg=>pg.nodes)) {
@@ -2499,6 +2497,9 @@ function setInstanceParamDraft(el) {
     : el.value === '' ? '' : Number(el.value);
   projectState.setDraft(ownerOfInstance(n),n,{[d.instanceParam]:value});
   el.closest('.parameter-row')?.classList.toggle('edited', !sameValue(value, n.params[d.instanceParam]));
+  const float = el.closest('.floater'), pending = float?.querySelector('[data-pending-for]');
+  if (pending) { pending.textContent = `${pendingCount(n)} 项待应用`; pending.className = `badge ${pendingCount(n) ? 'warn' : 'good'}`; }
+  const apply = float?.querySelector('[data-action="apply-instance"]'); if (apply) apply.disabled = !pendingCount(n);
   markDirty(project());
 }
 function setBenchParam(el) {
@@ -2543,9 +2544,6 @@ function handleInput(el) {
     if (d.paramType === 'curve') return;  // curve drafts validate on change, not on every keystroke
     const n = instance(d.id); setInstanceParamDraft(el);
     if ((d.paramType || 'number') === 'number') el.closest('.parameter-row')?.querySelectorAll('input[type="range"],input[type="number"]').forEach(other => { if (other !== el) other.value = el.value; });
-    const float = el.closest('.floater'), pending = float?.querySelector('[data-pending-for]');
-    if (pending) { pending.textContent = `${pendingCount(n)} 项待应用`; pending.className = `badge ${pendingCount(n) ? 'warn' : 'good'}`; }
-    const apply = float?.querySelector('[data-action="apply-instance"]'); if (apply) apply.disabled = !pendingCount(n);
     return;
   }
   if (d.instanceName) { const n = instance(d.instanceName); if (value.trim()) projectState.updateNode(ownerOfInstance(n),n,{name:value}); markDirty(project()); return; }
@@ -2664,6 +2662,7 @@ function featureActions(){
   if(featureRouter)return featureRouter;
   const router=window.FluidNetActionRouter.create(error=>msg(error.message,true));
   for(const [name,handler] of Object.entries(workspaceInteractions().actions))router.action(name,handler);
+  for(const name of ['add-meter','edit-meter','remove-meter','meter-curve'])router.action(name,measurementAction);
   for(const name of deviceWindows().actionNames)router.action(name,(action,el)=>deviceWindows().action(action,el));
   for(const feature of [moduleEditorView(),runResultsView()])for(const name of feature.actionNames)router.action(name,(action,el)=>feature.action(action,el));
   for(const [prefix,feature] of [['canvas-',()=>canvasView()],['wf-',()=>workflows],['batch-',()=>scenarioBatches],['air-',()=>airSide],['cs-',()=>coldStorage]])router.prefix(prefix,(action,el)=>feature().action(action,el));
