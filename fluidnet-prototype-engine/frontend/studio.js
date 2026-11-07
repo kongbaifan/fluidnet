@@ -25,15 +25,6 @@ function legacyModuleSource(kind, code) {
       : `// ${code} · 库值 ${i + 1}\nvoid Design${i + 1}() {\n  // 编辑设计参数\n}\n`)
   };
 }
-function normalizePythonSource(m) {
-  if (m.runtime === 'python' || m.sourceFormat === 'python-v1') return;
-  const next = pythonModuleSource(m.kind, m.code);
-  const candidates = [m.code, MODULE_SPECS.find(spec => spec[0] === m.kind)?.[2]].filter(Boolean).map(code => legacyModuleSource(m.kind, code));
-  const same = (a, b) => typeof a === 'string' && a.replace(/\r\n/g, '\n') === b;
-  for (const key of ['runtime', 'header']) if (candidates.some(old => same(m.source[key], old[key]))) m.source[key] = next[key];
-  m.source.design = m.source.design.map((source, i) => candidates.some(old => same(source, old.design[i])) ? next.design[i] : source);
-  m.sourceFormat = 'python-v1';
-}
 // 浏览器仅做轻量结构检查：忽略 Python 注释与字符串中的括号，不执行代码。
 function pythonCodeIssue(source) {
   const stack = [], pairs = { ')': '(', ']': '[', '}': '{' };
@@ -825,43 +816,14 @@ function instanceBankDiff(n, bank) {
   const data = ensureInstanceVariables(n);
   return moduleOf(n).variables.filter(v => instanceWritable(v) && !sameValue(instanceVariableValue(n, v), data.banks[bank][v.id]));
 }
-const pendingInstanceApplications=new WeakSet();
-function instanceApplication(n, values, bank = -1) {
-  const owner=ownerOfInstance(n),variables=moduleOf(n).variables.filter(instanceWritable);
-  const parameters=bank<0 ? clone(n.draft) : Object.fromEntries(variables.filter(v=>v.origin==='parameter').map(v=>[v.param,clone(values[v.id])]));
-  return {ticket:projectRunState.capture(state,owner),values:clone(values),parameters,
-    performance:window.FluidNetPerformanceData?.capture(n,bank<0),
-    applied:clone(n.params),variables,bank,draftModelId:n.draftModelId,modelId:bank<0?n.draftModelId:null,modelVersion:bank<0?n.draftModelVersion:null};
-}
-async function applyInstanceApplication(owner,n,application) {
-  if(pendingInstanceApplications.has(n)||engine.isApplyingParameters?.(n))throw Error('设备参数正在应用，请等待确认后再提交。');
-  projectRunState.assertCurrent(state,application.ticket);projectState.assertCurrent(state,owner);projectState.node(owner,n);
-  if(!sameValue(n.params,application.applied))throw Error('设备参数已变化，请重新预览后应用。');
-  if(application.performance&&!sameValue(n.performanceData||{},application.performance.current))throw Error('已应用性能资料已变化，请重新预览。');
-  validateInstanceEdits(n,application.values);
-  const beforeDraft=clone(n.draft),beforeCustom=clone(ensureInstanceVariables(n).draft);
-  const parameters=Object.fromEntries(Object.entries(application.parameters).filter(([key,value])=>!sameValue(value,n.params[key])));
-  const finish=()=>{
-    // Accepted values update configuration; edits typed while awaiting the receipt remain drafts.
-    const drafts=Object.fromEntries(Object.entries(application.parameters).filter(([key])=>sameValue(n.draft[key],beforeDraft[key])));
-    projectState.setDraft(owner,n,drafts);
-    const data=clone(n.variableState);
-    for(const v of application.variables.filter(v=>v.origin==='custom')) {
-      data.values[v.id]=clone(application.values[v.id]);
-      if(sameValue(data.draft[v.id],beforeCustom[v.id]))data.draft[v.id]=clone(application.values[v.id]);
-    }
-    projectState.updateNode(owner,n,{variableState:data});
-    if(application.performance)window.FluidNetPerformanceData.commit(n,engine.manifestPayload(moduleOf(n)),application.performance);
-    if(application.modelId)projectState.updateNode(owner,n,{modelId:application.modelId,modelVersion:application.modelVersion});
-    if(n.draftModelId===application.draftModelId)projectState.updateNode(owner,n,{draftModelId:null,draftModelVersion:null});
-    markDirty(owner);
-  };
-  pendingInstanceApplications.add(n);
-  try {
-    if(owner.run.live)await engine.applyParameters(owner,n,parameters,finish);
-    else {remember();projectState.applyParameters(owner,n,parameters);finish();render();}
-  } finally {pendingInstanceApplications.delete(n);}
-}
+let deviceApplicationController;
+function deviceApplications(){return deviceApplicationController ||= window.FluidNetDeviceApplication.create({
+  state:()=>state,projectRunState,projectState,engine,performance:window.FluidNetPerformanceData,
+  clone,sameValue,ownerOfInstance,moduleOf,instanceWritable,ensureInstanceVariables,
+  validateInstanceEdits,markDirty,remember,render
+});}
+function instanceApplication(n,values,bank=-1){return deviceApplications().capture(n,values,bank);}
+function applyInstanceApplication(owner,n,application){return deviceApplications().apply(owner,n,application);}
 function applyInstanceBank(n, bank) {
   const values = instanceEdits(n, bank), differences = instanceBankDiff(n, bank);
   validateInstanceEdits(n, values);
@@ -1181,12 +1143,6 @@ function validateModuleGroups(data) {
   if (names.some(name => !validName(name) || DEFAULT_MODULE_GROUPS.includes(name)) || new Set(names.map(groupNameKey)).size !== names.length) throw Error('模块分组名称不合法或重复。');
   if (data.modules.some(m => m.category !== undefined && !validName(m.category))) throw Error('模块所属分组不合法。');
   collectModuleGroups(data);
-}
-
-function normalizeModuleGroups() {
-  for (const m of state.modules) if (!m.category) m.category = '自定义模块';
-  state.moduleGroups = collectModuleGroups(state);
-  if (ui.category !== '全部模块' && !moduleGroupNames().includes(ui.category)) ui.category = '全部模块';
 }
 
 function moduleGroupDialog(previous = '') {
@@ -2751,74 +2707,17 @@ document.addEventListener('keydown', e => {
 });
 // Saves and exports made before a built-in parameter existed (e.g. pipe heat loss / ambient)
 // get its default in module variables/values/banks, models and instances. Idempotent.
-function backfillBuiltinParams(data) {
-  const builtin = (data.modules || []).filter(m => m && m.runtime !== 'python' && PARAM_DEFS[m.kind]);
-  // A short-lived pre-catalog editor used 8 g/kg while the source contract stores kg/kg.
-  // Repair only that fingerprint and its invalid default, never rescale valid canonical values
-  // or frozen manifest snapshots. Older workspaces without this field receive the contract default.
-  const repairedHumidity=new Set();
-  for(const m of builtin.filter(m=>m.kind==='source'&&!m.manifest)) {
-    const v=m.variables?.find(v=>v.id==='param:humidity_ratio_kg_kg');
-    if(v?.unit!=='g/kg_da'||v.value!==8)continue;
-    v.unit='1';v.value=.008;repairedHumidity.add(m.id);
-    for(const bank of [m.values,...(m.banks||[])])if(bank?.[v.id]===8)bank[v.id]=.008;
-  }
-  const repairHumidity=params=>{if(params?.humidity_ratio_kg_kg===8)params.humidity_ratio_kg_kg=.008;};
-  for(const item of data.models||[])if(repairedHumidity.has(item.moduleId)) {
-    repairHumidity(item.params);for(const version of item.versions||[])repairHumidity(version.params);
-  }
-  for(const p of data.projects||[])for(const pg of p.pages||[])for(const n of pg.nodes||[])
-    if(!p.moduleSnapshots?.[n.moduleId]&&repairedHumidity.has(n.moduleId)) {
-      repairHumidity(n.params);repairHumidity(n.draft);
-      for(const bank of n.variableState?.banks||[])if(bank['param:humidity_ratio_kg_kg']===8)bank['param:humidity_ratio_kg_kg']=.008;
-    }
-  for (const m of builtin) {
-    if (!Array.isArray(m.variables)) continue;
-    for (const v of variablesFor({kind:m.kind, ports:[]}).filter(v => v.origin === 'parameter' || v.origin === 'runtime')) {
-      if (m.variables.some(x => x.id === v.id)) continue;
-      const before = m.variables.findIndex(x => x.origin === 'system');
-      m.variables.splice(before < 0 ? m.variables.length : before, 0, v);
-      if (m.values && !(v.id in m.values)) m.values[v.id] = clone(v.value);
-      (m.banks || []).forEach(bank => { if (bank && !(v.id in bank)) bank[v.id] = clone(v.value); });
-    }
-  }
-  const fill = (params, kind) => { if (params && typeof params === 'object') for (const f of PARAM_DEFS[kind]) if (!(f[0] in params)) params[f[0]] = f[6]; };
-  const kindOf = id => builtin.find(m => m.id === id)?.kind;
-  for (const item of data.models || []) { const kind = kindOf(item?.moduleId); if (kind) { fill(item.params, kind); (item.versions || []).forEach(v => fill(v?.params, kind)); } }
-  for (const p of data.projects || []) for (const pg of p?.pages || []) for (const n of pg?.nodes || []) {
-    const kind = !p.moduleSnapshots?.[n?.moduleId] && kindOf(n?.moduleId);
-    if (kind) { fill(n.params, kind); fill(n.draft, kind); }
-  }
-}
-function normalizeState() {
-  normalizeModuleGroups();
-  state.modules.forEach(m => { m.saving=false; if (m.manifest) PARAM_DEFS[m.kind] = manifestFields(m.manifest); normalizePythonSource(m); });
-  backfillBuiltinParams(state);
-  state.windowPositions ||= {}; state.charts ||= {}; state.charts.series ||= {q:true,a:true,b:true}; state.charts.extra ||= []; state.charts.range ||= 'window'; state.serial ||= 30; state.messages ||= [];
-  // 兼容旧草稿：运行快照/验证台/项目运行可能缺少 history、events、values 等字段（例如被裁剪过的草稿），
-  // 补齐默认值后继续打开与保存，而不是让 normalizeState 抛错、整份草稿被内置示例覆盖。
-  state.records = Array.isArray(state.records) ? state.records : [];
-  for (const record of state.records) { record.history = Array.isArray(record.history) ? record.history : []; record.events = Array.isArray(record.events) ? record.events : []; }
-  state.bench ||= {}; state.bench.run ||= emptyRun('bench');
-  const benchModule = state.bench && state.modules.find(m => m.id === state.bench.moduleId);
-  if (benchModule?.runtime === 'python') { state.bench.params ||= {}; for (const spec of manifestParamSpecs(benchModule.manifest)) if (!(spec.id in state.bench.params)) state.bench.params[spec.id] = clone(spec.default); }
-  for (const p of state.projects) {
-    p.scenarios ||= [];p.activeScenarioId ||= '';
-    engine.pinProject(p,true);
-    controls.normalize(p);
-    if (!p.run || typeof p.run !== 'object') p.run = emptyRun();
-    if (p.run.source !== 'engine') p.run = emptyRun();
-    if (p.run.status === 'solving') p.run.status = 'ready';
-    p.run.events ||= []; p.run.history ||= []; p.run.values ||= emptyRun().values;
-    for (const pg of p.pages) { pg.zoom ||= 1; pg.pan ||= [0, 0]; for (const n of pg.nodes) { const m = moduleOf(n); if (m.runtime === 'python') for (const spec of manifestParamSpecs(m.manifest)) { if (!(spec.id in n.params)) n.params[spec.id] = clone(spec.default); if (!n.draft || !(spec.id in n.draft)) { n.draft ||= clone(n.params); n.draft[spec.id] = clone(n.params[spec.id]); } } n.draft ||= clone(n.params); validateInstanceVariableState(n, m); ensureInstanceVariables(n, m, p); } }
-    links.rehome(p);
-    const variables = projectVariables(p);
-    for (const field of ['input', 'output']) if (!variables.some(v => v.id === p.controlConfig[field])) {
-      const legacy = variables.find(v => v.legacyId === p.controlConfig[field]); if (legacy) p.controlConfig[field] = legacy.id;
-    }
-  }
-  if (state.bench.run.status === 'solving') state.bench.run.status = 'ready';
-  state.bench.run.events ||= []; state.bench.run.history ||= []; state.bench.run.values ||= emptyRun().values;
+let workspaceNormalizer;
+function workspaceNormalization(){return workspaceNormalizer ||= window.FluidNetWorkspaceNormalization.create({
+  parameterDefinitions:PARAM_DEFS,variablesFor,clone,moduleSpecs:MODULE_SPECS,pythonModuleSource,legacyModuleSource,
+  defaultGroups:DEFAULT_MODULE_GROUPS,manifestFields,manifestParamSpecs,emptyRun,
+  pinProject:(p,allowLegacy)=>engine.pinProject(p,allowLegacy),normalizeControls:p=>controls.normalize(p),
+  moduleOf,validateInstanceVariableState,ensureInstanceVariables,rehome:p=>links.rehome(p),projectVariables
+});}
+function backfillBuiltinParams(data){return workspaceNormalization().backfillBuiltinParams(data);}
+function normalizeState(){
+  workspaceNormalization().normalize(state);
+  if(ui.category!=='全部模块'&&!moduleGroupNames().includes(ui.category))ui.category='全部模块';
 }
 const chartRegistry = new Map();
 engine = window.createEngineClient({state:()=>state, project, parameterKey:projectParameterKey, moduleOf,
