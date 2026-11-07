@@ -560,6 +560,14 @@
       "file": "tests/browser-device-windows.mjs",
       "args": [],
       "group": "canvas"
+    },
+    {
+      "id": "canvas-performance-live",
+      "file": "tests/browser-canvas-performance.mjs",
+      "args": [
+        "--live"
+      ],
+      "group": "canvas"
     }
   ],
   "suites": {

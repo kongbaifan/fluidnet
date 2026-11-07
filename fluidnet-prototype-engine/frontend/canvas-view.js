@@ -59,16 +59,19 @@ window.FluidNetCanvasView = (() => {
     }
     function paint(svg,owner,page) {
       if(!svg)return;const ctx=context(owner),g=geometry(owner,page),edgeElements=new Map([...svg.querySelectorAll('[data-canvas-edge]')].map(el=>[el.dataset.canvasEdge,el]));
-      for(const e of page.edges){const el=edgeElements.get(e[0]),route=g.routes.get(e[0]);if(el&&route){const html=edgeMarkup(owner,page,e,route,ctx);if(el._canvasMarkup!==html){el.innerHTML=html;el._canvasMarkup=html;}}}
+      for(const e of page.edges){const el=edgeElements.get(e[0]),route=g.routes.get(e[0]);if(el&&route){const html=edgeMarkup(owner,page,e,route,ctx);if(el._canvasMarkup!==html){window.FluidNetSvgDom.patch(el,html);el._canvasMarkup=html;}}}
       const nodes=new Map(page.nodes.map(n=>[n.id,n]));
-      for(const el of svg.querySelectorAll('[data-node]')){const n=nodes.get(el.dataset.node);if(!n)continue;const s=observations.node({node:n,module:moduleOf(owner,n),row:ctx.row});el.dataset.canvasState=s.state;el.style.setProperty('--canvas-device-stroke',s.color||'var(--muted)');const text=el.querySelector('.canvas-device-state');if(text)text.textContent=s.label;}
+      for(const el of svg.querySelectorAll('[data-node]')){const n=nodes.get(el.dataset.node);if(!n)continue;
+        el.setAttribute('transform',`translate(${n.x},${n.y})`);el.classList.toggle('selected',ui().selectedNode===n.id||selectedIds().includes(n.id));
+        for(const port of el.querySelectorAll('[data-port-id]'))port.classList.toggle('pending',ui().connecting?.nodeId===n.id&&ui().connecting?.portId===port.dataset.portId);
+        const s=observations.node({node:n,module:moduleOf(owner,n),row:ctx.row});el.dataset.canvasState=s.state;el.style.setProperty('--canvas-device-stroke',s.color||'var(--muted)');const text=el.querySelector('.canvas-device-state');if(text)text.textContent=s.label;}
     }
     function move(svg,owner,page,id) {
       if(!svg)return;const n=page.nodes.find(n=>n.id===id),el=[...svg.querySelectorAll('[data-node]')].find(el=>el.dataset.node===id);if(!n||!el)return;
       el.setAttribute('transform',`translate(${n.x},${n.y})`);el.classList.add('selected');
       const obstacles=page.nodes.map(n=>bounds(owner,n)),ctx=context(owner);
       const edgeElements=new Map([...svg.querySelectorAll('[data-canvas-edge]')].map(el=>[el.dataset.canvasEdge,el]));
-      for(const edge of page.edges.filter(e=>e[1]===id||e[3]===id)){const source=endpoint(owner,page,edge[1],edge[2]),target=endpoint(owner,page,edge[3],edge[4]),element=edgeElements.get(edge[0]);if(!source||!target||!element)continue;element.innerHTML=edgeMarkup(owner,page,edge,routing.route({source,target,obstacles}),ctx);delete element._canvasMarkup;}
+      for(const edge of page.edges.filter(e=>e[1]===id||e[3]===id)){const source=endpoint(owner,page,edge[1],edge[2]),target=endpoint(owner,page,edge[3],edge[4]),element=edgeElements.get(edge[0]);if(!source||!target||!element)continue;window.FluidNetSvgDom.patch(element,edgeMarkup(owner,page,edge,routing.route({source,target,obstacles}),ctx));delete element._canvasMarkup;}
       geometryCache.delete(page);
     }
     return {markup,paint,move,endpoint,bounds,hitRadius};

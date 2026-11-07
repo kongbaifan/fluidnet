@@ -34,7 +34,7 @@ test('chart paths preserve gaps, hidden series, time bounds and project-local co
   const f=fixture(),history=[{t:1,q:2,a:1},{t:2,q:null,a:2},{t:3,q:4,a:3}];
   f.charts.series.a=false;f.records.push({source:'engine',projectId:'other',history:[{t:1,q:999}]},{source:'engine',projectId:'P',history:[{t:0,q:8},{t:1,q:3},{t:3,q:5},{t:4,q:9}]});
   const markup=f.view.chartSvg(history,['q','a'],'chart',true);
-  const paths=[...markup.matchAll(/<path d="([^"]*)"/g)].map(match=>match[1]);
+  const paths=[...markup.matchAll(/<path\b[^>]*\sd="([^"]*)"/g)].map(match=>match[1]);
   assert.equal(paths.length,2);assert.equal((paths[0].match(/M /g)||[]).length,2);assert.equal((paths[1].match(/[ML] /g)||[]).length,2);
   const data=f.registry.get('chart');assert.equal(data.rows,history);assert.deepEqual(Array.from(data.keys),['q']);assert.equal(data.minT,1);assert.equal(data.maxT,3);
 });

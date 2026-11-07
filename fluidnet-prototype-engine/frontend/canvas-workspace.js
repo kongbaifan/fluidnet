@@ -68,7 +68,7 @@ window.FluidNetCanvasWorkspace = (() => {
       return false;
     }
     function change(el) {
-      if('canvasMode'in el.dataset){ui.canvasModeValue=el.value;saveUI();render();return true;}
+      if('canvasMode'in el.dataset){ui.canvasModeValue=el.value;saveUI();const range=document.querySelector('[data-action="canvas-range"]');if(range)range.disabled=el.value==='circuit';refresh();return true;}
       if('canvasLabels'in el.dataset){ui.canvasLabels=el.checked;saveUI();refresh();return true;}
       if('canvasAnimation'in el.dataset){ui.canvasAnimate=el.checked;saveUI();refresh();return true;}
       return false;

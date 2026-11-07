@@ -7,7 +7,8 @@ import {tmpdir,cpus,platform,release} from 'node:os';
 import {testServer} from './browser-server.mjs';
 import {FHD_CONTEXT,captureFhd} from './browser-viewport.mjs';
 
-const counts=process.argv.includes('--quick')?[30,64]:[30,64,100,300];
+const live=process.argv.includes('--live'),suffix=live?'-live':'';
+const counts=process.argv.includes('--single')?[30]:process.argv.includes('--quick')?[30,64]:[30,64,100,300];
 const server=await testServer(),browser=await chromium.launch({channel:'msedge',headless:true});
 const page=await browser.newPage({...FHD_CONTEXT}),errors=[],metrics=[];
 page.on('pageerror',error=>errors.push(error.message));
@@ -83,6 +84,7 @@ async function drag(id,other,dx,dy,connections){
   const during=await position(id);expect(Math.hypot(during.x-before.x,during.y-before.y)).toBeGreaterThan(1);
   expect(await position(other)).toEqual(still);await checkConnections(connections.filter(c=>c.source.instance_id===id||c.target.instance_id===id));
   await page.mouse.up();await frame();const after=await position(id);expect(after).toEqual(during);
+  expect(await handle.evaluate(el=>el.isConnected)).toBe(true);expect(await child.evaluate(el=>el.isConnected)).toBe(true);expect(await otherHandle.evaluate(el=>el.isConnected)).toBe(true);
   await checkConnections(connections);await handle.dispose();await child.dispose();await otherHandle.dispose();return {before,after};
 }
 async function blankPoint(){
@@ -94,6 +96,61 @@ async function blankPoint(){
     }
     throw Error('No unobstructed canvas area for pan');
   });
+}
+async function liveRound(count,connections){
+  await nav('settings');await page.locator('[data-action="settings-tab"][data-value="solver"]').click();
+  await page.locator('[data-solver-field="mode"]').selectOption('dynamic');await page.locator('[data-solver-continuous]').check();
+  await page.locator('[data-solver-field="dt"]').fill('.1');await page.locator('[data-solver-field="dt"]').blur();
+  await nav('workbench');
+  const library=page.locator('.canvas-tools [data-action="toggle-library"]');
+  if(await library.getAttribute('aria-expanded')!=='true')await library.click();
+  if(await page.locator('.runbar [data-action="toggle-chart"]').getAttribute('aria-expanded')!=='true')await page.locator('.runbar [data-action="toggle-chart"]').click();
+  await page.locator('[data-canvas-mode]').selectOption('flow');await page.locator('[data-canvas-labels]').check();await page.locator('[data-canvas-animation]').check();
+  await page.locator('[data-action="fit"]').click();await frame();
+  const network=await page.locator('#network').elementHandle(),part=await node('Part9').elementHandle(),edge=await page.locator('#network [data-edge]').first().elementHandle();
+  const posted=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/v1/runs'&&r.request().method()==='POST');
+  await page.locator('[data-action="run-project"][data-command="run"]').first().click();
+  const response=await posted;expect(response.ok(),await response.text()).toBe(true);const id=(await response.json()).run_id;
+  const record=async()=>{const response=await page.request.get(server.base+'/api/v1/runs/'+id);expect(response.ok()).toBe(true);return response.json();};
+  await expect.poll(async()=>{const row=await record();if(row.status==='failed')throw Error(JSON.stringify(row.frame?.diagnostics));return row.total_rows;},{timeout:60000}).toBeGreaterThan(3);
+  await expect(page.locator('#workbench-flow-chart')).toBeVisible();
+  expect(await network.evaluate(el=>el.isConnected)).toBe(true);expect(await part.evaluate(el=>el.isConnected)).toBe(true);expect(await edge.evaluate(el=>el.isConnected)).toBe(true);
+  const chart=await page.locator('#workbench-flow-chart').elementHandle(),line=await page.locator('#workbench-flow-chart .chart-line').first().elementHandle();
+  const body=await bodyPoint('Part0');await page.mouse.click(body.x,body.y);await page.locator('#canvas-device-tools [data-action="open-device"]').click();
+  const panel=page.locator('[data-float-id="Part0"]'),field=panel.locator('input[type="number"][data-instance-param]:enabled').first();
+  const before=Number(await field.inputValue()),draft=String(before+.25);await field.fill(draft);
+  const input=await field.elementHandle(),float=await panel.elementHandle();
+  const baseline=(await record()).total_rows;
+  const sampling=await measured('live-sampling-with-focused-draft',async()=>{
+    await expect.poll(async()=>(await record()).total_rows,{timeout:30000}).toBeGreaterThan(baseline+3);
+    expect(await input.evaluate(el=>el.isConnected&&document.activeElement===el)).toBe(true);await expect(field).toHaveValue(draft);
+  });
+  expect(await chart.evaluate(el=>el.isConnected)).toBe(true);expect(await line.evaluate(el=>el.isConnected)).toBe(true);expect(await float.evaluate(el=>el.isConnected)).toBe(true);
+  await panel.locator('[data-action="float-close"]').click();
+  const operations=[sampling];
+  operations.push(await measured('live-select-zoom-library',async()=>{
+    const p=await bodyPoint('Part10');await page.mouse.click(p.x,p.y);await expect(node('Part10')).toHaveClass(/selected/);
+    await page.locator('#network [data-edge]').first().dispatchEvent('click');
+    await expect(page.locator('#network [data-trace-edge]').first()).toHaveClass(/selected/);
+    await node('Part10').dispatchEvent('contextmenu');await expect(page.locator('.context-menu')).toBeVisible();
+    await page.locator('[data-action="zoom-in"]').click();await expect(page.locator('.context-menu')).toHaveCount(0);await page.locator('[data-action="zoom-out"]').click();
+    await library.click();await library.click();await frame();
+  }));
+  operations.push(await measured('live-drag',()=>drag('Part9','Part10',8,-5,connections)));
+  for(const handle of [network,part,edge,chart,line])expect(await handle.evaluate(el=>el.isConnected)).toBe(true);
+  await page.locator('[data-action="run-project"][data-command="pause"]').first().click();
+  await expect.poll(async()=>(await record()).status).toBe('paused');
+  expect(await network.evaluate(el=>el.isConnected)).toBe(true);
+  await page.locator('[data-action="run-project"][data-command="run"]').first().click();
+  await expect.poll(async()=>(await record()).status).toBe('running');
+  await page.locator('#statusbar [data-action="tasks"]').click();await expect(page.locator('.task-drawer [data-action="stop-task"]')).toHaveCount(1);
+  await page.locator('[data-action="run-project"][data-command="stop"]').first().click();
+  await expect.poll(async()=>(await record()).status).toBe('cancelled');
+  expect(await network.evaluate(el=>el.isConnected)).toBe(true);
+  await expect(page.locator('.task-drawer [data-action="stop-task"]')).toHaveCount(0);await page.locator('.task-drawer [data-action="tasks"]').click();
+  const final=await record();await save();
+  for(const handle of [network,part,edge,chart,line,input,float])await handle.dispose();
+  return {count,runId:id,rows:final.total_rows,timeS:final.frame.time_s,operations,canvasAndChartIdentity:true,focusedDraftRetained:true,statusTransitionsPreserveCanvas:true};
 }
 try{
   await page.goto(server.base);await expect(page.locator('#app-header')).toContainText('模块平台 · v');
@@ -127,21 +184,22 @@ try{
       expect({x:nodes.find(n=>n.id==='Part10').x,y:nodes.find(n=>n.id==='Part10').y}).toEqual(movedB.after);
       rounds.push({round:round+1,operations,nodeIdentityPreservedDuringDrag:true,undoRedoPositions:true,endpointsMatch:true});
     }
+    const liveEvidence=live?await liveRound(count,visibleConnections):null;
     const gaps=rounds.flatMap(r=>r.operations.flatMap(o=>o.rawFrameGapsMs));
     metrics.push({totalInstances:count,pageCount:Math.ceil(count/64),visibleNodes:await page.locator('#network [data-node]').count(),
       visibleEdges:await page.locator('#network [data-canvas-edge]').count(),complexity:'Two-port built-in water pipe chain with pressure boundaries; no running simulation or complex Python/refrigeration nodes',
-      rounds,aggregateFrameGapMs:summary(gaps),longTaskCount:rounds.reduce((s,r)=>s+r.operations.reduce((n,o)=>n+o.longTaskCount,0),0)});
+      rounds,live:liveEvidence,aggregateFrameGapMs:summary(gaps),longTaskCount:rounds.reduce((s,r)=>s+r.operations.reduce((n,o)=>n+o.longTaskCount,0),0)});
     console.log(JSON.stringify({count,frameGapMs:metrics.at(-1).aggregateFrameGapMs,longTasks:metrics.at(-1).longTaskCount}));
   }
-  expect(errors).toEqual([]);await captureFhd(page,'artifacts/canvas-performance-1080p.png');
+  expect(errors).toEqual([]);await captureFhd(page,'artifacts/canvas-performance'+suffix+'-1080p.png');
   const commit=execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8',windowsHide:true}).trim();
   const dirtyPaths=execFileSync('git',['diff','--name-only','--','frontend'],{encoding:'utf8',windowsHide:true}).trim().split(/\r?\n/).filter(Boolean);
   const sourceHashes=Object.fromEntries(['frontend/studio.js','frontend/canvas-view.js','frontend/canvas-workspace.js','frontend/canvas-routing.js','frontend/canvas-symbols.js',
-    'frontend/canvas-observations.js','frontend/canvas-view.css','frontend/project-model.js','tests/browser-canvas-performance.mjs'].map(path=>[path,createHash('sha256').update(readFileSync(path)).digest('hex')]));
-  mkdirSync('artifacts',{recursive:true});writeFileSync('artifacts/canvas-performance-metrics.json',JSON.stringify({capturedAt:new Date().toISOString(),commit,dirtyPaths,
+    'frontend/canvas-observations.js','frontend/svg-dom.js','frontend/workbench-refresh.js','frontend/run-results-view.js','frontend/canvas-view.css','frontend/project-model.js','tests/browser-canvas-performance.mjs'].map(path=>[path,createHash('sha256').update(readFileSync(path)).digest('hex')]));
+  mkdirSync('artifacts',{recursive:true});writeFileSync('artifacts/canvas-performance'+suffix+'-metrics.json',JSON.stringify({capturedAt:new Date().toISOString(),commit,dirtyPaths,
     sourceHashes,environment:{node:process.version,platform:platform(),release:release(),cpu:cpus()[0]?.model,logicalProcessors:cpus().length},
     browser:browser.version(),viewport:FHD_CONTEXT,quick:counts.length===2,
     hostLoadNote:process.env.FLUIDNET_BENCH_LOAD_NOTE||'Other development-host activity is not controlled; concurrent browser or compute work can affect these observations.',
     measurementScope:'Three automated interaction rounds per size. Frame intervals and long tasks are observations, not an FPS/SLA guarantee. Headless Edge on the development host; wall time includes automation and assertions.',metrics,errors},null,2)+'\n');
-}catch(error){console.error(error);await captureFhd(page,'artifacts/canvas-performance-failure.png').catch(()=>{});process.exitCode=1;}
+}catch(error){console.error(error);await captureFhd(page,'artifacts/canvas-performance'+suffix+'-failure.png').catch(()=>{});process.exitCode=1;}
 finally{await browser.close();await server.close();}

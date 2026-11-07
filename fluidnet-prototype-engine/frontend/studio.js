@@ -391,7 +391,7 @@ function replayingKeyFrame(run){return !!run?.history?.length&&!!run.history.at(
 const CIRCUIT_COLORS=['var(--orange)','#2f80ed','#27ae60','#9b51e0','#eb5757','#f2994a','#219653','#56ccf2'];
 function networkMarkup(pg,mini=false){return canvasView().markup(pg,mini);}
 function fluidBadge(p){const circuits=engine.circuits?.(p.id)||[];if(new Set(circuits.map(c=>c.fluid.fluid)).size>1)return `多工质 · ${circuits.length} 个回路`;const declared=new Set((p.circuitFluids||[]).map(c=>c.fluid||c.medium).filter(Boolean));if(!circuits.length&&declared.size>1)return `多工质 · ${[...declared].join(' / ')}`;return p.fluid||(MEDIA.find(m=>m[0]===p.medium)||MEDIA[0])[1];}
-function renderWorkbench(){const p=project(),pg=activePage(),selected=instance(ui.selectedNode);return `<div class="workbench${ui.showLibrary?' show-library':''}${ui.showChart?' with-chart':''}"><aside class="canvas-library" id="canvas-library"><div class="library-heading"><strong>模块库</strong><small class="muted">${state.modules.length} 类</small>${ibtn('toggle-library','关闭模块库','PanelLeftClose')}</div><label class="search">${icon('Search')}<input placeholder="查找模块" aria-label="画布模块搜索" data-filter="canvasModuleSearch"></label><div class="library-scroll" id="canvas-library-list">${libraryMarkup()}</div><div class="selected-properties" id="selected-properties">${propertiesMarkup(selected)}</div></aside><div class="canvas-column"><div class="canvas-bar"><div class="canvas-pages">${pgTabs()}${ibtn('new-canvas','新增画布','Plus')}</div><div class="canvas-tools">${workflows.scenarioToolbar(p)}${coldStorage.couplingToolbar(p)}${coldStorage.assemblyToolbar(p)}${ibtn('toggle-library',ui.showLibrary?'收起模块库':'展开模块库',ui.showLibrary?'PanelLeftClose':'PanelLeftOpen',`aria-expanded="${ui.showLibrary}" aria-controls="canvas-library"`)}${ibtn('select-mode','选择设备','MousePointer2')}${ibtn('project-group-tools','多选与设备组操作','Boxes')}${ibtn('project-find','全项目查找','Search')}${ibtn('device-batch-edit','批量编辑设备','SlidersHorizontal')}${ibtn('connect-mode','连接端口','Cable')}${ibtn('page-links','跨页连接','ArrowRightLeft')}<span class="tool-divider"></span>${ibtn('undo','撤销 Ctrl+Z','Undo2',undoStack.length?'':'disabled')}${ibtn('redo','重做 Ctrl+Y','Redo2',redoStack.length?'':'disabled')}${ibtn('fit','适应画布','Scan')}${ibtn('grid','显示点阵','Grid2X2','class="optional"')}${ibtn('validate','检查连接','ListChecks')}</div></div>${pageLinkStrip(pg)}${canvasView().tools()}<div id="canvas-device-tools">${deviceToolsMarkup(selected)}</div><div class="canvas-area${ui.pageGrid?' grid':''}" id="network-area"><div class="canvas-caption"><span>${esc(pg.name)}</span><span class="muted">${p.caseId==='cold-room-ideal-v1'?'库房热平衡 · W':p.run.history.length?'真实采样 · 结果图例见上方':'单击选择 · 双击参数'}</span>${badge(p.caseId==='cold-room-ideal-v1'?'传热系统':fluidBadge(p),'blue')}</div>${pg.nodes.length?`<svg id="network" class="network-svg" viewBox="${networkViewBox(pg)}" role="group" aria-label="${esc(p.name+' '+pg.name+' 管网画布')}">${networkMarkup(pg)}</svg>`:`<div class="empty" style="padding-top:18%">${icon('Network')}<h3>在这里搭建新系统</h3><p>从左侧选择模块，再点击画布放置设备。</p>${p.modelingDomain==='refrigeration'?btn('cs-assembly-guide','查看设备与连接说明','ListChecks','','primary'):btn('insert-defaults','放入泵阀示例','Plus','','primary')}</div><svg id="network" class="network-svg" viewBox="-35 -5 1140 510" style="position:absolute;inset:0" aria-label="空画布"></svg>`}<div class="runbar" aria-label="主系统运行控制"><button data-action="run-project" data-command="run" class="go" ${['running','solving'].includes(p.run.status)?'disabled':''}>${icon('Play')}<span>${p.run.status==='paused'?'继续':'运行'}</span></button><button data-action="run-project" data-command="pause" ${p.run.status==='running'?'':'disabled'}>${icon('Pause')}暂停</button><button data-action="run-project" data-command="step" ${['running','solving'].includes(p.run.status)?'disabled':''}>${icon('StepForward')}单步</button><button data-action="run-project" data-command="stop" ${['ready','stopped'].includes(p.run.status)?'disabled':''}>${icon('Square')}停止</button><span class="spacer"></span><button data-action="toggle-chart" aria-label="${ui.showChart?'收起同屏曲线':'展开同屏曲线'}" aria-expanded="${ui.showChart}" class="${ui.showChart?'active':''}">${icon('Activity')}曲线</button></div><div id="canvas-inspection" class="canvas-inspection" role="status" hidden></div><div class="canvas-bottom"><span data-canvas-hint>${ui.placing?'点击画布放置 '+mod(ui.placing).name:ui.connecting?'可切换画布选择另一个空闲端口 · Esc 取消':'双击设备编辑参数 · 拖动空白处平移'}</span><div class="zoom">${ibtn('zoom-out','缩小','Minus')}<span>${Math.round(pg.zoom*100)}%</span>${ibtn('zoom-in','放大','Plus')}</div></div></div>${renderWorkbenchChart()}${coldStorage.markup(p)}<div class="canvas-info"><span data-result-status></span><span class="optional">${pg.nodes.length} 个设备 · ${pg.edges.length} 条连接</span><span class="push"></span>${btn('nav','项目设置','Settings2','data-route="settings"','ghost small')}${btn('nav','控制逻辑','Code2','data-route="controls"','ghost small')}</div></div><aside id="inspector-dock" aria-hidden="true"></aside></div>`;}
+function renderWorkbench(){const p=project(),pg=activePage(),selected=instance(ui.selectedNode);return `<div class="workbench${ui.showLibrary?' show-library':''}${ui.showChart?' with-chart':''}"><aside class="canvas-library" id="canvas-library"><div class="library-heading"><strong>模块库</strong><small class="muted">${state.modules.length} 类</small>${ibtn('toggle-library','关闭模块库','PanelLeftClose')}</div><label class="search">${icon('Search')}<input placeholder="查找模块" aria-label="画布模块搜索" data-filter="canvasModuleSearch"></label><div class="library-scroll" id="canvas-library-list">${libraryMarkup()}</div><div class="selected-properties" id="selected-properties">${propertiesMarkup(selected)}</div></aside><div class="canvas-column"><div class="canvas-bar"><div class="canvas-pages">${pgTabs()}${ibtn('new-canvas','新增画布','Plus')}</div><div class="canvas-tools">${workflows.scenarioToolbar(p)}${coldStorage.couplingToolbar(p)}${coldStorage.assemblyToolbar(p)}${ibtn('toggle-library',ui.showLibrary?'收起模块库':'展开模块库',ui.showLibrary?'PanelLeftClose':'PanelLeftOpen',`aria-expanded="${ui.showLibrary}" aria-controls="canvas-library"`)}${ibtn('select-mode','选择设备','MousePointer2')}${ibtn('project-group-tools','多选与设备组操作','Boxes')}${ibtn('project-find','全项目查找','Search')}${ibtn('device-batch-edit','批量编辑设备','SlidersHorizontal')}${ibtn('connect-mode','连接端口','Cable')}${ibtn('page-links','跨页连接','ArrowRightLeft')}<span class="tool-divider"></span>${ibtn('undo','撤销 Ctrl+Z','Undo2',undoStack.length?'':'disabled')}${ibtn('redo','重做 Ctrl+Y','Redo2',redoStack.length?'':'disabled')}${ibtn('fit','适应画布','Scan')}${ibtn('grid','显示点阵','Grid2X2','class="optional"')}${ibtn('validate','检查连接','ListChecks')}</div></div>${pageLinkStrip(pg)}${canvasView().tools()}<div id="canvas-device-tools">${deviceToolsMarkup(selected)}</div><div class="canvas-area${ui.pageGrid?' grid':''}" id="network-area"><div class="canvas-caption"><span>${esc(pg.name)}</span><span class="muted">${p.caseId==='cold-room-ideal-v1'?'库房热平衡 · W':p.run.history.length?'真实采样 · 结果图例见上方':'单击选择 · 双击参数'}</span>${badge(p.caseId==='cold-room-ideal-v1'?'传热系统':fluidBadge(p),'blue')}</div>${pg.nodes.length?`<svg id="network" data-project="${esc(p.id)}" data-page="${esc(pg.id)}" class="network-svg" viewBox="${networkViewBox(pg)}" role="group" aria-label="${esc(p.name+' '+pg.name+' 管网画布')}">${networkMarkup(pg)}</svg>`:`<div class="empty" style="padding-top:18%">${icon('Network')}<h3>在这里搭建新系统</h3><p>从左侧选择模块，再点击画布放置设备。</p>${p.modelingDomain==='refrigeration'?btn('cs-assembly-guide','查看设备与连接说明','ListChecks','','primary'):btn('insert-defaults','放入泵阀示例','Plus','','primary')}</div><svg id="network" data-project="${esc(p.id)}" data-page="${esc(pg.id)}" class="network-svg" viewBox="-35 -5 1140 510" style="position:absolute;inset:0" aria-label="空画布"></svg>`}<div class="runbar" aria-label="主系统运行控制"><button data-action="run-project" data-command="run" class="go" ${['running','solving'].includes(p.run.status)?'disabled':''}>${icon('Play')}<span>${p.run.status==='paused'?'继续':'运行'}</span></button><button data-action="run-project" data-command="pause" ${p.run.status==='running'?'':'disabled'}>${icon('Pause')}暂停</button><button data-action="run-project" data-command="step" ${['running','solving'].includes(p.run.status)?'disabled':''}>${icon('StepForward')}单步</button><button data-action="run-project" data-command="stop" ${['ready','stopped'].includes(p.run.status)?'disabled':''}>${icon('Square')}停止</button><span class="spacer"></span><button data-action="toggle-chart" aria-label="${ui.showChart?'收起同屏曲线':'展开同屏曲线'}" aria-expanded="${ui.showChart}" class="${ui.showChart?'active':''}">${icon('Activity')}曲线</button></div><div id="canvas-inspection" class="canvas-inspection" role="status" hidden></div><div class="canvas-bottom"><span data-canvas-hint>${ui.placing?'点击画布放置 '+mod(ui.placing).name:ui.connecting?'可切换画布选择另一个空闲端口 · Esc 取消':'双击设备编辑参数 · 拖动空白处平移'}</span><div class="zoom">${ibtn('zoom-out','缩小','Minus')}<span>${Math.round(pg.zoom*100)}%</span>${ibtn('zoom-in','放大','Plus')}</div></div></div>${renderWorkbenchChart()}${coldStorage.markup(p)}<div class="canvas-info"><span data-result-status></span><span class="optional">${pg.nodes.length} 个设备 · ${pg.edges.length} 条连接</span><span class="push"></span>${btn('nav','项目设置','Settings2','data-route="settings"','ghost small')}${btn('nav','控制逻辑','Code2','data-route="controls"','ghost small')}</div></div><aside id="inspector-dock" aria-hidden="true"></aside></div>`;}
 function pgTabs(){return project().pages.map(p=>`<button data-action="canvas-tab" data-id="${p.id}" class="${p.id===project().activePage?'active':''}">${esc(p.name)}</button>`).join('');}
 function libraryMarkup(query=''){return moduleGroupNames().map(c=>{const modules=state.modules.filter(m=>m.category===c&&(m.name+m.code).toLowerCase().includes(query.toLowerCase()));return modules.length?`<div class="library-caption">${icon('ChevronDown')}${esc(c)}</div>${modules.map(m=>`<button class="library-item${ui.placing===m.id?' active':''}" data-action="place-module" data-id="${m.id}" draggable="true" data-drag-module="${m.id}">${icon(m.icon)}<span>${m.name}</span><small>${m.runtime === 'python' ? 'Python' : m.code.slice(0,2)}</small></button>`).join('')}`:'';}).join('');}
 function propertiesMarkup(n){if(n){const m=moduleOf(n);return `<div class="row spread"><h3>对象属性</h3>${badge(n.id,'warn')}</div><dl><dt>名称</dt><dd>${esc(n.name)}</dd><dt>模块</dt><dd>${esc(m.name)}</dd>${m.runtime==='python'?`<dt>模块版本</dt><dd data-module-binding>v${m.version} · ${esc((m.manifest.definition_hash || m.contentHash).slice(0,12))}</dd>`:''}<dt>型号</dt><dd>${esc(model(n.modelId)?.name||'自定义参数')}</dd>${paramDefs(n).slice(0,2).map(f=>`<dt>${f[1].replace('阀门','').replace('流量系数 ','')}</dt><dd>${number(n.params[f[0]],f[0]==='opening'?0:2)} ${f[2]}</dd>`).join('')}</dl><div class="row gap-6">${btn('open-device','详细参数','SlidersHorizontal',`data-id="${n.id}"`,'small')}${ibtn('delete-node','删除选中设备','Trash2',`data-id="${n.id}"`)}</div>`;}return `<h3>画布属性</h3><dl><dt>画布</dt><dd>${esc(activePage().name)}</dd><dt>介质</dt><dd>${esc(fluidBadge(project()))}</dd><dt>选择</dt><dd>${ui.selectedEdge?'已选连接 '+esc(ui.selectedEdge):'单击设备或连接'}</dd></dl>${ui.selectedEdge?btn('delete-edge','删除连接','Trash2',`data-id="${ui.selectedEdge}"`,'small'):btn('nav','管理模块','Boxes','data-route="modules"','small ghost')}`;}
@@ -1075,7 +1075,7 @@ function renderWorkbenchChart() {
 function refreshWorkbenchChart() {
   const plot = document.getElementById('workbench-chart-plot');
   if (!plot) return;
-  plot.innerHTML = workbenchChartMarkup();
+  window.FluidNetSvgDom.patch(plot,workbenchChartMarkup());
   const readout = document.getElementById('workbench-flow-chart-readout');
   if (readout) readout.textContent = workbenchChartReadout();
   restoreChartCursor();
@@ -1231,13 +1231,22 @@ function deviceToolsMarkup(n) {
   if (!n) return '';
   return `<div class="device-tools" role="toolbar" aria-label="选中设备操作"><strong>${esc(n.id)} · ${esc(n.name)}</strong>${ibtn('device-overview', '设备总览', 'Gauge', `data-id="${n.id}"`)}${ibtn('open-device', '参数与型号', 'SlidersHorizontal', `data-id="${n.id}"`)}${ibtn('device-variables', '查看全部变量', 'Table2', `data-id="${n.id}"`)}${ibtn('choose-device-model', '选择设备型号', 'Database', `data-id="${n.id}"`)}${ibtn('rotate-device', '顺时针旋转 90° · R', 'RotateCw', `data-id="${n.id}"`)}${ibtn('rotate-device', '逆时针旋转 90° · Shift+R', 'RotateCcw', `data-id="${n.id}" data-direction="-1"`)}${ibtn('device-definition', '查看模块定义', 'Box', `data-id="${n.id}"`)}${ibtn('move-device-page','移到其他画布','Layers',`data-id="${n.id}"`)}</div>`;
 }
-function syncDeviceSelection() {
+let workbenchRefreshController;
+function refreshWorkbench(){
+  workbenchRefreshController ||= window.FluidNetWorkbenchRefresh.create({root,project,page:activePage,ui,viewBox:networkViewBox,canvas:canvasView,
+    selection:()=>syncDeviceSelection(false),chartMarkup:renderWorkbenchChart,chartRefresh:refreshWorkbenchChart,chrome:syncChrome,icon,
+    history:action=>action==='undo'?undoStack.length:redoStack.length,placingName:()=>mod(ui.placing).name,
+    layout:()=>{syncDockLayout();requestAnimationFrame(()=>{resizeCharts();restoreChartCursor();});}});
+  if(!workbenchRefreshController.refresh())render();
+}
+function syncDeviceSelection(paint=true) {
   if (ui.route !== 'workbench') return;
   const n = activePage().nodes.find(n => n.id === ui.selectedNode);
   const props = document.getElementById('selected-properties'), tools = document.getElementById('canvas-device-tools');
-  if (props) props.innerHTML = propertiesMarkup(n);
-  if (tools) tools.innerHTML = deviceToolsMarkup(n);
-  root.querySelectorAll('#network [data-node]').forEach(el => el.classList.toggle('selected', el.dataset.node === n?.id));
+  if(props){const html=propertiesMarkup(n);if(props._selectionMarkup!==html){props.innerHTML=html;props._selectionMarkup=html;}}
+  if(tools){const html=deviceToolsMarkup(n);if(tools._selectionMarkup!==html){tools.innerHTML=html;tools._selectionMarkup=html;}}
+  root.querySelectorAll('#network [data-node]').forEach(el=>el.classList.toggle('selected',el.dataset.node===n?.id||groupSelected().includes(el.dataset.node)));
+  if(paint)canvasView().refresh();
 }
 function rotateDevice(id, direction = 1) {
   const n = activePage().nodes.find(n => n.id === id); if (!n) return;
@@ -1655,10 +1664,12 @@ function deviceWindowFooter(f,n){
     :btn('apply-instance-bank',`应用库值 ${bank+1}`,'Check',`data-id="${n.id}" data-bank="${bank}" ${instanceBankDiff(n,bank).length?'':'disabled'}`,'primary small');
   return `<footer class="float-footer"><div class="float-save-state grow"><small data-float-save>${state.dirty?'草稿未保存':'草稿已保存'}</small><small data-float-keyframe ${replayingKeyFrame(project().run)?'':'hidden'}>回放：显示最近关键帧</small><small data-device-apply-status="${n.id}"></small></div>${btn('save','保存草稿','Save','title="保存整个原型；待应用参数保持草稿状态"','small')}${apply}</footer>`;
 }
+function taskDrawerMarkup(){return `<section class="task-drawer"><div class="panel-head"><h3>运行任务</h3>${ibtn('tasks','关闭任务列表','X')}</div><div class="panel-body stack">${state.projects.filter(p=>['running','paused'].includes(p.run.status)).map(p=>`<div class="row"><div class="grow"><strong>${esc(p.name)}</strong><small>${statusText(p.run)} · ${clockLabel(p.run.time)}</small></div>${btn('open-project','查看','',`data-id="${p.id}"`,'small')}${btn('stop-task','停止','',`data-id="${p.id}"`,'small')}</div>`).join('')}<small class="muted">切换页面或关闭查看窗口后，任务继续保留。</small></div></section>`;}
+function refreshTaskDrawer(){const drawer=root.querySelector('.task-drawer');if(drawer&&ui.taskDrawer)window.FluidNetSvgDom.update(drawer,taskDrawerMarkup());}
 function deviceWindowExtras(){
   let html='';
   if(contextMenu)html+=`<div class="context-menu" style="left:${contextMenu.x}px;top:${contextMenu.y}px">${deviceContextMarkup(contextMenu.id)}</div>`;
-  if(ui.taskDrawer)html+=`<section class="task-drawer"><div class="panel-head"><h3>运行任务</h3>${ibtn('tasks','关闭任务列表','X')}</div><div class="panel-body stack">${state.projects.filter(p=>['running','paused'].includes(p.run.status)).map(p=>`<div class="row"><div class="grow"><strong>${esc(p.name)}</strong><small>${statusText(p.run)} · ${clockLabel(p.run.time)}</small></div>${btn('open-project','查看','',`data-id="${p.id}"`,'small')}${btn('stop-task','停止','',`data-id="${p.id}"`,'small')}</div>`).join('')}<small class="muted">切换页面或关闭查看窗口后，任务继续保留。</small></div></section>`;
+  if(ui.taskDrawer)html+=taskDrawerMarkup();
   return html;
 }
 function renderFloats(){return deviceWindows().render();}
@@ -1829,9 +1840,9 @@ function connectPort(nodeId, portId) {
   if (!next) return;
   const used = links.atPort(owner, nodeId, portId);
   if (used) throw Error('此端口已经连接。请先断开原连接，或使用连接节点分支。');
-  if (!ui.connecting) { ui.connecting = { nodeId, portId }; render(); return; }
+  if (!ui.connecting) { ui.connecting = { nodeId, portId }; refreshWorkbench(); return; }
   const first = ui.connecting;
-  if (first.nodeId === nodeId) { ui.connecting = null; render(); return; }
+  if (first.nodeId === nodeId) { ui.connecting = null; refreshWorkbench(); return; }
   const source = [first.nodeId, first.portId], target = [nodeId, portId];
   links.check(owner, source, target, moduleOf);
   remember(); projectState.connect(owner, uid('edge'), source, target, moduleOf); ui.connecting = null;
@@ -1865,7 +1876,7 @@ function deleteNode(id) {
 }
 function deleteEdge(id) { assertLinksIdle(); remember(); projectState.removeConnection(project(),id); closeDialog(); ui.selectedEdge = ''; markDirty(project()); render(); }
 function groupSelected(){return ui.multiProject===project().id?(ui.multiSelected||[]).filter(id=>instance(id)):[];}
-function groupSelection(ids){ui.multiProject=project().id;ui.multiSelected=[...new Set(ids)];ui.selectedNode=ids.at(-1)||'';render();}
+function groupSelection(ids){ui.multiProject=project().id;ui.multiSelected=[...new Set(ids)];ui.selectedNode=ids.at(-1)||'';refreshWorkbench();}
 function projectGroupTools(){
   const owner=project(),before=JSON.stringify(owner.pages),run=owner.run,selected=groupSelected();
   openDialog('设备组操作','Shift+单击切换多选；Shift+拖动空白处框选。复制保留内部连线，外部引用处理会在下一步预览。',
@@ -1901,7 +1912,8 @@ function pasteDevice() {
   projectState.addNode(project(),activePage().id,n); ui.selectedNode = n.id; markDirty(project()); render();
 }
 function commandRun(scope, command, projectId) { return engine.command(scope, command, projectId); }
-function refreshLive() {
+function refreshLive(paintCanvas=true) {
+  refreshTaskDrawer();
   coldStorage.refresh(project());
   airSide.refresh();
   const controlLive=document.getElementById('control-live');if(controlLive)controlLive.textContent=controlLiveValues();
@@ -1910,7 +1922,7 @@ function refreshLive() {
   if (ui.route === 'curves') {
     const run = currentChartRun();
     const items = [['main-chart', ['q', 'a', 'b'], 'main-flow-chart'], ['pressure-chart', ['pressure'], 'pressure-line'], ['temperature-chart', ['temperature'], 'temperature-line']];
-    for (const [id, keys, chartId] of items) { const e = document.getElementById(id); if (e) e.innerHTML = chartSvg(run.history, keys, chartId, id === 'main-chart' && state.charts.compare); }
+    for (const [id, keys, chartId] of items) { const e = document.getElementById(id); if (e) window.FluidNetSvgDom.patch(e,chartSvg(run.history, keys, chartId, id === 'main-chart' && state.charts.compare)); }
     updateExtraCharts();
     const readout = document.getElementById('main-flow-chart-readout');
     if (readout && !ui.pinnedChart) readout.textContent = `${clockLabel(run.time)} · 主管 ${number(run.values?.q ?? run.history.at(-1)?.q, 3)} kg/s`;
@@ -1918,7 +1930,7 @@ function refreshLive() {
   if (ui.route === 'workbench') refreshWorkbenchChart();
   restoreChartCursor();
   if (ui.route === 'workbench' && !workspaceInput?.busy()) {
-    canvasView().refresh(); paintCanvasInspection();
+    if(paintCanvas)canvasView().refresh(); paintCanvasInspection();
     for (const f of ui.floats.filter(f => f.tab === 'results' && !f.minimized)) {
       const body = root.querySelector(`[data-float-id="${f.id}"] .float-body`); if (body) body.innerHTML = floatBody(f, instance(f.id));
     }
@@ -2075,7 +2087,7 @@ function resizeCharts() {
   for (const svg of root.querySelectorAll('svg[data-chart]')) {
     const data = chartRegistry.get(svg.id); if (!data) continue;
     const html = chartSvg(data.rows, data.keys, svg.id, svg.id === 'main-flow-chart' && state.charts.compare, data.options);
-    svg.outerHTML = html;
+    window.FluidNetSvgDom.update(svg,html);
   }
 }
 function extraChartsMarkup(...args){return runResultsView().extraChartsMarkup(...args);}
@@ -2086,7 +2098,7 @@ function chartBindingsForRun(run=currentChartRun()) {
   // remain useful; a current coupling could refer to entirely different equipment.
   return state.charts.extra.filter(v=>v.projectId===run.projectId&&!isCouplingChart(v));
 }
-function updateExtraCharts() { const e = document.getElementById('extra-charts'); if (e) e.innerHTML = extraChartsMarkup(); }
+function updateExtraCharts() { const e = document.getElementById('extra-charts'); if (e) window.FluidNetSvgDom.patch(e,extraChartsMarkup()); }
 function downloadFile(name, text, type = 'application/json') {
   const blob = text instanceof Blob ? text : new Blob([text], { type: type + ';charset=utf-8' }), url = URL.createObjectURL(blob), link = document.createElement('a');
   link.href = url; link.download = name; link.click(); setTimeout(() => URL.revokeObjectURL(url), 3000); msg('已生成导出文件。');
@@ -2211,7 +2223,7 @@ function handleAction(action, el) {
     case 'theme': ui.theme = ui.theme === 'dark' ? 'light' : 'dark'; saveUI(); render(); break;
     case 'open-project': closeDialog(); if (id) openProject(id); break;
     case 'start-modeling': startModeling(); break;
-    case 'toggle-chart': ui.showChart = !ui.showChart; ui.pinnedChart = null; saveUI(); retainFocus(); break;
+    case 'toggle-chart': ui.showChart = !ui.showChart; ui.pinnedChart = null; saveUI(); refreshWorkbench(); break;
     case 'full-curves': state.charts.source = 'live'; ui.pinnedChart = null; navigate('curves'); break;
     case 'release-cursor': ui.pinnedChart = null; ui.chartCursor = null; refreshWorkbenchChart(); break;
     case 'guided-demo': state.selectedModule = 'valve'; ui.bank = 1; openEditor('valve', 'channels'); msg('从端口与通路开始，再编辑库值、保存型号并应用到项目。'); break;
@@ -2335,7 +2347,7 @@ function handleAction(action, el) {
     case 'coil-geometry-design': openEquipmentSelection(id); equipmentSelection.geometry(id); break;
     case 'equipment-provenance': openEquipmentSelection(id); equipmentSelection.provenance(id); break;
     case 'save-instance-model': saveInstanceModel(id); break;
-    case 'toggle-library': ui.showLibrary = !ui.showLibrary; saveUI(); retainFocus(); break;
+    case 'toggle-library': ui.showLibrary = !ui.showLibrary; saveUI(); refreshWorkbench(); break;
     case 'validate': systemInspection.check(); break;
     case 'locate-issue': closeDialog(); if (d.page) project().activePage = d.page; navigate('workbench'); if (id) openDevice(id); break;
     case 'draw-center': for (const p of mod().ports) { p.x = p.direction === 'in' ? 20 : 80; p.y = 30 + mod().ports.filter(x => x.direction === p.direction).indexOf(p) * 25; } markDirty(mod()); render(); break;
@@ -2634,18 +2646,18 @@ function workspaceInteractions(){return workspaceInput ||= window.FluidNetWorksp
   canvas:{owner:project,page:activePage,node:instance,svg:()=>document.getElementById('network'),remember,
     move:(node,x,y)=>{projectState.updateNode(project(),node,{x,y});canvasView().move(node.id);},
     pan:value=>{activePage().pan=value;document.getElementById('network').setAttribute('viewBox',networkViewBox(activePage()));},
-    flush:()=>canvasView().flush(),commit:()=>{markDirty(project());render();},connect:connectPort,insert:newInstance,hasModule:id=>state.modules.some(m=>m.id===id),
+    flush:()=>canvasView().flush(),commit:()=>{markDirty(project());refreshWorkbench();},connect:connectPort,insert:newInstance,hasModule:id=>state.modules.some(m=>m.id===id),
     rotate:rotateDevice,undo,copy:copyDevice,paste:pasteDevice,removeNode:deleteNode,removeEdge:deleteEdge,
     pageSelect:id=>{if(!project().pages.some(p=>p.id===id))throw Error('画布已不存在');project().activePage=id;ui.selectedNode='';ui.selectedEdge='';render();},
-    zoom:factor=>{activePage().zoom=clamp(activePage().zoom*factor,.35,3);render();},fit:()=>{fitNetwork();render();},grid:()=>{ui.pageGrid=!ui.pageGrid;saveUI();render();}},
-  selection:{ids:groupSelected,group:groupSelection,node:id=>{ui.selectedNode=id;},single:id=>{ui.selectedNode=id;ui.selectedEdge='';syncDeviceSelection();},edge:id=>{ui.selectedEdge=id;ui.selectedNode='';render();},
-    clearConnection:()=>{ui.connecting=null;},mode:mode=>{ui.canvasMode=mode;ui.placing=null;if(mode==='select'){ui.connecting=null;render();}else msg('点击两个空闲端口建立连接，也可以拖动连线。');}},
+    zoom:factor=>{activePage().zoom=clamp(activePage().zoom*factor,.35,3);refreshWorkbench();},fit:()=>{fitNetwork();refreshWorkbench();},grid:()=>{ui.pageGrid=!ui.pageGrid;saveUI();refreshWorkbench();}},
+  selection:{ids:groupSelected,group:groupSelection,node:id=>{ui.selectedNode=id;},single:id=>{ui.selectedNode=id;ui.selectedEdge='';syncDeviceSelection();},edge:id=>{ui.selectedEdge=id;ui.selectedNode='';refreshWorkbench();},
+    clearConnection:()=>{ui.connecting=null;},mode:mode=>{ui.canvasMode=mode;ui.placing=null;if(mode==='select'){ui.connecting=null;refreshWorkbench();}else msg('点击两个空闲端口建立连接，也可以拖动连线。');}},
   editor:{current:mod,svg:()=>document.getElementById('module-drawing'),select:id=>{ui.editorPort=id;},
     move:(id,x,y)=>{const p=mod().ports.find(p=>p.id===id);if(!p)throw Error('端口已不存在');p.x=x;p.y=y;document.getElementById('module-drawing').innerHTML=drawingSVG(mod());},
     commit:()=>{markDirty(mod());render();},nudge:event=>{const p=mod().ports.find(p=>p.id===ui.editorPort);if(!p)return;event.preventDefault();p.x=clamp(p.x+(event.key==='ArrowRight'?1:event.key==='ArrowLeft'?-1:0),5,95);p.y=clamp(p.y+(event.key==='ArrowDown'?1:event.key==='ArrowUp'?-1:0),10,85);markDirty(mod());render();}},
   windows:{beginPointer:event=>deviceWindows().beginPointer(event),movePointer:(ticket,x,y)=>deviceWindows().movePointer(ticket,x,y),finishPointer:ticket=>deviceWindows().finishPointer(ticket),open:openDevice},
   charts:{hover:chartHover,pin:event=>{ui.pinnedChart=ui.pinnedChart?null:event.target.closest('svg').id;chartHover(event,true);}},
-  shell:{error:error=>msg(error.message,true),render,action:handleAction,clearContext:()=>{contextMenu=null;},dismissContext:()=>{if(contextMenu){contextMenu=null;renderFloats();}},
+  shell:{error:error=>msg(error.message,true),render,action:handleAction,clearContext:()=>{contextMenu=null;root.querySelector('.context-menu')?.remove();},dismissContext:()=>{if(contextMenu){contextMenu=null;renderFloats();}},
     context:(id,x,y)=>{contextMenu={id,x:clamp(x,70,innerWidth-202),y:clamp(y,60,innerHeight-370)};syncDeviceSelection();renderFloats();}}
 });}
 function featureActions(){
@@ -2698,15 +2710,13 @@ document.addEventListener('keydown', e => {
   }
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); saveAll(); return; }
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); pageMap(); return; }
-  if (e.key === 'Escape') { workspaceInput?.cancel(); closeDialog(); contextMenu = null; ui.connecting = null; ui.placing = null; ui.pinnedChart = null; render(); return; }
+  if (e.key === 'Escape') { workspaceInput?.cancel(); closeDialog(); contextMenu = null; ui.connecting = null; ui.placing = null; ui.pinnedChart = null; if(ui.route==='workbench'){refreshWorkbench();renderFloats();}else render(); return; }
   if (edit) {
     if (e.key === 'Tab' && e.target.tagName === 'TEXTAREA' && (e.target.dataset.codeKind || 'controlCode' in e.target.dataset)) { e.preventDefault(); const el = e.target; el.setRangeText(el.dataset.codeKind ? '    ' : '  ', el.selectionStart, el.selectionEnd, 'end'); el.dispatchEvent(new Event('input', { bubbles: true })); }
     return;
   }
   if (modal) return;
 });
-// Saves and exports made before a built-in parameter existed (e.g. pipe heat loss / ambient)
-// get its default in module variables/values/banks, models and instances. Idempotent.
 let workspaceNormalizer;
 function workspaceNormalization(){return workspaceNormalizer ||= window.FluidNetWorkspaceNormalization.create({
   parameterDefinitions:PARAM_DEFS,variablesFor,clone,moduleSpecs:MODULE_SPECS,pythonModuleSource,legacyModuleSource,
@@ -2727,6 +2737,7 @@ engine = window.createEngineClient({state:()=>state, project, parameterKey:proje
   restoreWorkspace,validateWorkspace:validateImport,archives:receiveArchives,showArchive,
   moduleOutput:(m,text)=>{m.authoringOutput=text;if(m.id===state.selectedModule){const el=document.getElementById('module-output') || document.getElementById('code-output');if(el){el.textContent=text;document.getElementById('authoring-diagnostics')?.remove();el.insertAdjacentHTML('afterend',renderAuthoringDiagnostics(m));}}},
   parameterDefinitions:PARAM_DEFS, emptyRun, render:()=>retainFocus(), refresh:refreshLive,
+  refreshRun:()=>{if(ui.route==='workbench'){refreshWorkbench();refreshLive(false);}else retainFocus();},
   message:msg, diagnostics:showDiagnostics, dirty:markDirty,
   askToken:(reason,done)=>openDialog('输入访问令牌',reason+'令牌由服务端管理员用 python -m fn_engine token create 生成，只保存在当前浏览器标签页。',
     `<label class="field"><span>访问令牌</span><input name="token" type="password" autocomplete="off" required aria-label="访问令牌" placeholder="fn_…"></label>`,
