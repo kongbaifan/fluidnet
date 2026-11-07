@@ -26,7 +26,7 @@ const errors = []; page.on('pageerror', e => errors.push(e.message));
 const projectState = async () => {
   await page.locator('[data-action="save"]').first().click();
   return page.evaluate(() => {
-    const s = JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1') || '{}');
+    const s = window.FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1') || '{}');
     const p = (s.projects || []).find(project => project.id === s.activeProject);
     return p ? { status: p.run.status, runId: p.run.runId ?? null, rows: p.run.history.length, time: p.run.time,
       events: (p.run.events || []).map(event => event.text) } : null;
@@ -107,7 +107,7 @@ try {
   expect(trendHistory.rows.some(row => row.full === false)).toBe(true);
   expect(trendHistory.rows.at(-1).full).not.toBe(false);
   const trendRun = await page.evaluate(() => {
-    const s = JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1') || '{}');
+    const s = window.FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1') || '{}');
     return (s.projects || []).find(project => project.id === s.activeProject).run;
   });
   // One curve point per backend frame, and the overview flow is present on every one of them.
@@ -141,7 +141,7 @@ try {
   expect(levels.at(-1)).not.toBeCloseTo(levels[0], 6);
   expect(tankHistory.rows[0].diagnostics.map(d => d.code)).toContain('DYNAMIC_IMPLICIT_EULER');
   const tankRun = await page.evaluate(() => {
-    const s = JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1') || '{}');
+    const s = window.FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1') || '{}');
     return (s.projects || []).find(project => project.id === 'tank-control').run;
   });
   const shown = tankRun.history.find(row => !row.partial)?.variableValues['TK1:runtime:state.level_m'];

@@ -104,3 +104,9 @@ node tests/browser-continuous.mjs
 浏览器验证：模块工作流的阻力、泵、换热器、有状态模块四种模板均完成契约编辑、验证、发布、真实求解和重载复算；断言失败与源码定位流程通过。工作区流程验证 409 保存冲突、507 写入失败与重试、重启后的运行中断归档、历史曲线、备份与修订恢复；连续运行流程验证 duration_s=null、持续采样、全程抽稀曲线接口与停止后 cancelled：本次 23 帧／2.2 s、overview 22 帧。三条流程页面异常均为空。
 
 本节仅记录本轮针对性验收，不将第一轮记录或旧 CI 结论视为当前提交的全量通过。
+
+## 后续交互边界交付
+
+2026-11-07 第三轮补齐 `device-application.js`、`workspace-normalization.js` 和 `run-commands.js`。参数确认、运行命令与旧湿度迁移的三个测试都已改用公开工厂，不再按字符串切取 `studio.js` 或 `engine-client.js`。对应实现和回包归属详见[参数与迁移](INTERACTION_BOUNDARIES.md)、[运行命令](RUN_COMMAND_BOUNDARY.md)。
+
+非结构工作台操作、运行生命周期与图表更新由[局部刷新边界](WORKBENCH_LOCAL_REFRESH.md)处理。这里不声称所有页面均无完整渲染；结构变化和切页面仍保留原渲染入口。设备目录从五类试点推广到60类内置模型，前端可见性和图标登记使用后端目录，兼容回退保留。实际测试与两套工程验收从[交付记录](INTERACTION_DELIVERY_ACCEPTANCE.md)查阅。

@@ -132,6 +132,11 @@ try {
   await expect(page.locator('[data-meter-card="supply-dp"]')).toContainText('kPa');
   await expect(page.locator('[data-meter-card="coil2-power"]')).toContainText('kW');
   await captureFhd(page,(multiPage?'artifacts/hvac-multi-page-':'artifacts/hvac-plant-')+'meters.png');
+  await page.locator('[data-action="meter-curve"][data-id="branch1-flow"]').click();
+  await expect(page.locator('.chart-variable-list')).toContainText('支路 1 体积流量');
+  // This case is steady: a real sampled point is valid; do not fabricate a trend segment.
+  await expect(page.locator('#extra-charts svg path.chart-line').first()).toHaveAttribute('d',/M/);
+  await captureFhd(page,(multiPage?'artifacts/hvac-multi-page-':'artifacts/hvac-plant-')+'curves.png');
   await page.locator('.rail-link[data-route="air"]').click();
   mkdirSync('artifacts',{recursive:true});
   for(const [name,extension] of [['HTML 报告','html'],['CSV','csv']]) {
@@ -189,7 +194,7 @@ try {
   await captureFhd(page,(multiPage?'artifacts/hvac-multi-page-':'artifacts/hvac-plant-')+'reloaded.png');
   expect(errors).toEqual([]);
   const evidence={case:'hvac-basic-plant',mode:'steady',baseline:baselineEvidence,
-    partitioned:partitionedEvidence,valve40:changedEvidence,reloaded:reloadedEvidence,meters:normalized.measurements.length,errors};
+    partitioned:partitionedEvidence,valve40:changedEvidence,reloaded:reloadedEvidence,meters:normalized.measurements.length,curves:true,errors};
   writeFileSync((multiPage?'artifacts/hvac-multi-page-':'artifacts/hvac-plant-')+'validation.json',JSON.stringify(evidence,null,2)+'\n');
   console.log(JSON.stringify(evidence));
 } catch(error) {

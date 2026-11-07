@@ -1,5 +1,7 @@
 # FluidNet Prototype Engine
 
+2026-11-07 [交互与工程交付](docs/INTERACTION_DELIVERY_ACCEPTANCE.md)：设备参数／运行命令／旧数据规范化独立，工作台及曲线局部刷新，60类内置设备统一目录；暖通机房与模块化冷库完成空白组装、调参、曲线、文件往返复算和报告验收。
+
 2026-11-07 [架构后续交付](docs/ARCHITECTURE_FOLLOWUP_ACCEPTANCE.md)：模型类型分层、三种 Runner 统一接口、五类储量设备注册试点、作者/结果/保存前端边界及生成物审查已接通。当前说明统一从 [文档入口](docs/README.md) 查阅；实际验收范围见交付记录。
 
 2026-11-06 [前端功能拆分](docs/FRONTEND_FEATURE_BOUNDARIES.md)：工作台交互、设备浮窗、模块发布服务与动作分派独立，浏览器测试接入[统一CI分组](docs/FRONTEND_CI_GROUPS.md)。运行接受事务与物理合同保持原语义，培训继续暂缓。

@@ -31,6 +31,7 @@ export async function verifyParameterBatches(browser, base) {
     await page.addScriptTag({url: base + '/project-run-state.js'});
     await page.addScriptTag({url: base + '/project-services.js'});
     await page.addScriptTag({url: base + '/module-service.js'});
+    await page.addScriptTag({url: base + '/run-commands.js'});
     await page.addScriptTag({url: base + '/engine-client.js'});
     const project = await api('/examples/cold-storage');
     project.controllers = []; project.control_scripts = [];

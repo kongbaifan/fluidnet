@@ -568,6 +568,15 @@
         "--live"
       ],
       "group": "canvas"
+    },
+    {
+      "id": "equipment-assembly:standard-plant",
+      "file": "tests/browser-equipment-assembly.mjs",
+      "args": [
+        "examples/hvac-basic/hvac-basic-plant.project.json",
+        "--standard-plant"
+      ],
+      "group": "equipment-hvac"
     }
   ],
   "suites": {
@@ -672,6 +681,15 @@
       "canvas-symbols",
       "canvas-performance",
       "device-windows"
+    ],
+    "interaction": [
+      "run-control",
+      "device-transactions",
+      "module-catalog",
+      "canvas-performance-live",
+      "equipment-assembly:standard-plant",
+      "hvac-plant",
+      "refrigeration-modular"
     ]
   }
 }

@@ -1,5 +1,7 @@
 # 前端浏览器分组与覆盖门禁
 
+2026-11-07 增量：清单现为 **84 次调用、57 个可执行文件、9 组、3 个辅助文件**。新增 `canvas-performance-live`（canvas组）和 `equipment-assembly:standard-plant`（equipment-hvac组）；两组调用数分别为8和16。`interaction` suite 汇集本轮7条相关入口。以下82次调用表为2026-11-06首次分组记录，当前执行清单以脚本 `--check/--list` 输出为准。
+
 2026-11-06。将浏览器命令集中到 `scripts/browser-groups.json`，由 `scripts/browser-groups.mjs` 生成执行计划和CI矩阵。原SDK与后端门禁保持原有命令，培训功能未加入。
 
 ## 清单与执行范围

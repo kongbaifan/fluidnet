@@ -4,10 +4,14 @@
 
 | 需要了解的内容 | 入口 |
 | --- | --- |
+| 本轮交互、目录推广和代表工程 | [交互与工程交付验收](INTERACTION_DELIVERY_ACCEPTANCE.md)、[代表工程详细证据](REPRESENTATIVE_PROJECT_ACCEPTANCE.md) |
 | 本轮架构收尾范围与证据 | [架构后续验收](ARCHITECTURE_FOLLOWUP_ACCEPTANCE.md) |
 | 后端类型边界、兼容导入、Worker 依赖 | [模型类型分层](MODEL_LAYERING.md) |
 | Runner 与集中接受事务 | [Runner 协议](RUNNER_PROTOCOL.md) |
-| 设备定义与展示元数据注册试点 | [设备注册](DEVICE_REGISTRY.md) |
+| 全部 60 类内置设备定义与展示注册 | [设备注册](DEVICE_REGISTRY.md) |
+| 参数应用、旧工作区补全与迁移 | [交互边界](INTERACTION_BOUNDARIES.md) |
+| 实时运行命令、轮询与迟到回包 | [运行命令边界](RUN_COMMAND_BOUNDARY.md) |
+| 局部刷新、运行叠加性能与 DOM 保持 | [工作台局部刷新](WORKBENCH_LOCAL_REFRESH.md) |
 | 前端功能职责、依赖与 ES Module 取舍 | [前端功能边界](FRONTEND_FEATURE_BOUNDARIES.md) |
 | 工程画布、实测及物理结果展示 | [工程画布](ENGINEERING_CANVAS.md) |
 | 浏览器测试清单与 CI 分组 | [前端 CI 分组](FRONTEND_CI_GROUPS.md) |

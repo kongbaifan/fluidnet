@@ -21,6 +21,10 @@
 
 `module-editor-view.js`负责作者页面展示，`run-results-view.js`负责曲线和运行记录展示，`workspace-storage.js`负责浏览器草稿、服务端保存确认及恢复回滚。保存回执通过原工作区对象与编辑修订核对，迟到回执不能清除后来编辑或替换工作区的未保存状态。加载方式仍为普通脚本与显式依赖注入；ES Module迁移的评估结论见[前端功能边界](../docs/FRONTEND_FEATURE_BOUNDARIES.md)。
 
+`device-application.js`管理设备应用票据和锁，`workspace-normalization.js`负责旧工作区补全，`run-commands.js`负责实时运行命令、轮询和全程曲线请求。命令确认会等待在途帧轮询，旧运行的成功和失败回包均核对对象归属。`workbench-refresh.js`与`svg-dom.js`支持非结构操作和运行生命周期的局部更新；普通帧继续刷新既有观察层，结构改变仍完整渲染。详见[本轮交互与工程验收](../docs/INTERACTION_DELIVERY_ACCEPTANCE.md)。
+
+内置展示目录已覆盖全部60项，模块库安装由`project-model.installBuiltinCatalog`统一处理。旧原型设备的显示参数别名保持原样；自定义Python模块与旧后端继续使用兼容展示。湿空气设置现在可编辑后端已有的热湿迭代上限（1–500，默认60），复杂机房可明确使用其参考工程配置。
+
 模块的 `publishedManifest` 是可插入版本，编辑器草稿不进入运行。项目 `moduleSnapshots` 固定模块定义及展示布局，Python实例携带版本/双哈希引用。新发布不会自动改变旧项目。模块作者图形和同ID端口布局在新插入时复制到项目展示快照，不改物理manifest或其哈希。
 
 ## 项目与运行

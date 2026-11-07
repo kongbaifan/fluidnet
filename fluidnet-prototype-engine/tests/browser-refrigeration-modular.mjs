@@ -119,8 +119,6 @@ try {
   }
   expect(Math.abs(first.frame.metrics.energy_residual_j)).toBeLessThan(.01);
   await expect(page.locator('[data-modular-cold-summary]')).toContainText(roomId);
-  const report=await page.request.get(server.base+'/api/v1/runs/'+first.id+'/report.html');
-  expect(report.ok(),await report.text()).toBe(true);expect(await report.text()).toContain(roomId);
   await stop();
   await parameters(roomId,{heat_input_w:6000},catalog.find(m=>m.id==='cold_room'));
   const changed=await run();expect(changed.frame.variables[roomId+'.state.temperature_k']).toBeGreaterThan(first.frame.variables[roomId+'.state.temperature_k']);
@@ -135,7 +133,26 @@ try {
   await page.reload();await expect(page.locator('#app-header')).toContainText('模块平台 · v');
   const repeated=await run();expect(repeated.request.project.id).not.toBe(owner.id);
   expect(repeated.frame.variables[roomId+'.state.temperature_k']).toBeCloseTo(changed.frame.variables[roomId+'.state.temperature_k'],7);
+  expect(repeated.request.project.modules).toEqual(changed.request.project.modules);
+  const comparedVariables=Object.entries(changed.frame.variables).filter(([,value])=>typeof value==='number');
+  for(const [key,value] of comparedVariables)expect(repeated.frame.variables[key],key).toBeCloseTo(value,6);
+  await nav('curves');await page.locator('[data-action="add-chart-variable"]').click();
+  await page.getByRole('dialog').locator('[name="variable"]').selectOption(roomId+'.STATE_TEMPERATURE_K');await submit();
+  await expect(page.locator('#extra-charts svg path.chart-line').first()).toHaveAttribute('d',/L/);
+  await expect(page.locator('#extra-charts')).toContainText(roomId+'.STATE_TEMPERATURE_K');
+  await captureFhd(page,`artifacts/refrigeration-modular-${variant}-curves.png`);
+  await nav('runs');await page.locator('[data-action="refresh-archives"]').click();
+  await page.locator(`[data-action="open-archive"][data-id="${repeated.id}"]`).click();
+  const reports=mkdtempSync(join(tmpdir(),'fluidnet-cold-reports-'));
+  for(const format of ['html','csv']){
+    const downloaded=page.waitForEvent('download');
+    await page.locator(`[data-action="archive-report"][data-id="${repeated.id}"][data-format="${format}"]`).click();
+    const target=join(reports,variant+'.'+format);await(await downloaded).saveAs(target);
+    const content=readFileSync(target,'utf8');expect(content).toContain(roomId);
+    if(format==='html')expect(content).toContain(repeated.id);else expect(content.split('\n').length).toBeGreaterThan(1);
+  }
   expect(errors).toEqual([]);
-  console.log(JSON.stringify({variant,nodes:Object.keys(ids).length,edges:recipe.connections.length,arbitraryIds:ids,initialRoomK:first.frame.variables[roomId+'.state.temperature_k'],loadedRoomK:changed.frame.variables[roomId+'.state.temperature_k'],exportReload:true,errors}));
+  console.log(JSON.stringify({variant,nodes:Object.keys(ids).length,edges:recipe.connections.length,arbitraryIds:ids,initialRoomK:first.frame.variables[roomId+'.state.temperature_k'],loadedRoomK:changed.frame.variables[roomId+'.state.temperature_k'],exportReload:true,
+    frozenModulesEqual:true,numericVariablesCompared:comparedVariables.length,curves:true,reports:['html','csv'],errors}));
 }catch(error){console.error(error,errors);await captureFhd(page,`artifacts/refrigeration-modular-${variant}-failure.png`).catch(()=>{});process.exitCode=1;}
 finally{await browser.close();await server.close();}
