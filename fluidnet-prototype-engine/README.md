@@ -1,5 +1,7 @@
 # FluidNet Prototype Engine
 
+2026-11-07 [架构后续交付](docs/ARCHITECTURE_FOLLOWUP_ACCEPTANCE.md)：模型类型分层、三种 Runner 统一接口、五类储量设备注册试点、作者/结果/保存前端边界及生成物审查已接通。当前说明统一从 [文档入口](docs/README.md) 查阅；实际验收范围见交付记录。
+
 2026-11-06 [前端功能拆分](docs/FRONTEND_FEATURE_BOUNDARIES.md)：工作台交互、设备浮窗、模块发布服务与动作分派独立，浏览器测试接入[统一CI分组](docs/FRONTEND_CI_GROUPS.md)。运行接受事务与物理合同保持原语义，培训继续暂缓。
 
 2026-11-06 [工程画布](docs/ENGINEERING_CANVAS.md)：设备图符和作者端口布局进入项目，支持真实温压流着色/流向、运行告警定位、实体避障及拖动增量更新。[前端接入说明](frontend/BACKEND_INTEGRATION.md)已更新；培训功能暂不开发。

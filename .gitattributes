@@ -5,3 +5,17 @@
 *.pdf binary
 *.png binary
 *.zip binary
+
+# Reproducible JSON remains portable and reviewable; GitHub collapses it by default.
+# Recipes, hand-authored inputs and module Python sources remain expanded.
+fluidnet-prototype-engine/contracts/*.json linguist-generated=true
+fluidnet-prototype-engine/examples/room-control/*.project.json linguist-generated=true
+fluidnet-prototype-engine/examples/hvac-basic/*.project.json linguist-generated=true
+fluidnet-prototype-engine/examples/hvac-expansion/*.project.json linguist-generated=true
+fluidnet-prototype-engine/examples/equipment-library/*.project.json linguist-generated=true
+fluidnet-prototype-engine/examples/regulating-valves/*.project.json linguist-generated=true
+fluidnet-prototype-engine/examples/forward-physics/*.project.json linguist-generated=true
+fluidnet-prototype-engine/examples/forward/hydronic-buffer*.project.json linguist-generated=true
+fluidnet-prototype-engine/examples/open-refrigeration-groups/*.project.json linguist-generated=true
+fluidnet-prototype-engine/examples/coupled_liquid_modules/author_loop.json linguist-generated=true
+fluidnet-prototype-engine/examples/refrigeration_extensions/author_station*.json linguist-generated=true

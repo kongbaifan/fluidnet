@@ -66,6 +66,8 @@ jobs:
         working-directory: fluidnet-prototype-engine
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -123,15 +125,25 @@ jobs:
           name: ${{ matrix.openblas == '' && 'backend-coverage' || 'backend-coverage-Haswell' }}
           path: fluidnet-prototype-engine/coverage.xml
           if-no-files-found: ignore
-      # 由 generate_contracts.py --check 比对 contracts/ 与可执行模型是否一致。
-      - name: 契约一致性检查
-        run: python scripts/generate_contracts.py --check
-      - name: 联算与温控示例一致性检查
+      # All registered generators run read-only; portable examples remain checked in.
+      - name: 契约与生成物一致性检查
+        run: python scripts/generated_artifacts.py --verify
+      - name: 生成物语义审查摘要
+        if: always() && matrix.openblas == ''
+        env:
+          GENERATED_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
-          python scripts/generate_coupled_liquid_example.py --check
-          python scripts/generate_room_control_examples.py --check
-          python scripts/generate_hvac_examples.py --check
-          python scripts/generate_hvac_modules.py --check
+          New-Item -ItemType Directory -Force artifacts | Out-Null
+          if (-not $env:GENERATED_BASE -or $env:GENERATED_BASE -match '^0+$') { $env:GENERATED_BASE = 'HEAD' }
+          python scripts/generated_artifacts.py --base $env:GENERATED_BASE --json | Out-File -Encoding utf8 artifacts/generated-review.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: 上传生成物审查摘要
+        if: always() && matrix.openblas == ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-artifact-review
+          path: fluidnet-prototype-engine/artifacts/generated-review.json
+          if-no-files-found: error
 
   frontend-checks:
     name: frontend static and unit checks

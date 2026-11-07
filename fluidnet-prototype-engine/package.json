@@ -33,7 +33,9 @@
     "test:ui:canvas": "node --test tests/canvas-symbols.test.mjs tests/canvas-routing.test.mjs tests/canvas-observations.test.mjs tests/canvas-workspace.test.mjs tests/canvas-port-access.test.mjs tests/path-trace.test.mjs tests/project-editing.test.mjs tests/project-links.test.mjs tests/project-run-state.test.mjs tests/draft-cache.test.mjs tests/project-model.test.mjs tests/device-application.test.mjs tests/source-humidity-migration.test.mjs",
     "test:browser:canvas": "node scripts/browser-groups.mjs --run --suite canvas",
     "test:ui:frontend-boundaries": "node --test tests/action-router.test.mjs tests/workspace-interactions.test.mjs tests/device-windows.test.mjs tests/module-service.test.mjs tests/browser-groups.test.mjs tests/canvas-port-access.test.mjs tests/project-state.test.mjs tests/project-run-state.test.mjs tests/device-application.test.mjs tests/parameter-batch.test.mjs tests/project-overview.test.mjs tests/run-archive-cache.test.mjs tests/project-editing.test.mjs",
-    "test:ui:frontend-second": "node --test tests/module-editor-view.test.mjs tests/run-results-view.test.mjs tests/workspace-storage.test.mjs tests/draft-cache.test.mjs tests/project-model.test.mjs tests/module-service.test.mjs tests/run-archive-cache.test.mjs tests/action-router.test.mjs tests/catalog-presentation.test.mjs"
+    "test:ui:frontend-second": "node --test tests/module-editor-view.test.mjs tests/run-results-view.test.mjs tests/workspace-storage.test.mjs tests/draft-cache.test.mjs tests/project-model.test.mjs tests/module-service.test.mjs tests/run-archive-cache.test.mjs tests/action-router.test.mjs tests/catalog-presentation.test.mjs",
+    "check:generated-artifacts": "python scripts/generated_artifacts.py --check",
+    "review:generated-artifacts": "python scripts/generated_artifacts.py"
   },
   "devDependencies": {
     "@playwright/test": "1.64.0"
