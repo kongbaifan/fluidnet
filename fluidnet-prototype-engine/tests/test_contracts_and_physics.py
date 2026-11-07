@@ -319,8 +319,15 @@ def api_http_routes():
 
 def test_every_api_route_has_response_model_or_whitelist():
     routes=api_http_routes()
-    # 包括 included router；设备/诊断等此前新增 7 条，本次性能资料/开放组合新增 9 条。
-    assert len(routes)==76,f'HTTP 路由数量变化：{len(routes)}'
+    # 用已登记的合同核对路径和方法，包括 included router；不能靠手填总数漏掉替换或重复路由。
+    saved=json.loads((CONTRACTS/'openapi.json').read_text(encoding='utf-8'))
+    expected={(method.upper(), path) for path,operations in saved['paths'].items()
+              if path.startswith(API_PREFIX) for method in operations
+              if method in {'get','post','put','patch','delete','head','options','trace'}}
+    actual={(method, route.path) for route in routes for method in route.methods}
+    assert expected, '已登记的 API 合同不能为空'
+    assert actual==expected, f'HTTP 路由与合同不一致：新增={actual-expected}，缺少={expected-actual}'
+    assert len(actual)==sum(len(route.methods) for route in routes), 'HTTP 路由重复登记'
     missing=[f'{sorted(route.methods)} {route.path}' for route in routes
              if route.response_model is None and route.path not in RESPONSE_MODEL_EXCEPTIONS]
     assert missing==[],f'以下路由缺少 response_model 且不在白名单：{missing}'

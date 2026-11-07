@@ -3,7 +3,7 @@
 #   - 模块包验证到 L1 契约 + L2 逻辑（InProcessModuleRunner）
 #   - 控制模板用 ControlRunner 直接执行
 #   - SDK 数学工具只依赖标准库，严格类型门由主 ci.yml 的 module-sdk job 执行
-# 完整的 L3 联网测试由主 ci.yml 的 backend job（全量依赖）覆盖，这里只做快速反馈。
+# 完整的 L3 联网测试由手动 ci-full.yml 的 backend job 覆盖，这里只做快速反馈。
 name: bsl-modules
 
 on:

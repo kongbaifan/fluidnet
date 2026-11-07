@@ -4,6 +4,7 @@
 
 | 需要了解的内容 | 入口 |
 | --- | --- |
+| 回放遗留修复与日常 CI 收尾 | [P0 验收](P0_REPLAY_CI_ACCEPTANCE.md)、[日常与完整 CI](CI_CHECKS.md) |
 | 架构剩余工作最终收尾 | [AC-1～AC-5验收](ARCHITECTURE_COMPLETION_ACCEPTANCE.md)、[Worker测量决策](WORKER_PRESTART_DECISION.md) |
 | 本轮交互、目录推广和代表工程 | [交互与工程交付验收](INTERACTION_DELIVERY_ACCEPTANCE.md)、[代表工程详细证据](REPRESENTATIVE_PROJECT_ACCEPTANCE.md) |
 | 本轮架构收尾范围与证据 | [架构后续验收](ARCHITECTURE_FOLLOWUP_ACCEPTANCE.md) |

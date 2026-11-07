@@ -2,6 +2,8 @@
 
 2026-11-07 增量：清单现为 **84 次调用、57 个可执行文件、9 组、3 个辅助文件**。新增 `canvas-performance-live`（canvas组）和 `equipment-assembly:standard-plant`（equipment-hvac组）；两组调用数分别为8和16。`interaction` suite 汇集本轮7条相关入口。以下82次调用表为2026-11-06首次分组记录，当前执行清单以脚本 `--check/--list` 输出为准。
 
+当前行为（2026-11-07）：[日常与完整 CI](CI_CHECKS.md) 已分开。自动检查执行固定 smoke 与相关代表流程；`ci-full.yml` 手动执行全部 85 条调用。下文保留分组与前序影响选择的实施记录，其中“全部组”的自动触发策略已由 P0-2 替代，完整清单与本地 suite 入口继续有效。
+
 2026-11-06。将浏览器命令集中到 `scripts/browser-groups.json`，由 `scripts/browser-groups.mjs` 生成执行计划和CI矩阵。原SDK与后端门禁保持原有命令，培训功能未加入。
 
 ## 清单与执行范围
