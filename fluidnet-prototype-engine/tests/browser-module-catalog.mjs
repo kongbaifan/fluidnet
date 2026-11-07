@@ -25,10 +25,11 @@ try {
   await page.goto(fixture.base + '/#modules');
   await expect(page.locator('#app-header')).toContainText(/v\d+\.\d+\.\d+/);
 
-  // Registered metadata supplies the actual library icon, including the formerly unmapped hydronic buffer.
+  // Every built-in family supplies the actual library icon; Python references still use their fallback.
   const presentationResponse=await page.request.get(fixture.base+'/api/v1/catalog/presentation');
   expect(presentationResponse.ok()).toBe(true);
   const presentation=await presentationResponse.json();expect(presentation.version).toBe(1);
+  expect(presentation.devices).toHaveLength(60);
   for(const item of presentation.devices){
     const card=page.locator(`[data-module-id="${item.module_id}"]`);
     await expect(card).toHaveCount(1);

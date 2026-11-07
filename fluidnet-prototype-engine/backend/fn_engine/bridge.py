@@ -39,10 +39,10 @@ PARAMETER_BINDINGS = {
        for definition in (*thermal_catalog(), *cold_store_catalog(), *refrigeration_catalog())},
 }
 
-# 新风侧设备使用合同参数 ID；UI 值仍按 UnitSpec 显示单位保存。
-for _air_definition in catalog_map().values():
-    if _air_definition.id in ('duct','cooling_coil','humidifier','air_mixing_box','air_filter','air_room','cooling_tower_moist','water_coil','water_chiller','air_cooled_chiller','air_source_heat_pump','closed_buffer_tank','hydronic_buffer_tank','gas_expansion_tank','tower_pool','coupled_tower_pool','enthalpy_recovery'):
-        PARAMETER_BINDINGS[_air_definition.id] = {p.id:p.id for p in _air_definition.parameters}
+# Devices without prototype-era aliases use canonical IDs, with UI display units
+# still supplied by UnitSpec. New catalog members need no second model-ID list.
+for _definition in catalog_map().values():
+    PARAMETER_BINDINGS.setdefault(_definition.id, {p.id: p.id for p in _definition.parameters})
 
 
 def parameter_map(kind, params, definition):

@@ -1,0 +1,857 @@
+{
+  "source": "8cfabe1 before registry expansion",
+  "devices": [
+    {
+      "id": "source",
+      "definition_hash": "02690530fb4844db8d7f54756a2bf903cf3cc1c46b93a93f7ef7bb872e55272a",
+      "json_sha256": "3abcc35f1de868f98bb1bea94f48c8e9e239571e18a869cb587c377791ce6155"
+    },
+    {
+      "id": "junction",
+      "definition_hash": "66a2f790fe33aa473aa6b49b0b84060f57630d8da9e4210236f641fbb8c4c086",
+      "json_sha256": "6cf90d32499633fbbfc051fe4b65d85a79a7f05104b2abd8a38fbbc06d69c2b5"
+    },
+    {
+      "id": "pump",
+      "definition_hash": "b86eb1274bc054c722760d57a70dc8983b8dd425ebacec50e2a34cba731c637d",
+      "json_sha256": "3e5f387094edfeab556cb4df4657ad4212c03a72a3fa836b56a82a1c3cb5143d"
+    },
+    {
+      "id": "valve",
+      "definition_hash": "53d1994c6d2f45c3bf61838b1f89f2cf9fc730c97fd0bdc23f10a3c9102626c0",
+      "json_sha256": "c84cf3f87b6ab2b5e06efc1130fa82206a63ac6f926d91b2a575037a26c3cb6b"
+    },
+    {
+      "id": "pipe",
+      "definition_hash": "440e524eda9fb2858cb635a7bd5d2b29dc8505ae5dcc5184825e2070d075f0d3",
+      "json_sha256": "714ecd3c96fe03d468423d00f935cf54286b8154027ca7ea96159e7e8700e1f4"
+    },
+    {
+      "id": "duct",
+      "definition_hash": "cdee139a8871f8471dcd9cd3b55f1dde9133b211f01554fa67315f726921889a",
+      "json_sha256": "62adddbe1d4bcd2c749c6c6951e4966fcca69ee45a25bcee6c826d33892d1156"
+    },
+    {
+      "id": "cooling_coil",
+      "definition_hash": "9fabd3c7c4c4460e712f9647542e711a884873e465d98448e94aec53c5a413cd",
+      "json_sha256": "da4748172bf4fbfa879380088902d921749a060e2e8a16631aa09f14339e7ac9"
+    },
+    {
+      "id": "humidifier",
+      "definition_hash": "6854344769c57b654ab390ec0d0662d62c94fd5f7b3438c71342c606b5c1c104",
+      "json_sha256": "f9de5dc9aa45190660d6f7cc41907800785c56bac3347050fb7d0345fb0bbbf7"
+    },
+    {
+      "id": "exchanger",
+      "definition_hash": "e9928804a918daa64a03b3c6e51a4a7a684f6956508a77c63dd5483740f9e992",
+      "json_sha256": "2929b4baf80e1761bb55d11abf61260911be42dbbe04853f9f4bbeec9ce011ff"
+    },
+    {
+      "id": "tank",
+      "definition_hash": "bab50afa613b4b78148553df5ea09d428acecf1fb6f44eabb2c4c4b3f887acaa",
+      "json_sha256": "c99a6cc6652a66dcb4d324f41e0a68fb5f11c3fbc85442ab1a4b22a6be9e6023"
+    },
+    {
+      "id": "closed_volume",
+      "definition_hash": "61d2e8721501694b51ebdf74d25424d0e936ec74c51334c80d3f984676e95222",
+      "json_sha256": "f6552c349a148d1feef9c8d395d4ece8f32aa1c99ad36de697c764d7e3f8e771"
+    },
+    {
+      "id": "heater",
+      "definition_hash": "f46e6a014ba86f5a1bbe4f2eb1dde3a75a4f234e6b95db54f726ea15fd6e8e31",
+      "json_sha256": "5aa9784b93a7f255ce6e6e7dc7274826ae21102cb3fb49541ccffa38076199ca"
+    },
+    {
+      "id": "air_mixing_box",
+      "definition_hash": "87903b38c6912282ee6bb053918f35b11232a515cabfed92bb8e2cbdfdd6b2ab",
+      "json_sha256": "59362d13398f21900337cf0cab503c0a6590925a5f77ca1ccc93c8de213c2904"
+    },
+    {
+      "id": "air_filter",
+      "definition_hash": "477692503c8c87b6475f9c3845a1b74843b9fbfc488bc080f981a5346a99c5d0",
+      "json_sha256": "c48f9cc0314d8e578c2e9432f3776548364a1e67222acd9b3be41ce433ea9354"
+    },
+    {
+      "id": "air_room",
+      "definition_hash": "f2d25f5006bf8e5a33759cf551b3c1aaf375f5dd2476196d917e5db6e44846b3",
+      "json_sha256": "19bda8787aed384030130084c3d5387d5fb6892f5a0fb3d082fff99c1f105456"
+    },
+    {
+      "id": "cooling_tower_moist",
+      "definition_hash": "4b9397334d133db9062c503051bd6e76370d51e6cf29e744aa281064932f3c85",
+      "json_sha256": "f48d1f0664a1cdd86e1c613d5df979d0d5d377871344adcc45759ea550707ae2"
+    },
+    {
+      "id": "water_coil",
+      "definition_hash": "2d755bab0057279789746ba505a852b5f9e724ee9d661af8b8ec2efb06e41992",
+      "json_sha256": "e84324d17b026f78fb7622d0c886a1428bbce5cfe6153e6ab97d63bef515f9d8"
+    },
+    {
+      "id": "water_chiller",
+      "definition_hash": "ca27d146a0f0480468a018bf183308de287598ae91782215488dee305de6065c",
+      "json_sha256": "280e98f17fdd34626181d25144c9484386472f94fb484ad3115e83ededb2397b"
+    },
+    {
+      "id": "air_cooled_chiller",
+      "definition_hash": "6aee8cf8f3d51e9c66f186aabe80e7697cbee3bde670c5da87a73b3f64246c46",
+      "json_sha256": "a3d353089c99f209c21de6f25465b29f3e6c00e8c16d9bbf7b19720a4414cdea"
+    },
+    {
+      "id": "air_source_heat_pump",
+      "definition_hash": "2eba67941967fb79d5c8dc78dfd02682d0cfa952927688833b562283cf4fcd11",
+      "json_sha256": "a2d9ef4d9320863b26e0e2e45202c81957bc0f36fc6f7586786a0be11d53e249"
+    },
+    {
+      "id": "enthalpy_recovery",
+      "definition_hash": "2669a1de8a79b5cb0fdd9c2c27ba2aa98538f9d19f009f1319db96a95681f441",
+      "json_sha256": "03f4d5913b967c249c06b67d989d3170d2238c399f9c7bbe51648382a37721e6"
+    },
+    {
+      "id": "closed_buffer_tank",
+      "definition_hash": "2d659f13ac3b0175659315e02f344ddc254a890fe33ce44d2d5af4fa15887560",
+      "json_sha256": "23bcc9654ccdb87c8f780085d605974ea481bced6dec34da1c2506d872f39903"
+    },
+    {
+      "id": "hydronic_buffer_tank",
+      "definition_hash": "4e9590f446bc04bcc07038ab46449085a82f2774773da9633e1244e11e7f593f",
+      "json_sha256": "9a1042a48540a765876fa6bdf869f85ea1201afffd2fc7313d4ec1c9a12d7f34"
+    },
+    {
+      "id": "gas_expansion_tank",
+      "definition_hash": "b9b39e6d66a95c955c4c63b194676579ad81e7d6e1648ca5b220a4f85669008a",
+      "json_sha256": "c55a886b891785fc9c6ff9a5a8a3d32794119f03b2d7ea96b2735f6ff175bf52"
+    },
+    {
+      "id": "tower_pool",
+      "definition_hash": "9b1e8f7c595c0cbd44330bd58ecb468fcc491d533d32793ce7770c201ac6d09a",
+      "json_sha256": "bf997474823e18d0e61e067bf0f8691e12e76415bfabd7b0f4eccb6f4d288c2b"
+    },
+    {
+      "id": "coupled_tower_pool",
+      "definition_hash": "dafbb478e12969b88a19093c2e6af5fc1445a81be4cddadf2a569c9648df9406",
+      "json_sha256": "fb7f06bbc68724f9f1ac190f789828cbb295c7face0ce3068c7152227e627b2a"
+    },
+    {
+      "id": "cold_room",
+      "definition_hash": "25fd48b663725119bf939203e5283459cfcefb59112658ecb9cd6b910f8f5941",
+      "json_sha256": "e9754039e51a56999a822c6a636747701ddacaf87cb5c4c7339234046059dcda"
+    },
+    {
+      "id": "ideal_cold_source",
+      "definition_hash": "ea9ed4cbba10f4b54a2382ee9ac1775329941d0d73a9cf4aa3a28f73c0975ee7",
+      "json_sha256": "600a55cee358433725ed6c677af37d30a0527c0d98fadcdc907e75d79f0c729a"
+    },
+    {
+      "id": "storage_room",
+      "definition_hash": "cd46381e73da7b789339dbcec15fd2eac94fd4fb715ee4d116c4457c9437bece",
+      "json_sha256": "6256fc26a5f5f707e2ee0ad1e1e36696f4068fb28665a1c23c7d3470db89bb9d"
+    },
+    {
+      "id": "unit_cooler",
+      "definition_hash": "c3f3b88766f9781165e885221e9319cedcaee4b7b14ce4e70e116a5dca27623f",
+      "json_sha256": "4d52dfb906bd1ce197ff470cf36a055e7bee15143c0ce48100fc136a48cf7095"
+    },
+    {
+      "id": "condensing_unit",
+      "definition_hash": "a086615b9795c52b41758c6ef6814c64f3cd9feb6783760f9556db2b228fcc7e",
+      "json_sha256": "63d85ef966bb894bfb939ad0207e7521c2aeb3ef54b61c71f0d6ae8b0c5be395"
+    },
+    {
+      "id": "hp_receiver",
+      "definition_hash": "250b6dc98c4c3844f3cab299025188991aff04eaa0aafeda4f546a90b17bb251",
+      "json_sha256": "ce99a9018b3d0198c5ba2521332aa37fda2778fa05df1fd6d7e5fb52bac682e6"
+    },
+    {
+      "id": "lp_drum",
+      "definition_hash": "33458f8551feee891e17d4159e7e058aac976fe29a2e6a06f7216b9ab541fc76",
+      "json_sha256": "5a47340a1619a546b67514ec6a79fca93064f6d9ed77900bb878ed1f42959032"
+    },
+    {
+      "id": "pumped_drum",
+      "definition_hash": "8e678e6f0609edeb9a8ab9e61161fafea0671af5a0c27e4c4bb755c91fb33cc4",
+      "json_sha256": "948a55bee686a5d0d604d22e8bcc0fc0a41a414489176ebf2b3185e4bc5467fe"
+    },
+    {
+      "id": "hp_receiver_multi",
+      "definition_hash": "df89019bf13dd899448a13f8be63d20cfeacd98e1b17d2f51fb1ffdc8818f81a",
+      "json_sha256": "bb575248ac00818fc319efed8191149dfb79e0dbe34eb5cd5698e8759fda8dc9"
+    },
+    {
+      "id": "lp_drum_multi",
+      "definition_hash": "6adb0077fc2f912efd449d8f60ae5db641bf7aa87ae6aafbffc9010698ee5df9",
+      "json_sha256": "03b5ed2f47736eca64d587f5dc7198548671719d43313b5e3807f763479f6f3a"
+    },
+    {
+      "id": "horizontal_receiver",
+      "definition_hash": "a5360625ee5d68ad6be6d05d4131c54f4bbf8d341aabdff93dc4da30135b8d3e",
+      "json_sha256": "b5260a1726c1a1022bc55a351bc570493ca84a466ff37e38e130f63190e182c8"
+    },
+    {
+      "id": "horizontal_drum",
+      "definition_hash": "8520e65f678826b28531c9ed8f4e7b880000f862e4668783b92a09d4be6130df",
+      "json_sha256": "f658df70b9ca379eba07bdb13f4f0905a50f32afd46d0aae02b9442affb9876c"
+    },
+    {
+      "id": "headed_receiver",
+      "definition_hash": "1ff2157d52086427753e0180bf67a94f6dca9062ef54a2d22edfc252b738fb2d",
+      "json_sha256": "ec638c6c9774dba7666944e7b89eee73b96893ae9a20c54bc67fbac0d11f1603"
+    },
+    {
+      "id": "refrigerant_compressor",
+      "definition_hash": "423d878b2dd9eabb31312c1e628b58aa25312c9a7223a05b534347f681e9ad09",
+      "json_sha256": "ffa6ddceae15d30ae939dc358908f13b707fb92eff6daadd42ed6845df5c29ee"
+    },
+    {
+      "id": "evaporative_condenser",
+      "definition_hash": "dfae663ea2fb78b1fb8bf8059394733c716e89e4a0cd3e31529b18b2d8a6123e",
+      "json_sha256": "0cff0e2bf514b0b0f399717afb0342f09bcd7b39961b87313d9363d34350bb69"
+    },
+    {
+      "id": "air_cooled_condenser",
+      "definition_hash": "158c7b1fe2347f494bbd485332031730e454802e73b5893602279f30845ba162",
+      "json_sha256": "8c64edd8c5de8c06c69b1dce19e73534b0ac011110e7e5caf0a7fc4d9d0449a9"
+    },
+    {
+      "id": "expansion_valve",
+      "definition_hash": "f3a91d41db4368e19b6074a07903aea13738caa876ff925deb2571b283fa0690",
+      "json_sha256": "31b2c60cb4ec99c3236d3a2f6aa20afefb3eac22f3527a112cf988402098b829"
+    },
+    {
+      "id": "cascade_exchanger",
+      "definition_hash": "bbe5a7f267a4ce3b52c353cc2100bcdddbd34c00c8d00d743b838b300cd099f2",
+      "json_sha256": "674876a80125d12f1704a1f51b94620cba27a74f1032220d68c6710756aed317"
+    },
+    {
+      "id": "refrigerant_pump",
+      "definition_hash": "62753e4128f16120a5e18d199e9feb7bd63f705263be4b01be891616900aaae6",
+      "json_sha256": "8685b3ed28e80a70a3fbcebd64daa462f5c8be6ee7199f166f4d02dc2b1a582d"
+    },
+    {
+      "id": "air_cooler",
+      "definition_hash": "8c92adccd5e3b8b9d6c94470cdc1b5dc2c66cb38a0a0b96d315a669e3aa18718",
+      "json_sha256": "3604bfc83fb1c6bc0871e5e58e93cb5efd9ccbd5b03297d7526c1516ff79fdd2"
+    },
+    {
+      "id": "refrigerant_header",
+      "definition_hash": "0dcaca3ca1247dc0642d05ae31a4f7938eb12b1377a7baf0f307a3a8fa3fa1e3",
+      "json_sha256": "159c8efc4ff56bf421c43afd4297dd3d5eb8bc58cab30dfe5c8e913ed4898297"
+    },
+    {
+      "id": "performance_compressor",
+      "definition_hash": "582245555f194c8ae0862e2a157bf979ee066b87437e23798c7130d9414a9e96",
+      "json_sha256": "e39889e12b6ccacedcdbcb646c584f066c4134e5540710c339fecbdb34de3d3e"
+    },
+    {
+      "id": "cold_room_multi",
+      "definition_hash": "a4e25fa6126ba04572e7bfd513cc37e0ac567ed352e9b84d3bfe9b52cc5fc2be",
+      "json_sha256": "c63bbd412612802bc2b0e428dbbd9f8748e7e0063b09f5771b91fad51da294a8"
+    },
+    {
+      "id": "defrost_air_cooler",
+      "definition_hash": "4ceea64086f280b6d6ca10d283bbfc7e867a951ece3edae0220dfd954daec4d5",
+      "json_sha256": "5c739a0da87d28cee677a5cebf97eddd2c910f9da037964e8863c1a338475993"
+    },
+    {
+      "id": "refrigerant_line",
+      "definition_hash": "a275888560295cd356a549e79b6da3f1c9d5d471c378ba701485d9e47e4deae0",
+      "json_sha256": "5d5eb3a6f988914ece83562e576302ed904dc73d99dfa420551b0da9687efedd"
+    },
+    {
+      "id": "enthalpy_compressor",
+      "definition_hash": "58f80f09a323f9a0104c8596ca2ebe0abad39284d38612e1c061f3825d50503e",
+      "json_sha256": "449d9087e822757ae8aad6fcd835a027a3a3c5fe6db49d38e8656280fc113d1b"
+    },
+    {
+      "id": "enthalpy_valve",
+      "definition_hash": "3493c1a1520c0b49365d7eb4a7a2ad31b04bf6ea1787e3a29c6821acae22ee48",
+      "json_sha256": "dc3a6b4393ff6df94ace11372b31cab46f7a619aa23927caf1c51e9fb82eaee8"
+    },
+    {
+      "id": "refrigerant_subcooler",
+      "definition_hash": "e790599363eac73a9aa7002f37f7edadece42b3f2c9f530c4e177395107b2e02",
+      "json_sha256": "5a5726d8f41fbee674116530218e002baf3607b132943ee52f4c060b432ed144"
+    },
+    {
+      "id": "refrigerant_recuperator",
+      "definition_hash": "7a009cee684cd6772aee07c974f5eb55748716edd03477a9e51cc42a02d0d568",
+      "json_sha256": "45103a46cc796f6a162bfcb3195a109df6289fae2b237fa4cc38ee637737a330"
+    },
+    {
+      "id": "immersed_tube_bundle",
+      "definition_hash": "ca7b486b14570711fdc4c7e85a4015b907b38db04cd30d68ac4d421dd065dd0a",
+      "json_sha256": "9042997bcd36e434469af491178789a9b4aa5242b3a722995f685090ce94623f"
+    },
+    {
+      "id": "dx_expansion_valve",
+      "definition_hash": "319784e89f7cdd5ba33dd292c4b7850cda28a82ce8fc8fb37aff25b5c40ba37f",
+      "json_sha256": "a55cf17ad39538fcd1e3acb41ebe74e1187516fdaa49616eeaac825693a4fc97"
+    },
+    {
+      "id": "dx_evaporator",
+      "definition_hash": "ca8007286ed8a6cdd3780a593e02ebe3f57ca5b7136335cf823570a85eef3d56",
+      "json_sha256": "d00b0289aa5be2820794d4e60008befaab631f4399803069f4b0794c08517339"
+    },
+    {
+      "id": "dx_compressor",
+      "definition_hash": "5416af522dafecff92fa3788f5df0b9215b3d5e4b4bbc4da2a810a2fa202b6d5",
+      "json_sha256": "d7e24470b630d5f5c5bb688e2161d0d34b5be51014e355d882c71a571759522e"
+    },
+    {
+      "id": "room_heat_manifold",
+      "definition_hash": "4c0f2a30a5fabf87fbd486d5a78d26713a6f787c8451507d0d3d3b017a43b281",
+      "json_sha256": "94a470d7fceb6c8e8ac88eca7aca2ecef1a079e21ff6a3f39a41b4e56018f235"
+    }
+  ],
+  "prototype_parameter_bindings": {
+    "source": {
+      "pressure": "pressure_pa",
+      "temperature": "temperature_k",
+      "humidity_ratio_kg_kg": "humidity_ratio_kg_kg"
+    },
+    "pump": {
+      "speed": "speed_ratio",
+      "efficiency": "efficiency_ratio",
+      "head_curve": "head_curve"
+    },
+    "valve": {
+      "opening": "opening_ratio",
+      "kv": "kv_m3_h"
+    },
+    "pipe": {
+      "length": "length_m",
+      "diameter": "diameter_m",
+      "roughness": "roughness_m",
+      "heatLoss": "heat_loss_ua_w_k",
+      "ambient": "ambient_temperature_k",
+      "cells": "thermal_cells",
+      "wallHeat": "wall_heat_capacity_j_k"
+    },
+    "junction": {
+      "elevation": "elevation_m"
+    },
+    "exchanger": {
+      "ua": "ua_w_k",
+      "loss": "loss_coefficient",
+      "diameter": "diameter_m"
+    },
+    "heater": {
+      "power": "heat_input_w",
+      "loss": "loss_coefficient",
+      "diameter": "diameter_m"
+    },
+    "tank": {
+      "level": "level_m",
+      "area": "area_m2",
+      "height": "height_m",
+      "surface": "surface_pressure_pa",
+      "temperature": "temperature_k",
+      "heater": "heat_input_w",
+      "heatLoss": "heat_loss_ua_w_k",
+      "ambient": "ambient_temperature_k"
+    },
+    "cold_room": {
+      "temperature_k": "temperature_k",
+      "heat_capacity_j_k": "heat_capacity_j_k",
+      "ambient_temperature_k": "ambient_temperature_k",
+      "ground_temperature_k": "ground_temperature_k",
+      "wall_ua_w_k": "wall_ua_w_k",
+      "roof_ua_w_k": "roof_ua_w_k",
+      "floor_ua_w_k": "floor_ua_w_k",
+      "heat_input_w": "heat_input_w"
+    },
+    "ideal_cold_source": {
+      "cooling_power_w": "cooling_power_w",
+      "capacity_ratio": "capacity_ratio"
+    },
+    "storage_room": {
+      "temperature_k": "temperature_k",
+      "setpoint_temperature_k": "setpoint_temperature_k",
+      "hysteresis_k": "hysteresis_k",
+      "alarm_temperature_k": "alarm_temperature_k",
+      "capacity_alarm_delay_s": "capacity_alarm_delay_s",
+      "heat_capacity_j_k": "heat_capacity_j_k",
+      "ambient_temperature_k": "ambient_temperature_k",
+      "ground_temperature_k": "ground_temperature_k",
+      "wall_ua_w_k": "wall_ua_w_k",
+      "roof_ua_w_k": "roof_ua_w_k",
+      "floor_ua_w_k": "floor_ua_w_k",
+      "lighting_power_w": "lighting_power_w",
+      "lighting_on": "lighting_on",
+      "heat_input_w": "heat_input_w",
+      "goods_mass_kg": "goods_mass_kg",
+      "goods_specific_heat_j_kg_k": "goods_specific_heat_j_kg_k",
+      "goods_temperature_k": "goods_temperature_k",
+      "goods_ua_w_k": "goods_ua_w_k",
+      "goods_min_temperature_k": "goods_min_temperature_k",
+      "goods_max_temperature_k": "goods_max_temperature_k",
+      "energy_reference_temperature_k": "energy_reference_temperature_k"
+    },
+    "unit_cooler": {
+      "ua_w_k": "ua_w_k",
+      "fan_power_w": "fan_power_w",
+      "fan_continuous": "fan_continuous",
+      "defrost_heater_power_w": "defrost_heater_power_w",
+      "defrost_duration_s": "defrost_duration_s",
+      "drip_duration_s": "drip_duration_s",
+      "defrost_room_fraction": "defrost_room_fraction"
+    },
+    "condensing_unit": {
+      "run_request": "run_request",
+      "capacity_ratio": "capacity_ratio",
+      "variable_capacity": "variable_capacity",
+      "min_capacity_ratio": "min_capacity_ratio",
+      "rated_cooling_power_w": "rated_cooling_power_w",
+      "rated_evaporating_temperature_k": "rated_evaporating_temperature_k",
+      "rated_condensing_temperature_k": "rated_condensing_temperature_k",
+      "rated_ambient_temperature_k": "rated_ambient_temperature_k",
+      "superheat_k": "superheat_k",
+      "subcooling_k": "subcooling_k",
+      "isentropic_efficiency": "isentropic_efficiency",
+      "volumetric_efficiency": "volumetric_efficiency",
+      "motor_efficiency": "motor_efficiency",
+      "condenser_fan_power_w": "condenser_fan_power_w",
+      "ambient_temperature_k": "ambient_temperature_k",
+      "minimum_on_s": "minimum_on_s",
+      "minimum_off_s": "minimum_off_s",
+      "initial_off_elapsed_s": "initial_off_elapsed_s",
+      "min_evaporating_temperature_k": "min_evaporating_temperature_k",
+      "max_evaporating_temperature_k": "max_evaporating_temperature_k",
+      "min_condensing_temperature_k": "min_condensing_temperature_k",
+      "max_condensing_temperature_k": "max_condensing_temperature_k",
+      "max_discharge_temperature_k": "max_discharge_temperature_k",
+      "max_pressure_ratio": "max_pressure_ratio"
+    },
+    "hp_receiver": {
+      "volume_m3": "volume_m3",
+      "height_m": "height_m",
+      "temperature_k": "temperature_k",
+      "level_ratio": "level_ratio",
+      "min_level_ratio": "min_level_ratio",
+      "max_level_ratio": "max_level_ratio"
+    },
+    "lp_drum": {
+      "volume_m3": "volume_m3",
+      "height_m": "height_m",
+      "temperature_k": "temperature_k",
+      "level_ratio": "level_ratio",
+      "min_level_ratio": "min_level_ratio",
+      "max_level_ratio": "max_level_ratio"
+    },
+    "pumped_drum": {
+      "volume_m3": "volume_m3",
+      "height_m": "height_m",
+      "temperature_k": "temperature_k",
+      "level_ratio": "level_ratio",
+      "min_level_ratio": "min_level_ratio",
+      "max_level_ratio": "max_level_ratio"
+    },
+    "hp_receiver_multi": {
+      "volume_m3": "volume_m3",
+      "height_m": "height_m",
+      "temperature_k": "temperature_k",
+      "level_ratio": "level_ratio",
+      "min_level_ratio": "min_level_ratio",
+      "max_level_ratio": "max_level_ratio"
+    },
+    "lp_drum_multi": {
+      "volume_m3": "volume_m3",
+      "height_m": "height_m",
+      "temperature_k": "temperature_k",
+      "level_ratio": "level_ratio",
+      "min_level_ratio": "min_level_ratio",
+      "max_level_ratio": "max_level_ratio"
+    },
+    "horizontal_receiver": {
+      "diameter_m": "diameter_m",
+      "length_m": "length_m",
+      "temperature_k": "temperature_k",
+      "level_ratio": "level_ratio",
+      "min_level_ratio": "min_level_ratio",
+      "max_level_ratio": "max_level_ratio"
+    },
+    "horizontal_drum": {
+      "diameter_m": "diameter_m",
+      "length_m": "length_m",
+      "temperature_k": "temperature_k",
+      "level_ratio": "level_ratio",
+      "min_level_ratio": "min_level_ratio",
+      "max_level_ratio": "max_level_ratio"
+    },
+    "headed_receiver": {
+      "diameter_m": "diameter_m",
+      "length_m": "length_m",
+      "temperature_k": "temperature_k",
+      "level_ratio": "level_ratio",
+      "min_level_ratio": "min_level_ratio",
+      "max_level_ratio": "max_level_ratio",
+      "hemispherical_heads": "hemispherical_heads",
+      "tap0_height_ratio": "tap0_height_ratio",
+      "tap1_height_ratio": "tap1_height_ratio",
+      "tap2_height_ratio": "tap2_height_ratio"
+    },
+    "refrigerant_compressor": {
+      "running": "running",
+      "load_ratio": "load_ratio",
+      "displacement_m3_s": "displacement_m3_s",
+      "volumetric_efficiency": "volumetric_efficiency",
+      "isentropic_efficiency": "isentropic_efficiency",
+      "motor_efficiency": "motor_efficiency",
+      "max_pressure_ratio": "max_pressure_ratio"
+    },
+    "evaporative_condenser": {
+      "ua_w_k": "ua_w_k",
+      "fan_ratio": "fan_ratio",
+      "natural_ua_ratio": "natural_ua_ratio",
+      "wet_bulb_temperature_k": "wet_bulb_temperature_k",
+      "fan_power_w": "fan_power_w",
+      "return_gas_ratio": "return_gas_ratio",
+      "flooded_ua_ratio": "flooded_ua_ratio"
+    },
+    "air_cooled_condenser": {
+      "ua_w_k": "ua_w_k",
+      "rated_air_mass_flow_kg_s": "rated_air_mass_flow_kg_s",
+      "air_specific_heat_j_kg_k": "air_specific_heat_j_kg_k",
+      "air_inlet_temperature_k": "air_inlet_temperature_k",
+      "fan_ratio": "fan_ratio",
+      "fan_power_w": "fan_power_w",
+      "natural_ua_w_k": "natural_ua_w_k"
+    },
+    "expansion_valve": {
+      "kv_m3_h": "kv_m3_h",
+      "opening_ratio": "opening_ratio"
+    },
+    "cascade_exchanger": {
+      "ua_w_k": "ua_w_k"
+    },
+    "refrigerant_pump": {
+      "running": "running",
+      "speed_ratio": "speed_ratio",
+      "rated_mass_flow_kg_s": "rated_mass_flow_kg_s",
+      "rated_pressure_rise_pa": "rated_pressure_rise_pa",
+      "efficiency_ratio": "efficiency_ratio"
+    },
+    "air_cooler": {
+      "running": "running",
+      "ua_w_k": "ua_w_k",
+      "fan_ratio": "fan_ratio",
+      "natural_ua_ratio": "natural_ua_ratio",
+      "fan_power_w": "fan_power_w",
+      "supply_valve_ratio": "supply_valve_ratio",
+      "max_outlet_quality": "max_outlet_quality"
+    },
+    "refrigerant_header": {},
+    "performance_compressor": {
+      "running": "running",
+      "load_ratio": "load_ratio",
+      "speed_ratio": "speed_ratio",
+      "displacement_m3_s": "displacement_m3_s",
+      "motor_efficiency": "motor_efficiency",
+      "max_pressure_ratio": "max_pressure_ratio",
+      "max_discharge_temperature_k": "max_discharge_temperature_k",
+      "isentropic_pressure_curve": "isentropic_pressure_curve",
+      "volumetric_pressure_curve": "volumetric_pressure_curve",
+      "load_factor_curve": "load_factor_curve",
+      "speed_factor_curve": "speed_factor_curve"
+    },
+    "cold_room_multi": {
+      "temperature_k": "temperature_k",
+      "heat_capacity_j_k": "heat_capacity_j_k",
+      "ambient_temperature_k": "ambient_temperature_k",
+      "ground_temperature_k": "ground_temperature_k",
+      "wall_ua_w_k": "wall_ua_w_k",
+      "roof_ua_w_k": "roof_ua_w_k",
+      "floor_ua_w_k": "floor_ua_w_k",
+      "heat_input_w": "heat_input_w"
+    },
+    "defrost_air_cooler": {
+      "running": "running",
+      "ua_w_k": "ua_w_k",
+      "fan_ratio": "fan_ratio",
+      "natural_ua_ratio": "natural_ua_ratio",
+      "fan_power_w": "fan_power_w",
+      "supply_valve_ratio": "supply_valve_ratio",
+      "max_outlet_quality": "max_outlet_quality",
+      "defrost_request": "defrost_request",
+      "defrost_heater_power_w": "defrost_heater_power_w",
+      "defrost_duration_s": "defrost_duration_s",
+      "drip_duration_s": "drip_duration_s",
+      "defrost_room_fraction": "defrost_room_fraction"
+    },
+    "refrigerant_line": {
+      "length_m": "length_m",
+      "diameter_m": "diameter_m",
+      "roughness_m": "roughness_m",
+      "heat_loss_ua_w_k": "heat_loss_ua_w_k",
+      "ambient_temperature_k": "ambient_temperature_k",
+      "segments": "segments"
+    },
+    "enthalpy_compressor": {
+      "running": "running",
+      "load_ratio": "load_ratio",
+      "displacement_m3_s": "displacement_m3_s",
+      "volumetric_efficiency": "volumetric_efficiency",
+      "isentropic_efficiency": "isentropic_efficiency",
+      "motor_efficiency": "motor_efficiency"
+    },
+    "enthalpy_valve": {
+      "kv_m3_h": "kv_m3_h",
+      "opening_ratio": "opening_ratio"
+    },
+    "refrigerant_subcooler": {
+      "length_m": "length_m",
+      "diameter_m": "diameter_m",
+      "roughness_m": "roughness_m",
+      "heat_loss_ua_w_k": "heat_loss_ua_w_k",
+      "ambient_temperature_k": "ambient_temperature_k",
+      "segments": "segments"
+    },
+    "refrigerant_recuperator": {
+      "ua_w_k": "ua_w_k"
+    },
+    "immersed_tube_bundle": {
+      "length_m": "length_m",
+      "diameter_m": "diameter_m",
+      "roughness_m": "roughness_m",
+      "heat_loss_ua_w_k": "heat_loss_ua_w_k",
+      "segments": "segments"
+    },
+    "dx_expansion_valve": {
+      "kv_m3_h": "kv_m3_h",
+      "opening_ratio": "opening_ratio"
+    },
+    "dx_evaporator": {
+      "ua_w_k": "ua_w_k",
+      "minimum_evaporating_temperature_k": "minimum_evaporating_temperature_k",
+      "minimum_superheat_k": "minimum_superheat_k"
+    },
+    "dx_compressor": {
+      "running": "running",
+      "load_ratio": "load_ratio",
+      "displacement_m3_s": "displacement_m3_s",
+      "volumetric_efficiency": "volumetric_efficiency",
+      "isentropic_efficiency": "isentropic_efficiency",
+      "motor_efficiency": "motor_efficiency"
+    },
+    "room_heat_manifold": {},
+    "duct": {
+      "length_m": "length_m",
+      "duct_width_m": "duct_width_m",
+      "duct_height_m": "duct_height_m",
+      "roughness_m": "roughness_m",
+      "heat_loss_ua_w_k": "heat_loss_ua_w_k",
+      "ambient_temperature_k": "ambient_temperature_k"
+    },
+    "cooling_coil": {
+      "coil_surface_temperature_k": "coil_surface_temperature_k",
+      "bypass_factor": "bypass_factor",
+      "loss_coefficient": "loss_coefficient",
+      "diameter_m": "diameter_m"
+    },
+    "humidifier": {
+      "mode": "mode",
+      "moisture_addition_kg_kg": "moisture_addition_kg_kg",
+      "loss_coefficient": "loss_coefficient",
+      "diameter_m": "diameter_m",
+      "saturation_action": "saturation_action"
+    },
+    "air_mixing_box": {},
+    "air_filter": {
+      "rated_volume_flow_m3_s": "rated_volume_flow_m3_s",
+      "clean_pressure_drop_pa": "clean_pressure_drop_pa",
+      "loading_ratio": "loading_ratio",
+      "loaded_drop_multiplier": "loaded_drop_multiplier"
+    },
+    "air_room": {
+      "volume_m3": "volume_m3",
+      "initial_temperature_k": "initial_temperature_k",
+      "initial_humidity_ratio_kg_kg": "initial_humidity_ratio_kg_kg",
+      "initial_pressure_pa": "initial_pressure_pa",
+      "additional_heat_capacity_j_k": "additional_heat_capacity_j_k",
+      "envelope_ua_w_k": "envelope_ua_w_k",
+      "outdoor_temperature_k": "outdoor_temperature_k",
+      "outdoor_humidity_ratio_kg_kg": "outdoor_humidity_ratio_kg_kg",
+      "infiltration_dry_air_kg_s": "infiltration_dry_air_kg_s",
+      "sensible_load_w": "sensible_load_w",
+      "moisture_load_kg_s": "moisture_load_kg_s",
+      "moisture_source_temperature_k": "moisture_source_temperature_k"
+    },
+    "cooling_tower_moist": {
+      "air_temperature_k": "air_temperature_k",
+      "air_pressure_pa": "air_pressure_pa",
+      "air_humidity_ratio_kg_kg": "air_humidity_ratio_kg_kg",
+      "air_volume_flow_m3_s": "air_volume_flow_m3_s",
+      "contact_effectiveness": "contact_effectiveness",
+      "cycles_of_concentration": "cycles_of_concentration",
+      "drift_fraction": "drift_fraction",
+      "makeup_temperature_k": "makeup_temperature_k",
+      "loss_coefficient": "loss_coefficient",
+      "diameter_m": "diameter_m"
+    },
+    "water_coil": {
+      "air_side_ua_w_k": "air_side_ua_w_k",
+      "water_side_ua_w_k": "water_side_ua_w_k",
+      "loss_coefficient": "loss_coefficient",
+      "diameter_m": "diameter_m",
+      "secondary_loss_coefficient": "secondary_loss_coefficient",
+      "secondary_diameter_m": "secondary_diameter_m"
+    },
+    "water_chiller": {
+      "running": "running",
+      "evaporator_min_flow_kg_s": "evaporator_min_flow_kg_s",
+      "condenser_min_flow_kg_s": "condenser_min_flow_kg_s",
+      "minimum_load_ratio": "minimum_load_ratio",
+      "chilled_water_setpoint_k": "chilled_water_setpoint_k",
+      "refrigerant": "refrigerant",
+      "rated_cooling_power_w": "rated_cooling_power_w",
+      "rated_evaporating_temperature_k": "rated_evaporating_temperature_k",
+      "rated_condensing_temperature_k": "rated_condensing_temperature_k",
+      "superheat_k": "superheat_k",
+      "subcooling_k": "subcooling_k",
+      "isentropic_efficiency": "isentropic_efficiency",
+      "volumetric_efficiency": "volumetric_efficiency",
+      "motor_efficiency": "motor_efficiency",
+      "evaporator_ua_w_k": "evaporator_ua_w_k",
+      "condenser_ua_w_k": "condenser_ua_w_k",
+      "loss_coefficient": "loss_coefficient",
+      "diameter_m": "diameter_m",
+      "secondary_loss_coefficient": "secondary_loss_coefficient",
+      "secondary_diameter_m": "secondary_diameter_m",
+      "min_evaporating_temperature_k": "min_evaporating_temperature_k",
+      "max_evaporating_temperature_k": "max_evaporating_temperature_k",
+      "min_condensing_temperature_k": "min_condensing_temperature_k",
+      "max_condensing_temperature_k": "max_condensing_temperature_k",
+      "max_discharge_temperature_k": "max_discharge_temperature_k",
+      "max_pressure_ratio": "max_pressure_ratio"
+    },
+    "air_cooled_chiller": {
+      "running": "running",
+      "evaporator_min_flow_kg_s": "evaporator_min_flow_kg_s",
+      "minimum_load_ratio": "minimum_load_ratio",
+      "chilled_water_setpoint_k": "chilled_water_setpoint_k",
+      "refrigerant": "refrigerant",
+      "rated_cooling_power_w": "rated_cooling_power_w",
+      "rated_evaporating_temperature_k": "rated_evaporating_temperature_k",
+      "rated_condensing_temperature_k": "rated_condensing_temperature_k",
+      "superheat_k": "superheat_k",
+      "subcooling_k": "subcooling_k",
+      "isentropic_efficiency": "isentropic_efficiency",
+      "volumetric_efficiency": "volumetric_efficiency",
+      "motor_efficiency": "motor_efficiency",
+      "evaporator_ua_w_k": "evaporator_ua_w_k",
+      "loss_coefficient": "loss_coefficient",
+      "diameter_m": "diameter_m",
+      "min_evaporating_temperature_k": "min_evaporating_temperature_k",
+      "max_evaporating_temperature_k": "max_evaporating_temperature_k",
+      "min_condensing_temperature_k": "min_condensing_temperature_k",
+      "max_condensing_temperature_k": "max_condensing_temperature_k",
+      "max_discharge_temperature_k": "max_discharge_temperature_k",
+      "max_pressure_ratio": "max_pressure_ratio",
+      "air_side_ua_w_k": "air_side_ua_w_k",
+      "rated_air_mass_flow_kg_s": "rated_air_mass_flow_kg_s",
+      "air_specific_heat_j_kg_k": "air_specific_heat_j_kg_k",
+      "air_inlet_temperature_k": "air_inlet_temperature_k",
+      "fan_ratio": "fan_ratio",
+      "fan_power_w": "fan_power_w"
+    },
+    "air_source_heat_pump": {
+      "running": "running",
+      "refrigerant": "refrigerant",
+      "rated_cooling_power_w": "rated_cooling_power_w",
+      "rated_evaporating_temperature_k": "rated_evaporating_temperature_k",
+      "rated_condensing_temperature_k": "rated_condensing_temperature_k",
+      "superheat_k": "superheat_k",
+      "subcooling_k": "subcooling_k",
+      "isentropic_efficiency": "isentropic_efficiency",
+      "volumetric_efficiency": "volumetric_efficiency",
+      "motor_efficiency": "motor_efficiency",
+      "condenser_ua_w_k": "condenser_ua_w_k",
+      "loss_coefficient": "loss_coefficient",
+      "diameter_m": "diameter_m",
+      "min_evaporating_temperature_k": "min_evaporating_temperature_k",
+      "max_evaporating_temperature_k": "max_evaporating_temperature_k",
+      "min_condensing_temperature_k": "min_condensing_temperature_k",
+      "max_condensing_temperature_k": "max_condensing_temperature_k",
+      "max_discharge_temperature_k": "max_discharge_temperature_k",
+      "max_pressure_ratio": "max_pressure_ratio",
+      "hot_water_setpoint_k": "hot_water_setpoint_k",
+      "water_min_flow_kg_s": "water_min_flow_kg_s",
+      "air_side_ua_w_k": "air_side_ua_w_k",
+      "rated_air_mass_flow_kg_s": "rated_air_mass_flow_kg_s",
+      "air_specific_heat_j_kg_k": "air_specific_heat_j_kg_k",
+      "air_inlet_temperature_k": "air_inlet_temperature_k",
+      "air_dew_point_k": "air_dew_point_k",
+      "fan_ratio": "fan_ratio",
+      "fan_power_w": "fan_power_w"
+    },
+    "enthalpy_recovery": {
+      "sensible_effectiveness": "sensible_effectiveness",
+      "moisture_effectiveness": "moisture_effectiveness",
+      "bypass_ratio": "bypass_ratio",
+      "diameter_m": "diameter_m",
+      "loss_coefficient": "loss_coefficient",
+      "secondary_diameter_m": "secondary_diameter_m",
+      "secondary_loss_coefficient": "secondary_loss_coefficient"
+    },
+    "closed_buffer_tank": {
+      "mass_kg": "mass_kg",
+      "temperature_k": "temperature_k",
+      "minimum_temperature_k": "minimum_temperature_k",
+      "maximum_temperature_k": "maximum_temperature_k",
+      "heat_loss_ua_w_k": "heat_loss_ua_w_k",
+      "ambient_temperature_k": "ambient_temperature_k",
+      "heat_input_w": "heat_input_w",
+      "loss_coefficient": "loss_coefficient",
+      "diameter_m": "diameter_m"
+    },
+    "hydronic_buffer_tank": {
+      "mass_kg": "mass_kg",
+      "temperature_k": "temperature_k",
+      "minimum_temperature_k": "minimum_temperature_k",
+      "maximum_temperature_k": "maximum_temperature_k",
+      "heat_loss_ua_w_k": "heat_loss_ua_w_k",
+      "ambient_temperature_k": "ambient_temperature_k",
+      "heat_input_w": "heat_input_w",
+      "loss_coefficient": "loss_coefficient",
+      "diameter_m": "diameter_m"
+    },
+    "gas_expansion_tank": {
+      "volume_m3": "volume_m3",
+      "precharge_pressure_pa": "precharge_pressure_pa",
+      "initial_liquid_fraction": "initial_liquid_fraction",
+      "temperature_k": "temperature_k",
+      "heat_input_w": "heat_input_w",
+      "heat_loss_ua_w_k": "heat_loss_ua_w_k",
+      "ambient_temperature_k": "ambient_temperature_k"
+    },
+    "tower_pool": {
+      "area_m2": "area_m2",
+      "height_m": "height_m",
+      "level_m": "level_m",
+      "surface_pressure_pa": "surface_pressure_pa",
+      "temperature_k": "temperature_k",
+      "heat_input_w": "heat_input_w",
+      "heat_loss_ua_w_k": "heat_loss_ua_w_k",
+      "ambient_temperature_k": "ambient_temperature_k",
+      "evaporation_kg_s": "evaporation_kg_s",
+      "drift_kg_s": "drift_kg_s"
+    },
+    "coupled_tower_pool": {
+      "area_m2": "area_m2",
+      "height_m": "height_m",
+      "level_m": "level_m",
+      "surface_pressure_pa": "surface_pressure_pa",
+      "temperature_k": "temperature_k",
+      "heat_input_w": "heat_input_w",
+      "heat_loss_ua_w_k": "heat_loss_ua_w_k",
+      "ambient_temperature_k": "ambient_temperature_k",
+      "air_temperature_k": "air_temperature_k",
+      "air_pressure_pa": "air_pressure_pa",
+      "air_humidity_ratio_kg_kg": "air_humidity_ratio_kg_kg",
+      "rated_air_volume_flow_m3_s": "rated_air_volume_flow_m3_s",
+      "fan_ratio": "fan_ratio",
+      "fan_power_w": "fan_power_w",
+      "contact_effectiveness": "contact_effectiveness",
+      "drift_fraction": "drift_fraction"
+    }
+  }
+}

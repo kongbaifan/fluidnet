@@ -559,12 +559,8 @@ window.createEngineClient = function (ui) {
       const workspaceWarning=await services.loadWorkspace(forceWorkspace);
       catalog=data;
       moduleCatalog=packages;
-      for (const manifest of data.modules.filter(m=>catalogPresentation[m.id] || m.ports.some(p=>p.domain==='thermal' || p.domain==='refrigerant') || ['duct','cooling_coil','humidifier','air_mixing_box','air_filter','air_room','cooling_tower_moist','water_coil','water_chiller','air_cooled_chiller','air_source_heat_pump','enthalpy_recovery','closed_buffer_tank','hydronic_buffer_tank','gas_expansion_tank','tower_pool','coupled_tower_pool'].includes(m.id))) {
-        let m=ui.state().modules.find(m=>m.id===manifest.id);
-        if(!m){m=moduleFromManifest(manifest);ui.state().modules.push(m);}
-        else if(!m.presentation)model.applyCatalogPresentation(m,catalogPresentation[m.id]);
-        ui.parameterDefinitions[m.kind]=manifest.parameters.filter(p=>p.value_type==='number').map(manifestParamDef);
-      }
+      model.installBuiltinCatalog({catalog:data,presentations:catalogPresentation,modules:ui.state().modules,
+        parameterDefinitions:ui.parameterDefinitions,defaultConditions:window.ModuleTestEditor?.defaultConditions});
       for (const manifest of packages.modules || []) {
         if (manifest.runtime !== 'python') continue;
         const existing=ui.state().modules.find(m => m.id === manifest.id);

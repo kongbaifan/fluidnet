@@ -54,9 +54,31 @@ window.FluidNetProjectModel = (() => {
     module.icon=presentation.icon;
     return module;
   }
+  // Compatibility only: old backends and Python packages do not carry built-in metadata.
+  function legacyCatalogIcon(id) {
+    return {coupled_tower_pool:'Droplets',enthalpy_recovery:'ArrowRightLeft',hydronic_boiler:'Flame',geometry_bend:'CornerDownRight',gas_expansion_tank:'Database',tower_pool:'Database',air_source_heat_pump:'Flame',air_recovery_sensible:'ArrowRightLeft',enthalpy_compressor:'Gauge',enthalpy_valve:'SlidersHorizontal',refrigerant_line:'Minus',refrigerant_subcooler:'Snowflake',refrigerant_recuperator:'ArrowRightLeft',dx_expansion_valve:'SlidersHorizontal',dx_evaporator:'Snowflake',dx_compressor:'Gauge',air_cooled_chiller:'Snowflake',closed_buffer_tank:'Database',performance_compressor:'Gauge',cold_room_multi:'Home',defrost_air_cooler:'Snowflake',air_branch_box:'GitBranch',fan_performance:'Wind',plate_exchanger:'ArrowRightLeft',differential_bypass_valve:'SlidersHorizontal',pressure_independent_valve:'SlidersHorizontal',horizontal_receiver:'Database',horizontal_drum:'Database',air_cooled_condenser:'Wind',cold_room:'Home',storage_room:'Home',lp_drum:'Database',hp_receiver:'Database',pumped_drum:'Database',cascade_exchanger:'ArrowRightLeft',refrigerant_compressor:'Gauge',evaporative_condenser:'Wind',expansion_valve:'SlidersHorizontal',refrigerant_pump:'Gauge',air_cooler:'Snowflake',refrigerant_header:'GitMerge',water_coil:'Snowflake',water_chiller:'Snowflake',duct:'Wind',cooling_coil:'Snowflake',humidifier:'Droplets',air_mixing_box:'GitMerge',air_filter:'Filter',air_room:'Home',cooling_tower_moist:'Wind',pipe_fitting:'GitBranch',pipe_reducer:'GitBranch',check_valve:'ArrowRightLeft',fan_coil_unit:'Wind',cooling_tower:'Sun',fan:'Wind',pump_variable_speed:'Gauge',capillary_tube:'Minus',valve_equal_percentage:'SlidersHorizontal'}[id] || 'Box';
+  }
+  const LEGACY_VISIBLE_BUILTINS = new Set(['duct','cooling_coil','humidifier','air_mixing_box','air_filter','air_room','cooling_tower_moist','water_coil','water_chiller','air_cooled_chiller','air_source_heat_pump','enthalpy_recovery','closed_buffer_tank','hydronic_buffer_tank','gas_expansion_tank','tower_pool','coupled_tower_pool']);
+  function installBuiltinCatalog({catalog,presentations,modules,parameterDefinitions,defaultConditions}) {
+    for(const manifest of catalog.modules || []) {
+      const metadata=presentations[manifest.id];
+      if(!metadata && !(manifest.ports||[]).some(port=>['thermal','refrigerant'].includes(port.domain)) && !LEGACY_VISIBLE_BUILTINS.has(manifest.id))continue;
+      let module=modules.find(item=>item.id===manifest.id);
+      if(!module){module=moduleFromManifest(manifest,defaultConditions,metadata);modules.push(module);}
+      else if(!module.presentation){
+        if(!module.manifest && module.runtime===undefined && metadata?.runtime==='builtin'){
+          const presented=applyCatalogPresentation({...module,runtime:'builtin'},metadata);
+          if(presented.presentation){module.presentation=presented.presentation;module.icon=presented.icon;}
+        }else applyCatalogPresentation(module,metadata);
+      }
+      // Prototype-era modules retain their display aliases and library values.
+      // Only canonical manifest-backed devices own canonical parameter definitions.
+      if(module.manifest && module.runtime==='builtin')parameterDefinitions[module.kind]=manifest.parameters.filter(p=>p.value_type==='number').map(manifestParamDef);
+    }
+  }
   function moduleFromManifest(manifest, defaultConditions, presentation) {
-    // Catalog icons come from studio.js ICONS; unknown ids intentionally fall back to Box.
-    const icon = {coupled_tower_pool:'Droplets',enthalpy_recovery:'ArrowRightLeft',hydronic_boiler:'Flame',geometry_bend:'CornerDownRight',gas_expansion_tank:'Database',tower_pool:'Database',air_source_heat_pump:'Flame',air_recovery_sensible:'ArrowRightLeft',enthalpy_compressor:'Gauge',enthalpy_valve:'SlidersHorizontal',refrigerant_line:'Minus',refrigerant_subcooler:'Snowflake',refrigerant_recuperator:'ArrowRightLeft',dx_expansion_valve:'SlidersHorizontal',dx_evaporator:'Snowflake',dx_compressor:'Gauge',air_cooled_chiller:'Snowflake',closed_buffer_tank:'Database',performance_compressor:'Gauge',cold_room_multi:'Home',defrost_air_cooler:'Snowflake',air_branch_box:'GitBranch',fan_performance:'Wind',plate_exchanger:'ArrowRightLeft',differential_bypass_valve:'SlidersHorizontal',pressure_independent_valve:'SlidersHorizontal',horizontal_receiver:'Database',horizontal_drum:'Database',air_cooled_condenser:'Wind',cold_room:'Home',storage_room:'Home',lp_drum:'Database',hp_receiver:'Database',pumped_drum:'Database',cascade_exchanger:'ArrowRightLeft',refrigerant_compressor:'Gauge',evaporative_condenser:'Wind',expansion_valve:'SlidersHorizontal',refrigerant_pump:'Gauge',air_cooler:'Snowflake',refrigerant_header:'GitMerge',water_coil:'Snowflake',water_chiller:'Snowflake',duct:'Wind',cooling_coil:'Snowflake',humidifier:'Droplets',air_mixing_box:'GitMerge',air_filter:'Filter',air_room:'Home',cooling_tower_moist:'Wind',pipe_fitting:'GitBranch',pipe_reducer:'GitBranch',check_valve:'ArrowRightLeft',fan_coil_unit:'Wind',cooling_tower:'Sun',fan:'Wind',pump_variable_speed:'Gauge',capillary_tube:'Minus',valve_equal_percentage:'SlidersHorizontal'}[manifest.id] || 'Box';
+    const icon = manifest.runtime==='builtin' && presentation?.runtime==='builtin' && presentation.module_id===manifest.id && /^\w+$/.test(presentation.icon||'')
+      ? presentation.icon : legacyCatalogIcon(manifest.id);
     const parameterDefs = (manifest.parameters || []).filter(p => p.value_type === 'number').map(manifestParamDef);
     const ports = (manifest.ports || []).map((p, index) => ({
       id:p.id, name:p.id.toUpperCase(), label:p.label || p.id, direction:p.direction === 'bidirectional' ? (index ? 'out' : 'in') : p.direction,
@@ -222,6 +244,6 @@ function parameterKey(owner,modules,controlKey) {
   })) });
 }
 
-  return {parameterKey,workspaceContentEqual,toDisplay,toCanonical,displayParameters,canonicalParameters,manifestParamDef,moduleFromManifest,applyCatalogPresentation,catalogPresentationIndex,
+  return {parameterKey,workspaceContentEqual,toDisplay,toCanonical,displayParameters,canonicalParameters,manifestParamDef,moduleFromManifest,applyCatalogPresentation,installBuiltinCatalog,catalogPresentationIndex,
     manifestFields,manifestParamSpecs,manifestParamDefaults,projectDocument,exchangeDocument,upgradeDocument};
 })();

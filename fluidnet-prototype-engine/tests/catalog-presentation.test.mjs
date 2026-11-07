@@ -80,3 +80,28 @@ test('malformed or unfamiliar optional metadata cannot corrupt catalog lookup',(
     {...metadata('invalid'),icon:'<script>'}]});
   assert.deepEqual(Object.keys(result),['registered_device']);assert.equal(result.toString,undefined);
 });
+
+test('expanded catalog keeps prototype aliases and frozen snapshots while adding canonical devices',()=>{
+  const f=fixture(),source={id:'source',kind:'source',icon:'Droplets',values:{'param:pressure':201.325},ports:[],channels:[]};
+  const fields=[['pressure','Pressure','kPa',1,1000,1,201.325]],parameterDefinitions={source:fields},modules=[source];
+  const definitions=[{...manifest('source'),parameters:[{id:'pressure_pa',label:'Pressure',value_type:'number',default:201325,unit:{display_scale:1000}}]},
+    {...manifest('closed_volume'),parameters:[{id:'volume_m3',label:'Volume',value_type:'number',default:.01,unit:{display_scale:1}}]}];
+  const presentations=f.model.catalogPresentationIndex({version:1,devices:[metadata('source'),metadata('closed_volume')]});
+  const before=plain(source.values);
+  f.model.installBuiltinCatalog({catalog:{modules:definitions},presentations,modules,parameterDefinitions});
+  assert.equal(parameterDefinitions.source,fields);assert.equal(fields[0][0],'pressure');assert.deepEqual(source.values,before);
+  assert.equal(source.runtime,undefined);assert.equal(source.manifest,undefined);assert.equal(source.presentation.canvas_family,'tank');
+  const added=modules.find(item=>item.id==='closed_volume');assert.ok(added);assert.equal(added.runtime,'builtin');
+  assert.equal(parameterDefinitions.closed_volume[0][0],'volume_m3');assert.equal(parameterDefinitions.closed_volume[0][6],.01);
+  const owner={pages:[{nodes:[{moduleId:added.id}]}]};f.state.modules=modules;f.client.pinProject(owner);
+  const bound=owner.moduleSnapshots[added.id];assert.equal(bound.presentation.canvas_family,'tank');
+  presentations.closed_volume.canvas_family='pump';f.model.installBuiltinCatalog({catalog:{modules:definitions},presentations,modules,parameterDefinitions});
+  assert.equal(modules.length,2);assert.equal(bound.presentation.canvas_family,'tank');
+});
+
+test('catalog metadata icon wins without a hardcoded ID and known Python packages retain fallback icons',()=>{
+  const f=fixture(),entry=metadata('future_storage');entry.icon='Archive';
+  assert.equal(f.model.moduleFromManifest(manifest('future_storage'),undefined,entry).icon,'Archive');
+  const python={...manifest('fan'),runtime:'python'};
+  assert.equal(f.model.moduleFromManifest(python,undefined,metadata('fan')).icon,'Wind');
+});
