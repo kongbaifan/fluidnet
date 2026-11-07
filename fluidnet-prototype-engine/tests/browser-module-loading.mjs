@@ -10,6 +10,7 @@ try{
   await expect(page.locator('#network')).toBeVisible();
   await expect.poll(()=>scripts.length).toBeGreaterThan(40);
   expect(await page.evaluate(()=>Object.keys(window).filter(key=>/^FluidNet/.test(key)))).toEqual([]);
+  expect(await page.evaluate(()=>typeof window.createModuleReplayUI)).toBe('undefined');
   expect(await page.evaluate(async()=>typeof (await import('/engine-client.js')).createEngineClient)).toBe('function');
   const paths=scripts.map(response=>new URL(response.url()).pathname);
   expect(new Set(paths).size).toBe(paths.length);

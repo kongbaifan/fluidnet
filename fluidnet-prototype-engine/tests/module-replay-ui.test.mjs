@@ -1,15 +1,12 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import vm from 'node:vm';
-import {readFileSync} from 'node:fs';
-const source=readFileSync(new URL('../frontend/module-replay.js',import.meta.url),'utf8');
+import {createModuleReplayUI} from '../frontend/module-replay.js';
 const snapshot=()=>({format_version:1,module:{id:'valve',name:'测试阀',version:2,source:{runtime:'raise ValueError("<script>")'}},
   execution:{phase:'evaluate',time_s:.5,accepted_time_s:.4,instance_id:'Valve-own'},parameters:{opening:.4},state:{count:4},ports:{in0:{pressure_pa:120000}},channels:{},content_hash:'abc',definition_hash:'def'});
 function setup(request,route=()=>null){
-  const host=vm.createContext({window:{}});vm.runInContext(source,host);
-  const routes=[],files=[];
-  const ui=host.window.createModuleReplayUI({request,render:()=>{},navigate:r=>routes.push(r),download:(...a)=>files.push(a),message:()=>{},route});
-  return {ui,routes,files};
+  const routes=[],files=[],messages=[];let renders=0;
+  const ui=createModuleReplayUI({request,render:()=>{renders++;},navigate:r=>routes.push(r),download:(...a)=>files.push(a),message:text=>messages.push(text),route});
+  return {ui,routes,files,messages,renders:()=>renders};
 }
 test('inspection and replay use frozen copies, escaped source and canonical inputs',async()=>{
   let posted;
@@ -44,4 +41,45 @@ test('archive failure cannot leave a finished older replay permanently busy',asy
   ui.load(snapshot());const pending=ui.run();await ui.archive('missing');
   resolve({status:'failed',matched_failure:true});await pending;
   assert.doesNotMatch(ui.body(),/正在复现/);assert.doesNotMatch(ui.body(),/data-action="run-module-replay" disabled/);
+  assert.match(ui.body(),/已复现同一/);
+});
+
+test('late archive failures are silent after navigation, including leaving and returning',async()=>{
+  for(const back of [false,true]){
+    let reject,route='runs';
+    const {ui,routes,messages}=setup(()=>new Promise((_,no)=>reject=no),()=>route);
+    const pending=ui.archive('old');route='workbench';ui.navigationChanged();
+    if(back){route='runs';ui.navigationChanged();}
+    reject(Error('old failure'));await pending;
+    assert.deepEqual(routes,[]);assert.deepEqual(messages,[]);assert.equal(ui.active,false);
+  }
+});
+
+test('newer archives and explicit snapshot selection supersede older archive responses',async()=>{
+  const releases=new Map(),{ui,routes}=setup(path=>new Promise(resolve=>releases.set(path,resolve)));
+  const old=ui.archive('old'),latest=ui.archive('latest');
+  const newer=snapshot();newer.execution.instance_id='Latest';
+  releases.get('/runs/latest/module-failure')({replay:newer});await latest;
+  releases.get('/runs/old/module-failure')({replay:snapshot()});await old;
+  assert.match(ui.body(),/Latest/);assert.deepEqual(routes,['bench']);
+  const pending=ui.archive('pending');ui.close();releases.get('/runs/pending/module-failure')({replay:snapshot()});await pending;
+  assert.equal(ui.active,false);assert.deepEqual(routes,['bench']);
+});
+
+test('a completed replay releases its lock without repainting another page',async()=>{
+  let release,route='bench',calls=0;
+  const f=setup(()=>{calls++;return new Promise(resolve=>release=resolve);},()=>route);
+  f.ui.load(snapshot());const pending=f.ui.run();await f.ui.run();assert.equal(calls,1);
+  const renders=f.renders();route='workbench';f.ui.navigationChanged();
+  release({status:'completed',diagnostics:[]});await pending;
+  assert.equal(f.renders(),renders);assert.doesNotMatch(f.ui.body(),/正在复现/);
+  assert.match(f.ui.body(),/本次回调完成/);
+});
+
+test('missing accepted time stays unknown and the simplified source panel stays accessible',()=>{
+  const {ui}=setup(async()=>({})),input=snapshot();delete input.execution.accepted_time_s;
+  ui.load(input,[{source_line:1,message:'error'}]);
+  assert.match(ui.body(),/最近接受 时刻未记录/);assert.doesNotMatch(ui.body(),/未记录 s/);
+  assert.match(ui.body(),/data-replay-error-line/);assert.match(ui.body(),/<details class="panel" open><summary class="panel-head">冻结 module.py/);
+  assert.doesNotMatch(ui.body(),/locate-replay-source/);
 });
