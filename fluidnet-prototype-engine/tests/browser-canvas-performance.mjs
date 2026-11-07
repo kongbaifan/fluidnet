@@ -8,7 +8,8 @@ import {testServer} from './browser-server.mjs';
 import {FHD_CONTEXT,captureFhd} from './browser-viewport.mjs';
 
 const live=process.argv.includes('--live'),suffix=live?'-live':'';
-const counts=process.argv.includes('--single')?[30]:process.argv.includes('--quick')?[30,64]:[30,64,100,300];
+const profile=process.argv.includes('--profile');
+const counts=process.argv.includes('--large')?[300]:process.argv.includes('--single')?[30]:process.argv.includes('--quick')?[30,64]:[30,64,100,300];
 const server=await testServer(),browser=await chromium.launch({channel:'msedge',headless:true});
 const page=await browser.newPage({...FHD_CONTEXT}),errors=[],metrics=[];
 page.on('pageerror',error=>errors.push(error.message));
@@ -32,7 +33,10 @@ async function measured(label,callback){
     const probe=window.__canvasPerformanceProbe,active={label,started:performance.now(),frames:[],longTasks:[]};probe.active=active;
     const tick=time=>{if(probe.active!==active)return;active.frames.push(time);requestAnimationFrame(tick);};requestAnimationFrame(tick);
   },label);
+  const profiler=profile?await page.context().newCDPSession(page):null;
+  if(profiler){await profiler.send('Profiler.enable');await profiler.send('Profiler.start');}
   const started=performance.now();await callback();await frame();
+  if(profiler){const {profile:cpu}=await profiler.send('Profiler.stop');await profiler.detach();mkdirSync('artifacts/canvas-profiles',{recursive:true});writeFileSync(`artifacts/canvas-profiles/${label}-${Date.now()}.json`,JSON.stringify(cpu));}
   const observed=await page.evaluate(()=>{
     const probe=window.__canvasPerformanceProbe,active=probe.active;
     for(const item of probe.observer?.takeRecords()||[])if(item.startTime>=active.started)active.longTasks.push({startTime:item.startTime,duration:item.duration});
@@ -187,7 +191,7 @@ try{
     const liveEvidence=live?await liveRound(count,visibleConnections):null;
     const gaps=rounds.flatMap(r=>r.operations.flatMap(o=>o.rawFrameGapsMs));
     metrics.push({totalInstances:count,pageCount:Math.ceil(count/64),visibleNodes:await page.locator('#network [data-node]').count(),
-      visibleEdges:await page.locator('#network [data-canvas-edge]').count(),complexity:'Two-port built-in water pipe chain with pressure boundaries; no running simulation or complex Python/refrigeration nodes',
+      visibleEdges:await page.locator('#network [data-canvas-edge]').count(),complexity:'Two-port built-in water pipe chain with pressure boundaries; live evidence when requested; no complex Python/refrigeration nodes',
       rounds,live:liveEvidence,aggregateFrameGapMs:summary(gaps),longTaskCount:rounds.reduce((s,r)=>s+r.operations.reduce((n,o)=>n+o.longTaskCount,0),0)});
     console.log(JSON.stringify({count,frameGapMs:metrics.at(-1).aggregateFrameGapMs,longTasks:metrics.at(-1).longTaskCount}));
   }

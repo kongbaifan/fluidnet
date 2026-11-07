@@ -13,6 +13,18 @@ const plain=value=>JSON.parse(JSON.stringify(value));
 const definition=(id,model,channels=[{id:'main',input_port:'feed',output_port:'return',enabled:true}])=>({id,solver_model:model,
   ports:channels.flatMap(channel=>[{id:channel.input_port,domain:'fluid'},{id:channel.output_port,domain:'fluid'}]),channels});
 
+test('frame observation can use its frozen module without re-reading another project',()=>{
+  const client=context.window.createEngineClient({moduleOf:()=>{throw Error('Unexpected current-project lookup');}});
+  const frozen={ports:[{id:'out0',direction:'out'}],manifest:{parameters:[
+    {id:'opening_ratio',unit:{display_scale:.01,display_offset:0}}]}};
+  const n={id:'V'};
+  assert.deepEqual(plain(client.observation(n,{id:'port:out0:FLOW',origin:'port',port:'out0'},frozen)),
+    {canonicalKey:'V.out0.mass_flow_kg_s',canonicalScale:-1,canonicalOffset:0});
+  assert.deepEqual(plain(client.observation(n,{id:'param:opening_ratio',origin:'parameter',param:'opening_ratio'},frozen)),
+    {canonicalKey:'V.param.opening_ratio',canonicalScale:.01,canonicalOffset:0});
+  assert.deepEqual(plain(client.observation(n,{id:'custom',origin:'custom'},frozen)),{});
+});
+
 test('refrigeration author overview follows the declared role and instance ID',()=>{
   const manifest={id:'cold_author',execution_role:'refrigeration.isenthalpic_throttle.v1',channels:[],
     ports:[{id:'in0',domain:'refrigerant'},{id:'out0',domain:'refrigerant'}]};

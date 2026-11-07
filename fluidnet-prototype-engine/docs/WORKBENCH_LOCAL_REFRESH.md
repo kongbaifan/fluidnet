@@ -37,3 +37,24 @@ node tests/browser-canvas-performance.mjs --live
 本次没有其他浏览器或求解任务并发执行性能脚本；操作系统负载未完全控制。未测单页超过 64 台、1000 台同屏、复杂 Python／两相网络大规模、其他 GPU、长期运行。暖通机房和冷库的正确性另用代表工程流程验证，不能套用此水管链性能结果。
 
 原始结果：`artifacts/canvas-performance-live-metrics.json`，包含源码 SHA-256、基线提交、dirty 文件、环境、每轮原始帧间隔和长任务；截图为 `artifacts/canvas-performance-live-1080p.png`。独立复现入口登记在浏览器清单的 `canvas-performance-live`；历史 2026-11-06 测量仍见 [原画布性能记录](CANVAS_INTERACTION_PERFORMANCE.md)。
+
+## AC-4：当前热点优化（2026-11-07）
+
+先在 `ad645bb`（前端仍为8dfb853行为）复测四个规模，再在原生模块版本用CDP采样300台分页场景，最后用同一四规模脚本复验。静态阶段每规模三轮；运行采样帧数和操作墙钟受自动化与系统调度影响，数字不是固定窗口FPS。
+
+热点是每帧 `rowFromFrame` / `observation` 反复查所属项目与模块，以及重复建立参数身份和画布上下文。修复复用本设备冻结模块（不缓存过期帧/参数），一次画布刷新共享同一上下文；parameterKey只建立一次已用模块集合，保留原目录顺序及完整序列化；结构核对用Set，最近完整帧通过findLast读取而非复制反转历史。几何与接受语义不变。
+
+同样15段自动化操作的采样累计：rowFromFrame包含子调用132.783→106.501 ms，参数身份27.645→5.285 ms，画布refresh 102.001→85.630 ms。样本运行帧38→36，CPU采样有噪声，不把累计减少比例当作每帧确定加速比。脚本新增 `--large --profile` 可独立复现；CDP采样文件只写artifacts。
+
+最终无Profiler四规模对照（运行叠加）：
+
+| 实例数 / 页数 | p95 前→后 | 最大帧间隔 前→后 | 长任务 前→后 |
+| --- | --- | --- | --- |
+| 30 / 1 | 7.1→13.9 ms | 20.9→27.8 ms | 0→0 |
+| 64 / 1 | 20.8→13.9 ms | 34.7→34.7 ms | 0→0 |
+| 100 / 2 | 20.8→20.8 ms | 41.7→34.7 ms | 0→0 |
+| 300 / 5 | 27.8→20.8 ms | 62.5→41.6 ms | 1→0 |
+
+小规模p95没有改善，保留原始结果而不挑选最佳轮。四规模均确认节点/连线/曲线身份、草稿与焦点、暂停/继续/停止、撤销重做、保存及端点正确；errors为空。27项相关单测通过，新增对冻结模块免于跨项目查找，以及参数身份的目录顺序/快照/原地修改守卫。
+
+原始证据：`artifacts/architecture-completion/canvas-before.json`、`canvas-after.json`、`canvas-profile-before.json`、`canvas-profile-after.json`、`canvas-hotspots.json`。单页仍64台，结构增删仍完整渲染；没有推断1000台同屏或复杂两相模型的性能。

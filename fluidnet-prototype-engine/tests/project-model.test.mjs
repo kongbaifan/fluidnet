@@ -63,3 +63,14 @@ test('parameter views and defaults use the same units and do not mutate contract
   assert.deepEqual(plain(model.manifestParamDefaults(manifest)),{opening:80,enabled:false});
   assert.deepEqual(manifest,before);
 });
+
+test('parameter identity retains module order, frozen sources and in-place edits across pages',()=>{
+  const m=id=>({id,ports:[],channels:[],version:1}),modules=[m('unused'),m('b'),m('a')];
+  const owner={pages:[{nodes:[{id:'A',moduleId:'a',params:{p:1}}],edges:[]},{nodes:[{id:'B',moduleId:'b',params:{p:2}}],edges:[]}],
+    moduleSnapshots:{a:{...m('a'),version:3}}};
+  const read=()=>JSON.parse(model.parameterKey(owner,modules,()=>[]));
+  assert.deepEqual(read().modules.map(m=>[m.id,m.version]),[['b',1],['a',3]]);
+  const before=JSON.stringify(read());modules[0].version=5;assert.equal(JSON.stringify(read()),before);
+  owner.pages[0].nodes[0].params.p=9;assert.notEqual(JSON.stringify(read()),before);
+  owner.pages[1].nodes=[];assert.deepEqual(read().modules.map(m=>m.id),['a']);
+});

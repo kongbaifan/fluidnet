@@ -61,8 +61,8 @@ export const FluidNetCanvasView = (() => {
       const ctx=mini?{row:null,mode:'circuit',animate:false,labels:false}:context(owner),g=geometry(owner,page);
       return page.edges.filter(e=>g.routes.has(e[0])).map(e=>`<g data-canvas-edge="${esc(e[0])}">${edgeMarkup(owner,page,e,g.routes.get(e[0]),ctx,mini)}</g>`).join('')+page.nodes.map(n=>nodeMarkup(owner,n,ctx,mini)).join('');
     }
-    function paint(svg,owner,page) {
-      if(!svg)return;const ctx=context(owner),g=geometry(owner,page),edgeElements=new Map([...svg.querySelectorAll('[data-canvas-edge]')].map(el=>[el.dataset.canvasEdge,el]));
+    function paint(svg,owner,page,ctx=context(owner)) {
+      if(!svg)return;const g=geometry(owner,page),edgeElements=new Map([...svg.querySelectorAll('[data-canvas-edge]')].map(el=>[el.dataset.canvasEdge,el]));
       for(const e of page.edges){const el=edgeElements.get(e[0]),route=g.routes.get(e[0]);if(el&&route){const html=edgeMarkup(owner,page,e,route,ctx);if(el._canvasMarkup!==html){FluidNetSvgDom.patch(el,html);el._canvasMarkup=html;}}}
       const nodes=new Map(page.nodes.map(n=>[n.id,n]));
       for(const el of svg.querySelectorAll('[data-node]')){const n=nodes.get(el.dataset.node);if(!n)continue;

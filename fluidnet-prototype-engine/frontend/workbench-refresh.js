@@ -7,8 +7,9 @@ export const FluidNetWorkbenchRefresh = (() => {
       // Structural edits still use the normal view renderer.
       const nodes=[...svg.querySelectorAll('[data-node]')],edges=[...svg.querySelectorAll('[data-canvas-edge]')];
       const nodeIds=new Set(current.nodes.map(n=>n.id)),visibleEdges=current.edges.filter(edge=>nodeIds.has(edge[1])&&nodeIds.has(edge[3]));
-      if(nodes.length!==current.nodes.length||nodes.some(el=>!current.nodes.some(n=>n.id===el.dataset.node))||
-        edges.length!==visibleEdges.length||edges.some(el=>!visibleEdges.some(e=>e[0]===el.dataset.canvasEdge)))return false;
+      const edgeIds=new Set(visibleEdges.map(e=>e[0]));
+      if(nodes.length!==current.nodes.length||nodes.some(el=>!nodeIds.has(el.dataset.node))||
+        edges.length!==visibleEdges.length||edges.some(el=>!edgeIds.has(el.dataset.canvasEdge)))return false;
       svg.setAttribute('viewBox',viewBox(current));
       shell.classList.toggle('show-library',!!ui.showLibrary);shell.classList.toggle('with-chart',!!ui.showChart);
       root.querySelector('#network-area')?.classList.toggle('grid',!!ui.pageGrid);

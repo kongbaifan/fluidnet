@@ -9,7 +9,7 @@ export const FluidNetCanvasWorkspace = (() => {
     let queued=null,frameId=null;
     const owner=page=>getState().projects.find(p=>p.pages.includes(page))||project();
     function context(p) {
-      const run=p.run||{},history=run.history||[],row=[...history].reverse().find(r=>!r.partial&&r.valid!==false);
+      const run=p.run||{},history=run.history||[],row=history.findLast(r=>!r.partial&&r.valid!==false);
       const stale=!!(history.length||run.diagnostics?.length)&&(!run.parameterKey||run.parameterKey!==projectKey(p));
       const mode=['circuit','flow','temperature','pressure'].includes(ui.canvasModeValue)?ui.canvasModeValue:'circuit';
       const valid=!stale&&run.source==='engine';
@@ -23,12 +23,12 @@ export const FluidNetCanvasWorkspace = (() => {
       ui:()=>ui,domains,links,quick,channels,context,selectedIds,
       circuit:(p,key)=>{const all=engine().circuits?.(p.id)||[];return all.find(c=>c.ports.includes(key));},
       circuitLabel:c=>`回路 ${c.id+1} · ${c.fluid.fluid}`});
-    function diagnostics(p=project()) {
-      const ctx=context(p),rows=ctx.row?.diagnostics||(!ctx.stale?ctx.run.diagnostics:[])||[];
+    function diagnostics(p=project(),ctx=context(p)) {
+      const rows=ctx.row?.diagnostics||(!ctx.stale?ctx.run.diagnostics:[])||[];
       return [...new Map(rows.filter(d=>['warning','error'].includes(d.severity)).map(d=>[JSON.stringify([d.code,d.instance_id,d.message]),d])).values()];
     }
-    function legendText(p=project()) {
-      const ctx=context(p),scale=observations.legend(ctx.mode,ctx.scale);
+    function legendText(p=project(),ctx=context(p)) {
+      const scale=observations.legend(ctx.mode,ctx.scale);
       const basis=ctx.stale?'结果已过期 · 着色与流向停用':ctx.row?.valid===false?'运行失败 · 尚无有效完整采样':ctx.row?`采样 ${Number(ctx.time||0).toFixed(2)} s${ctx.partial?' · 最近完整关键帧，动画暂停':''}${ctx.run.status==='failed'?' · 最后接受结果，运行已失败':''}`:'尚无完整采样';
       const range=ctx.mode==='circuit'?'颜色区分工质回路':`${scale.label} ${scale.min} — ${scale.max} ${scale.unit} · 超范围使用端点色`;
       return `${ctx.mode==='circuit'?'':`<i class="canvas-legend-bar" style="background:linear-gradient(90deg,${scale.colors.join(',')})" aria-hidden="true"></i>`}<span>${esc(range)} · ${esc(basis)} · 灰色/—为未知</span>`;
@@ -39,9 +39,10 @@ export const FluidNetCanvasWorkspace = (() => {
     }
     function refresh() {
       if(ui.route!=='workbench')return;
-      view.paint(document.getElementById('network'),project(),activePage());
-      const legend=document.querySelector('[data-canvas-legend]');if(legend)legend.innerHTML=legendText();
-      const count=document.querySelector('[data-canvas-alert-count]');if(count)count.lastChild.textContent='运行告警 '+diagnostics().length;
+      const p=project(),ctx=context(p);
+      view.paint(document.getElementById('network'),p,activePage(),ctx);
+      const legend=document.querySelector('[data-canvas-legend]'),text=legendText(p,ctx);if(legend&&legend.innerHTML!==text)legend.innerHTML=text;
+      const count=document.querySelector('[data-canvas-alert-count]');if(count)count.lastChild.textContent='运行告警 '+diagnostics(p,ctx).length;
     }
     function flush() {
       if(frameId!==null)cancelAnimationFrame(frameId);frameId=null;

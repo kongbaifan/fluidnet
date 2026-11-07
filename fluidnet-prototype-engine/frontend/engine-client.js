@@ -168,17 +168,17 @@ export const createEngineClient = function (ui) {
     VOLUME:'density_kg_m3',Q:'quality'};
   // Canonical frame key behind a prototype variable; shared by rowFromFrame and the trend request.
   // Custom/system variables remain local; parameters use their actual runtime values.
-  function canonicalKeyOf(n, v) {
+  function canonicalKeyOf(n, v, m=ui.moduleOf(n)) {
     if (v.origin === 'port') { const suffix = PORT_SUFFIX[v.id.split(':').at(-1)]; return suffix ? `${n.id}.${v.port}.${suffix}` : null; }
     if (v.origin === 'runtime' && v.canonicalId) return `${n.id}.${v.canonicalId}`;
     if (v.origin === 'parameter') {
-      const m=ui.moduleOf(n), id=m.manifest ? v.param : catalog?.prototype_parameter_bindings[m.kind]?.[v.param];
+      const id=m.manifest ? v.param : catalog?.prototype_parameter_bindings[m.kind]?.[v.param];
       return id ? `${n.id}.param.${id}` : null;
     }
     return null;
   }
-  function observation(n,v) {
-    const canonicalKey=canonicalKeyOf(n,v);
+  function observation(n,v,m=ui.moduleOf(n)) {
+    const canonicalKey=canonicalKeyOf(n,v,m);
     if (!canonicalKey) return {};
     let scale=1,offset=0;
     if (v.origin==='port') {
@@ -186,9 +186,9 @@ export const createEngineClient = function (ui) {
       if(suffix==='pressure_pa')scale=v.unit==='MPa'?1e6:v.unit==='kPa'?1000:1;
       if(suffix==='temperature_k' && v.unit==='°C')offset=-273.15;
       if(suffix==='enthalpy_j_kg' && v.unit==='kJ/kg')scale=1000;
-      if(suffix==='mass_flow_kg_s' && ui.moduleOf(n).ports.find(p=>p.id===v.port)?.direction==='out')scale=-1;
+      if(suffix==='mass_flow_kg_s' && m.ports.find(p=>p.id===v.port)?.direction==='out')scale=-1;
     } else {
-      const m=ui.moduleOf(n), spec=v.origin==='parameter' ? (m.manifest || catalog?.modules.find(d=>d.id===m.kind))?.parameters.find(p=>p.id===canonicalKey.split('.').at(-1)) : null;
+      const spec=v.origin==='parameter' ? (m.manifest || catalog?.modules.find(d=>d.id===m.kind))?.parameters.find(p=>p.id===canonicalKey.split('.').at(-1)) : null;
       const unit=spec?.unit || v.unitSpec;
       if(unit){scale=unit.display_scale;offset=unit.display_offset;}
     }
@@ -297,9 +297,9 @@ export const createEngineClient = function (ui) {
     const row = {t:frame.time_s,canonical,valid:frame.valid,partial:frame.full === false,variables:{},variableValues:{},diagnostics:frame.diagnostics,metrics:frame.metrics,
       ...overviewValues(bindings,canonical)};
     for (const n of owner.pages.flatMap(p => p.nodes)) {
-      const m = ui.moduleOf(n);
+      const m = owner.moduleSnapshots?.[n.moduleId] || ui.moduleOf(n);
       for (const v of m.variables) {
-        const sample=observation(n,v), raw=canonical[sample.canonicalKey];
+        const sample=observation(n,v,m), raw=canonical[sample.canonicalKey];
         const value=raw===undefined || raw===null ? v.origin==='parameter'?n.params[v.param]:null : typeof raw==='number'?raw/sample.canonicalScale+sample.canonicalOffset:raw;
         row.variableValues[n.id + ':' + v.id] = value;
       }
