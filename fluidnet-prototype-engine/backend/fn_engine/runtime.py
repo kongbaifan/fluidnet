@@ -20,7 +20,22 @@ from .module_contracts import check_module_compatibility, definition_hash
 from .module_execution import InvocationState
 from .module_performance import ParentEvaluateCache
 from .module_diagnostics import exception_diagnostic, merge_diagnostics, MAX_MESSAGE_CHARS
-from .model_types.protocol import CommitStepRequest, CommitStepResponse, EvaluateRequest, EvaluateResponse, RefrigerationEvaluateRequest, RefrigerationEvaluateResponse, InitializeRequest, ModuleExecutionInfo, ModuleRequestContext, ModuleStepCandidate, ModulePhaseRequest, ModuleThermalResponse, ModuleDerivativeResponse, NetworkRelation
+from .model_types.protocol import (
+    CommitStepRequest,
+    CommitStepResponse,
+    EvaluateRequest,
+    EvaluateResponse,
+    RefrigerationEvaluateRequest,
+    RefrigerationEvaluateResponse,
+    InitializeRequest,
+    ModuleExecutionInfo,
+    ModuleRequestContext,
+    ModuleStepCandidate,
+    ModulePhaseRequest,
+    ModuleThermalResponse,
+    ModuleDerivativeResponse,
+    NetworkRelation,
+)
 from .model_types.base import ChannelState, Diagnostic, FluidConfig, PortState
 from .model_types.module import ModuleDefinition
 from .module_state import checked_state,checked_result
@@ -244,7 +259,7 @@ class InProcessModuleRunner:
         self.parameters = parameters
         self.fluid = fluid
         self.port_fluids = dict(port_fluids or {})
-        self.state = checked_state(initial_state or {})
+        self.state: dict[str, Any] = checked_state(initial_state or {})
         self.module = _load_module(definition)
         if definition.execution_role:
             validate_lifecycle(self.module)
@@ -252,10 +267,10 @@ class InProcessModuleRunner:
         self.execution = InvocationState(run_id, instance_id or definition.id)
         self._last_committed_time_s: float | None = None
         self.state_revision = 0
-        self._pending_candidate = None
-        self._accepted_candidate = None
-        self._pending_digest = None
-        self._accepted_digest = None
+        self._pending_candidate: ModuleStepCandidate | None = None
+        self._accepted_candidate: ModuleStepCandidate | None = None
+        self._pending_digest: str | None = None
+        self._accepted_digest: str | None = None
         self.cache_enabled = cache_enabled
         self._evaluate_cache:OrderedDict[str,EvaluateResponse] = OrderedDict()
         self._source_hashes = (module_content_hash(definition), module_definition_hash(definition))
@@ -443,7 +458,9 @@ class InProcessModuleRunner:
                                    diagnostics=response.diagnostics)
         return response
 
-    def prepare_step(self, request, channels=None, *, base_revision=None, authoritative_state=None):
+    def prepare_step(self, request: CommitStepRequest, channels: dict[str, ChannelResult] | None = None,
+                     *, base_revision: int | None = None, authoritative_state: dict[str, Any] | None = None
+                     ) -> ModuleStepCandidate:
         if not self.initialized:
             self.initialize()
         base_revision = self.state_revision if base_revision is None else base_revision
@@ -480,7 +497,7 @@ class InProcessModuleRunner:
         self._pending_candidate, self._pending_digest = candidate, digest
         return candidate
 
-    def synchronize_state(self, candidate):
+    def synchronize_state(self, candidate: ModuleStepCandidate) -> None:
         if self._accepted_candidate is not None and candidate == self._accepted_candidate:
             return
         if candidate.base_revision != self.state_revision or candidate != self._pending_candidate:
@@ -491,10 +508,11 @@ class InProcessModuleRunner:
         self._accepted_digest = self._pending_digest
         self._last_committed_time_s = candidate.time_s
 
-    def discard_candidate(self):
+    def discard_candidate(self) -> None:
         self._pending_candidate = None
 
-    def phase_call(self, phase, request: ModulePhaseRequest):
+    def phase_call(self, phase: str, request: ModulePhaseRequest
+                   ) -> ModuleThermalResponse | ModuleDerivativeResponse | EvaluateResponse:
         if self.definition.execution_role:
             raise RuntimeErrorBase('制冷角色不支持流体阶段调用',code='MODULE_EXECUTION_DOMAIN_UNSUPPORTED')
         if not self.initialized:
@@ -538,7 +556,8 @@ class InProcessModuleRunner:
         checked_result(result)
         return result
 
-    def commit_step(self, request, channels=None):
+    def commit_step(self, request: CommitStepRequest, channels: dict[str, ChannelResult] | None = None
+                    ) -> CommitStepResponse:
         # Legacy direct callers still accept one instance; the engine uses prepare/promote/sync.
         candidate = self.prepare_step(request, channels)
         self.synchronize_state(candidate)
@@ -578,7 +597,7 @@ class WorkerProcess:
         self.port_fluids = dict(port_fluids or {})
         self.state = dict(initial_state or {})
         self.state_revision = 0
-        self._accepted_candidate = None
+        self._accepted_candidate: ModuleStepCandidate | None = None
         self.cache_enabled = cache_enabled
         self.execution = InvocationState(run_id, instance_id or definition.id)
         self._parent_cache = ParentEvaluateCache()
@@ -806,7 +825,8 @@ class WorkerProcess:
     def parent_cache_hits(self):
         return self._parent_cache.hits
 
-    def commit_step(self, request: CommitStepRequest, channels: dict[str, ChannelResult] | None = None):
+    def commit_step(self, request: CommitStepRequest, channels: dict[str, ChannelResult] | None = None
+                    ) -> CommitStepResponse:
         candidate=self.prepare_step(request,channels)
         if candidate != self._accepted_candidate:
             if candidate.base_revision != self.state_revision:
@@ -817,7 +837,8 @@ class WorkerProcess:
         self.synchronize_state(candidate)
         return candidate.result
 
-    def prepare_step(self, request, channels=None):
+    def prepare_step(self, request: CommitStepRequest, channels: dict[str, ChannelResult] | None = None
+                     ) -> ModuleStepCandidate:
         if channels is not None:
             request = request.model_copy(update={'converged_channels': channels})
         request = request.model_copy(update={'context': request.context if request.context is not None else self.execution.context()})
@@ -825,17 +846,20 @@ class WorkerProcess:
             'request': request.model_dump(mode='json'), 'base_revision': self.state_revision,
             'state': checked_state(self.state)}))
 
-    def synchronize_state(self, candidate):
+    def synchronize_state(self, candidate: ModuleStepCandidate) -> None:
         response=self._request({'action': 'synchronize_state', 'candidate': candidate.model_dump(mode='json')})
         if response.get('ok') is not True or response.get('revision') != candidate.base_revision+1:
             raise RuntimeErrorBase('Worker 状态同步回执无效',code='MODULE_SYNC_ACK_INVALID')
 
-    def discard_candidate(self):
+    def discard_candidate(self) -> None:
         self._request({'action': 'discard_candidate'})
 
-    def phase_call(self, phase, request):
+    def phase_call(self, phase: str, request: ModulePhaseRequest
+                   ) -> ModuleThermalResponse | ModuleDerivativeResponse | EvaluateResponse:
         response = self._request({'action': phase, 'request': request.model_dump(mode='json')})
-        parser = {'thermal':ModuleThermalResponse, 'jacobian':ModuleDerivativeResponse}.get(phase, EvaluateResponse)
+        parsers: dict[str, type[ModuleThermalResponse] | type[ModuleDerivativeResponse] | type[EvaluateResponse]] = {
+            'thermal': ModuleThermalResponse, 'jacobian': ModuleDerivativeResponse}
+        parser = parsers.get(phase, EvaluateResponse)
         return parser.model_validate(response)
 
     def finalize(self):

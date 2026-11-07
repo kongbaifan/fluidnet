@@ -82,6 +82,8 @@ jobs:
         run: python -m mypy
       - name: 公共会话接口严格类型检查
         run: python -m mypy --config-file mypy-session.ini
+      - name: 模块执行器接口严格类型检查
+        run: python -m mypy --config-file mypy-runner.ini
       - name: 数值运行环境与快速基线
         run: |
           python -c "import platform,numpy; print(platform.python_version(), platform.processor()); numpy.show_runtime()"

@@ -1,7 +1,20 @@
 """Bounded Worker shards, isolated module instances, one evaluation RPC per shard."""
 from concurrent.futures import ThreadPoolExecutor
+from typing import Any
 
-from .model_types.protocol import InitializeRequest, EvaluateResponse, ModuleStepCandidate, ModuleThermalResponse, ModuleDerivativeResponse
+from .model_types.base import ChannelState
+from .model_types.module import ModuleDefinition
+
+from .model_types.protocol import (
+    InitializeRequest,
+    CommitStepRequest,
+    CommitStepResponse,
+    ModulePhaseRequest,
+    EvaluateResponse,
+    ModuleStepCandidate,
+    ModuleThermalResponse,
+    ModuleDerivativeResponse,
+)
 from .compiler import instance_fluids
 from .module_contracts import check_module_compatibility
 from .module_execution import InvocationState, new_identity
@@ -12,9 +25,10 @@ from .runtime import WorkerProcess, module_content_hash, module_definition_hash
 class Handle:
     def __init__(self, worker, instance, definition, parameters, fluid, port_fluids=None, *, run_id=None):
         self.worker, self.id = worker, instance.id
-        self.state = {}
+        self.definition: ModuleDefinition = definition
+        self.state: dict[str, Any] = {}
         self.state_revision = 0
-        self._accepted_candidate = None
+        self._accepted_candidate: ModuleStepCandidate | None = None
         self._parent_cache = ParentEvaluateCache()
         self.execution = InvocationState(run_id, self.id)
         worker._invocations[self.id] = self.execution
@@ -31,7 +45,8 @@ class Handle:
         self.worker._request({'action':'parameters','instance_id':self.id,'parameters':parameters})
         self._parent_cache.clear()
 
-    def commit_step(self, request, channels=None):
+    def commit_step(self, request: CommitStepRequest, channels: dict[str, ChannelState] | None = None
+                    ) -> CommitStepResponse:
         from .module_state import checked_state
         candidate=self.prepare_step(request,channels)
         if candidate != self._accepted_candidate:
@@ -44,26 +59,30 @@ class Handle:
         self.synchronize_state(candidate)
         return candidate.result
 
-    def prepare_step(self, request, channels=None):
+    def prepare_step(self, request: CommitStepRequest, channels: dict[str, ChannelState] | None = None
+                     ) -> ModuleStepCandidate:
         if channels is not None:
             request = request.model_copy(update={'converged_channels': channels})
         request = request.model_copy(update={'context': request.context if request.context is not None else self.execution.context()})
         return ModuleStepCandidate.model_validate(self.worker._request({'action': 'prepare_step', 'instance_id': self.id,
             'request': request.model_dump(mode='json'), 'base_revision': self.state_revision, 'state': self.state}))
 
-    def synchronize_state(self, candidate):
+    def synchronize_state(self, candidate: ModuleStepCandidate) -> None:
         response=self.worker._request({'action': 'synchronize_state', 'instance_id': self.id,
                                        'candidate': candidate.model_dump(mode='json')})
         if response.get('ok') is not True or response.get('revision') != candidate.base_revision+1:
             from .runtime import RuntimeErrorBase
             raise RuntimeErrorBase('Worker 状态同步回执无效',code='MODULE_SYNC_ACK_INVALID')
 
-    def discard_candidate(self):
+    def discard_candidate(self) -> None:
         self.worker._request({'action': 'discard_candidate', 'instance_id': self.id})
 
-    def phase_call(self, phase, request):
+    def phase_call(self, phase: str, request: ModulePhaseRequest
+                   ) -> ModuleThermalResponse | ModuleDerivativeResponse | EvaluateResponse:
         response = self.worker._request({'action': phase, 'instance_id': self.id, 'request': request.model_dump(mode='json')})
-        parser = {'thermal':ModuleThermalResponse, 'jacobian':ModuleDerivativeResponse}.get(phase, EvaluateResponse)
+        parsers: dict[str, type[ModuleThermalResponse] | type[ModuleDerivativeResponse] | type[EvaluateResponse]] = {
+            'thermal': ModuleThermalResponse, 'jacobian': ModuleDerivativeResponse}
+        parser = parsers.get(phase, EvaluateResponse)
         return parser.model_validate(response)
 
 
