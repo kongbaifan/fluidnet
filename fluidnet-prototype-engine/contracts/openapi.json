@@ -3208,6 +3208,54 @@
         }
       }
     },
+    "/api/v1/catalog/presentation": {
+      "get": {
+        "summary": "Catalog Presentation",
+        "operationId": "catalog_presentation_api_v1_catalog_presentation_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogPresentationResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/equipment-library/coil-geometry": {
       "post": {
         "summary": "Coil Geometry Design",
@@ -7986,6 +8034,29 @@
         ],
         "title": "CanonicalUnitConversion"
       },
+      "CatalogPresentationResponse": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "const": 1,
+            "title": "Version",
+            "default": 1
+          },
+          "devices": {
+            "items": {
+              "$ref": "#/components/schemas/DevicePresentation"
+            },
+            "type": "array",
+            "title": "Devices"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "devices"
+        ],
+        "title": "CatalogPresentationResponse"
+      },
       "CatalogResponse": {
         "properties": {
           "modules": {
@@ -8793,6 +8864,59 @@
           "source"
         ],
         "title": "ControlScript"
+      },
+      "DevicePresentation": {
+        "properties": {
+          "module_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+            "title": "Module Id"
+          },
+          "runtime": {
+            "type": "string",
+            "const": "builtin",
+            "title": "Runtime"
+          },
+          "domains": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "fluid",
+                "thermal",
+                "refrigerant",
+                "signal"
+              ]
+            },
+            "type": "array",
+            "title": "Domains"
+          },
+          "capabilities": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Capabilities"
+          },
+          "icon": {
+            "type": "string",
+            "title": "Icon"
+          },
+          "canvas_family": {
+            "type": "string",
+            "title": "Canvas Family"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "module_id",
+          "runtime",
+          "domains",
+          "capabilities",
+          "icon",
+          "canvas_family"
+        ],
+        "title": "DevicePresentation"
       },
       "Diagnostic": {
         "properties": {

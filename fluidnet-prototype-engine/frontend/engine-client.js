@@ -25,6 +25,7 @@ window.createEngineClient = function (ui) {
     runState.setArchiveCache(run,metadata);
   }
   let catalog = null, moduleCatalog = null, health = null;
+  let catalogPresentation = Object.create(null);
   // Polling a backgrounded run is bounded twice on purpose: a backend that never leaves
   // queued/running must not spin the UI forever, and an iteration cap alone would not hold
   // if each request itself is slow. Whichever bound trips first fails the run with an
@@ -132,7 +133,7 @@ window.createEngineClient = function (ui) {
   }
   const model=window.FluidNetProjectModel;
   const manifestParamDef=model.manifestParamDef;
-  const moduleFromManifest=manifest=>model.moduleFromManifest(manifest,window.ModuleTestEditor?.defaultConditions);
+  const moduleFromManifest=manifest=>model.moduleFromManifest(manifest,window.ModuleTestEditor?.defaultConditions,catalogPresentation[manifest.id]);
   const moduleService=window.createModuleService({request,model,moduleFromManifest,testFlow:traceFlow,
     modules:()=>ui.state().modules,getBench:()=>ui.state().bench,parameterDefinitions:ui.parameterDefinitions,
     normalizeProject:normalize,copyPanel:(source,target)=>window.FluidNetPanelLayout?.copy(source,target),
@@ -532,8 +533,10 @@ window.createEngineClient = function (ui) {
     try {
       const probe = await request('/health');
       if (probe.auth?.required && !sessionStorage.getItem(TOKEN_KEY)) { health = probe; askToken('此计算服务要求访问令牌。'); return; }
-      const [service,data,packages] = await Promise.all([request('/health'),request('/catalog'),request('/modules')]);
+      const [service,data,packages,presentation] = await Promise.all([request('/health'),request('/catalog'),request('/modules'),
+        request('/catalog/presentation').catch(error=>({devices:[],warning:[404,501].includes(error.status)?'':`设备展示目录读取失败，使用兼容图标：${error.message}`}))]);
       health = service;
+      catalogPresentation=model.catalogPresentationIndex(presentation);
       // Restore validation must use backend bounds, including atmospheric-pressure air sources.
       for (const [kind,bindings] of Object.entries(data.prototype_parameter_bindings)) {
         const m = data.modules.find(m => m.id === kind);
@@ -556,9 +559,10 @@ window.createEngineClient = function (ui) {
       const workspaceWarning=await services.loadWorkspace(forceWorkspace);
       catalog=data;
       moduleCatalog=packages;
-      for (const manifest of data.modules.filter(m=>m.ports.some(p=>p.domain==='thermal' || p.domain==='refrigerant') || ['duct','cooling_coil','humidifier','air_mixing_box','air_filter','air_room','cooling_tower_moist','water_coil','water_chiller','air_cooled_chiller','air_source_heat_pump','enthalpy_recovery','closed_buffer_tank','hydronic_buffer_tank','gas_expansion_tank','tower_pool','coupled_tower_pool'].includes(m.id))) {
+      for (const manifest of data.modules.filter(m=>catalogPresentation[m.id] || m.ports.some(p=>p.domain==='thermal' || p.domain==='refrigerant') || ['duct','cooling_coil','humidifier','air_mixing_box','air_filter','air_room','cooling_tower_moist','water_coil','water_chiller','air_cooled_chiller','air_source_heat_pump','enthalpy_recovery','closed_buffer_tank','hydronic_buffer_tank','gas_expansion_tank','tower_pool','coupled_tower_pool'].includes(m.id))) {
         let m=ui.state().modules.find(m=>m.id===manifest.id);
         if(!m){m=moduleFromManifest(manifest);ui.state().modules.push(m);}
+        else if(!m.presentation)model.applyCatalogPresentation(m,catalogPresentation[m.id]);
         ui.parameterDefinitions[m.kind]=manifest.parameters.filter(p=>p.value_type==='number').map(manifestParamDef);
       }
       for (const manifest of packages.modules || []) {
@@ -589,7 +593,7 @@ window.createEngineClient = function (ui) {
         const pythonModule=ui.state().modules.find(m=>m.runtime==='python' && m.manifest);
         if (pythonModule) { ui.state().bench.moduleId=pythonModule.id; ui.state().bench.params=Object.fromEntries(ui.parameterDefinitions[pythonModule.kind].map(f=>[f[0],f[6]])); }
       }
-      ui.message(workspaceWarning || `计算服务 v${health.version} 已连接：稳态水力${health.capabilities?.tank_state ? '、水箱隐式积分' : ''}与准稳态时间序列可用。`,!!workspaceWarning);
+      ui.message(workspaceWarning || presentation?.warning || `计算服务 v${health.version} 已连接：稳态水力${health.capabilities?.tank_state ? '、水箱隐式积分' : ''}与准稳态时间序列可用。`,!!(workspaceWarning||presentation?.warning));
       ui.render();
       await services.refreshArchives();
     } catch (error) { const local=/^本地草稿/.test(error.message||''); ui.message((local ? '' : '计算服务未连接，请通过启动脚本打开此页面。') + error.message,true); }

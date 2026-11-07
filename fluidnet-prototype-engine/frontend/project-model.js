@@ -37,7 +37,24 @@ window.FluidNetProjectModel = (() => {
     const step = spec.value_type === 'boolean' ? 1 : (Math.abs(maximum - minimum) > 100 ? 1 : .01);
     return [spec.id, spec.label, display, minimum, maximum, step, displayValue(spec.default)];
   }
-  function moduleFromManifest(manifest, defaultConditions) {
+  function catalogPresentationIndex(response) {
+    const index=Object.create(null);
+    if(response?.version!==1||!Array.isArray(response.devices))return index;
+    for(const item of response.devices){
+      if(!item||typeof item.module_id!=='string'||item.runtime!=='builtin'||typeof item.icon!=='string'||
+        !/^\w+$/.test(item.icon)||typeof item.canvas_family!=='string')continue;
+      index[item.module_id]={module_id:item.module_id,runtime:item.runtime,icon:item.icon,canvas_family:item.canvas_family};
+    }
+    return index;
+  }
+  function applyCatalogPresentation(module, presentation) {
+    if(module.runtime!=='builtin'||presentation?.runtime!=='builtin'||presentation.module_id!==module.id)return module;
+    if(typeof presentation.icon!=='string'||!/^\w+$/.test(presentation.icon)||typeof presentation.canvas_family!=='string')return module;
+    module.presentation={icon:presentation.icon,canvas_family:presentation.canvas_family};
+    module.icon=presentation.icon;
+    return module;
+  }
+  function moduleFromManifest(manifest, defaultConditions, presentation) {
     // Catalog icons come from studio.js ICONS; unknown ids intentionally fall back to Box.
     const icon = {coupled_tower_pool:'Droplets',enthalpy_recovery:'ArrowRightLeft',hydronic_boiler:'Flame',geometry_bend:'CornerDownRight',gas_expansion_tank:'Database',tower_pool:'Database',air_source_heat_pump:'Flame',air_recovery_sensible:'ArrowRightLeft',enthalpy_compressor:'Gauge',enthalpy_valve:'SlidersHorizontal',refrigerant_line:'Minus',refrigerant_subcooler:'Snowflake',refrigerant_recuperator:'ArrowRightLeft',dx_expansion_valve:'SlidersHorizontal',dx_evaporator:'Snowflake',dx_compressor:'Gauge',air_cooled_chiller:'Snowflake',closed_buffer_tank:'Database',performance_compressor:'Gauge',cold_room_multi:'Home',defrost_air_cooler:'Snowflake',air_branch_box:'GitBranch',fan_performance:'Wind',plate_exchanger:'ArrowRightLeft',differential_bypass_valve:'SlidersHorizontal',pressure_independent_valve:'SlidersHorizontal',horizontal_receiver:'Database',horizontal_drum:'Database',air_cooled_condenser:'Wind',cold_room:'Home',storage_room:'Home',lp_drum:'Database',hp_receiver:'Database',pumped_drum:'Database',cascade_exchanger:'ArrowRightLeft',refrigerant_compressor:'Gauge',evaporative_condenser:'Wind',expansion_valve:'SlidersHorizontal',refrigerant_pump:'Gauge',air_cooler:'Snowflake',refrigerant_header:'GitMerge',water_coil:'Snowflake',water_chiller:'Snowflake',duct:'Wind',cooling_coil:'Snowflake',humidifier:'Droplets',air_mixing_box:'GitMerge',air_filter:'Filter',air_room:'Home',cooling_tower_moist:'Wind',pipe_fitting:'GitBranch',pipe_reducer:'GitBranch',check_valve:'ArrowRightLeft',fan_coil_unit:'Wind',cooling_tower:'Sun',fan:'Wind',pump_variable_speed:'Gauge',capillary_tube:'Minus',valve_equal_percentage:'SlidersHorizontal'}[manifest.id] || 'Box';
     const parameterDefs = (manifest.parameters || []).filter(p => p.value_type === 'number').map(manifestParamDef);
@@ -71,7 +88,7 @@ window.FluidNetProjectModel = (() => {
       parameters:manifest.parameters || [],parameterDefs,variables,customVars:[],quickParam:parameterDefs[0]?.[0] || '',quickType:'number',drawing:{shape:'rectangle',width:32,height:30,label:manifest.name},step:100,precision:4,dirty:false,
       source:{runtime:manifest.source?.runtime || '',header:'',design:['','','']},designSource:typeof manifest.source?.design === 'string' ? manifest.source.design : '',sourceFormat:'python-v1',values,banks:[clone(values),clone(values),clone(values)],bankNames:manifest.bank_names || ['额定工况','部分负荷','调试备份']};
     if(manifest.execution_role)m.testConditions=defaultConditions(manifest);
-    return m;
+    return applyCatalogPresentation(m,presentation);
   }
 function manifestFields(manifest) {
   return manifest.parameters.filter(p => p.value_type === 'number').map(p => {
@@ -198,6 +215,13 @@ function manifestParamDefaults(manifest) {
     }
     document.project.run=emptyRun();return document;
   }
-  return {workspaceContentEqual,toDisplay,toCanonical,displayParameters,canonicalParameters,manifestParamDef,moduleFromManifest,
+function parameterKey(owner,modules,controlKey) {
+  return JSON.stringify({scenarios:owner.scenarios||[],events:owner.events||[],activeScenarioId:owner.activeScenarioId||'',medium:owner.medium,fluid:owner.fluid,fluidReference:owner.fluidReference,fluidConfig:owner.fluidConfig,circuitFluids:owner.circuitFluids,couplingMode:owner.couplingMode,thermalCouplings:owner.thermalCouplings,solverOptions:owner.solverOptions,controllers:owner.controllers||[],controls:controlKey(owner), solver: owner.solver, modules: modules.filter(m => owner.pages.some(pg => pg.nodes.some(n => n.moduleId === m.id))).map(m => {const bound=owner.moduleSnapshots?.[m.id]||m;return {id:bound.id,kind:bound.kind,version:bound.version,definitionHash:bound.manifest?.definition_hash,ports:bound.ports.map(({id,domain,direction,required,circuit})=>({id,domain,direction,required,circuit})),channels:bound.channels};}), pages: owner.pages.map(pg => ({
+    nodes: pg.nodes.map(n => ({ id: n.id, moduleId: n.moduleId, params: n.params, values: n.variableState?.values })),
+    edges: pg.edges,
+  })) });
+}
+
+  return {parameterKey,workspaceContentEqual,toDisplay,toCanonical,displayParameters,canonicalParameters,manifestParamDef,moduleFromManifest,applyCatalogPresentation,catalogPresentationIndex,
     manifestFields,manifestParamSpecs,manifestParamDefaults,projectDocument,exchangeDocument,upgradeDocument};
 })();

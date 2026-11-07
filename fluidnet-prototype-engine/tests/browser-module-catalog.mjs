@@ -25,6 +25,17 @@ try {
   await page.goto(fixture.base + '/#modules');
   await expect(page.locator('#app-header')).toContainText(/v\d+\.\d+\.\d+/);
 
+  // Registered metadata supplies the actual library icon, including the formerly unmapped hydronic buffer.
+  const presentationResponse=await page.request.get(fixture.base+'/api/v1/catalog/presentation');
+  expect(presentationResponse.ok()).toBe(true);
+  const presentation=await presentationResponse.json();expect(presentation.version).toBe(1);
+  for(const item of presentation.devices){
+    const card=page.locator(`[data-module-id="${item.module_id}"]`);
+    await expect(card).toHaveCount(1);
+    const slug=item.icon.replace(/([a-z0-9])([A-Z])/g,'$1-$2').toLowerCase();
+    await expect(card.locator('.object-icon svg')).toHaveClass(new RegExp(`lucide-${slug}`));
+  }
+
   const nav = page.locator(`[data-action="module-category"][data-value="${CATEGORY}"]`);
   await expect(nav).toBeVisible({ timeout: 15000 });
   await expect(nav.locator('small')).toHaveText('8');

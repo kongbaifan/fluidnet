@@ -1,5 +1,12 @@
 from __future__ import annotations
-from .model_types.module_testing import ModuleTemplateRequest, ModuleGroupRequest, ModuleTestSuiteRequest, ModuleTestSuiteResponse, CompositeTestContextRequest, ModuleTestConditions
+from .model_types.module_testing import (
+    ModuleTemplateRequest,
+    ModuleGroupRequest,
+    ModuleTestSuiteRequest,
+    ModuleTestSuiteResponse,
+    CompositeTestContextRequest,
+    ModuleTestConditions,
+)
 from .model_types.http import ModuleReplayRequest, ModuleReplayResponse, ModuleFailureResponse
 from .system_inspection import SystemInspection, InspectionComparison
 from .equipment_library import LibraryCatalog, LibraryRequest
@@ -31,11 +38,50 @@ from .auth import AuthConfig, allowed, bearer, websocket_secret
 from .jobs import OVERVIEW_POINTS, TERMINAL, RunManager
 from .bridge import PARAMETER_BINDINGS, normalize_prototype_export
 from .catalog import builtin_catalog
+from .device_registry import presentation_catalog
+from .model_types.catalog_presentation import CatalogPresentationResponse
 from .compiler import CompilationError, compile_project, validate_project_details
-from .model_types.http import CatalogResponse, ControlPreviewResponse, HealthResponse, ModuleCatalogResponse, ProjectDeleteResponse, ProjectDetailResponse, ProjectListResponse, ProjectRevisionsResponse, ProjectRestoreResponse, ProjectSaveResponse, ProjectUpgradeResponse, SavedProjectRunRequest, RunStatus, RunRecordResponse, RunCreateResponse, RunDeleteResponse, RunEventsResponse, RunHistoryResponse, RunListResponse, RunOverviewResponse, ValidationResponse, ModuleSaveRequest, ModuleVersionResponse, ModuleVersionsResponse, WorkspaceResponse, WorkspaceRestoreResponse, WorkspaceRevisionsResponse, WorkspaceSaveResponse, WorkspaceStorageResponse
+from .model_types.http import (
+    CatalogResponse,
+    ControlPreviewResponse,
+    HealthResponse,
+    ModuleCatalogResponse,
+    ProjectDeleteResponse,
+    ProjectDetailResponse,
+    ProjectListResponse,
+    ProjectRevisionsResponse,
+    ProjectRestoreResponse,
+    ProjectSaveResponse,
+    ProjectUpgradeResponse,
+    SavedProjectRunRequest,
+    RunStatus,
+    RunRecordResponse,
+    RunCreateResponse,
+    RunDeleteResponse,
+    RunEventsResponse,
+    RunHistoryResponse,
+    RunListResponse,
+    RunOverviewResponse,
+    ValidationResponse,
+    ModuleSaveRequest,
+    ModuleVersionResponse,
+    ModuleVersionsResponse,
+    WorkspaceResponse,
+    WorkspaceRestoreResponse,
+    WorkspaceRevisionsResponse,
+    WorkspaceSaveResponse,
+    WorkspaceStorageResponse,
+)
 from .model_types.base import Diagnostic
 from .model_types.module import ModuleDefinition
-from .model_types.module_testing import ModuleDesignRequest, ModuleDesignResponse, ModuleTestRequest, ModuleTestResponse, UnitWorkpointRequest, UnitWorkpointResponse
+from .model_types.module_testing import (
+    ModuleDesignRequest,
+    ModuleDesignResponse,
+    ModuleTestRequest,
+    ModuleTestResponse,
+    UnitWorkpointRequest,
+    UnitWorkpointResponse,
+)
 from .model_types.domain import Project, ProjectDocument
 from .model_types.run import RunCommand, RunFrame, RunRequest, RunEvent, VariableValues, VariableWrite
 from .errors import error_responses, protected_error_responses
@@ -43,7 +89,14 @@ from .properties import PropertyError, refprop_info
 from .packages import ModuleStore, ModuleVersionConflict, ModuleSaveInvalid, package_ref
 from .module_validation import validate_module_definition
 from .solver import SolveFailed, solve_dynamic, solve_steady
-from .model_types.http import ControlPreviewRequest, WorkspaceSaveRequest, ProjectSaveRequest, ProjectRevisionRequest, ProjectDeleteRequest, ProjectUpgradeRequest
+from .model_types.http import (
+    ControlPreviewRequest,
+    WorkspaceSaveRequest,
+    ProjectSaveRequest,
+    ProjectRevisionRequest,
+    ProjectDeleteRequest,
+    ProjectUpgradeRequest,
+)
 from .storage import WorkspaceStore, WorkspaceConflict, StorageError
 
 logger = logging.getLogger('fn_engine.api')
@@ -457,6 +510,11 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
              responses=protected_error_responses('INTERNAL_ERROR'))
     def catalog():
         return {'modules':builtin_catalog(), 'prototype_parameter_bindings':PARAMETER_BINDINGS}
+
+    @app.get('/api/v1/catalog/presentation', response_model=CatalogPresentationResponse,
+             responses=protected_error_responses('INTERNAL_ERROR'))
+    def catalog_presentation():
+        return presentation_catalog()
 
     @app.post('/api/v1/equipment-library/coil-geometry', response_model=CoilGeometryResponse,
               responses=protected_error_responses(422, 'INTERNAL_ERROR'))

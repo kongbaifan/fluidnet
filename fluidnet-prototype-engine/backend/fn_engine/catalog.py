@@ -221,16 +221,8 @@ def builtin_catalog() -> list[ModuleDefinition]:
         if definition.solver_model == 'pump_curve':
             definition.variables.append(VariableSpec(id='shaft_power_w',label='估算轴功率',quantity='power',
                 unit=UnitSpec(quantity='power',canonical_unit='W',display_unit='W'),source='derived'))
-    from .buffer_tank import definition as buffer_tank_definition
-    definitions.append(buffer_tank_definition())
-    from .buffer_tank import hydronic_definition
-    definitions.append(hydronic_definition())
-    from .expansion_tank import definition as expansion_tank_definition
-    definitions.append(expansion_tank_definition())
-    from .tower_pool import definition as pool_definition
-    definitions.append(pool_definition())
-    from .coupled_tower_pool import definition as coupled_pool_definition
-    definitions.append(coupled_pool_definition())
+    from .device_registry import registered_definitions
+    definitions.extend(registered_definitions())
     definitions.extend(thermal_catalog())
     definitions.extend(cold_store_catalog())
     definitions.extend(refrigeration_catalog())

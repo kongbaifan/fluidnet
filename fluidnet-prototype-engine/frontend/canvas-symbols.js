@@ -10,6 +10,7 @@ window.FluidNetCanvasSymbols = (() => {
   function family(m){
     const type=kind(m),id=String(m?.kind||m?.id||'');
     if(m?.manifest?.composite||m?.composite)return 'group';
+    if(Object.hasOwn(sizes,m?.presentation?.canvas_family))return m.presentation.canvas_family;
     if(type==='pressure_source'||id==='source'||/boundary|pressure_reference/.test(id))return 'source';
     if(type==='junction'||id==='junction')return 'junction';
     if(/compressor|condensing_unit/.test(type+' '+id))return 'compressor';
@@ -119,6 +120,10 @@ window.FluidNetCanvasSymbols = (() => {
   };
   function copyPresentation(source,target){
     if(!source||!target)return target;
+    if(source.id===target.id&&source.runtime==='builtin'&&target.runtime==='builtin'&&source.presentation&&Object.hasOwn(sizes,source.presentation.canvas_family)){
+      target.presentation={icon:String(source.presentation.icon||'Box'),canvas_family:source.presentation.canvas_family};
+      target.icon=target.presentation.icon;
+    }
     if(source.drawing&&typeof source.drawing==='object'&&!Array.isArray(source.drawing))
       target.drawing={shape:source.drawing.shape==='circle'?'circle':'rectangle',width:value(source.drawing.width,32,15,60),
         height:value(source.drawing.height,30,15,55),label:String(source.drawing.label??source.name??'').slice(0,200)};
