@@ -23,6 +23,8 @@ def main():
     from fn_engine.hvac_expansion_examples import HVAC_EXPANSION_EXAMPLES, example, recipe
     for name in HVAC_EXPANSION_EXAMPLES:
         p=example(name)
+        # Frozen sources and hashes are portable; the author's checkout path is not.
+        for definition in p.modules:definition.package_path=None
         for suffix,data in [('project',p.model_dump(mode='json')),('recipe',recipe(p))]:
             path=ROOT/'examples/hvac-expansion'/f'{name}.{suffix}.json'
             text=json.dumps(data,ensure_ascii=False,indent=2)+'\n'

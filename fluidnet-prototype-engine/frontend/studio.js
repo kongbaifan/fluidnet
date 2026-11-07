@@ -30,7 +30,7 @@ import {createDevicePanel} from './device-panel.js';
 import {createEngineClient} from './engine-client.js';
 import {createEquipmentLibrary} from './equipment-library.js';
 import {createModelingWorkflows} from './modeling-workflows.js';
-import {createModuleReplayUI} from './module-replay-adapter.js';
+import {createModuleReplayUI} from './module-replay.js';
 import {createScenarioBatchesUI} from './scenario-batches.js';
 import {createSystemInspection} from './system-inspection.js';
 
@@ -391,7 +391,7 @@ function undo(redo=false) {
   ui.selectedNode='';ui.selectedEdge='';ui.connecting=null;ui.pinnedChart=null;
   ui.floats=ui.floats.filter(f=>instance(f.id));markDirty(owner);persistLocal();render();msg(redo?'已重做':'已撤销');
 }
-function navigate(route,options={}){if(!PAGE_META[route])route='home';if(ui.route!==route)ui.pinnedChart=null;Object.assign(ui,options);ui.route=route;contextMenu=null;ui.taskDrawer=false;if(location.hash!==`#${route}`)history.replaceState(null,'',`#${route}`);saveUI();render();page.scrollTop=0;if(route==='runs')engine.refreshArchives();}
+function navigate(route,options={}){if(!PAGE_META[route])route='home';if(ui.route!==route)moduleReplay?.navigationChanged();if(ui.route!==route)ui.pinnedChart=null;Object.assign(ui,options);ui.route=route;contextMenu=null;ui.taskDrawer=false;if(location.hash!==`#${route}`)history.replaceState(null,'',`#${route}`);saveUI();render();page.scrollTop=0;if(route==='runs')engine.refreshArchives();}
 function openProject(id){if(!state.projects.some(p=>p.id===id))return;state.activeProject=id;ui.pinnedChart=null;ui.chartCursor=null;ui.selectedNode='';ui.floats=[];undoStack=[];redoStack=[];navigate('workbench');}
 function openEditor(id,tab='drawing',origin=null){ui.editorOrigin=origin;state.selectedModule=id;ui.editorPort='';ui.moduleTab=['design','header'].includes(tab)?'code':tab;if(['design','header'].includes(tab))ui.codeKind=tab;ui.arrayVar='system:form';navigate('editor');}
 function heading(title,subtitle,actions='',eyebrow=''){return `<div class="page-heading"><div>${eyebrow?`<div class="eyebrow">${eyebrow}</div>`:''}<h1>${title}</h1><p>${subtitle}</p></div><div class="row wrap">${actions}</div></div>`;}
@@ -2339,7 +2339,6 @@ function handleAction(action, el) {
     case 'archive-module-replay': moduleReplay.archive(id); break;
     case 'run-module-replay': moduleReplay.run(); break;
     case 'download-module-replay': moduleReplay.exportInput(); break;
-    case 'locate-replay-source': (document.querySelector('[data-replay-error-line]')||document.getElementById('replay-code'))?.scrollIntoView({block:'center'}); break;
     case 'close-module-replay': moduleReplay.close(); break;
     case 'export-module-replay': downloadFile(`${mod().id}-replay.json`,JSON.stringify(mod().authoringReplay,null,2)); break;
     case 'configure-module-tests': configureAuthoringSuite(mod()); break;
@@ -2802,7 +2801,7 @@ ui.route = routeFromLocation();
 workspaceInteractions().mount();
 render();
 engine.init();
-window.addEventListener('hashchange', () => { ui.route = routeFromLocation(); render(); });
+window.addEventListener('hashchange', () => { moduleReplay?.navigationChanged(); ui.route = routeFromLocation(); render(); });
 let resizeTimer;
 window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => { renderFloats(); if (['curves', 'workbench'].includes(ui.route)) refreshLive(); }, 120); });
 runInterval = setInterval(() => engine.tick(), 200);

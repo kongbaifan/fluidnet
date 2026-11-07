@@ -47,7 +47,10 @@ try{
  // Exercise actual browser quota and lossless recovery independently of live application state.
  const capacity=await page.evaluate(async () =>{const source=JSON.parse(JSON.stringify({payload:'z'.repeat(800000),values:[1,2,3]})),draft={schema:1,modules:Array.from({length:12},()=>source),draft:{opening:37}},key='capacity-probe';const old='keep-until-write';localStorage.setItem(key,old);const result=(await import('/draft-store.js')).FluidNetDraftStore.write(localStorage,key,JSON.stringify(draft));const restored=(await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem(key));restored.modules[0].values[0]=99;const independent=restored.modules[1].values[0]===1;localStorage.removeItem(key);return {...result,independent,opening:restored.draft.opening};});
  expect(capacity.packed).toBe(true);expect(capacity.independent).toBe(true);expect(capacity.opening).toBe(37);
- const backups=await page.evaluate(async () =>Object.keys(localStorage).filter(k=>k.includes('before-workspace')).map(k=>({key:k,format:JSON.parse(localStorage.getItem(k)).format||'legacy',hasProjects:Array.isArray((await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem(k)).projects)})));
+ const backups=await page.evaluate(async () =>{
+  const {FluidNetDraftStore}=await import('/draft-store.js');
+  return Object.keys(localStorage).filter(k=>k.includes('before-workspace')).map(k=>({key:k,format:JSON.parse(localStorage.getItem(k)).format||'legacy',hasProjects:Array.isArray(FluidNetDraftStore.parse(localStorage.getItem(k)).projects)}));
+ });
  expect(backups.every(b=>b.hasProjects)).toBe(true);
  // A dirty draft must recover from packed local storage even when the server cannot save or load it.
  await page.locator(`[data-node="${copied[0].id}"]`).dblclick();

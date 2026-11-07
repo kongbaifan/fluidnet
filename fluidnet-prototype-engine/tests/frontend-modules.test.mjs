@@ -10,7 +10,6 @@ test('the page has one module entry and every feature has a native exported entr
   const files=readdirSync(new URL('../frontend/',import.meta.url)).filter(name=>name.endsWith('.js'));
   for(const name of files){
     const source=readFileSync(new URL('../frontend/'+name,import.meta.url),'utf8');
-    if(name==='module-replay.js')continue; // User-owned legacy implementation has a dedicated adapter.
     assert.doesNotMatch(source,/window\.(?:FluidNet\w+|create\w+|ModuleTestEditor|EquipmentSelection|DeviceBatchEditor)\s*=/,name);
     if(name!=='bootstrap.js')assert.match(source,/export (?:const|function|default)/,name);
   }

@@ -1462,7 +1462,7 @@
       "entrypoint": "module:Module",
       "content_hash": "7745a90a996269e1d4ffa34b751ae3e0baeee14d2a4116dcb5c650083bb63400",
       "definition_hash": "971df045eae06836ea3e63b19b0d7a634bd93babd0d99889223c80799f424d7c",
-      "package_path": "E:\\liuwangjisuan\\fluidnet-prototype-engine\\modules\\ahu_standard",
+      "package_path": null,
       "bank_names": [
         "额定工况",
         "部分负荷",

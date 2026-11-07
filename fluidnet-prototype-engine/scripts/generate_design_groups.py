@@ -25,6 +25,8 @@ def main():
     from fn_engine.hvac_expansion_examples import recipe
     for item in catalog().items:
         project=build(LibraryRequest(name=item.id))
+        # Match the other portable generators: never record a machine-local path.
+        for definition in project.modules:definition.package_path=None
         for suffix,data in [('project',project.model_dump(mode='json')),('recipe',recipe(project))]:
             path=ROOT/'examples/equipment-library'/f'{item.id}.{suffix}.json'
             source=json.dumps(data,ensure_ascii=False,indent=2)+'\n'

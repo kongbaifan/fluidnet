@@ -2,7 +2,9 @@
 import importlib.util
 import json
 from pathlib import Path
+import shutil
 import subprocess
+import sys
 
 import pytest
 
@@ -31,6 +33,31 @@ def test_registration_covers_all_read_only_generators():
     entries = reviewer.load_manifest()
     assert len(entries) == 13
     assert {'contracts', 'hydronic-buffer', 'open-refrigeration'} <= {entry['id'] for entry in entries}
+
+
+@pytest.mark.parametrize(('generator', 'builder', 'examples'), [
+    ('generate_hvac_expansion', 'hvac_expansion_examples', 'hvac-expansion'),
+    ('generate_design_groups', 'equipment_library', 'equipment-library'),
+])
+def test_portable_generator_checks_survive_checkout_relocation(tmp_path, monkeypatch, generator, builder, examples):
+    """Use a different checkout root, as on CI, with the real frozen module files."""
+    relocated = tmp_path / 'another checkout'
+    shutil.copytree(ROOT / 'modules', relocated / 'modules')
+    shutil.copytree(ROOT / 'examples' / examples, relocated / 'examples' / examples)
+    spec = importlib.util.spec_from_file_location(generator, ROOT / 'scripts' / (generator + '.py'))
+    assert spec and spec.loader
+    script = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(script)
+    monkeypatch.setattr(script, 'ROOT', relocated)
+    monkeypatch.setattr(importlib.import_module('fn_engine.' + builder), 'ROOT', relocated)
+    monkeypatch.setattr(sys, 'argv', [generator, '--check'])
+    files = [path for path in relocated.rglob('*') if path.is_file()]
+    before = {path: (path.read_bytes(), path.stat().st_mtime_ns) for path in files}
+    script.main()
+    assert {path: (path.read_bytes(), path.stat().st_mtime_ns) for path in files} == before
+    for path in (relocated / 'examples' / examples).glob('*.project.json'):
+        project = json.loads(path.read_text(encoding='utf-8'))
+        assert all(module.get('package_path') is None for module in project['modules']), path
 
 
 @pytest.mark.parametrize('problem', ['duplicate', 'escape', 'unregistered', 'missing-output'])

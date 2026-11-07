@@ -51,6 +51,19 @@ try{
   await expect.poll(async()=>(await(await page.request.get(server.base+'/api/v1/runs/'+runId)).json()).status).toBe('failed');
   await nav('runs');await page.locator('[data-action="refresh-archives"]').click();
   await page.locator(`[data-action="open-archive"][data-id="${runId}"]`).click();
+  // Delay a real archive response, navigate away and back, then release it.
+  // Comparing only the final route string would miss this obsolete request.
+  const archiveUrl=server.base+'/api/v1/runs/'+runId+'/module-failure';
+  const archiveFinished=page.waitForEvent('requestfinished',request=>request.url()===archiveUrl);
+  let releaseArchive,observedArchive,finishedArchive;
+  const gate=new Promise(resolve=>{releaseArchive=resolve;}),observed=new Promise(resolve=>{observedArchive=resolve;}),finished=new Promise(resolve=>{finishedArchive=resolve;});
+  await page.route(archiveUrl,async route=>{const response=await route.fetch();observedArchive();await gate;await route.fulfill({response});finishedArchive();});
+  await page.locator(`[data-action="archive-module-replay"][data-id="${runId}"]`).click();await observed;
+  await nav('workbench');await nav('runs');releaseArchive();await finished;await archiveFinished;
+  await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+  await expect(page).toHaveURL(/#runs$/);await expect(page.locator('[data-module-replay]')).toHaveCount(0);
+  await page.unroute(archiveUrl);
+  await page.locator(`[data-action="open-archive"][data-id="${runId}"]`).click();
   await page.locator(`[data-action="archive-module-replay"][data-id="${runId}"]`).click();
   await expect(page.locator('[data-replay-source]')).toContainText('project replay marker');
   const retry=page.waitForResponse(r=>r.url().endsWith('/modules/replay')&&r.request().method()==='POST');
@@ -58,5 +71,5 @@ try{
   await expect(page.locator('[data-replay-result]')).toContainText('已复现同一');
   const unchanged=await(await page.request.get(server.base+'/api/v1/runs/'+runId)).json();
   expect(unchanged.status).toBe('failed');expect(unchanged.request.project.instances.find(n=>n.id==='V1').parameters.opening_ratio).toBe(.4);
-  expect(errors).toEqual([]);console.log(JSON.stringify({frozenFailure:true,editorDraftPreserved:true,archivedFailure:true,errors}));
+  expect(errors).toEqual([]);console.log(JSON.stringify({frozenFailure:true,editorDraftPreserved:true,archivedFailure:true,lateArchiveDidNotNavigate:true,errors}));
 }finally{await browser.close();await server.close();}

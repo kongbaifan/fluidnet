@@ -1,5 +1,5 @@
-# CI 门禁：后端引擎（ruff + mypy + pytest/覆盖率 + 契约一致性）与前端（语法检查 + 浏览器冒烟）。
-# 仓库根只是外壳，实际工程在 fluidnet-prototype-engine/ 下，所有命令统一在该目录执行。
+# 日常门禁：静态/合同/固定事务核心、受影响后端专项和代表性浏览器。
+# 完整覆盖率、跨BLAS矩阵及85条浏览器调用保留在手动 ci-full.yml。
 name: ci
 
 on:
@@ -7,13 +7,13 @@ on:
     branches: [master]
   pull_request:
 
-# feature 分支只由 pull_request 触发；master 只由 push 触发，避免同一提交出现两套
-# 并发运行（重复的浏览器冒烟会争抢 runner，且 cancelled 检查会污染合并状态）。
+permissions:
+  contents: read
+
 concurrency:
-  group: ci-${{ github.head_ref || github.ref_name }}
+  group: ci-quick-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
-# Windows 控制台默认代码页不是 UTF-8，统一开启 UTF-8 模式，避免中文断言/跳过原因输出报编码错。
 env:
   PYTHONUTF8: '1'
 
@@ -50,107 +50,12 @@ jobs:
           path: fluidnet-prototype-engine/artifacts/module-sdk-coverage.xml
           if-no-files-found: ignore
 
-  backend:
-    name: ${{ matrix.openblas == '' && 'backend (Python 3.11)' || 'backend (Python 3.11, Haswell)' }}
-    runs-on: windows-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        openblas: ['', 'Haswell']
-    env:
-      OPENBLAS_CORETYPE: ${{ matrix.openblas }}
-    # 新增三组长时温控后，本机全量覆盖率约 80 分钟；预留依赖安装与较慢 runner 的时间。
-    timeout-minutes: 120
-    defaults:
-      run:
-        working-directory: fluidnet-prototype-engine
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      # requirements-dev.txt 通过 `-r requirements.txt` 带入运行/测试依赖，
-      # 而 requirements.txt 首行的 `-e .` 会按当前目录做可编辑安装，因此一步即可完成。
-      - name: 安装后端依赖（含 ruff/mypy/pytest-cov）
-        run: |
-          python -m pip install -r requirements-dev.txt
-      # 阻塞门禁：pyflakes + 语法错误，规则集见 ruff.toml。
-      - name: ruff lint
-        run: python -m ruff check backend tests scripts modules examples/control_templates
-      # 当前范围已清零并阻塞回归；未注解函数体的覆盖仍按模块逐步收紧。
-      - name: mypy 类型检查
-        run: python -m mypy
-      - name: 公共会话接口严格类型检查
-        run: python -m mypy --config-file mypy-session.ini
-      - name: 模块执行器接口严格类型检查
-        run: python -m mypy --config-file mypy-runner.ini
-      - name: 数值运行环境与快速基线
-        run: |
-          python -c "import platform,numpy; print(platform.python_version(), platform.processor()); numpy.show_runtime()"
-          $numericTargets = @(
-            'tests/test_coupled_liquid_examples.py::test_portable_file_contains_frozen_source_and_roundtrips_without_path',
-            'tests/test_hvac_templates.py::test_makeup_water_matches_the_leak_through_the_real_network[0.02]',
-            'tests/test_hvac_templates.py::test_adjacent_small_makeup_flows_conserve_mass_at_different_temperatures[0.01]',
-            'tests/test_hvac_templates.py::test_tiny_makeup_flow_hydraulics_keep_original_physical_residuals',
-            'tests/test_hvac_templates.py::test_extremely_small_makeup_flow_keeps_liquid_phase_guard',
-            'tests/test_analytic_jacobian.py::test_iteration_budget_fallback_preserves_progress_and_physical_gates',
-            'tests/test_analytic_jacobian.py::test_exhausted_fallback_still_rejects_unconverged_solution'
-          )
-          python -m pytest @numericTargets -q
-          $defaultNumericExit = $LASTEXITCODE
-          # 每个完整矩阵项还验证本地基线及可复现失败的内核；任一路径失败均阻塞。
-          $originalBlasCore = $env:OPENBLAS_CORETYPE
-          $contrastNumericExit = 0
-          try {
-            foreach ($contrastCore in @('Haswell', 'Sandybridge')) {
-              $env:OPENBLAS_CORETYPE = $contrastCore
-              python -c "import ctypes,numpy; from pathlib import Path; lib=ctypes.CDLL(str(next((Path(numpy.__file__).parent.parent/'numpy.libs').glob('libscipy_openblas*.dll')))); core=lib.scipy_openblas_get_corename64_; core.restype=ctypes.c_char_p; print('Contrast BLAS:',core().decode())"
-              if ($LASTEXITCODE -ne 0) { $contrastNumericExit = $LASTEXITCODE }
-              python -m pytest @numericTargets -q
-              if ($LASTEXITCODE -ne 0) { $contrastNumericExit = $LASTEXITCODE }
-            }
-          } finally { $env:OPENBLAS_CORETYPE = $originalBlasCore }
-          if ($defaultNumericExit -ne 0) { exit $defaultNumericExit }
-          if ($contrastNumericExit -ne 0) { exit $contrastNumericExit }
-      # 覆盖率 floor 配置在 pyproject.toml [tool.coverage.report].fail_under，
-      # 低于 floor 时 pytest 以非零退出码失败。
-      - name: 后端测试 + 覆盖率
-        run: python -m pytest -q --cov=fn_engine --cov-report=term-missing --cov-report=xml:coverage.xml
-      - name: 上传覆盖率报告
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.openblas == '' && 'backend-coverage' || 'backend-coverage-Haswell' }}
-          path: fluidnet-prototype-engine/coverage.xml
-          if-no-files-found: ignore
-      # All registered generators run read-only; portable examples remain checked in.
-      - name: 契约与生成物一致性检查
-        run: python scripts/generated_artifacts.py --verify
-      - name: 生成物语义审查摘要
-        if: always() && matrix.openblas == ''
-        env:
-          GENERATED_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
-        run: |
-          New-Item -ItemType Directory -Force artifacts | Out-Null
-          if (-not $env:GENERATED_BASE -or $env:GENERATED_BASE -match '^0+$') { $env:GENERATED_BASE = 'HEAD' }
-          python scripts/generated_artifacts.py --base $env:GENERATED_BASE --json | Out-File -Encoding utf8 artifacts/generated-review.json
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: 上传生成物审查摘要
-        if: always() && matrix.openblas == ''
-        uses: actions/upload-artifact@v4
-        with:
-          name: generated-artifact-review
-          path: fluidnet-prototype-engine/artifacts/generated-review.json
-          if-no-files-found: error
-
   frontend-checks:
     name: frontend static and unit checks
     runs-on: windows-latest
     timeout-minutes: 15
     outputs:
-      matrix: ${{ steps.browser-matrix.outputs.matrix }}
+      matrix: ${{ steps.quick-plan.outputs.matrix }}
     defaults:
       run:
         working-directory: fluidnet-prototype-engine
@@ -166,37 +71,89 @@ jobs:
       - run: npm ci
       - name: 前端语法检查
         run: npm run check
-      - name: 前端单元测试
+      - name: 前端轻量单元检查
         run: npm run test:ui
-      - name: 核验浏览器清单并输出分组
-        id: browser-matrix
+      - name: 核验清单并生成日常范围
+        id: quick-plan
         shell: pwsh
         env:
-          IMPACT_BASE: ${{ github.event.pull_request.base.sha }}
-          IMPACT_HEAD: ${{ github.event.pull_request.head.sha }}
+          IMPACT_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          IMPACT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
-          node scripts/browser-groups.mjs --check
-          if ($LASTEXITCODE -ne 0) { throw 'Browser manifest validation failed' }
-          if ($env:IMPACT_BASE -and $env:IMPACT_HEAD) {
-            $browserMatrix = node scripts/browser-impact.mjs --base $env:IMPACT_BASE --head $env:IMPACT_HEAD --matrix --output artifacts/browser-impact.json
+          node scripts/ci-quick.mjs --check
+          if ($LASTEXITCODE -ne 0) { throw 'Quick manifest validation failed' }
+          if ($env:IMPACT_BASE -and $env:IMPACT_HEAD -and $env:IMPACT_BASE -notmatch '^0+$') {
+            $browserMatrix = node scripts/ci-quick.mjs --base $env:IMPACT_BASE --head $env:IMPACT_HEAD --matrix --output artifacts/ci-quick-plan.json
           } else {
-            $browserMatrix = node scripts/browser-impact.mjs --all --matrix --output artifacts/browser-impact.json
+            $browserMatrix = node scripts/ci-quick.mjs --matrix --output artifacts/ci-quick-plan.json
           }
-          if ($LASTEXITCODE -ne 0) { throw 'Browser impact selection failed' }
+          if ($LASTEXITCODE -ne 0) { throw 'Quick plan generation failed' }
           "matrix=$browserMatrix" >> $env:GITHUB_OUTPUT
-          Get-Content artifacts/browser-impact.json >> $env:GITHUB_STEP_SUMMARY
-      - name: 上传浏览器选组依据
+          'Daily quick scope only. Full coverage is available through manual ci-full.yml.' >> $env:GITHUB_STEP_SUMMARY
+          Get-Content artifacts/ci-quick-plan.json >> $env:GITHUB_STEP_SUMMARY
+      - name: 上传实际选取与延后范围
         uses: actions/upload-artifact@v4
         with:
-          name: browser-impact
-          path: fluidnet-prototype-engine/artifacts/browser-impact.json
+          name: ci-quick-plan
+          path: fluidnet-prototype-engine/artifacts/ci-quick-plan.json
+          if-no-files-found: error
+
+  backend:
+    name: backend quick (Python 3.11)
+    needs: frontend-checks
+    runs-on: windows-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: fluidnet-prototype-engine
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/download-artifact@v4
+        with:
+          name: ci-quick-plan
+          path: fluidnet-prototype-engine/artifacts
+      - run: python -m pip install -r requirements-dev.txt
+      - name: ruff lint
+        run: python -m ruff check backend tests scripts modules examples/control_templates
+      - name: mypy 类型检查
+        run: python -m mypy
+      - name: 公共会话接口严格类型检查
+        run: python -m mypy --config-file mypy-session.ini
+      - name: 模块执行器接口严格类型检查
+        run: python -m mypy --config-file mypy-runner.ini
+      - name: 固定接受事务与受影响专项
+        run: node scripts/ci-quick.mjs --run-backend --plan artifacts/ci-quick-plan.json
+      - name: 契约与生成物只读检查
+        run: python scripts/generated_artifacts.py --verify
+      - name: 生成物语义审查摘要
+        if: always()
+        env:
+          GENERATED_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          New-Item -ItemType Directory -Force artifacts | Out-Null
+          if (-not $env:GENERATED_BASE -or $env:GENERATED_BASE -match '^0+$') { $env:GENERATED_BASE = 'HEAD' }
+          python scripts/generated_artifacts.py --base $env:GENERATED_BASE --json | Out-File -Encoding utf8 artifacts/generated-review.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: generated-artifact-review
+          path: fluidnet-prototype-engine/artifacts/generated-review.json
           if-no-files-found: error
 
   browser:
-    name: browser (${{ matrix.group }})
+    name: browser quick (${{ matrix.group }})
     needs: frontend-checks
     runs-on: windows-latest
-    timeout-minutes: 60
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       max-parallel: 3
@@ -206,33 +163,30 @@ jobs:
         working-directory: fluidnet-prototype-engine
     steps:
       - uses: actions/checkout@v4
-      # 每个脚本仍使用现有 browser-server，独立临时目录和端口；组内顺序运行。
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: 安装后端依赖（供浏览器测试启动引擎）
-        run: python -m pip install -r requirements.txt
+      - run: python -m pip install -r requirements.txt
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
           cache: npm
           cache-dependency-path: fluidnet-prototype-engine/package-lock.json
       - run: npm ci
-      # PR 仅对已审阅的叶子变更缩小范围；smoke 固定执行，未知/共享/身份变更回退全部组。
-      # 失败最多重试一次，恢复通过也显示 warning；永久失败使该组及汇总门失败。
-      - name: 浏览器分组验收
-        timeout-minutes: 45
-        run: node scripts/browser-groups.mjs --run --group ${{ matrix.group }} --retries 1 --ci
-      - name: 上传分组证据
-        if: always()
-        uses: actions/upload-artifact@v4
+      - uses: actions/download-artifact@v4
         with:
-          name: browser-artifacts-${{ matrix.group }}
+          name: ci-quick-plan
+          path: fluidnet-prototype-engine/artifacts
+      - name: 执行选中的代表流程
+        run: node scripts/ci-quick.mjs --run-browser --plan artifacts/ci-quick-plan.json --group ${{ matrix.group }} --ci
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-quick-${{ matrix.group }}
           path: fluidnet-prototype-engine/artifacts/
           if-no-files-found: ignore
           retention-days: 7
 
-  # 保持既有 required-check 名称；该门必须等待全部矩阵项，不能只代表静态检查。
   frontend:
     name: frontend (Node 24 + Edge)
     needs: [frontend-checks, browser]
@@ -240,13 +194,32 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 5
     steps:
-      - name: 汇总本次前端门禁
+      - name: 汇总日常前端检查
         shell: pwsh
         env:
           STATIC_RESULT: ${{ needs.frontend-checks.result }}
           BROWSER_RESULT: ${{ needs.browser.result }}
         run: |
           if ($env:STATIC_RESULT -ne 'success' -or $env:BROWSER_RESULT -ne 'success') {
-            throw "Frontend checks did not all pass: static=$env:STATIC_RESULT browser=$env:BROWSER_RESULT"
+            throw "Frontend quick scope failed: static=$env:STATIC_RESULT browser=$env:BROWSER_RESULT"
           }
-          Write-Host 'All frontend static, unit and selected browser groups passed.'
+          'Frontend quick scope passed; complete browser coverage was not run.' >> $env:GITHUB_STEP_SUMMARY
+
+  quick-gate:
+    name: ci quick
+    needs: [module-sdk, backend, frontend]
+    if: always()
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - name: 汇总日常门禁
+        shell: pwsh
+        env:
+          SDK_RESULT: ${{ needs.module-sdk.result }}
+          BACKEND_RESULT: ${{ needs.backend.result }}
+          FRONTEND_RESULT: ${{ needs.frontend.result }}
+        run: |
+          if ($env:SDK_RESULT -ne 'success' -or $env:BACKEND_RESULT -ne 'success' -or $env:FRONTEND_RESULT -ne 'success') {
+            throw "Quick checks failed: sdk=$env:SDK_RESULT backend=$env:BACKEND_RESULT frontend=$env:FRONTEND_RESULT"
+          }
+          'Daily scoped checks passed. No full-engine coverage claim. Run ci-full manually for full regression.' >> $env:GITHUB_STEP_SUMMARY
