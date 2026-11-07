@@ -7,6 +7,12 @@ import {execFileSync} from 'node:child_process';
 import {loadManifest,validateManifest,selectCases,ciMatrix,runCases,parseArguments,projectRoot,launchCase} from '../scripts/browser-groups.mjs';
 
 const clone=value=>structuredClone(value);
+test('all registered browser entries and helpers parse without executing them',()=>{
+  const manifest=loadManifest();validateManifest(manifest);
+  const files=new Set([...manifest.cases.map(item=>item.file),...Object.keys(manifest.helpers)]);
+  for(const file of files)execFileSync(process.execPath,['--check',file],{cwd:projectRoot,encoding:'utf8',windowsHide:true});
+});
+
 function fixture(){
   const root=mkdtempSync(join(tmpdir(),'fluidnet-browser-manifest-'));
   mkdirSync(join(root,'tests'));mkdirSync(join(root,'examples'));

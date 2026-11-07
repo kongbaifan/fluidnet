@@ -39,3 +39,5 @@
 两个生成器现与其他可移植示例入口一致，序列化前清除模块路径，继续保留冻结源码与内容哈希。17 个工程 JSON 的语义差异仅为 `package_path` 改为 null；参数、源码、哈希、连接和 recipe 均未改变。新增复制到另一个检出目录的真实只读检查，测试校验文件内容和修改时间保持不变，并纳入日常后端固定核心。
 
 本地定向验证：生成物与工作流 17 项通过（8.79 s），快速 CI 选择器 8 项通过，相关 ruff 与语义差异检查通过。证据在 `relocated-generation.log`、`ci-quick-relocated.log`、`relocated-generation-review.json`；后续远端 CI 将再次执行全部登记生成器。
+
+同一轮画布检查发现前序模块迁移在 `browser-project-editing.mjs` 的同步 `map` 回调中插入了 `await import`，导致该脚本无法解析。现先在外层异步函数导入草稿模块，再同步读取各备份；将全部 58 个已登记浏览器入口与 3 个辅助文件的 `node --check` 纳入轻量单元入口，避免手写语法清单遗漏。相关分组测试 10 项通过，实际浏览器的 30/100/300 节点导入、编辑、保存、组操作、配额降级和离线草稿恢复通过，页面异常为空（`browser-syntax-all.log`、`project-editing-after.log`）。该语法检查不会执行完整浏览器链。
