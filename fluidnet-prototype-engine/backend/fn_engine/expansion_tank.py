@@ -9,7 +9,8 @@ import math
 from scipy.optimize import brentq
 
 from .compiler import CompilationError, StorageSpec
-from .models import ModuleDefinition, VariableSpec
+from .model_types.module import ModuleDefinition
+from ._module_schema_v1 import VariableSpec
 from .properties import property_service
 
 

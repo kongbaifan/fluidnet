@@ -2,7 +2,7 @@
 from pathlib import Path
 
 from ..compiler import compile_project
-from ..models import Scenario
+from ..model_types.domain import Scenario
 from ..packages import load_module_package, package_ref
 from ..runtime import module_content_hash, module_definition_hash
 from .coupling_examples import thermal_coupling_example

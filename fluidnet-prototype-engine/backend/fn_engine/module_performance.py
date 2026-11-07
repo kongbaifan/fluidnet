@@ -7,7 +7,7 @@ import json
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .models import EvaluateRequest, EvaluateResponse
+    from .model_types.protocol import EvaluateRequest, EvaluateResponse
 
 
 class ParentEvaluateCache:

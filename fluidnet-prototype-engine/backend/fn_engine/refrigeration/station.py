@@ -14,7 +14,10 @@ import numpy as np
 from ..catalog import refrigeration_catalog, thermal_catalog
 from ..compiler import CompilationError, DisjointSet, fluid_service, validated_parameters, validate_controllers
 from ..control import validate_scripts
-from ..models import Diagnostic, Domain, Project, RunFrame
+from ..model_types.base import Diagnostic
+from .._module_schema_v1 import Domain
+from ..model_types.domain import Project
+from ..model_types.run import RunFrame
 from ..properties import PropertyError, property_service
 from ..solver import SolveFailed
 from ..timestep import TrialFailure, normalized_error

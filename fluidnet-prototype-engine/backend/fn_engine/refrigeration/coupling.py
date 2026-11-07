@@ -11,7 +11,8 @@ from scipy.optimize import least_squares
 
 from ..compiler import CompilationError, circuit_info, compile_project, validate_controllers, validated_parameters
 from ..control import validate_scripts
-from ..models import Diagnostic, Domain
+from ..model_types.base import Diagnostic
+from .._module_schema_v1 import Domain
 from ..properties import PropertyError
 from ..solver import solve_network, snapshot as fluid_snapshot
 from ..thermal import GRAVITY, phase_family

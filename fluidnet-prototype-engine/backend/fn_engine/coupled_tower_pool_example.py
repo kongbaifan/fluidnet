@@ -1,6 +1,6 @@
 """A circulating heat load, wet-contact pool and real makeup/blowdown branches."""
 from .catalog import catalog_map
-from .models import Project
+from .model_types.domain import Project
 
 
 def coupled_tower_pool_example(makeup=True):

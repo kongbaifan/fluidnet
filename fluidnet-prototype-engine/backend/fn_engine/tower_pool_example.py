@@ -1,6 +1,6 @@
 """Actual makeup/drain branches around an open pool with prescribed evaporation."""
 from .catalog import catalog_map
-from .models import Project
+from .model_types.domain import Project
 
 
 def tower_pool_example(makeup=False):

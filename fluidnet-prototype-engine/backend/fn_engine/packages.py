@@ -9,8 +9,10 @@ from pathlib import Path
 from threading import Lock
 
 from .module_contracts import contract_model
-from .models import (ModuleDefinition, ModulePackageRef, ModuleSaveRequest,
-                     ModuleTestRequest, ModuleVersionInfo, ModuleVersionResponse)
+from .model_types.module import ModuleDefinition, ModuleVersionInfo
+from .model_types.base import ModulePackageRef
+from .model_types.http import ModuleSaveRequest, ModuleVersionResponse
+from .model_types.module_testing import ModuleTestRequest
 from .runtime import design_source, module_content_hash, module_definition_hash, module_source
 
 
@@ -140,7 +142,7 @@ class ModuleStore:
         from .bench import run_module_test
         from .catalog import catalog_map
         from .module_validation import validate_module_definition
-        from .models import Diagnostic
+        from .model_types.base import Diagnostic
 
         # Lock covers the test too: only the checked definition can become this version.
         with self.lock:

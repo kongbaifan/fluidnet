@@ -18,7 +18,9 @@ from .batch_store import BatchConflict, BatchStore
 from .bridge import normalize_prototype_export
 from .compiler import CompilationError, compile_project, validate_scenarios
 from .jobs import RunManager
-from .models import Project, ProjectDocument, RunCommand, RunRequest, Scenario, UnitSpec
+from .model_types.domain import Project, ProjectDocument, Scenario
+from .model_types.run import RunCommand, RunRequest
+from ._module_schema_v1 import UnitSpec
 from .storage import StorageError, WorkspaceStore
 
 logger = logging.getLogger(__name__)

@@ -6,7 +6,8 @@ teaching assumption; topology, fluid and device parameters remain ordinary Proje
 import math
 
 from ..catalog import catalog_map
-from ..models import CircuitFluid, Connection, Endpoint, FluidConfig, ModuleInstance, Position, Project, SolverOptions
+from ..model_types.domain import CircuitFluid, Connection, Endpoint, ModuleInstance, Position, Project, SolverOptions
+from ..model_types.base import FluidConfig
 from ..properties import property_service
 from . import devices
 

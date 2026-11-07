@@ -2,7 +2,8 @@
 from copy import deepcopy
 import json
 
-from .models import CommitStepRequest,Diagnostic
+from .model_types.protocol import CommitStepRequest
+from .model_types.base import Diagnostic
 from .module_execution import mark_module_accepted
 from .runtime import RuntimeErrorBase
 from .runtime import module_content_hash,module_definition_hash

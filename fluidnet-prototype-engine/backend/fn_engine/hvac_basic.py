@@ -3,7 +3,8 @@ from pathlib import Path
 
 from .catalog import catalog_map
 from .composites import module_from_group
-from .models import ModuleDefinition, Project
+from .model_types.module import ModuleDefinition
+from .model_types.domain import Project
 
 ROOT = Path(__file__).resolve().parents[2]
 CATEGORY = '暖通基础设备'

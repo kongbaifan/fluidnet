@@ -62,7 +62,7 @@ def evaluate_heat_pump(inlet,flow,p,water_service,pressure,*,check=False,check_m
 def definition():
     from .air_catalog import water_chiller, _derived
     from .catalog import number, _celsius, _ratio, channel
-    from .models import ModuleDefinition
+    from .model_types.module import ModuleDefinition
     reference=water_chiller().model_dump(mode='json')
     remove={'evaporator_min_flow_kg_s','condenser_min_flow_kg_s','minimum_load_ratio','chilled_water_setpoint_k',
             'evaporator_ua_w_k','secondary_loss_coefficient','secondary_diameter_m'}

@@ -1,6 +1,6 @@
 """Wet coil with an explicit mixed liquid store in its independently specified water circuit."""
 from .catalog import catalog_map
-from .models import Project
+from .model_types.domain import Project
 
 
 def example(stagnant=False, reverse=False):

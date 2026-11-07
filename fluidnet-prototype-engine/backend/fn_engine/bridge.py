@@ -5,8 +5,9 @@ import math
 from typing import Any
 
 from .catalog import catalog_map, cold_store_catalog, refrigeration_catalog, thermal_catalog
-from .models import (ChannelSpec, Connection, Diagnostic, Endpoint, FluidConfig, LibraryBank, ModuleInstance, PortSpec,
-                     Position, Project, SolverOptions)
+from ._module_schema_v1 import ChannelSpec, PortSpec
+from .model_types.domain import Connection, Endpoint, LibraryBank, ModuleInstance, Position, Project, SolverOptions
+from .model_types.base import Diagnostic, FluidConfig
 
 # Prototype project `medium` -> CoolProp fluid string for the single project fluid. Range checks
 # (temperature/pressure per fluid) are done by the engine; one fluid per project until phase B.
@@ -109,7 +110,7 @@ def normalize_prototype_export(data: dict[str, Any]) -> Project:
             # The manifest is the source of truth for a versioned package. It
             # is still constrained by the registered hydraulic solver model,
             # but its ports, parameters, channels and source remain intact.
-            from .models import ModuleDefinition
+            from .model_types.module import ModuleDefinition
             allowed = set(ModuleDefinition.model_fields)
             manifest = deepcopy(original.get('manifest', original))
             if original.get('manifest') and not original.get('frozen'):

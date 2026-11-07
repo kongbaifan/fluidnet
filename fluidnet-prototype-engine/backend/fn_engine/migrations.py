@@ -2,7 +2,8 @@
 from copy import deepcopy
 import math
 
-from .models import ModuleMigration, Project, ControlScript
+from .model_types.module import ModuleMigration
+from .model_types.domain import Project, ControlScript
 from .packages import package_ref
 
 UNITS = {

@@ -78,7 +78,8 @@ def compressor_point(service, p, suction_pa, discharge_pa, check=True):
 
 def definition():
     from ..catalog import _celsius, _ratio, _stream, _switch, _var, number
-    from ..models import Direction, ModuleDefinition, ParameterSpec
+    from .._module_schema_v1 import Direction, ParameterSpec
+    from ..model_types.module import ModuleDefinition
     return ModuleDefinition(id='performance_compressor', name='性能曲线压缩机', category='制冷站设备',
         solver_model='performance_compressor', description='饱和吸气、压比效率曲线×载量/转速修正；默认曲线为人为教学假设，非厂家标定。'
             '分段线性插值，不允许外推；电机损失排向机房；不模拟真实过热吸气、油冷或惯性。',

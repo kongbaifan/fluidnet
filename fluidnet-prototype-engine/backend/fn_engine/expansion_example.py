@@ -1,6 +1,6 @@
 """Pressure-driven filling/draining through a real liquid mass-storage node."""
 from .catalog import catalog_map
-from .models import Project
+from .model_types.domain import Project
 
 
 def expansion_example():

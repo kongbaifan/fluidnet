@@ -24,7 +24,8 @@ from scipy.sparse.csgraph import connected_components
 from scipy.sparse.linalg import MatrixRankWarning, spsolve
 
 from .compiler import CompilationError, CompiledNetwork, service_at
-from .models import Diagnostic, FluidState, NetworkRelation
+from .model_types.base import Diagnostic, FluidState
+from .model_types.protocol import NetworkRelation
 from .properties import PropertyError
 
 GRAVITY = 9.80665

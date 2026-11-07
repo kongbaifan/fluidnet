@@ -1,5 +1,6 @@
 """风系统设备合同；与通用目录共用参数/单位生成器。"""
-from .models import Direction, ModuleDefinition, ParameterSpec, PortSpec, UnitSpec, VariableSpec
+from ._module_schema_v1 import Direction, ParameterSpec, PortSpec, UnitSpec, VariableSpec
+from .model_types.module import ModuleDefinition
 
 
 def air_catalog():
@@ -65,7 +66,7 @@ def air_catalog():
 
 
 def _derived(id, label, quantity, unit, display=None, scale=1., offset=0., source='derived'):
-    from .models import UnitSpec, VariableSpec
+    from ._module_schema_v1 import UnitSpec, VariableSpec
     return VariableSpec(id=id, label=label, source=source, quantity=quantity,
                         unit=UnitSpec(quantity=quantity, canonical_unit=unit, display_unit=display or unit,
                                       display_scale=scale, display_offset=offset))

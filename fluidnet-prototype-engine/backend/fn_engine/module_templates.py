@@ -2,7 +2,8 @@
 from copy import deepcopy
 from pathlib import Path
 
-from .models import ModuleDefinition, ModuleTestConditions
+from .model_types.module import ModuleDefinition
+from .model_types.module_testing import ModuleTestConditions
 from .packages import load_module_package
 
 ROOT = Path(__file__).resolve().parents[2]

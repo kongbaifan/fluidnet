@@ -2,7 +2,8 @@
 from copy import deepcopy
 
 from .compiler import compile_project, validate_scenarios
-from .models import ModuleDefinition, Project
+from .model_types.module import ModuleDefinition
+from .model_types.domain import Project
 from .packages import package_ref
 
 

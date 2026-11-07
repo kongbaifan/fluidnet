@@ -1,6 +1,6 @@
 """S1 independent design-enabled equipment. No changes to existing published IDs."""
 from pathlib import Path
-from .models import ModuleDefinition
+from .model_types.module import ModuleDefinition
 from .hvac_basic import number
 from .hvac_expansion import fan_performance, plate_exchanger
 

@@ -175,7 +175,7 @@ class WorkspaceStore:
 
     def save_project(self, document, expected_revision, delete=False):
         from .projects import merge_project
-        from .models import WorkspaceSaveRequest
+        from .model_types.http import WorkspaceSaveRequest
         pid = document['project']['id']
         with self.transaction() as db:
             current = self.project_revisions().get(pid, 0)

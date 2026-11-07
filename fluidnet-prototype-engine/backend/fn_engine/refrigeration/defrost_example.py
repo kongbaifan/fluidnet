@@ -1,6 +1,6 @@
 """One cooler defrosts while a second cooler keeps a valid pumped-flow branch open."""
 from ..catalog import catalog_map
-from ..models import ScheduleEvent
+from ..model_types.domain import ScheduleEvent
 from .multi_cooler_example import multi_cooler_example
 
 

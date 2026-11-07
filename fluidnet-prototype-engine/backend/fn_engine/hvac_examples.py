@@ -2,7 +2,7 @@
 from pathlib import Path
 
 from .catalog import catalog_map
-from .models import ControlScript, MeasurementSpec, ModuleInstance, Position, Project, Scenario
+from .model_types.domain import ControlScript, MeasurementSpec, ModuleInstance, Position, Project, Scenario
 from .packages import load_module_package
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -83,7 +83,8 @@ def meter(identifier, label, kind, sources, quantity, canonical, display=None, s
 def ahu_terminal_example(catalog):
     """空调箱（混风＋过滤＋盘管＋风机）为房间送风，水侧由供回水边界给出。"""
     from .air_examples import air_example
-    from .models import CircuitFluid, Connection, Endpoint, FluidConfig
+    from .model_types.domain import CircuitFluid, Connection, Endpoint
+    from .model_types.base import FluidConfig
     project = air_example('ahu-room').model_copy(deep=True)
     replaced = {'Mix', 'Filter', 'Coil', 'Reheat', 'Humidifier', 'Fan'}
     project.instances = [i for i in project.instances if i.id not in replaced]
@@ -148,7 +149,7 @@ def hvac_example(name):
         def endpoint(key):
             iid, port = key.split(':')
             return {'instance_id':iid, 'port_id':port}
-        from .models import Connection
+        from .model_types.domain import Connection
         project.connections.append(Connection(id='hvac'+str(len(project.connections)), source=endpoint(a), target=endpoint(b)))
 
     def path(*ports):

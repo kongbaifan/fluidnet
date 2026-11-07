@@ -5,7 +5,8 @@ import math
 from ..compiler import CompilationError
 from ..control import ScriptControl
 from ..controllers import PID
-from ..models import Diagnostic, RunFrame
+from ..model_types.base import Diagnostic
+from ..model_types.run import RunFrame
 from ..session_base import SessionBase
 from ..solver import SolveFailed
 from ..timestep import (AdaptiveMarch, StepStatistics, TimeStepConfig, TimeStepExhausted, TrialFailure,

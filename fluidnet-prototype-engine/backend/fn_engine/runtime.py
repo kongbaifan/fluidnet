@@ -20,25 +20,9 @@ from .module_contracts import check_module_compatibility, definition_hash
 from .module_execution import InvocationState
 from .module_performance import ParentEvaluateCache
 from .module_diagnostics import exception_diagnostic, merge_diagnostics, MAX_MESSAGE_CHARS
-from .models import (
-    CommitStepRequest,
-    CommitStepResponse,
-    ChannelState,
-    Diagnostic,
-    EvaluateRequest,
-    EvaluateResponse,
-    RefrigerationEvaluateRequest, RefrigerationEvaluateResponse,
-    FluidConfig,
-    InitializeRequest,
-    ModuleDefinition,
-    ModuleExecutionInfo,
-    ModuleRequestContext,
-    ModuleStepCandidate,
-    ModulePhaseRequest, ModuleThermalResponse,
-    ModuleDerivativeResponse,
-    NetworkRelation,
-    PortState,
-)
+from .model_types.protocol import CommitStepRequest, CommitStepResponse, EvaluateRequest, EvaluateResponse, RefrigerationEvaluateRequest, RefrigerationEvaluateResponse, InitializeRequest, ModuleExecutionInfo, ModuleRequestContext, ModuleStepCandidate, ModulePhaseRequest, ModuleThermalResponse, ModuleDerivativeResponse, NetworkRelation
+from .model_types.base import ChannelState, Diagnostic, FluidConfig, PortState
+from .model_types.module import ModuleDefinition
 from .module_state import checked_state,checked_result
 
 

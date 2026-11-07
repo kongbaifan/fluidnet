@@ -20,7 +20,7 @@ import time
 import uuid
 
 from .compiler import CompilationError, compile_project
-from .models import RunFrame
+from .model_types.run import RunFrame
 from .sessions import RunSession, create_session
 from .solver import SolveFailed, solve_steady
 from .storage import StorageError
@@ -728,7 +728,7 @@ class RunManager:
 
 
 def DiagnosticError(error):
-    from .models import Diagnostic
+    from .model_types.base import Diagnostic
     if getattr(error,'diagnostics',None):
         return error.diagnostics[0]
     return Diagnostic(code=getattr(error, 'code', 'SOLVER_ERROR'), message=str(error))

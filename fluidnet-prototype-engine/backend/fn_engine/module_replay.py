@@ -2,7 +2,8 @@
 from copy import deepcopy
 import json
 
-from .models import ModuleReplayRequest, ModuleReplayResponse, ModuleReplaySnapshot
+from .model_types.http import ModuleReplayRequest, ModuleReplayResponse
+from .model_types.protocol import ModuleReplaySnapshot
 from .module_state import MAX_RESULT_BYTES, checked_result, checked_state
 
 PHASES = {'initialize', 'evaluate', 'thermal', 'observe', 'jacobian', 'commit_step'}

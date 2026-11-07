@@ -4,7 +4,16 @@ Pressure references seed liquid temperatures but supply no heat to the closed lo
 All parameters are reproducible teaching assumptions, not calibrated equipment data.
 """
 from .catalog import catalog_map
-from .models import CircuitFluid, Connection, ControlScript, Endpoint, FluidConfig, ModuleInstance, PIDController, Scenario
+from .model_types.domain import (
+    CircuitFluid,
+    Connection,
+    ControlScript,
+    Endpoint,
+    ModuleInstance,
+    PIDController,
+    Scenario,
+)
+from .model_types.base import FluidConfig
 
 
 ROOM_CONTROL_EXAMPLES = {

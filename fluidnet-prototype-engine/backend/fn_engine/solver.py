@@ -13,7 +13,9 @@ from scipy.sparse import csr_matrix, lil_matrix
 from .compiler import CompilationError, CompiledBranch, CompiledNetwork, TankState, instance_fluids, service_at
 from .hydraulic_derivatives import (GRAVITY, MU_WATER, RHO_WATER, branch_drop_and_slope,
                                     branch_drop_value, pipe_drop, pump_head)
-from .models import CommitStepRequest, Diagnostic, EvaluateRequest, FluidState, PortState, RunFrame, NetworkRelation
+from .model_types.protocol import CommitStepRequest, EvaluateRequest, NetworkRelation
+from .model_types.base import Diagnostic, FluidState, PortState
+from .model_types.run import RunFrame
 from .properties import PropertyError, is_pure_water, property_service
 from .runtime import ChannelResult, WorkerProcess, RuntimeErrorBase
 from .module_execution import begin_module_step, new_identity, set_module_step
@@ -373,7 +375,7 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
                 ports[port.id] = trial_port(instance_id, port.id, float(pressures[node]))
             channels = {}
             if definition.sdk and 'net.pressure_drop' in definition.sdk.capabilities:
-                from .models import ChannelState
+                from .model_types.base import ChannelState
                 channels = {branch.channel_id: ChannelState(mass_flow_kg_s=float(flows[j]),
                     pressure_drop_pa=float(pressures[branch.start_node]-pressures[branch.end_node]))
                     for j, branch in enumerate(network.branches) if branch.instance_id == instance_id}
@@ -593,7 +595,8 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
             rows.append(row); cols.append(node_columns[node]); data.append(-1.0)
         matrix = csr_matrix((data, (rows, cols)), shape=(size, size))
         if module_rows:
-            from .models import ModulePhaseRequest, ChannelState
+            from .model_types.protocol import ModulePhaseRequest
+            from .model_types.base import ChannelState
             from .module_diagnostics import merge_diagnostics
             replacements = {}
             pressures, actual_flows = unpack(vector)

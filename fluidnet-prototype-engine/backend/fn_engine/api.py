@@ -1,6 +1,6 @@
 from __future__ import annotations
-from .models import ModuleTemplateRequest,ModuleGroupRequest,ModuleTestSuiteRequest,ModuleTestSuiteResponse,CompositeTestContextRequest,ModuleTestConditions
-from .models import ModuleReplayRequest, ModuleReplayResponse, ModuleFailureResponse
+from .model_types.module_testing import ModuleTemplateRequest, ModuleGroupRequest, ModuleTestSuiteRequest, ModuleTestSuiteResponse, CompositeTestContextRequest, ModuleTestConditions
+from .model_types.http import ModuleReplayRequest, ModuleReplayResponse, ModuleFailureResponse
 from .system_inspection import SystemInspection, InspectionComparison
 from .equipment_library import LibraryCatalog, LibraryRequest
 from .coil_geometry import CoilGeometryRequest, CoilGeometryResponse
@@ -32,60 +32,18 @@ from .jobs import OVERVIEW_POINTS, TERMINAL, RunManager
 from .bridge import PARAMETER_BINDINGS, normalize_prototype_export
 from .catalog import builtin_catalog
 from .compiler import CompilationError, compile_project, validate_project_details
-from .models import (
-    CatalogResponse,
-    ControlPreviewResponse,
-    Diagnostic,
-    HealthResponse,
-    ModuleDefinition,
-    ModuleDesignRequest,
-    ModuleDesignResponse,
-    ModuleTestRequest,
-    ModuleTestResponse,
-    ModuleCatalogResponse,
-    Project,
-    ProjectDocument,
-    ProjectDeleteResponse,
-    ProjectDetailResponse,
-    ProjectListResponse,
-    ProjectRevisionsResponse,
-    ProjectRestoreResponse,
-    ProjectSaveResponse,
-    ProjectUpgradeResponse,
-    RunCommand,
-    RunFrame,
-    RunRequest,
-    SavedProjectRunRequest,
-    RunStatus,
-    RunRecordResponse,
-    RunCreateResponse,
-    RunDeleteResponse,
-    RunEventsResponse,
-    RunEvent,
-    RunHistoryResponse,
-    RunListResponse,
-    RunOverviewResponse,
-    UnitWorkpointRequest,
-    UnitWorkpointResponse,
-    VariableValues,
-    VariableWrite,
-    ValidationResponse,
-    ModuleSaveRequest,
-    ModuleVersionResponse,
-    ModuleVersionsResponse,
-    WorkspaceResponse,
-    WorkspaceRestoreResponse,
-    WorkspaceRevisionsResponse,
-    WorkspaceSaveResponse,
-    WorkspaceStorageResponse,
-)
+from .model_types.http import CatalogResponse, ControlPreviewResponse, HealthResponse, ModuleCatalogResponse, ProjectDeleteResponse, ProjectDetailResponse, ProjectListResponse, ProjectRevisionsResponse, ProjectRestoreResponse, ProjectSaveResponse, ProjectUpgradeResponse, SavedProjectRunRequest, RunStatus, RunRecordResponse, RunCreateResponse, RunDeleteResponse, RunEventsResponse, RunHistoryResponse, RunListResponse, RunOverviewResponse, ValidationResponse, ModuleSaveRequest, ModuleVersionResponse, ModuleVersionsResponse, WorkspaceResponse, WorkspaceRestoreResponse, WorkspaceRevisionsResponse, WorkspaceSaveResponse, WorkspaceStorageResponse
+from .model_types.base import Diagnostic
+from .model_types.module import ModuleDefinition
+from .model_types.module_testing import ModuleDesignRequest, ModuleDesignResponse, ModuleTestRequest, ModuleTestResponse, UnitWorkpointRequest, UnitWorkpointResponse
+from .model_types.domain import Project, ProjectDocument
+from .model_types.run import RunCommand, RunFrame, RunRequest, RunEvent, VariableValues, VariableWrite
 from .errors import error_responses, protected_error_responses
 from .properties import PropertyError, refprop_info
 from .packages import ModuleStore, ModuleVersionConflict, ModuleSaveInvalid, package_ref
 from .module_validation import validate_module_definition
 from .solver import SolveFailed, solve_dynamic, solve_steady
-from .models import (ControlPreviewRequest, WorkspaceSaveRequest, ProjectSaveRequest,
-                     ProjectRevisionRequest, ProjectDeleteRequest, ProjectUpgradeRequest)
+from .model_types.http import ControlPreviewRequest, WorkspaceSaveRequest, ProjectSaveRequest, ProjectRevisionRequest, ProjectDeleteRequest, ProjectUpgradeRequest
 from .storage import WorkspaceStore, WorkspaceConflict, StorageError
 
 logger = logging.getLogger('fn_engine.api')

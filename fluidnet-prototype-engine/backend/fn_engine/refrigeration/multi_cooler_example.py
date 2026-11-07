@@ -1,6 +1,6 @@
 """Two independent pumped air coolers connected to a single physical room heat capacity."""
 from ..catalog import catalog_map
-from ..models import Connection, Endpoint, ModuleInstance
+from ..model_types.domain import Connection, Endpoint, ModuleInstance
 from .modular_examples import modular_room_example
 
 

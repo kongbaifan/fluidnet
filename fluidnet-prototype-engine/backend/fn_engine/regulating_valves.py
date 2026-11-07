@@ -85,7 +85,7 @@ def definitions():
 
 def example(identifier='pressure_independent_valve'):
     from .catalog import catalog_map
-    from .models import Project
+    from .model_types.domain import Project
     module=next(m for m in definitions() if m.id==identifier)
     return Project(id='example-'+identifier,name=module.name+' · 水回路',
         description='教学参数：入口250kPa、出口200kPa、20°C水；关闭/压差及流量用设备参数设置。',

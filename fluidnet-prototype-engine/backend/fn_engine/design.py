@@ -9,7 +9,9 @@ import inspect
 import json
 import traceback
 
-from .models import Diagnostic, ModuleDesignRequest, ModuleDesignResponse, ModuleInstance, ParameterChange
+from .model_types.base import Diagnostic
+from .model_types.module_testing import ModuleDesignRequest, ModuleDesignResponse, ParameterChange
+from .model_types.domain import ModuleInstance
 from .runtime import RuntimeErrorBase, WorkerProcess, _LazyPropertyService, design_source
 
 FILENAME = 'design.py'
@@ -59,7 +61,8 @@ def load_design(source):
 
 def run_in_worker(definition, parameters, fluid):
     """Worker side of the `design` action."""
-    from .models import FluidConfig, ModuleDefinition
+    from .model_types.base import FluidConfig
+    from .model_types.module import ModuleDefinition
     module = ModuleDefinition.model_validate(definition)
     from .module_contracts import check_module_compatibility
     check_module_compatibility(module)

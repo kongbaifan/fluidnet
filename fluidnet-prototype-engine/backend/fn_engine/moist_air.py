@@ -9,7 +9,7 @@ from functools import lru_cache
 
 from CoolProp.CoolProp import HAPropsSI
 
-from .models import FluidState
+from .model_types.base import FluidState
 
 T0, CP_DA, CP_V, R0 = 273.15, 1006., 1860., 2501000.
 AIR_STATE_FIELDS = (

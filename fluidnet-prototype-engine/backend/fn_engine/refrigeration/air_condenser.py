@@ -9,7 +9,7 @@ from collections.abc import Mapping
 import math
 from typing import Protocol
 
-from ..models import ModuleDefinition
+from ..model_types.module import ModuleDefinition
 from .cycle import DeviceRangeError
 
 
@@ -104,7 +104,7 @@ def definition() -> ModuleDefinition:
     # The helpers live in catalog.py, which also imports this factory when assembling
     # its definitions. Keep this dependency lazy to avoid an import-time cycle.
     from ..catalog import _celsius, _ratio, _stream, _var, number
-    from ..models import Direction
+    from .._module_schema_v1 import Direction
 
     defaults = DEFAULT_PARAMETERS
     return ModuleDefinition(id='air_cooled_condenser', name='风冷冷凝器', category='制冷站设备',

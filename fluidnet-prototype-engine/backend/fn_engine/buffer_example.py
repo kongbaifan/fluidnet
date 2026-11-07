@@ -1,6 +1,6 @@
 """A boundary-fed buffer with explicit heat storage, plus the stopped-flow variant."""
 from .catalog import catalog_map
-from .models import Project
+from .model_types.domain import Project
 
 
 def buffer_example(stagnant=False):
@@ -22,7 +22,7 @@ def buffer_example(stagnant=False):
                       'target':{'instance_id':'Return','port_id':'out0'}}],
         solver={'thermal':True, 'property_coupling':'node', 'dynamic_step_s':10., 'max_coupling_iterations':40})
     if stagnant:
-        from .models import Connection, Endpoint, ModuleInstance
+        from .model_types.domain import Connection, Endpoint, ModuleInstance
         project.modules.append(catalog['valve'])
         project.instances.append(ModuleInstance(id='Isolation', module_id='valve', name='关闭的隔离阀',
             parameters={'opening_ratio':0.}, position={'x':260.,'y':220.}))

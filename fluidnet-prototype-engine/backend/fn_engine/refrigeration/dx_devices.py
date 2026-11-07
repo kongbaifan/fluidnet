@@ -84,7 +84,8 @@ def branch_point(service,high,room_temperature,valve,evaporator,compressor):
 
 def definitions():
     from ..catalog import _stream,_var,_ratio,_switch,_celsius,number
-    from ..models import ModuleDefinition,Direction,Domain,PortSpec
+    from ..model_types.module import ModuleDefinition
+    from .._module_schema_v1 import Direction, Domain, PortSpec
     stream=lambda: [_stream('in0','入口',Direction.in_),_stream('out0','出口',Direction.out)]
     values=[_var('mass_flow_kg_s','质量流量','mass_flow','kg/s'),_var('inlet_enthalpy_j_kg','真实入口焓','specific_enthalpy','J/kg'),
             _var('outlet_enthalpy_j_kg','真实出口焓','specific_enthalpy','J/kg')]

@@ -2,7 +2,8 @@
 from pathlib import Path
 from typing import Literal
 from pydantic import Field
-from .models import StrictModel, Project
+from ._module_schema_v1 import StrictModel
+from .model_types.domain import Project
 from .catalog import catalog_map
 from .packages import load_module_package
 

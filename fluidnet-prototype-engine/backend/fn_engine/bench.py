@@ -6,10 +6,12 @@ from copy import deepcopy
 
 from .catalog import catalog_map
 from .compiler import compile_project
-from .models import (
-    CommitStepRequest, Connection, CircuitFluid, Domain, Endpoint, EvaluateRequest, ModuleDefinition,
-    ModuleInstance, ModuleTestRequest, ModuleTestResponse, Project, RunFrame,
-)
+from .model_types.protocol import CommitStepRequest, EvaluateRequest
+from .model_types.domain import Connection, CircuitFluid, Endpoint, ModuleInstance, Project
+from ._module_schema_v1 import Domain
+from .model_types.module import ModuleDefinition
+from .model_types.module_testing import ModuleTestRequest, ModuleTestResponse
+from .model_types.run import RunFrame
 from .properties import property_service
 from .runtime import RuntimeErrorBase, WorkerProcess, module_content_hash
 from .module_execution import mark_module_accepted, set_module_step
@@ -172,7 +174,7 @@ def run_module_test(request: ModuleTestRequest) -> ModuleTestResponse:
 
 def _test_composite(request,network):
     from .simulation import SimulationSession
-    from .models import EvaluateResponse, CommitStepResponse
+    from .model_types.protocol import EvaluateResponse, CommitStepResponse
     session=SimulationSession(network,request.duration_s,request.dt_s)
     try:
         session.initialize()
@@ -192,7 +194,7 @@ def _test_composite(request,network):
 
 def _test_refrigeration_group(request):
     from .sessions import create_session
-    from .models import EvaluateResponse, CommitStepResponse
+    from .model_types.protocol import EvaluateResponse, CommitStepResponse
     from .refrigeration.bench import effective_test_conditions
     conditions=effective_test_conditions(request.module,request)
     project=Project(id='refrigeration-group-test',name=request.module.name,fluid=conditions.fluid,modules=[request.module],

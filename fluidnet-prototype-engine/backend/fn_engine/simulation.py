@@ -11,7 +11,7 @@ from . import solver as s
 from .compiler import CompilationError
 from .session_base import SessionBase
 from .controllers import PID
-from .models import Diagnostic
+from .model_types.base import Diagnostic
 from .module_execution import mark_module_accepted
 from .module_diagnostics import merge_diagnostics
 from .properties import property_service

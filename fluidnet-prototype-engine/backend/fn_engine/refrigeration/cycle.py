@@ -5,7 +5,7 @@ condenser outlet, 4 = isenthalpic throttle outlet. Evaporating pressure is the d
 condensing pressure the bubble pressure at T_cond (identical for a pure fluid). Motor losses leave to
 the machine room, so Q_cond = Q_evap + P_shaft exactly.
 """
-from ..models import Diagnostic
+from ..model_types.base import Diagnostic
 from ..properties import PropertyError
 
 

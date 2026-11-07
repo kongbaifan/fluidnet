@@ -1,7 +1,9 @@
 """Real host-network validation for open refrigeration equipment groups."""
 from copy import deepcopy
 
-from ..models import Endpoint, ModuleInstance, ModuleTestConditions, ModuleTestResponse, EvaluateResponse, CommitStepResponse, Position
+from ..model_types.domain import Endpoint, ModuleInstance, Position
+from ..model_types.module_testing import ModuleTestConditions, ModuleTestResponse
+from ..model_types.protocol import EvaluateResponse, CommitStepResponse
 from ..composites import OPEN_REFRIGERATION_CAPABILITY
 from ..runtime import module_content_hash
 

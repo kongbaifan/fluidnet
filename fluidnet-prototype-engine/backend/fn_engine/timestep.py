@@ -42,7 +42,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from .compiler import CompilationError
-from .models import SolverOptions
+from .model_types.domain import SolverOptions
 
 # 首轮支持的执行域：理想热模型（A1）与冷库 B 集总制冷站（A2/A3）。
 SUPPORTED_DOMAINS = frozenset({'thermal', 'refrigeration', 'coupled'})

@@ -2,7 +2,7 @@
 from pathlib import Path
 
 from .catalog import catalog_map
-from .models import Project
+from .model_types.domain import Project
 from .packages import load_module_package, package_ref
 
 ROOT=Path(__file__).resolve().parents[2]

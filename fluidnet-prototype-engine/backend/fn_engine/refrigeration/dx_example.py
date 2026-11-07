@@ -1,7 +1,7 @@
 """An independently sized DX branch; no low-pressure storage vessel or fictitious saturation suction."""
 import math
 from ..catalog import catalog_map
-from ..models import Connection,Endpoint
+from ..model_types.domain import Connection, Endpoint
 from ..properties import property_service
 from .modular_examples import modular_room_example
 from .cycle import compress

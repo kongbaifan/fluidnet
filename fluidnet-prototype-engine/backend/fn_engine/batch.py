@@ -1,7 +1,7 @@
 """Bounded Worker shards, isolated module instances, one evaluation RPC per shard."""
 from concurrent.futures import ThreadPoolExecutor
 
-from .models import InitializeRequest, EvaluateResponse, ModuleStepCandidate, ModuleThermalResponse, ModuleDerivativeResponse
+from .model_types.protocol import InitializeRequest, EvaluateResponse, ModuleStepCandidate, ModuleThermalResponse, ModuleDerivativeResponse
 from .compiler import instance_fluids
 from .module_contracts import check_module_compatibility
 from .module_execution import InvocationState, new_identity

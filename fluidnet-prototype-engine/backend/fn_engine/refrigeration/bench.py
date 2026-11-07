@@ -2,8 +2,10 @@
 from copy import deepcopy
 import math
 
-from ..models import (CommitStepRequest, CommitStepResponse, Diagnostic, EvaluateResponse,
-                     ModuleTestConditions, ModuleTestResponse, RunFrame)
+from ..model_types.protocol import CommitStepRequest, CommitStepResponse, EvaluateResponse
+from ..model_types.base import Diagnostic
+from ..model_types.module_testing import ModuleTestConditions, ModuleTestResponse
+from ..model_types.run import RunFrame
 from ..module_execution import begin_module_step, mark_module_accepted
 from ..module_transactions import ModuleStepTransaction
 from ..properties import property_service

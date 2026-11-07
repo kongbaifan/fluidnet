@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from .models import ChannelSpec, Direction, Domain, ModuleDefinition, ParameterSpec, PortSpec, UnitSpec, VariableSpec
+from ._module_schema_v1 import ChannelSpec, Direction, Domain, ParameterSpec, PortSpec, UnitSpec, VariableSpec
+from .model_types.module import ModuleDefinition
 
 
 def number(id, label, default, quantity, unit, display=None, scale=1.0, minimum=None, maximum=None, runtime=False, offset=0.0):

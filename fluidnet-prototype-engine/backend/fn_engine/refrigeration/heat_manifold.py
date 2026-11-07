@@ -1,6 +1,7 @@
 """Massless, acyclic thermal aggregation without duplicate room heat capacities."""
 def definition():
-    from ..models import ModuleDefinition, PortSpec, Domain, Direction
+    from ..model_types.module import ModuleDefinition
+    from .._module_schema_v1 import PortSpec, Domain, Direction
     from ..catalog import _var
     return ModuleDefinition(id='room_heat_manifold',name='库房冷量汇集器',category='制冷站设备',solver_model='room_heat_manifold',
         description='八个热输入可级联汇入一个库房；无热容、不改变冷量。环路、空汇集器和重复归属拒绝。',

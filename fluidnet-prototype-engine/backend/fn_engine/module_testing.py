@@ -5,10 +5,16 @@ import math
 from fractions import Fraction
 
 from .bench import run_module_test
-from .models import (
-    Diagnostic, ModuleTestAssertion, ModuleTestAssertionResult, ModuleTestRequest,
-    ModuleTestCaseResult, ModuleTestSuiteRequest, ModuleTestSuiteResponse, RunFrame,
+from .model_types.base import Diagnostic
+from .model_types.module_testing import (
+    ModuleTestAssertion,
+    ModuleTestAssertionResult,
+    ModuleTestRequest,
+    ModuleTestCaseResult,
+    ModuleTestSuiteRequest,
+    ModuleTestSuiteResponse,
 )
+from .model_types.run import RunFrame
 from .runtime import module_content_hash, module_definition_hash
 
 

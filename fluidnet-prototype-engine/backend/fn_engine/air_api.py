@@ -8,7 +8,14 @@ from .air_models import AirPropertyRequest
 from .air_variables import collect_air_variables, is_air_project
 from .compiler import CompilationError, compile_project
 from .errors import protected_error_responses
-from .models import AirGridResponse, AirMigrationRequest, AirMigrationResponse, AirPropertyResponse, AirVariableCatalogResponse, Project
+from .model_types.http import (
+    AirGridResponse,
+    AirMigrationRequest,
+    AirMigrationResponse,
+    AirPropertyResponse,
+    AirVariableCatalogResponse,
+)
+from .model_types.domain import Project
 from .moist_air import AirPropertyError, MoistAirService
 
 

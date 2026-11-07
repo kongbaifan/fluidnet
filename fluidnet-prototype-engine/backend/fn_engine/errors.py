@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from .models import ErrorResponse
+from .model_types.http import ErrorResponse
 
 
 @dataclass(frozen=True)

@@ -1,7 +1,7 @@
 """Bounded diagnostics and replay metadata, independent of the numerical stack."""
 import traceback
 
-from .models import Diagnostic
+from .model_types.base import Diagnostic
 
 MAX_DIAGNOSTICS = 128
 MAX_MESSAGE_CHARS = 2000

@@ -59,7 +59,8 @@ def evaluate(exhaust,supply,exhaust_flow,supply_flow,parameters,exhaust_pressure
 def definition():
     from .air_catalog import _derived
     from .catalog import number, _ratio, channel
-    from .models import ModuleDefinition,PortSpec,Direction
+    from .model_types.module import ModuleDefinition
+    from ._module_schema_v1 import PortSpec, Direction
     ports=[PortSpec(id=s+'_'+e,label=label+('入口' if e=='in' else '出口'),direction=Direction.in_ if e=='in' else Direction.out,circuit=s)
            for s,label in [('exhaust','排风'),('supply','新风')] for e in ('in','out')]
     return ModuleDefinition(id='enthalpy_recovery',name='双风道全热回收器（无凝结）',solver_model='enthalpy_recovery',category='风侧设备',

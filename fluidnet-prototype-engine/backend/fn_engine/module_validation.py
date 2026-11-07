@@ -1,6 +1,8 @@
 """Module authoring checks. User code is loaded only inside a Worker."""
 import ast
-from .models import Diagnostic, FluidConfig, ModuleDefinition, ValidationResponse
+from .model_types.base import Diagnostic, FluidConfig
+from .model_types.module import ModuleDefinition
+from .model_types.http import ValidationResponse
 from .runtime import WorkerProcess, design_source, module_content_hash, module_definition_hash, module_source
 
 

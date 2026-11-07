@@ -4,7 +4,7 @@ import json
 
 from . import __version__
 from .air_models import AirVariableDescriptor
-from .models import UnitSpec
+from ._module_schema_v1 import UnitSpec
 
 # label, quantity, canonical, display, scale, offset, mass_basis
 UNITS = {

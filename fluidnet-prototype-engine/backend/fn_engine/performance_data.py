@@ -17,7 +17,9 @@ from fastapi import APIRouter, HTTPException, Response
 from pydantic import Field, model_validator
 
 from .errors import protected_error_responses
-from .models import FluidConfig, ModuleDefinition, StrictModel
+from .model_types.base import FluidConfig
+from .model_types.module import ModuleDefinition
+from ._module_schema_v1 import StrictModel
 from .properties import _parse_fluid
 from .storage import StorageError, pack, unpack
 
@@ -305,7 +307,7 @@ def proposal(request,store):
     if not isinstance(runtime,str) or hashlib.sha256(runtime.encode()).hexdigest()!=CURVE_RUNTIME_HASHES.get(module.id):
         raise ValueError('目标模块算法不是已核对的曲线单位合同，不能只凭同名参数自动转换')
     from .compiler import validated_parameters
-    from .models import ModuleInstance
+    from .model_types.domain import ModuleInstance
     points=item.points_m3_h
     current=validated_parameters(ModuleInstance(id='CurveTarget',module_id=module.id,name='curve target',parameters=request.parameters|{target:points}),module)
     if item.valid_flow_m3_h!=[points[0][0],points[-1][0]]:

@@ -20,7 +20,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, replace
 
-from .models import Diagnostic, FluidState
+from .model_types.base import Diagnostic, FluidState
 from .properties import PropertyError
 
 # 诊断码（编译期/运行期共用）。前缀 TRAPPED_ 让 simulation 识别“困液专属停止”，

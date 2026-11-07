@@ -8,7 +8,7 @@ import math
 
 from scipy.optimize import brentq
 
-from .models import FluidConfig
+from .model_types.base import FluidConfig
 from .properties import property_service
 from .refrigeration.cycle import DeviceRangeError, check_envelope, cycle_point, cycle_rates, rated_displacement
 

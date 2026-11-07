@@ -1,7 +1,7 @@
 """S5-4 explicit dry-coil geometry design. Coefficients supplied with provenance, no hidden fit."""
 import math
 from pydantic import Field, model_validator
-from .models import StrictModel
+from ._module_schema_v1 import StrictModel
 
 class CoilGeometryRequest(StrictModel):
     tube_inner_diameter_m:float=Field(default=.010,gt=0,le=1)

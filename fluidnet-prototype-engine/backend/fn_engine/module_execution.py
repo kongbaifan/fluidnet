@@ -1,7 +1,7 @@
 """Host-side callback identity. This records boundaries; it performs no state transaction."""
 from uuid import uuid4
 
-from .models import ModuleRequestContext
+from .model_types.protocol import ModuleRequestContext
 
 
 def new_identity(prefix):

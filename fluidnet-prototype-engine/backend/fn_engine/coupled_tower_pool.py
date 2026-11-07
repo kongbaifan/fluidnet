@@ -6,7 +6,7 @@ An outer fixed point freezes each candidate exchange on an isolated network view
 from dataclasses import dataclass, field, replace
 
 from .compiler import CompilationError, StorageSpec, tank_initial_state
-from .models import FluidConfig
+from .model_types.base import FluidConfig
 from .moist_air import AirPropertyError, MoistAirService, _ha, liquid_enthalpy
 from .properties import PropertyError, property_service
 
@@ -14,7 +14,7 @@ from .properties import PropertyError, property_service
 def definition():
     from .tower_pool import definition as pool_definition
     from .catalog import _celsius, _var, number
-    from .models import VariableSpec
+    from ._module_schema_v1 import VariableSpec
     model=pool_definition()
     model.id,model.name='coupled_tower_pool','湿接触冷却塔池（真实储量）'
     model.solver_model,model.state_model='coupled_tower_pool','wet_contact_pool'

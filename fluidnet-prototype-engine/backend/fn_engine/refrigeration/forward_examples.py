@@ -1,6 +1,6 @@
 """Portable S5/S6 examples built exclusively from declared module ports and parameters."""
 from ..catalog import catalog_map
-from ..models import Connection, Endpoint, ModuleInstance
+from ..model_types.domain import Connection, Endpoint, ModuleInstance
 
 
 def link(p,a,b):

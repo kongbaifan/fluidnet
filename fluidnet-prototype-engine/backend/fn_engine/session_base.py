@@ -7,7 +7,11 @@ from copy import deepcopy
 import math
 
 from .compiler import CompilationError, runtime_parameter, validated_parameters
-from .models import Diagnostic, ModuleDefinition, ModuleInstance, ParameterSpec, PIDController, Project, RunFrame
+from .model_types.base import Diagnostic
+from .model_types.module import ModuleDefinition
+from .model_types.domain import ModuleInstance, PIDController, Project
+from ._module_schema_v1 import ParameterSpec
+from .model_types.run import RunFrame
 from .controllers import PID
 from .control import ScriptControl
 

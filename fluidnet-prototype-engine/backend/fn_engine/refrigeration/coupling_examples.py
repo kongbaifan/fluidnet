@@ -5,10 +5,18 @@ not a prescribed return temperature or cooling load. A warm pipe represents an
 ambient heat load; all heat removed by the immersed coil enters the LP vessel.
 """
 from ..catalog import catalog_map
-from ..models import (
-    CircuitFluid, Connection, Endpoint, FluidConfig, ModuleInstance, Position,
-    Project, Scenario, SolverOptions, ThermalCoupling,
+from ..model_types.domain import (
+    CircuitFluid,
+    Connection,
+    Endpoint,
+    ModuleInstance,
+    Position,
+    Project,
+    Scenario,
+    SolverOptions,
+    ThermalCoupling,
 )
+from ..model_types.base import FluidConfig
 
 
 def _link(identifier, source, target):

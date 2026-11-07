@@ -71,7 +71,8 @@ def compressor_point(service,p,pressure,enthalpy,discharge):
 
 def definitions():
     from ..catalog import _stream,_var,_ratio,_celsius,_switch,number
-    from ..models import ModuleDefinition,Direction
+    from ..model_types.module import ModuleDefinition
+    from .._module_schema_v1 import Direction
     values=[_var('mass_flow_kg_s','流股质量流量','mass_flow','kg/s'),
         _var('inlet_enthalpy_j_kg','真实入口焓','specific_enthalpy','J/kg','kJ/kg',1000.),
         _var('outlet_enthalpy_j_kg','真实出口焓','specific_enthalpy','J/kg','kJ/kg',1000.),

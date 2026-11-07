@@ -8,7 +8,7 @@ import numpy as np
 from .air_devices import AirDeviceResult, evaluate_cooling_coil, evaluate_humidifier, evaluate_pass_through
 from .air_liquid import coupled_device_results, enthalpy, humidity
 from .compiler import CompilationError, service_at
-from .models import Diagnostic
+from .model_types.base import Diagnostic
 from .moist_air import AIR_STATE_FIELDS, AirPropertyError, MoistAirService
 from .properties import PropertyError
 

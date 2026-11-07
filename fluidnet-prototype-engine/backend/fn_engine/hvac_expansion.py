@@ -2,7 +2,7 @@
 from pathlib import Path
 
 from .hvac_basic import base, number, output, compose, junction_module, resistance_module
-from .models import ModuleDefinition
+from .model_types.module import ModuleDefinition
 
 ROOT=Path(__file__).resolve().parents[2]
 

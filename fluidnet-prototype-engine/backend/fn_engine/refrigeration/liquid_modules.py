@@ -6,7 +6,7 @@ accepted module state; commit_step runs once at the complete segment boundary.
 from copy import deepcopy
 
 from ..compiler import CompilationError, instance_fluids
-from ..models import Diagnostic
+from ..model_types.base import Diagnostic
 from ..module_execution import mark_module_accepted, new_identity
 from ..runtime import RuntimeErrorBase, WorkerProcess
 from ..solver import _close_runners, _commit_modules

@@ -1,6 +1,6 @@
 """A real suction line and external subcooler alter the actual compressor/valve enthalpies."""
 from ..catalog import catalog_map
-from ..models import ModuleInstance, Connection, Endpoint
+from ..model_types.domain import ModuleInstance, Connection, Endpoint
 from .modular_examples import modular_room_example
 
 

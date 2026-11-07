@@ -7,7 +7,7 @@ vessel(s) it connects to; two-phase properties are queried here, never in the fl
 from dataclasses import asdict, dataclass
 import math
 
-from ..models import Diagnostic
+from ..model_types.base import Diagnostic
 from .cycle import DeviceRangeError, compress, displaced_flow
 from .vessel_geometry import horizontal_height_ratio, horizontal_volume, headed_volume, headed_height_ratio
 

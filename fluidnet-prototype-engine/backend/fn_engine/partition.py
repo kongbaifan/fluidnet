@@ -36,7 +36,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from .compiler import CompilationError, CompiledNetwork, DisjointSet
-from .models import EvaluateResponse
+from .model_types.protocol import EvaluateResponse
 from .runtime import RuntimeErrorBase
 from .solver import (PRESSURE_SCALE, HydraulicNotConverged, HydraulicResult, reference_arrays,
                      reference_properties, solve_hydraulics)

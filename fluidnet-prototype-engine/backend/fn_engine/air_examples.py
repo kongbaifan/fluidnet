@@ -2,7 +2,8 @@
 from pathlib import Path
 
 from .catalog import catalog_map
-from .models import Connection, Endpoint, FluidConfig, ModuleInstance, Project, SolverOptions
+from .model_types.domain import Connection, Endpoint, ModuleInstance, Project, SolverOptions
+from .model_types.base import FluidConfig
 from .packages import load_module_package
 
 AIR_EXAMPLES = ('air-coil-wet','air-mixing','ahu-wet','ahu-room','air-parallel-wet','cooling-tower-moist','chiller-air-loop',

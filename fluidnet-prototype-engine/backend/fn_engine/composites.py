@@ -2,7 +2,9 @@
 from copy import deepcopy
 import hashlib
 
-from .models import ModuleDefinition, ModuleInstance, Endpoint, Connection, FluidConfig
+from .model_types.module import ModuleDefinition
+from .model_types.domain import ModuleInstance, Endpoint, Connection
+from .model_types.base import FluidConfig
 from .properties import _parse_fluid
 from .runtime import module_content_hash, module_definition_hash
 

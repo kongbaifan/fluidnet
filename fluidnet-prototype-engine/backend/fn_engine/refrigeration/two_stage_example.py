@@ -6,7 +6,7 @@ enthalpies and both compressor stages are evaluated by the generic station solve
 import math
 
 from ..catalog import catalog_map
-from ..models import Connection, Endpoint, ModuleInstance, Position
+from ..model_types.domain import Connection, Endpoint, ModuleInstance, Position
 from ..properties import property_service
 from . import devices
 from .modular_examples import modular_room_example

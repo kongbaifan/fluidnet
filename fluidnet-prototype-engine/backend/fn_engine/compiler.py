@@ -5,7 +5,10 @@ import math
 from dataclasses import dataclass, field
 
 from .catalog import builtin_catalog
-from .models import Diagnostic, Domain, FluidConfig, ModuleDefinition, ModuleInstance, Project
+from .model_types.base import Diagnostic, FluidConfig
+from ._module_schema_v1 import Domain
+from .model_types.module import ModuleDefinition
+from .model_types.domain import ModuleInstance, Project
 from .trapped import TrappedError, TrappedSpec, build_spec as trapped_build_spec
 
 

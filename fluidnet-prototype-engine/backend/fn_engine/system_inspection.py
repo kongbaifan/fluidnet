@@ -6,7 +6,9 @@ from typing import Any
 
 from pydantic import Field
 
-from .models import Diagnostic, Project, StrictModel
+from .model_types.base import Diagnostic
+from .model_types.domain import Project
+from ._module_schema_v1 import StrictModel
 
 
 class InspectionValue(StrictModel):

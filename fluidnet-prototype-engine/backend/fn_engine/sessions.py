@@ -1,7 +1,7 @@
 """Select the physics session while keeping public run/command/archive contracts."""
 from typing import Any, Protocol
 
-from .models import RunFrame
+from .model_types.run import RunFrame
 from .simulation import SimulationSession
 from .session_base import FrameBuffer, SessionNetwork
 

@@ -2,7 +2,9 @@
 from dataclasses import dataclass
 
 from .compiler import CompilationError, StorageSpec, tank_initial_state
-from .models import Direction, FluidConfig, ModuleDefinition, PortSpec, VariableSpec
+from ._module_schema_v1 import Direction, PortSpec, VariableSpec
+from .model_types.base import FluidConfig
+from .model_types.module import ModuleDefinition
 from .properties import property_service
 
 

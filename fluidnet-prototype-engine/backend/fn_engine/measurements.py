@@ -1,7 +1,7 @@
 """Ideal meters on public accepted-frame values, without adding network equations."""
 import math
 
-from .models import Diagnostic
+from .model_types.base import Diagnostic
 
 
 PORT_UNITS = {
