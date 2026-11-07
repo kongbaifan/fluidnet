@@ -4,13 +4,7 @@ window.createEngineClient = function (ui) {
   const queues = new Map(), pending = new Map();
   const controllerWrites = new Map();
   const parameterWrites = new WeakSet();
-  const livePolling = new Set();
   const circuitsByProject = new Map();  // project id -> circuits of the last successful check
-  // A browser keeps at most this many live rows (the server window); older rows come from /overview.
-  // This window is memory-only: the persisted browser draft may keep fewer recent frames per run when
-  // localStorage is short (studio.js persistLocal trims only the stored copy, never these in-memory rows).
-  const LIVE_ROWS = 2001;
-  const overviews = new Map();  // run id -> {rows, stride, total, at}
   const runState=window.FluidNetProjectRunState;
   const archiveCacheMetadata=runState.archiveCacheMetadata;
   async function confirmArchiveCache(owner, run, record, historyRows, refresh, signal) {
@@ -594,106 +588,16 @@ window.createEngineClient = function (ui) {
       await services.refreshArchives();
     } catch (error) { const local=/^本地草稿/.test(error.message||''); ui.message((local ? '' : '计算服务未连接，请通过启动脚本打开此页面。') + error.message,true); }
   }
-  async function pollLive(owner) {
-    const ticket=runState.capture(ui.state(),owner),id=ticket.run.runId;
-    if(!id || livePolling.has(id))return;
-    livePolling.add(id);
-    try {
-      const data=await request('/runs/'+id);
-      const history=await request(`/runs/${id}/history?offset=${ticket.run.offset || 0}`);
-      if(!runState.isCurrent(ui.state(),ticket) || owner.run.runId!==id)return;
-      await confirmArchiveCache(owner,ticket.run,data,history.total_rows,['completed','failed','cancelled','interrupted'].includes(data.status));
-      if(!runState.isCurrent(ui.state(),ticket) || owner.run.runId!==id)return;
-      prepareRun(owner);
-      const outcome=runState.mergeLive(ticket.run,data,history.rows.map(frame=>rowFromFrame(owner,frame)),{
-        totalRows:history.total_rows,latest:data.frame?.valid?rowFromFrame(owner,data.frame):null,limit:LIVE_ROWS});
-      if(ui.state().charts.range==='all' && Date.now()-(overviews.get(id)?.at||0)>2000)loadOverview(owner);
-      if(outcome.terminal)ui.persist();
-      if(outcome.changed)ui.render();else ui.refresh();
-    } catch(error) {
-      if(!runState.isCurrent(ui.state(),ticket) || owner.run.runId!==id)return;
-      ticket.run.connectionError=error.message;ui.message('运行连接中断，正在重连：'+error.message,true);
-    } finally {livePolling.delete(id);}
+  let runCommands;
+  function liveRuns() {
+    return runCommands ||= window.FluidNetRunCommands.create({state:ui.state,request,runState,pending,key,parameterKey:ui.parameterKey,
+      normalize,runMetadata:owner=>services.runMetadata(owner),trendVariables,emptyRun:ui.emptyRun,prepareRun,rowFromFrame,
+      confirmArchiveCache,persist:ui.persist,render:ui.refreshRun||ui.render,refresh:ui.refresh,message:ui.message});
   }
-  async function confirmedCommand(owner, body) {
-    const ticket=runState.capture(ui.state(),owner),id=ticket.run.runId;
-    if (!id) throw Error('没有活动运行');
-    const command={command_id:crypto.randomUUID(),...body};
-    const receipt=await request(`/runs/${id}/command`,command);
-    runState.assertCurrent(ui.state(),ticket);
-    if(receipt.command_status==='rejected') throw Error(receipt.message);
-    for(let i=0;i<200;i++) {
-      const {events}=await request(`/runs/${id}/events`);
-      runState.assertCurrent(ui.state(),ticket);
-      const event=events.findLast(e=>e.command_id===receipt.command_id);
-      if(event?.command_status==='rejected') throw Error(event.message);
-      if(event?.command_status==='applied') { await pollLive(owner); return event; }
-      await new Promise(resolve=>setTimeout(resolve,50));
-    }
-    throw Error('命令已接收，尚未确认生效；请查看运行事件，勿重复提交。');
-  }
-  async function liveCommand(owner, action) {
-    let controller=null;
-    const entry=runState.capture(ui.state(),owner);
-    try {
-      if(owner.run.live && owner.run.runId) {
-        try {
-          await confirmedCommand(owner,{action:action==='run'?'resume':action});
-          return;
-        } catch(error) {
-          // A saved or reloaded page can still hold a run that finished meanwhile; sync its
-          // final state, then 运行/单步 start a new run instead of failing on the stale id.
-          if(error.code!=='RUN_ALREADY_FINISHED') throw error;
-          await pollLive(owner);
-          runState.assertCurrent(ui.state(),entry);
-          owner.run.live=false; owner.run.runId=null; ui.persist();
-          if(action==='pause') { ui.render(); return; }
-        }
-      }
-      if(action==='stop') {
-        // A finished dynamic run has already released its server session. A visible Stop
-        // action still closes the local task, while retaining its frames and archive ID.
-        if(!owner.run.live && !owner.run.runId && !pending.has(owner.id)) {
-          owner.run.status='stopped';ui.persist();ui.render();
-        }
-        return;
-      }
-      if(action==='pause') return;
-      if(pending.has(owner.id)) return;
-      controller=new AbortController();pending.set(owner.id,controller);
-      const ticket=runState.capture(ui.state(),owner),before=key(owner),parameterKey=ui.parameterKey(owner);
-      const project=await normalize(owner,controller.signal);
-      runState.assertCurrent(ui.state(),ticket);
-      if(before!==key(owner))throw Error('请求期间项目已变化，请重新运行。');
-      const result=await request('/runs?background=true',{project,mode:'dynamic',...services.runMetadata(owner),duration_s:owner.solver.continuous ? null : owner.solver.duration,
-        dt_s:owner.solver.dt,execution_mode:owner.solver.executionMode || 'realtime',speed_ratio:owner.solver.speedRatio || 1,
-        start_paused:action==='step',history:'trend',trend_variables:trendVariables(owner),
-        ...(owner.solver.historyWindow ? {history_window:Math.min(20001,Math.max(10,owner.solver.historyWindow))} : {})},controller.signal);
-      runState.assertCurrent(ui.state(),ticket);
-      if(before!==key(owner))throw Error('请求期间项目已变化，原请求可在运行档案查看，请重新运行。');
-      owner.run={...ui.emptyRun(),source:'engine',status:'solving',id:result.run_id,runId:result.run_id,live:true,offset:0,parameterKey};
-      ui.persist();ui.render();
-      if(action==='step') await confirmedCommand(owner,{action:'step'});
-      await pollLive(owner);
-    } catch(error) {ui.message(error.message,true);}
-    finally {if(controller && pending.get(owner.id)===controller)pending.delete(owner.id);}
-  }
-  async function loadOverview(owner) {
-    const ticket=runState.capture(ui.state(),owner),id=ticket.run.id;
-    if (!id || owner.run.source !== 'engine') return null;
-    try {
-      const data = await request(`/runs/${id}/overview`);
-      if(!runState.isCurrent(ui.state(),ticket))return null;
-      const entry = {rows: data.rows.map(frame => rowFromFrame(owner, frame)), stride: data.stride, total: data.total_rows, at: Date.now()};
-      overviews.set(id, entry);
-      ui.refresh();
-      return entry;
-    } catch (error) {
-      // The run is gone from the server (restart or retention); the window rows remain.
-      overviews.set(id, {rows: null, error: error.message, at: Date.now()});
-      return null;
-    }
-  }
+  const pollLive=owner=>liveRuns().pollLive(owner);
+  const confirmedCommand=(owner,body)=>liveRuns().confirmedCommand(owner,body);
+  const liveCommand=(owner,action)=>liveRuns().liveCommand(owner,action);
+  const loadOverview=owner=>liveRuns().loadOverview(owner);
   function applyController(owner,controllerId,field,value) {
     const ticket=runState.capture(ui.state(),owner);
     const job=(controllerWrites.get(owner) || Promise.resolve()).catch(()=>{}).then(async()=>{
@@ -768,5 +672,5 @@ window.createEngineClient = function (ui) {
     } finally {for(const item of plan.items)parameterWrites.delete(item.node);}
   }
   const services=window.createProjectServices({request,ui,normalize,health:()=>health,authHeaders,pinProject,moduleFromManifest});
-  return {...services,cacheCircuits:(owner,items)=>{circuitsByProject.set(owner.id,items||[]);ui.render();},archiveCacheMetadata,overviewBindings,overviewValues,refrigerationReportAvailable,request,normalize,moduleFromManifest,whenReady:()=>initializing || Promise.resolve(),command,tick,validate,init,applyController,applyParameters,applyParameterBatch,isApplyingParameters:node=>parameterWrites.has(node),loadOverview,authHeaders,signOut:()=>{sessionStorage.removeItem(TOKEN_KEY);location.reload();},overview:id=>overviews.get(id),circuits:id=>circuitsByProject.get(id)||[],confirmedCommand,portValue,observation,manifestPayload,contractText,checkModule,saveModule,runDesign,versions,loadVersion,newModule,newTemplate,newComposite,updateContractItem,bindModule,pinProject,moduleForInsert,get catalog(){return catalog;},get health(){return health;}};
+  return {...services,cacheCircuits:(owner,items)=>{circuitsByProject.set(owner.id,items||[]);ui.render();},archiveCacheMetadata,overviewBindings,overviewValues,refrigerationReportAvailable,request,normalize,moduleFromManifest,whenReady:()=>initializing || Promise.resolve(),command,tick,validate,init,applyController,applyParameters,applyParameterBatch,isApplyingParameters:node=>parameterWrites.has(node),loadOverview,authHeaders,signOut:()=>{sessionStorage.removeItem(TOKEN_KEY);location.reload();},overview:id=>runCommands?.overview(id),circuits:id=>circuitsByProject.get(id)||[],confirmedCommand,portValue,observation,manifestPayload,contractText,checkModule,saveModule,runDesign,versions,loadVersion,newModule,newTemplate,newComposite,updateContractItem,bindModule,pinProject,moduleForInsert,get catalog(){return catalog;},get health(){return health;}};
 };
