@@ -198,7 +198,7 @@ try{
   expect(errors).toEqual([]);await captureFhd(page,'artifacts/canvas-performance'+suffix+'-1080p.png');
   const commit=execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8',windowsHide:true}).trim();
   const dirtyPaths=execFileSync('git',['diff','--name-only','--','frontend'],{encoding:'utf8',windowsHide:true}).trim().split(/\r?\n/).filter(Boolean);
-  const sourceHashes=Object.fromEntries(['frontend/studio.js','frontend/canvas-view.js','frontend/canvas-workspace.js','frontend/canvas-routing.js','frontend/canvas-symbols.js',
+  const sourceHashes=Object.fromEntries(['frontend/index.html','frontend/bootstrap.js','frontend/studio.js','frontend/engine-client.js','frontend/canvas-view.js','frontend/canvas-workspace.js','frontend/canvas-routing.js','frontend/canvas-symbols.js',
     'frontend/canvas-observations.js','frontend/svg-dom.js','frontend/workbench-refresh.js','frontend/run-results-view.js','frontend/canvas-view.css','frontend/project-model.js','tests/browser-canvas-performance.mjs'].map(path=>[path,createHash('sha256').update(readFileSync(path)).digest('hex')]));
   mkdirSync('artifacts',{recursive:true});writeFileSync('artifacts/canvas-performance'+suffix+'-metrics.json',JSON.stringify({capturedAt:new Date().toISOString(),commit,dirtyPaths,
     sourceHashes,environment:{node:process.version,platform:platform(),release:release(),cpu:cpus()[0]?.model,logicalProcessors:cpus().length},
