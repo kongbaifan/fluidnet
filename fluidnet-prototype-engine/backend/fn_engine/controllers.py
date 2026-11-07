@@ -5,7 +5,7 @@ import math
 from dataclasses import dataclass
 
 from .compiler import CompilationError
-from .models import PIDController
+from .model_types.domain import PIDController
 
 
 @dataclass

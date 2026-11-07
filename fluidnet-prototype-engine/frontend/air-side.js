@@ -1,17 +1,25 @@
+import {FluidNetControls} from './control-programs.js';
+import {FluidNetProjectModel} from './project-model.js';
+import {FluidNetProjectState} from './project-state.js';
 /* 风系统：服务器负责物性和求解；页面只作单位转换与同一运行帧的展示。 */
-window.createAirSideUI = function (ui) {
+export const createAirSideUI = function (ui) {
   const {esc, btn, msg} = ui, clone = value => JSON.parse(JSON.stringify(value));
   const examples = [['air-coil-wet','湿盘管除湿'],['air-mixing','新回风混合'],['ahu-wet','空气处理机组'],
     ['ahu-room','房间送回风热湿系统'],['air-parallel-wet','并联风侧设备'],['cooling-tower-moist','冷却塔水耗'],
-    ['chiller-air-loop','冷水机组与房间风水联算']];
+    ['chiller-air-loop','冷水机组与房间风水联算'],['room-temperature-control','房间自动温控 · 初始降温'],
+    ['room-control-load-step','房间自动温控 · 负荷阶跃'],['room-control-setpoint-step','房间自动温控 · 设定变化'],
+    ['hvac-water-balance','暖通基础 · 两支路水力平衡'],['hvac-three-way-mixing','暖通基础 · 三通阀混流'],
+    ['hvac-pump-switch','暖通基础 · 工作泵与备用泵切换'],['hvac-basic-plant','暖通基础 · 双盘管冷水机房'],
+    ['hvac-ahu-terminal','暖通基础 · 空调箱与房间送风'],['hvac-closed-loop-makeup','暖通基础 · 闭式回路定压补水'],
+    ['hvac-plant-interlock','暖通基础 · 机房联锁启停']];
   const colors = ['#147d88','#e09339','#6372ba','#a5558a'];
   const model = {signature:'',epoch:0,record:null,catalog:[],grid:null,runs:[],selectedRunId:'',loading:false,error:'',
-    curves:[],curveKey:'',comparisonIds:[],search:''};
+    curves:[],curveKey:'',comparisonIds:[],search:'',controlRows:[]};
   let controller, timer;
   const engine = ui.engine, state = ui.state, project = ui.project;
   const active = () => ui.ui().route === 'air';
   const supported = () => engine().health?.capabilities?.moist_air_contract_version === 1;
-  const isAir = p => p.solverOptions?.moist_air || p.pages.some(pg=>pg.nodes.some(n=>['cooling_tower_moist','water_chiller'].includes(ui.moduleOf(n).kind)));
+  const isAir = p => p.caseId?.startsWith('hvac-') || p.solverOptions?.moist_air || p.pages.some(pg=>pg.nodes.some(n=>['cooling_tower_moist','water_chiller'].includes(ui.moduleOf(n).kind)));
   function view(p) {
     p.airSideView ||= {schema:1,selected_instance_ids:[],observed_keys:[],active_tab:'distribution',reference_pressure_pa:101325,comparison_run_ids:[]};
     const ids = new Set(p.pages.flatMap(pg=>pg.nodes.map(n=>n.id)));
@@ -24,6 +32,7 @@ window.createAirSideUI = function (ui) {
   function display(key,value=raw(key)) {
     if (value === null || value === undefined) return '—';
     if (typeof value === 'boolean') return value ? '是' : '否';
+    if(key.startsWith('controller.')&&key.endsWith('.mode'))return value==='auto'?'自动':value==='manual'?'手动':String(value);
     const spec=model.catalog.find(v=>v.key===key);
     if (typeof value === 'number') {
       const converted=spec?.unit ? value/spec.unit.display_scale+spec.unit.display_offset : value;
@@ -35,7 +44,7 @@ window.createAirSideUI = function (ui) {
   const stale = p => !model.selectedRunId && p.run.parameterKey && p.run.parameterKey !== ui.projectKey(p);
   function invalidate() {model.signature='';controller?.abort();clearTimeout(timer);model.epoch++;}
   function forgetProject() {
-    invalidate();Object.assign(model,{record:null,catalog:[],selectedRunId:'',comparisonIds:[],curves:[],runs:[],error:''});
+    invalidate();Object.assign(model,{record:null,catalog:[],selectedRunId:'',comparisonIds:[],curves:[],runs:[],error:'',controlRows:[]});
   }
   function persistView(p) {ui.markDirty(p);ui.persist();}
 
@@ -57,6 +66,12 @@ window.createAirSideUI = function (ui) {
         engine().request('/runs',undefined,signal)]);
       if(ticket!==model.epoch || project().id!==p.id || !active()) return;
       Object.assign(model,{record,catalog:catalog.variables,grid,runs:runs.runs.filter(r=>r.name===p.name)});
+      model.controlRows=[];
+      if(record?.request?.project?.controllers?.length){
+        const history=await engine().request(`/runs/${encodeURIComponent(runId)}/overview`,undefined,signal);
+        if(ticket!==model.epoch || project().id!==p.id || !active())return;
+        model.controlRows=history.rows.filter(row=>row.valid);
+      }
       if(record?.frame && !record.frame.valid) {
         const history=await engine().request(`/runs/${encodeURIComponent(runId)}/overview`,undefined,signal);
         if(ticket!==model.epoch || project().id!==p.id || !active())return;
@@ -120,13 +135,53 @@ window.createAirSideUI = function (ui) {
     model.curveKey ||= choices.find(v=>v.key.endsWith('state.humidity_ratio_kg_kg'))?.key || choices[0]?.key || '';
     return `<div class="air-compare"><div class="air-comparison-input"><label class="field"><span>对比变量</span><select data-air-curve-key aria-label="对比变量">${choices.map(v=>option(v.key,v.label+' · '+(v.unit?.display_unit||''),model.curveKey)).join('')}</select></label><p class="muted">选择最多四次运行；合同、变量和质量基准必须一致。</p><div class="air-run-choices">${model.runs.slice(0,20).map(r=>`<label><input type="checkbox" data-air-compare-id="${esc(r.id)}" ${model.comparisonIds.includes(r.id)?'checked':''}> ${esc(r.name)} · ${esc(r.id.slice(0,8))} · ${r.time_s}s</label>`).join('')||'<p>尚无已保存运行。</p>'}</div>${btn('air-compare','读取对比曲线','Activity','','primary')}</div><div class="air-curve">${curveSvg()}<div class="air-legend">${model.curves.map((s,i)=>`<span><i style="background:${colors[i]}"></i>${esc(s.id.slice(0,8))} · ${esc(s.unit)}${s.stride>1?' · 抽稀概览':''}</span>`).join('')}</div></div></div>`;
   }
+  function controlPlot(keys,labels,title){
+    const series=keys.map((key,i)=>({key,label:labels[i],points:model.controlRows.map(row=>[row.time_s,raw(key,row)])
+      .filter(([,value])=>Number.isFinite(value)).map(([t,value])=>{
+        const unit=model.catalog.find(v=>v.key===key)?.unit;return [t,unit?value/unit.display_scale+unit.display_offset:value];})}));
+    const values=series.flatMap(s=>s.points.map(p=>p[1]));
+    if(!values.length)return '<p class="muted">运行后显示已接受帧的趋势。</p>';
+    const end=Math.max(1,...series.flatMap(s=>s.points.map(p=>p[0]))),lo=Math.min(...values),hi=Math.max(...values),span=Math.max(hi-lo,.01);
+    const x=t=>65+t/end*720,y=value=>245-(value-lo)/span*190;
+    const unit=model.catalog.find(v=>v.key===keys[0])?.unit?.display_unit||'';
+    return `<svg viewBox="0 0 820 290" role="img" aria-label="${esc(title)}"><path d="M65 40V245H785" stroke="#9cb5be" fill="none"/>${[0,.5,1].map(f=>`<text x="57" y="${y(lo+span*f)+4}" text-anchor="end">${Number((lo+span*f).toPrecision(5))}</text>`).join('')}${series.map((s,i)=>`<polyline fill="none" stroke="${colors[i]}" stroke-width="2.5" ${i?'stroke-dasharray="6 4"':''} points="${s.points.map(([t,v])=>`${x(t)},${y(v)}`).join(' ')}"/>`).join('')}<text x="400" y="283" text-anchor="middle">时间 / s（0–${end}） · ${esc(unit)}</text></svg><div class="air-legend">${series.map((s,i)=>`<span><i style="background:${colors[i]}"></i>${esc(s.label)}</span>`).join('')}</div>`;
+  }
+  function feedback(){
+    const controls=model.record?.request?.project?.controllers||project().controllers||[];
+    if(!controls.length)return '<p class="muted">当前项目未配置反馈控制器。</p>';
+    return controls.map(c=>{
+      const prefix='controller.'+c.id,scriptOwned=(project().controlScripts||[]).some(s=>s.enabled&&(s.outputs||[]).includes(prefix+'.setpoint'));
+      const canEdit=!model.selectedRunId&&(project().controllers||[]).some(item=>item.id===c.id)&&!(project().run.live&&scriptOwned);
+      return `<section class="panel" data-air-controller="${esc(c.id)}"><div class="panel-head"><h3>${esc(c.id)}</h3><span class="push"></span>${btn('air-control-setpoint','调整设定','Settings2',`data-id="${esc(c.id)}" ${canEdit?'':'disabled'}`,'small')}${btn('nav','控制逻辑','Code','data-route="controls"','small')}</div><div class="panel-body"><p class="muted">${esc(c.measurement)} → ${esc(c.instance_id+'.param.'+c.parameter_id)}</p><div class="air-summary">${[['measurement','实际反馈'],['setpoint','目标设定'],['output','调节输出'],['mode','运行模式']].map(([suffix,label])=>{
+        const key=prefix+'.'+suffix,unit=model.catalog.find(v=>v.key===key)?.unit?.display_unit||'';
+        return `<div><span>${label}</span><strong data-air-control-value="${esc(key)}">${esc(display(key))}</strong><small>${esc(unit==='1'?'':unit)}</small></div>`;}).join('')}</div><div class="air-curve">${controlPlot([prefix+'.measurement',prefix+'.setpoint'],['实际反馈','目标设定'],c.id+' 反馈与设定曲线')}</div><div class="air-curve">${controlPlot([prefix+'.output'],['调节输出'],c.id+' 调节输出曲线')}</div></div></section>`;
+    }).join('');
+  }
+  async function controlSetpoint(id){
+    const p=project(),c=p.controllers?.find(item=>item.id===id);if(!c)throw Error('当前项目没有该控制器');
+    const canonicalProject=await engine().normalize(p);
+    if(project()!==p)throw Error('项目已切换，请重新调整设定。');
+    const [iid,...parts]=c.measurement.split('.'),source=canonicalProject.instances.find(i=>i.id===iid);
+    const unit=iid==='measurement'?canonicalProject.measurements?.find(m=>m.id===parts.join('.'))?.unit:canonicalProject.modules.find(m=>m.id===source?.module_id)?.variables.find(v=>v.id===parts.join('.'))?.unit;
+    const owner=canonicalProject.control_scripts.find(s=>s.enabled&&s.outputs.includes('controller.'+id+'.setpoint'));
+    if(p.run.live&&owner)throw Error('设定值由脚本 '+owner.id+' 控制，请停止后编辑脚本或初始设定。');
+    const current=unit?c.setpoint/unit.display_scale+unit.display_offset:c.setpoint;
+    ui.openDialog('调整控制设定',owner?'此处修改初始目标；启用的脚本 '+owner.id+' 会按其源码改变运行中的目标。':'修改当前项目的控制目标；运行中的修改会在帧边界生效。',
+      field('setpoint','目标设定 / '+(unit?.display_unit||'规范单位'),current,'type="number" step="any"'),async data=>{
+        const value=Number(data.setpoint);if(!String(data.setpoint).trim()||!Number.isFinite(value))throw Error('请填写有限数值。');
+        const canonical=unit?(value-unit.display_offset)*unit.display_scale:value;
+        if(p.run.live)await engine().applyController(p,id,'setpoint',canonical);
+        c.setpoint=canonical;persistView(p);invalidate();ui.render();
+      },'应用设定');
+  }
   function markup(p) {
     const v=view(p),tabs=[['distribution','风量与状态'],['psychrometrics','湿空气状态图'],['moisture','设备与水耗'],['compare','运行对比']];
+    if((model.record?.request?.project?.controllers||p.controllers||[]).length)tabs.splice(3,0,['feedback','反馈控制']);
     const enabled=supported(),air=isAir(p),record=model.record, frame=record?.frame;
     const wet=record?.air_metadata ? record.air_metadata.continuity_basis!=='water' : p.solverOptions?.moist_air;
     const selected=model.selectedRunId || '',source=record ? `${record.id.slice(0,12)} · 帧 ${frame?.sequence??'—'} · 参数修订 ${frame?.parameter_revision??'—'}`:'尚未运行';
     const ids=[...new Set(model.catalog.map(d=>d.instance_id).filter(id=>id!=='metrics'))];
-    const content={distribution,psychrometrics,moisture,compare:comparison};
+    const content={distribution,psychrometrics,moisture,compare:comparison,feedback};
     return `<div class="page-shell air-page" id="air-page">${ui.heading('风系统','风量分配、热湿状态与水耗，从同一次运行查看。',btn('air-create','创建风侧示例','Plus',enabled?'':'disabled','primary')+btn('air-config','湿空气设置','Settings2',enabled?'':'disabled')+(p.solverOptions?.moist_air&&!p.solverOptions?.moist_air_options?btn('air-migrate','升级旧项目','ArrowUpRight'):'')+btn('air-humidity','相对湿度换算','Droplets',p.solverOptions?.moist_air?'':'disabled')+btn('nav','批量方案','ListChecks','data-route="batches"'))}
       <div class="air-toolbar"><label class="field"><span>当前项目</span><select data-air-project aria-label="风侧当前项目">${state().projects.map(item=>option(item.id,item.name,p.id)).join('')}</select></label><label class="field"><span>结果来源</span><select data-air-source aria-label="风侧结果来源">${option('','当前运行',selected)}${model.runs.map(r=>option(r.id,`${r.name} · ${r.id.slice(0,8)}`,selected)).join('')}</select></label><span class="push"></span>${btn('air-run','运行计算','Play',air&&!model.creating?'':'disabled','primary')}${btn('air-stop','停止','Square',p.run.live?'':'disabled')}${btn('air-save','保存项目','Save')}${btn('nav','编辑拓扑','Network','data-route="workbench"')}</div>
       ${!enabled?'<p class="notice">请连接支持风侧合同 1 的计算服务。</p>':''}${!air?'<div class="air-empty"><h2>从一个可复算的风系统开始</h2><p>选择盘管、混合箱、完整空气处理机组、房间或冷却塔示例，再调整设备参数。</p></div>':''}
@@ -164,19 +219,30 @@ window.createAirSideUI = function (ui) {
     const p=ui.makeProject(ui.uid('air-project'),canonical.name,'风侧教学算例，可调整参数并独立复算。',pg);
     Object.assign(p,{medium:canonical.solver.moist_air?'air':'water',fluid:canonical.fluid.fluid,fluidConfig:canonical.fluid,
       circuitFluids:(canonical.circuit_fluids||[]).map(c=>({id:c.id,anchor:c.anchor,medium:'water',fluid:c.fluid.fluid,fluidConfig:c.fluid,fluidReference:c.fluid.reference})),
-      moduleSnapshots:snapshots,solverOptions:canonical.solver,controlEnabled:false,controlScripts:[],caseId:name});
-    p.solver={...p.solver,mode:['ahu-room','chiller-air-loop'].includes(name)?'dynamic':'steady',duration:name==='chiller-air-loop'?20:name==='ahu-room'?120:10,dt:2,
+      moduleSnapshots:snapshots,solverOptions:canonical.solver,controllers:clone(canonical.controllers||[]),
+      scenarios:clone(canonical.scenarios||[]),selectedVariables:clone(canonical.selected_variables||[]),measurements:clone(canonical.measurements||[]),
+      controlEnabled:false,controlPrograms:[],controlScripts:[],caseId:name});
+    FluidNetControls.replaceScripts(p,canonical.control_scripts||[]);
+    // Canonical scenario parameter values use engine units; Studio scenarios use display units.
+    for(const scenario of p.scenarios)for(const [iid,values] of Object.entries(scenario.overrides||{})){
+      const inst=canonical.instances.find(item=>item.id===iid),definition=canonical.modules.find(item=>item.id===inst.module_id);
+      for(const [key,value] of Object.entries(values)){const unit=definition.parameters.find(spec=>spec.id===key)?.unit;if(unit)values[key]=value/unit.display_scale+unit.display_offset;}
+    }
+    const controlled=!!canonical.controllers?.length;
+    p.solver={...p.solver,mode:controlled||['ahu-room','chiller-air-loop','hvac-pump-switch'].includes(name)?'dynamic':'steady',duration:controlled?2400:name==='chiller-air-loop'?20:name==='ahu-room'?120:10,dt:controlled?30:name==='hvac-pump-switch'?1:2,
       executionMode:'fast',moduleMixedJacobian:false,pressureAtol:1,massAtol:1e-8};
-    state().projects.push(p);ui.normalizeState();view(p);persistView(p);forgetProject();ui.openProject(p.id);ui.navigate('air');ui.persist();
+    FluidNetProjectState.addProject(state(),p);ui.normalizeState();view(p);persistView(p);forgetProject();ui.openProject(p.id);ui.navigate('air');ui.persist();
     msg('风侧示例已创建，可运行计算并保存项目。');
     } finally {model.creating=false;ui.render();}
   }
   function configure() {
     const p=project();if(p.solverOptions?.moist_air&&!p.solverOptions?.moist_air_options)throw Error('请先使用“升级旧项目”查看迁移预览。');if(p.run.live&&['running','paused','solving'].includes(p.run.status))throw Error('请先停止运行再修改物理配置');
     ui.openDialog('湿空气设置','含湿量是保存和计算的唯一湿度输入。湿空气采用 Air 气相、节点物性耦合。',
-      `<label class="check-label"><input name="enabled" type="checkbox" ${p.solverOptions?.moist_air?'checked':''}>启用湿空气（Air 气相）</label>${field('pressure','状态图参考压力 / kPa',view(p).reference_pressure_pa/1000,'type="number" min="60" max="120" step="any"')}${field('duration','动态运行时长 / s',p.solver.duration,'type="number" min="1" max="86400"')}${field('dt','时间步长 / s',p.solver.dt,'type="number" min="0.01" max="60" step="any"')}<label class="field"><span>运行模式</span><select name="mode">${!['steady','dynamic'].includes(p.solver.mode)?option(p.solver.mode,'未知模式：'+p.solver.mode,p.solver.mode):''}${option('steady','稳态',p.solver.mode)}${option('dynamic','动态',p.solver.mode)}</select></label>`,data=>{
+      `<label class="check-label"><input name="enabled" type="checkbox" ${p.solverOptions?.moist_air?'checked':''}>启用湿空气（Air 气相）</label>${field('pressure','状态图参考压力 / kPa',view(p).reference_pressure_pa/1000,'type="number" min="60" max="120" step="any"')}${field('duration','动态运行时长 / s',p.solver.duration,'type="number" min="1" max="86400"')}${field('dt','时间步长 / s',p.solver.dt,'type="number" min="0.01" max="60" step="any"')}${field('maxIterations','热湿最大迭代次数',p.solverOptions?.moist_air_options?.max_iterations??60,'type="number" min="1" max="500" step="1" required')}<label class="field"><span>运行模式</span><select name="mode">${!['steady','dynamic'].includes(p.solver.mode)?option(p.solver.mode,'未知模式：'+p.solver.mode,p.solver.mode):''}${option('steady','稳态',p.solver.mode)}${option('dynamic','动态',p.solver.mode)}</select></label>`,data=>{
         if(![data.pressure,data.duration,data.dt].every(value=>String(value).trim()&&Number.isFinite(Number(value)))||Number(data.pressure)<60||Number(data.pressure)>120||Number(data.duration)<1||Number(data.duration)>86400||Number(data.dt)<.01||Number(data.dt)>60||!['steady','dynamic'].includes(data.mode))throw Error('请填写合法的压力、时长、步长和运行模式。');
-        const enabled=!!data.enabled;p.solverOptions={...p.solverOptions,moist_air:enabled,moist_air_options:enabled?{...p.solverOptions?.moist_air_options,contract_version:1}:null};
+        const maxIterations=Number(data.maxIterations);
+        if(!String(data.maxIterations??'').trim()||!Number.isInteger(maxIterations)||maxIterations<1||maxIterations>500)throw Error('热湿最大迭代次数须为 1–500 的整数。');
+        const enabled=!!data.enabled;p.solverOptions={...p.solverOptions,moist_air:enabled,moist_air_options:enabled?{...p.solverOptions?.moist_air_options,contract_version:1,max_iterations:maxIterations}:null};
         if(enabled){p.medium='air';p.fluid='Air';p.fluidConfig={backend:'coolprop',fluid:'Air',phase_policy:'gas',composition:{},reference:'mass'};
           Object.assign(p.solverOptions,{thermal:true,property_coupling:'node',series_compression:false,hydraulic_blocks:false,module_mixed_jacobian:false,thermal_acceleration:'none',coupling_acceleration:'none'});p.solver.moduleMixedJacobian=false;}
         Object.assign(p.solver,{duration:Number(data.duration),dt:Number(data.dt),mode:data.mode});
@@ -228,8 +294,8 @@ window.createAirSideUI = function (ui) {
         for(const definition of next.modules){const m=engine().moduleFromManifest(definition);m.frozen=definition.runtime==='python';p.moduleSnapshots[m.id]=m;}
         for(const node of p.pages.flatMap(pg=>pg.nodes)){
           const inst=next.instances.find(i=>i.id===node.id),definition=next.modules.find(m=>m.id===inst.module_id);
-          node.params=Object.fromEntries(definition.parameters.map(spec=>{const value=inst.parameters[spec.id]??spec.default;return [spec.id,spec.unit?value/spec.unit.display_scale+spec.unit.display_offset:value];}));
-          node.draft=clone(node.params);
+          const params=FluidNetProjectModel.displayParameters(definition,Object.fromEntries(definition.parameters.map(spec=>[spec.id,inst.parameters[spec.id]??spec.default])));
+          FluidNetProjectState.updateNode(p,node,{params,draft:clone(params)});
         }
         persistView(p);invalidate();ui.render();msg('迁移已应用到草稿，请保存新修订并重新计算。');
       },'备份并应用迁移');
@@ -238,6 +304,7 @@ window.createAirSideUI = function (ui) {
     const p=project();
     if(action==='air-create'){ui.openDialog('创建风侧示例','选择一个规范算例作为起点。',`<label class="field"><span>示例</span><select name="example" aria-label="风侧示例">${examples.map(([key,label])=>option(key,label,examples[0][0])).join('')}</select></label>`,data=>createExample(data.example),'创建项目');return;}
     if(action==='air-config'){configure();return;}
+    if(action==='air-control-setpoint'){await controlSetpoint(el.dataset.id);return;}
     if(action==='air-migrate'){await migrateLegacy();return;}
     if(action==='air-humidity'){await humidityInput();return;}
     if(action==='air-run'){model.selectedRunId='';await engine().command('project','run',p.id);invalidate();ui.render();return;}
@@ -268,3 +335,5 @@ window.createAirSideUI = function (ui) {
   }
   return {markup,afterRender,action,refresh:()=>{if(active())load();},createExample};
 };
+
+export default createAirSideUI;

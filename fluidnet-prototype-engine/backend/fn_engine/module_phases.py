@@ -1,7 +1,8 @@
 """Current-solution thermal callbacks and observations, isolated from state acceptance."""
 import math
 
-from .models import ChannelState, ModulePhaseRequest, PortState
+from .model_types.base import ChannelState, PortState
+from .model_types.protocol import ModulePhaseRequest
 from .runtime import RuntimeErrorBase
 from .module_diagnostics import merge_diagnostics
 

@@ -30,15 +30,15 @@ export async function exerciseModuleAssertionBoundaries(page, base) {
     expect(result.passed, JSON.stringify(result.cases.map(c => ({id:c.id,diagnostics:c.diagnostics,assertions:c.assertions})))).toBe(true);
     return result;
   };
-  await page.waitForFunction(() => !!window.ModuleTestEditor);
+  await page.evaluate(async () => {await import('/module-test-editor.js');});
   try {
-    const generated = await page.evaluate(({source,definition}) => {
-      const initial = window.ModuleTestEditor.cases(source,definition);
+    const generated = await page.evaluate(async ({source,definition}) => {
+      const initial = (await import('/module-test-editor.js')).ModuleTestEditor.cases(source,definition);
       const host = document.createElement('div');
       host.id = 'module-boundary-probe';
       host.style.cssText = 'position:fixed;inset:10px;overflow:auto;z-index:100000;background:white;color:black;padding:16px';
       document.body.appendChild(host);
-      window.__moduleBoundaryProbe = {definition,editor:window.ModuleTestEditor.mount(host,initial,definition)};
+      window.__moduleBoundaryProbe = {definition,editor:(await import('/module-test-editor.js')).ModuleTestEditor.mount(host,initial,definition)};
       return initial;
     }, {source,definition});
     expect(generated.map(c => c.id)).toEqual(['forward','reverse','zero']);
@@ -50,7 +50,7 @@ export async function exerciseModuleAssertionBoundaries(page, base) {
     });
     expect(generated[2].conditions.channel_boundaries.hot.outlet_pressure_pa).toBe(330000);
     expect(generated[2].conditions.channel_boundaries.cold.outlet_pressure_pa).toBe(250000);
-    const defaults = await page.evaluate(() => window.__moduleBoundaryProbe.editor.read());
+    const defaults = await page.evaluate(async () => window.__moduleBoundaryProbe.editor.read());
     for (const c of defaults) {
       c.assertions = ['hot','cold'].map(channel => ({key:`D1.${channel}.pressure_drop_pa`,
         expected:c.conditions.channel_boundaries[channel].inlet_pressure_pa-c.conditions.channel_boundaries[channel].outlet_pressure_pa,
@@ -78,7 +78,7 @@ export async function exerciseModuleAssertionBoundaries(page, base) {
     await hot.locator('[data-boundary-field="inlet_temperature_k"]').fill('330');
     await hot.locator('[data-boundary-field="outlet_temperature_k"]').fill('331');
     await forward.locator('[data-condition="inlet_pressure_pa"]').fill('480000');
-    const edited = await page.evaluate(() => window.__moduleBoundaryProbe.editor.read()[0]);
+    const edited = await page.evaluate(async () => window.__moduleBoundaryProbe.editor.read()[0]);
     expect(edited.conditions.channel_boundaries.hot).toEqual({...source.testConditions.channel_boundaries.hot,
       inlet_pressure_pa:340000, outlet_pressure_pa:180000, inlet_temperature_k:330, outlet_temperature_k:331});
     expect(edited.conditions.channel_boundaries.cold).toEqual(defaults[0].conditions.channel_boundaries.cold);
@@ -92,13 +92,13 @@ export async function exerciseModuleAssertionBoundaries(page, base) {
     ];
     await run([edited]);
     await hot.locator('[data-suite-action="remove-boundary"]').click();
-    const cleared = await page.evaluate(() => window.__moduleBoundaryProbe.editor.read()[0]);
+    const cleared = await page.evaluate(async () => window.__moduleBoundaryProbe.editor.read()[0]);
     expect(cleared.conditions.channel_boundaries.hot).toBeUndefined();
     expect(cleared.conditions.channel_boundaries.cold).toEqual(defaults[0].conditions.channel_boundaries.cold);
     cleared.assertions = [{key:'D1.hot_in.pressure_pa', expected:480000, absolute_tolerance:1e-5}];
     await run([cleared]);
     await hot.locator('[data-suite-action="add-boundary"]').click();
-    const added = await page.evaluate(() => window.__moduleBoundaryProbe.editor.read()[0]);
+    const added = await page.evaluate(async () => window.__moduleBoundaryProbe.editor.read()[0]);
     expect(added.conditions.channel_boundaries.hot).toEqual({
       inlet_pressure_pa:480000, outlet_pressure_pa:140000, inlet_temperature_k:300, outlet_temperature_k:300,
       fluid:source.testConditions.fluid,
@@ -106,11 +106,12 @@ export async function exerciseModuleAssertionBoundaries(page, base) {
 
     // Check the helper's validation independently of HTML maxlength/max attributes,
     // since a restored workspace can contain values that did not come from inputs.
-    const validation = await page.evaluate(() => {
+    const validation = await page.evaluate(async () => {
       const {definition} = window.__moduleBoundaryProbe;
+      const {ModuleTestEditor} = await import('/module-test-editor.js');
       const check = c => {
         const host = document.createElement('div');
-        try { return {accepted:true, cases:window.ModuleTestEditor.mount(host,[c],definition).read()}; }
+        try { return {accepted:true, cases:ModuleTestEditor.mount(host,[c],definition).read()}; }
         catch (error) { return {accepted:false, message:error.message}; }
       };
       return {
@@ -130,7 +131,7 @@ export async function exerciseModuleAssertionBoundaries(page, base) {
     expect(validation.limit.cases[0].assertions[0].relative_tolerance).toBe(0);
     console.log(JSON.stringify({moduleAssertionBoundaries:{directionsVerified:true,channelEditsApplied:true,overridesPreserved:true,clearAndAdd:true,contractLimits:true}}));
   } finally {
-    await page.evaluate(() => {document.getElementById('module-boundary-probe')?.remove(); delete window.__moduleBoundaryProbe;});
+    await page.evaluate(async () => {document.getElementById('module-boundary-probe')?.remove(); delete window.__moduleBoundaryProbe;});
   }
 }
 

@@ -1,53 +1,33 @@
 """Implicit room heat balance, sharing accepted-state controls and run commands."""
-from collections import deque
 from contextlib import contextmanager
 import math
 
 from ..compiler import CompilationError
 from ..control import ScriptControl
 from ..controllers import PID
-from ..models import Diagnostic, RunFrame
-from ..simulation import SimulationSession
+from ..model_types.base import Diagnostic
+from ..model_types.run import RunFrame
+from ..session_base import SessionBase
 from ..solver import SolveFailed
 from ..timestep import (AdaptiveMarch, StepStatistics, TimeStepConfig, TimeStepExhausted, TrialFailure,
                         ensure_supported, normalized_error)
 
 
-class ThermalSession(SimulationSession):
-    """Uses SimulationSession's validated parameter/control methods, not its fluid solver."""
+class ThermalSession(SessionBase):
+    """Heat-domain integration with shared commands and lifecycle."""
 
     _segment_fields: tuple[str, ...] = ('temperatures', 'cooling_energy', 'external_energy',
                                        'energy_residual_j', 'frame_residual_j')
 
     def __init__(self, network, duration_s, dt_s, keep=None):
-        if not math.isfinite(dt_s) or dt_s <= 0 or duration_s is not None and (not math.isfinite(duration_s) or duration_s <= 0):
-            raise ValueError('运行时长和步长必须为有限正数')
-        if keep is None and (duration_s is None or duration_s > 2000 * dt_s):
-            raise ValueError('一次返回全部帧的运行最多 2001 帧，且必须设定时长')
+        super().__init__(network,duration_s,dt_s,keep)
         # A0：旧项目缺省 time_step.enabled=False，按原固定步长路径；开启前先检查执行域是否已接入。
         self.timestep = TimeStepConfig.from_solver(network.project.solver)
         if self.timestep.enabled:
             ensure_supported(getattr(network, 'execution_domain', None))
-        self.network = network
-        # 困液定容（I0–I4）只在通用流体执行域编译；热模型/制冷站的编译结果没有 trapped 字段，
-        # 而共用的参数写入路径会读 network.trapped，这里补空集合，行为与引入 I 系列前一致。
-        if not hasattr(network, 'trapped'):
-            network.trapped = {}
-        self.duration, self.dt = duration_s, dt_s
-        self.time = 0.
-        self.index = self.sequence = self.revision = 0
-        self.frames = deque(maxlen=keep) if keep else []
-        self.runners, self.controllers, self.scripts = {}, {}, {}
-        self.script_owners = {key: script.id for script in network.project.control_scripts if script.enabled for key in script.outputs}
         self.energy_residual_j = 0.
         self.frame_residual_j = 0.
         self.published_time = 0.
-        self.diagnostics = []
-        self.closed = False
-        self._control_base = None
-        # 困液定容（I0–I4）只在通用流体执行域启用；热模型/制冷站复用 SimulationSession 的参数与
-        # 控制方法但不调用其 __init__，这里保持空状态，使共用参数写入路径与原行为一致。
-        self.trapped, self.trapped_ledgers = {}, {}
         self._init_state()
         # 误差控制状态：统计与步长建议只在 accepted state 上推进，拒绝的试算不写入。
         self.march = AdaptiveMarch(self.timestep) if self.timestep.enabled else None
@@ -179,6 +159,8 @@ class ThermalSession(SimulationSession):
             frames = list(self.frames)
             if isinstance(error, SolveFailed):
                 error.frames = frames
+                from ..composites import map_failure
+                map_failure(self.network,error)
                 raise
             diagnostic = getattr(error, 'diagnostic', None)
             failure = SolveFailed(getattr(error, 'code', diagnostic.code if diagnostic else 'STEP_EXECUTION_FAILED'),
@@ -186,6 +168,8 @@ class ThermalSession(SimulationSession):
             if diagnostic is not None:
                 failure.diagnostic = diagnostic
                 failure.diagnostics = getattr(error, 'diagnostics', [diagnostic])
+            from ..composites import map_failure
+            map_failure(self.network,failure)
             raise failure from error
         else:
             self._control_base = None

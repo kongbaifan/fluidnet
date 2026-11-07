@@ -1,0 +1,233 @@
+{
+  "name": "DX三模块 · 实际出口过热",
+  "fluid": {
+    "backend": "coolprop",
+    "fluid": "R134a",
+    "composition": {},
+    "reference": "mass",
+    "phase_policy": "any"
+  },
+  "duration_s": 60.0,
+  "dt_s": 10.0,
+  "solver": {
+    "module_mixed_jacobian": false,
+    "module_cache": false,
+    "pressure_tolerance_pa": 1.0,
+    "mass_tolerance_kg_s": 1e-08,
+    "max_iterations": 80,
+    "dynamic_step_s": 10.0,
+    "thermal": true,
+    "property_coupling": "reference",
+    "thermal_tolerance_k": 1e-06,
+    "max_thermal_iterations": 50,
+    "max_coupling_iterations": 20,
+    "coupling_density_rtol": 1e-06,
+    "thermal_acceleration": "none",
+    "coupling_acceleration": "none",
+    "moist_air": false,
+    "max_step_halvings": 6,
+    "hydraulic_method": "dense",
+    "hydraulic_diagnostics": false,
+    "analytic_jacobian": true,
+    "series_compression": false,
+    "hydraulic_blocks": false,
+    "module_parallelism": 1,
+    "batch_modules": true,
+    "time_step": {
+      "enabled": false,
+      "mass_atol_kg": 1e-09,
+      "energy_atol_j": 0.001,
+      "temperature_atol_k": 1e-05,
+      "rtol": 1e-06,
+      "min_internal_step_s": 0.001,
+      "max_internal_step_s": null,
+      "safety": 0.9,
+      "growth_factor": 2.0,
+      "shrink_factor": 0.5
+    }
+  },
+  "instances": [
+    {
+      "id": "High",
+      "module_id": "hp_receiver",
+      "name": "高压贮液器",
+      "page_id": "main",
+      "position": {
+        "x": 640.0,
+        "y": 120.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "volume_m3": 0.3,
+        "height_m": 1.5,
+        "temperature_k": 308.15,
+        "level_ratio": 0.5
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "Condenser",
+      "module_id": "evaporative_condenser",
+      "name": "蒸发式冷凝器",
+      "page_id": "main",
+      "position": {
+        "x": 460.0,
+        "y": 120.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "ua_w_k": 485.006105830087,
+        "wet_bulb_temperature_k": 293.15,
+        "fan_power_w": 300.0,
+        "fan_ratio": 1.0,
+        "return_gas_ratio": 1.0
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "Valve",
+      "module_id": "dx_expansion_valve",
+      "name": "供液节流阀",
+      "page_id": "main",
+      "position": {
+        "x": 640.0,
+        "y": 320.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "kv_m3_h": 0.08714913093395649,
+        "opening_ratio": 0.5
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "Compressor",
+      "module_id": "dx_compressor",
+      "name": "压缩机 1",
+      "page_id": "main",
+      "position": {
+        "x": 280.0,
+        "y": 120.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "displacement_m3_s": 0.011220364115000459,
+        "load_ratio": 0.75
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "Cooler",
+      "module_id": "dx_evaporator",
+      "name": "真实过热DX蒸发器",
+      "page_id": "main",
+      "position": {
+        "x": 640.0,
+        "y": 520.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "ua_w_k": 718.1062954277636,
+        "minimum_superheat_k": 0.5,
+        "minimum_evaporating_temperature_k": 233.15
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "Room",
+      "module_id": "cold_room",
+      "name": "库房 1",
+      "page_id": "main",
+      "position": {
+        "x": 820.0,
+        "y": 520.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "temperature_k": 255.15,
+        "heat_capacity_j_k": 2000000.0,
+        "ambient_temperature_k": 305.15,
+        "ground_temperature_k": 283.15,
+        "wall_ua_w_k": 30.0,
+        "roof_ua_w_k": 20.0,
+        "floor_ua_w_k": 10.0,
+        "heat_input_w": 2220.0
+      },
+      "draft_parameters": {},
+      "banks": []
+    }
+  ],
+  "connections": [
+    {
+      "id": "dx-0",
+      "source": {
+        "instance_id": "High",
+        "port_id": "liquid"
+      },
+      "target": {
+        "instance_id": "Valve",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "dx-1",
+      "source": {
+        "instance_id": "Valve",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Cooler",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "dx-2",
+      "source": {
+        "instance_id": "Cooler",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Compressor",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "dx-3",
+      "source": {
+        "instance_id": "Compressor",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Condenser",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "dx-4",
+      "source": {
+        "instance_id": "Condenser",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "High",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "dx-5",
+      "source": {
+        "instance_id": "Cooler",
+        "port_id": "heat"
+      },
+      "target": {
+        "instance_id": "Room",
+        "port_id": "heat"
+      }
+    }
+  ]
+}

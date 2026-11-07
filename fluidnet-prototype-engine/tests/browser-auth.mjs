@@ -48,6 +48,7 @@ try {
   await page.locator('[data-action="connection-tab"][data-value="api"], [data-value="api"]').first().click();
   await expect(page.locator('#api-path')).toContainText(`/api/v1/runs/${runId}/variables`);
   await expect(page.locator('#api-request')).toContainText('Authorization: Bearer');
+  await page.getByLabel('接口变量',{exact:true}).selectOption('V1.param.opening_ratio');
   await expect.poll(async () => {
     await page.locator('[data-action="api-preview"]').click();
     return page.locator('#api-response').textContent();

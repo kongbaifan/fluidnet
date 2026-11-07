@@ -20,25 +20,24 @@ from .module_contracts import check_module_compatibility, definition_hash
 from .module_execution import InvocationState
 from .module_performance import ParentEvaluateCache
 from .module_diagnostics import exception_diagnostic, merge_diagnostics, MAX_MESSAGE_CHARS
-from .models import (
+from .model_types.protocol import (
     CommitStepRequest,
     CommitStepResponse,
-    ChannelState,
-    Diagnostic,
     EvaluateRequest,
     EvaluateResponse,
-    RefrigerationEvaluateRequest, RefrigerationEvaluateResponse,
-    FluidConfig,
+    RefrigerationEvaluateRequest,
+    RefrigerationEvaluateResponse,
     InitializeRequest,
-    ModuleDefinition,
     ModuleExecutionInfo,
     ModuleRequestContext,
     ModuleStepCandidate,
-    ModulePhaseRequest, ModuleThermalResponse,
+    ModulePhaseRequest,
+    ModuleThermalResponse,
     ModuleDerivativeResponse,
     NetworkRelation,
-    PortState,
 )
+from .model_types.base import ChannelState, Diagnostic, FluidConfig, PortState
+from .model_types.module import ModuleDefinition
 from .module_state import checked_state,checked_result
 
 
@@ -108,6 +107,9 @@ class NetworkBuilder:
                    density_kg_m3: float | None = None, heat_w: float = 0.0):
         self._add("resistance", channel, {"diameter_m": diameter_m, "loss_coefficient": loss_coefficient,
             "density_kg_m3": 0.0 if density_kg_m3 is None else density_kg_m3, "heat_w": heat_w})
+
+    def pressure_drop(self, *, channel: str, pressure_drop_pa: float):
+        self._add('pressure_drop', channel, {'pressure_drop_pa': pressure_drop_pa})
 
 
 class ModuleContext:
@@ -257,7 +259,7 @@ class InProcessModuleRunner:
         self.parameters = parameters
         self.fluid = fluid
         self.port_fluids = dict(port_fluids or {})
-        self.state = checked_state(initial_state or {})
+        self.state: dict[str, Any] = checked_state(initial_state or {})
         self.module = _load_module(definition)
         if definition.execution_role:
             validate_lifecycle(self.module)
@@ -265,10 +267,10 @@ class InProcessModuleRunner:
         self.execution = InvocationState(run_id, instance_id or definition.id)
         self._last_committed_time_s: float | None = None
         self.state_revision = 0
-        self._pending_candidate = None
-        self._accepted_candidate = None
-        self._pending_digest = None
-        self._accepted_digest = None
+        self._pending_candidate: ModuleStepCandidate | None = None
+        self._accepted_candidate: ModuleStepCandidate | None = None
+        self._pending_digest: str | None = None
+        self._accepted_digest: str | None = None
         self.cache_enabled = cache_enabled
         self._evaluate_cache:OrderedDict[str,EvaluateResponse] = OrderedDict()
         self._source_hashes = (module_content_hash(definition), module_definition_hash(definition))
@@ -301,25 +303,29 @@ class InProcessModuleRunner:
         ctx._identity_read = False
         air_before = {key:port.humidity_ratio_kg_kg for key,port in ports.items()
                       if port.humidity_ratio_kg_kg is not None}
+        # Keep true callback inputs even if a failing callback mutates ctx before raising.
+        replay_inputs = deepcopy({'parameters': ctx.parameters, 'state': ctx.state,
+            'ports': ports, 'channels': ctx.channels,
+            'refrigeration': ctx._refrigeration.throttle if ctx._refrigeration is not None else None})
         try:
             if inspect.iscoroutinefunction(callback):
                 raise ValueError('模块生命周期回调必须是同步函数')
             callback(ctx, *args)
+            errors = [item for item in ctx.diagnostics if item.severity == 'error']
+            if errors:
+                raise RuntimeErrorBase('; '.join(item.message for item in errors), diagnostics=ctx.diagnostics)
             if air_before and any(ctx.ports[key].humidity_ratio_kg_kg != w for key,w in air_before.items()):
                 raise RuntimeErrorBase('湿空气透传模块不能改变端口含湿量',code='MODULE_AIR_CAPABILITY_MISMATCH')
         except Exception as error:
+            from .module_replay import capture_failure
             if isinstance(error, RuntimeErrorBase) and error.diagnostics:
+                if error.replay is None:
+                    error.replay = capture_failure(self.definition, self.fluid, self.port_fluids,
+                        ctx._execution, replay_inputs, next((d for d in error.diagnostics if d.severity == 'error'), error.diagnostics[0]))
                 raise
             diagnostic = exception_diagnostic(error, self.definition, ctx.execution)
-            replay = {'module': self.definition.model_dump(mode='json'), 'parameters': deepcopy(ctx.parameters),
-                'state': deepcopy(self.state), 'fluid': self.fluid.model_dump(mode='json'),
-                'port_fluids': {key: config.model_dump(mode='json') for key, config in self.port_fluids.items()},
-                'ports': {key: value.model_dump(mode='json') for key, value in ctx.ports.items()},
-                'channels': {key: value.model_dump(mode='json') for key, value in ctx.channels.items()},
-                'execution': ctx.execution.model_dump(mode='json'),
-                'content_hash': module_content_hash(self.definition), 'definition_hash': module_definition_hash(self.definition)}
-            if ctx._refrigeration is not None:
-                replay['refrigeration'] = ctx._refrigeration.throttle.model_dump(mode='json')
+            replay = capture_failure(self.definition, self.fluid, self.port_fluids,
+                                     ctx._execution, replay_inputs, diagnostic)
             raise RuntimeErrorBase(str(error), diagnostics=[diagnostic], replay=replay, code=diagnostic.code) from error
 
     def initialize(self, context=None):
@@ -337,6 +343,13 @@ class InProcessModuleRunner:
             raise RuntimeErrorBase('制冷角色必须使用制冷求值协议',code='MODULE_EXECUTION_DOMAIN_UNSUPPORTED')
         if not self.initialized:
             self.initialize()
+        custom = self.definition.sdk is not None and 'net.pressure_drop' in self.definition.sdk.capabilities
+        expected = {channel.id for channel in self.definition.channels if channel.enabled}
+        if custom and set(request.trial_channels) != expected:
+            raise RuntimeErrorBase('自定义压降设备需要每条启用通路的当前试算流量，请使用支持 SDK 0.8 的引擎',
+                                   code='MODULE_TRIAL_FLOW_REQUIRED')
+        if request.trial_channels and not custom:
+            raise RuntimeErrorBase('读取试算流量需要声明 net.pressure_drop 能力',code='MODULE_CAPABILITY_UNSUPPORTED')
         if request.state_revision is not None:
             if request.state_revision != self.state_revision:
                 raise RuntimeErrorBase('计算请求的状态修订不匹配',code='MODULE_REVISION_CONFLICT')
@@ -344,9 +357,10 @@ class InProcessModuleRunner:
         context = request.context if request.context is not None else self.execution.context()
         info = self._info('evaluate', request.time_s, context, run_id=request.run_id, instance_id=request.instance_id,
             iteration_id=request.iteration_id, port_data=context.port_data if request.trial_ports else 'unavailable',
+            channel_data=('converged' if context.port_data == 'converged' else 'hydraulic_trial') if custom else 'unavailable',
             state_data='input_copy')
         ctx = ModuleContext(deepcopy(self.parameters), self.fluid, request.trial_ports, deepcopy(request.readonly_state),
-                            port_fluids=self.port_fluids, execution=info)
+                            channels=deepcopy(request.trial_channels), port_fluids=self.port_fluids, execution=info)
         cache_key = None
         if self.cache_enabled and self.definition.pure_evaluate:
             payload = {'inputs':request.model_dump(mode='json', exclude={'context', 'iteration_id'}),
@@ -364,6 +378,18 @@ class InProcessModuleRunner:
             from .module_performance import TrackedPorts
             ctx.ports = TrackedPorts(ctx.ports, accessed)
         self._invoke(getattr(self.module, "evaluate"), ctx)
+        if custom and ctx.channels != request.trial_channels:
+            raise RuntimeErrorBase('试算流量是引擎输入，设备代码不能修改',code='MODULE_TRIAL_INPUT_MUTATION')
+        for relation in ctx.net.relations:
+            if relation.kind == 'pressure_drop':
+                if not custom:
+                    raise RuntimeErrorBase('自定义压降关系需要声明 net.pressure_drop 能力',code='MODULE_CAPABILITY_UNSUPPORTED')
+                if relation.channel not in expected:
+                    raise RuntimeErrorBase(f'自定义压降引用未启用通路 {relation.channel}',code='MODULE_CHANNEL_UNKNOWN')
+                flow = request.trial_channels[relation.channel].mass_flow_kg_s
+                if flow * relation.parameters['pressure_drop_pa'] < 0:
+                    raise RuntimeErrorBase('自定义压降与流向相反；本接口只支持被动阻力设备，主动压升请使用泵接口',
+                                           code='MODULE_PRESSURE_DROP_ACTIVE')
         if self.definition.dependency_mode == 'tracked':
             declared = self.definition.hydraulic_dependencies or {}
             for relation in ctx.net.relations:
@@ -432,7 +458,9 @@ class InProcessModuleRunner:
                                    diagnostics=response.diagnostics)
         return response
 
-    def prepare_step(self, request, channels=None, *, base_revision=None, authoritative_state=None):
+    def prepare_step(self, request: CommitStepRequest, channels: dict[str, ChannelResult] | None = None,
+                     *, base_revision: int | None = None, authoritative_state: dict[str, Any] | None = None
+                     ) -> ModuleStepCandidate:
         if not self.initialized:
             self.initialize()
         base_revision = self.state_revision if base_revision is None else base_revision
@@ -469,7 +497,7 @@ class InProcessModuleRunner:
         self._pending_candidate, self._pending_digest = candidate, digest
         return candidate
 
-    def synchronize_state(self, candidate):
+    def synchronize_state(self, candidate: ModuleStepCandidate) -> None:
         if self._accepted_candidate is not None and candidate == self._accepted_candidate:
             return
         if candidate.base_revision != self.state_revision or candidate != self._pending_candidate:
@@ -480,10 +508,11 @@ class InProcessModuleRunner:
         self._accepted_digest = self._pending_digest
         self._last_committed_time_s = candidate.time_s
 
-    def discard_candidate(self):
+    def discard_candidate(self) -> None:
         self._pending_candidate = None
 
-    def phase_call(self, phase, request: ModulePhaseRequest):
+    def phase_call(self, phase: str, request: ModulePhaseRequest
+                   ) -> ModuleThermalResponse | ModuleDerivativeResponse | EvaluateResponse:
         if self.definition.execution_role:
             raise RuntimeErrorBase('制冷角色不支持流体阶段调用',code='MODULE_EXECUTION_DOMAIN_UNSUPPORTED')
         if not self.initialized:
@@ -527,7 +556,8 @@ class InProcessModuleRunner:
         checked_result(result)
         return result
 
-    def commit_step(self, request, channels=None):
+    def commit_step(self, request: CommitStepRequest, channels: dict[str, ChannelResult] | None = None
+                    ) -> CommitStepResponse:
         # Legacy direct callers still accept one instance; the engine uses prepare/promote/sync.
         candidate = self.prepare_step(request, channels)
         self.synchronize_state(candidate)
@@ -567,7 +597,7 @@ class WorkerProcess:
         self.port_fluids = dict(port_fluids or {})
         self.state = dict(initial_state or {})
         self.state_revision = 0
-        self._accepted_candidate = None
+        self._accepted_candidate: ModuleStepCandidate | None = None
         self.cache_enabled = cache_enabled
         self.execution = InvocationState(run_id, instance_id or definition.id)
         self._parent_cache = ParentEvaluateCache()
@@ -795,7 +825,8 @@ class WorkerProcess:
     def parent_cache_hits(self):
         return self._parent_cache.hits
 
-    def commit_step(self, request: CommitStepRequest, channels: dict[str, ChannelResult] | None = None):
+    def commit_step(self, request: CommitStepRequest, channels: dict[str, ChannelResult] | None = None
+                    ) -> CommitStepResponse:
         candidate=self.prepare_step(request,channels)
         if candidate != self._accepted_candidate:
             if candidate.base_revision != self.state_revision:
@@ -806,7 +837,8 @@ class WorkerProcess:
         self.synchronize_state(candidate)
         return candidate.result
 
-    def prepare_step(self, request, channels=None):
+    def prepare_step(self, request: CommitStepRequest, channels: dict[str, ChannelResult] | None = None
+                     ) -> ModuleStepCandidate:
         if channels is not None:
             request = request.model_copy(update={'converged_channels': channels})
         request = request.model_copy(update={'context': request.context if request.context is not None else self.execution.context()})
@@ -814,17 +846,20 @@ class WorkerProcess:
             'request': request.model_dump(mode='json'), 'base_revision': self.state_revision,
             'state': checked_state(self.state)}))
 
-    def synchronize_state(self, candidate):
+    def synchronize_state(self, candidate: ModuleStepCandidate) -> None:
         response=self._request({'action': 'synchronize_state', 'candidate': candidate.model_dump(mode='json')})
         if response.get('ok') is not True or response.get('revision') != candidate.base_revision+1:
             raise RuntimeErrorBase('Worker 状态同步回执无效',code='MODULE_SYNC_ACK_INVALID')
 
-    def discard_candidate(self):
+    def discard_candidate(self) -> None:
         self._request({'action': 'discard_candidate'})
 
-    def phase_call(self, phase, request):
+    def phase_call(self, phase: str, request: ModulePhaseRequest
+                   ) -> ModuleThermalResponse | ModuleDerivativeResponse | EvaluateResponse:
         response = self._request({'action': phase, 'request': request.model_dump(mode='json')})
-        parser = {'thermal':ModuleThermalResponse, 'jacobian':ModuleDerivativeResponse}.get(phase, EvaluateResponse)
+        parsers: dict[str, type[ModuleThermalResponse] | type[ModuleDerivativeResponse] | type[EvaluateResponse]] = {
+            'thermal': ModuleThermalResponse, 'jacobian': ModuleDerivativeResponse}
+        parser = parsers.get(phase, EvaluateResponse)
         return parser.model_validate(response)
 
     def finalize(self):

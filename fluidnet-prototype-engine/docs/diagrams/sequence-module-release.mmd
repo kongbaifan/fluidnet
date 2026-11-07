@@ -1,0 +1,30 @@
+sequenceDiagram
+  autonumber
+  actor U as Studio 模块编辑器
+  participant A as FastAPI / ModuleStore
+  participant B as 校验器 / 真实验证台
+  participant W as 独立 Worker
+  participant D as 模块版本目录 / 项目
+  U->>U: 编辑合同、源码、端口、参数与输出草稿
+  U->>A: POST /modules/validate 或 /modules/test
+  A->>B: 合同、语法、能力与执行域检查
+  B->>W: 加载并试算草稿，执行生命周期
+  W-->>B: 关系、状态与诊断
+  B-->>U: 经 API 返回结果
+  U->>A: POST /modules/versions + expected_latest_version
+  A->>A: 持锁检查最新版本，分配新版本
+  A->>B: 重新校验，规范源码并计算双哈希
+  B->>W: 用有效测试条件再次真实试算
+  W-->>B: 结果与输出
+  B-->>A: 校验声明输出，生成验证凭据
+  alt 冲突、校验失败或试算失败
+    A-->>U: 错误诊断；草稿继续保留
+  else 验证通过
+    A->>D: 临时目录写入 manifest / source / release
+    A->>D: 原子重命名为新的 vN 目录
+    A-->>U: 新版本、双哈希及验证证据
+    U->>D: 插入项目，保存完整定义和 ModulePackageRef
+    Note over U,D: 发布新版本不会自动替换已有项目绑定
+    U->>A: 显式预览兼容升级，保存项目新修订
+    A->>D: 更新项目绑定；可从项目修订回退
+  end

@@ -1,0 +1,35 @@
+sequenceDiagram
+  autonumber
+  participant S as CoupledStationSession
+  participant V as 集总容器 / 制冷设备
+  participant L as 液体网络 solver / thermal
+  participant W as 液体作者阀门 Worker
+  participant T as 接受事务 / 平台账本
+  S->>S: 固定控制段参数与已接受模块状态
+  loop 隐式状态试算；可选整步/半步误差估计
+    S->>V: 由候选 M、U 反求容器温度与压力
+    V-->>S: 制冷质量流、能量流及饱和温度
+    S->>L: 以当前容器温度求解无储量液体网络
+    opt 含液体侧 Python 阀门或局部阻力
+      loop 水力残差评估
+        L->>W: evaluate，同一已接受 state
+        W-->>L: 无附加热流的阀门/阻力关系
+      end
+    end
+    L->>L: 盘管 epsilon-NTU 与液体焓输运
+    L-->>S: 液体流量、焓差与各盘管热量
+    S->>V: 各盘管热量求和，进入同一容器能量方程
+    S->>S: 检查隐式残差、相态、液位与可选时间误差
+    S->>T: 按误差接受内部步暂存质量与热量账本
+  end
+  Note over S,T: 内部账本在段内暂存；整段失败一并回滚
+  S->>T: 完整控制段结束，收集模块候选 commit_step
+  T->>W: prepare_step(段 dt, 最终收敛通路)
+  W-->>T: 候选状态与已声明观察量
+  S->>S: 校验整段候选帧
+  alt 段接受前失败
+    S->>T: 丢弃候选并回滚整段状态与账本
+  else 段接受通过
+    S->>T: promote 模块状态，再 synchronize Worker
+    S->>S: 输出制冷站、液体、作者版本及 coupling 变量
+  end

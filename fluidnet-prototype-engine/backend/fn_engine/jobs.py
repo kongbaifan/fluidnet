@@ -20,7 +20,7 @@ import time
 import uuid
 
 from .compiler import CompilationError, compile_project
-from .models import RunFrame
+from .model_types.run import RunFrame
 from .sessions import RunSession, create_session
 from .solver import SolveFailed, solve_steady
 from .storage import StorageError
@@ -415,9 +415,9 @@ class RunManager:
         index = job.published
         script_outputs = {key for script in request.project.control_scripts if script.enabled for key in script.outputs}
         # Sessions may name variables their reports need on every frame (cold store: the standard curves).
-        report_keys = getattr(job.session, 'report_keys', ())
+        report_keys = job.session.report_keys if job.session is not None else ()
         trend = {k for k in row['variables'] if k in request.trend_variables or k in script_outputs or k in report_keys
-                 or '.state.' in k or k.startswith(('controller.', 'script.'))}
+                 or '.state.' in k or k.startswith(('controller.', 'script.', 'measurement.'))}
         if request.history == 'trend':
             missing = set(request.trend_variables) - frame.variables.keys()
             if missing:
@@ -499,7 +499,7 @@ class RunManager:
                 extra_events.append(self._event_data(job, 'command', key, 'rejected', '运行已结束'))
             if error:
                 diagnostic = getattr(error, 'diagnostic', DiagnosticError(error))
-                if accepted_fault and job.record.get('frame'):
+                if (accepted_fault or getattr(error, 'session_unusable', False)) and job.record.get('frame'):
                     accepted=RunFrame.model_validate(job.record['frame'])
                     frame=accepted.model_copy(update={'status':'failed','valid':False,
                         'diagnostics':[*accepted.diagnostics,diagnostic]}).model_dump(mode='json')
@@ -524,6 +524,10 @@ class RunManager:
             view['events'] = events
             view['status'] = status
             view['frame'] = frame
+            from .module_replay import failure_snapshot
+            module_failure = failure_snapshot(error) if error else None
+            if module_failure is not None:
+                view['module_failure'] = module_failure
             total_rows = job.published
             window = job.request.history_window
             overview = self._overview_payload(job)
@@ -538,6 +542,8 @@ class RunManager:
             job.record['status'] = status
             job.record['frame'] = frame
             job.record['events'] = events
+            if module_failure is not None:
+                job.record['module_failure'] = module_failure
             job.finishing = False
             # Keep every active job; only completed records count toward retention.
             ended = [key for key, value in self.jobs.items() if value.record['status'] in TERMINAL]
@@ -597,6 +603,10 @@ class RunManager:
                     receipt = job.receipts[key][0]
                     receipt.update(command_status='rejected', message=str(failure))
                     self._event(job, 'command', key, 'rejected', str(failure))
+                if getattr(failure, 'session_unusable', False):
+                    # Parent inputs were rolled back, but an executor is no longer
+                    # synchronized. Preserve the rejection and terminate this run.
+                    raise
             self._persist(job)
 
     def _tick(self, job):
@@ -718,7 +728,7 @@ class RunManager:
 
 
 def DiagnosticError(error):
-    from .models import Diagnostic
+    from .model_types.base import Diagnostic
     if getattr(error,'diagnostics',None):
         return error.diagnostics[0]
     return Diagnostic(code=getattr(error, 'code', 'SOLVER_ERROR'), message=str(error))

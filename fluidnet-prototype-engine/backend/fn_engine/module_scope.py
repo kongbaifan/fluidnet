@@ -1,5 +1,5 @@
 """Configuration restrictions and per-phase operating envelopes in canonical SI units."""
-from .models import Diagnostic
+from .model_types.base import Diagnostic
 
 
 def check_scope_configuration(definition, fluid, domain='fluid'):

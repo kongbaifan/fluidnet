@@ -210,11 +210,11 @@ try {
   expect(importedV1.package.definition_hash).toBe(definitionHash);
   // 服务器上原有的 3 个项目没有被迁移改动。
   expect(migrated.projects.filter(p => p.id !== imported.id).map(p => p.id).sort()).toEqual(baselineIds);
-  // 导入前的浏览器草稿也留有备份。
+  // Copy import leaves every existing draft and the workspace backup intact; no project is replaced.
   const beforeProjectText = await localText(BEFORE_PROJECT);
-  expect(beforeProjectText, '导入前应写入 -before-project 备份').toBeTruthy();
-  const beforeProject = JSON.parse(beforeProjectText);
-  expect(beforeProject.projects).toHaveLength(3);
+  expect(beforeProjectText).toBeNull();
+  expect(migrated.projects.filter(p => p.id !== imported.id)).toEqual(loaded.projects);
+  expect(await localText(BEFORE_WORKSPACE)).toBe(backupText);
   await expect(page.locator('.filterbar')).toContainText('4 个项目');
 
   // 9. 保存工作区：迁移结果写入服务器，修订 1 → 2。

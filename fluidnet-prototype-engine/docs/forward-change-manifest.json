@@ -1,0 +1,2431 @@
+{
+  "date": "2026-11-06",
+  "base_head": "a165ece29ef863eddc77ef5f0d4ea82ab3deaf08",
+  "scope": "提交前累计项目增量（含此前设备与工作流），不包含beisilu或用户其他目录；工作树字节SHA256受CRLF影响",
+  "files": [
+    {
+      "path": "fluidnet-prototype-engine/README.md",
+      "group": "README.md",
+      "bytes": 42063,
+      "sha256": "a71ac08a6dab95e6b9e26e8519940d696e50cdc26218b510657f9a337ba0fd46"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/air_catalog.py",
+      "group": "backend",
+      "bytes": 17884,
+      "sha256": "4d58250080a7760a0e7631fbd82131c0ff69cba550df8821b7caa7b52ef16ab8"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/air_compile.py",
+      "group": "backend",
+      "bytes": 6759,
+      "sha256": "7ea3b06e490b42308b8263217cbd0737ea6f395ac3e200533171001d0e0c278c"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/air_ledger.py",
+      "group": "backend",
+      "bytes": 2314,
+      "sha256": "136483454fd161fd83158848e6099e3c9eca507e8808645f2e0a2bfac76237ac"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/air_liquid.py",
+      "group": "backend",
+      "bytes": 6959,
+      "sha256": "9287efdd81560e86d17ffc1d4a0c1f5c6376519710fad769689704aecc034ec2"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/air_source_heat_pump.py",
+      "group": "backend",
+      "bytes": 7795,
+      "sha256": "bab89dd48c730c48e68567d685c2f62ba3b318455495509aa940f93231f85c9c"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/air_transport.py",
+      "group": "backend",
+      "bytes": 21963,
+      "sha256": "bae3327d4a3f83f05f81c9339a4765a79b9d127b56e149647caf909bb734a4b3"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/air_variables.py",
+      "group": "backend",
+      "bytes": 20261,
+      "sha256": "9cbd3e9fa0ea3716e86cac45250cc5735d2149cdfb9339c7a73315cc8c04fcbb"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/air_water_chiller.py",
+      "group": "backend",
+      "bytes": 2935,
+      "sha256": "454f05696074e64873a6fd81ab00fd82a2b4141c4764dc7722c7baa34ef9446d"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/api.py",
+      "group": "backend",
+      "bytes": 63714,
+      "sha256": "d9da8b89a4dc403242846e1d8630a0a6155e692b05ebe756e9a55a1da58f1bc5"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/bench.py",
+      "group": "backend",
+      "bytes": 13720,
+      "sha256": "c9b9308e7efa18eddef24ee5817dbdd673e19167b4824fa0136c2ea00d921897"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/bridge.py",
+      "group": "backend",
+      "bytes": 15558,
+      "sha256": "ad5cc653f05a44dbca1d57b94e28f143c81157f47358d64073387ee601bfa5d9"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/buffer_example.py",
+      "group": "backend",
+      "bytes": 2944,
+      "sha256": "0c0a43591d27ff61d3f81fed7acdcead6760431a71c29ad070f93137a9776031"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/buffer_tank.py",
+      "group": "backend",
+      "bytes": 6219,
+      "sha256": "02dd901811d26ee903e83f808925f62f168945216d49a7c71e67e92da2e05b87"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/catalog.py",
+      "group": "backend",
+      "bytes": 58079,
+      "sha256": "53cd8b5d25db726415984fe5f6c348ffeb5b6b730108041986cd9ff8296ee6f1"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/coil_geometry.py",
+      "group": "backend",
+      "bytes": 3728,
+      "sha256": "8fe0c5ea666cb3410a42cf24979c7ffc5b620e2d7c66c6b740ef8f47d366c064"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/compiler.py",
+      "group": "backend",
+      "bytes": 54329,
+      "sha256": "ce0c1dfe6af2ed89e074081042fe4b5ee4f3933862eae5fa31df408864dc57d8"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/composites.py",
+      "group": "backend",
+      "bytes": 21231,
+      "sha256": "b88f8ff7872ed378ce5c91f37dc817fe92de795df91b42ca9bd01b90443a9d66"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/coupled_tower_pool.py",
+      "group": "backend",
+      "bytes": 10850,
+      "sha256": "c31548601f8ca8c8a7dbe5830dd4fd85f232ebec0f4691d7d43e02f07bb1b012"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/coupled_tower_pool_example.py",
+      "group": "backend",
+      "bytes": 2139,
+      "sha256": "1d4ef5fadcf4091220706c77f3f56a444f00b9ac5886184ad773e21c90480b3e"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/enthalpy_recovery.py",
+      "group": "backend",
+      "bytes": 6534,
+      "sha256": "880953c493499ff8033ec6a8ee8b73347df25a16a6f79b5aa838e83f575ee367"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/equipment_design.py",
+      "group": "backend",
+      "bytes": 9148,
+      "sha256": "e7ea6738fd45d204d133c34bc1f8f30f872c7b0857c2cb3a7b449ca57d365c75"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/equipment_groups.py",
+      "group": "backend",
+      "bytes": 3071,
+      "sha256": "ba566a7b3dee57f2bd77e8f84e05c103ebe0f8dcf84a246aaaecc8eba94b549e"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/equipment_library.py",
+      "group": "backend",
+      "bytes": 6161,
+      "sha256": "87e780ef0892ab5cf548516ef0e7b96c39f89ef22c9f5225d0acb7f1f1d969a3"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/equipment_report.py",
+      "group": "backend",
+      "bytes": 3490,
+      "sha256": "88d6b2078ba762c59ba815104f357e671d566209370b2dbd47c701177c68bc74"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/expansion_example.py",
+      "group": "backend",
+      "bytes": 1629,
+      "sha256": "cb7461660290153a590682388fd892840de4a46c935991ea01cf9b4d1cca4922"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/expansion_tank.py",
+      "group": "backend",
+      "bytes": 6277,
+      "sha256": "2906a2f4af65b3763751ef74aef8919998ec337d4ca4d52ed9aaa70446ad42e2"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/geometry_bend.py",
+      "group": "backend",
+      "bytes": 3408,
+      "sha256": "4c1ba0490b476f4532eeac9e45ce6baf60ad3f0bf02c6826b129c202ce32de4c"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/hvac_expansion.py",
+      "group": "backend",
+      "bytes": 7728,
+      "sha256": "184556719017f4fc3499c87c87e218f85f4a488af570c2c572530ce8ddea1878"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/hvac_expansion_examples.py",
+      "group": "backend",
+      "bytes": 7167,
+      "sha256": "7d1478752d945395775d54972038a0c92f3c226e41ee9e4c6949fc4e54d43fba"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/hydronic_boiler.py",
+      "group": "backend",
+      "bytes": 4086,
+      "sha256": "6c876f30a2c59e55a39d3a4df7aadf005c72075db4eb2deefa674aab7bebb3e5"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/hydronic_buffer_example.py",
+      "group": "backend",
+      "bytes": 2643,
+      "sha256": "48d4856367ebc51f4f7d264bfb16832b747e04d2d714fcf9c084edaf75ec1041"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/jobs.py",
+      "group": "backend",
+      "bytes": 36992,
+      "sha256": "1ecf9a660c91345452ba7ef1435bd323bfeae2a3f6f6d6bb3cfe753543d5117e"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/models.py",
+      "group": "backend",
+      "bytes": 62648,
+      "sha256": "cb78038828c8b9dd1d564605519e977ea10e1d25b3638bf3c06190182292dda8"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/module_contracts.py",
+      "group": "backend",
+      "bytes": 7110,
+      "sha256": "8904a49d26f37995608a424145d582bf1cee0267336a89dabb00d4b141e731f7"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/module_replay.py",
+      "group": "backend",
+      "bytes": 7653,
+      "sha256": "f8607c409b3ee981011dc58cb71091e38b9cdd30ad9433a620607d3a0d7b540d"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/refrigeration/air_condenser.py",
+      "group": "backend",
+      "bytes": 8489,
+      "sha256": "0d0e3a012e3a1a411fc165f0fc932f8d408f2e7ee412613e3129e36ed1fe58c3"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/refrigeration/bench.py",
+      "group": "backend",
+      "bytes": 4915,
+      "sha256": "9c961aef4cf5936869b709fb432c662a94e544c872cb3a0c4751f15772acccf8"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/refrigeration/coupling.py",
+      "group": "backend",
+      "bytes": 25260,
+      "sha256": "1958ec93a2d0489eaced9debb1bf0395ef72ed5be4797eb3a78a922298322427"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/refrigeration/defrost_cooler.py",
+      "group": "backend",
+      "bytes": 1423,
+      "sha256": "357bc657ffed6aeb83b38db8b193189e69ce85046052c3bc602f9000be1f4c21"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/refrigeration/defrost_example.py",
+      "group": "backend",
+      "bytes": 1060,
+      "sha256": "b33a26cde252354247a0cbb7ffb37c0e93e4e72a12fb299298fbd314d47131f3"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/refrigeration/devices.py",
+      "group": "backend",
+      "bytes": 11981,
+      "sha256": "044c2481c1c10d7638fa8521e38ff564b7a999213339bb977e0fa3a33b981140"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/refrigeration/dx_devices.py",
+      "group": "backend",
+      "bytes": 8027,
+      "sha256": "8a1107136b1e073324ecbfcec9cec0202da4581340612cbe379aa03a4c77ec3a"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/refrigeration/dx_example.py",
+      "group": "backend",
+      "bytes": 2458,
+      "sha256": "27a60bb2b0f04d3bc23dff7d9c488f31ff37cfb5e73a0d10d64c9222ad627202"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/refrigeration/dx_network.py",
+      "group": "backend",
+      "bytes": 3095,
+      "sha256": "8616019855cf31e204a179c2a156276b1803ce566367258edfd0d83a0caadb24"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/refrigeration/forward_examples.py",
+      "group": "backend",
+      "bytes": 5518,
+      "sha256": "c16955d23cdcb63fedbe2f970438a0373b3e87678df8247552514c239b6bdc82"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/refrigeration/heat_manifold.py",
+      "group": "backend",
+      "bytes": 3448,
+      "sha256": "e192d4bce4f940d19a535bf59e6fdbdb5ec2ce5341d294e5ce3af150a0749896"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/refrigeration/modular_examples.py",
+      "group": "backend",
+      "bytes": 12704,
+      "sha256": "9c734973927f8fb7c89ef456675786f5660f7eec9b5cc426964ae69b1e5b0f80"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/refrigeration/multi_cooler_example.py",
+      "group": "backend",
+      "bytes": 1842,
+      "sha256": "f0ec81d941cdb9e3567dff698c6026c8e910a56c5bd53b0b2b4a4607612fbb04"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/refrigeration/performance_compressor.py",
+      "group": "backend",
+      "bytes": 7067,
+      "sha256": "02e9bdfa305f4912d2a92885c0c6f9b30264faf642bf89db3acfd8b7133e890e"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/refrigeration/performance_example.py",
+      "group": "backend",
+      "bytes": 1987,
+      "sha256": "d278dc622361f99a2ad94379b6322d0b636393ea115aa3ffd1b8249cb8de699f"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/refrigeration/report.py",
+      "group": "backend",
+      "bytes": 44548,
+      "sha256": "81763b500e534043a15e4df5b6945a7cbe31b8859f77a7479ae0cf69db4864d6"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/refrigeration/station.py",
+      "group": "backend",
+      "bytes": 55287,
+      "sha256": "42227b95a378f1812576a847100d3e09be25e84f3091353db9e120981dbcd89b"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/refrigeration/stream_devices.py",
+      "group": "backend",
+      "bytes": 10349,
+      "sha256": "3d8dd9c87def1ea289dc3e361b3e9bac5a1b1c2adc5f66a9dee2821884592d96"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/refrigeration/stream_example.py",
+      "group": "backend",
+      "bytes": 3262,
+      "sha256": "8b0ac2ca9b117e810b526bec5d04552a27ffde96e89de062b66027184dc8fd13"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/refrigeration/stream_network.py",
+      "group": "backend",
+      "bytes": 12411,
+      "sha256": "640939a180824f032b0c41e7a0ba3477aee655224620cf637597225d309b88d1"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/refrigeration/two_stage_example.py",
+      "group": "backend",
+      "bytes": 6102,
+      "sha256": "864abc0480d5f21baf395058b9756c3db974a9a4edf296974b29308fc05fc3a6"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/refrigeration/vessel_geometry.py",
+      "group": "backend",
+      "bytes": 2951,
+      "sha256": "d0dc3cb0b21ebafc38cf53cae14f09784a8e80ffc35dbf8df96ce77063243f1c"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/refrigeration/vessel_ports.py",
+      "group": "backend",
+      "bytes": 897,
+      "sha256": "6dc05156889431013ff8fc413fbbd2b7967ddf058b2329114df0d3a315bc39ab"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/regulating_valves.py",
+      "group": "backend",
+      "bytes": 6114,
+      "sha256": "37e51cd3a69a3c66ec84d597597d9b4cee7f483642cd29bea33cc3ff93c3ec77"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/runtime.py",
+      "group": "backend",
+      "bytes": 51463,
+      "sha256": "3813ca578ca313e31a7f58b12e4c280d50157d73456994246806b66267a6d2ca"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/session_base.py",
+      "group": "backend",
+      "bytes": 18397,
+      "sha256": "88297c118332168564bea0cf6d9bca04df922e5e70e185794d38296daa097861"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/simulation.py",
+      "group": "backend",
+      "bytes": 23238,
+      "sha256": "9aa4225e77004bf7ae5d29eec7a56293c8626016dd5bfd69e0871f112d58376a"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/solver.py",
+      "group": "backend",
+      "bytes": 87229,
+      "sha256": "cce16d40b584be16e1ce44e204ba728b58bdd256d4bc4b7954eb5b5990a304db"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/system_inspection.py",
+      "group": "backend",
+      "bytes": 14042,
+      "sha256": "fa7f239b25dbf6fe12fe5f8b3b93918160c317b24279b82f19e40a6c346fb413"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/thermal.py",
+      "group": "backend",
+      "bytes": 50756,
+      "sha256": "150111b5fff8d29440dbc325d1618b6e23a10a1db1680fcbcde0c2f24bbf3b78"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/tower_pool.py",
+      "group": "backend",
+      "bytes": 3728,
+      "sha256": "ffa78e0fda220028c685fce07bf6220c52f9043f35ed98b2c84c9ce65fac305e"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/tower_pool_example.py",
+      "group": "backend",
+      "bytes": 1685,
+      "sha256": "271e8cbcfc1b998657ccc336dd6b5a483f49ba2b9ef47e1fc7b84be8e268b4e2"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/water_chiller.py",
+      "group": "backend",
+      "bytes": 10036,
+      "sha256": "fa6579ec8ec8bc033c5abb73f05bcab4620e467ef4cbd08ff81190a55fca42c6"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_engine/worker.py",
+      "group": "backend",
+      "bytes": 9077,
+      "sha256": "7c942b0fef6d2882a030bd3c44283633663eac2dbd5df583f7da71a3e8ef8b91"
+    },
+    {
+      "path": "fluidnet-prototype-engine/backend/fn_sdk/__init__.py",
+      "group": "backend",
+      "bytes": 1719,
+      "sha256": "cb58ce4b4897a045dca9a10aaccdac4875473e4841a50c3b0fe35ce623b94ea4"
+    },
+    {
+      "path": "fluidnet-prototype-engine/contracts/air-migration-request.schema.json",
+      "group": "contracts",
+      "bytes": 61222,
+      "sha256": "036860687d9a0104363022409c2aa0c57083329046eb3022347e2306fa6eb7be"
+    },
+    {
+      "path": "fluidnet-prototype-engine/contracts/air-migration-response.schema.json",
+      "group": "contracts",
+      "bytes": 61583,
+      "sha256": "f9fb0148f23dcabcbf78a9fdf7bcdc9f4b063388fdbe8dde399023587f074f02"
+    },
+    {
+      "path": "fluidnet-prototype-engine/contracts/coil-geometry-request.schema.json",
+      "group": "contracts",
+      "bytes": 3162,
+      "sha256": "46e92925cc67432aeaa1ac1bcfa1e61c30b68c7750c0b47436454703d637b9ab"
+    },
+    {
+      "path": "fluidnet-prototype-engine/contracts/coil-geometry-response.schema.json",
+      "group": "contracts",
+      "bytes": 899,
+      "sha256": "3dbc640ceaae863db16ba1ab13790d906812456219e2189b80f738f76a4cad11"
+    },
+    {
+      "path": "fluidnet-prototype-engine/contracts/equipment-library-item.schema.json",
+      "group": "contracts",
+      "bytes": 718,
+      "sha256": "2ff73beea708b7ded6f5f062999d219e220317e06cd6b80aabb51a083bb05f51"
+    },
+    {
+      "path": "fluidnet-prototype-engine/contracts/equipment-library-request.schema.json",
+      "group": "contracts",
+      "bytes": 739,
+      "sha256": "cb83c91547d2daad09c6d005d067fcd95b4236ae456acd043172064efed871e4"
+    },
+    {
+      "path": "fluidnet-prototype-engine/contracts/equipment-library.schema.json",
+      "group": "contracts",
+      "bytes": 1198,
+      "sha256": "aee64226822ba93a1e06ac6c14cac0a5d04c000dee761aa2ec688937f0f7bd65"
+    },
+    {
+      "path": "fluidnet-prototype-engine/contracts/inspection-comparison.schema.json",
+      "group": "contracts",
+      "bytes": 863,
+      "sha256": "00892c76abc66ff56a76eb4b409f0ea1ce45ef42b80e3437de339344f0dbed20"
+    },
+    {
+      "path": "fluidnet-prototype-engine/contracts/module-failure-response.schema.json",
+      "group": "contracts",
+      "bytes": 46153,
+      "sha256": "e68d566668975cb5b9cd9c0cb963062c9fe37d72de7bd2aba625380c7671629e"
+    },
+    {
+      "path": "fluidnet-prototype-engine/contracts/module-group-request.schema.json",
+      "group": "contracts",
+      "bytes": 61604,
+      "sha256": "da5dc26eaa793125f6d6b84349070c6818484e4a71c7d22e5cac4d8121f71c07"
+    },
+    {
+      "path": "fluidnet-prototype-engine/contracts/module-replay-request.schema.json",
+      "group": "contracts",
+      "bytes": 45800,
+      "sha256": "a6031444b720c745128712556813dc108cfdfab2de9554c03d568a8199e72141"
+    },
+    {
+      "path": "fluidnet-prototype-engine/contracts/module-replay-response.schema.json",
+      "group": "contracts",
+      "bytes": 8535,
+      "sha256": "b05b9cbdec04a3c75cabe9a33b2fd2b9917b55cb78e2eca113773b23578ccf36"
+    },
+    {
+      "path": "fluidnet-prototype-engine/contracts/module-replay-snapshot.schema.json",
+      "group": "contracts",
+      "bytes": 45172,
+      "sha256": "8c16e397dbf83bc630e93e6b3b60627137031dc331054c72dfeeb5b3107cfe07"
+    },
+    {
+      "path": "fluidnet-prototype-engine/contracts/openapi.json",
+      "group": "contracts",
+      "bytes": 435719,
+      "sha256": "0aabf9351b541ee59fe3d931b233d7c86efe43e577443ee3fbd72881e253064e"
+    },
+    {
+      "path": "fluidnet-prototype-engine/contracts/project-upgrade-request.schema.json",
+      "group": "contracts",
+      "bytes": 64849,
+      "sha256": "ee55ef4fbe3c39fdf5c4af09c73d65b0ea104ac9bccd3925cda916861dd8bfc9"
+    },
+    {
+      "path": "fluidnet-prototype-engine/contracts/project-upgrade-response.schema.json",
+      "group": "contracts",
+      "bytes": 67146,
+      "sha256": "500bdb69455606081bde8aaba8b140de29f70a32966b819ae0f9fca3920f993b"
+    },
+    {
+      "path": "fluidnet-prototype-engine/contracts/project.schema.json",
+      "group": "contracts",
+      "bytes": 60313,
+      "sha256": "810d4e2f96af0f673fc21df91b0859aa63d64c1a5fdaa31626446741d389b769"
+    },
+    {
+      "path": "fluidnet-prototype-engine/contracts/run-record-response.schema.json",
+      "group": "contracts",
+      "bytes": 71855,
+      "sha256": "df19d8b698c8eb6dbb542a7783f959d4996716f3189047cffe62405b5d782666"
+    },
+    {
+      "path": "fluidnet-prototype-engine/contracts/run-request.schema.json",
+      "group": "contracts",
+      "bytes": 63384,
+      "sha256": "00b6ee279cd9e934a685582f8f0185ec9443aad7695e368d2a8ba6f61cb61ad6"
+    },
+    {
+      "path": "fluidnet-prototype-engine/contracts/system-inspection.schema.json",
+      "group": "contracts",
+      "bytes": 7693,
+      "sha256": "60f7463bffb1cd4b6ac637a75305cfef6e38171213ba4de41ddd9490e0ee72b4"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/AIR_CHILLER_HEAT_PUMP_RECOVERY.md",
+      "group": "docs",
+      "bytes": 5779,
+      "sha256": "dfe245badc74e78fb391a6636e031acbf759aebd3cb3a5822de1d07851b909e8"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/AIR_COOLED_CONDENSER.md",
+      "group": "docs",
+      "bytes": 6759,
+      "sha256": "842fcd7e7e8fc0e6d2faff48952761b2db76ab3c5d913b0446ea6456117b8128"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/API.md",
+      "group": "docs",
+      "bytes": 49960,
+      "sha256": "4fbe01080a1d3553cd1aca30eb3178c593bf55985e414e071249515ea4a19044"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/ARCHITECTURE_REFACTOR_ACCEPTANCE.md",
+      "group": "docs",
+      "bytes": 16058,
+      "sha256": "31c0a7094cd2cbc86429b52d03ae2ff16d6142a5156293a6c2d5a0de116bd18d"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/ARCHITECTURE_REFACTOR_PLAN.md",
+      "group": "docs",
+      "bytes": 20225,
+      "sha256": "4970e724a14bce484424b24a25998d78023559bab12c1dea1f58d4de804fda66"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/BASELU_SOURCE_INTAKE_2026_11_05.md",
+      "group": "docs",
+      "bytes": 11565,
+      "sha256": "52f4dd02690c96f64b03f1d4c1ebd2ee00247279507fcfb02041ba18e018706a"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/BASELU_WORKFLOW_ACCEPTANCE.md",
+      "group": "docs",
+      "bytes": 4360,
+      "sha256": "7e8f162a102e7a2ef91bd4d3fd48f6ce2344a61a50d95f0a5e1dd67b5852c95d"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/BATCH_PANEL_ACCEPTANCE.md",
+      "group": "docs",
+      "bytes": 4503,
+      "sha256": "f78101ecee09d2f54c9356aeed9a0fa6ad70dae15d876a432a89063ef11dc53c"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/BOILER_AND_GEOMETRY_BEND.md",
+      "group": "docs",
+      "bytes": 2025,
+      "sha256": "7cf4aa4097dd367005448109e1778b6b4531ea0318d8f3ef58fe0d8a47233bbb"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/CANVAS_PATH_TRACE.md",
+      "group": "docs",
+      "bytes": 2044,
+      "sha256": "9fae4ad5a054df0eec4ee61f9069986bd3b1625c151c5d463d38c704db16d3ab"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/CHILLER_AIR_LOOP.md",
+      "group": "docs",
+      "bytes": 4752,
+      "sha256": "d69d8f2956c904c02e27c036e30c499b5e50b696e4946211313fe096c2b4e8d6"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/CHILLER_OPERATING_LIMITS.md",
+      "group": "docs",
+      "bytes": 8013,
+      "sha256": "82359087df72df0e5dc2aab2df2082b8f2cf6e8167fe32e8ad2ea8ae06e6c4d2"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/CLOSED_BUFFER_TANK.md",
+      "group": "docs",
+      "bytes": 4285,
+      "sha256": "003606e871f1dee7e475e4f09d67cb190e8e30ea023585e5d748d64c2e2b078e"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/COIL_GEOMETRY_DESIGN.md",
+      "group": "docs",
+      "bytes": 1896,
+      "sha256": "1b5c25a46fac01268d90390039aae2874b09330839d939c19d0f12a882867da4"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/CONFIGURABLE_DEVICE_PANEL.md",
+      "group": "docs",
+      "bytes": 3955,
+      "sha256": "2d416c7d5d219eb7954f462c886aae8d0ec21efbd75f37297b4dd2ece74bf024"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/COOLING_TOWER_POOL_DESIGN.md",
+      "group": "docs",
+      "bytes": 5139,
+      "sha256": "60317f3c16f1ba96f7145fbd87c1e4c64d9a8f55c0cca7ab1d83df6f84e9ab43"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/COUPLED_TOWER_POOL.md",
+      "group": "docs",
+      "bytes": 5287,
+      "sha256": "805e121385988973a8cc20f9adf80e413b48f6d46bde4e1e6316fda2a877e89b"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/DESIGN_AND_GROUP_LIBRARY.md",
+      "group": "docs",
+      "bytes": 4853,
+      "sha256": "0cbd94b749c51d0d1fcc146a554e0d7a8e0f73273c0136ec0691def78c01b487"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/DEVICE_BATCH_EDITING.md",
+      "group": "docs",
+      "bytes": 2933,
+      "sha256": "d8074aba52d522e5547a873e1ac7c5bf7900e98758eb5e02c69f74883d17af1d"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/DEVICE_PANEL.md",
+      "group": "docs",
+      "bytes": 1922,
+      "sha256": "e43652497a04bd1185d8fcb177edefacdca1957a2deccd3029af2729219009b7"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/DEVICE_PANEL_CHILLER_ACCEPTANCE.md",
+      "group": "docs",
+      "bytes": 2911,
+      "sha256": "9eb2b361b988689144e4dea631b1c97a89e0cf2e6b87e3edf641a53725c362c8"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/ENTHALPY_RECOVERY.md",
+      "group": "docs",
+      "bytes": 4472,
+      "sha256": "442abd6856054ce008baf02430e3208fdcee2f3e3011d6bd54554a554009c4f9"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/EQUIPMENT_PROGRAM_DELIVERY.md",
+      "group": "docs",
+      "bytes": 9646,
+      "sha256": "2eb78ef59c7ac2f6415d5fb7fe17b5c3113711433a0bb85e070f1fec26fe043a"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/EQUIPMENT_SELECTION.md",
+      "group": "docs",
+      "bytes": 3408,
+      "sha256": "03a911da1db12a853455b0d7dd19db1408a6e7d887e8318f21bc1ce14cd57ebc"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/FORWARD_IMPLEMENTATION_PROGRESS.md",
+      "group": "docs",
+      "bytes": 6278,
+      "sha256": "11dd7d123cd90f698457d5b07cf1c8abc215dd172bfbe99d61af3965eb57f4e2"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/FORWARD_PHYSICS_ACCEPTANCE.md",
+      "group": "docs",
+      "bytes": 5703,
+      "sha256": "2c3c6d0cd787dfe373d0bebcf6f8b7cf7aae0dce5bbf5ed0d947376fd4a32f7d"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/FORWARD_PHYSICS_DESIGN.md",
+      "group": "docs",
+      "bytes": 1761,
+      "sha256": "9a29b87c00721d60958b3319e9ae6ab46cf16764135840add4f7c45cb48c1171"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/FORWARD_PLAN_2026_11_05.md",
+      "group": "docs",
+      "bytes": 17672,
+      "sha256": "d8759831c17a553584ecb60b27dbc53aaeffbbed5bf7ad68a690a2662fdf5024"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/FORWARD_SCENARIOS_ACCEPTANCE.md",
+      "group": "docs",
+      "bytes": 2539,
+      "sha256": "8f5b2ee3065b0b30a38bd5d9b6e64b4ebe0451e05ba82550ed8ce0c09cf39660"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/FORWARD_UI_INTEGRATION.md",
+      "group": "docs",
+      "bytes": 3653,
+      "sha256": "36746d0fa0cc40c5e198b22ba50bc051c20206d82e85a948b31f2f2a85fcd354"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/GAS_EXPANSION_TANK.md",
+      "group": "docs",
+      "bytes": 3803,
+      "sha256": "73d367dd21feefb18bab0541a880f3ce727f0de966dc04d8221a19a45a62bac8"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/HORIZONTAL_VESSELS.md",
+      "group": "docs",
+      "bytes": 4826,
+      "sha256": "888aad94868fc86a5a5debdff551ffbc781c3b6f66e8da841cb1acaa451564d0"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/HVAC_BASIC_EQUIPMENT_CHECKLIST.md",
+      "group": "docs",
+      "bytes": 15764,
+      "sha256": "2aa7d3f1d6c42062f35ddb149f8d6c62b19e3c204da42b29f835441cd8a598a5"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/HVAC_BRANCH_FAN_PLATE.md",
+      "group": "docs",
+      "bytes": 7366,
+      "sha256": "88c8073868005a3f023edfb030f8c55ccbf10d83824df10bed633e5bfbb2143d"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/HYDRONIC_BUFFER_DESIGN.md",
+      "group": "docs",
+      "bytes": 2210,
+      "sha256": "fc2d351188fcdb03335c7b9a2cc23179fc68f6381de5920ccaa467f5fc1e3699"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/LARGE_PROJECT_EDITING.md",
+      "group": "docs",
+      "bytes": 5036,
+      "sha256": "53b873f2cbf083ad811d22e335e3d86685e863ceb03570b03fa1b2c0261356ff"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/MODULE_FAILURE_REPLAY.md",
+      "group": "docs",
+      "bytes": 3659,
+      "sha256": "cf78ac90cce9aefdd107d6bd7479803449e823ae030c17d72ab2c4a9a02e46ee"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/MODULE_KIT.md",
+      "group": "docs",
+      "bytes": 35229,
+      "sha256": "480b5d03002f5c69055168ac2c8336be2eceb3d546469a211c131f9fe76bb304"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/NH3CO2ZL_CASE.md",
+      "group": "docs",
+      "bytes": 24730,
+      "sha256": "09411d67f2144ea84e7d7d91c8e3476902cdda24bbbe0a5dd8258899a5a60911"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/PLATFORM_CAPABILITIES.md",
+      "group": "docs",
+      "bytes": 9137,
+      "sha256": "a0ecc825c8ed8ac8d5e38f348c81ab2656298fa662a10a030bf34b40cf606ac2"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/PROJECT_REVIEW_FIXES.md",
+      "group": "docs",
+      "bytes": 3421,
+      "sha256": "fdba6fa60fbed7d45b1720d548729ac6724f5a83931bdcbfa7be65289cd0139f"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/REFRIGERATION_EQUIPMENT_EXPANSION.md",
+      "group": "docs",
+      "bytes": 4324,
+      "sha256": "41c206ae47a19abc7c8bf42bd37e73630179e9fb246b45b3ad40287f296559a0"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/REFRIGERATION_HVAC_EQUIPMENT_ROADMAP.md",
+      "group": "docs",
+      "bytes": 16689,
+      "sha256": "81f2eb30de387152bf3a213ec8b4c0707611e7265be2327aeb8ba16b86a6aeac"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/REFRIGERATION_MODULAR_ACCEPTANCE.md",
+      "group": "docs",
+      "bytes": 4078,
+      "sha256": "d022d56c0c66315ac14c349236dc12d3f15cb86ea9aacec5dacb53c4880d5489"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/REFRIGERATION_MODULES.md",
+      "group": "docs",
+      "bytes": 11461,
+      "sha256": "173b597f018ded63bf579036adc92ac84d5c0a6633d50953a8f6b1e0f1280a07"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/REFRIGERATION_PERFORMANCE_AND_COOLERS.md",
+      "group": "docs",
+      "bytes": 5815,
+      "sha256": "a5b0239d469d6b078bfa7c829b055c91801c3db3cca96af1e09841d24598b738"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/REFRIGERATION_STREAMS_DX.md",
+      "group": "docs",
+      "bytes": 7208,
+      "sha256": "bba6fc8b941b34fed424835d26d3d2fb6fa37623dfec07f09a4974a41a050f76"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/REFRIGERATION_TWO_STAGE.md",
+      "group": "docs",
+      "bytes": 5750,
+      "sha256": "f4c55a9564d9912b432efc9935ddb9c41bfb51ec28e59073a5936471035b3662"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/REGULATING_VALVES.md",
+      "group": "docs",
+      "bytes": 2009,
+      "sha256": "3ab0e9384f4ae49be4bfff24a566affe89187b502199ec0c50b330a8244993bd"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/ROADMAP.md",
+      "group": "docs",
+      "bytes": 37476,
+      "sha256": "cd97a27d5e093248b8e8f32fab09fe179d5f0fcee351fd7efec2da1237e5edee"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/SYSTEM_INSPECTION.md",
+      "group": "docs",
+      "bytes": 2346,
+      "sha256": "13d01b895a1d479e82d64b0014099f824876c73d8dd33c884489d4140816068c"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/capability-inventory.json",
+      "group": "docs",
+      "bytes": 117988,
+      "sha256": "52ad53207122d4495751f909ed6733037ba2ce1e447e43a7f91c0b3ef9fc6db7"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/modules/CONTRACT_VERSIONING.md",
+      "group": "docs",
+      "bytes": 6067,
+      "sha256": "d4c13f494688d36e69ad969caab90a5a5f94ac93438001964da805ce69656e4a"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/modules/DEVELOPMENT_GUIDE.md",
+      "group": "docs",
+      "bytes": 12383,
+      "sha256": "2270c72e54ddd39eab7c6d730e5e1f481be18ab6026f5bb62cb2d901f2586aea"
+    },
+    {
+      "path": "fluidnet-prototype-engine/docs/modules/SDK_API.md",
+      "group": "docs",
+      "bytes": 13525,
+      "sha256": "050e7a975045595da4b0bac1c171a9e0c39ccd8a6bd486be83327ad1e87cb506"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/equipment-library/README.md",
+      "group": "examples",
+      "bytes": 354,
+      "sha256": "93e2a74999cd0a762e90456db534b95ebaef2130457b97df8d61dfd5b5423b50"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/equipment-library/ahu_standard.project.json",
+      "group": "examples",
+      "bytes": 167327,
+      "sha256": "d42bb8b72e97a88e18227a6b0f00bbf7bd00f0009d640bf51d4ea52ccfa65cc8"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/equipment-library/ahu_standard.recipe.json",
+      "group": "examples",
+      "bytes": 5819,
+      "sha256": "628e181ea11a3263fcf2eb76c83b23aa973f317bf17c87b8b1753a63349c1de6"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/equipment-library/design_fan.project.json",
+      "group": "examples",
+      "bytes": 33885,
+      "sha256": "08f868a47e9c357c8956aaded1d455337a170dd313f83d4026ec58cdf0c2ef18"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/equipment-library/design_fan.recipe.json",
+      "group": "examples",
+      "bytes": 3432,
+      "sha256": "48ca8aae9806880b8470fe619641c730e90a405e7added9f4d40a33f9d4a9fb1"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/equipment-library/design_plate_exchanger.project.json",
+      "group": "examples",
+      "bytes": 30652,
+      "sha256": "a4b887cb4b7068b59ef5b69b425935847b3911256248998a2625ab976416a2b1"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/equipment-library/design_plate_exchanger.recipe.json",
+      "group": "examples",
+      "bytes": 5032,
+      "sha256": "379c5b53512a4f2ab9bf9286eb439dffbab299315adf26025a6a417a1c718a2a"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/equipment-library/design_pump.project.json",
+      "group": "examples",
+      "bytes": 32709,
+      "sha256": "ea295313f9a9eb0204dea8955803c106406bb465fe5c37310e9e903dddabae02"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/equipment-library/design_pump.recipe.json",
+      "group": "examples",
+      "bytes": 3017,
+      "sha256": "66c06f6640379850b6edd3eb892fa97d366fdf058543e142f8e12c0fcda565a3"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/equipment-library/dx.project.json",
+      "group": "examples",
+      "bytes": 68245,
+      "sha256": "af82994358109aaeeb47bce88f0f3a285f26a141ef3c1ec1b231a1b8f537541f"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/equipment-library/dx.recipe.json",
+      "group": "examples",
+      "bytes": 5506,
+      "sha256": "264b79741ed0db6f7bc38d7011721636dbeed82d145b7ab23d74dfa9d255ed60"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/equipment-library/fahu_standard.project.json",
+      "group": "examples",
+      "bytes": 148579,
+      "sha256": "7482ccb722098786e18b20a1a86bd553cf009851ac9e45078a0be10811a310a9"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/equipment-library/fahu_standard.recipe.json",
+      "group": "examples",
+      "bytes": 5143,
+      "sha256": "6850123c170d48d63c11be70ca0fa108061e5472a6aa4b85029bb30feee5b34f"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/equipment-library/fcu_terminal.project.json",
+      "group": "examples",
+      "bytes": 148609,
+      "sha256": "9e6f86c1737d458782c836b43711f5c892343b96d7edf3cc6585b4b9cb67f58e"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/equipment-library/fcu_terminal.recipe.json",
+      "group": "examples",
+      "bytes": 5151,
+      "sha256": "67d70968fc3b5b3938f0c874b7991dac75d026cbba1f6dc90855744deb82e5ca"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/equipment-library/group_filter_fan.project.json",
+      "group": "examples",
+      "bytes": 80290,
+      "sha256": "b573a3ae551b40432faef8bf34e85e5a4166ba5dce639f20e784fe0381bf2d57"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/equipment-library/group_filter_fan.recipe.json",
+      "group": "examples",
+      "bytes": 3438,
+      "sha256": "585c4eff8f8a796e369e3603137fbe51b0906d99b4510e10de0412b006a76cdb"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/equipment-library/group_parallel_pumps.project.json",
+      "group": "examples",
+      "bytes": 111602,
+      "sha256": "1887ca79da850b018ff15ee04c1c0dc59b464ce3a8f1d59e4e2e883050088d85"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/equipment-library/group_parallel_pumps.recipe.json",
+      "group": "examples",
+      "bytes": 3044,
+      "sha256": "a36e7092445cd891c175d0276aa672ec482d288721c37c03214d4d9387edad56"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/equipment-library/group_pump_branch.project.json",
+      "group": "examples",
+      "bytes": 61060,
+      "sha256": "feda6fc37bb81dc04ef9b9a686e9079232a94b77995984589c0976967159edcb"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/equipment-library/group_pump_branch.recipe.json",
+      "group": "examples",
+      "bytes": 3069,
+      "sha256": "08991dd2fd4fad63badee34b13a397baab10a187e5699238846547f801480472"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/equipment-library/group_recovery_section.project.json",
+      "group": "examples",
+      "bytes": 88566,
+      "sha256": "c4d1309bbd0dceb19e27ff4e07afe396522a148dda081b383e5b04540385b14f"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/equipment-library/group_recovery_section.recipe.json",
+      "group": "examples",
+      "bytes": 4815,
+      "sha256": "7539c2ae63f394eb3a619af08356ffc2b34840dbc0e68a62771868450fd18df5"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/equipment-library/group_secondary_exchanger.project.json",
+      "group": "examples",
+      "bytes": 59585,
+      "sha256": "a1019557a718ea6760efa7ae007ae591fb9674c1956c69dcc886239664c3eaae"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/equipment-library/group_secondary_exchanger.recipe.json",
+      "group": "examples",
+      "bytes": 5029,
+      "sha256": "1c27fab1ec398100c3b0e091078fcc701527ee491a2511686cdbcf1818a261f8"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/equipment-library/modular-room.project.json",
+      "group": "examples",
+      "bytes": 97991,
+      "sha256": "9f9cdf1279ae2a1cd06eeea2a0a4a5ad7b16a9e6b61be8026e64b1efb6db928c"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/equipment-library/modular-room.recipe.json",
+      "group": "examples",
+      "bytes": 6975,
+      "sha256": "77d5395cd43a939049a3ccd36bb46ecbe26b8c0317665fd6a5b6b68fc253fd01"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/equipment-library/multi-cooler.project.json",
+      "group": "examples",
+      "bytes": 103492,
+      "sha256": "138271b4674dd11b54adfa329a3ed6020d5a022829df275eb608dcf5bc51f80c"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/equipment-library/multi-cooler.recipe.json",
+      "group": "examples",
+      "bytes": 9120,
+      "sha256": "54cea80e3fcc3b312595c552fed8a13c98e4ea255ea9c66dd2008a0e6ad77271"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/equipment-library/two-stage.project.json",
+      "group": "examples",
+      "bytes": 115805,
+      "sha256": "ea1416e16459974175f016047706cda5279477d00426d2820ba68e60e7627650"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/equipment-library/two-stage.recipe.json",
+      "group": "examples",
+      "bytes": 9198,
+      "sha256": "468b1d036a09f2cd15bf317ce81e3e52c990d1bad05ab2dde2b0012e92d2738b"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/forward-physics/coupled-buffer-storage.project.json",
+      "group": "examples",
+      "bytes": 172899,
+      "sha256": "1c5c84ade564aa265d281b666e138739f4248ddc6b8121712977b423d001e77e"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/forward-physics/coupled-buffer-storage.recipe.json",
+      "group": "examples",
+      "bytes": 10616,
+      "sha256": "fa901de9750f99c0a04961d59e90397d270aebace6048d0a5e9664337c98f6ec"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/forward-physics/finite-ua-coil-intercooler.project.json",
+      "group": "examples",
+      "bytes": 138970,
+      "sha256": "e4d0e0b7b7766e3b5461b494e93455f268e1f6493c2e1bb00b8d198075c6d2b7"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/forward-physics/finite-ua-coil-intercooler.recipe.json",
+      "group": "examples",
+      "bytes": 11681,
+      "sha256": "446cef51c8b9771149671a0d75e00cb5372266854ce719e72b1852d6fe627907"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/forward-physics/headed-tank-tap.project.json",
+      "group": "examples",
+      "bytes": 108288,
+      "sha256": "f9d01fc88bbf9ea5fae1a911fe46601138afcdbd0933c60d7f81f6179af1a463"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/forward-physics/headed-tank-tap.recipe.json",
+      "group": "examples",
+      "bytes": 7535,
+      "sha256": "bed36f6725273e5a91d3cd6a224cd1a2f78714e4763b1ed9ebe5ef8eb02ddcce"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/forward-physics/held-shell-tube.project.json",
+      "group": "examples",
+      "bytes": 126387,
+      "sha256": "b5a4980063c4ade67af88c8ff72922e74a0adfb41e0444e99976744e73c4a1a9"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/forward-physics/held-shell-tube.recipe.json",
+      "group": "examples",
+      "bytes": 9907,
+      "sha256": "a3492d4fe400c03560804c17f12e4406e7dc844a7148a487fad2bd6e2910a585"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/forward-physics/thermal-manifold-6.project.json",
+      "group": "examples",
+      "bytes": 115124,
+      "sha256": "cf89923cec129274af3246d7960e752c295403fc3f7b8b658d2e726ad3b40ef3"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/forward-physics/thermal-manifold-6.recipe.json",
+      "group": "examples",
+      "bytes": 18629,
+      "sha256": "2326826358b032234f5c28623695d1df11208c76d6fac6b1b329434645a6dae2"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/forward/hydronic-buffer-stagnant.project.json",
+      "group": "examples",
+      "bytes": 87419,
+      "sha256": "0194ba2ab9a380b8bba2eb00ea9a89a14d43029a4a1fb2ecb6f0e5c9c0d525c2"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/forward/hydronic-buffer-stagnant.recipe.json",
+      "group": "examples",
+      "bytes": 6118,
+      "sha256": "feeb95042fa0fb5184a4558a4602a804fd39adff9873a5bf90eb1dc1cb215c60"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/forward/hydronic-buffer.project.json",
+      "group": "examples",
+      "bytes": 86779,
+      "sha256": "5df088f56c07d23dd80b73f1833cdec76fef236f1eaa57901106058c0215c731"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/forward/hydronic-buffer.recipe.json",
+      "group": "examples",
+      "bytes": 5557,
+      "sha256": "7ca3f9f5aaea45b1a29f894328afe608a4fce4a3edcf938d4c9d3ae079b72cb9"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/hvac-basic/hvac-basic-plant.project.json",
+      "group": "examples",
+      "bytes": 439449,
+      "sha256": "ef29f8f1fabb03327620225e8f6b9b6a380b152876167bb41137e83c1c1629b4"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/hvac-expansion/air-branch-dry.project.json",
+      "group": "examples",
+      "bytes": 34301,
+      "sha256": "fffddb4f55b169549d795e7071a3168bfe6fc0fe9295b3c972d59ea661abd04d"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/hvac-expansion/air-branch-dry.recipe.json",
+      "group": "examples",
+      "bytes": 3844,
+      "sha256": "aadc69944e41a85184f030805e781b99df0f5c85bab5e6d2495243cd87142b64"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/hvac-expansion/air-branch-moist.project.json",
+      "group": "examples",
+      "bytes": 34720,
+      "sha256": "3f65f75aab115a81d4a1b8a0df447ada260eef8086265089ac8b6f3a829e23fe"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/hvac-expansion/air-branch-moist.recipe.json",
+      "group": "examples",
+      "bytes": 4261,
+      "sha256": "142a2feaebec571353495e696ca776e46e0a8f1ae8e8c4e3588ca8ee8453b153"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/hvac-expansion/air-cooled-chiller.project.json",
+      "group": "examples",
+      "bytes": 71425,
+      "sha256": "1e65110d8498abea3eb2a28e1d8901a1a655bd77094e46d0c2a4f627dd52de05"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/hvac-expansion/air-cooled-chiller.recipe.json",
+      "group": "examples",
+      "bytes": 2880,
+      "sha256": "0ca843ed1e5a7b8a9f48109eef6f1580c5202b6fc31a2cbd3f1a4db33d010cb1"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/hvac-expansion/air-recovery-moist.project.json",
+      "group": "examples",
+      "bytes": 23783,
+      "sha256": "1fa0449dea8bc7c965a501a9868b8da2dbb61fa4c91a801d1fe4ba8e1dd6eb81"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/hvac-expansion/air-recovery-moist.recipe.json",
+      "group": "examples",
+      "bytes": 4986,
+      "sha256": "4d635f5eaec04b15c424bbf0a6df9b4c9d1ef5c941d0d756c61d66683c035a08"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/hvac-expansion/air-source-heat-pump.project.json",
+      "group": "examples",
+      "bytes": 66706,
+      "sha256": "762d34bfe1f900b59e0c101a3ee91b0e3744d57927413f54273b4626b7ab1b81"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/hvac-expansion/air-source-heat-pump.recipe.json",
+      "group": "examples",
+      "bytes": 2957,
+      "sha256": "08a2d1a7d707e76073ece7d02eba8479f8c9ed5057d82be6dd50321af0829f5a"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/hvac-expansion/closed-buffer-cooling.project.json",
+      "group": "examples",
+      "bytes": 46601,
+      "sha256": "5424186a0d83260b42a7a5c95608d17b1a89c65087108367b27237287ef865b1"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/hvac-expansion/closed-buffer-cooling.recipe.json",
+      "group": "examples",
+      "bytes": 3598,
+      "sha256": "ed5680986d2958b772e3446baa7c286d1a951efa59a0b6a7c93f60832f70dead"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/hvac-expansion/closed-buffer-mixing.project.json",
+      "group": "examples",
+      "bytes": 26090,
+      "sha256": "9727bf88058db78cd17972a68082b1ec0d164a1d8eb9b1047e4748b4ea4d6a7a"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/hvac-expansion/closed-buffer-mixing.recipe.json",
+      "group": "examples",
+      "bytes": 3027,
+      "sha256": "16ae74bd39a96735c4d28cdf080d6dca1aabdbe36d8fca4e9a931c3f163cdd8d"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/hvac-expansion/enthalpy-recovery.project.json",
+      "group": "examples",
+      "bytes": 54505,
+      "sha256": "16a31dec56d96156a25184f7dd43cdb035ba1c74367731d840b98977a686e31e"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/hvac-expansion/enthalpy-recovery.recipe.json",
+      "group": "examples",
+      "bytes": 4694,
+      "sha256": "4c97a1efdb142b406fed717eef7146066ac6d99d420e782eb6dd93db4f7191cd"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/hvac-expansion/fan-running-dry.project.json",
+      "group": "examples",
+      "bytes": 25917,
+      "sha256": "79c44ef431005fd4174fac36f540394c823eba5a14adf816b9d915154938945f"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/hvac-expansion/fan-running-dry.recipe.json",
+      "group": "examples",
+      "bytes": 3211,
+      "sha256": "ec49680d5839fb1d4c263519f1efc5dc1afa57b612b5f6d86578703adef69e87"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/hvac-expansion/fan-running-moist.project.json",
+      "group": "examples",
+      "bytes": 26336,
+      "sha256": "01a0cbd3ecfbeb3847479be9e60fadbef947557fbfac98699ec5078022ff1664"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/hvac-expansion/fan-running-moist.recipe.json",
+      "group": "examples",
+      "bytes": 3628,
+      "sha256": "5ed726f94355ceb117421b0c173b4745a34b32738b2b670c5b41821bfc691ddb"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/hvac-expansion/gas-expansion-fill.project.json",
+      "group": "examples",
+      "bytes": 51352,
+      "sha256": "c79184307cd62da39dd86ba14d42972b7d1ba268b26db65fd83d866a25711998"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/hvac-expansion/gas-expansion-fill.recipe.json",
+      "group": "examples",
+      "bytes": 3921,
+      "sha256": "72dcf6a61861c4de76a8460405b5c92181b068817e20da891f90d02068955414"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/hvac-expansion/geometry_bend.project.json",
+      "group": "examples",
+      "bytes": 21279,
+      "sha256": "82a5818cfa58320057f64a21afa47b9cf4b64b7968aa8d11d6cc19502b93ed80"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/hvac-expansion/geometry_bend.recipe.json",
+      "group": "examples",
+      "bytes": 2819,
+      "sha256": "fa79d3b578094da615dc4f38854394d674eb3aa39a52541e35aeb6c674d04f4b"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/hvac-expansion/hydronic_boiler.project.json",
+      "group": "examples",
+      "bytes": 22353,
+      "sha256": "498790b4363e6e6c9d193a5b2d302ebfab70f25bff255269fef8f745fd6ba6ef"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/hvac-expansion/hydronic_boiler.recipe.json",
+      "group": "examples",
+      "bytes": 2827,
+      "sha256": "b32806b58b55d3875233798d5cfa488ddb04b607731ef0665f3aadd5f4548dd1"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/hvac-expansion/plate-water-glycol.project.json",
+      "group": "examples",
+      "bytes": 24667,
+      "sha256": "c93e0655eee1b2bc362eae34abbec10466e430b817cf866b66d26e1f03558db5"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/hvac-expansion/plate-water-glycol.recipe.json",
+      "group": "examples",
+      "bytes": 4810,
+      "sha256": "46f158a3e8959d54ece7f8439257691144ddb0b58ac8e1c0b0568c0ba887567d"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/hvac-expansion/tower-pool-evaporation.project.json",
+      "group": "examples",
+      "bytes": 51614,
+      "sha256": "c069d763351a754ea2f2237d314ed9abbcb232d83f9a6f4f0e91ce5d04b71c42"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/hvac-expansion/tower-pool-evaporation.recipe.json",
+      "group": "examples",
+      "bytes": 6388,
+      "sha256": "aa1d210853b363cd03389fbd604204d83c547711f07c389d05446b5ddf4200f8"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/hvac-expansion/tower-pool-makeup.project.json",
+      "group": "examples",
+      "bytes": 51616,
+      "sha256": "98b4ad092bcba7ce0d6e150d0aab6a2efda236e9deae6182dcb13bcad3d45093"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/hvac-expansion/tower-pool-makeup.recipe.json",
+      "group": "examples",
+      "bytes": 6395,
+      "sha256": "31d3913a20ca852b3909374e1332ce569c64964a5dd4f275399131f1fcdafdd3"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/hvac-expansion/wet-pool-makeup.project.json",
+      "group": "examples",
+      "bytes": 134191,
+      "sha256": "a5cb55ba8f41a648d1343fc643623be2479d03e5ec616101ae45140a50db7221"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/hvac-expansion/wet-pool-makeup.recipe.json",
+      "group": "examples",
+      "bytes": 5883,
+      "sha256": "3e30fe925ac69f7f07776a6e78679a8b6049b95dd7dad1057ddd6d99ef5c6c27"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/hvac-expansion/wet-pool-no-makeup.project.json",
+      "group": "examples",
+      "bytes": 134193,
+      "sha256": "74cfa1a5a3cf3ab5c64d4e86d588e750f760d7aaa1adbe84dec5137adb10384d"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/hvac-expansion/wet-pool-no-makeup.recipe.json",
+      "group": "examples",
+      "bytes": 5882,
+      "sha256": "c96d79b8a06e8293198348db37f5bdcc01480e3b8e60c6971457e7e550b163a5"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/refrigeration-modular/README.md",
+      "group": "examples",
+      "bytes": 1043,
+      "sha256": "6150fa9677bf09e816c5e73c73c9e57ba1ad2f50c593c5d1b453d268968f4589"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/refrigeration-modular/air-cooled.project.json",
+      "group": "examples",
+      "bytes": 105432,
+      "sha256": "7155a2c8acf7805800dd2695b73cc27d404e1bebff6f7029992de1c90438df1a"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/refrigeration-modular/air-cooled.recipe.json",
+      "group": "examples",
+      "bytes": 6996,
+      "sha256": "e7dd0db28024a9d912131578521b0a7ff7daab75c5d3a14529736a9b713c50ea"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/refrigeration-modular/cascade.project.json",
+      "group": "examples",
+      "bytes": 119961,
+      "sha256": "bbd6647ea5629b15b27b318e60f2dc7e6d4fac3174c79f8c17d766985b67f5b7"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/refrigeration-modular/cascade.recipe.json",
+      "group": "examples",
+      "bytes": 9188,
+      "sha256": "3af7e8e731af64dd2a5d0b0aca1b8f5e2ed908f87985f1f568eff7c206d0e74a"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/refrigeration-modular/dx.project.json",
+      "group": "examples",
+      "bytes": 68162,
+      "sha256": "23fa97d2ae86b09971dc5dadbf7b9d7b2d79530d20d016fbb8465e5fec613aea"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/refrigeration-modular/dx.recipe.json",
+      "group": "examples",
+      "bytes": 5404,
+      "sha256": "2d804282743991fcc9f76a515b1bd3f96b7d7a9ad66d8e29fadf0911ea960862"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/refrigeration-modular/electric-defrost.project.json",
+      "group": "examples",
+      "bytes": 124031,
+      "sha256": "189820f44c8d1d5270eaa272de536246dea5844810720008dbe57ea37436cfce"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/refrigeration-modular/electric-defrost.recipe.json",
+      "group": "examples",
+      "bytes": 9391,
+      "sha256": "105b0cd0e614a949861ac7d5c0d60d96c61581aa097fcace15aa13b0c43925f3"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/refrigeration-modular/multi-cooler.project.json",
+      "group": "examples",
+      "bytes": 103325,
+      "sha256": "c3f6558be3cdedfade0f82ff181a1a06817c15455cfe702d4d1e39d28e735a30"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/refrigeration-modular/multi-cooler.recipe.json",
+      "group": "examples",
+      "bytes": 8935,
+      "sha256": "d68a3c342bd6e2a37f7fef29f1159d6fe4f52fe16c3d4e8f057864d2317c4e5b"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/refrigeration-modular/performance-compressor.project.json",
+      "group": "examples",
+      "bytes": 101744,
+      "sha256": "c3e60d01330e4dc32dee714864314fb35434258a51a38a665016c6075bcb3942"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/refrigeration-modular/performance-compressor.recipe.json",
+      "group": "examples",
+      "bytes": 6878,
+      "sha256": "b814678d340088c1869979079a8ff8b46072096a538095d38479ea4856601b72"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/refrigeration-modular/single-room.project.json",
+      "group": "examples",
+      "bytes": 97876,
+      "sha256": "ac30d317a7fd9685a059f1329edba6d1410a9a384bc165894e6ad08869eead72"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/refrigeration-modular/single-room.recipe.json",
+      "group": "examples",
+      "bytes": 6842,
+      "sha256": "43ea14be855476b2bf98f1c7c61589a0e7a56f8eb7609d09077f187533816771"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/refrigeration-modular/stream-line.project.json",
+      "group": "examples",
+      "bytes": 110400,
+      "sha256": "28b8606452cf589659e2da5cc13135ae99cabfce21b0464012fffb69b4a0fecb"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/refrigeration-modular/stream-line.recipe.json",
+      "group": "examples",
+      "bytes": 7512,
+      "sha256": "53ebf2d69a243cc47cd905ad4a3f36e81c97fe739481cc09a843b128e09b9ab0"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/refrigeration-modular/stream-recuperator.project.json",
+      "group": "examples",
+      "bytes": 120860,
+      "sha256": "83b66b983881ef92f1fb8b938dfdaef7af163a4bd5afb776b57a3b081910d75a"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/refrigeration-modular/stream-recuperator.recipe.json",
+      "group": "examples",
+      "bytes": 8344,
+      "sha256": "6607355ec2ffea3f9acb99e2aad763825609e7c00cc9634c93b4dc05a5809f24"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/refrigeration-modular/stream-subcooler.project.json",
+      "group": "examples",
+      "bytes": 124106,
+      "sha256": "85e032a11a77632c5d225953d7646ee62f1c15777884a349185e77742035667d"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/refrigeration-modular/stream-subcooler.recipe.json",
+      "group": "examples",
+      "bytes": 8177,
+      "sha256": "77deef9a3bf9d158306a23b5ee3350678200ea783e1f198eb39651dff27578f6"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/refrigeration-modular/two-room.project.json",
+      "group": "examples",
+      "bytes": 105537,
+      "sha256": "274080ceaf4f2a8beead7e8ba5f1dca817f8821173d583628a0246add5dca49e"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/refrigeration-modular/two-room.recipe.json",
+      "group": "examples",
+      "bytes": 11453,
+      "sha256": "cc06c38ff734acbad62bf8333d1e315dc3c37d48298003cb82d3c5f4270d3e8b"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/refrigeration-modular/two-stage.project.json",
+      "group": "examples",
+      "bytes": 115646,
+      "sha256": "d783db4d7208005334988170bdb0bc956bcd4215e23e23ea2b1e3415b8050a16"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/refrigeration-modular/two-stage.recipe.json",
+      "group": "examples",
+      "bytes": 9021,
+      "sha256": "205e5dea77376f297f9ac142eb062c3a8e9aeab90d2f7b8ad45519c3523cdf5b"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/regulating-valves/differential_bypass_valve.project.json",
+      "group": "examples",
+      "bytes": 21273,
+      "sha256": "d7ffe88e934301e4821ec6200e5a12c822331e0f05f4e625faa196b0ee74950b"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/regulating-valves/differential_bypass_valve.recipe.json",
+      "group": "examples",
+      "bytes": 2862,
+      "sha256": "adba2062eafc950d65ba0d0643c87b88b18692bbd4350b84f493a42ac0f4c46e"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/regulating-valves/pressure_independent_valve.project.json",
+      "group": "examples",
+      "bytes": 21306,
+      "sha256": "90463319a4e0551432895867a95597af2f6e582a2150a81e272dc904e8794237"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/regulating-valves/pressure_independent_valve.recipe.json",
+      "group": "examples",
+      "bytes": 2881,
+      "sha256": "697ef06de1d2a4d78a787eb1371a61b75b80040bad4ab28daa17e2f3068bc9ac"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/room-control/room-control-load-step.project.json",
+      "group": "examples",
+      "bytes": 355582,
+      "sha256": "596f6e530f20e6e52c85bd47c72d13acefb29a5c053fb0647c926efda0d0f632"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/room-control/room-control-setpoint-step.project.json",
+      "group": "examples",
+      "bytes": 355606,
+      "sha256": "5774223e1a8a8d282f4ec494f649d3cf75fe0df0adfae60a17e4ec6c4bb38805"
+    },
+    {
+      "path": "fluidnet-prototype-engine/examples/room-control/room-temperature-control.project.json",
+      "group": "examples",
+      "bytes": 354821,
+      "sha256": "bc2a10a7e1748b303842dafb1bd33855dd64b53a5ebd6e78e7229e4b246acd06"
+    },
+    {
+      "path": "fluidnet-prototype-engine/frontend/api-examples.js",
+      "group": "frontend",
+      "bytes": 1814,
+      "sha256": "cc0a3be90983ff1079cfeea7d6c386fb6dfb059267379a9e143e37bd1fed9742"
+    },
+    {
+      "path": "fluidnet-prototype-engine/frontend/cold-storage.js",
+      "group": "frontend",
+      "bytes": 59430,
+      "sha256": "dbbea4e55c6a2dc3c114b00198bd38ff99bd31633521041b4769ed86f485e76e"
+    },
+    {
+      "path": "fluidnet-prototype-engine/frontend/device-batch.js",
+      "group": "frontend",
+      "bytes": 12910,
+      "sha256": "5ffa344b421df56f51c591cb7ae0e5097cb4f7ce9265a017a584abb8166c8a7f"
+    },
+    {
+      "path": "fluidnet-prototype-engine/frontend/device-panel.js",
+      "group": "frontend",
+      "bytes": 14320,
+      "sha256": "9b8b5f857f33b83479799b037676f3efcf137ef7cbaf72aa343706052dbcff0f"
+    },
+    {
+      "path": "fluidnet-prototype-engine/frontend/draft-store.js",
+      "group": "frontend",
+      "bytes": 2665,
+      "sha256": "53b6417e82e79063d8d70ff733e07af9998906cfb16336b7c319918acb09af07"
+    },
+    {
+      "path": "fluidnet-prototype-engine/frontend/engine-client.js",
+      "group": "frontend",
+      "bytes": 64086,
+      "sha256": "2a3b8f1f3665d52210d70a3be659a8a1cbf5d4d3e853b1e8d957bd77b0435ff0"
+    },
+    {
+      "path": "fluidnet-prototype-engine/frontend/equipment-library.js",
+      "group": "frontend",
+      "bytes": 2279,
+      "sha256": "c2222a218d7da3e7eee58ad449e43d7acee1f6e5926bc7563588f0491e8abbee"
+    },
+    {
+      "path": "fluidnet-prototype-engine/frontend/equipment-selection.js",
+      "group": "frontend",
+      "bytes": 15053,
+      "sha256": "a79f29d4a0ee48c80229b443f3747dff4c8f08acb3e289b599da1d81b38ff2f7"
+    },
+    {
+      "path": "fluidnet-prototype-engine/frontend/index.html",
+      "group": "frontend",
+      "bytes": 84671,
+      "sha256": "a8dac7a6a5643c4a26dd476b293dba5fa70b6aa89343255ee5f05607d6077421"
+    },
+    {
+      "path": "fluidnet-prototype-engine/frontend/module-replay.js",
+      "group": "frontend",
+      "bytes": 5184,
+      "sha256": "51f64cdf05ca2b1cad0746dbcbccba521f08418a08be27bacfda6d60320f8705"
+    },
+    {
+      "path": "fluidnet-prototype-engine/frontend/panel-layout.js",
+      "group": "frontend",
+      "bytes": 5921,
+      "sha256": "eca82c269a9197f8874276f45985386de8a8fbfaf2dbf37ce22478c08a6e81df"
+    },
+    {
+      "path": "fluidnet-prototype-engine/frontend/parameter-batch.js",
+      "group": "frontend",
+      "bytes": 5415,
+      "sha256": "9d8aee640f3a0bee0a6f244a1bc458c1eff8a6fe530b0d48844e3ba8e0fad567"
+    },
+    {
+      "path": "fluidnet-prototype-engine/frontend/path-trace.css",
+      "group": "frontend",
+      "bytes": 1513,
+      "sha256": "2a384a18e8a9b3222e22cfbe208b4b5f98bc48dfe620aee26a6a7b36cc661e7b"
+    },
+    {
+      "path": "fluidnet-prototype-engine/frontend/path-trace.js",
+      "group": "frontend",
+      "bytes": 4117,
+      "sha256": "c314a8cdba9ae914bac9d90242db7a88badda94fe812f9afeed9986f24e1d92a"
+    },
+    {
+      "path": "fluidnet-prototype-engine/frontend/project-editing.js",
+      "group": "frontend",
+      "bytes": 4946,
+      "sha256": "152e3ad02af7dcbdb43ea80a700e36dae323999f43baf285d067ba554cd59b2e"
+    },
+    {
+      "path": "fluidnet-prototype-engine/frontend/project-model.js",
+      "group": "frontend",
+      "bytes": 18335,
+      "sha256": "2c838d9ed2b4c1b25e37244192c12401b05cf88a1aab1865caa832b4877a60b9"
+    },
+    {
+      "path": "fluidnet-prototype-engine/frontend/project-state.js",
+      "group": "frontend",
+      "bytes": 6031,
+      "sha256": "f1a60077d9f791d8fc8646b9edfcf08363258b52ee1a025118bd9085ce670bce"
+    },
+    {
+      "path": "fluidnet-prototype-engine/frontend/studio.js",
+      "group": "frontend",
+      "bytes": 424453,
+      "sha256": "f144eb72c405a95e09801cbca9bbfaf8c6de1f52df65304b59faf6d17b870c8a"
+    },
+    {
+      "path": "fluidnet-prototype-engine/frontend/system-inspection.js",
+      "group": "frontend",
+      "bytes": 7336,
+      "sha256": "e4677da19488952496cafb14f5238ec697c1b69cda136070b43bc6123d056678"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/air_branch_box/manifest.json",
+      "group": "modules",
+      "bytes": 18696,
+      "sha256": "3e3ef34c386d2f39309b6cba35d29b176c001bb19b4ad36c6937f8997d61e1fd"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/air_branch_box/module.py",
+      "group": "modules",
+      "bytes": 159,
+      "sha256": "06599d0e485fa528b96f71fbca352f8bba0a4f8b094da0b943ab41127f3b80f5"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/air_recovery_sensible/manifest.json",
+      "group": "modules",
+      "bytes": 6486,
+      "sha256": "889b6eb6c30acf550be0c082e6389077375ea5330fab85a3304382eba6ab06f0"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/air_recovery_sensible/module.py",
+      "group": "modules",
+      "bytes": 2221,
+      "sha256": "d262cb4440b2d599a3bb4338e52e176a53effea4da8e35a6ce0546d6eba280dc"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/design_fan/README.md",
+      "group": "modules",
+      "bytes": 335,
+      "sha256": "b17303c9ada3d808bd61f7d3b16a6a058b8186d38719feeba03b8fff7fce52d8"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/design_fan/design.py",
+      "group": "modules",
+      "bytes": 2240,
+      "sha256": "68b4d4d1a0757eec23d05ac5cc9738fc290de575f986dc2291c91295a77e12be"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/design_fan/manifest.json",
+      "group": "modules",
+      "bytes": 12914,
+      "sha256": "03bfc6508c0bb49638df20d5b4ccfe1bb1d95135905494c57e61a81cdaddd527"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/design_fan/module.py",
+      "group": "modules",
+      "bytes": 4239,
+      "sha256": "7ed683d30de174843a621bfe01b14bb8f6e376e7b8dc259306fe5bb82b587d95"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/design_plate_exchanger/README.md",
+      "group": "modules",
+      "bytes": 347,
+      "sha256": "aec59eab4eb81b74f2b2f8d9dedd7f53b9cec8a54fc35b2b1534894a99fb0fce"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/design_plate_exchanger/design.py",
+      "group": "modules",
+      "bytes": 1444,
+      "sha256": "4a76ecfac4523813170a415b738c769db9791fbfe690df356983e40e55260c65"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/design_plate_exchanger/manifest.json",
+      "group": "modules",
+      "bytes": 11414,
+      "sha256": "2e0e02131dcfd899925857d3d24133daf5a99a4a3864106bfc8ae852e2c803c5"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/design_plate_exchanger/module.py",
+      "group": "modules",
+      "bytes": 1856,
+      "sha256": "77742794b10edaf890826dcbea5cc6bcab23c6f046d3c5760bb6ec63c35ef486"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/design_pump/README.md",
+      "group": "modules",
+      "bytes": 336,
+      "sha256": "7c1fcaa6766995d5f149b41e8b097c43679f9af6fe2d7200f00179cf812daded"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/design_pump/design.py",
+      "group": "modules",
+      "bytes": 2183,
+      "sha256": "fa157f8c565cfa86d9cc6ca5f3af0764b48231f6b2493750b2edac55bb1c35d4"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/design_pump/manifest.json",
+      "group": "modules",
+      "bytes": 12364,
+      "sha256": "6f1aa0b78f975ecc7a1fd1ae4e69c9f0a988beb5094d2f0cfb247ca23d88c66a"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/design_pump/module.py",
+      "group": "modules",
+      "bytes": 4167,
+      "sha256": "96a0697e69c9c61b86b76cd76d9369eb359254ba165e07b3cd369efa7f805e7f"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/design_valve/README.md",
+      "group": "modules",
+      "bytes": 770,
+      "sha256": "abbfd372dcb96f4cad1a6f060f75ab21cb80d70e258b07237f05435855eadda5"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/design_valve/design.py",
+      "group": "modules",
+      "bytes": 1239,
+      "sha256": "0f1ea8cba0118a81ac3a4f2ec28336128cff71f9829b50fb18ce2bb75a9bf059"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/design_valve/manifest.json",
+      "group": "modules",
+      "bytes": 5744,
+      "sha256": "cf1bfc6df69db7fe0c9f034658f3d6080682686e310d90efdfae0638b6f1d32b"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/design_valve/module.py",
+      "group": "modules",
+      "bytes": 1954,
+      "sha256": "2abda26cadcea9e72e36920d676e2bf2c9d72e51e18516e29132210321887cb8"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/differential_bypass_valve/README.md",
+      "group": "modules",
+      "bytes": 174,
+      "sha256": "1accd8ceb77756d555bf6d945755db7be9999cad5c76da5b5640c2f05f873f94"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/differential_bypass_valve/manifest.json",
+      "group": "modules",
+      "bytes": 6353,
+      "sha256": "aa2edeffaa1fba70a2269b07161c2c894c9a9ec332c84334dbfe3a90de19cad2"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/differential_bypass_valve/module.py",
+      "group": "modules",
+      "bytes": 2242,
+      "sha256": "c1e515fe52f0f70656b51b91bc74fbb221396f4efc604e79c425afd6c11740ce"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/fan_performance/manifest.json",
+      "group": "modules",
+      "bytes": 8476,
+      "sha256": "2383074ecd40a60dda1c6c1216040c22078392a22d5ff7626c9b292a5d06d152"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/fan_performance/module.py",
+      "group": "modules",
+      "bytes": 3911,
+      "sha256": "adb4d60d4a896f760afe211aa4e0d73db8621afaa38aeaedeb014fcda0d68fb1"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/geometry_bend/README.md",
+      "group": "modules",
+      "bytes": 161,
+      "sha256": "62d964bd5c1a16a925c0782055b6110fe88c0f52086a87f38910e876769e5e34"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/geometry_bend/manifest.json",
+      "group": "modules",
+      "bytes": 6663,
+      "sha256": "c95ae016217ff6c8c78fef1f3629abb528992485c992f60573143768b44425a4"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/geometry_bend/module.py",
+      "group": "modules",
+      "bytes": 1862,
+      "sha256": "16a99621114d4afd0b7446a50b6d081d5e6b3ac33e607605cc533aacd7b01862"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/group_filter_fan/README.md",
+      "group": "modules",
+      "bytes": 341,
+      "sha256": "b1e78a32b93b2e358e565a074df1cad52f13e38dd742e4a4692e9a1d798bfdda"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/group_filter_fan/manifest.json",
+      "group": "modules",
+      "bytes": 60102,
+      "sha256": "bffb6826fa6af018f5032b24f2cac8e46acbb3c3b38b715f8903c36d754d03dd"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/group_filter_fan/module.py",
+      "group": "modules",
+      "bytes": 159,
+      "sha256": "06599d0e485fa528b96f71fbca352f8bba0a4f8b094da0b943ab41127f3b80f5"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/group_parallel_pumps/README.md",
+      "group": "modules",
+      "bytes": 345,
+      "sha256": "ae01b9377dea77751407a0e9ac2801a3310dcc3090c3d0ae6614fe21b06ca7fe"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/group_parallel_pumps/manifest.json",
+      "group": "modules",
+      "bytes": 88320,
+      "sha256": "f9e3805f03cda724097800159febf2e294704f65d43969ce0967d7f3195ad17f"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/group_parallel_pumps/module.py",
+      "group": "modules",
+      "bytes": 159,
+      "sha256": "06599d0e485fa528b96f71fbca352f8bba0a4f8b094da0b943ab41127f3b80f5"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/group_pump_branch/README.md",
+      "group": "modules",
+      "bytes": 342,
+      "sha256": "635b9c41338850d3eea3536b9164342cc071631eaff27453a51b244eb65d3d4f"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/group_pump_branch/manifest.json",
+      "group": "modules",
+      "bytes": 43327,
+      "sha256": "b72c424a40b389ddba61f2d6f787f7eb86015d5e934766a4ebdbbb6773a3f1c0"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/group_pump_branch/module.py",
+      "group": "modules",
+      "bytes": 159,
+      "sha256": "06599d0e485fa528b96f71fbca352f8bba0a4f8b094da0b943ab41127f3b80f5"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/group_recovery_section/README.md",
+      "group": "modules",
+      "bytes": 347,
+      "sha256": "ee3b973ab7bf631ebf41ac8301ce14fcfe144490aeda7d0e4794e20ff91cf3b5"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/group_recovery_section/manifest.json",
+      "group": "modules",
+      "bytes": 66075,
+      "sha256": "effc7f0d700da5b77343faff0e61b31b60f75877d47c862b105f827f3426872e"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/group_recovery_section/module.py",
+      "group": "modules",
+      "bytes": 159,
+      "sha256": "06599d0e485fa528b96f71fbca352f8bba0a4f8b094da0b943ab41127f3b80f5"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/group_secondary_exchanger/README.md",
+      "group": "modules",
+      "bytes": 350,
+      "sha256": "6da51a15d17f68425032fd79b24db5e4f65b3d1640509bf3d0a79a8d284d9086"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/group_secondary_exchanger/manifest.json",
+      "group": "modules",
+      "bytes": 40114,
+      "sha256": "79b786d8b8a22e37619bf47abb18b7e81d77356f6e456eb548553b2b42750057"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/group_secondary_exchanger/module.py",
+      "group": "modules",
+      "bytes": 159,
+      "sha256": "06599d0e485fa528b96f71fbca352f8bba0a4f8b094da0b943ab41127f3b80f5"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/hydronic_boiler/README.md",
+      "group": "modules",
+      "bytes": 163,
+      "sha256": "34884f6943412c4fc94973804bae25e3ab24f629259d3872a36f4901e4d6a2b2"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/hydronic_boiler/manifest.json",
+      "group": "modules",
+      "bytes": 7490,
+      "sha256": "c6644feadbc09fc6e0220a52c39f866c39b92781c81db53235f56ea615def431"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/hydronic_boiler/module.py",
+      "group": "modules",
+      "bytes": 2032,
+      "sha256": "e179db6d58a15180677b2521e5322bd6842fb975da9f9fa8db26a79ab210efd3"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/plate_exchanger/manifest.json",
+      "group": "modules",
+      "bytes": 7725,
+      "sha256": "f15351a6f923d006fdc11702367f73c6e87d6b0af40ae973917686b2285f55f5"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/plate_exchanger/module.py",
+      "group": "modules",
+      "bytes": 1856,
+      "sha256": "77742794b10edaf890826dcbea5cc6bcab23c6f046d3c5760bb6ec63c35ef486"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/pressure_independent_valve/README.md",
+      "group": "modules",
+      "bytes": 175,
+      "sha256": "67a1fe0464838bf557d34aa73a028fae7871054456e06e7d376fabc7aaf1b886"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/pressure_independent_valve/manifest.json",
+      "group": "modules",
+      "bytes": 6368,
+      "sha256": "83e19c96bc0d542e0b8af822d5f658a1f3bb11de44de480d44d74d890c09f72c"
+    },
+    {
+      "path": "fluidnet-prototype-engine/modules/pressure_independent_valve/module.py",
+      "group": "modules",
+      "bytes": 2240,
+      "sha256": "e31fb0abb2019fdb6e0495199dbf17d04a6246f3ce98b70a88fb5d297214a6a5"
+    },
+    {
+      "path": "fluidnet-prototype-engine/package.json",
+      "group": "package.json",
+      "bytes": 13252,
+      "sha256": "468933f1499639427ba61b649680342d360f7b13a332ed32fefb4f533db9814d"
+    },
+    {
+      "path": "fluidnet-prototype-engine/scripts/generate_capability_inventory.py",
+      "group": "scripts",
+      "bytes": 1513,
+      "sha256": "40d690dfda3a976ca31e76b4afed785c3e2d5b530a5430df7add854c7b5d1b81"
+    },
+    {
+      "path": "fluidnet-prototype-engine/scripts/generate_contracts.py",
+      "group": "scripts",
+      "bytes": 13701,
+      "sha256": "ec8bd5cd2b72856b719d0c8e1493cd5e527a974d7263d7eb6ed488c8139eb1f8"
+    },
+    {
+      "path": "fluidnet-prototype-engine/scripts/generate_design_groups.py",
+      "group": "scripts",
+      "bytes": 2107,
+      "sha256": "96afdfa9c1ffe78880066081429121705929c93b9e384b8fcc433334440b0fc4"
+    },
+    {
+      "path": "fluidnet-prototype-engine/scripts/generate_forward_physics.py",
+      "group": "scripts",
+      "bytes": 1513,
+      "sha256": "a6d31186d879af8233af5172f21783f5986919926ae5b85ed1ab6b5e1723e955"
+    },
+    {
+      "path": "fluidnet-prototype-engine/scripts/generate_hvac_expansion.py",
+      "group": "scripts",
+      "bytes": 1824,
+      "sha256": "3b25b5be110c9b9ae3df43ce87489155d5e280916a38793535644c6dfcb5399b"
+    },
+    {
+      "path": "fluidnet-prototype-engine/scripts/generate_hydronic_buffer.py",
+      "group": "scripts",
+      "bytes": 1134,
+      "sha256": "abebfefd64eb9a1b4dd8766a23d9b2e1aceb8be39185a9fda772db09e9806ab7"
+    },
+    {
+      "path": "fluidnet-prototype-engine/scripts/generate_regulating_valves.py",
+      "group": "scripts",
+      "bytes": 1580,
+      "sha256": "9944f8502edb36fe845c03f3eb389791578e7990b53b36a29b02ea07775ae9d1"
+    },
+    {
+      "path": "fluidnet-prototype-engine/scripts/generate_simple_equipment.py",
+      "group": "scripts",
+      "bytes": 1713,
+      "sha256": "b5dbab5d202ef6a3940337890a078274eb0f236999e83cf2113d0d9e593d5be1"
+    },
+    {
+      "path": "fluidnet-prototype-engine/scripts/verify_forward_scenarios.py",
+      "group": "scripts",
+      "bytes": 11415,
+      "sha256": "05cdff98b6113b392ecc0c0e33dd1ee233124f47cb183c1ba2ec26efcd5a9866"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/api-examples.test.mjs",
+      "group": "tests",
+      "bytes": 2407,
+      "sha256": "54b9beaba5c1b01b4f2aab3a71d330c738dc257328d5355dad4c73097bf8ac99"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/browser-api-examples.mjs",
+      "group": "tests",
+      "bytes": 2813,
+      "sha256": "c82f512b91651a8c4f5f4e0833c4e8a36ad277b2d05384ec67cad0306ecfe821"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/browser-auth.mjs",
+      "group": "tests",
+      "bytes": 3660,
+      "sha256": "21aa97629f686201df1fd73dc839b5c2d998821c078603f66f337fb1c5a5321f"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/browser-design-library.mjs",
+      "group": "tests",
+      "bytes": 4067,
+      "sha256": "5aaeb65acbe48217ebd10c1fd8e928c5d9acdab688cf58cf596cd00df9d625f1"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/browser-device-batch.mjs",
+      "group": "tests",
+      "bytes": 7515,
+      "sha256": "9c212a354758a899bf9c9d6938d35db28c20a73b6362b94b160ab478b0adaeb9"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/browser-device-panel.mjs",
+      "group": "tests",
+      "bytes": 4633,
+      "sha256": "9c1bed89ee67637387955dfd96a822b33cf8358b2d8ac59f0c9ab24d4bb73883"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/browser-device-transactions.mjs",
+      "group": "tests",
+      "bytes": 7008,
+      "sha256": "586e78d1d0665be0572ba0c4675f704a6fac04915002e5a8af83472ac82b5709"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/browser-equipment-assembly.mjs",
+      "group": "tests",
+      "bytes": 9342,
+      "sha256": "84bf1136f1e05566b0c7d61eccd311c31f3e1cbaa90c8681ab13a949edc9dd4a"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/browser-equipment-selection.mjs",
+      "group": "tests",
+      "bytes": 5582,
+      "sha256": "0297de58c4af8bc952cf323bd0825d2fae75e5c61fa1446489ffa595b253602a"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/browser-forward-integration.mjs",
+      "group": "tests",
+      "bytes": 7498,
+      "sha256": "9ade9a17e2fcb0a13c60b2717773b7a294262b56b76c312d4ec1af597482cf61"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/browser-module-replay.mjs",
+      "group": "tests",
+      "bytes": 5845,
+      "sha256": "86c17bf2c31112bb3e2afb3eac0e3cae4e4f061a9e7ec5298152c525ada0f6f7"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/browser-multifluid.mjs",
+      "group": "tests",
+      "bytes": 4036,
+      "sha256": "98311c78badf3dcf6d7924c20d5e4e8eeb3008b12cf0aea517d211e34a72077a"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/browser-panel-layout.mjs",
+      "group": "tests",
+      "bytes": 9065,
+      "sha256": "6c56bc1b559dcc26c59197880bac61e81442c1e7e558dd9a2457bc5e13c8a9a7"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/browser-path-trace.mjs",
+      "group": "tests",
+      "bytes": 4678,
+      "sha256": "7c7125b6717288664391aaa80b024b0b94dd01ffb5e66f91bc34ea3a001267ce"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/browser-project-editing.mjs",
+      "group": "tests",
+      "bytes": 11086,
+      "sha256": "721bec658183d8e93ed8fb40e16bc50aba8a78b6df5d546c379da163c053f568"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/browser-refrigeration-group.mjs",
+      "group": "tests",
+      "bytes": 7697,
+      "sha256": "4fceca42253ea76095c5caba436c8166c4b7dd64caf0c7b3ddaf696473dbe27e"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/browser-refrigeration-modular.mjs",
+      "group": "tests",
+      "bytes": 10622,
+      "sha256": "1ef297512349e88b1812d987d1254115eb263a6557424f51a729b1364328756f"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/browser-system-inspection.mjs",
+      "group": "tests",
+      "bytes": 2794,
+      "sha256": "ccdeae41107ddf8d7b5150bdefcf2f799842135a7fd76ed36d21a6915cc0d9ac"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/canvas-port-access.test.mjs",
+      "group": "tests",
+      "bytes": 1190,
+      "sha256": "c92b8b2754eccfa4889e55ae13751af428835fa9d958681b8c42b2e51d3ba475"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/completed-run-control.test.mjs",
+      "group": "tests",
+      "bytes": 2679,
+      "sha256": "a882a7c3f37488f653d398ab490f9702e0f03f6fa8b62b419f28a872b098312b"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/device-application.test.mjs",
+      "group": "tests",
+      "bytes": 5273,
+      "sha256": "0eb4b641daa976f5786ca541aef174ee10c7f279dfd6ddf486798f08410c8fe4"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/device-batch.test.mjs",
+      "group": "tests",
+      "bytes": 3881,
+      "sha256": "2b0f1bf4ab223703e81b7e203451dea78d01c19b288cb5ba18d7dbbeeed70d18"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/device-panel.test.mjs",
+      "group": "tests",
+      "bytes": 5151,
+      "sha256": "69722da132af9283f4b6b5b6d1cca83d5a977fa8d9fda927cb01d8d8bf1e3c0c"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/equipment-selection.test.mjs",
+      "group": "tests",
+      "bytes": 3224,
+      "sha256": "e5e8837259d0704db9c9641c4bacfa9d0349094a15b1c2dcd21e95b8a2461650"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/module-replay-ui.test.mjs",
+      "group": "tests",
+      "bytes": 3476,
+      "sha256": "4152b27b40d5e06204de110ceb8964b254f04ccee1d71e16b0e6276d28cd5695"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/panel-layout.test.mjs",
+      "group": "tests",
+      "bytes": 2638,
+      "sha256": "6f431a3a5af571fa120396c106b4021443bf294281b5895b392948e3e10db8ea"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/parameter-batch.test.mjs",
+      "group": "tests",
+      "bytes": 7824,
+      "sha256": "2ac0f42a76c851994c76a9e2d637541f862cff1e27ae2e695eddd6075263c785"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/path-trace.test.mjs",
+      "group": "tests",
+      "bytes": 4299,
+      "sha256": "d5e04c034b12983c05e9b7791be8eac495ca0da56c38d0f9b8a678ebe15db63f"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/project-editing.test.mjs",
+      "group": "tests",
+      "bytes": 4014,
+      "sha256": "68a6cfe12ba945415d206dc883e98c721f775d7a49528b6733787b14bb3aefb4"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/project-model.test.mjs",
+      "group": "tests",
+      "bytes": 4920,
+      "sha256": "77ed1ae44bb6e951f3a99a86682d18cc8085c441160b27f9dfe5f9da2c9913d2"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/project-overview.test.mjs",
+      "group": "tests",
+      "bytes": 5966,
+      "sha256": "8409c45ce5ce703697e10c27e7dc17de8a6183f794ba9930b7c5aa8e9b0fe732"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/refrigeration-modular-ui.test.mjs",
+      "group": "tests",
+      "bytes": 4767,
+      "sha256": "b31b1702589a55f2164b1d4c160eed4d250a2e5a8450167b82db9aacdeebc1a5"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/source-humidity-migration.test.mjs",
+      "group": "tests",
+      "bytes": 2564,
+      "sha256": "02a999be8f414eec0b641c7de8575295576e6b6429f3dba5b3162e4677934a04"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/test_air_cooled_condenser.py",
+      "group": "tests",
+      "bytes": 7326,
+      "sha256": "0d5c192abaacb4d4c172655f1f10c4a9f5410b52b4b18c867319caf82fa3ab63"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/test_air_recovery.py",
+      "group": "tests",
+      "bytes": 2952,
+      "sha256": "4ba73c7b9a508ba1cc1274f70dfe8f4bea48b842e8ef211ce7a11caea476d7ec"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/test_air_source_heat_pump.py",
+      "group": "tests",
+      "bytes": 5320,
+      "sha256": "9588b0a6a43f5c42d5ede0e6054078dd4384226fa75f513cf0f58ce6608b3de2"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/test_air_water_chiller.py",
+      "group": "tests",
+      "bytes": 6864,
+      "sha256": "2a2b096e2757b4622a6a63f02ec6bc4e3bcad35bf05f90061e46caf20066747d"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/test_boiler_and_bend.py",
+      "group": "tests",
+      "bytes": 5336,
+      "sha256": "104e02240cdf146d89b748924e88c31bf2ba7dc5e7c843785eee63aa50bfe535"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/test_chiller_operating_limits.py",
+      "group": "tests",
+      "bytes": 12341,
+      "sha256": "556f1b1274ca15d775471e30e4db4d92a35cfcd07834f06714858ddf8dd64568"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/test_closed_buffer_tank.py",
+      "group": "tests",
+      "bytes": 7436,
+      "sha256": "1c53d44eb1a3e63e573d2d0403497f9ef62d3ec1746d657db102568a678a267c"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/test_coupled_tower_pool.py",
+      "group": "tests",
+      "bytes": 6391,
+      "sha256": "85201d7bae9f55707a182b49a323581d03925ef5c8fd523e010ef0d32483b3b6"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/test_design_groups.py",
+      "group": "tests",
+      "bytes": 10040,
+      "sha256": "fdde79372f8cbb6fae9ebc3c6c5e0be0584bb5cb0a5f03ea02f98d3a6bcfad54"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/test_dx_devices.py",
+      "group": "tests",
+      "bytes": 6443,
+      "sha256": "875c173b886e748e228baf6185b34deadc33e1fecbedf839cfd06b1f926c2afe"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/test_enthalpy_recovery.py",
+      "group": "tests",
+      "bytes": 4226,
+      "sha256": "e642507cbabf18316cbb84eaba4a7d0aa15fba92c85f252f3c0f516530bbaa60"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/test_equipment_report.py",
+      "group": "tests",
+      "bytes": 2834,
+      "sha256": "49600349635ef7cfad4e0bdabbd9f063628dd1c84ae7efbc3adb855dd503ceef"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/test_equipment_selection.py",
+      "group": "tests",
+      "bytes": 1993,
+      "sha256": "9803b30cabc6f1b474f6dd6522f1fe38e96ee0669f2c60df11b0ff94c78cab9f"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/test_expansion_tank.py",
+      "group": "tests",
+      "bytes": 4387,
+      "sha256": "021bbb5244f726ed775beab8e381418f6ef5a39fda5ca8f1f6fe38b41e1d5fd3"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/test_forward_physics.py",
+      "group": "tests",
+      "bytes": 11576,
+      "sha256": "6620012cf584a44ae70206cb775c9827e73454afa6e80d403c90c53cfe20ee61"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/test_horizontal_vessels.py",
+      "group": "tests",
+      "bytes": 8515,
+      "sha256": "50ca86fc50c702efca3c56c17c855273782a4110c55d38d0630a64eb5b552e4e"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/test_hvac_expansion.py",
+      "group": "tests",
+      "bytes": 11685,
+      "sha256": "4b5cea557ba084f6d0069de187ef5e734a3b10f73f2f372eea40990208fe4e87"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/test_hydronic_buffer.py",
+      "group": "tests",
+      "bytes": 4612,
+      "sha256": "85ac05db473ccf9cbc570cc30815d97f650dd0f1733fdb4811e3765638a93a0d"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/test_module_replay.py",
+      "group": "tests",
+      "bytes": 9853,
+      "sha256": "a12de4fb5c86cb09f981a6f4f4eadfe1d11af1811a3842aa873cd4553a5ce7da"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/test_multiple_coolers.py",
+      "group": "tests",
+      "bytes": 2975,
+      "sha256": "004a79e97a626ac0dfff46d297ea90a224fb6244c3f92ef15388d630101e88fd"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/test_parameter_write_atomicity.py",
+      "group": "tests",
+      "bytes": 7747,
+      "sha256": "7551bda465f67717ca6b41377d9e4ce264cad76c4f15f3a90205a784751dcc90"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/test_performance_compressor.py",
+      "group": "tests",
+      "bytes": 3983,
+      "sha256": "4482f1ecc66ab6bc284910b9004573d7fc3af5ef8b912a38b330662a735c4391"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/test_refrigerant_streams.py",
+      "group": "tests",
+      "bytes": 6113,
+      "sha256": "e29929d95a7cab76be7674bb0cb96fc96911cf12c4bcc9f071e2354c2caaa10b"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/test_refrigeration_devices.py",
+      "group": "tests",
+      "bytes": 17499,
+      "sha256": "5d66e84751910ec49c28a8791cf5f0d94439461338ac472a9ca8c65b1ea89495"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/test_refrigeration_equipment_expansion.py",
+      "group": "tests",
+      "bytes": 5043,
+      "sha256": "9eaef26b0d726c0c70121b6325617f57a5f0e52db6cc0b5959e0d904adcb367b"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/test_refrigeration_modular.py",
+      "group": "tests",
+      "bytes": 11043,
+      "sha256": "a5fb7f86e6af616dcae45c0806c546ab9611a3f1876ba63234ec05f4214ed8a2"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/test_regulating_valves.py",
+      "group": "tests",
+      "bytes": 2924,
+      "sha256": "280ef9f88e4bfd1d0cd686b72bb1e57e1780c97705418e8e36f5523c052cf350"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/test_station_defrost.py",
+      "group": "tests",
+      "bytes": 3517,
+      "sha256": "bad2fbb1db4fc056cabf57598a7ad67c02fd329f1d70b34bc37b71ac98e38cc1"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/test_system_inspection.py",
+      "group": "tests",
+      "bytes": 6346,
+      "sha256": "46cf9871a66ea4fc9a8a106c03c1288f93451e50e0148d6fdcc2ad0692be87ff"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/test_tower_pool.py",
+      "group": "tests",
+      "bytes": 2921,
+      "sha256": "f088a516d3bc3f113ea6f0aab5cdd25ddd2009b6ca34b2b5a85616d6091040a6"
+    },
+    {
+      "path": "fluidnet-prototype-engine/tests/test_two_stage_modular.py",
+      "group": "tests",
+      "bytes": 8216,
+      "sha256": "15ca4a2986aed2831cd4a0e55a83be63c37c019460c10fcc6cafe9f367de7fd5"
+    }
+  ]
+}

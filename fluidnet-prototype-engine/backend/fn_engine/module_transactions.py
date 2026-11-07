@@ -1,32 +1,37 @@
 """Whole-step candidate collection with parent-owned state and revision authority."""
 from copy import deepcopy
+from collections.abc import Mapping
 import json
+from typing import cast
 
-from .models import CommitStepRequest,Diagnostic
+from .model_types.protocol import CommitStepRequest, CommitStepResponse, ModuleStepCandidate
+from .model_types.base import ChannelState, Diagnostic
 from .module_execution import mark_module_accepted
 from .runtime import RuntimeErrorBase
 from .runtime import module_content_hash,module_definition_hash
 from .module_state import checked_state,checked_result
+from .runner_protocol import ClosableTransport, LocalAcceptanceState, ModuleRunner
 
 
 class ModuleStepTransaction:
-    def __init__(self, runners, step_id, time_s):
+    def __init__(self, runners: Mapping[str, ModuleRunner], step_id: str | None, time_s: float) -> None:
         self.runners, self.step_id, self.time_s = runners, step_id, time_s
-        self.candidates = {}
+        self.candidates: dict[str, ModuleStepCandidate] = {}
         self.accepted = False
 
-    def prepare(self, instance_id, request: CommitStepRequest, channels):
+    def prepare(self, instance_id: str, request: CommitStepRequest,
+                channels: dict[str, ChannelState] | None) -> CommitStepResponse:
         runner = self.runners[instance_id]
         candidate = runner.prepare_step(request, channels=channels)
         self.candidates[instance_id] = candidate
         return candidate.result
 
-    def validate(self):
+    def validate(self) -> None:
         if set(self.candidates) != set(self.runners):
             raise RuntimeErrorBase('模块候选集合不完整', code='MODULE_CANDIDATE_INCOMPLETE')
         for key, candidate in self.candidates.items():
             runner = self.runners[key]
-            definition=getattr(runner,'definition',None) or runner.worker._definitions[key]
+            definition = runner.definition
             if (candidate.base_revision != runner.state_revision or candidate.step_id != self.step_id or candidate.time_s != self.time_s
                     or candidate.content_hash != module_content_hash(definition) or candidate.definition_hash != module_definition_hash(definition)):
                 raise RuntimeErrorBase('模块候选状态已过期', code='MODULE_REVISION_CONFLICT')
@@ -34,7 +39,7 @@ class ModuleStepTransaction:
             checked_result(candidate)
             json.dumps(candidate.model_dump(mode='json'),allow_nan=False)
 
-    def promote(self):
+    def promote(self) -> None:
         self.validate()
         # No RPC or user code occurs inside the parent acceptance point.
         for key, candidate in self.candidates.items():
@@ -43,14 +48,16 @@ class ModuleStepTransaction:
             runner.state_revision += 1
             runner._accepted_candidate = candidate
             if hasattr(runner,'_last_committed_time_s'):
-                runner._last_committed_time_s = self.time_s
-                runner._accepted_digest = runner._pending_digest
-                runner._pending_candidate = None
+                local = cast(LocalAcceptanceState, runner)
+                local._last_committed_time_s = self.time_s
+                local._accepted_digest = local._pending_digest
+                local._pending_candidate = None
         self.accepted = True
         mark_module_accepted(self.runners, self.time_s)
 
-    def synchronize(self):
-        errors,diagnostics = [],[]
+    def synchronize(self) -> None:
+        errors: list[str] = []
+        diagnostics: list[Diagnostic] = []
         for key, runner in self.runners.items():
             try:
                 runner.synchronize_state(self.candidates[key])
@@ -62,10 +69,10 @@ class ModuleStepTransaction:
             message='子步已接受，Worker 状态同步失败：'+'; '.join(errors)
             main=diagnostics[0].model_copy(update={'code':'MODULE_SYNC_FAILED','message':message,'phase':'synchronize','time_s':self.time_s})
             failure = RuntimeErrorBase(message,code='MODULE_SYNC_FAILED',diagnostics=[main,*diagnostics])
-            failure.accepted = True
+            setattr(failure, 'accepted', True)
             raise failure
 
-    def discard(self):
+    def discard(self) -> None:
         if self.accepted:
             return
         for key in self.candidates:
@@ -75,4 +82,4 @@ class ModuleStepTransaction:
                 # Parent remains authoritative; an unavailable Worker is closed.
                 worker = getattr(self.runners[key], 'worker', self.runners[key])
                 if hasattr(worker, 'close'):
-                    worker.close(force=True)
+                    cast(ClosableTransport, worker).close(force=True)

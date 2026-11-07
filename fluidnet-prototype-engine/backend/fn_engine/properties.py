@@ -13,7 +13,7 @@ from functools import lru_cache
 import CoolProp.CoolProp as CP
 from CoolProp import AbstractState
 
-from .models import FluidConfig, FluidState
+from .model_types.base import FluidConfig, FluidState
 
 
 class PropertyError(ValueError):

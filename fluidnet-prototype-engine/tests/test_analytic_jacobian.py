@@ -101,6 +101,47 @@ def test_degenerate_zero_flow_station_falls_back_to_numeric():
     assert result.counters['jacobian_fallback'] == 'finite_difference'
 
 
+def test_iteration_budget_fallback_preserves_progress_and_physical_gates(monkeypatch):
+    """A bounded first attempt must not throw away its useful pressure/flow iterate."""
+    model = two_valve_project()
+    for instance in model.instances:
+        if instance.module_id == 'valve':
+            instance.parameters['opening_ratio'] = 1.
+    model.solver.thermal = False
+    model.solver.hydraulic_diagnostics = True
+    original = solver_module.least_squares
+    trials, starts = [], []
+
+    def bounded_first_attempt(residual, x0, **options):
+        starts.append(np.array(x0, copy=True))
+        if not trials:
+            options['max_nfev'] = 3
+        result = original(residual, x0, **options)
+        trials.append(result)
+        return result
+
+    monkeypatch.setattr(solver_module, 'least_squares', bounded_first_attempt)
+    result = solve_hydraulics(compile_project(model))
+    assert len(trials) == result.counters['solver_attempts'] == 2
+    assert trials[0].status == 0
+    assert not np.array_equal(starts[0], trials[0].x)
+    np.testing.assert_array_equal(starts[1], trials[0].x)
+    assert result.pressure_residual <= model.solver.pressure_tolerance_pa
+    assert result.mass_residual <= model.solver.mass_tolerance_kg_s
+    # Independent series-Kv calculation, at the frozen default water density.
+    effective_kv = (1 / 12.**2 + 1 / 6.**2)**-.5
+    expected = effective_kv / 3600. * np.sqrt(130000. * 998.2752462838249 * 1000. / 100000.)
+    assert result.flows == pytest.approx([expected, expected], rel=1e-8)
+
+
+def test_exhausted_fallback_still_rejects_unconverged_solution():
+    model = two_valve_project()
+    model.solver.thermal = False
+    model.solver.max_iterations = 1
+    with pytest.raises(solver_module.HydraulicNotConverged, match='未收敛'):
+        solve_hydraulics(compile_project(model))
+
+
 def test_heat_exchanger_channels_use_resistance_derivatives():
     """换热器的每条通路被编译为阻力关系，因此纯内置换热器网络同样走解析路径。"""
     model = exchanger_project()

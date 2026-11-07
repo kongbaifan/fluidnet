@@ -5,7 +5,9 @@ from typing import Literal
 
 from pydantic import Field, StrictFloat, model_validator
 
-from .models import Diagnostic, Scenario, StrictModel, UnitSpec
+from .model_types.base import Diagnostic
+from .model_types.domain import Scenario
+from ._module_schema_v1 import StrictModel, UnitSpec
 
 BatchState = Literal['ready', 'running', 'completed', 'completed_with_errors', 'cancelled', 'interrupted', 'failed']
 BatchItemState = Literal['pending', 'running', 'completed', 'failed', 'cancelled', 'interrupted']

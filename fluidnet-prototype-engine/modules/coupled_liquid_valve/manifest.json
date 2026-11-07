@@ -1,0 +1,36 @@
+{
+  "schema_version": 3,
+  "id": "coupled_liquid_valve",
+  "name": "热耦合液体作者阀门",
+  "version": 1,
+  "category": "自定义模块",
+  "description": "水平、无储量、无附加热流的液体阀门；可编辑开度特性并参与制冷站与二次水网热耦合。",
+  "ports": [
+    {"id": "in0", "label": "液体入口", "domain": "fluid", "direction": "in", "circuit": "liquid"},
+    {"id": "out0", "label": "液体出口", "domain": "fluid", "direction": "out", "circuit": "liquid"}
+  ],
+  "channels": [{"id": "main", "name": "液体主通路", "input_port": "in0", "output_port": "out0", "relation": "resistance", "solver_model": "valve"}],
+  "parameters": [
+    {"id": "opening_ratio", "label": "阀门开度", "default": 0.8, "minimum": 0, "maximum": 1, "runtime": true,
+     "unit": {"quantity": "ratio", "canonical_unit": "1", "display_unit": "%", "display_scale": 0.01}},
+    {"id": "kv_m3_h", "label": "全开流量系数 Kv", "default": 16, "minimum": 0.001},
+    {"id": "characteristic_exponent", "label": "开度特性指数", "default": 1, "minimum": 0.1, "maximum": 10}
+  ],
+  "variables": [
+    {"id": "effective_opening_ratio", "label": "有效开度", "quantity": "ratio", "source": "derived",
+     "unit": {"quantity": "ratio", "canonical_unit": "1", "display_unit": "%", "display_scale": 0.01}},
+    {"id": "density_kg_m3", "label": "水力计算密度", "quantity": "density", "source": "derived",
+     "unit": {"quantity": "density", "canonical_unit": "kg/m³", "display_unit": "kg/m³"}},
+    {"id": "state.throughput_kg", "label": "作者按段末流量累计质量", "quantity": "mass", "source": "state",
+     "unit": {"quantity": "mass", "canonical_unit": "kg", "display_unit": "kg"}},
+    {"id": "state.commit_count", "label": "已接受控制段数", "quantity": "count", "source": "state"}
+  ],
+  "solver_model": "valve",
+  "state_model": null,
+  "thermal_model": null,
+  "source_format": "python-v1",
+  "runtime": "python",
+  "entrypoint": "module:Module",
+  "sdk": {"api_version": "0.5.0", "capabilities": ["lifecycle.v1", "state.json.v1", "context.execution.v1", "state.transactions.v1", "net.valve", "hydraulic.signed_start.v1"], "state_contract_version": 1},
+  "applicability": {"execution_domains": ["fluid"], "phases": ["liquid"], "assumptions": ["无独立质量或能量储量", "无主动热流", "开度指数关系为可编辑教学假设，未经厂家标定"]}
+}

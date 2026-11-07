@@ -6,10 +6,12 @@ from copy import deepcopy
 
 from .catalog import catalog_map
 from .compiler import compile_project
-from .models import (
-    CommitStepRequest, Connection, CircuitFluid, Domain, Endpoint, EvaluateRequest, ModuleDefinition,
-    ModuleInstance, ModuleTestRequest, ModuleTestResponse, Project, RunFrame,
-)
+from .model_types.protocol import CommitStepRequest, EvaluateRequest
+from .model_types.domain import Connection, CircuitFluid, Endpoint, ModuleInstance, Project
+from ._module_schema_v1 import Domain
+from .model_types.module import ModuleDefinition
+from .model_types.module_testing import ModuleTestRequest, ModuleTestResponse
+from .model_types.run import RunFrame
 from .properties import property_service
 from .runtime import RuntimeErrorBase, WorkerProcess, module_content_hash
 from .module_execution import mark_module_accepted, set_module_step
@@ -55,6 +57,11 @@ def bench_channels(module: ModuleDefinition) -> list:
 
 def run_module_test(request: ModuleTestRequest) -> ModuleTestResponse:
     module = request.module
+    if module.composite and module.sdk and 'composite.refrigeration.open.v1' in module.sdk.capabilities:
+        from .refrigeration.group_testing import run_host_test
+        return run_host_test(request)
+    if module.composite and module.sdk and 'composite.refrigeration.v1' in module.sdk.capabilities:
+        return _test_refrigeration_group(request)
     if module.execution_role:
         from .refrigeration.bench import run_refrigeration_test
         return run_refrigeration_test(request)
@@ -133,6 +140,9 @@ def run_module_test(request: ModuleTestRequest) -> ModuleTestResponse:
             set_module_step({'D1':runner}, network_result.module_step_id)
             evaluation = runner.evaluate(EvaluateRequest(run_id=runner.execution.run_id,instance_id='D1',iteration_id=0,
                 time_s=time_s,trial_ports=ports,readonly_state=runner.state,
+                trial_channels={branch.channel_id:channel_state(network,network_result,j)
+                    for j,branch in enumerate(network.branches) if branch.instance_id=='D1'}
+                    if module.sdk and 'net.pressure_drop' in module.sdk.capabilities else {},
                 context=runner.execution.context(port_data='converged')))
             if index:
                 transaction=ModuleStepTransaction({'D1':runner},network_result.module_step_id,time_s)
@@ -164,7 +174,7 @@ def run_module_test(request: ModuleTestRequest) -> ModuleTestResponse:
 
 def _test_composite(request,network):
     from .simulation import SimulationSession
-    from .models import EvaluateResponse, CommitStepResponse
+    from .model_types.protocol import EvaluateResponse, CommitStepResponse
     session=SimulationSession(network,request.duration_s,request.dt_s)
     try:
         session.initialize()
@@ -180,3 +190,20 @@ def _test_composite(request,network):
             frame=session.frames[-1],history=list(session.frames))
     finally:
         session.close()
+
+
+def _test_refrigeration_group(request):
+    from .sessions import create_session
+    from .model_types.protocol import EvaluateResponse, CommitStepResponse
+    from .refrigeration.bench import effective_test_conditions
+    conditions=effective_test_conditions(request.module,request)
+    project=Project(id='refrigeration-group-test',name=request.module.name,fluid=conditions.fluid,modules=[request.module],
+        instances=[ModuleInstance(id='D1',module_id=request.module.id,name=request.module.name,parameters=request.parameters)],connections=[])
+    session=create_session(compile_project(project),request.duration_s,request.dt_s)
+    try:
+        session.initialize()
+        while not session.done:session.advance()
+        frame=session.frames[-1];public={k[3:]:v for k,v in frame.variables.items() if k.startswith('D1.')}
+        return ModuleTestResponse(module_id=request.module.id,content_hash=module_content_hash(request.module),state={},
+            evaluation=EvaluateResponse(variables=public),committed=CommitStepResponse(state={},variables=public),frame=frame,history=list(session.frames))
+    finally:session.close()

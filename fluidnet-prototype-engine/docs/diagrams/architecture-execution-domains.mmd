@@ -1,0 +1,23 @@
+flowchart TB
+  P["已应用参数 + 固定模块定义 + 工况<br/>规范 Project 合同"] --> C["compile_project<br/>作者角色与测点校验<br/>组合展开与执行域分派"]
+  C --> F["fluid 默认路径<br/>compiler + 可选 air_compile<br/>自定义压降仅用于普通单相"]
+  C --> T["thermal<br/>refrigeration/compile"]
+  C --> A["cold_store<br/>refrigeration/cold_store"]
+  C --> R["refrigeration<br/>refrigeration/station"]
+  C --> K["coupled · thermal_couplings<br/>refrigeration/coupling"]
+  F --> FS["SimulationSession<br/>共享 SessionBase<br/>水箱、管段、困液、房间状态"]
+  T --> TS["ThermalSession<br/>共享 SessionBase<br/>理想冷源 + 库房热平衡"]
+  A --> AS["ColdStoreSession<br/>冷库 A · 库房/货物 + R290 机组"]
+  R --> RS["StationSession<br/>集总制冷站 · 容器质量/内能"]
+  K --> KS["CoupledStationSession<br/>制冷站 + 无储量液体网络"]
+  FS --> H["solver + thermal<br/>单相水力、焓输运、换热与储热"]
+  FS --> AIR["air_transport + air_liquid<br/>空气/冷冻水/冷却水联合迭代<br/>水盘管、冷水机组、房间、湿冷却塔"]
+  RS --> RM["制冷作者适配 module_adapter<br/>等焓节流角色 · schema v4"]
+  KS --> LM["液体作者适配 liquid_modules<br/>当前范围：无储量阀门/局部阻力"]
+  KS --> H
+  TS --> OUT["统一 RunFrame / 控制命令<br/>归档与报告"]
+  AS --> OUT
+  H --> OUT
+  AIR --> OUT
+  RM --> OUT
+  LM --> OUT

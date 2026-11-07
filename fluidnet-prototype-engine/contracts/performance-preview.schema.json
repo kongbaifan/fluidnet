@@ -1,0 +1,78 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "kind": {
+      "title": "Kind",
+      "type": "string"
+    },
+    "source_points": {
+      "items": {
+        "items": {
+          "type": "number"
+        },
+        "type": "array"
+      },
+      "title": "Source Points",
+      "type": "array"
+    },
+    "points_m3_h": {
+      "items": {
+        "items": {
+          "type": "number"
+        },
+        "type": "array"
+      },
+      "title": "Points M3 H",
+      "type": "array"
+    },
+    "canonical_value_unit": {
+      "title": "Canonical Value Unit",
+      "type": "string"
+    },
+    "valid_flow_m3_h": {
+      "items": {
+        "type": "number"
+      },
+      "title": "Valid Flow M3 H",
+      "type": "array"
+    },
+    "source_hash": {
+      "title": "Source Hash",
+      "type": "string"
+    },
+    "content_hash": {
+      "title": "Content Hash",
+      "type": "string"
+    },
+    "warnings": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "kind",
+    "source_points",
+    "points_m3_h",
+    "canonical_value_unit",
+    "valid_flow_m3_h",
+    "source_hash",
+    "content_hash",
+    "warnings"
+  ],
+  "title": "PerformancePreview",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

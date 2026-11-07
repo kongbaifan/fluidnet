@@ -2,13 +2,23 @@
 from pathlib import Path
 
 from .catalog import catalog_map
-from .models import Connection, Endpoint, FluidConfig, ModuleInstance, Project, SolverOptions
+from .model_types.domain import Connection, Endpoint, ModuleInstance, Project, SolverOptions
+from .model_types.base import FluidConfig
 from .packages import load_module_package
 
-AIR_EXAMPLES = ('air-coil-wet','air-mixing','ahu-wet','ahu-room','air-parallel-wet','cooling-tower-moist','chiller-air-loop')
+AIR_EXAMPLES = ('air-coil-wet','air-mixing','ahu-wet','ahu-room','air-parallel-wet','cooling-tower-moist','chiller-air-loop',
+                'room-temperature-control','room-control-load-step','room-control-setpoint-step',
+                'hvac-water-balance','hvac-three-way-mixing','hvac-pump-switch','hvac-basic-plant',
+                'hvac-ahu-terminal','hvac-closed-loop-makeup','hvac-plant-interlock')
 
 
 def air_example(name):
+    if name.startswith('hvac-'):
+        from .hvac_examples import hvac_example
+        return hvac_example(name)
+    if name in ('room-temperature-control','room-control-load-step','room-control-setpoint-step'):
+        from .chiller_examples import room_temperature_example
+        return room_temperature_example(name)
     if name == 'chiller-air-loop':
         from .chiller_examples import chiller_air_example
         return chiller_air_example()

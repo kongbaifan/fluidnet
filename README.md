@@ -2,9 +2,19 @@
 
 当前项目是 [FluidNet Prototype Engine](fluidnet-prototype-engine/README.md)：可编程流体模块平台，包含 Pydantic 契约、网络水力求解、独立 Worker 和模块版本管理。启动、使用和开发说明见该目录。
 
+当前源码的[架构图与核心时序图（2026-11-03）](fluidnet-prototype-engine/docs/ARCHITECTURE_AND_SEQUENCE.md)按四张架构图与六张时序图梳理多画布与计算项目、五类执行域、暖通设备与理想测点、风水温控、模块事务和保存批量流程，附 SVG、PNG 与可编辑 Mermaid 源码。
+
 2026-10-29 源码进展：风系统完整主线已接通，包含湿空气联合求解、房间热湿动态、冷却塔水耗、中文结果页与报告、旧项目迁移和批量方案。见[使用说明](fluidnet-prototype-engine/docs/AIR_SIDE_USER_GUIDE.md)及[实施验收](fluidnet-prototype-engine/docs/AIR_SIDE_IMPLEMENTATION_ACCEPTANCE.md)。
 
 同日后续已接通真实水盘管、水冷冷水机组和空气/冷冻水/冷却水三个回路的[完整联算示例](fluidnet-prototype-engine/docs/CHILLER_AIR_LOOP.md)，本轮检查状态见[联算验收](fluidnet-prototype-engine/docs/CHILLER_AIR_LOOP_ACCEPTANCE.md)。
+
+2026-10-30 后续新增[热耦合液体侧 Python 作者设备](fluidnet-prototype-engine/docs/COUPLED_LIQUID_MODULES.md)与[房间自动温控](fluidnet-prototype-engine/docs/ROOM_TEMPERATURE_CONTROL.md)：可编辑水阀参与制冷站联算，三回路房间案例支持自动调阀、负荷变化和目标温度变化。两条主线已完成，最终检查与证据见[综合验收](fluidnet-prototype-engine/docs/COUPLED_MODULES_ROOM_CONTROL_ACCEPTANCE.md)。
+
+2026-11-02 源码进展：完成暖通第一批补全——[暖通基础设备与理想测点](fluidnet-prototype-engine/docs/HVAC_BASIC_EQUIPMENT.md)新增异径管、水侧三通、分水器／集水器（2/4/6/8 支路）、手动平衡阀、关断阀、Y 型过滤器、三通调节阀、含停机阻力的循环水泵、带开启／关闭压差的止回阀，以及空调箱／新风机组／风机盘管末端模板、定压补水装置和机房联锁控制模板；配合项目级仪表测点（两点差值、体积流量、热功率）与七个组网示例。核对清单见[补全清单](fluidnet-prototype-engine/docs/HVAC_BASIC_EQUIPMENT_CHECKLIST.md)，证据见[验收记录](fluidnet-prototype-engine/docs/HVAC_BASIC_EQUIPMENT_ACCEPTANCE.md)。
+
+同日完成[标准机房基础案例](fluidnet-prototype-engine/docs/HVAC_STANDARD_PLANT.md)的运行、调阀、仪表与报告、保存重载后复算验收；后续按具体算例需要补设备细节。
+
+同日补齐[多画布连接](fluidnet-prototype-engine/docs/CROSS_PAGE_CONNECTIONS.md)，支持把同一个系统拆到多张画布，跨页连接、跳转、保存和导入后仍统一计算。
 
 当前发布版本 **v0.5.0（2026-10-22）**：冷库 A 版单库房案例（A0–A6）、B 版 NH₃/CO₂ 集总制冷站案例（B0–B3）与倍思鹿模块开发套件 v1 已交付；发布说明见 [RELEASE_NOTES](fluidnet-prototype-engine/docs/RELEASE_NOTES.md)，许可证见 [LICENSE](LICENSE)。
 

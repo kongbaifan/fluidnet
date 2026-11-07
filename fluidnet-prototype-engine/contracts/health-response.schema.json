@@ -75,6 +75,11 @@
           "title": "Air Liquid Coupling",
           "type": "boolean"
         },
+        "room_temperature_control": {
+          "default": false,
+          "title": "Room Temperature Control",
+          "type": "boolean"
+        },
         "air_reports": {
           "default": false,
           "title": "Air Reports",
@@ -83,6 +88,11 @@
         "thermal_coupling": {
           "default": false,
           "title": "Thermal Coupling",
+          "type": "boolean"
+        },
+        "thermal_coupling_liquid_modules": {
+          "default": false,
+          "title": "Thermal Coupling Liquid Modules",
           "type": "boolean"
         },
         "dual_thermal_coupling": {

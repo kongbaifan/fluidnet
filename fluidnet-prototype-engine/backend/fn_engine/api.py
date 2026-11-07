@@ -1,5 +1,16 @@
 from __future__ import annotations
-from .models import ModuleTemplateRequest,ModuleGroupRequest,ModuleTestSuiteRequest,ModuleTestSuiteResponse
+from .model_types.module_testing import (
+    ModuleTemplateRequest,
+    ModuleGroupRequest,
+    ModuleTestSuiteRequest,
+    ModuleTestSuiteResponse,
+    CompositeTestContextRequest,
+    ModuleTestConditions,
+)
+from .model_types.http import ModuleReplayRequest, ModuleReplayResponse, ModuleFailureResponse
+from .system_inspection import SystemInspection, InspectionComparison
+from .equipment_library import LibraryCatalog, LibraryRequest
+from .coil_geometry import CoilGeometryRequest, CoilGeometryResponse
 
 import asyncio
 import logging
@@ -27,20 +38,14 @@ from .auth import AuthConfig, allowed, bearer, websocket_secret
 from .jobs import OVERVIEW_POINTS, TERMINAL, RunManager
 from .bridge import PARAMETER_BINDINGS, normalize_prototype_export
 from .catalog import builtin_catalog
+from .device_registry import presentation_catalog
+from .model_types.catalog_presentation import CatalogPresentationResponse
 from .compiler import CompilationError, compile_project, validate_project_details
-from .models import (
+from .model_types.http import (
     CatalogResponse,
     ControlPreviewResponse,
-    Diagnostic,
     HealthResponse,
-    ModuleDefinition,
-    ModuleDesignRequest,
-    ModuleDesignResponse,
-    ModuleTestRequest,
-    ModuleTestResponse,
     ModuleCatalogResponse,
-    Project,
-    ProjectDocument,
     ProjectDeleteResponse,
     ProjectDetailResponse,
     ProjectListResponse,
@@ -48,23 +53,15 @@ from .models import (
     ProjectRestoreResponse,
     ProjectSaveResponse,
     ProjectUpgradeResponse,
-    RunCommand,
-    RunFrame,
-    RunRequest,
     SavedProjectRunRequest,
     RunStatus,
     RunRecordResponse,
     RunCreateResponse,
     RunDeleteResponse,
     RunEventsResponse,
-    RunEvent,
     RunHistoryResponse,
     RunListResponse,
     RunOverviewResponse,
-    UnitWorkpointRequest,
-    UnitWorkpointResponse,
-    VariableValues,
-    VariableWrite,
     ValidationResponse,
     ModuleSaveRequest,
     ModuleVersionResponse,
@@ -75,13 +72,31 @@ from .models import (
     WorkspaceSaveResponse,
     WorkspaceStorageResponse,
 )
+from .model_types.base import Diagnostic
+from .model_types.module import ModuleDefinition
+from .model_types.module_testing import (
+    ModuleDesignRequest,
+    ModuleDesignResponse,
+    ModuleTestRequest,
+    ModuleTestResponse,
+    UnitWorkpointRequest,
+    UnitWorkpointResponse,
+)
+from .model_types.domain import Project, ProjectDocument
+from .model_types.run import RunCommand, RunFrame, RunRequest, RunEvent, VariableValues, VariableWrite
 from .errors import error_responses, protected_error_responses
 from .properties import PropertyError, refprop_info
 from .packages import ModuleStore, ModuleVersionConflict, ModuleSaveInvalid, package_ref
 from .module_validation import validate_module_definition
 from .solver import SolveFailed, solve_dynamic, solve_steady
-from .models import (ControlPreviewRequest, WorkspaceSaveRequest, ProjectSaveRequest,
-                     ProjectRevisionRequest, ProjectDeleteRequest, ProjectUpgradeRequest)
+from .model_types.http import (
+    ControlPreviewRequest,
+    WorkspaceSaveRequest,
+    ProjectSaveRequest,
+    ProjectRevisionRequest,
+    ProjectDeleteRequest,
+    ProjectUpgradeRequest,
+)
 from .storage import WorkspaceStore, WorkspaceConflict, StorageError
 
 logger = logging.getLogger('fn_engine.api')
@@ -158,7 +173,7 @@ def shape_history(history: list[RunFrame], request: RunRequest, project: Project
         if getattr(network, 'execution_domain', None) == 'cold_store':
             from .refrigeration.report import series_keys
             outputs |= {key for key, _ in series_keys(network.chains)}
-        elif getattr(network, 'execution_domain', None) == 'refrigeration':
+        elif getattr(network, 'execution_domain', None) in {'refrigeration', 'coupled'}:
             from .refrigeration.report import station_series_keys
             outputs |= {key for key, _ in station_series_keys(network)}
         outputs &= history[0].variables.keys() | history[-1].variables.keys()
@@ -200,6 +215,8 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
     lock = Lock()
     archive = WorkspaceStore(data_root) if data_root is not None else None
     manager = RunManager(apply_scenario, archive)
+    from .performance_data import PerformanceStore, performance_router
+    performance_store = PerformanceStore(archive)
     from .batch_api import batch_router
     from .batches import BatchService
     batch_service = BatchService(archive, manager) if archive is not None else None
@@ -222,11 +239,13 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
             except Exception:  # pragma: no cover - defensive teardown
                 logger.exception('FluidNet run manager shutdown failed')
             finally:
+                performance_store.close()
                 if archive:
                     archive.close()
 
     app = FastAPI(title='FluidNet Prototype Engine', version=__version__, lifespan=lifespan)
     app.include_router(batch_router(batch_service))
+    app.include_router(performance_router(performance_store))
     @app.exception_handler(RequestValidationError)
     async def request_validation_error(request: Request, error: RequestValidationError):
         # Rejected JSON numbers (including overflow such as 1e999) must not make
@@ -286,10 +305,12 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
                                 'scenario_batches':archive is not None,
                                 'cold_room_ideal_source':True,'refrigeration_station':True,'cold_store_cycle':True,
                                 'thermal_coupling':True,'dual_thermal_coupling':True,'heater':True,
+                                'thermal_coupling_liquid_modules':True,
                                 'air_duct':True,'moist_air':True,'moist_air_contract_version':1,
                                 'wet_cooling_coil':True,'air_humidifier':True,'ahu_components':True,
                                 'air_room':True,'cooling_tower_moist':True,'air_variable_catalog':True,'air_reports':True,
                                 'water_coil':True,'water_chiller':True,'air_liquid_coupling':True,
+                                'room_temperature_control':True,
                                 'multi_inlet_vessels':True,
                                 # REFPROP 运行时发现（环境变量/捆绑目录/系统安装）；不加载 DLL。
                                 'refprop':refprop_info()},
@@ -377,8 +398,7 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
         try:
             session = create_session(compile_project(project), script.sample_s, script.sample_s)
             session.initialize()
-            session._control()
-            result = session.scripts[script.id].pending[0]
+            result = session.preview_control(script.id)
             return {**result, 'content_hash': script.content_hash, 'time_s': 0., 'applied': False}
         except ValueError as error:
             detail = diagnostic(error).model_dump(mode='json')
@@ -491,17 +511,49 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
     def catalog():
         return {'modules':builtin_catalog(), 'prototype_parameter_bindings':PARAMETER_BINDINGS}
 
+    @app.get('/api/v1/catalog/presentation', response_model=CatalogPresentationResponse,
+             responses=protected_error_responses('INTERNAL_ERROR'))
+    def catalog_presentation():
+        return presentation_catalog()
+
+    @app.post('/api/v1/equipment-library/coil-geometry', response_model=CoilGeometryResponse,
+              responses=protected_error_responses(422, 'INTERNAL_ERROR'))
+    def coil_geometry_design(request: CoilGeometryRequest):
+        from .coil_geometry import design
+        return design(request)
+
+    @app.get('/api/v1/equipment-library', response_model=LibraryCatalog,
+             responses=protected_error_responses('INTERNAL_ERROR'))
+    def equipment_library():
+        from .equipment_library import catalog
+        return catalog()
+
+    @app.post('/api/v1/equipment-library/project', response_model=Project,
+              responses=protected_error_responses(422, 'INTERNAL_ERROR'))
+    def equipment_library_project(request: LibraryRequest):
+        from .equipment_library import build
+        try:
+            return build(request)
+        except ValueError as error:
+            raise HTTPException(422, detail=str(error)) from error
+
     @app.get('/api/v1/examples/{name}', response_model=Project,
              responses=protected_error_responses(404, 'INTERNAL_ERROR'))
     def example(name: str, topology: Literal['single', 'parallel', 'independent'] = 'single'):
         from .examples import pid_example
         from .air_examples import AIR_EXAMPLES, air_example
+        from .hvac_expansion_examples import HVAC_EXPANSION_EXAMPLES, example as hvac_expansion_example
         try:
             if name in AIR_EXAMPLES:
                 return air_example(name)
+            if name in HVAC_EXPANSION_EXAMPLES:
+                return hvac_expansion_example(name)
             if name == 'thermal-coupling':
                 from .refrigeration.coupling_examples import thermal_coupling_example
                 return thermal_coupling_example(topology=topology)
+            if name == 'thermal-coupling-author':
+                from .refrigeration.liquid_module_examples import coupled_liquid_module_example
+                return coupled_liquid_module_example()
             if name == 'cold-storage':
                 from .refrigeration.examples import ideal_room_example
                 return ideal_room_example()
@@ -511,6 +563,56 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
             if name == 'cold-storage-nh3co2':
                 from .refrigeration.examples import station_case
                 return station_case()
+            if name in ('refrigeration-modular-room', 'refrigeration-modular-two-room'):
+                from .refrigeration.modular_examples import modular_room_example
+                return modular_room_example() if name == 'refrigeration-modular-room' else modular_room_example(2, 2)
+            if name == 'refrigeration-open-group-station':
+                from .refrigeration.group_examples import grouped_station_example
+                return grouped_station_example()
+            if name in ('refrigeration-open-compressors', 'refrigeration-open-liquid-supply', 'refrigeration-open-air-coolers'):
+                from .refrigeration.group_examples import open_group_example
+                return open_group_example(name.removeprefix('refrigeration-open-'))[2]
+            if name == 'refrigeration-modular-cascade':
+                from .refrigeration.modular_examples import modular_cascade_example
+                return modular_cascade_example()
+            if name == 'refrigeration-modular-air-cooled':
+                from .refrigeration.modular_examples import modular_air_cooled_example
+                return modular_air_cooled_example()
+            if name == 'refrigeration-stream-line':
+                from .refrigeration.stream_example import stream_example
+                return stream_example()
+            if name == 'refrigeration-stream-subcooler':
+                from .refrigeration.stream_example import stream_example
+                return stream_example(subcooling=True)
+            if name == 'refrigeration-stream-recuperator':
+                from .refrigeration.stream_example import recuperator_example
+                return recuperator_example()
+            if name == 'refrigeration-dx':
+                from .refrigeration.dx_example import dx_example
+                return dx_example()
+            if name in ('closed-buffer-mixing', 'closed-buffer-cooling'):
+                from .buffer_example import buffer_example
+                return buffer_example(stagnant=name.endswith('cooling'))
+            if name == 'gas-expansion-fill':
+                from .expansion_example import expansion_example
+                return expansion_example()
+            if name in ('tower-pool-evaporation','tower-pool-makeup'):
+                from .tower_pool_example import tower_pool_example
+                return tower_pool_example(makeup=name.endswith('makeup'))
+            if name in ('wet-pool-makeup', 'wet-pool-no-makeup'):
+                from .coupled_tower_pool_example import coupled_tower_pool_example
+                return coupled_tower_pool_example(makeup=name=='wet-pool-makeup')
+            extension_examples = {
+                'refrigeration-performance-compressor': ('performance_example','performance_example'),
+                'refrigeration-multi-cooler': ('multi_cooler_example','multi_cooler_example'),
+                'refrigeration-two-stage': ('two_stage_example','modular_two_stage_example'),
+                'refrigeration-electric-defrost': ('defrost_example','defrost_example'),
+            }
+            if name in extension_examples:
+                from importlib import import_module
+                module_name, factory_name = extension_examples[name]
+                factory = getattr(import_module('.refrigeration.'+module_name, __package__), factory_name)
+                return factory()
             return pid_example(name)
         except KeyError:
             raise HTTPException(404, detail='示例不存在')
@@ -572,6 +674,15 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
         except ValueError as error:
             raise HTTPException(422,detail=str(error)) from error
 
+    @app.post('/api/v1/modules/composites/test-context', response_model=ModuleTestConditions,
+              responses=protected_error_responses(422, 'INTERNAL_ERROR'))
+    def composite_test_context(request: CompositeTestContextRequest):
+        from .refrigeration.group_testing import test_context
+        try:
+            return test_context(request)
+        except ValueError as error:
+            raise HTTPException(422,detail=str(error)) from error
+
     @app.post('/api/v1/modules/from-template', response_model=ModuleDefinition,
               responses=protected_error_responses(422, 'INTERNAL_ERROR'))
     def module_from_template(request: ModuleTemplateRequest):
@@ -613,6 +724,18 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
             status, detail = _unexpected_failure(error)
             raise HTTPException(status, detail=detail) from error
 
+    @app.post('/api/v1/modules/replay', response_model=ModuleReplayResponse,
+              responses=protected_error_responses(422, 'MODULE_WORKER_IO_ERROR', 'INTERNAL_ERROR'))
+    def replay_module_callback(request: ModuleReplayRequest):
+        from .module_replay import replay_module
+        try:
+            return replay_module(request)
+        except ValueError as error:
+            raise HTTPException(422, detail=diagnostic(error).model_dump(mode='json')) from error
+        except Exception as error:
+            status, detail = _unexpected_failure(error)
+            raise HTTPException(status, detail=detail) from error
+
     @app.post('/api/v1/prototype/normalize', response_model=Project,
               responses=protected_error_responses(422, 'INTERNAL_ERROR'))
     def normalize(payload: dict):
@@ -634,6 +757,8 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
 
     def compute_run(run_id: str, request: RunRequest) -> dict:
         """Solve a synchronous run and always write a terminal record (background runs use RunManager)."""
+        from .module_replay import failure_snapshot
+        module_failure = None
         history: list[RunFrame] = []
         try:
             project = apply_scenario(request.project, request.scenario_id)
@@ -645,6 +770,7 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
             shape_history(history, request, project, network)
             frame, status = history[-1], 'completed'
         except SolveFailed as error:
+            module_failure = failure_snapshot(error)
             # A dynamic run that stopped at a tank limit or an unsolvable step keeps its accepted frames.
             history = list(error.frames)
             try:
@@ -656,12 +782,15 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
                              diagnostics=[error.diagnostic])
         except ValueError as error:
             history, status = [], 'failed'
+            module_failure = failure_snapshot(error)
             frame = RunFrame(status='failed',valid=False,time_s=0,diagnostics=[diagnostic(error)])
         events = [{'type':status, 'time_s':float(frame.time_s)}]
         history_rows = [f.model_dump(mode='json') for f in history]
         record = {'id':run_id,'status':status,'mode':request.mode,'request':request.model_dump(mode='json'),
                   'frame':frame.model_dump(mode='json'),'history':history_rows,
                   'events':events, 'total_rows':len(history)}
+        if module_failure is not None:
+            record['module_failure'] = module_failure
         from .air_variables import make_air_metadata
         record['air_metadata'] = make_air_metadata(request.project)
         if archive:
@@ -746,7 +875,32 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
     def run_status(run_id: str):
         record = get_run(run_id)
         # `history` is served by /runs/{id}/history; `events` stays visible here.
-        return {key:value for key,value in record.items() if key != 'history'}
+        return {key:value for key,value in record.items() if key not in {'history', 'module_failure'}}
+
+    @app.get('/api/v1/runs/{run_id}/module-failure', response_model=ModuleFailureResponse,
+             responses=protected_error_responses(404, 'STORAGE_FAILED', 'INTERNAL_ERROR'))
+    def run_module_failure(run_id: str):
+        record = get_run(run_id)
+        return {'run_id': run_id, 'replay': record.get('module_failure'),
+                'diagnostics': (record.get('frame') or {}).get('diagnostics', [])}
+
+    @app.get('/api/v1/runs/{run_id}/inspection', response_model=SystemInspection,
+             responses=protected_error_responses(404, 'STORAGE_FAILED', 'INTERNAL_ERROR'))
+    def inspect_run(run_id: str):
+        from .system_inspection import run_inspection
+        return run_inspection(get_run(run_id))
+
+    @app.get('/api/v1/inspection/compare', response_model=InspectionComparison,
+             responses=protected_error_responses(404, 'STORAGE_FAILED', 'INTERNAL_ERROR'))
+    def compare_inspection(a: str, b: str):
+        from .system_inspection import compare_runs
+        return compare_runs(get_run(a),get_run(b))
+
+    @app.post('/api/v1/project-inspection', response_model=SystemInspection,
+              responses=protected_error_responses(422, 'INTERNAL_ERROR'))
+    def inspect_project(project: Project):
+        from .system_inspection import project_check
+        return project_check(project)
 
     @app.post('/api/v1/runs/{run_id}/delete', response_model=RunDeleteResponse,
               responses=protected_error_responses(404, 409, 'STORAGE_FAILED', 'INTERNAL_ERROR'))
@@ -823,12 +977,16 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
             # 风侧报告使用运行时冻结的目录和实际帧，不编译当前设备版本、不重新求解。
             return record, rows, None, decimated
         request = RunRequest.model_validate(record['request'])
+        used = {i.module_id for i in request.project.instances}
+        domains = {p.domain.value for m in request.project.modules if m.id in used for p in m.ports}
+        if domains <= {'fluid', 'info', 'power', 'mech'} and not request.project.thermal_couplings:
+            return {**record, 'request': request.model_dump(mode='json')}, rows, None, decimated
         try:
             network = compile_project(apply_scenario(request.project, request.scenario_id))
         except ValueError as error:
             raise HTTPException(422, detail=diagnostic(error).model_dump()) from error
-        if not isinstance(network, CompiledColdStore) and getattr(network, 'execution_domain', None) != 'refrigeration':
-            raise HTTPException(422, detail={'code': 'REPORT_UNSUPPORTED', 'message': '运行报告只支持冷库案例与集总制冷站项目'})
+        if not isinstance(network, CompiledColdStore) and getattr(network, 'execution_domain', None) not in {'refrigeration', 'coupled'}:
+            raise HTTPException(422, detail={'code': 'REPORT_UNSUPPORTED', 'message': '运行报告只支持冷库案例、集总制冷站与液体热耦合项目'})
         return {**record, 'request': request.model_dump(mode='json')}, rows, network, decimated
 
     def report_download(content, name, media):
@@ -858,7 +1016,10 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
         if record.get('air_metadata'):
             from .air_report import csv_report
             return report_download(csv_report(record,rows,decimated),f'air-{run_id[:8]}.csv','text/csv; charset=utf-8')
-        content = station_csv(rows, network) if network.execution_domain == 'refrigeration' else run_csv(rows, network)
+        if network is None:
+            from .equipment_report import csv_report
+            return report_download(csv_report(record,rows,decimated),f'equipment-{run_id[:8]}.csv','text/csv; charset=utf-8')
+        content = station_csv(rows, network) if network.execution_domain in {'refrigeration', 'coupled'} else run_csv(rows, network)
         return report_download(content, f'cold-store-{run_id[:8]}.csv', 'text/csv; charset=utf-8')
 
     @app.get('/api/v1/runs/{run_id}/report.html', response_class=Response,
@@ -870,10 +1031,13 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
         if record.get('air_metadata'):
             from .air_report import html_report
             return report_download(html_report(record,rows,decimated),f'air-{run_id[:8]}.html','text/html; charset=utf-8')
-        content = (station_report if network.execution_domain == 'refrigeration' else run_report)(record, rows, network)
+        if network is None:
+            from .equipment_report import html_report
+            return report_download(html_report(record,rows,decimated),f'equipment-{run_id[:8]}.html','text/html; charset=utf-8')
+        content = (station_report if network.execution_domain in {'refrigeration', 'coupled'} else run_report)(record, rows, network)
         if decimated:
-            content = content.replace('<h1>冷库运行报告</h1>', '<h1>冷库运行报告</h1><p><strong>历史窗口不含全部帧，曲线与峰值使用抽稀概览；'
-                                      '累计量仍取最后一帧的精确计数。</strong></p>')
+            content = content.replace('</h1>', '</h1><p><strong>历史窗口不含全部帧，曲线与峰值使用抽稀概览；'
+                                      '累计量仍取最后一帧的精确计数。</strong></p>', 1)
         return report_download(content, f'cold-store-{run_id[:8]}.html', 'text/html; charset=utf-8')
 
     @app.post('/api/v1/cold-store/workpoint', response_model=UnitWorkpointResponse,

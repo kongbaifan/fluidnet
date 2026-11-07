@@ -668,6 +668,51 @@
       "title": "LibraryBank",
       "type": "object"
     },
+    "MeasurementSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "kind": {
+          "default": "value",
+          "enum": [
+            "value",
+            "difference",
+            "volume_flow",
+            "thermal_power"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "sources": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 3,
+          "minItems": 1,
+          "title": "Sources",
+          "type": "array"
+        },
+        "unit": {
+          "$ref": "#/$defs/UnitSpec"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "sources",
+        "unit"
+      ],
+      "title": "MeasurementSpec",
+      "type": "object"
+    },
     "ModuleApplicability": {
       "additionalProperties": false,
       "properties": {
@@ -1867,6 +1912,14 @@
           "title": "Selected Variables",
           "type": "array"
         },
+        "measurements": {
+          "items": {
+            "$ref": "#/$defs/MeasurementSpec"
+          },
+          "maxItems": 64,
+          "title": "Measurements",
+          "type": "array"
+        },
         "import_diagnostics": {
           "items": {
             "$ref": "#/$defs/Diagnostic"
@@ -1900,11 +1953,20 @@
           "title": "Circuit Fluids",
           "type": "array"
         },
+        "coupling_mode": {
+          "default": "legacy",
+          "enum": [
+            "legacy",
+            "storage_v1"
+          ],
+          "title": "Coupling Mode",
+          "type": "string"
+        },
         "thermal_couplings": {
           "items": {
             "$ref": "#/$defs/ThermalCoupling"
           },
-          "maxItems": 2,
+          "maxItems": 8,
           "title": "Thermal Couplings",
           "type": "array"
         },

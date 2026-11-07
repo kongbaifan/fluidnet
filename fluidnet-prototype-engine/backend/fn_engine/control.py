@@ -4,7 +4,9 @@ import inspect
 import json
 import traceback
 
-from .models import ControlScript, Diagnostic, FluidConfig, ModuleDefinition
+from .model_types.domain import ControlScript
+from .model_types.base import Diagnostic, FluidConfig
+from .model_types.module import ModuleDefinition
 from .runtime import WorkerProcess, ModuleRuntimeTimeout
 from .module_state import checked_state
 

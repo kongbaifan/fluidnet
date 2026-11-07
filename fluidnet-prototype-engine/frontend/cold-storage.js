@@ -1,6 +1,7 @@
+import {FluidNetProjectState} from './project-state.js';
 /* Cold-storage case: creation, indicators, scenarios, schedule, unit bench and reports.
    All result values come from the shared engine run; this file only arranges inputs and views. */
-window.createColdStorageUI = function (ui) {
+export const createColdStorageUI = function (ui) {
   const state=ui.state, engine=ui.engine, {esc,btn,openDialog,msg}=ui;
   const IDEAL='cold-room-ideal-v1', ROOM='cold-room-minus18-v1', STATION='cold-storage-nh3co2-v2', COUPLED='thermal-coupling-nh3-glycol-v1';
   // Mirrors refrigeration/examples.py ROOM_SCENARIO_DURATIONS (cases/cold-storage/single-room-minus18/scenarios.json).
@@ -17,6 +18,69 @@ window.createColdStorageUI = function (ui) {
   const display=(spec,value)=>spec?.unit?value/spec.unit.display_scale+spec.unit.display_offset:value;
   const option=(value,label,selected)=>`<option value="${esc(value)}" ${value===selected?'selected':''}>${esc(label)}</option>`;
   const field=(name,label,value,attrs='')=>`<label class="field"><span>${esc(label)}</span><input name="${name}" aria-label="${esc(label)}" value="${esc(value??'')}" ${attrs}></label>`;
+
+  function modularDevices(p) {
+    return p.pages.flatMap(page=>page.nodes).map(node=>{
+      const module=ui.moduleOf(node),definition=module.manifest || engine().catalog?.modules.find(m=>m.id===module.kind);
+      return {node,definition,model:definition?.solver_model||module.kind};
+    });
+  }
+  function isModular(p) {
+    return p.modelingDomain==='refrigeration' || modularDevices(p).some(({definition})=>definition?.ports?.some(port=>port.domain==='refrigerant'));
+  }
+  const MODULAR_METRICS={
+    cold_room:[['state.temperature_k','库温','°C',1,-273.15]],
+    saturated_vessel:[['state.pressure_pa','压力','MPa',1e6,0],['state.level_ratio','液体体积分数','%',.01,0],['state.level_height_ratio','液位高度比','%',.01,0],['state.level_m','液位高度','m',1,0]],
+    refrigerant_compressor:[['mass_flow_kg_s','流量','kg/s',1,0],['electric_power_w','电功率','kW',1000,0]],
+    enthalpy_compressor:[['mass_flow_kg_s','流量','kg/s',1,0],['electric_power_w','电功率','kW',1000,0]],
+    dx_compressor:[['mass_flow_kg_s','流量','kg/s',1,0],['electric_power_w','电功率','kW',1000,0]],
+    dx_evaporator:[['room_cooling_w','库房净冷量','kW',1000,0],['superheat_k','实际出口过热度','K',1,0]],
+    performance_compressor:[['mass_flow_kg_s','流量','kg/s',1,0],['electric_power_w','电功率','kW',1000,0],['actual_isentropic_efficiency','等熵效率','%',.01,0]],
+    defrost_air_cooler:[['room_cooling_w','库房净冷量','kW',1000,0],['heater_power_w','融霜加热','kW',1000,0]],
+    evaporative_condenser:[['heat_rejection_w','排热','kW',1000,0]],
+    air_cooled_condenser:[['heat_rejection_w','排热','kW',1000,0],['air_outlet_temperature_k','出风温度','°C',1,-273.15],['fan_power_w','风机电功率','kW',1000,0]],
+    expansion_valve:[['mass_flow_kg_s','流量','kg/s',1,0]],
+    refrigerant_pump:[['mass_flow_kg_s','供液量','kg/s',1,0]],
+    air_cooler:[['room_cooling_w','库房净冷量','kW',1000,0]],
+    immersed_tube_bundle:[['shell_heat_w','管束向壳体换热','kW',1000,0],['shell_mass_kg','壳体库存','kg',1,0]],
+    room_heat_manifold:[['cooling_power_w','汇集净冷量','kW',1000,0],['cooler_count','冷风机数量','台',1,0]],
+    cascade_exchanger:[['heat_w','两侧换热量','kW',1000,0],['approach_k','两侧饱和温差','K',1,0]],
+  };
+  function modularBindings(p) {
+    return modularDevices(p).flatMap(({node,definition,model})=>{
+      if(definition?.sdk?.capabilities?.includes('composite.refrigeration.v1'))return definition.variables
+        .filter(v=>/temperature_k|electric_power_w|cooling_power_w|level_ratio/.test(v.id)).slice(0,8)
+        .map(v=>({nodeId:node.id,key:`${node.id}.${v.id}`,label:`${node.id} · ${v.label}`,unit:v.unit?.display_unit||'',scale:v.unit?.display_scale||1,offset:v.unit?.display_offset||0}));
+      return (MODULAR_METRICS[model]||[]).filter(([suffix])=>definition?.variables?.some(v=>v.id===suffix))
+        .map(([suffix,label,unit,scale,offset])=>({nodeId:node.id,key:`${node.id}.${suffix}`,label:`${node.id} · ${node.name} · ${label}`,unit,scale,offset}));
+    });
+  }
+  function assemblyToolbar(p) {
+    return isModular(p)?btn('cs-assembly-guide','冷库组装说明','ListChecks','','small'):'';
+  }
+  function assemblyGuide(p) {
+    const devices=modularDevices(p),counts=model=>devices.filter(d=>model==='condenser'?['evaporative_condenser','air_cooled_condenser'].includes(d.model):d.model===model).length;
+    const items=[['低压循环桶、贮液器','saturated_vessel',2],['制冷压缩机','refrigerant_compressor',1],['蒸发式／风冷冷凝器','condenser',1],
+      ['电磁节流阀','expansion_valve',1],['制冷剂液泵','refrigerant_pump',1],['冷风机（泵供液）','air_cooler',1],['库房热节点','cold_room',1]];
+    openDialog('从设备模块组装冷库','从左侧模块库逐个放置设备，再点击端口连接；设备标识由画布生成，计算与结果按实际标识绑定。',
+      `<div class="stack"><p>首个单库房：R134a 泵供液集总循环。库房使用“库房热节点”，不要与“冻结物库房＋单级制冷机组”的另一类模型混用。</p>
+      <table><thead><tr><th>设备</th><th>基础数量</th><th>画布已有</th></tr></thead><tbody>${items.map(([label,model,count])=>`<tr><td>${esc(label)}</td><td>${count}</td><td>${counts(model)}</td></tr>`).join('')}</tbody></table>
+      <ol><li>低压桶气相出口 → 压缩机吸气 → 压缩机排气 → 冷凝器进口 → 贮液器进口。</li><li>贮液器液相出口 → 节流阀进口 → 节流阀出口 → 低压桶第一个进口。</li>
+      <li>低压桶液相出口 → 液泵 → 冷风机供液 → 冷风机湿回气 → 低压桶第二个进口。</li><li>冷风机冷量输出 → 库房冷却热接口。可选未接端口可留空。</li></ol>
+      <p>在设备参数中填写设计数据与初始状态；当前默认工质 ${esc(p.fluid||p.medium)}。首例参数使用 R134a、低压桶 −25°C、贮液器 35°C、库房 −18°C；压缩机排量、节流阀 Kv、冷凝器 UA 与泵流量应匹配。</p>
+      <p>先用上述单工质回路起步。NH₃／CO₂ 系统使用“复叠换热器”：蒸发侧连接 NH₃ 低压供液与回气，冷凝侧连接 CO₂ 循环桶气相与回液。两侧只交换热量，不直接连通制冷剂；在“介质与单位”的回路工质中分别选择各侧锚点并指定 Ammonia 与 CO2，不能仅修改项目默认工质。</p>
+      <p>当前支持的连接由集总模型约束：同一压力等级对应一个容器；同一端口分支使用制冷剂集管；库房可经热汇集连接多个冷风机，冷风机由液泵供液；DX使用独立专用设备链。不同设备任意连线并不保证构成可计算系统。</p>
+      <p>点击“检查连接”由后端核对拓扑、设备与工质；通过后运行。首版为集总模型，控制脚本由用户另行配置；不会自动生成温控或保持设计压力。</p>${btn('nav','工质与运行设置','Settings2','data-route="settings"','small')}</div>`,null,'',true);
+  }
+  function modularCurrent(p) {return !!p.run.history.length && p.run.parameterKey===ui.projectKey(p);}
+  function modularStatus(p) {return !p.run.history.length?'尚未计算':modularCurrent(p)?'当前设备组合的计算结果':'上次计算结果 · 配置已变更，请重新运行';}
+  function modularValue(p,binding) {return modularCurrent(p)?fmt(p,binding.key,binding.scale,binding.offset,3):'—';}
+  function modularMarkup(p) {
+    const bindings=modularBindings(p),disabled=lastRun(p)?'':'disabled';
+    return `<section class="panel cold-storage-summary cold-room" data-modular-cold-summary aria-label="自主冷库运行指标"><div class="panel-head"><strong>自主组装冷库</strong><span data-modular-cold-status>${modularStatus(p)}</span><span class="push"></span>${assemblyToolbar(p)}${btn('cs-report','运行报告','FileText',disabled,'small')}${btn('cs-csv','CSV','Download',disabled,'small')}</div><div class="panel-body">
+      ${bindings.length?`<div class="metric-row cold-metrics">${bindings.map(b=>`<div class="metric"><span>${esc(b.label)} · ${esc(b.unit)}</span><strong data-modular-cold-key="${esc(b.key)}">${modularValue(p,b)}</strong></div>`).join('')}</div>`:'<p>画布从空白开始。展开模块库，依次放置低压桶、压缩机、冷凝器、贮液器、节流阀、液泵、冷风机和库房热节点。</p>'}
+      <div data-cold-warnings>${warnings(p).map(w=>`<div class="notice warn">${esc(w)}</div>`).join('')}</div></div></section>`;
+  }
 
   async function fetchExample(name){
     const response=await fetch('/api/v1/examples/'+name,{headers:engine().authHeaders()});
@@ -57,7 +121,7 @@ window.createColdStorageUI = function (ui) {
       [id,Object.fromEntries(Object.entries(values).map(([key,value])=>[key,display(specs(id).find(x=>x.id===key),value)]))]))}));
     p.activeScenarioId='A-S01';
     p.solver={...p.solver,mode:'dynamic',duration:DURATIONS['A-S01'],dt:30,executionMode:'fast',historyWindow:DURATIONS['A-S01']/30+1};
-    state().projects.push(p);ui.normalizeState();
+    FluidNetProjectState.addProject(state(),p);ui.normalizeState();
     charts(p,[['ROOM1','runtime:state.temperature_k','库温','°C','ROOM1.state.temperature_k',1,-273.15],
       ['ROOM1','runtime:state.goods_temperature_k','货温','°C','ROOM1.state.goods_temperature_k',1,-273.15],
       ['CU1','runtime:cooling_power_w','机组制冷量','kW','CU1.cooling_power_w',1000,0],
@@ -103,7 +167,7 @@ window.createColdStorageUI = function (ui) {
       scenarios:model.scenarios.map(s=>({id:s.id,name:s.name,events:s.events,overrides:{}})),activeScenarioId:'B-S01'});
     p.controlConfig={...(p.controlConfig||{}),name:'上层启停 · 液泵 · 满足度',period:script.sample_s*1000};
     p.solver={...p.solver,mode:'dynamic',duration:DURATIONS['B-S01'],dt:30,executionMode:'fast',historyWindow:DURATIONS['B-S01']/30+1};
-    state().projects.push(p);ui.normalizeState();
+    FluidNetProjectState.addProject(state(),p);ui.normalizeState();
     charts(p,[['ROOM1','runtime:state.temperature_k','库房 1 库温','°C','ROOM1.state.temperature_k',1,-273.15],
       ['ROOM2','runtime:state.temperature_k','库房 2 库温','°C','ROOM2.state.temperature_k',1,-273.15],
       ['LP1','runtime:state.pressure_pa','低压桶压力','MPa','LP1.state.pressure_pa',1e6,0],
@@ -170,7 +234,7 @@ window.createColdStorageUI = function (ui) {
       pressureAtol:model.solver.pressure_tolerance_pa,massAtol:model.solver.mass_tolerance_kg_s,maxIter:model.solver.max_iterations,
       hydraulicMethod:model.solver.hydraulic_method,moduleMixedJacobian:model.solver.module_mixed_jacobian,
       executionMode:'fast',historyWindow:2001};
-    state().projects.push(p);ui.normalizeState();
+    FluidNetProjectState.addProject(state(),p);ui.normalizeState();
     syncCouplingCharts(p);
     ui.ui().showChart=true;
     ui.ui().workbenchChart=state().charts.extra.find(c=>c.projectId===p.id&&c.couplingId)?.id;
@@ -228,7 +292,7 @@ window.createColdStorageUI = function (ui) {
     return {pipes,vessels,excluded};
   }
   function couplingToolbar(p){
-    return btn('cs-coupling',couplingLinks(p).length?'盘管换热':'建立热耦合','Thermometer','','small');
+    return btn('cs-coupling',couplingLinks(p).length?'盘管换热':'建立热耦合','Thermometer','','small')+btn('cs-coupling-mode',p.couplingMode==='storage_v1'?'储热联算':'联算模式','Settings2','','small');
   }
   function couplingChartBindings(p){
     const links=couplingLinks(p);
@@ -265,7 +329,7 @@ window.createColdStorageUI = function (ui) {
   function coupledMarkup(p){
     const links=couplingLinks(p);if(!links.length)return '';
     const nodes=couplingNodes(p),name=id=>{const n=nodes.find(n=>n.id===id);return n?`${n.name} (${id})`:`${id}（设备不存在）`;};
-    const total=links.length>1?`<section class="panel" aria-label="双盘管汇总"><div class="panel-head"><strong>双盘管汇总</strong><span>${esc(name(links[0].refrigerant_vessel_id))}</span></div><div class="panel-body metric-row cold-metrics"><div class="metric"><span>总传热量 · kW</span><strong data-coupled-total-heat>${couplingResultCurrent(p)?fmt(p,'metrics.coupling_heat_w',1000,0,3):'—'}</strong></div><div class="metric"><span>累计总传热量 · kWh</span><strong data-coupled-total-energy>${couplingResultCurrent(p)?fmt(p,'metrics.coupling_heat_energy_j',3600000,0,4):'—'}</strong></div></div></section>`:'';
+    const total=links.length>1?`<section class="panel" aria-label="盘管汇总"><div class="panel-head"><strong>盘管汇总</strong><span>${esc(name(links[0].refrigerant_vessel_id))}</span></div><div class="panel-body metric-row cold-metrics"><div class="metric"><span>总传热量 · kW</span><strong data-coupled-total-heat>${couplingResultCurrent(p)?fmt(p,'metrics.coupling_heat_w',1000,0,3):'—'}</strong></div><div class="metric"><span>累计总传热量 · kWh</span><strong data-coupled-total-energy>${couplingResultCurrent(p)?fmt(p,'metrics.coupling_heat_energy_j',3600000,0,4):'—'}</strong></div></div></section>`:'';
     const panels=links.map((link,index)=>`<section class="panel cold-storage-summary thermal-coupling" aria-label="${esc(link.id)} 热耦合运行指标" data-coupling-id="${esc(link.id)}">
       <div class="panel-head"><strong>${esc(link.id)} · 制冷站与二次液体回路</strong><span>${esc(scenarioName(p))}</span></div>
       <div class="panel-body"><p>${esc(name(link.fluid_instance_id))} · ${esc(link.fluid_channel_id||'ch0')} → ${esc(name(link.refrigerant_vessel_id))}；UA ${esc(link.ua_w_k)} W/K。正换热量表示二次液体向制冷剂放热，液体回路无储热。</p>
@@ -277,20 +341,20 @@ window.createColdStorageUI = function (ui) {
   function couplingList(p){
     assertCouplingIdle(p);
     const links=couplingLinks(p);
-    openDialog('热耦合关系','两根不同液体通路的盘管可关联同一个饱和制冷剂容器。',
+    openDialog('热耦合关系','按当前联算模式管理液体通路与饱和容器的换热关系。',
       `<div class="stack">${links.map(link=>`<div class="panel" data-coupling-row="${esc(link.id)}"><div class="panel-body"><strong>${esc(link.id)}</strong><p>${esc(link.fluid_instance_id)} · ${esc(link.fluid_channel_id)} → ${esc(link.refrigerant_vessel_id)}；UA ${esc(link.ua_w_k)} W/K</p><div class="row gap-6">${btn('cs-edit-coupling','编辑','Pencil',`data-coupling="${esc(link.id)}"`,'small')}${btn('cs-remove-coupling','移除','Trash2',`data-coupling="${esc(link.id)}"`,'small')}</div></div></div>`).join('')}
-      ${btn('cs-add-coupling','新增关系','Plus',links.length>=2?'disabled title="最多支持两条关系"':'','small')}<p class="muted">${links.length} / 2 条关系</p></div>`);
+      ${btn('cs-add-coupling','新增关系','Plus',links.length>=(p.couplingMode==='storage_v1'?8:2)?'disabled title="已达关系上限"':'','small')}<p class="muted">${links.length} / ${p.couplingMode==='storage_v1'?8:2} 条关系</p></div>`);
   }
   function couplingSettings(p,identifier=undefined){
     assertCouplingIdle(p);
     if(!engine().catalog||!engine().health?.capabilities?.thermal_coupling)throw Error('请等待支持热耦合的计算服务连接。');
-    const links=couplingLinks(p);if(links.length>2||identifier===null&&links.length>=2)throw Error('当前最多支持两条热耦合关系。');
+    const limit=p.couplingMode==='storage_v1'?8:2;const links=couplingLinks(p);if(links.length>limit||identifier===null&&links.length>=limit)throw Error('当前最多支持两条热耦合关系。');
     if(identifier===undefined&&links.length>1){couplingList(p);return;}
     const link=identifier===null?undefined:identifier===undefined?links[0]:links.find(item=>item.id===identifier);
     if(identifier!==undefined&&identifier!==null&&!link)throw Error('热耦合关系已不存在，请重新选择。');
     const others=links.filter(item=>item!==link),candidates=couplingCandidates(p),{excluded}=candidates;
     const pipes=candidates.pipes.filter(item=>!others.some(other=>other.fluid_instance_id===item.node.id&&other.fluid_channel_id===item.channel.id));
-    const vessels=candidates.vessels.filter(item=>!others.length||item.node.id===others[0].refrigerant_vessel_id);
+    const vessels=candidates.vessels.filter(item=>p.couplingMode==='storage_v1'||!others.length||item.node.id===others[0].refrigerant_vessel_id);
     const name=n=>`${n.name} (${n.id})`;
     const missing=[!pipes.length?'请添加一根无储量内置圆管：启用唯一通路，原环境散热 UA 和热容分段数均为零。':'',
       !vessels.length?'请添加一个制冷站饱和制冷剂容器（例如低压循环桶或高压贮液器）。':''].filter(Boolean);
@@ -300,13 +364,13 @@ window.createColdStorageUI = function (ui) {
     const key=ui.projectKey(p);
     let newId='HX1';for(let index=1;links.some(item=>item.id===newId);index++)newId='HX'+(index+1);
     openDialog('热耦合关系','一根内置液体盘管与一个饱和制冷剂容器交换热量；关系修改在下次运行生效。',
-      `${others.length?`<p class="muted">${esc(others[0].id)} 已绑定 ${esc(others[0].fluid_instance_id)}；当前关系须使用另一液体通路并关联同一容器。</p>`:''}${missing.map(t=>`<p class="notice warn">${esc(t)}</p>`).join('')}${excluded.length?`<p class="muted">${excluded.map(esc).join('；')}</p>`:''}
+      `${others.length&&p.couplingMode!=='storage_v1'?`<p class="muted">${esc(others[0].id)} 已绑定 ${esc(others[0].fluid_instance_id)}；当前关系须使用另一液体通路并关联同一容器。</p>`:''}${missing.map(t=>`<p class="notice warn">${esc(t)}</p>`).join('')}${excluded.length?`<p class="muted">${excluded.map(esc).join('；')}</p>`:''}
       <div class="fields">${field('id','关系标识',link?.id||newId,'required maxlength="81" pattern="[A-Za-z][A-Za-z0-9_\\-]*"')}
       <label class="field"><span>液体管段</span><select id="cs-fluid-pipe" name="fluid_instance_id" aria-label="液体管段" required>${option('','请选择合法管段',pipeId)}${stale(pipeId,pipes)}${pipes.map(x=>option(x.node.id,name(x.node),pipeId)).join('')}</select></label>
       <label class="field"><span>通路</span><select id="cs-fluid-channel" name="fluid_channel_id" aria-label="通路" required>${pipe?option(pipe.channel.id,pipe.channel.name||pipe.channel.id,channelId):option('','请先选择合法管段','')}</select></label>
       <label class="field"><span>饱和制冷剂容器</span><select name="refrigerant_vessel_id" aria-label="饱和制冷剂容器" required>${option('','请选择合法容器',vesselId)}${stale(vesselId,vessels)}${vessels.map(x=>option(x.node.id,name(x.node),vesselId)).join('')}</select></label>
       ${field('ua','换热能力 UA · W/K',link?.ua_w_k??1800,'type="number" min="0" step="any" required')}</div>
-      <div class="row gap-6">${link?btn('cs-remove-coupling','移除热耦合','Trash2',`data-coupling="${esc(link.id)}"`,'small'):''}${link&&links.length<2?btn('cs-add-coupling','新增关系','Plus','','small'):''}${links.length>1?btn('cs-list-couplings','返回关系列表','ListChecks','','small'):''}</div>`,
+      <div class="row gap-6">${link?btn('cs-remove-coupling','移除热耦合','Trash2',`data-coupling="${esc(link.id)}"`,'small'):''}${link&&links.length<limit?btn('cs-add-coupling','新增关系','Plus','','small'):''}${links.length>1?btn('cs-list-couplings','返回关系列表','ListChecks','','small'):''}</div>`,
       values=>{
         assertCouplingIdle(p);if(ui.projectKey(p)!==key)throw Error('编辑期间项目发生变化，请重新打开热耦合关系。');
         const id=values.id?.trim(),ua=String(values.ua??'').trim()?Number(values.ua):NaN;
@@ -314,7 +378,7 @@ window.createColdStorageUI = function (ui) {
         if(!Number.isFinite(ua)||ua<0)throw Error('UA 必须为非负有限数值。');
         if(others.some(item=>item.id===id))throw Error('关系标识已被另一条热耦合使用。');
         if(others.some(item=>item.fluid_instance_id===values.fluid_instance_id&&item.fluid_channel_id===values.fluid_channel_id))throw Error('同一液体通路只能绑定一条热耦合关系。');
-        if(others.some(item=>item.refrigerant_vessel_id!==values.refrigerant_vessel_id))throw Error('当前双盘管须关联同一个饱和制冷剂容器。');
+        if(p.couplingMode!=='storage_v1'&&others.some(item=>item.refrigerant_vessel_id!==values.refrigerant_vessel_id))throw Error('当前双盘管须关联同一个饱和制冷剂容器。');
         const current=couplingCandidates(p),selected=current.pipes.find(x=>x.node.id===values.fluid_instance_id);
         if(!selected||selected.channel.id!==values.fluid_channel_id)throw Error('请选择合法的无储量内置圆管及其唯一通路。');
         if(!current.vessels.some(x=>x.node.id===values.refrigerant_vessel_id))throw Error('请选择合法的饱和制冷剂容器。');
@@ -344,11 +408,20 @@ window.createColdStorageUI = function (ui) {
     if(couplingLinks(p).length)return coupledMarkup(p);
     if(p.caseId===IDEAL)return markupIdeal(p);
     if(p.caseId===STATION)return stationMarkup(p);
-    if(p.caseId!==ROOM)return '';
+    if(p.caseId!==ROOM)return isModular(p)?modularMarkup(p):'';
     const run=lastRun(p), disabled=run?'':'disabled';
     return `<section class="panel cold-storage-summary cold-room" aria-label="冷库运行指标"><div class="panel-head"><strong>−18°C 冻结物储藏库</strong><span data-cold-scenario>${esc(scenarioName(p))}</span><span class="push"></span>${btn('cs-scenarios','工况','ListChecks','','small')}${btn('cs-schedule','负荷日程','Clock3','','small')}${btn('cs-bench','机组工作点','Gauge','','small')}${btn('cs-report','运行报告','FileText',disabled,'small')}${btn('cs-csv','CSV','Download',disabled,'small')}${btn('cs-compare','策略对照','ArrowRightLeft','','small')}</div><div class="panel-body"><div class="metric-row cold-metrics">${METRICS.map(([id,label,key,scale,offset,digits])=>`<div class="metric"><span>${label}</span><strong data-cold-${id}>${fmt(p,key,scale,offset,digits)}</strong></div>`).join('')}<div class="metric"><span>冷风机</span><strong data-cold-mode>${modeText(p)}</strong></div></div><div data-cold-warnings>${warnings(p).map(w=>`<div class="notice warn">${esc(w)}</div>`).join('')}</div></div></section>`;
   }
   function refresh(p){
+    const modular=document.querySelector('[data-modular-cold-summary]');
+    if(modular){
+      modular.querySelector('[data-modular-cold-status]').textContent=modularStatus(p);
+      const bindings=new Map(modularBindings(p).map(b=>[b.key,b]));
+      for(const element of modular.querySelectorAll('[data-modular-cold-key]')){const binding=bindings.get(element.dataset.modularColdKey);element.textContent=binding?modularValue(p,binding):'—';}
+      for(const action of ['cs-report','cs-csv']){const b=modular.querySelector(`[data-action="${action}"]`);if(b)b.disabled=!lastRun(p);}
+      const box=modular.querySelector('[data-cold-warnings]');if(box)box.innerHTML=warnings(p).map(w=>`<div class="notice warn">${esc(w)}</div>`).join('');
+      return;
+    }
     if(couplingLinks(p).length){
       for(const link of couplingLinks(p)){
         const panel=[...document.querySelectorAll('[data-coupling-id]')].find(item=>item.dataset.couplingId===link.id);if(!panel)continue;
@@ -468,10 +541,19 @@ window.createColdStorageUI = function (ui) {
   async function action(name,el){
     const p=ui.project();
     switch(name){
+      case 'cs-assembly-guide':assemblyGuide(p);break;
       case 'cs-create':await create();break;
       case 'cs-create-station':await createStation();break;
       case 'cs-create-coupled':await createCoupled();break;
       case 'cs-create-dual':dualExampleDialog();break;
+      case 'cs-coupling-mode':
+        assertCouplingIdle(p);
+        openDialog('联算模式','储热模式支持受限液体缓冲箱及最多八条不同容器关系；仅在所支持设备范围内联立求解。',
+          `<label class="field"><span>模式</span><select name="mode"><option value="legacy" ${p.couplingMode!=='storage_v1'?'selected':''}>兼容模式 · 最多两条同容器关系</option><option value="storage_v1" ${p.couplingMode==='storage_v1'?'selected':''}>储热联算 · 最多八条关系</option></select></label>`,values=>{
+            if(!['legacy','storage_v1'].includes(values.mode))throw Error('未知联算模式');
+            if(values.mode==='legacy'&&(couplingLinks(p).length>2||new Set(couplingLinks(p).map(c=>c.refrigerant_vessel_id)).size>1))throw Error('现有关系超出兼容模式范围');
+            assertCouplingIdle(p);p.couplingMode=values.mode;ui.markDirty(p);ui.persist();ui.render();
+          },'保存模式');break;
       case 'cs-coupling':couplingSettings(p);break;
       case 'cs-edit-coupling':couplingSettings(p,el.dataset.coupling);break;
       case 'cs-add-coupling':couplingSettings(p,null);break;
@@ -490,5 +572,7 @@ window.createColdStorageUI = function (ui) {
       case 'cs-compare':await compare();break;
     }
   }
-  return {markup,refresh,action,couplingToolbar,couplingSettings,couplingReferences,assertCouplingIdle,syncCouplingCharts,couplingChartBindings};
+  return {markup,refresh,action,assemblyToolbar,modularBindings,couplingToolbar,couplingSettings,couplingReferences,assertCouplingIdle,syncCouplingCharts,couplingChartBindings};
 };
+
+export default createColdStorageUI;

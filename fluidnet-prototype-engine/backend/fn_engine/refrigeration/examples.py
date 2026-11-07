@@ -1,7 +1,18 @@
 """Product A1 seed; canonical parameters mirror the versioned case assumptions."""
 from ..catalog import catalog_map, cold_store_catalog, thermal_catalog
-from ..models import (CircuitFluid, Connection, ControlScript, Endpoint, FluidConfig, ModuleInstance, PIDController,
-                      Project, Scenario, ScheduleEvent, SolverOptions)
+from ..model_types.domain import (
+    CircuitFluid,
+    Connection,
+    ControlScript,
+    Endpoint,
+    ModuleInstance,
+    PIDController,
+    Project,
+    Scenario,
+    ScheduleEvent,
+    SolverOptions,
+)
+from ..model_types.base import FluidConfig
 
 
 def ideal_room_example():
@@ -203,7 +214,7 @@ STATION_SCENARIO_DURATIONS = {'B-S01': 86400., 'B-S02': 86400., 'B-S03': 64800.,
 
 def station_case():
     """Case B with the five loops and the upper loop; actuators start at the B0 design point."""
-    from ..models import ScheduleEvent
+    from ..model_types.domain import ScheduleEvent
     project = station_example()
     design = {'LP1': {'temperature_k': 241.482716507}, 'HP1': {'temperature_k': 308.150214111, 'level_ratio': .633},
               'CD1': {'temperature_k': 245.577548873}, 'EV1': {'opening_ratio': .388}, 'PU1': {'rated_mass_flow_kg_s': 3., 'speed_ratio': .72},

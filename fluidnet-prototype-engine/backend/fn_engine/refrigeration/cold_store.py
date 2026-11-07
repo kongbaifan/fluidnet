@@ -20,7 +20,9 @@ import numpy as np
 from ..catalog import cold_store_catalog
 from ..compiler import CompilationError, validated_parameters, validate_controllers
 from ..control import validate_scripts
-from ..models import Diagnostic, Project, RunFrame
+from ..model_types.base import Diagnostic
+from ..model_types.domain import Project
+from ..model_types.run import RunFrame
 from ..properties import PropertyError, property_service
 from ..solver import SolveFailed
 from .cycle import DeviceRangeError, check_envelope, cycle_point, cycle_rates, rated_design, superheat_warning
@@ -634,7 +636,7 @@ def solve_cold_store_steady(network):
 
 def unit_workpoint(definition, parameters, fluid, evaporating_k, condensing_k, capacity_ratio):
     """Standalone condensing-unit bench at given saturation temperatures; same functions as the coupled run."""
-    from ..models import ModuleInstance
+    from ..model_types.domain import ModuleInstance
     instance = ModuleInstance(id='BENCH', module_id=definition.id, name='bench', parameters=parameters)
     p = validated_parameters(instance, definition)
     _parameter_checks('BENCH', 'condensing_unit', p)

@@ -1,0 +1,96 @@
+{
+  "source_project": "source.project.json",
+  "instance_ids": [
+    "Cooler-1",
+    "Cooler-2",
+    "Return"
+  ],
+  "module_id": "open_air_coolers",
+  "module_name": "冷风机组",
+  "host_project": "air-coolers.project.json",
+  "host_instance_id": "D1",
+  "duration_s": 0.2,
+  "dt_s": 0.1,
+  "public_ports": [
+    {
+      "id": "Cooler-1_in0",
+      "label": "Cooler-1 · 供液",
+      "domain": "refrigerant",
+      "direction": "in",
+      "required": true,
+      "circuit": "group2"
+    },
+    {
+      "id": "Cooler-1_heat",
+      "label": "Cooler-1 · 冷量输出",
+      "domain": "thermal",
+      "direction": "out",
+      "required": true,
+      "circuit": "group0"
+    },
+    {
+      "id": "Cooler-2_in0",
+      "label": "Cooler-2 · 供液",
+      "domain": "refrigerant",
+      "direction": "in",
+      "required": true,
+      "circuit": "group2"
+    },
+    {
+      "id": "Cooler-2_heat",
+      "label": "Cooler-2 · 冷量输出",
+      "domain": "thermal",
+      "direction": "out",
+      "required": true,
+      "circuit": "group1"
+    },
+    {
+      "id": "Return_in2",
+      "label": "Return · 汇入 3",
+      "domain": "refrigerant",
+      "direction": "in",
+      "required": false,
+      "circuit": "group2"
+    },
+    {
+      "id": "Return_in3",
+      "label": "Return · 汇入 4",
+      "domain": "refrigerant",
+      "direction": "in",
+      "required": false,
+      "circuit": "group2"
+    },
+    {
+      "id": "Return_out0",
+      "label": "Return · 分出 1",
+      "domain": "refrigerant",
+      "direction": "out",
+      "required": false,
+      "circuit": "group2"
+    },
+    {
+      "id": "Return_out1",
+      "label": "Return · 分出 2",
+      "domain": "refrigerant",
+      "direction": "out",
+      "required": false,
+      "circuit": "group2"
+    },
+    {
+      "id": "Return_out2",
+      "label": "Return · 分出 3",
+      "domain": "refrigerant",
+      "direction": "out",
+      "required": false,
+      "circuit": "group2"
+    },
+    {
+      "id": "Return_out3",
+      "label": "Return · 分出 4",
+      "domain": "refrigerant",
+      "direction": "out",
+      "required": false,
+      "circuit": "group2"
+    }
+  ]
+}

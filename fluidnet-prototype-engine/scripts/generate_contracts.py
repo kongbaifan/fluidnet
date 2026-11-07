@@ -15,40 +15,109 @@ from fn_engine.batch_models import (
     BatchListResponse, BatchPlanRequest, BatchPreviewResponse, BatchSetupResponse,
 )
 from fn_engine.air_models import AirPropertyRequest, AirGridRequest, AirVariableDescriptor, MoistAirOptions
-from fn_engine.models import AirPropertyResponse, AirGridResponse, AirVariableCatalogResponse, AirMigrationRequest, AirMigrationResponse, RunRecordResponse
+from fn_engine.model_types.http import (
+    AirPropertyResponse,
+    AirGridResponse,
+    AirVariableCatalogResponse,
+    AirMigrationRequest,
+    AirMigrationResponse,
+    RunRecordResponse,
+)
 from fn_engine.bridge import normalize_prototype_export
-from fn_engine.models import (
-    CommitStepRequest, CommitStepResponse, ControlPreviewResponse, EvaluateRequest, EvaluateResponse,
-    FluidConfig, HealthResponse, ModuleDefinition, ModulePackageRef, ModuleTestRequest,
-    ModuleExecutionInfo, ModuleRequestContext,
-    ModuleStepCandidate, ModuleTestSuiteRequest, ModuleTestSuiteResponse,
-    ModulePhaseRequest, ModuleThermalResponse,
-    ModuleDerivativeResponse,ModuleTemplateRequest,ModuleGroupRequest,ModuleValidationEvidence,ModuleMigration,
-    ModuleTestResponse, NetworkRelation, PortState, Project, ProjectDeleteResponse,
-    ProjectDetailResponse, ProjectListResponse, ProjectRevisionsResponse, ProjectRestoreResponse,
-    ProjectSaveResponse, ProjectUpgradeResponse, RunCreateResponse, RunDeleteResponse,
-    RunEventsResponse, RunFrame, RunHistoryResponse, RunListResponse, RunRequest, RunStatus, SavedProjectRunRequest,
-    ErrorResponse, ValidationResponse,
-    ModuleSaveRequest, ModuleVersionResponse, ModuleVersionsResponse,
-    ModuleDesignRequest, ModuleDesignResponse, UnitWorkpointRequest, UnitWorkpointResponse,
-    ProjectDocument, ProjectSaveRequest, ProjectRevisionRequest, ProjectDeleteRequest, ProjectUpgradeRequest,
-    WorkspaceResponse, WorkspaceRestoreResponse, WorkspaceRevisionsResponse, WorkspaceSaveResponse,
+from fn_engine.model_types.protocol import (
+    CommitStepRequest,
+    CommitStepResponse,
+    EvaluateRequest,
+    EvaluateResponse,
+    ModuleExecutionInfo,
+    ModuleRequestContext,
+    ModuleStepCandidate,
+    ModulePhaseRequest,
+    ModuleThermalResponse,
+    ModuleDerivativeResponse,
+    NetworkRelation,
+)
+from fn_engine.model_types.http import (
+    ControlPreviewResponse,
+    HealthResponse,
+    ProjectDeleteResponse,
+    ProjectDetailResponse,
+    ProjectListResponse,
+    ProjectRevisionsResponse,
+    ProjectRestoreResponse,
+    ProjectSaveResponse,
+    ProjectUpgradeResponse,
+    RunCreateResponse,
+    RunDeleteResponse,
+    RunEventsResponse,
+    RunHistoryResponse,
+    RunListResponse,
+    RunStatus,
+    SavedProjectRunRequest,
+    ErrorResponse,
+    ValidationResponse,
+    ModuleSaveRequest,
+    ModuleVersionResponse,
+    ModuleVersionsResponse,
+    ProjectSaveRequest,
+    ProjectRevisionRequest,
+    ProjectDeleteRequest,
+    ProjectUpgradeRequest,
+    WorkspaceResponse,
+    WorkspaceRestoreResponse,
+    WorkspaceRevisionsResponse,
+    WorkspaceSaveResponse,
     WorkspaceStorageResponse,
 )
+from fn_engine.model_types.base import FluidConfig, ModulePackageRef, PortState
+from fn_engine.model_types.module import ModuleDefinition, ModuleValidationEvidence, ModuleMigration
+from fn_engine.model_types.module_testing import (
+    ModuleTestRequest,
+    ModuleTestSuiteRequest,
+    ModuleTestSuiteResponse,
+    ModuleTemplateRequest,
+    ModuleGroupRequest,
+    ModuleTestResponse,
+    ModuleDesignRequest,
+    ModuleDesignResponse,
+    UnitWorkpointRequest,
+    UnitWorkpointResponse,
+)
+from fn_engine.model_types.domain import Project, ProjectDocument
+from fn_engine.model_types.run import RunFrame, RunRequest
 from fn_engine.compiler import compile_project
 from fn_engine.solver import solve_steady
 from fn_engine._module_schema_v1 import ModuleDefinitionV1
 from fn_engine._module_schema_v2 import ModuleDefinitionV2
 from fn_engine._module_schema_v3 import ModuleDefinitionV3
 from fn_engine._module_schema_v4 import ModuleDefinitionV4
-from fn_engine.models import RefrigerationEvaluateRequest, RefrigerationEvaluateResponse
+from fn_engine.model_types.protocol import RefrigerationEvaluateRequest, RefrigerationEvaluateResponse
+from fn_engine.model_types.protocol import ModuleReplaySnapshot
+from fn_engine.model_types.http import ModuleReplayRequest, ModuleReplayResponse, ModuleFailureResponse
 from fn_engine.refrigeration_models import RefrigerationThrottleInput, RefrigerationThrottleFlow
 
 root=Path(__file__).resolve().parents[1]
 output=root/'contracts'
 
 # 合同文件清单的唯一来源：schema 名与生成顺序都由这里给出，测试直接导入 models，避免名单漂移。
+from fn_engine.system_inspection import SystemInspection, InspectionComparison
+from fn_engine.equipment_library import LibraryItem, LibraryCatalog, LibraryRequest
+from fn_engine.coil_geometry import CoilGeometryRequest, CoilGeometryResponse
+from fn_engine.model_types.module_testing import CompositeTestContextRequest
+from fn_engine.performance_data import (PerformanceImport, PerformancePreview, PerformanceVersion,
+    PerformanceSummary, PerformanceList, PerformanceReference, PerformanceProposalRequest, PerformanceProposal, PerformanceComparison)
+
 models = [
+    ('composite-test-context-request',CompositeTestContextRequest),
+    ('performance-import',PerformanceImport),('performance-preview',PerformancePreview),
+    ('performance-version',PerformanceVersion),('performance-summary',PerformanceSummary),
+    ('performance-list',PerformanceList),('performance-reference',PerformanceReference),('performance-proposal-request',PerformanceProposalRequest),
+    ('performance-proposal',PerformanceProposal),('performance-comparison',PerformanceComparison),
+    ('system-inspection',SystemInspection),('inspection-comparison',InspectionComparison),
+    ('equipment-library-item',LibraryItem),('equipment-library',LibraryCatalog),('equipment-library-request',LibraryRequest),
+    ('coil-geometry-request',CoilGeometryRequest),('coil-geometry-response',CoilGeometryResponse),
+    ('module-replay-snapshot', ModuleReplaySnapshot), ('module-replay-request', ModuleReplayRequest),
+    ('module-replay-response', ModuleReplayResponse), ('module-failure-response', ModuleFailureResponse),
     ('moist-air-options',MoistAirOptions), ('air-property-request',AirPropertyRequest),
     ('air-property-response',AirPropertyResponse), ('air-grid-request',AirGridRequest),
     ('air-grid-response',AirGridResponse), ('air-variable-descriptor',AirVariableDescriptor),

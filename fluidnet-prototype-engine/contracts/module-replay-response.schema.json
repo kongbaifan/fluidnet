@@ -1,0 +1,390 @@
+{
+  "$defs": {
+    "Diagnostic": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "severity": {
+          "default": "error",
+          "enum": [
+            "info",
+            "warning",
+            "error"
+          ],
+          "title": "Severity",
+          "type": "string"
+        },
+        "instance_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Instance Id"
+        },
+        "field": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Field"
+        },
+        "module_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Module Id"
+        },
+        "module_version": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Module Version"
+        },
+        "phase": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Phase"
+        },
+        "time_s": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Time S"
+        },
+        "source_file": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source File"
+        },
+        "source_line": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Line"
+        },
+        "channel_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Channel Id"
+        },
+        "source_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Path"
+        },
+        "occurrences": {
+          "default": 1,
+          "minimum": 1,
+          "title": "Occurrences",
+          "type": "integer"
+        },
+        "first_time_s": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "First Time S"
+        },
+        "last_time_s": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Time S"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "title": "Diagnostic",
+      "type": "object"
+    },
+    "ModuleExecutionInfo": {
+      "additionalProperties": false,
+      "properties": {
+        "phase": {
+          "default": "manual",
+          "enum": [
+            "manual",
+            "initialize",
+            "evaluate",
+            "thermal",
+            "observe",
+            "jacobian",
+            "commit_step",
+            "finalize"
+          ],
+          "title": "Phase",
+          "type": "string"
+        },
+        "time_s": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Time S"
+        },
+        "run_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Run Id"
+        },
+        "instance_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Instance Id"
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Request Id"
+        },
+        "step_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Step Id"
+        },
+        "iteration_id": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Iteration Id"
+        },
+        "dt_s": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dt S"
+        },
+        "accepted_time_s": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Accepted Time S"
+        },
+        "port_data": {
+          "default": "unavailable",
+          "enum": [
+            "unavailable",
+            "trial",
+            "converged"
+          ],
+          "title": "Port Data",
+          "type": "string"
+        },
+        "channel_data": {
+          "default": "unavailable",
+          "enum": [
+            "unavailable",
+            "hydraulic_trial",
+            "converged"
+          ],
+          "title": "Channel Data",
+          "type": "string"
+        },
+        "state_data": {
+          "default": "unavailable",
+          "enum": [
+            "unavailable",
+            "initial",
+            "input_copy",
+            "candidate",
+            "module_committed"
+          ],
+          "title": "State Data",
+          "type": "string"
+        }
+      },
+      "title": "ModuleExecutionInfo",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "module_id": {
+      "title": "Module Id",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "failed",
+        "completed"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "matched_failure": {
+      "title": "Matched Failure",
+      "type": "boolean"
+    },
+    "execution": {
+      "$ref": "#/$defs/ModuleExecutionInfo"
+    },
+    "content_hash": {
+      "title": "Content Hash",
+      "type": "string"
+    },
+    "definition_hash": {
+      "title": "Definition Hash",
+      "type": "string"
+    },
+    "diagnostics": {
+      "items": {
+        "$ref": "#/$defs/Diagnostic"
+      },
+      "title": "Diagnostics",
+      "type": "array"
+    },
+    "result": {
+      "additionalProperties": true,
+      "title": "Result",
+      "type": "object"
+    }
+  },
+  "required": [
+    "module_id",
+    "status",
+    "matched_failure",
+    "execution",
+    "content_hash",
+    "definition_hash"
+  ],
+  "title": "ModuleReplayResponse",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

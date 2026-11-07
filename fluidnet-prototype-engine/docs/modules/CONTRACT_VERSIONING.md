@@ -1,5 +1,7 @@
 # 模块合同 schema 与 SDK 协商
 
+> 本文主体保留 S2/S3 阶段设计与例子，不代表当前能力上限。2026-11-05 核对：合同支持 schema 1–4，SDK 支持表最高为 0.8.0；事务与类型化制冷协议已有后续实现。以 `backend/fn_engine/module_contracts.py`、`backend/fn_sdk/__init__.py` 和[现行开发指南](DEVELOPMENT_GUIDE.md)为准，不修改旧包已声明版本或冻结解释。
+
 S2 增加模块合同 schema 2。工程版本、模块整数版本、合同 schema、SDK API 版本和状态合同版本各自独立；当前工程为 0.5.0，S3 后公共 Python SDK 为 0.3.0。旧合同不自动迁移。
 
 ## 1. 声明方式

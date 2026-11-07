@@ -1,6 +1,8 @@
 """Module authoring checks. User code is loaded only inside a Worker."""
 import ast
-from .models import Diagnostic, FluidConfig, ModuleDefinition, ValidationResponse
+from .model_types.base import Diagnostic, FluidConfig
+from .model_types.module import ModuleDefinition
+from .model_types.http import ValidationResponse
 from .runtime import WorkerProcess, design_source, module_content_hash, module_definition_hash, module_source
 
 
@@ -19,6 +21,10 @@ def validate_module_definition(module: ModuleDefinition) -> ValidationResponse:
                 continue
             parent = node.func.value
             if isinstance(parent, ast.Attribute) and parent.attr == 'net':
+                if node.func.attr == 'pressure_drop' and (module.sdk is None or 'net.pressure_drop' not in module.sdk.capabilities):
+                    diagnostics.append(Diagnostic(code='MODULE_CAPABILITY_UNSUPPORTED',
+                        message=f'源码第 {node.lineno} 行调用自定义压降，需要 SDK 0.8.0 与 net.pressure_drop 声明',
+                        source_file='module.py',source_line=node.lineno,field='sdk.capabilities'))
                 channel = next((keyword.value for keyword in node.keywords if keyword.arg == 'channel'), None)
                 if isinstance(channel, ast.Constant) and isinstance(channel.value, str) and channel.value not in declared:
                     diagnostics.append(Diagnostic(code='MODULE_CHANNEL_UNKNOWN', message=f'源码第 {node.lineno} 行返回未声明通路 {channel.value}',

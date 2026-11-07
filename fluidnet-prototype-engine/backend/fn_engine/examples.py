@@ -1,6 +1,6 @@
 """Reference PID projects shared by the UI and numerical acceptance tests."""
 from .catalog import catalog_map
-from .models import Connection, Endpoint, ModuleInstance, PIDController, Project
+from .model_types.domain import Connection, Endpoint, ModuleInstance, PIDController, Project
 
 
 def pid_example(kind):

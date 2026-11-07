@@ -60,7 +60,9 @@ def test_paused_sessions_release_compute_slots_and_step_keeps_worker(tmp_path):
 
 def test_realtime_publishes_before_completion_and_pause_does_not_expire(tmp_path):
     with TestClient(create_app(module_storage_root=tmp_path)) as client:
-        payload={'project':fed_tank().model_dump(mode='json'),'mode':'dynamic','duration_s':2.,'dt_s':.1,'execution_mode':'realtime'}
+        # Leave room for an instrumented/loaded client to observe and pause the
+        # live run. The test stops it explicitly, so this is not a 30-second wait.
+        payload={'project':fed_tank().model_dump(mode='json'),'mode':'dynamic','duration_s':30.,'dt_s':.1,'execution_mode':'realtime'}
         run_id=client.post('/api/v1/runs?background=true',json=payload).json()['run_id']
         record=wait(client,run_id,lambda r:r['frame'] and r['frame']['time_s']>=.1)
         assert record['status']=='running'

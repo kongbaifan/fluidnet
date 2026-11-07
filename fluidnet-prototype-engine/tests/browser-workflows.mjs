@@ -14,7 +14,7 @@ const close=async()=>{if(await page.getByRole('dialog').count())await page.getBy
 const manage=async id=>{await close();await page.goto(base+'/#projects');await page.locator(`[data-action="wf-manage"][data-id="${id}"]`).click();};
 async function saveProject(id){await manage(id);const response=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/v1/projects/'+id&&r.request().method()==='POST');await page.locator('[data-action="wf-save"]').click();expect((await response).status()).toBe(200);await expect(page.locator('#toast')).toContainText('项目已保存');await close();}
 const runButton=()=>page.locator('[data-action="run-project"][data-command="run"]').first();
-async function run(){const created=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/v1/runs'&&r.request().method()==='POST');await runButton().click();const id=(await (await created).json()).run_id;await expect.poll(async()=> (await api('/runs/'+id)).status,{timeout:20000}).toBe('completed');return id;}
+async function run(){const created=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/v1/runs'&&r.request().method()==='POST');await runButton().click();const id=(await (await created).json()).run_id;await expect.poll(async()=> (await api('/runs/'+id)).status,{timeout:20000}).toBe('completed');await expect(page.locator('#statusbar')).toContainText('已完成');return id;}
 try{
   await page.goto(base+'/#projects');await expect(page.locator('#app-header')).toContainText('模块平台 · v');
   await saveProject('water-net');
@@ -45,16 +45,24 @@ try{
   await manage(imported);await page.locator('[data-action="wf-delete"]').click();await page.getByRole('dialog').locator('button[type="submit"]').click();await expect.poll(async()=> (await api('/projects')).projects.some(p=>p.id===imported)).toBe(false);
 
   await page.goto(base+'/#modules');await page.locator('[data-module-id="programmable_valve"] [data-action="module-example"]').click();
-  await page.locator('[data-action="save"]').first().click();await expect(page.locator('[data-save-status]')).not.toContainText('正在保存');
-  const state=await page.evaluate(()=>JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1'))),id=state.activeProject;
+  await expect(page.locator('[data-wf-scenario]')).toBeVisible();
+  const id=await page.locator('[data-wf-scenario]').getAttribute('data-id');
+  // Save this project against its own revision; a concurrent project edit intentionally
+  // keeps this tab's whole-workspace revision stale until the workspace is reloaded.
+  await saveProject(id);const state=await page.evaluate(()=>JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
   // Seeds may already ship several versions (e.g. SDK v2); upgrade from the pinned one to a fresh latest.
   const pinned=state.projects.find(p=>p.id===id).moduleSnapshots.programmable_valve.version;
+  const pinnedProject=await api('/projects/'+id),pinnedRevision=pinnedProject.revision;
+  expect(pinnedProject.document.project.moduleSnapshots.programmable_valve.version).toBe(pinned);
   const latest=Math.max(...(await api('/modules/programmable_valve/versions')).versions.map(v=>Number(v.package.version.split('.')[0]))),next=latest+1;
   const release=await api('/modules/programmable_valve/versions/'+pinned);const module=release.module;module.content_hash=null;module.definition_hash=null;module.parameters.push({id:'gain',label:'新增增益',value_type:'number',default:2.0});
   await api('/modules/versions',{module,expected_latest_version:latest,release_notes:'兼容增加参数'});
+  await page.goto(base+'/#workbench');
   await page.locator('[data-action="wf-upgrades"]').click();await page.locator('[data-action="wf-module-versions"]').click();await page.locator(`[data-action="wf-preview-upgrade"][data-version="${next}"]`).click();await expect(page.getByRole('dialog')).toContainText('兼容检查通过');await captureFhd(page, 'artifacts/workflows-upgrade.png');await page.getByRole('dialog').locator('button[type="submit"]').click();await expect(page.locator('#toast')).toContainText('模块版本已更新并保存');
   const upgraded=await api('/projects/'+id);expect(upgraded.document.project.moduleSnapshots.programmable_valve.version).toBe(next);expect(upgraded.document.project.pages[0].nodes.find(n=>n.id==='V1').params.gain).toBe(2);
-  await manage(id);await page.locator('[data-action="wf-history"]').click();await page.locator(`[data-action="wf-restore"][data-revision="${upgraded.revision-1}"]`).click();await page.getByRole('dialog').locator('button[type="submit"]').click();await expect.poll(async()=> (await api('/projects/'+id)).document.project.moduleSnapshots.programmable_valve.version).toBe(pinned);
+  await manage(id);await page.locator('[data-action="wf-history"]').click();await page.locator(`[data-action="wf-restore"][data-revision="${pinnedRevision}"]`).click();await page.getByRole('dialog').locator('button[type="submit"]').click();await expect(page.getByRole('dialog')).toHaveCount(0);await expect(page.locator('#toast')).toContainText('项目修订已恢复');await expect.poll(async()=> (await api('/projects/'+id)).document.project.moduleSnapshots.programmable_valve.version).toBe(pinned);
+  const backup=await page.evaluate(()=>JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1-before-project')));
+  expect(backup.format).toBe('fluidnet-project');expect(backup.project.id).toBe(id);expect(backup.project.moduleSnapshots.programmable_valve.version).toBe(next);
   expect(errors).toEqual([]);console.log(JSON.stringify({project:id,baseline,throttled,upgrade:`v${pinned} -> v${next} -> v${pinned}`,errors}));
 }catch(error){mkdirSync('artifacts',{recursive:true});await captureFhd(page, 'artifacts/workflows-failure.png');console.error(errors);throw error;}
 finally{await browser.close();await fixture.close();}

@@ -19,6 +19,10 @@ MOD-S1 将标量阻力计算与管道基础项提取到 fn_sdk._hydraulic_core�
 from __future__ import annotations
 
 import math
+from dataclasses import dataclass
+from collections.abc import Callable
+from functools import partial
+from types import MappingProxyType
 
 from fn_sdk import _hydraulic_core as _shared
 
@@ -151,57 +155,109 @@ def pump_head_and_slope(curve, flow_m3_h: float, speed: float) -> tuple[float, f
     return head, (b[1] - a[1]) / (b[0] - a[0]) * speed
 
 
+def _air_filter_value(params: dict, flow: float, density: float, viscosity: float) -> float:
+    q = flow/density
+    k = params['clean_pressure_drop_pa']*(1+(params['loaded_drop_multiplier']-1)*params['loading_ratio'])/params['rated_volume_flow_m3_s']**2
+    return k*q*abs(q)
+
+
+def _valve_value(params: dict, flow: float, density: float, viscosity: float) -> float:
+    kv = params['kv_m3_h'] * params['opening_ratio']
+    return _shared.valve_drop(kv, flow, density) + density * GRAVITY * params.get('height_m', 0)
+
+
+def _pipe_value(params: dict, flow: float, density: float, viscosity: float) -> float:
+    return pipe_drop(params, flow, density, viscosity) + density * GRAVITY * params.get('height_m', 0)
+
+
+def _duct_value(params: dict, flow: float, density: float, viscosity: float) -> float:
+    return duct_drop(params, flow, density, viscosity)
+
+
+def _pump_curve_value(params: dict, flow: float, density: float, viscosity: float) -> float:
+    if params['speed_ratio'] <= 0:
+        raise ValueError('停泵阻力模型尚未定义，转速必须大于零')
+    return -density * GRAVITY * pump_head(params['head_curve'], flow / density * 3600, params['speed_ratio'])
+
+
+def _resistance_value(params: dict, flow: float, density: float, viscosity: float) -> float:
+    return _shared.resistance_drop(params['diameter_m'], params['loss_coefficient'], flow, density)
+
+
+def _resistance_secondary_value(params: dict, flow: float, density: float, viscosity: float) -> float:
+    return _shared.resistance_drop(params['secondary_diameter_m'], params['secondary_loss_coefficient'], flow, density)
+
+
+def _air_filter_slope(params: dict, flow: float, density: float, viscosity: float) -> tuple[float, float]:
+    k = params['clean_pressure_drop_pa']*(1+(params['loaded_drop_multiplier']-1)*params['loading_ratio'])/(params['rated_volume_flow_m3_s']*density)**2
+    return k*flow*abs(flow),2*k*abs(flow)
+
+
+def _valve_slope(params: dict, flow: float, density: float, viscosity: float) -> tuple[float, float]:
+    kv = params['kv_m3_h'] * params['opening_ratio']
+    volume_coef = 3600. / density
+    scale = 100000 * (density / 1000) / kv ** 2
+    volume = flow * volume_coef
+    value = scale * volume * abs(volume) + density * GRAVITY * params.get('height_m', 0)
+    return value, 2 * scale * abs(volume) * volume_coef
+
+
+def _pipe_slope(params: dict, flow: float, density: float, viscosity: float) -> tuple[float, float]:
+    value, slope = pipe_drop_and_slope(params, flow, density, viscosity)
+    return value + density * GRAVITY * params.get('height_m', 0), slope
+
+
+def _duct_slope(params: dict, flow: float, density: float, viscosity: float) -> tuple[float, float]:
+    return duct_drop_and_slope(params, flow, density, viscosity)
+
+
+def _pump_curve_slope(params: dict, flow: float, density: float, viscosity: float) -> tuple[float, float]:
+    if params['speed_ratio'] <= 0:
+        raise ValueError('停泵阻力模型尚未定义，转速必须大于零')
+    head, head_slope = pump_head_and_slope(params['head_curve'], flow / density * 3600, params['speed_ratio'])
+    return -density * GRAVITY * head, -density * GRAVITY * head_slope * 3600 / density
+
+
+def _resistance_slope(model: str, params: dict, flow: float, density: float, viscosity: float) -> tuple[float, float]:
+    prefix = 'secondary_' if model == 'resistance_secondary' else ''
+    area = _pipe_area(params[prefix + 'diameter_m'])
+    coef = params[prefix + 'loss_coefficient'] / (2 * density * area ** 2)
+    return coef * flow * abs(flow), 2 * coef * abs(flow)
+
+
+
+@dataclass(frozen=True)
+class HydraulicRelation:
+    """The value, analytic derivative and channel relation share one registration."""
+    value: Callable[[dict, float, float, float], float]
+    slope: Callable[[dict, float, float, float], tuple[float, float]]
+    channel_relation: str = 'resistance'
+    direct_device: bool = True
+
+
+HYDRAULIC_RELATIONS = MappingProxyType({
+    'air_filter': HydraulicRelation(_air_filter_value, _air_filter_slope),
+    'valve': HydraulicRelation(_valve_value, _valve_slope),
+    'pipe': HydraulicRelation(_pipe_value, _pipe_slope),
+    'duct': HydraulicRelation(_duct_value, _duct_slope),
+    'pump_curve': HydraulicRelation(_pump_curve_value, _pump_curve_slope, 'pump_curve'),
+    'resistance': HydraulicRelation(_resistance_value, partial(_resistance_slope, 'resistance'), direct_device=False),
+    'resistance_secondary': HydraulicRelation(_resistance_secondary_value, partial(_resistance_slope, 'resistance_secondary'), direct_device=False),
+})
+
+
+def _relation(model: str) -> HydraulicRelation:
+    try:
+        return HYDRAULIC_RELATIONS[model]
+    except KeyError:
+        raise ValueError(f'未注册的支路模型：{model}') from None
+
+
 def branch_drop_value(model: str, params: dict, flow: float, density: float, viscosity: float) -> float:
-    """单条内置支路的压降（不含两端压力项），与历史 `branch_drop` 完全一致。"""
-    if model == 'air_filter':
-        q = flow/density
-        k = params['clean_pressure_drop_pa']*(1+(params['loaded_drop_multiplier']-1)*params['loading_ratio'])/params['rated_volume_flow_m3_s']**2
-        return k*q*abs(q)
-    if model == 'valve':
-        kv = params['kv_m3_h'] * params['opening_ratio']
-        return _shared.valve_drop(kv, flow, density) + density * GRAVITY * params.get('height_m', 0)
-    if model == 'pipe':
-        return pipe_drop(params, flow, density, viscosity) + density * GRAVITY * params.get('height_m', 0)
-    if model == 'duct':
-        return duct_drop(params, flow, density, viscosity)
-    if model == 'pump_curve':
-        if params['speed_ratio'] <= 0:
-            raise ValueError('停泵阻力模型尚未定义，转速必须大于零')
-        return -density * GRAVITY * pump_head(params['head_curve'], flow / density * 3600, params['speed_ratio'])
-    if model == 'resistance':
-        return _shared.resistance_drop(params['diameter_m'], params['loss_coefficient'], flow, density)
-    if model == 'resistance_secondary':
-        # 双通路设备的第二通路（水盘管水侧、冷水机组冷凝器侧）用自己的 K 与等效直径。
-        return _shared.resistance_drop(params['secondary_diameter_m'], params['secondary_loss_coefficient'], flow, density)
-    raise ValueError(f'未注册的支路模型：{model}')
+    """Retain the public value-only hot path and its original arithmetic."""
+    return _relation(model).value(params, flow, density, viscosity)
 
 
 def branch_drop_and_slope(model: str, params: dict, flow: float, density: float,
                           viscosity: float) -> tuple[float, float]:
-    """单条内置支路的压降与其对 q 的导数。"""
-    if model == 'air_filter':
-        k = params['clean_pressure_drop_pa']*(1+(params['loaded_drop_multiplier']-1)*params['loading_ratio'])/(params['rated_volume_flow_m3_s']*density)**2
-        return k*flow*abs(flow),2*k*abs(flow)
-    if model == 'valve':
-        kv = params['kv_m3_h'] * params['opening_ratio']
-        volume_coef = 3600. / density
-        scale = 100000 * (density / 1000) / kv ** 2
-        volume = flow * volume_coef
-        value = scale * volume * abs(volume) + density * GRAVITY * params.get('height_m', 0)
-        return value, 2 * scale * abs(volume) * volume_coef
-    if model == 'pipe':
-        value, slope = pipe_drop_and_slope(params, flow, density, viscosity)
-        return value + density * GRAVITY * params.get('height_m', 0), slope
-    if model == 'duct':
-        return duct_drop_and_slope(params, flow, density, viscosity)
-    if model == 'pump_curve':
-        if params['speed_ratio'] <= 0:
-            raise ValueError('停泵阻力模型尚未定义，转速必须大于零')
-        head, head_slope = pump_head_and_slope(params['head_curve'], flow / density * 3600, params['speed_ratio'])
-        return -density * GRAVITY * head, -density * GRAVITY * head_slope * 3600 / density
-    if model in ('resistance', 'resistance_secondary'):
-        prefix = 'secondary_' if model == 'resistance_secondary' else ''
-        area = _pipe_area(params[prefix + 'diameter_m'])
-        coef = params[prefix + 'loss_coefficient'] / (2 * density * area ** 2)
-        return coef * flow * abs(flow), 2 * coef * abs(flow)
-    raise ValueError(f'未注册的支路模型：{model}')
+    return _relation(model).slope(params, flow, density, viscosity)

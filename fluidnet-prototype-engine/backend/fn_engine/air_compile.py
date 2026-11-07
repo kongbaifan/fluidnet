@@ -26,6 +26,12 @@ def validate_air_parameters(network, overrides=None, check_boundary_conflicts=Tr
                 raise AirPropertyError('AIR_HUMIDIFIER_PARAMETERS','加湿模式或饱和策略无效')
             if kind=='air_room':
                 service.state_ptw(params['initial_pressure_pa'],params['outdoor_temperature_k'],params['outdoor_humidity_ratio_kg_kg'])
+            if kind=='enthalpy_recovery':
+                if not network.project.solver.moist_air:
+                    raise AirPropertyError('MOIST_AIR_REQUIRED','全热回收仅用于湿空气域')
+                exhaust=network.node_circuit[network.port_nodes[f'{inst.id}:exhaust_in']]
+                supply=network.node_circuit[network.port_nodes[f'{inst.id}:supply_in']]
+                if exhaust==supply:raise AirPropertyError('RECOVERY_CIRCUITS','全热回收的排风与新风必须属于独立风路')
             if kind=='cooling_tower_moist':
                 if not network.project.solver.thermal:
                     raise AirPropertyError('TOWER_THERMAL_REQUIRED','湿空气冷却塔需要启用热力计算')
@@ -33,10 +39,10 @@ def validate_air_parameters(network, overrides=None, check_boundary_conflicts=Tr
                 if config.fluid!='Water' or config.phase_policy not in ('liquid','single_phase'):
                     raise AirPropertyError('TOWER_WATER_REQUIRED','湿空气冷却塔水侧只支持液态纯水')
                 service.state_ptw(params['air_pressure_pa'],params['air_temperature_k'],params['air_humidity_ratio_kg_kg'])
-            if kind in ('water_coil', 'water_chiller'):
+            if kind in ('water_coil', 'water_chiller','air_cooled_chiller','air_source_heat_pump'):
                 if not network.project.solver.thermal:
                     raise AirPropertyError('WATER_DEVICE_THERMAL_REQUIRED', '水盘管和冷水机组需要启用热力计算')
-                liquid_ports = ('in1',) if kind == 'water_coil' else ('in0', 'in1')
+                liquid_ports = ('in1',) if kind == 'water_coil' else ('in0',) if kind in ('air_cooled_chiller','air_source_heat_pump') else ('in0', 'in1')
                 circuits = []
                 for port in liquid_ports:
                     node = network.port_nodes[f'{inst.id}:{port}']
@@ -51,14 +57,16 @@ def validate_air_parameters(network, overrides=None, check_boundary_conflicts=Tr
                             if phase_family(state) != 'liquid':
                                 raise AirPropertyError('WATER_DEVICE_LIQUID_REQUIRED', '设备水侧的参考状态必须为液相')
                     circuits.append(circuit)
-                if kind == 'water_chiller':
+                if kind in ('water_chiller','air_cooled_chiller','air_source_heat_pump'):
                     from .water_chiller import refrigerant_service
                     from .refrigeration.cycle import rated_displacement
-                    if circuits[0] == circuits[1]:
+                    if kind=='water_chiller' and circuits[0] == circuits[1]:
                         raise AirPropertyError('CHILLER_CIRCUITS', '冷冻水与冷却水必须是两个独立回路')
                     if params['min_evaporating_temperature_k'] >= params['max_evaporating_temperature_k'] or params['min_condensing_temperature_k'] >= params['max_condensing_temperature_k']:
                         raise AirPropertyError('CHILLER_PARAMETERS', '机组运行温度下限必须小于上限')
                     rated_displacement(refrigerant_service(params), params)
+                    if kind=='air_source_heat_pump' and params['air_dew_point_k']>params['air_inlet_temperature_k']:
+                        raise AirPropertyError('HEAT_PUMP_DEW_POINT','空气露点不得高于干球温度')
             if network.project.solver.moist_air and params.get('thermal_cells',0):
                 raise AirPropertyError('AIR_STORAGE_UNSUPPORTED','风水联算暂不支持管段分布热容；请使用房间状态')
         except (AirPropertyError, PropertyError, DeviceRangeError) as error:

@@ -4,7 +4,8 @@ from dataclasses import dataclass, field
 from ..catalog import thermal_catalog
 from ..compiler import CompilationError, validated_parameters, validate_controllers
 from ..control import validate_scripts
-from ..models import Domain, Project
+from .._module_schema_v1 import Domain
+from ..model_types.domain import Project
 
 
 @dataclass

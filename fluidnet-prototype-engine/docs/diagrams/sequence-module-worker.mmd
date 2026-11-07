@@ -1,0 +1,42 @@
+sequenceDiagram
+  autonumber
+  participant S as 会话 / 求解器
+  participant T as 主进程 ModuleStepTransaction
+  participant R as runtime / batch RPC
+  participant W as Worker 中的用户模块
+  S->>R: 创建实例执行器
+  R->>W: initialize(ctx)
+  loop 同一物理步的数值试算
+    S->>R: evaluate(trial_ports, accepted_state, 可选 trial_channels)
+    R->>W: evaluate，只读已接受状态
+    W-->>R: 通路关系、观察量及诊断
+    R-->>S: 组装全网方程所需关系
+    S->>S: 求解压力、流量、热状态与残差
+  end
+  S->>T: 按 step_id 收集所有实例候选
+  T->>R: prepare_step(收敛结果, dt)
+  R->>W: 在候选副本执行 commit_step
+  W-->>R: 候选 state / variables / 修订 / 双哈希
+  R-->>T: 模块候选
+  S->>S: 构造候选整帧及控制、物理状态
+  S->>T: validate 完整性、修订、哈希、JSON 有限值
+  alt 接受前校验失败
+    S->>T: discard
+    T->>R: 丢弃候选
+    S->>S: 回滚控制，保留上一已接受状态
+  else 接受前校验通过
+    S->>T: promote
+    T->>T: 主进程更新所有实例 state 与 revision
+    S->>S: 接受物理状态、控制状态和账本
+    S->>T: synchronize
+    T->>R: 同步已接受候选
+    R->>W: 更新 Worker 状态镜像
+    alt 同步失败
+      R-->>S: MODULE_SYNC_FAILED，子步已接受
+      S->>S: 保留接受帧，停止运行并清理
+    else 同步成功
+      S->>S: 继续后续子步或发布输出帧
+    end
+  end
+  S->>R: 结束时 finalize / close
+  R->>W: finalize(ctx)，回收进程

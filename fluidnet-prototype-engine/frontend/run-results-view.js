@@ -1,0 +1,64 @@
+/* Run record and curve presentation. Data access and UI mutations are explicitly supplied. */
+export const FluidNetRunResultsView = (() => {
+  function create({currentRun:currentChartRun,currentProject:project,records,chartState,viewState,overviewSeries,
+    chartBindings:chartBindingsForRun,extraValue:extraVariableValue,series:SERIES,registerChart,measureWidth,
+    comparisonMarkup,reportAvailable,runControls,chrome,actions}) {
+    const {esc,icon,btn,ibtn,badge,option,number,heading,clockLabel}=chrome;
+function renderCurves(){
+  const run=currentChartRun(),history=run.history,bindings=overviewSeries(run),flowKeys=['q','a','b'].filter(key=>bindings[key]);
+  return `<div class="page-shell">${heading('曲线与工况对照','从设备变量加入曲线，跟随运行、暂停和单步观察变化。',btn('add-chart-variable','添加观察变量','Plus','','primary')+btn('export','导出曲线','Download','data-format="csv"'))}${comparisonMarkup()}
+    <div class="filterbar"><label class="field" style="flex-direction:row;align-items:center"><span>数据来源</span><select data-chart-source aria-label="曲线数据来源">${option('live','当前主系统 · '+project().name,chartState().source)}${records().filter(r=>r.history.length).map(r=>option(r.id,r.name+(r.sample?' · 演示记录':' · 计算记录'),chartState().source)).join('')}</select></label>${chartState().source==='live'?`<label class="field" style="flex-direction:row;align-items:center"><span>时间范围</span><select data-chart-range aria-label="曲线时间范围">${option('window','最近 2001 帧',chartState().range)}${option('all','全程（抽稀）',chartState().range)}</select></label>`:''}<label class="check-label"><input type="checkbox" data-chart-compare ${chartState().compare?'checked':''}>叠加最近保存的真实工况</label><span class="push"></span>${chartState().source==='live'?runControls('project',project().run):badge('历史记录','blue')}</div>
+    <div class="chart-grid-layout"><section class="panel"><div class="chart-panel"><div class="chart-heading"><h2>管网流量</h2><span class="muted">${esc(chartState().source==='live'?project().name:run.projectName)}</span><span class="push"></span><div class="chart-legend">${flowKeys.map(k=>`<button data-action="toggle-series" data-value="${k}" class="${chartState().series[k]?'':'off'}" aria-pressed="${chartState().series[k]}"><span class="series-key ${SERIES[k].color}"></span>${esc(SERIES[k].short)}</button>`).join('')}</div></div><div id="main-chart">${flowKeys.length?chartSvg(history,flowKeys,'main-flow-chart',chartState().compare):'<p>请从设备变量添加观察曲线。</p>'}</div><div class="chart-readout" id="main-flow-chart-readout">${history.length&&flowKeys.length?`${clockLabel(history.at(-1).t)} · ${esc(bindings.q.short)} ${number(history.at(-1).q,3)} kg/s`:'还没有当前运行数据。'}</div></div>
+    <div class="chart-variable-list">${flowKeys.map(key=>`<span class="badge">${esc(bindings[key].label)}</span>`).join('')}${chartBindingsForRun(run).map(v=>`<span class="badge blue">${esc(v.label)}${chartState().source==='live'?`<button data-action="remove-chart-var" data-id="${esc(v.id)}" aria-label="移除 ${esc(v.label)}">${icon('X')}</button>`:''}</span>`).join('')}</div></section>
+    ${['pressure','temperature'].filter(key=>bindings[key]).map(key=>`<section class="panel"><div class="chart-panel"><div class="chart-heading"><h3>${key==='pressure'?'出口压力':'出口温度'}</h3><span class="push muted">${esc(bindings[key].label)} · ${bindings[key].unit}</span></div><div id="${key}-chart">${chartSvg(history,[key],key==='pressure'?'pressure-line':'temperature-line')}</div><div class="chart-readout" id="${key}-line-readout">${badge('后端计算结果')}</div></div></section>`).join('')}</div>
+    <div id="extra-charts" class="chart-grid-layout" style="margin-top:18px">${extraChartsMarkup()}</div>${run.events?.length?`<section class="panel" style="margin-top:18px"><div class="panel-head"><h3>本次运行事件</h3></div><div class="log-list">${run.events.slice(-5).map(e=>`<div class="log-line"><time>${number(e.t,1)} s</time><span>${esc(e.text)}</span></div>`).join('')}</div></section>`:''}</div>`;
+}
+function renderRuns(){
+  const list=records().filter(r=>viewState().runFilter==='all'||r.status===viewState().runFilter), selected=list.find(r=>r.id===viewState().selectedRecord)||list[0];
+  return `<div class="page-shell">${heading('运行记录','服务端自动归档最近 20 次结束运行；长运行保留最近窗口与全程抽稀曲线。',btn('refresh-archives','刷新档案','RefreshCw')+btn('record-project','记录当前运行','Save'))}
+  <section class="panel"><div class="panel-head"><h2>服务端档案</h2></div><div class="panel-body">${(viewState().archivedRuns||[]).map(r=>`<div class="row spread" style="margin-bottom:8px"><span>${esc(r.name)} · ${esc(r.status)} · ${number(r.time_s,1)} s</span><span class="row">${btn('open-archive','查看档案','FolderOpen',`data-id="${esc(r.id)}"`,'small')}${['completed','failed','cancelled','interrupted'].includes(r.status)?btn('delete-archive','删除','Trash2',`data-id="${esc(r.id)}"`,'small'):''}</span></div>`).join('')||'<p class="muted">暂无服务端档案。</p>'}</div></section>
+  <div class="filterbar"><div class="segmented">${[['all','全部记录'],['completed','已完成'],['failed','失败记录']].map(([k,v])=>`<button data-action="run-filter" data-value="${k}" class="${viewState().runFilter===k?'active':''}">${v}</button>`).join('')}</div><span class="push muted">${list.length} 条已载入记录</span></div>
+  <div class="model-layout"><section class="panel table-wrap"><table><thead><tr><th>记录名称 / 来源</th><th>模式</th><th>仿真时间</th><th>状态</th><th></th></tr></thead><tbody>${list.map(r=>`<tr><td><button data-action="select-record" data-id="${r.id}"><strong>${esc(r.name)}</strong><small>${esc(r.projectName)} · ${esc(r.id)}</small></button></td><td>${esc(r.mode)}</td><td>${number(r.time,1)} s</td><td>${esc(r.status)}</td><td>${ibtn('select-record','查看运行记录','ChevronRight',`data-id="${r.id}"`)}</td></tr>`).join('')||'<tr><td colspan="5">点击服务端档案以载入曲线及快照。</td></tr>'}</tbody></table></section>
+  ${selected?`<aside class="panel"><div class="panel-head"><h2>记录详情</h2>${badge(selected.archive?'服务端归档':selected.sample?'示例记录':'运行快照')}</div><div class="run-details"><dl><dt>项目</dt><dd>${esc(selected.projectName)}</dd><dt>运行标识</dt><dd class="mono">${esc(selected.id)}</dd><dt>仿真时间</dt><dd>${number(selected.time,1)} s</dd><dt>最后落盘</dt><dd>${esc(selected.archive?.persisted_at||'—')}</dd><dt>记录点数</dt><dd>${selected.history.length}${selected.archive?` / 共 ${selected.totalRows} 帧（抽稀间隔 ${selected.archiveStride}）`:''}</dd><dt>状态</dt><dd>${esc(selected.status)}</dd></dl><h3>参数快照</h3><div class="code-preview">${esc(JSON.stringify(selected.params,null,2))}</div>
+  ${(selected.archive?.frame?.diagnostics||[]).length?`<div class="notice">${esc(selected.archive.frame.diagnostics.map(d=>d.message).join('；'))}</div>`:''}
+  ${(selected.events||[]).slice(-5).map(e=>`<p>${number(e.t,1)} s · ${esc(e.text)}</p>`).join('')}<div class="stack" style="margin-top:18px">${btn('record-curves','查看该次曲线','Activity',`data-id="${selected.id}" ${selected.history.length?'':'disabled'}`,'primary')}${btn('export','导出记录 JSON','FileJson',`data-format="record" data-id="${selected.id}"`)}${selected.archive?btn('inspect-run','系统结果解释','Activity',`data-id="${selected.id}"`):''}${reportAvailable(selected.archive)?['html','csv'].map(format=>btn('archive-report',format==='html'?'下载 HTML 报告':'下载报告 CSV','Download',`data-id="${selected.id}" data-format="${format}"`)).join(''):''}${selected.archive&&selected.status==='failed'?btn('archive-module-replay','查看模块失败输入','Activity',`data-id="${selected.id}"`):''}${selected.projectId?btn('open-project','打开来源项目','ArrowUpRight',`data-id="${selected.projectId}"`):''}</div></div></aside>`:''}</div></div>`;
+}
+function chartSvg(history, keys = ['q', 'a', 'b'], id = 'flow-chart', compare = false, options = {}) {
+  const w = Math.max(200, Math.round(measureWidth(id)));
+  const h = options.compact ? 168 : 270, left = w < 360 ? 42 : 58, right = w - 20, top = 23, bottom = h - 48;
+  const rows = history.length ? history : [{ t: 0, q: 0, a: 0, b: 0, pressure: 0, temperature: 0 }, { t: 10, q: 0, a: 0, b: 0, pressure: 0, temperature: 0 }];
+  const minT = rows[0].t, maxT = Math.max(minT + .1, rows.at(-1).t);
+  const baseline = compare ? (records().find(r => r.source === 'engine' && r.projectId === project().id)?.history || []).filter(r => r.t >= minT && r.t <= maxT) : [];
+  const values = rows.flatMap(r => keys.map(k => Number(r[k]) || 0)).concat(baseline.map(r => r.q));
+  const lo = Math.min(0, ...values), hi = Math.max(1, ...values), padding = (hi - lo) * .12;
+  const maxY = hi + padding, minY = lo < 0 ? lo - padding : 0;
+  const x = t => left + (t - minT) / (maxT - minT) * (right - left), y = n => bottom - (Number(n) - minY) / (maxY - minY) * (bottom - top);
+  const unit = SERIES[keys[0]]?.unit || 'kg/s', visible = keys.filter(k => chartState().series[k] !== false || id === 'bench-chart');
+  const path = (rows, key) => { let active = false; return rows.map(r => { if (!Number.isFinite(r[key])) { active = false; return ''; } const command = active ? 'L' : 'M'; active = true; return `${command} ${x(r.t).toFixed(2)} ${y(r[key]).toFixed(2)}`; }).join(' '); };
+  const ticks = w < 420 ? 3 : 4;
+  registerChart(id, { rows, keys: visible, minT, maxT, left, right, top, bottom, y, options });
+  return `<svg class="chart" id="${id}" viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(keys.map(k => SERIES[k]?.name || k).join('、'))}随时间变化，单位 ${esc(unit)}" data-chart="${id}"><text x="5" y="14" class="chart-text">${esc(unit)}</text>${[0, 1, 2, 3, 4].map(i => { const n = minY + (maxY - minY) * i / 4, yy = y(n); return `<line x1="${left}" y1="${yy}" x2="${right}" y2="${yy}" class="chart-grid"/><text x="${left - 9}" y="${yy + 4}" text-anchor="end" class="chart-text">${number(n, maxY > 10 ? 0 : 1)}</text>`; }).join('')}${Array.from({ length: ticks + 1 }, (_, i) => `<text x="${left + i / ticks * (right - left)}" y="${bottom + 20}" text-anchor="${i === 0 ? 'start' : i === ticks ? 'end' : 'middle'}" class="chart-text">${number(minT + (maxT - minT) * i / ticks, 1)}</text>`).join('')}<text x="${right}" y="${h - 6}" text-anchor="end" class="chart-text">时间 · s</text>${visible.map(k => `<path data-series-key="${esc(k)}" d="${path(rows, k)}" class="chart-line" stroke="var(--${SERIES[k]?.color || 'blue'})"/>`).join('')}${baseline.length ? `<path data-series-key="baseline-q" d="${path(baseline, 'q')}" class="chart-line" stroke="var(--muted)" stroke-dasharray="5 5"/>` : ''}${(options.events || []).filter(e => e.t >= minT && e.t <= maxT).slice(-12).map(e => `<g class="chart-event"><title>${esc(clockLabel(e.t) + ' · ' + e.text)}</title><line x1="${x(e.t)}" x2="${x(e.t)}" y1="${top}" y2="${bottom}" stroke="var(--accent)" stroke-dasharray="3 4" opacity=".65"/><circle cx="${x(e.t)}" cy="${top}" r="3" fill="var(--accent)"/></g>`).join('')}<line data-chart-guide x1="0" x2="0" y1="${top}" y2="${bottom}" stroke="var(--muted)" opacity="0"/>${visible.map(k => `<circle data-hover-mark="${esc(k)}" r="3" fill="var(--${SERIES[k]?.color || 'blue'})" opacity="0"/>`).join('')}<rect x="${left}" y="${top}" width="${right - left}" height="${bottom - top}" fill="transparent" data-chart-hit="${id}" style="cursor:crosshair"/></svg>`;
+}
+function extraChartsMarkup() {
+  const run=currentChartRun(),live=chartState().source==='live';
+  return chartBindingsForRun(run).map((v, i) => {
+    const key = 'extra:' + v.id;
+    const history = run.history.filter(r => extraVariableValue(r, v,live) !== null).map(r => ({ t: r.t, [key]: extraVariableValue(r, v,live) }));
+    SERIES[key] = { name: v.label, unit: v.unit, color: 'blue' };
+    return `<section class="panel"><div class="chart-panel"><div class="chart-heading"><div class="grow"><h3>${esc(v.label)}</h3><small class="muted">${esc(v.identifier || v.id)} · ${esc(v.unit)}</small></div>${live?ibtn('remove-chart-var', '移除观察变量', 'X', `data-id="${v.id}"`):''}</div>${history.length ? chartSvg(history, [key], 'extra-chart-' + i) : '<div class="empty"><p>此变量尚未采样或结果已过期，运行或单步后查看。</p></div>'}<div class="chart-readout" id="extra-chart-${i}-readout"></div></div></section>`;
+  }).join('');
+}
+    function action(name,element){
+      const id=element.dataset.id;
+      if(name==='select-record'){actions.selectRecord(id);return true;}
+      if(name==='record-curves'){actions.recordCurves(id);return true;}
+      if(name==='toggle-series'){actions.toggleSeries(element.dataset.value);return true;}
+      if(name==='remove-chart-var'){actions.removeVariable(id);return true;}
+      return false;
+    }
+    return {renderCurves,renderRuns,chartSvg,extraChartsMarkup,action,actionNames:['select-record','record-curves','toggle-series','remove-chart-var']};
+  }
+  return {create};
+})();
+
+export default FluidNetRunResultsView;

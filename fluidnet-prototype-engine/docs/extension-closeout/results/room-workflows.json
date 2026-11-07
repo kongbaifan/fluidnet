@@ -1,0 +1,25 @@
+{
+  "importedRun": "c3721c985c66416cb6f0dbf0abed191b",
+  "batch": "9ac69ce1c71749d4823d2b6b797a6935",
+  "items": [
+    {
+      "id": "item-1",
+      "values": {
+        "Room.state.temperature_k": 302.3888762018031,
+        "controller.room-temperature.setpoint": 299.15,
+        "controller.room-temperature.output": 0.36772136690655355,
+        "Chiller.state.electric_energy_j": 214074.73685383837
+      }
+    },
+    {
+      "id": "item-2",
+      "values": {
+        "Room.state.temperature_k": 302.5416406256229,
+        "controller.room-temperature.setpoint": 299.15,
+        "controller.room-temperature.output": 0.3756880912213486,
+        "Chiller.state.electric_energy_j": 215826.78918809097
+      }
+    }
+  ],
+  "errors": []
+}

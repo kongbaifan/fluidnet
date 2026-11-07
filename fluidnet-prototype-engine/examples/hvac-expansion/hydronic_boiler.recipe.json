@@ -1,0 +1,122 @@
+{
+  "name": "热水锅炉（容量与效率）",
+  "fluid": {
+    "backend": "coolprop",
+    "fluid": "Water",
+    "composition": {},
+    "reference": "mass",
+    "phase_policy": "single_phase"
+  },
+  "solver": {
+    "module_mixed_jacobian": false,
+    "module_cache": false,
+    "pressure_tolerance_pa": 1.0,
+    "mass_tolerance_kg_s": 1e-08,
+    "max_iterations": 80,
+    "dynamic_step_s": 0.1,
+    "thermal": true,
+    "property_coupling": "node",
+    "thermal_tolerance_k": 1e-06,
+    "max_thermal_iterations": 50,
+    "max_coupling_iterations": 20,
+    "coupling_density_rtol": 1e-06,
+    "thermal_acceleration": "none",
+    "coupling_acceleration": "none",
+    "moist_air": false,
+    "max_step_halvings": 6,
+    "hydraulic_method": "dense",
+    "hydraulic_diagnostics": false,
+    "analytic_jacobian": true,
+    "series_compression": false,
+    "hydraulic_blocks": false,
+    "module_parallelism": 1,
+    "batch_modules": true,
+    "time_step": {
+      "enabled": false,
+      "mass_atol_kg": 1e-09,
+      "energy_atol_j": 0.001,
+      "temperature_atol_k": 1e-05,
+      "rtol": 1e-06,
+      "min_internal_step_s": 0.001,
+      "max_internal_step_s": null,
+      "safety": 0.9,
+      "growth_factor": 2.0,
+      "shrink_factor": 0.5
+    }
+  },
+  "duration_s": 2.0,
+  "dt_s": 1.0,
+  "instances": [
+    {
+      "id": "Supply",
+      "module_id": "source",
+      "name": "入口",
+      "page_id": "main",
+      "position": {
+        "x": 150.0,
+        "y": 200.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "pressure_pa": 250000.0
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "Regulator",
+      "module_id": "hydronic_boiler",
+      "name": "热水锅炉（容量与效率）",
+      "page_id": "main",
+      "position": {
+        "x": 500.0,
+        "y": 200.0
+      },
+      "rotation": 0,
+      "parameters": {},
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "Return",
+      "module_id": "source",
+      "name": "出口",
+      "page_id": "main",
+      "position": {
+        "x": 850.0,
+        "y": 200.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "pressure_pa": 249900.0
+      },
+      "draft_parameters": {},
+      "banks": []
+    }
+  ],
+  "connections": [
+    {
+      "id": "in",
+      "source": {
+        "instance_id": "Supply",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Regulator",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "out",
+      "source": {
+        "instance_id": "Regulator",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Return",
+        "port_id": "out0"
+      }
+    }
+  ],
+  "circuit_fluids": []
+}

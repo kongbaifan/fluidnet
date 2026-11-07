@@ -95,7 +95,8 @@ try{
     return {title:document.getElementById('dialog-title')?.textContent,error:document.getElementById('dialog-error')?.textContent,
       invalid:[...f.elements].filter(e=>e.willValidate&&!e.checkValidity()).map(e=>({name:e.name,value:e.value,message:e.validationMessage})),
       preview:document.getElementById('parameter-engine-preview')?.textContent,toast:document.getElementById('toast')?.textContent};}).catch(()=>null);
-  console.error(JSON.stringify({browser:browser.version(),results,errors,dialog}));
+  const saveError=await page.locator('[data-save-status]').getAttribute('title').catch(()=>null);
+  console.error(JSON.stringify({browser:browser.version(),results,errors,dialog,saveError}));
   mkdirSync('artifacts',{recursive:true});await captureFhd(page, 'artifacts/module-workflow-failure.png').catch(()=>{});
   throw error;
 }finally{await browser.close();await server.close();}

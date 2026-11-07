@@ -4,7 +4,7 @@ import math
 
 from scipy.optimize import brentq
 
-from .models import FluidState
+from .model_types.base import FluidState
 from .moist_air import AirPropertyError, MoistAirService, liquid_enthalpy, saturation_humidity_ratio
 
 

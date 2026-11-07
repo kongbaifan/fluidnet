@@ -1,7 +1,23 @@
 # FluidNet Prototype Engine
 
+2026-11-07 [交互与工程交付](docs/INTERACTION_DELIVERY_ACCEPTANCE.md)：设备参数／运行命令／旧数据规范化独立，工作台及曲线局部刷新，60类内置设备统一目录；暖通机房与模块化冷库完成空白组装、调参、曲线、文件往返复算和报告验收。
+
+2026-11-07 [架构后续交付](docs/ARCHITECTURE_FOLLOWUP_ACCEPTANCE.md)：模型类型分层、三种 Runner 统一接口、五类储量设备注册试点、作者/结果/保存前端边界及生成物审查已接通。当前说明统一从 [文档入口](docs/README.md) 查阅；实际验收范围见交付记录。
+
+2026-11-06 [前端功能拆分](docs/FRONTEND_FEATURE_BOUNDARIES.md)：工作台交互、设备浮窗、模块发布服务与动作分派独立，浏览器测试接入[统一CI分组](docs/FRONTEND_CI_GROUPS.md)。运行接受事务与物理合同保持原语义，培训继续暂缓。
+
+2026-11-06 [工程画布](docs/ENGINEERING_CANVAS.md)：设备图符和作者端口布局进入项目，支持真实温压流着色/流向、运行告警定位、实体避障及拖动增量更新。[前端接入说明](frontend/BACKEND_INTEGRATION.md)已更新；培训功能暂不开发。
+
+2026-11-06 [P1 交付与验收](docs/P1_DELIVERY.md)：开放端口制冷设备组可按压缩机、供液、冷风机分组后接成完整系统；性能资料库支持 CSV/JSON、不可变版本、曲线对照及带来源的设备选型和型号保存。
+
+2026-11-05 [制冷与暖通设备首版整体交付](docs/EQUIPMENT_PROGRAM_DELIVERY.md)：按设备路线补齐性能、热连接、流股/DX、风水设备和储量模型；实际范围、定向验证及未涵盖的物理以该记录为准。
+
 基于现有 FluidNet Studio 交互原型建立的独立项目。前端继承画布、模块库、型号、设备属性、草稿/应用和曲线工作流；后端重新定义模块合同、网络编译、水力算法和 HTTP 接口，并提供基于 Pydantic 的契约层、CoolProp 单相物性服务、版本化 Python 模块包和独立 Worker 生命周期。
 
+2026-11-05 [设备模型扩展](docs/REFRIGERATION_EQUIPMENT_EXPANSION.md)：新增卧式圆筒贮液器、卧式低压循环桶与风冷冷凝器，可直接放入模块组装回路，包含独立模型说明和定向验证。
+
+2026-11-04 模块组装主线：新增“空白冷库画布”，可逐个放置制冷设备、配置工质并连接运行；提供单库、双库多压缩机及 NH₃/CO₂ 三份组装清单。入口与端口约定见[设备模块组装](docs/REFRIGERATION_MODULES.md)，本轮检查见[组装验收](docs/REFRIGERATION_MODULAR_ACCEPTANCE.md)。
+2026-11-04 新增[设备总览面板](docs/DEVICE_PANEL.md)与[机组运行范围](docs/CHILLER_OPERATING_LIMITS.md)：总览读取真实运行帧、区分设置与采样，机组提供可选最小流量保护和低负荷周期平均运行；[本轮定向验收](docs/DEVICE_PANEL_CHILLER_ACCEPTANCE.md)记录实际检查范围。
 本目录独立于原来的 `fluidnet/` 与 `web/`。原型来源为 `../output/visualizations/fluidnet-studio-prototype.html`。前端原型现拆分为 `frontend/index.html`(HTML/CSS 外壳与挂载点)与 `frontend/studio.js`(原内联 JavaScript),新增 `frontend/engine-client.js` 负责真实计算接口;新增 `frontend/project-services.js` 管理控制与工作区接口；`index.html` 按服务层、适配器、界面的顺序加载脚本,服务把 `frontend/` 目录以 `StaticFiles(html=True)` 挂载到 `/`,默认入口页即 `frontend/index.html`。
 
 2026-10-28 已完成[1080p 基线与批量工况计划](docs/NEXT_DEVELOPMENT_1080P_PLAN.md)的六个工作包，唯一界面设计与验收基准为 **1920×1080（16:9）**。从左侧“批量”或建模工具栏“批量工况”进入；操作见[使用说明](docs/SCENARIO_BATCHES.md)，验证范围见[本轮验收](docs/FHD_BATCH_ACCEPTANCE.md)。
@@ -10,7 +26,13 @@
 
 2026-10-30 后续方案：[自主建模与制冷设备扩展计划](docs/PLATFORM_EXTENSION_PLAN.md)。首批 PF-0/PF-1 已完成能力核对及自主建模流程补缺，见[首批验收](docs/PLATFORM_AUTHORING_ACCEPTANCE.md)；RF-0 已完成[制冷设备接口实验验证](docs/REFRIGERATION_EXTENSION_DESIGN.md)，RF-1 已交付[正式合同、SDK 与编译/Worker 接口](docs/REFRIGERATION_MODULE_CONTRACT.md)。RF-2/RF-3 已接通[整站运行、接受事务与制冷作者验证台](docs/REFRIGERATION_MODULE_EXECUTION.md)，提供线性/等百分比节流模板；RF-4 的[项目、版本和结果闭环](docs/REFRIGERATION_PROJECT_ACCEPTANCE.md)及 [PF-2 全阶段验收](docs/PLATFORM_EXTENSION_ACCEPTANCE.md)已完成：1723 项后端测试、91.05% 覆盖率、27 个浏览器脚本通过。
 
+2026-11-02 已完成[标准机房基础案例](docs/HVAC_STANDARD_PLANT.md)的完整流程验收：三回路运行、调平衡阀、仪表与 HTML／CSV 报告、保存重载后复算。后续设备细节按具体算例需求推进；第一批暖通结果见[验收记录](docs/HVAC_BASIC_EQUIPMENT_ACCEPTANCE.md)。
+
+同日补齐[多画布连接](docs/CROSS_PAGE_CONNECTIONS.md)：跨页选择端口、连接列表与双向跳转、设备移页、全项目端口占用检查，以及保存和导入；两支路管网与标准机房均可拆页后统一计算。
+
 ## 启动
+
+新增使用入口：[热耦合液体作者模块](docs/COUPLED_LIQUID_MODULES.md)提供含源码的完整水阀联算项目；[房间自动温控](docs/ROOM_TEMPERATURE_CONTROL.md)提供初始降温、负荷变化和设定变化三种风水联算案例。均复用现有保存、版本、控制和冻结报告流程；两条主线已完成，范围与最终结果见[综合验收](docs/COUPLED_MODULES_ROOM_CONTROL_ACCEPTANCE.md)。
 
 Python 3.11 或更高版本，在本目录执行：
 
@@ -133,6 +155,7 @@ python -m fn_engine serve --host 0.0.0.0 --port 8798 --cors-origin http://twin.l
 | 湿空气与湿工况 | 风侧合同 1：CoolProp 湿空气物性、干空气连续性与 h/w 联合输运，公共流量/焓按当地混合物计；表冷除湿、加湿限幅、混合箱、过滤器、房间热湿隐式状态、冷却塔水耗与接受子步累计量。Studio 风系统页提供状态表、湿空气状态图、CSV/HTML、运行对比及批量扫描；旧项目显式迁移。见 [使用说明](docs/AIR_SIDE_USER_GUIDE.md)与[实施验收](docs/AIR_SIDE_IMPLEMENTATION_ACCEPTANCE.md) |
 | 热力膨胀阀过热度自调 | 未实现：B 域蒸发器均为满液／泵供液，没有直接膨胀蒸发器出口过热度模型；需先补 DX 蒸发器物理，见[算法域缺口验收](docs/ALGORITHM_DOMAIN_GAP_ACCEPTANCE.md) |
 | 倍思鹿参考模块 | 8 个 Python 模块包（管件、止回阀、风机盘管、冷却塔、风机、变速泵、毛细管、等百分比阀）+ 2 个控制脚本模板；模块库「倍思鹿参考模块」分类、参数/端口/变量/通路说明弹窗；34 模块映射矩阵、L3 集成/标定测试与参考算例快照 |
+| 暖通基础设备与测点 | 16 个「暖通基础设备」模块包（异径管、水侧三通、分水器／集水器 2–8 支路、手动平衡阀、关断阀、Y 型过滤器、三通调节阀、循环水泵含停机阻力、止回阀）+ 4 个成套模板（空调箱、新风机组、风机盘管、定压补水装置）；项目级理想测点（单点、两点差值、体积流量、热功率）读取同一运行帧并可直接作为 PID 反馈与曲线变量；7 个组网示例与机房联锁控制模板。见[暖通基础设备与理想测点](docs/HVAC_BASIC_EQUIPMENT.md) |
 | 关阀隔离 | 运行中两端关阀隔离的被动管段保持压力、零流量，重新开阀后继续；含泵或 Python 模块的隔离段报错 |
 | 设计函数 | Python 模块可选 `design.py`：在模块编辑器「变量值」页对所选库值执行，Worker 计算派生参数并按契约校验，确认后写回库值；随版本保存。内置模型的三组设计函数文本仍只预览；项目设备浮窗暂不提供 |
 | 电加热器、止回阀、物性扩展 | 加热器为内置理想加热段（见上表）；止回阀由 Python 模块包 `modules/check_valve` 提供单向，内核级互补条件与开启压差迟滞仍待实现；物性扩展保留原型编辑入口，进入当前求解器时明确拒绝 |
@@ -180,14 +203,21 @@ examples/             项目控制脚本模板
 docs/                架构、字段、算法、接口、模块套件与发布说明
 ```
 
+- [最新架构图与时序图（2026-11-03）](docs/ARCHITECTURE_AND_SEQUENCE.md)
+- [架构源码索引、进程与存储](docs/ARCHITECTURE_MAP.md)
 - [架构与扩展边界](docs/ARCHITECTURE.md)
 - [数据合同与变量定义](docs/DATA_CONTRACT.md)
 - [算法、假设与后续状态方程](docs/ALGORITHM.md)
 - [冷库案例与开发计划：−18°C 单库房 → NH₃/CO₂ 系统](cases/cold-storage/README.md)
 - [NH₃/CO₂ 集总制冷站案例（B 版）](cases/cold-storage/nh3-co2/README.md)
 - [模块开发套件](docs/MODULE_KIT.md)、[倍思鹿模块映射矩阵](docs/BSL_MODULE_MAP.md)
+- [暖通基础设备与理想测点](docs/HVAC_BASIC_EQUIPMENT.md)、[暖通设备补全清单](docs/HVAC_BASIC_EQUIPMENT_CHECKLIST.md)、[验收记录](docs/HVAC_BASIC_EQUIPMENT_ACCEPTANCE.md)
 - [API 请求与返回](docs/API.md)
 - [版本发布说明](docs/RELEASE_NOTES.md)
+- [设备选型、通路追踪与失败复现](docs/BASELU_WORKFLOW_ACCEPTANCE.md)
+- [多设备批量编辑与面板配置](docs/BATCH_PANEL_ACCEPTANCE.md)
+- [完整后续开发计划（2026-11-05）](docs/FORWARD_PLAN_2026_11_05.md)
+- [S0–S7实施交付与证据（2026-11-06）](docs/FORWARD_IMPLEMENTATION_PROGRESS.md)
 - [试用版验收记录](docs/TRIAL_ACCEPTANCE.md)
 - [原型适配说明](frontend/BACKEND_INTEGRATION.md)
 
@@ -200,7 +230,7 @@ python -m mypy                          # 当前检查范围已清零，CI 阻�
 python scripts/generate_contracts.py --check
 ```
 
-浏览器验证使用 Node 和 Playwright；`npm run test:browser` 依次运行 15 个脚本（含旧存档迁移、冷库 A/B 案例与模块开发工作流），各脚本使用临时端口与隔离的模块/工作区目录，无需预先启动服务：
+浏览器验证使用 Node 和 Playwright；`npm run test:browser` 依次运行 `package.json` 中登记的浏览器脚本（含旧存档迁移、冷库 A/B 案例与模块开发工作流），各脚本使用临时端口与隔离的模块/工作区目录，无需预先启动服务：
 
 ```powershell
 npm install
@@ -212,5 +242,7 @@ Windows 测试使用本机 Edge 的无头模式。验证真实页面加载、连
 冷库与倍思鹿专项：`cases/cold-storage/` 下的 A 版（A0–A6）与 B 版（B0–B3）分别有独立参考、账本、场景验收与浏览器脚本（`browser-cold-storage.mjs`、`browser-cold-storage-station.mjs`）；模块套件测试包括 `test_bsl_modules*.py`、`test_bsl_integration.py`、`test_bsl_calibration.py`、`test_module_catalog.py` 与 `browser-module-catalog.mjs`，由 `.github/workflows/bsl-modules.yml` 快速门禁和主 `ci.yml` 全量门禁分别覆盖。
 
 当前测试包含单位双向转换、Kv 解析解、管道层流压降、粗糙度影响、节点流量守恒、关阀、反向流、未收敛、断开子网络、冲突压力边界、不支持模型、双侧换热器、API 错误响应、工况覆盖和采样上限。热力测试（`test_thermal.py`）覆盖节点混合、等焓、管道散热解析解、泵温升、ε–NTU（含 C_r=1）、单侧无流量、反向流、停滞节点、闭合回路参考热量、全网能量平衡、reference 模式水力基准、thermal 关闭、node 耦合、Python 模块 heat_w 与相态拒绝、动态热启动、边界温度冲突，以及与归档 v0.2 内核的换热器对照；物性测试（`test_properties.py`）覆盖 PT/PH 往返、两相干度、相态策略与多线程查询；介质测试（`test_media.py`）覆盖乙二醇溶液 −10 °C 回路、液氨 −30 °C 边界、按工质的温度/相态范围、等熵与饱和查询、模块内 `state_ps`、工质字符串错误码与湿空气；历史测试（`test_history.py`）覆盖 2001 帧瘦身体积、关键帧、与完整历史逐帧一致、模块状态保留和取消后的部分帧；状态测试（`test_states.py`）覆盖水箱初始状态一致性、线性 ODE 的隐式 Euler 递推与一阶收敛、质量与能量账本、进水混合、加热与散热、只靠水箱定压的闭合回路、排空与满箱事件、子步减半不留痕迹、热力层关闭和编译期拒绝，以及管道热容的 N 段串联稳态解与一阶收敛、输入不变时保持稳态、停流管段的冷却递推、进水升温的延迟与储热账本、反向流和非法分段数。PID 测试（`test_pid.py`）覆盖抗饱和、纯比例静差的解析平衡点、PI 无静差、非 runtime 目标与越界限幅、受控参数拒绝手工写入与手动切换、失败子步不推进控制器；持续运行测试（`test_continuous.py`）覆盖同步运行帧数限制、长后台运行的窗口与全程抽稀、持续运行直到停止、窗口内 trend 关键帧、会话帧数有界且时刻不漂移；会话测试（`test_live.py`）覆盖暂停会话释放计算线程、单步保持 Worker 状态、`set` 幂等与冲突、实时节奏与暂停不过期、温控 PID、隔离管段保压与重连；接口与认证测试（`test_access.py`）覆盖变量读取、批量写入的全有或全无与单一修订号、推送与结束消息、未知运行和变量、令牌分级与撤销、WebSocket 的请求头和子协议令牌、CORS 预检、令牌文件只存哈希、不安全启动配置被拒绝和令牌命令行；多工质测试（`test_multifluid.py`）覆盖换热器两侧各用各的物性并与 ε–NTU 对照、按回路检查边界范围、两种耦合模式下的分回路水力、与项目工质相同时结果不变、盐水回路中的水箱、同回路冲突与关阀不分回路、锚点和工质错误、跨两回路的 Python 模块（含批量 Worker）、检查接口返回回路和原型归一化；REFPROP 测试（`test_refprop.py`，未安装时跳过）覆盖未安装提示、纯质与 HEOS 对照、非共沸混合物滑移与相态、质量/摩尔基准、无输运方程的混合物、错误写法、R134a 管网对照、多线程交替查询和版本不匹配不崩溃；规模测试（`test_scaling.py`）覆盖稀疏与稠密一致、批量 Worker 下实例状态独立。浏览器 `browser-pid.mjs` 覆盖 PID 示例运行与控制面板，`browser-continuous.mjs` 覆盖持续运行开关、全程曲线和停止，`browser-multifluid.mjs` 覆盖给换热机组二次侧设乙二醇、按回路着色和两侧密度，`browser-auth.mjs` 覆盖带令牌启动的服务、令牌输入与错误重输、「对接」页带令牌读取当前运行。平台契约测试另外覆盖 CoolProp 水/空气状态、版本化可编程阀门 Worker、`evaluate` 关系进入网络求解器、模块默认值、后台运行事件、独立进程 ID、嵌套状态隔离、超时终止、失败清理、末步 dt、真实累计质量、通路缺失诊断及前端保存/刷新/拖放。
+
+本轮专项测试 `test_hvac_equipment.py`、`test_hvac_reducer.py` 与 `test_hvac_templates.py` 覆盖暖通基础设备、成套模板、理想测点与机房联锁：异径管突扩／突缩与渐变的独立解析对照（稠密与稀疏两种求解）、正反向切换与管径互换等价性、平衡阀特性曲线与关断、过滤器额定压降与污堵倍数、停泵被动阻力、止回阀开启／关闭压差迟滞与接受步提交、三通阀端点开度与质量焓守恒、分集水器理想同压与带阻力两种模式、泵切换脚本与电能账本、双盘管机房三回路热平衡、空调箱／新风机组／风机盘管模板展开与湿空气换热、定压补水“补水＝泄漏”与止回阀累计量、机房联锁启动顺序／压差确认／低压差停机／工作泵切换、测点编译期单位校验与运行期缺失输入（`null` + 诊断）、测点作为 PID 反馈与模块目录契约；`browser-hvac-equipment.mjs` 覆盖模块目录自动发现、风侧页创建暖通示例、测点面板读数与新增测点、PID 反馈选项、加入曲线、保存后重载。`scripts/generate_hvac_modules.py --check` 与 `scripts/generate_hvac_examples.py --check` 在 CI 中校验设备包与示例快照一致。
 
 本轮专项测试 `test_controls_storage.py` 覆盖采样/失败重试、PID 设定值、整批写入校验、Worker 超时、工作区修订冲突、事务失败、归档恢复/保留和停服备份迁移；`browser-workspace.mjs` 覆盖真实控制预览、跨标签页冲突、保存重试、强制重启后在全新浏览器恢复项目及自定义曲线、旧脚本保留。冷库 A1 专项 `test_refrigeration_a1.py` 覆盖解析解对照与步长收敛、能量账本、契约拒绝、PID 控温方向、运行参数原子写入、失败回滚、保存/重启复算和 24 h 有界历史；冷库 A 专项 `test_refrigeration_cold_store.py` 覆盖循环对独立参考、库房/货物守恒、耦合关系、独立能量账本、步长敏感性、越界停止、最小开停机、温控方向、日程与融霜、重试不重复计数和报告/对照/重启复算；`browser-cold-storage.mjs` 覆盖项目页创建案例、选工况运行、单步中改参数并继续、编辑日程后重算、导出报告/CSV、策略对照、机组工作点、保存后服务重启读取与同帧复算；`scripts/verify_cold_storage.py` 在全新工作区跑完七组工况并输出案例包。时间误差控制专项 `test_timestep.py` 覆盖 A0 配置校验（单位、非正容差、最小/最大步长、不支持执行域）与理想热模型解析解、容差收敛和拒绝试算不入账本；`test_timestep_station.py` 覆盖固定步长路径对 v0.5.0 逐变量/逐计数一致、从任意 accepted vector 的无提交试算与缓存恢复、最小步停止、四场景对固定 1 s 参考、单步与 API 运行、报告措辞和接受步序列可复现。

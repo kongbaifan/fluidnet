@@ -2,7 +2,8 @@
 from copy import deepcopy
 import math
 
-from .models import ModuleMigration, Project, ControlScript
+from .model_types.module import ModuleMigration
+from .model_types.domain import Project, ControlScript
 from .packages import package_ref
 
 UNITS = {
@@ -136,6 +137,8 @@ def migrate_project(project, target, migration):
         for instance in affected & scenario.overrides.keys():
             scenario.overrides[instance] = values(scenario.overrides[instance])
     candidate.selected_variables = [variable(key) for key in candidate.selected_variables]
+    for meter in candidate.measurements:
+        meter.sources = [variable(key) for key in meter.sources]
     for controller in candidate.controllers:
         controller.measurement = variable(controller.measurement)
         if controller.instance_id in affected:

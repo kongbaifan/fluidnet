@@ -3,7 +3,7 @@
 `set_variable` writes a runtime parameter or a PID setpoint/manual output at a simulation time, through
 the same atomic `write_variables` path as an outside command (it bumps the parameter revision)."""
 from ..compiler import CompilationError, runtime_parameter
-from ..models import Diagnostic
+from ..model_types.base import Diagnostic
 
 EPS = 1e-9
 

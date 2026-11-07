@@ -1,0 +1,128 @@
+{
+  "name": "闭式缓冲水箱 · 热水混合",
+  "fluid": {
+    "backend": "coolprop",
+    "fluid": "Water",
+    "composition": {},
+    "reference": "mass",
+    "phase_policy": "liquid"
+  },
+  "solver": {
+    "module_mixed_jacobian": false,
+    "module_cache": false,
+    "pressure_tolerance_pa": 1.0,
+    "mass_tolerance_kg_s": 1e-08,
+    "max_iterations": 80,
+    "dynamic_step_s": 10.0,
+    "thermal": true,
+    "property_coupling": "node",
+    "thermal_tolerance_k": 1e-06,
+    "max_thermal_iterations": 50,
+    "max_coupling_iterations": 40,
+    "coupling_density_rtol": 1e-06,
+    "thermal_acceleration": "none",
+    "coupling_acceleration": "none",
+    "moist_air": false,
+    "max_step_halvings": 6,
+    "hydraulic_method": "dense",
+    "hydraulic_diagnostics": false,
+    "analytic_jacobian": true,
+    "series_compression": false,
+    "hydraulic_blocks": false,
+    "module_parallelism": 1,
+    "batch_modules": true,
+    "time_step": {
+      "enabled": false,
+      "mass_atol_kg": 1e-09,
+      "energy_atol_j": 0.001,
+      "temperature_atol_k": 1e-05,
+      "rtol": 1e-06,
+      "min_internal_step_s": 0.001,
+      "max_internal_step_s": null,
+      "safety": 0.9,
+      "growth_factor": 2.0,
+      "shrink_factor": 0.5
+    }
+  },
+  "duration_s": 300.0,
+  "dt_s": 30.0,
+  "instances": [
+    {
+      "id": "Supply",
+      "module_id": "source",
+      "name": "热水入口",
+      "page_id": "main",
+      "position": {
+        "x": 100.0,
+        "y": 220.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "pressure_pa": 201000.0,
+        "temperature_k": 333.15
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "Buffer",
+      "module_id": "closed_buffer_tank",
+      "name": "固定热质量混合水箱",
+      "page_id": "main",
+      "position": {
+        "x": 430.0,
+        "y": 220.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "mass_kg": 100.0,
+        "temperature_k": 293.15,
+        "heat_loss_ua_w_k": 10.0,
+        "ambient_temperature_k": 293.15
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "Return",
+      "module_id": "source",
+      "name": "出口压力边界",
+      "page_id": "main",
+      "position": {
+        "x": 760.0,
+        "y": 220.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "pressure_pa": 200000.0,
+        "temperature_k": 293.15
+      },
+      "draft_parameters": {},
+      "banks": []
+    }
+  ],
+  "connections": [
+    {
+      "id": "supply",
+      "source": {
+        "instance_id": "Supply",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Buffer",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "return",
+      "source": {
+        "instance_id": "Buffer",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Return",
+        "port_id": "out0"
+      }
+    }
+  ]
+}

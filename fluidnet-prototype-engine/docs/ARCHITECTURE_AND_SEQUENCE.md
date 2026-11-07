@@ -1,285 +1,522 @@
-# FluidNet 架构图与时序图
+# FluidNet 当前架构图与核心时序
 
-日期：2026-10-27。基线：`codex/development-consistency` 分支提交 `2bf8391`（含热耦合单/双盘管、无界面运行、电加热器与多支路饱和容器）。
+核对日期：**2026-11-03（北京时间）**。源码基线：`8563631`；引擎声明版本 `0.5.0`。本页描述当前开发源码，包含暖通基础设备、标准机房、理想测点、多画布连接、自定义压降接口，以及本轮项目状态和公共会话整理；不等同于 2026-10-22 的 v0.5.0 发布包范围。
 
-本文按当前源码重画**组件架构**与**关键时序**，面向「Unity 组态 → 平台计算」的教学使用方式。历史版本的整体架构（v0.4.6，2026-10-15）仍见 [ARCHITECTURE_MAP](ARCHITECTURE_MAP.md)；两者冲突时以本文与源码为准。图中箭头表示调用、数据流或生命周期，不代表每个方框都是独立服务。
+项目由浏览器 Studio、单个 Python 服务、独立代码 Worker 和本机存储组成。**画布是编辑视图，物理回路由端口连通性决定；多个画布归一化为一个 Project，再选择对应的执行域。** 内置设备由主进程计算，Python 设备返回网络关系；全网求解和状态接受仍由主进程负责。
 
-## 1. 组件架构图
+建议先读前四张架构图，再按需要查看六张时序图。进程、存储与源码导航见 [架构索引](ARCHITECTURE_MAP.md)。
+
+| 图 | 要回答的问题 | 图片与可编辑源码 |
+| --- | --- | --- |
+| 1. 系统总览 | 界面、引擎、Worker 和数据存在哪里？ | [SVG](diagrams/architecture.svg) · [PNG](diagrams/architecture.png) · [Mermaid](diagrams/architecture.mmd) |
+| 2. 多画布与计算项目 | 拆页后如何保持同一网络、保存和导入？ | [SVG](diagrams/architecture-project-model.svg) · [PNG](diagrams/architecture-project-model.png) · [Mermaid](diagrams/architecture-project-model.mmd) |
+| 3. 执行域分派 | 项目由哪套模型编译和计算？ | [SVG](diagrams/architecture-execution-domains.svg) · [PNG](diagrams/architecture-execution-domains.png) · [Mermaid](diagrams/architecture-execution-domains.mmd) |
+| 4. 暖通设备与测点 | 设备包、组合、机房示例和仪表如何接入引擎？ | [SVG](diagrams/architecture-hvac.svg) · [PNG](diagrams/architecture-hvac.png) · [Mermaid](diagrams/architecture-hvac.mmd) |
+| 5. 后台运行 | 运行、命令、帧发布与归档何时发生？ | [SVG](diagrams/sequence-run.svg) · [PNG](diagrams/sequence-run.png) · [Mermaid](diagrams/sequence-run.mmd) |
+| 6. 模块接受事务 | 用户代码的候选状态何时真正生效？ | [SVG](diagrams/sequence-module-worker.svg) · [PNG](diagrams/sequence-module-worker.png) · [Mermaid](diagrams/sequence-module-worker.mmd) |
+| 7. 房间温控与风水联算 | 控制、水力、热湿迭代如何协作？ | [SVG](diagrams/sequence-air-water-control.svg) · [PNG](diagrams/sequence-air-water-control.png) · [Mermaid](diagrams/sequence-air-water-control.mmd) |
+| 8. 制冷站与液体热耦合 | 制冷剂容器和液体盘管如何交换热量？ | [SVG](diagrams/sequence-thermal-coupling.svg) · [PNG](diagrams/sequence-thermal-coupling.png) · [Mermaid](diagrams/sequence-thermal-coupling.mmd) |
+| 9. 模块开发与发布 | 草稿怎样变成不可变版本并绑定项目？ | [SVG](diagrams/sequence-module-release.svg) · [PNG](diagrams/sequence-module-release.png) · [Mermaid](diagrams/sequence-module-release.mmd) |
+| 10. 保存与批量工况 | 修订冲突、固定快照和批次结果如何管理？ | [SVG](diagrams/sequence-workspace-batch.svg) · [PNG](diagrams/sequence-workspace-batch.png) · [Mermaid](diagrams/sequence-workspace-batch.mmd) |
+
+图中实线为调用或数据流；虚线为生成、绑定或配置依赖。主服务内的方框是职责划分，不代表独立服务。第 4 图单独区分开发时生成链路与运行链路。
+
+## 1. 组件、进程及存储架构
+
+<!-- diagram: architecture -->
 
 ```mermaid
 flowchart TB
-  subgraph CLIENT["客户端层"]
-    UNITY["Unity 组态界面<br/>学生搭建拓扑<br/>导出规范 Project JSON"]
-    STUDIO["浏览器 Studio<br/>画布 / 模块 / PID / 曲线"]
-    SDK["外部客户端示例<br/>Python / JavaScript"]
+  subgraph CLIENT["客户端"]
+    UI["浏览器 Studio<br/>project-model / state / run-state<br/>建模 · 模块 · 控制 · 结果"]
+    EXT["外部客户端<br/>Python / JavaScript / 三维界面"]
   end
-
-  subgraph EDGE["接入层（同源，默认 127.0.0.1:8798）"]
-    API["api.py · FastAPI<br/>REST + WebSocket<br/>studio / headless 两种模式"]
-    AUTH["auth.py<br/>read / control 令牌"]
-    BRIDGE["bridge.py<br/>原型归一化、单位转换"]
-    MODELS["models.py<br/>严格 Pydantic 合同"]
+  subgraph MAIN["单个 Python 服务进程"]
+    API["FastAPI 接入层<br/>静态页面 · 鉴权 · REST / WS"]
+    AUTHOR["模块平台<br/>目录 · 验证台 · 不可变版本"]
+    BATCH["批量工况<br/>BatchService · 顺序调度"]
+    RUN["编译与运行编排<br/>compiler · RunManager<br/>SessionBase / sessions"]
+    NUM["数值内核与物性<br/>水力 · 热力 · 湿空气 · 制冷<br/>NumPy / SciPy / CoolProp"]
+    TX["代码执行与接受事务<br/>runtime / batch / control<br/>主进程确认候选状态"]
+    RESULT["统一结果与归档<br/>RunFrame · 测点 · 曲线<br/>后台归档线程"]
+    API --> AUTHOR
+    API --> RUN
+    API --> BATCH --> RUN
+    AUTHOR -->|真实试算| RUN
+    RUN --> NUM
+    NUM --> TX
+    RUN -->|控制与状态| TX
+    RUN --> RESULT
   end
-
-  subgraph ORCH["编排层"]
-    RUN["RunManager<br/>1 个调度线程 + 2 个计算线程<br/>最多 20 个活动后台运行"]
-    SYNC["同步运行入口<br/>POST /api/v1/runs"]
-    ARCHIVE["运行归档<br/>最近 2001 帧 + 全程抽稀"]
-  end
-
-  subgraph COMPILE["编译层 · compiler.py"]
-    DISPATCH{"执行域分派"}
-    C_FLUID["单相流体网络<br/>压力节点 / 支路 / 工质回路"]
-    C_COUPLED["耦合项目<br/>refrigeration/coupling.py"]
-    C_STORE["冷库 A<br/>refrigeration/compile.py"]
-    C_STATION["集总制冷站 B<br/>refrigeration/station.py"]
-  end
-
-  subgraph NUM["数值层"]
-    HYD["solver.py · 水力<br/>SciPy least_squares<br/>dense / sparse / auto（S0–S2）<br/>解析 Jacobian（J0–J3）· B0 真实调用计数"]
-    PLAN["hydraulic_plan.py<br/>受限串联支路压缩 C0–C3<br/>（默认关闭）"]
-    PART["partition.py<br/>依赖安全分块 D0–D2<br/>（默认关闭）"]
-    THM["thermal.py · 热力<br/>迎风焓输运 / 隐式 Euler / ε–NTU<br/>Picard 加速 L0–L2（默认关闭）<br/>能量残差校核"]
-    STEP["timestep.py<br/>Euler 时间误差接受 A0–A4<br/>（默认关闭）"]
-    TRAP["trapped.py<br/>困液定容原型 I0–I4<br/>（限定范围）"]
-    CV["check_valve.py<br/>止回阀 V0–V2<br/>参考曲线 / 迟滞 / 互补残差"]
-    MODNUM["module_phases.py / module_performance.py<br/>模块热力回调 · 混合求导<br/>有界纯函数缓存"]
-    PROP["properties.py<br/>CoolProp HEOS / IF97 / INCOMP<br/>可选 REFPROP<br/>按回路服务 · 缓存 · 线程隔离"]
-  end
-
-  subgraph EXEC["执行域会话"]
-    S_NET["单相网络会话<br/>水箱 / 管段热容 / PID / 参数修订"]
-    S_STORE["冷库 A 会话<br/>库房 + 货物热节点、机组状态机"]
-    S_STATION["制冷站 B 会话<br/>容器 (M,U) 隐式推进、五闭环控制"]
-    S_COUPLED["双盘管联算会话<br/>容器 ↔ 二次液体网络隐式交叉求解"]
-  end
-
-  subgraph MODULE["可编程运行时"]
-    RT["runtime.py / batch.py<br/>行式 JSON 管道 RPC"]
-    W_MOD["用户设备模块 Worker<br/>initialize → evaluate → commit_step → finalize"]
-    W_CTRL["控制脚本 Worker<br/>initialize → step → finalize"]
-  end
-
-  subgraph STORE["存储"]
-    WS[("storage.py · SQLite<br/>工作区 / 项目 / 最近 5 修订")]
-    MODDIR[("模块版本目录<br/>manifest.json / module.py / 双哈希")]
-  end
-
-  UNITY -->|"REST：validate / runs / variables"| API
-  STUDIO -->|"REST + WS"| API
-  SDK -->|"REST + WS"| API
-  API --- AUTH
-  API --> BRIDGE --> MODELS
-  API --> SYNC
-  API --> RUN
-  RUN --> MODELS
-  RUN --> DISPATCH
-  SYNC --> DISPATCH
-  DISPATCH --> C_FLUID
-  DISPATCH --> C_COUPLED
-  DISPATCH --> C_STORE
-  DISPATCH --> C_STATION
-  C_FLUID --> S_NET
-  C_STORE --> S_STORE
-  C_STATION --> S_STATION
-  C_COUPLED --> S_COUPLED
-  S_NET --> HYD
-  S_NET --> THM
-  S_STATION --> THM
-  S_COUPLED --> THM
-  S_COUPLED --> HYD
-  HYD --> PLAN
-  HYD --> PART
-  HYD --> PROP
-  THM --> PROP
-  HYD --> MODNUM
-  THM --> MODNUM
-  S_NET --> STEP
-  S_STATION --> STEP
-  S_COUPLED --> STEP
-  S_NET --> TRAP
-  HYD -.->|"独立参考路径"| CV
-  HYD --> RT
-  THM --> RT
-  RT --> W_MOD
-  RT --> W_CTRL
-  RUN --> ARCHIVE
-  API --> WS
-  API --> MODDIR
-  ARCHIVE --> WS
+  WORKER["独立 Python Worker 子进程<br/>设备代码 / 控制脚本"]
+  DB[("SQLite 工作区<br/>项目修订 · 运行 · 批次")]
+  PKG[("模块版本目录<br/>合同 · 源码 · 验证证据")]
+  UI -->|HTTP / 增量轮询| API
+  EXT -->|REST / 变量订阅| API
+  TX <-->|JSON RPC| WORKER
+  API -->|保存项目| DB
+  BATCH -->|固定快照与结果| DB
+  RESULT -->|持久确认| DB
+  AUTHOR <-->|发布 / 加载| PKG
+  classDef client fill:#eaf4ff,stroke:#79a4cc;
+  classDef worker fill:#fff4df,stroke:#c7a255;
+  classDef data fill:#eaf6ef,stroke:#80aa90;
+  class UI,EXT client;
+  class WORKER worker;
+  class DB,PKG data;
 ```
 
-要点：
+Studio 通过 HTTP 增量轮询读取运行历史和状态；WebSocket 提供外部变量订阅。规范化、编译、数值计算、物性和模块状态接受都在主服务进程内。稳态直接进入求解器，动态由五类会话推进；后台运行使用一个调度线程和两个计算线程，批量工况依次提交到同一个 `RunManager`。
 
-- **一个 Python 服务进程**承担 API、编译、调度与求解；Python 模块与控制脚本在独立 Worker 子进程中执行。
-- **执行域由编译器分派**：项目含 `thermal_couplings` → 联算；含 `refrigerant` 端口 → 集总制冷站；含 `thermal` 端口 → 冷库 A；其余为单相流体网络。
-- 教学场景中 Unity 只需实现三个 REST 调用（校验、启动、读结果/订阅），算法细节全部在平台内。
-- 物性、模块版本与运行归档都在平台侧，客户端不持有求解状态。
+`SessionBase` 统一命令、控制采样、参数修订、公共检查点和资源生命周期；`RunSession` 是调度和 API 的显式接口，控制预览调用 `preview_control`。各域的求解、物理副作用及接受点仍由对应会话实现。热／制冷会话不再继承流体会话。
 
-### 1.1 数值层细目
+内置设备不经过 Python 设备 Worker；组合模块先展开成叶子设备，再按各叶子的运行类型执行。设备 Worker 可按实例分片，控制脚本使用独立执行器。Worker 隔离进程与生命周期，尚不是操作系统权限沙箱。REFPROP 是可选的本地物性后端。CLI 的 `--headless` 关闭前端挂载，保留 API。
 
-| 模块 | 证据系列 | 作用 | 默认 |
-| --- | --- | --- | --- |
-| `solver.py` | B0、S0–S2、J0–J3 | `least_squares` 水力求解、auto 稀疏选择、纯内置解析 Jacobian、真实残差/Jacobian/RPC 计数 | 解析 Jacobian 开；新建项目 `auto`，旧项目 `dense` |
-| `hydraulic_plan.py` | C0–C3 | 受限串联支路压缩与原变量回算 | 关闭（`series_compression=False`） |
-| `partition.py` | D0–D2 | 依赖安全的水力分块求解 | 关闭（`hydraulic_blocks=False`） |
-| `thermal.py` | L0–L2 | 节点焓输运、隐式 Euler 储热、ε–NTU、能量残差校核、Picard 阻尼加速 | 加速 `none` |
-| `timestep.py` | A0–A4 | 整步/两个半步试算、误差归一化与接受/拒绝 | 关闭（`time_step` 未启用） |
-| `trapped.py` | I0–I4 | 单容积刚性封闭液腔原型（HEOS 纯水单相） | 仅显式 `closed_volume`，非通用隔离段 |
-| `check_valve.py` | V0–V2 | 止回阀解析曲线、开关判据、迟滞状态机与互补残差（独立参考路径） | 求解器不直接调用 |
-| `module_phases.py` / `module_performance.py` | 模块系统 | 模块热力回调、混合求导、有界纯函数缓存与端口读取追踪 | 随模块启停 |
-| `properties.py` | — | CoolProp HEOS/IF97/INCOMP、可选 REFPROP、按回路物性服务、缓存与线程隔离 | — |
+模块版本在文件目录持久化，项目、运行和批次由 SQLite 保存。普通帧通过 `_ArchiveWriter` 合并落盘，保存回执与运行持久确认的具体边界见第 5、10 图。归档 Studio、旧便携包及 `output/` 概念稿不在当前启动链路中。
 
-Worker 冷启动优化（W0–W2）属于可编程运行时的启动路径，不在本层；证据与默认开关见 [数值专项证据索引](numerics/README.md)。
+依据：[api.py](../backend/fn_engine/api.py)、[jobs.py](../backend/fn_engine/jobs.py)、[sessions.py](../backend/fn_engine/sessions.py)、[batches.py](../backend/fn_engine/batches.py)、[runtime.py](../backend/fn_engine/runtime.py)、[control.py](../backend/fn_engine/control.py)。
 
-![组件架构图（PNG）](diagrams/architecture.png)
+## 2. 多画布、项目合同与保存
 
-## 2. 时序图 A：一次运行（Unity 拓扑 → 平台结果）
+<!-- diagram: architecture-project-model -->
+
+```mermaid
+flowchart TB
+  subgraph BROWSER["浏览器"]
+    STATE["项目编辑状态<br/>project-state：编辑与撤销<br/>pages / 已应用参数 / 草稿"]
+    LINKS["项目级连接工具<br/>project-links.js<br/>占用检查 · 移页 · 跳转 · 删除"]
+    ADAPTER["计算请求适配<br/>project-model：纯转换<br/>engine-client：HTTP 请求"]
+    SAVE["保存与导入导出<br/>project-services.js<br/>modeling-workflows.js"]
+    LINKS -->|编辑同一连接集合| STATE
+    STATE --> ADAPTER
+    STATE <-->|界面项目文档| SAVE
+  end
+  subgraph SERVER["Python 服务"]
+    BRIDGE["原型归一化<br/>bridge.normalize_prototype_export<br/>合并各页设备与连接，转换单位"]
+    PROJECT["规范 Project 合同<br/>instances + connections<br/>模块快照 · 控制 · 工况 · 测点"]
+    COMPILE["compile_project<br/>按端口连接构建网络<br/>展开组合并选择物理执行域"]
+    RUN["统一运行与 RunFrame<br/>同一运行 ID / 时间轴<br/>变量按设备 ID 定位"]
+    BRIDGE --> PROJECT --> COMPILE --> RUN
+  end
+  DB[("SQLite<br/>工作区 / 单项目修订")]
+  ADAPTER -->|POST /prototype/normalize| BRIDGE
+  SAVE <-->|保存 / 载入 / 修订恢复| DB
+  PROJECT -.->|规范 JSON：按 page_id 恢复分组| SAVE
+  RUN -->|轮询帧，更新各页读数| STATE
+  classDef data fill:#eaf6ef,stroke:#80aa90;
+  class PROJECT,DB data;
+```
+
+`project-model.js` 负责参数默认值、显示单位、项目文档和导入／升级的纯转换；服务脚本负责 HTTP 与修订回执。`project-state.js` 集中编辑操作和失败替换回滚，`project-run-state.js` 校验运行归属、合并帧并生成历史展示。迟到响应不能覆盖被替换的项目／运行，轮询不将旧配置结果重新标为当前。
+
+跨页连接沿用 `[连接ID, 起点设备, 起点端口, 终点设备, 终点端口]`，只在起点画布的 `edges` 中存储一次；另一端的连接标记由同一条记录派生。`project-links.js` 在整个项目内检索端口、移页并调整连接存放位置。界面最多八张画布，每页最多 64 台设备。
+
+归一化汇总全部画布后形成同一个 `Project`，`page_id` 保留界面分组信息；压力节点、工质回路和参考边界由连接及设备合同确定。**移页不新增边界、不复制设备，也不单独启动求解。** 编辑拓扑或移页先停止运行；运行中切页与跳转复用已有运行。
+
+保存链路与计算链路分开：单项目格式保存名称、布局、草稿及模块等绑定；规范 Project JSON 保留 `page_id` 和跨页连接，导入时按 `page_id` 分组，但不保证恢复全部界面信息。图中的数据库读写经 FastAPI / `WorkspaceStore` 完成。恢复或替换同 ID 项目前，浏览器先备份该项目及其绑定，再应用服务器结果；修订冲突返回 409。
+
+依据：[project-links.js](../frontend/project-links.js)、[engine-client.js](../frontend/engine-client.js)、[project-services.js](../frontend/project-services.js)、[modeling-workflows.js](../frontend/modeling-workflows.js)、[bridge.py](../backend/fn_engine/bridge.py)、[多画布说明](CROSS_PAGE_CONNECTIONS.md)。
+
+## 3. 编译与五类执行域
+
+<!-- diagram: architecture-execution-domains -->
+
+```mermaid
+flowchart TB
+  P["已应用参数 + 固定模块定义 + 工况<br/>规范 Project 合同"] --> C["compile_project<br/>作者角色与测点校验<br/>组合展开与执行域分派"]
+  C --> F["fluid 默认路径<br/>compiler + 可选 air_compile<br/>自定义压降仅用于普通单相"]
+  C --> T["thermal<br/>refrigeration/compile"]
+  C --> A["cold_store<br/>refrigeration/cold_store"]
+  C --> R["refrigeration<br/>refrigeration/station"]
+  C --> K["coupled · thermal_couplings<br/>refrigeration/coupling"]
+  F --> FS["SimulationSession<br/>共享 SessionBase<br/>水箱、管段、困液、房间状态"]
+  T --> TS["ThermalSession<br/>共享 SessionBase<br/>理想冷源 + 库房热平衡"]
+  A --> AS["ColdStoreSession<br/>冷库 A · 库房/货物 + R290 机组"]
+  R --> RS["StationSession<br/>集总制冷站 · 容器质量/内能"]
+  K --> KS["CoupledStationSession<br/>制冷站 + 无储量液体网络"]
+  FS --> H["solver + thermal<br/>单相水力、焓输运、换热与储热"]
+  FS --> AIR["air_transport + air_liquid<br/>空气/冷冻水/冷却水联合迭代<br/>水盘管、冷水机组、房间、湿冷却塔"]
+  RS --> RM["制冷作者适配 module_adapter<br/>等焓节流角色 · schema v4"]
+  KS --> LM["液体作者适配 liquid_modules<br/>当前范围：无储量阀门/局部阻力"]
+  KS --> H
+  TS --> OUT["统一 RunFrame / 控制命令<br/>归档与报告"]
+  AS --> OUT
+  H --> OUT
+  AIR --> OUT
+  RM --> OUT
+  LM --> OUT
+```
+
+| 执行域 | 编译与会话 | 当前边界 |
+| --- | --- | --- |
+| `fluid`（默认路径） | `compile_project` → `SimulationSession` | 单相流体；湿空气与风水三回路仍走此路径。普通 `CompiledNetwork` 没有单独的 `execution_domain='fluid'` 字段，由会话工厂默认分支处理 |
+| `thermal` | `compile_thermal_project` → `ThermalSession` | 理想冷源与库房热模型 |
+| `cold_store` | `compile_cold_store` → `ColdStoreSession` | 冷库 A，库房/货物热节点与机组状态机 |
+| `refrigeration` | `compile_station` → `StationSession` | 集总制冷站；schema v4 作者模块目前仅支持节流角色 |
+| `coupled` | `compile_coupled_project` → `CoupledStationSession` | 最多两条盘管关系，关联同一个饱和制冷剂容器；液体侧无物理储量 |
+
+分派见 [compiler.py](../backend/fn_engine/compiler.py) 和 [sessions.py](../backend/fn_engine/sessions.py)。风水三回路和 `thermal_couplings` 是不同路径：前者在一个湿空气/液体网络中联合求解，后者在集总制冷站的隐式试算中嵌套液体网络。制冷作者角色 `refrigeration.isenthalpic_throttle.v1` 当前不能放入湿空气、普通流体或 `coupled` 项目。组合模块已由 [composites.py](../backend/fn_engine/composites.py) 展开并校验子版本。
+
+自定义压降 `net.pressure_drop`（SDK 0.8.0）仅开放普通单相网络中的被动、无独立储量设备；湿空气／风水、冷库、制冷站与热耦合不接受此新关系。理想测点支持单相与风水路径，组合展开前校验，公开变量映射后计算。详见 [自定义压降](CUSTOM_PRESSURE_DROP.md)及第 4 图。
+
+## 4. 暖通设备、标准机房与理想测点
+
+<!-- diagram: architecture-hvac -->
+
+```mermaid
+flowchart TB
+  subgraph BUILD["开发时生成设备"]
+    SOURCE["hvac_basic.py<br/>基础设备与组合模板定义"]
+    GENERATE["generate_hvac_modules.py<br/>生成 / --check 一致性检查"]
+    SOURCE --> GENERATE
+  end
+  PACKS[("modules/ 设备包<br/>manifest.json + module.py")]
+  EXAMPLES["hvac_examples.py 示例工厂<br/>开发与运行共用<br/>七个组网项目与控制配置"]
+  JSON[("可导入的示例 JSON<br/>examples/hvac-basic/")]
+  GENERATE -.->|生成设备包| PACKS
+  EXAMPLES -.->|生成脚本 / --check| JSON
+  PACKS -->|加载合同与固定源码| EXAMPLES
+  subgraph RUNTIME["编译与运行"]
+    PROJECT["建模项目 / 暖通示例<br/>设备实例 · 模块快照<br/>controllers / control_scripts / measurements"]
+    COMPILE["compiler + composites<br/>校验测点与端口，展开组合<br/>映射公开参数、端口及变量"]
+    SOLVE["稳态 solver / 动态 SimulationSession<br/>内置设备 + Python 叶子设备<br/>水力、热力与风水联合求解"]
+    PUBLIC["composites.map_frame<br/>将叶子结果映射到公开设备变量"]
+    METERS["measurements.apply_measurements<br/>取值 / 两点差 / 体积流量 / 热功率"]
+    RESULTS["RunFrame：measurement.*<br/>仪表 · 曲线 · 归档<br/>风侧冻结 CSV / HTML 报告"]
+    CONTROL["PID / 控制脚本 Worker<br/>按采样读取已接受变量<br/>写入允许的运行参数"]
+    PROJECT --> COMPILE --> SOLVE --> PUBLIC --> METERS --> RESULTS
+    PROJECT -.->|动态运行控制配置| CONTROL
+    CONTROL -->|参数提案与校验| SOLVE
+    RESULTS -->|已接受反馈| CONTROL
+  end
+  PACKS -->|目录 / 拖入 / 版本绑定| PROJECT
+  EXAMPLES -->|示例 API| PROJECT
+  JSON -.->|导入| PROJECT
+  classDef data fill:#eaf6ef,stroke:#80aa90;
+  class PACKS,JSON,RESULTS data;
+```
+
+`hvac_basic.py` 是生成来源，设备执行时加载 `modules/` 内的包。异径管等手写设备包同样通过目录加载。空调箱、新风机组、风机盘管、分集水器和定压补水等组合先由 `composites` 展开；生成脚本的 `--check` 保证受管理包与示例文件一致。
+
+理想测点在编译前按公开设备合同检查引用和单位，结果先经过组合变量映射，再计算 `measurement.<id>`。测点不添加阻力、储量或网络方程；输入无效时输出空值和诊断，不补零。当前支持普通单相及风水联算项目，不支持集总制冷站或 `thermal_couplings` 项目。仪表读数保留在 trend 历史，风侧报告使用冻结测点目录和运行帧。
+
+标准机房 `hvac-basic-plant` 的三条物理回路如下，全部走 `fluid` 默认路径：
+
+| 回路 | 连接与耦合 |
+| --- | --- |
+| 空气 | 新风／回风混合 → 过滤 → 两台水盘管串联 → 风机 → 房间 → 回风／排风 |
+| 冷冻水 | 泵 → 冷水机组蒸发侧 → 过滤器／异径管／关断阀 → 分水器 → 两条“平衡阀 + 水盘管”并联支路 → 集水器 → 泵 |
+| 冷却水 | 泵 → 冷水机组冷凝侧 → 冷却塔 → 泵 |
+
+机房、末端和空气画布是同一系统的视图分组，不与三条物理回路一一对应。标准机房验收覆盖稳态、调阀、报告及保存重载；房间自动温控和工作／备用泵联锁分别由专用示例验证，不代表该机房示例已包含完整多机群控。
+
+依据：[hvac_basic.py](../backend/fn_engine/hvac_basic.py)、[hvac_examples.py](../backend/fn_engine/hvac_examples.py)、[composites.py](../backend/fn_engine/composites.py)、[measurements.py](../backend/fn_engine/measurements.py)、[solver.py](../backend/fn_engine/solver.py)、[simulation.py](../backend/fn_engine/simulation.py)、[air_variables.py](../backend/fn_engine/air_variables.py)、[标准机房](HVAC_STANDARD_PLANT.md)。
+
+## 5. 后台运行、命令、发布与归档时序
+
+<!-- diagram: sequence-run -->
 
 ```mermaid
 sequenceDiagram
   autonumber
-  participant U as Unity 客户端
-  participant A as FastAPI (api.py)
-  participant C as 编译器 (compiler.py)
-  participant R as RunManager
+  actor U as Studio / 外部客户端
+  participant A as FastAPI
+  participant J as RunManager
+  participant C as compiler / sessions
   participant S as 执行域会话
-  participant N as 水力 + 热力求解
-  participant P as 物性服务
-  participant D as 存储 / 归档
-
-  U->>A: POST /api/v1/projects/validate（完整拓扑）
+  participant D as 归档线程 / SQLite
+  U->>A: POST /api/v1/projects/validate
   A->>C: compile_project(Project)
-  C-->>A: 回路 / 诊断 / 错误码
-  A-->>U: 校验结果（可定位到设备与端口）
-
-  U->>A: POST /api/v1/runs?background=true（或 /projects/{id}/runs）
-  A->>A: 严格合同校验 + 令牌鉴权
-  A->>R: submit(RunRequest)
-  R-->>A: run_id（HTTP 202）
-  A-->>U: run_id
-
-  R->>C: 编译（固定项目修订、模块快照与工质）
-  C->>S: 创建会话（按执行域分派）
-  R->>D: 记录运行元数据与请求快照
-
-  loop 每一帧（稳态求解或动态推进）
-    S->>N: 水力求解（流量 / 压力）
-    N->>P: 按回路查询物性
-    P-->>N: 密度 / 黏度 / 焓 / 温度
-    S->>N: 热力求解（焓输运、换热、能量残差）
-    N-->>S: 帧变量 / 指标 / 诊断
-    S->>D: 发布帧（内存窗口 + 归档抽稀）
-    U->>A: GET /runs/{id}/variables 或 WS /events
-    A-->>U: 当前帧 / 结束状态
+  C-->>A: 拓扑与合同诊断
+  A-->>U: 校验结果
+  U->>A: POST /api/v1/runs?background=true
+  A->>J: submit(固定 RunRequest)
+  J->>D: 保存初始运行记录
+  A-->>U: HTTP 202 + run_id
+  J->>C: 应用工况，编译并 create_session
+  C-->>J: 对应物理域会话
+  J->>S: initialize
+  S-->>J: t=0 RunFrame
+  J->>D: 初始帧与运行状态持久确认
+  opt 运行控制或整批参数写入
+    U->>A: POST /runs/id/command 或 /variables
+    A->>J: 校验命令标识并入队
+    J->>D: 回执持久化
+    A-->>U: accepted 回执
   end
-
-  U->>A: POST /runs/{id}/command（pause / resume / step / set / stop）
-  A->>R: 命令在当前帧结束后生效
-  R->>S: 应用到同一 run_id
-  S-->>D: 终态记录（已接受历史保留）
+  loop 每个输出帧
+    J->>S: 帧边界应用命令，再 advance
+    Note over J,S: 暂停、继续、单步、停止复用同一会话
+    S->>S: 控制采样、候选求解、接受一个或多个子步
+    S-->>J: RunFrame，含 sequence 与参数修订
+    J->>J: 更新最新帧、窗口历史、概览与事件
+    J-)D: 普通帧排队，由归档线程合并写入
+    U->>A: GET history / events / overview
+    A->>J: 读取运行记录
+    A-->>U: 增量历史、状态、命令回执
+    opt 外部变量订阅
+      A-->>U: WS /runs/id/stream 推送最新选定变量
+    end
+  end
+  J->>S: 完成、停止或失败时 close
+  S->>S: finalize，回收设备及控制 Worker
+  J->>D: 终态及未结算回执持久确认
+  Note over J,D: 重启后可读档案；未结束运行标为 interrupted
 ```
 
-![一次运行时序（PNG）](diagrams/sequence-run.png)
+`POST /api/v1/projects/{project_id}/runs` 也会启动后台运行，先读取指定保存修订再归一化。同步 `/runs` 在请求中计算并返回，动态最多 2001 帧。普通帧异步归档，命令及关键状态边界等待落盘；返回计算帧不表示该帧已确认落盘。重启后需新建运行，尚不支持续算。
 
-## 3. 时序图 B：双盘管热耦合隐式联算
+依据：[api.py](../backend/fn_engine/api.py)、[jobs.py](../backend/fn_engine/jobs.py)、[storage.py](../backend/fn_engine/storage.py)。
+
+## 6. Python 模块候选状态与接受事务时序
+
+<!-- diagram: sequence-module-worker -->
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant S as 会话 / 求解器
+  participant T as 主进程 ModuleStepTransaction
+  participant R as runtime / batch RPC
+  participant W as Worker 中的用户模块
+  S->>R: 创建实例执行器
+  R->>W: initialize(ctx)
+  loop 同一物理步的数值试算
+    S->>R: evaluate(trial_ports, accepted_state, 可选 trial_channels)
+    R->>W: evaluate，只读已接受状态
+    W-->>R: 通路关系、观察量及诊断
+    R-->>S: 组装全网方程所需关系
+    S->>S: 求解压力、流量、热状态与残差
+  end
+  S->>T: 按 step_id 收集所有实例候选
+  T->>R: prepare_step(收敛结果, dt)
+  R->>W: 在候选副本执行 commit_step
+  W-->>R: 候选 state / variables / 修订 / 双哈希
+  R-->>T: 模块候选
+  S->>S: 构造候选整帧及控制、物理状态
+  S->>T: validate 完整性、修订、哈希、JSON 有限值
+  alt 接受前校验失败
+    S->>T: discard
+    T->>R: 丢弃候选
+    S->>S: 回滚控制，保留上一已接受状态
+  else 接受前校验通过
+    S->>T: promote
+    T->>T: 主进程更新所有实例 state 与 revision
+    S->>S: 接受物理状态、控制状态和账本
+    S->>T: synchronize
+    T->>R: 同步已接受候选
+    R->>W: 更新 Worker 状态镜像
+    alt 同步失败
+      R-->>S: MODULE_SYNC_FAILED，子步已接受
+      S->>S: 保留接受帧，停止运行并清理
+    else 同步成功
+      S->>S: 继续后续子步或发布输出帧
+    end
+  end
+  S->>R: 结束时 finalize / close
+  R->>W: finalize(ctx)，回收进程
+```
+
+接受点由主进程掌握，`commit_step` 生成候选不等于立刻接受；`promote()` 内不执行 RPC 或用户代码。接受前失败可丢弃候选，接受后的同步失败则保留该状态并停止。扩展热力、观察和求导回调按模块能力声明执行，图中省略可选调用。声明 `net.pressure_drop` 的普通单相模块还接收当前试算通路流量；流量参与缓存键和方程依赖，`observe` 才读取最终收敛结果。
+
+依据：[module_transactions.py](../backend/fn_engine/module_transactions.py)、[simulation.py](../backend/fn_engine/simulation.py)、[runtime.py](../backend/fn_engine/runtime.py)、[refrigeration/station.py](../backend/fn_engine/refrigeration/station.py)。
+
+## 7. 房间自动温控与风水三回路时序
+
+<!-- diagram: sequence-air-water-control -->
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant S as SimulationSession
+  participant C as 控制脚本 Worker / PID
+  participant H as solver / air_transport
+  participant X as air_liquid / 设备模型
+  participant P as CoolProp 物性
+  participant F as 接受状态 / RunFrame
+  Note over S,F: 三回路属于 fluid 默认路径；房间有热湿储量
+  loop 帧内推进，步长对齐控制采样边界
+    S->>S: 保存控制与参数回滚点
+    S->>C: 到采样时刻，读取当前已接受变量
+    C-->>S: 脚本提案；PID 算出水阀 opening_ratio
+    S->>S: 整批校验可写目标与所有权，构造候选参数
+    S->>H: _trial(h)，传入房间上一接受状态
+    loop 水力与热湿物性外迭代
+      H->>P: 按空气/冷冻水/冷却水回路查询物性
+      P-->>H: rho / mu / h / 含湿量等
+      H->>H: 求各回路压力与流量，空气按干空气连续性
+      H->>X: 用同一候选状态计算水盘管与冷水机组
+      X-->>H: 盘管冷凝与水侧热量；机组冷量、排热与功率
+      H->>X: 房间隐式热湿推进；湿冷却塔换热与水耗
+      X-->>H: 候选房间状态、设备量及守恒残差
+      H->>H: 更新焓/湿量输运，检查温度/湿量/密度收敛
+    end
+    H-->>S: 收敛结果或失败诊断
+    alt 候选求解或接受前校验失败
+      S->>S: 丢弃候选，回滚；可重试错误按条件缩步
+    else 候选整帧与模块事务校验通过
+      S->>F: 一次接受物理状态、控制提案及累计账本
+      Note over S,F: air_ledger 按接受 dt 累计冷凝水、水耗、电能
+    end
+  end
+  S->>F: 映射公开变量与理想测点，发布同一 RunFrame
+  Note over S,F: 变量统一驱动画布、控制曲线、归档及冻结报告
+```
+
+房间示例用 `Room.state.temperature_k` 反馈到 `WaterValve.opening_ratio`。房间有真实热湿动态，两个水回路无储量；盘管与机组通过 `air_liquid.coupled_device_results` 在同一候选状态中换热。示例脚本在 600 s 控制边界改变负荷或目标，600 s 帧仍是变化前值，630 s 帧包含变化后值。报告读取冻结变量目录和已保存接受帧，不重新求解。
+
+依据：[simulation.py](../backend/fn_engine/simulation.py)、[air_transport.py](../backend/fn_engine/air_transport.py)、[air_liquid.py](../backend/fn_engine/air_liquid.py)、[air_ledger.py](../backend/fn_engine/air_ledger.py)、[房间温控说明](ROOM_TEMPERATURE_CONTROL.md)。
+
+## 8. 制冷站与液体盘管热耦合时序
+
+<!-- diagram: sequence-thermal-coupling -->
 
 ```mermaid
 sequenceDiagram
   autonumber
   participant S as CoupledStationSession
-  participant V as 饱和制冷剂容器 LP1
-  participant L as 二次侧无储量液体网络
-  participant C1 as 盘管 HX1
-  participant C2 as 盘管 HX2
-
-  Note over S: 每个隐式步 / Newton 迭代内重复，未收敛的试算不提交
-  S->>V: 以试算 (M, U) 反求饱和温度与压力
-  S->>L: 用当前饱和温度求解二次侧网络
-  L-->>S: 各盘管流量、上游温度、出口焓
-  S->>C1: ε–NTU 计算换热量与有效度
-  S->>C2: ε–NTU 计算换热量与有效度
-  C1-->>S: heat_w / 出液温度 / 方程残差
-  C2-->>S: heat_w / 出液温度 / 方程残差
-  S->>V: 两盘管热量以相反符号写入同一容器能量方程（求和）
-  S->>S: 检查质量 / 能量残差与容器液位适用区
-  S->>S: 接受子步：提交状态、累计 heat_energy_j 与能量账
-  Note over S: 输出 coupling.HX1.* / coupling.HX2.* 与 metrics.coupling_heat_w（两盘管之和）
+  participant V as 集总容器 / 制冷设备
+  participant L as 液体网络 solver / thermal
+  participant W as 液体作者阀门 Worker
+  participant T as 接受事务 / 平台账本
+  S->>S: 固定控制段参数与已接受模块状态
+  loop 隐式状态试算；可选整步/半步误差估计
+    S->>V: 由候选 M、U 反求容器温度与压力
+    V-->>S: 制冷质量流、能量流及饱和温度
+    S->>L: 以当前容器温度求解无储量液体网络
+    opt 含液体侧 Python 阀门或局部阻力
+      loop 水力残差评估
+        L->>W: evaluate，同一已接受 state
+        W-->>L: 无附加热流的阀门/阻力关系
+      end
+    end
+    L->>L: 盘管 epsilon-NTU 与液体焓输运
+    L-->>S: 液体流量、焓差与各盘管热量
+    S->>V: 各盘管热量求和，进入同一容器能量方程
+    S->>S: 检查隐式残差、相态、液位与可选时间误差
+    S->>T: 按误差接受内部步暂存质量与热量账本
+  end
+  Note over S,T: 内部账本在段内暂存；整段失败一并回滚
+  S->>T: 完整控制段结束，收集模块候选 commit_step
+  T->>W: prepare_step(段 dt, 最终收敛通路)
+  W-->>T: 候选状态与已声明观察量
+  S->>S: 校验整段候选帧
+  alt 段接受前失败
+    S->>T: 丢弃候选并回滚整段状态与账本
+  else 段接受通过
+    S->>T: promote 模块状态，再 synchronize Worker
+    S->>S: 输出制冷站、液体、作者版本及 coupling 变量
+  end
 ```
 
-边界：最多两条耦合，须绑定同一个饱和容器，同一液体通路不能重复绑定；液体侧无储热、无 Python 设备模块；两条以上的盘管与不同容器尚未支持。
+最多两条耦合关系，绑定同一饱和容器；同一液体通路不得重复绑定。液体作者设备支持声明事务能力的无储量单通路阀门/局部阻力，不支持泵、主动供热或独立物理储量。平台累计通过质量按实际接受的内部步积分，作者 `commit_step` 按完整控制段执行；整步/半步误差试算不触发模块提交。
 
-![双盘管联算时序（PNG）](diagrams/sequence-thermal-coupling.png)
+依据：[coupling.py](../backend/fn_engine/refrigeration/coupling.py)、[liquid_modules.py](../backend/fn_engine/refrigeration/liquid_modules.py)、[station.py](../backend/fn_engine/refrigeration/station.py)、[使用说明](COUPLED_LIQUID_MODULES.md)。
 
-## 4. 时序图 C：Python 模块与控制脚本的生命周期
+## 9. 模块开发、发布与项目绑定时序
+
+<!-- diagram: sequence-module-release -->
 
 ```mermaid
 sequenceDiagram
   autonumber
-  participant S as 求解器 / 会话
-  participant R as runtime.py (RPC)
-  participant W as Worker 子进程
-  participant M as 用户 module.py
-
-  S->>R: 启动（单实例或按并行度分片）
-  R->>W: 行式 JSON RPC
-  W->>M: initialize(ctx)
-  loop 同一子步内的多次迭代
-    S->>R: evaluate(端口状态)
-    R->>M: evaluate(ctx)
-    M-->>S: 通路关系（阻力 / 压升 / 强制流量）
+  actor U as Studio 模块编辑器
+  participant A as FastAPI / ModuleStore
+  participant B as 校验器 / 真实验证台
+  participant W as 独立 Worker
+  participant D as 模块版本目录 / 项目
+  U->>U: 编辑合同、源码、端口、参数与输出草稿
+  U->>A: POST /modules/validate 或 /modules/test
+  A->>B: 合同、语法、能力与执行域检查
+  B->>W: 加载并试算草稿，执行生命周期
+  W-->>B: 关系、状态与诊断
+  B-->>U: 经 API 返回结果
+  U->>A: POST /modules/versions + expected_latest_version
+  A->>A: 持锁检查最新版本，分配新版本
+  A->>B: 重新校验，规范源码并计算双哈希
+  B->>W: 用有效测试条件再次真实试算
+  W-->>B: 结果与输出
+  B-->>A: 校验声明输出，生成验证凭据
+  alt 冲突、校验失败或试算失败
+    A-->>U: 错误诊断；草稿继续保留
+  else 验证通过
+    A->>D: 临时目录写入 manifest / source / release
+    A->>D: 原子重命名为新的 vN 目录
+    A-->>U: 新版本、双哈希及验证证据
+    U->>D: 插入项目，保存完整定义和 ModulePackageRef
+    Note over U,D: 发布新版本不会自动替换已有项目绑定
+    U->>A: 显式预览兼容升级，保存项目新修订
+    A->>D: 更新项目绑定；可从项目修订回退
   end
-  alt 子步被接受
-    S->>R: commit_step
-    R->>M: commit_step(ctx)
-  else 子步失败或超时
-    S->>R: 丢弃本次结果（不提交状态）
-    R->>W: 关闭进程并记录诊断
-  end
-  S->>R: 结束
-  R->>M: finalize(ctx)
-  W-->>R: 进程退出，Worker 回收
 ```
 
-控制脚本使用同一 Worker 机制，但按仿真采样周期执行 `initialize / step / finalize`，写入先暂存、整批校验后再应用到下一子步。
+普通流体、制冷节流及热耦合液体作者模块复用模块平台，验证台按合同选择执行路径。同一项目同一模块 ID 固定一个版本；支持显式兼容升级与修订回退。源码哈希和定义哈希分别校验源码、合同与绑定一致性。
 
-![模块 Worker 时序（PNG）](diagrams/sequence-module-worker.png)
+依据：[packages.py](../backend/fn_engine/packages.py)、[bench.py](../backend/fn_engine/bench.py)、[refrigeration/bench.py](../backend/fn_engine/refrigeration/bench.py)、[projects.py](../backend/fn_engine/projects.py)。
 
-## 5. 接口与执行域对照
+## 10. 项目可靠保存与批量工况时序
 
-| 执行域 | 编译器入口 | 会话 | 教学用途 |
-| --- | --- | --- | --- |
-| 单相流体网络 | `compile_project` | 网络会话（水箱/管段热容/PID） | 泵阀管网、换热器、加热器、水系统 |
-| 冷库 A（`cold_store`） | `refrigeration/compile.py` | 库房 + 货物热节点会话 | −18 °C 单库房、机组启停与融霜 |
-| 集总制冷站 B（`refrigerant`） | `refrigeration/station.py` | 容器 (M,U) 隐式推进会 | NH₃/CO₂ 制冷站、多支路容器、冷风机 |
-| 双盘管联算 | `refrigeration/coupling.py` | 容器 ↔ 二次液体网络交叉求解 | 制冷站与水/乙二醇回路换热 |
-
-客户端可用的主要端点：`POST /api/v1/projects/validate`、`POST /api/v1/runs`、`POST /api/v1/projects/{id}/runs`、`GET /api/v1/runs/{id}/variables`、`GET /api/v1/runs/{id}/history`、`WS /api/v1/runs/{id}/stream`、`GET /api/v1/runs/{id}/events`、`POST /api/v1/runs/{id}/command`，以及示例 `GET /api/v1/examples/{name}`。
-
-## 6. 说明
-
-- 图中组件均按源码核对：域分派见 [compiler.py](../backend/fn_engine/compiler.py)，调度与线程见 [jobs.py](../backend/fn_engine/jobs.py)，会话工厂见 [sessions.py](../backend/fn_engine/sessions.py)，联算见 [coupling.py](../backend/fn_engine/refrigeration/coupling.py)。
-- 本文件为 Mermaid 文本，GitHub / GitLab / VS Code 可直接渲染；需要 PNG/SVG 时可用 `@mermaid-js/mermaid-cli` 导出。
-- 架构细节（启动、并发、存储、契约）仍以 [ARCHITECTURE_MAP](ARCHITECTURE_MAP.md) 与 [API](API.md)、[数据合同](DATA_CONTRACT.md) 为准。
-
-## 风侧合同 1 的实际调用链（2026-10-29）
-
-湿空气仍是 fluid 执行域。编译器复用既有节点/支路映射并调用 `air_compile`；`solver._solve_network` 调度 `air_transport.solve_air_network`，在水力与 h/w 输运之间反馈物性。`air_devices`、`air_room` 和 `cooling_tower_moist` 只返回候选值；`air_ledger` 随 `SimulationSession._accept` 一次提交累计量。
+<!-- diagram: sequence-workspace-batch -->
 
 ```mermaid
-flowchart LR
-  UI["Studio 风系统页 / 外部客户端"] --> API["api.py + air_api.py"]
-  API --> C["compiler.py + air_compile.py"]
-  C --> S["solver.py / air_transport.py"]
-  S <--> P["CoolProp 湿空气服务"]
-  S --> D["盘管 / 加湿器 / 房间 / 冷却塔"]
-  S --> W["原 Worker 四阶段协议"]
-  D --> A["SimulationSession 接受子步"]
-  A --> L["air_ledger 累计量"]
-  A --> F["同一 RunFrame"]
-  F --> DB["RunManager / SQLite 归档"]
-  DB --> R["冻结变量目录 / CSV / HTML"]
-  R --> UI
+sequenceDiagram
+  autonumber
+  actor U as Studio
+  participant A as FastAPI
+  participant D as SQLite 工作区 / BatchStore
+  participant B as BatchService
+  participant J as RunManager
+  U->>A: 保存项目/工作区 + 预期修订
+  A->>D: 事务保存全部画布、跨页连接、草稿及固定绑定
+  alt 修订冲突
+    D-->>A: 修订冲突
+    A-->>U: HTTP 409，保留本地草稿
+  else 保存成功
+    D-->>A: 新修订
+    A-->>U: 确认保存成功
+  end
+  U->>A: POST /projects/id/batches/preview
+  A->>B: prepare(保存修订、工况、观察量)
+  B->>D: 读取已保存项目
+  B->>B: 归一化并编译各工况，计算快照/预览哈希
+  B-->>U: 经 API 返回预览与来源信息
+  U->>A: 创建批次 + request_id + preview_hash
+  A->>B: 检查幂等标识及预览是否仍有效
+  B->>D: 冻结 Project、模块、控制源码与工况
+  U->>A: POST /batches/id/start
+  A->>B: 启动批次
+  loop 按顺序运行各工况
+    B->>D: 取得下一项及固定快照
+    B->>J: submit(固定修订与 scenario_id)
+    J->>J: 编译、运行、接受子步与发布结果
+    J->>D: 归档运行，终态捕获批次结果
+    B->>D: 确认结果/诊断/曲线后继续下一项
+  end
+  U->>A: 查看批次、曲线或导出 CSV
+  A->>D: 读取独立批次结果
+  D-->>A: 比较数据
+  A-->>U: 可重复查看的结果
 ```
 
-运行创建时固定 `air_metadata`（物性版本、质量基准、项目摘要、变量目录与假设），沿用现有 JSON 存储事务。报告直接读取已保存的帧和目录，不执行编译或数值求解。新旧模块通过 SDK 0.6.0 能力声明区分，旧 RPC 过滤新增字段。详细行为及验证见 [风侧实施验收](AIR_SIDE_IMPLEMENTATION_ACCEPTANCE.md)。
+恢复或替换项目时，浏览器先保留该项目文档及模块、型号和曲线绑定，不复制整个工作区；跨页连接随项目文档保存。
+
+每批最多 20 个工况、16 个观察变量，固定保存修订、模块与控制快照后顺序运行。批次结果独立于普通运行最近 20 条终态记录的保留策略。预览校验合同与拓扑，不保证数值收敛；数值失败会保存为对应工况的失败结果。工作区支持 ZIP 备份与恢复到新目录；中断运行不能续算，批次可重新运行未完成项。
+
+依据：[batches.py](../backend/fn_engine/batches.py)、[batch_api.py](../backend/fn_engine/batch_api.py)、[batch_store.py](../backend/fn_engine/batch_store.py)、[storage.py](../backend/fn_engine/storage.py)。
+
+## 11. 更新与导出
+
+本文件中的 Mermaid 块是图的维护源。命令提取每个 `diagram` 标记后的图，导出同名 `.mmd`、`.svg` 和 `.png`：
+
+```powershell
+cd fluidnet-prototype-engine
+node scripts/render_architecture_diagrams.mjs
+```
+
+使用项目已有 Playwright 和本机 Edge；首次下载固定版本 Mermaid 11.12.2 到项目 `tmp/architecture-render/`。离线时可传 `--mermaid-js <本地 mermaid.min.js 路径>`。SVG 适合放大与排版，PNG 可直接插入文档。当前共四张架构图、六张时序图；图数由文档标记自动发现，导出文件名保持稳定。
+
+线程、存储与源码导航见 [架构索引](ARCHITECTURE_MAP.md)。本次验证范围为源码调用链核对、Mermaid 实际渲染、图片检查和文档链接检查；不代表重新执行全量物理或浏览器回归。
+
+本轮更新：以 `8563631` 为基线刷新日期与入口；补充多画布计算投影、暖通设备生成与运行链路、组合结果和测点的先后顺序、自定义压降的适用域；统一十张图的导航与导出。
+
+架构整理的工作包、验证记录和完整 CI 门禁见 [执行计划](ARCHITECTURE_REFACTOR_PLAN.md)、[验收记录](ARCHITECTURE_REFACTOR_ACCEPTANCE.md)及 [PR #8 检查](https://github.com/kongbaifan/fluidnet/pull/8/checks)。图中的代码分层描述 `8563631`，完整门禁状态以对应 PR 提交的检查结果为准。

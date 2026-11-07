@@ -1,4 +1,5 @@
 from __future__ import annotations
+import math
 
 import dataclasses
 import importlib
@@ -10,9 +11,11 @@ from scipy.optimize import least_squares
 from scipy.sparse import csr_matrix, lil_matrix
 
 from .compiler import CompilationError, CompiledBranch, CompiledNetwork, TankState, instance_fluids, service_at
-from .hydraulic_derivatives import (GRAVITY, MU_WATER, RHO_WATER, branch_drop_and_slope,
+from .hydraulic_derivatives import (HYDRAULIC_RELATIONS, GRAVITY, MU_WATER, RHO_WATER, branch_drop_and_slope,
                                     branch_drop_value, pipe_drop, pump_head)
-from .models import CommitStepRequest, Diagnostic, EvaluateRequest, FluidState, PortState, RunFrame, NetworkRelation
+from .model_types.protocol import CommitStepRequest, EvaluateRequest, NetworkRelation
+from .model_types.base import Diagnostic, FluidState, PortState
+from .model_types.run import RunFrame
 from .properties import PropertyError, is_pure_water, property_service
 from .runtime import ChannelResult, WorkerProcess, RuntimeErrorBase
 from .module_execution import begin_module_step, new_identity, set_module_step
@@ -125,6 +128,8 @@ def branch_drop(network: CompiledNetwork, branch: CompiledBranch, flow_kg_s: flo
     params, model = network.parameters[branch.instance_id], branch.solver_model
     relation_params = relation.parameters if relation else {}
     if relation:
+        if relation.kind == 'pressure_drop':
+            return float(relation.parameters['pressure_drop_pa'])
         model = {'pump':'pump_curve'}.get(relation.kind, relation.kind)
         params = {**params, **relation_params}
         density = relation_params.get('density_kg_m3') or density
@@ -166,6 +171,12 @@ def jacobian_pattern(network: CompiledNetwork, unknown, tanks, python_runners):
             declared = definition.hydraulic_dependencies or {}
             names = declared.get(branch.channel_id, [port.id for port in definition.ports]) if definition.dependency_mode == 'tracked' else [port.id for port in definition.ports]
             dependencies.update(network.port_nodes[f'{branch.instance_id}:{name}'] for name in names)
+            if definition.sdk and 'net.pressure_drop' in definition.sdk.capabilities:
+                # A custom law can read every channel in its own module. Preserve
+                # cross-channel flow dependencies in sparse/grouped differences.
+                for other, candidate in enumerate(network.branches):
+                    if candidate.instance_id == branch.instance_id:
+                        pattern[idx, len(node_columns) + other] = 1
         for node in dependencies:
             if node in node_columns:
                 pattern[idx, node_columns[node]] = 1
@@ -181,6 +192,10 @@ def jacobian_pattern(network: CompiledNetwork, unknown, tanks, python_runners):
 def choose_hydraulic_method(requested: str, size: int, nnz: int) -> HydraulicMethodChoice:
     """S0/S1 选择器：只依据真实未知量与 Jacobian 稀疏度，不用实例数代替。"""
     density = nnz / (size * size) if size else 1.0
+    if requested == 'sparse' and size == 1:
+        # SciPy's LSMR trust-region subproblem requires two dimensions when the
+        # Gauss-Newton step leaves the radius. A scalar problem has no sparsity gain.
+        return HydraulicMethodChoice('sparse', 'dense', size, nnz, density, '单未知量使用 dense，避开 LSMR 二维子问题限制')
     if requested == 'dense':
         return HydraulicMethodChoice('dense', 'dense', size, nnz, density, '显式请求 dense')
     if requested == 'sparse':
@@ -343,7 +358,7 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
                          temperature_k=float(network.parameters[instance_id].get('temperature_k', 293.15)),
                          density_kg_m3=float(rho_n[node]), viscosity_pa_s=float(mu_n[node]))
 
-    def evaluate_python_relations(pressures):
+    def evaluate_python_relations(pressures, flows):
         nonlocal iteration_id
         iteration_id += 1
         relations = {}
@@ -358,8 +373,14 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
             for port in definition.ports:
                 node = network.port_nodes[f'{instance_id}:{port.id}']
                 ports[port.id] = trial_port(instance_id, port.id, float(pressures[node]))
+            channels = {}
+            if definition.sdk and 'net.pressure_drop' in definition.sdk.capabilities:
+                from .model_types.base import ChannelState
+                channels = {branch.channel_id: ChannelState(mass_flow_kg_s=float(flows[j]),
+                    pressure_drop_pa=float(pressures[branch.start_node]-pressures[branch.end_node]))
+                    for j, branch in enumerate(network.branches) if branch.instance_id == instance_id}
             requests[instance_id] = EvaluateRequest(run_id=runner.execution.run_id if hasattr(runner, 'execution') else 'solve', instance_id=instance_id,
-                iteration_id=iteration_id, time_s=time_s, trial_ports=ports, readonly_state=runner.state)
+                iteration_id=iteration_id, time_s=time_s, trial_ports=ports, trial_channels=channels, readonly_state=runner.state)
         def runner_count(name):
             if hasattr(python_runners, name):
                 return int(getattr(python_runners, name))
@@ -403,7 +424,7 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
         rates = vector[len(unknown):len(unknown) + len(tanks)]
         for node, rate in zip(tanks, rates):
             spec = network.storage[node]
-            pressures[node] = spec.pressure(tank_old[node].mass_kg + dt_s * float(rate))
+            pressures[node] = spec.pressure(tank_old[node].mass_kg + dt_s * float(rate), tank_old[node].enthalpy_j_kg)
         return pressures, vector[len(unknown) + len(tanks):]
 
     def unpack_rates(vector):
@@ -411,7 +432,7 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
 
     def physical_residual_values(vector):
         pressures, flows = unpack(vector)
-        runtime_relations = evaluate_python_relations(pressures) if python_runners else {}
+        runtime_relations = evaluate_python_relations(pressures, flows) if python_runners else {}
         drops, balance, closed = [], np.zeros(n_nodes), []
         for idx, (branch, flow) in enumerate(zip(network.branches, flows)):
             relation = runtime_relations.get((branch.instance_id, branch.channel_id))
@@ -437,7 +458,7 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
                 forced = relation.parameters['forced_mass_flow_kg_s']
                 constraints[idx] = flows[idx] - forced/mixture_factor(idx,forced)
         rates = unpack_rates(vector)
-        storage_balance = [balance[node] - rates[node] for node in tanks]
+        storage_balance = [balance[node] - network.storage[node].loss_mass_rate() - rates[node] for node in tanks]
         return np.asarray(drops), np.concatenate((balance[unknown], storage_balance)), closed, constraints
 
     if counters is None:
@@ -452,10 +473,20 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
                 counters.residual_calls += 1
                 counters.timing_s['residual'] = counters.timing_s.get('residual', 0.) + (time.perf_counter() - started)
 
-    def residual(vector):
+    def residual(vector, valve_reference=None):
         drops, balance, _, constraints = physical_residual(vector)
         _, flows = unpack(vector)
         scaled = drops / PRESSURE_SCALE
+        if valve_reference is not None:
+            # Equivalent open-valve equation: remove the opening^-2 pole from
+            # pressure-dependent laws near closure. Constant openings retain
+            # their original scale. Closed/forced rows below remain exact flow
+            # constraints, and acceptance still checks unscaled physical drops.
+            for idx, branch in enumerate(network.branches):
+                key = (branch.instance_id, branch.channel_id)
+                relation = final_relations.get(key)
+                if idx not in constraints and relation is not None and relation.kind == 'valve':
+                    scaled[idx] *= relation.parameters['opening_ratio']**2 / valve_reference.get(key, 1.)
         for idx, value in constraints.items():
             scaled[idx] = value
         return np.concatenate((scaled, balance))
@@ -479,7 +510,7 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
 
     # Python module rows retain full relation dependencies, using grouped sparse
     # differences; the built-in equations and continuity rows use analytic slopes.
-    analytic_models = {'valve', 'pipe', 'duct', 'pump_curve', 'resistance', 'resistance_secondary', 'air_filter'}
+    analytic_models = HYDRAULIC_RELATIONS.keys()
     if python_runners:
         builtins_supported = all(branch.instance_id in python_runners or branch.solver_model in analytic_models for branch in network.branches)
         analytic_supported = options.module_mixed_jacobian and options.analytic_jacobian and builtins_supported
@@ -514,6 +545,9 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
             cols.extend(difference.col)
             data.extend(difference.data)
         tank_rate_columns = {node: node_columns[node] for node in tanks}
+        tank_slopes = {node: network.storage[node].pressure_slope(
+            tank_old[node].mass_kg + dt_s * float(vector[column]), tank_old[node].enthalpy_j_kg)
+            for node, column in tank_rate_columns.items()}
         # 只有 `unknown` 里的节点有独立压力未知量；水箱节点的压力由净流入决定（见下）。
         pressure_columns = {node: column for column, node in enumerate(unknown)}
         _, flows = unpack(vector)
@@ -538,10 +572,10 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
             # 所以支路行对水箱净流入列也有 ∂p/∂r = dt·g/A。
             if branch.start_node in tank_rate_columns:
                 rows.append(idx); cols.append(tank_rate_columns[branch.start_node])
-                data.append(dt_s * GRAVITY / network.storage[branch.start_node].area_m2 / PRESSURE_SCALE)
+                data.append(dt_s * tank_slopes[branch.start_node] / PRESSURE_SCALE)
             if branch.end_node in tank_rate_columns:
                 rows.append(idx); cols.append(tank_rate_columns[branch.end_node])
-                data.append(-dt_s * GRAVITY / network.storage[branch.end_node].area_m2 / PRESSURE_SCALE)
+                data.append(-dt_s * tank_slopes[branch.end_node] / PRESSURE_SCALE)
             # 行方程已除以 PRESSURE_SCALE，而压力列的未知量本身就是 p/PRESSURE_SCALE。
             rows.append(idx); cols.append(column); data.append(-slope / PRESSURE_SCALE)
         for position, node in enumerate(unknown):
@@ -561,7 +595,8 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
             rows.append(row); cols.append(node_columns[node]); data.append(-1.0)
         matrix = csr_matrix((data, (rows, cols)), shape=(size, size))
         if module_rows:
-            from .models import ModulePhaseRequest, ChannelState
+            from .model_types.protocol import ModulePhaseRequest
+            from .model_types.base import ChannelState
             from .module_diagnostics import merge_diagnostics
             replacements = {}
             pressures, actual_flows = unpack(vector)
@@ -592,7 +627,7 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
                             if node in pressure_columns:
                                 row[pressure_columns[node]] += gradient
                             elif node in tank_rate_columns:
-                                row[tank_rate_columns[node]] += gradient*dt_s*GRAVITY/network.storage[node].area_m2/PRESSURE_SCALE
+                                row[tank_rate_columns[node]] += gradient*dt_s*tank_slopes[node]/PRESSURE_SCALE
                         row[len(node_columns)+j] = -derivative.flow_slope_pa_per_kg_s/PRESSURE_SCALE
                         if np.allclose(row,matrix.getrow(j).toarray().ravel(),rtol=1e-4,atol=1e-6):
                             replacements[j] = csr_matrix(row)
@@ -610,7 +645,7 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
                 matrix = amended.tocsr()
         return matrix.toarray() if method == 'dense' else matrix
     # A loop held only by tanks has no fixed pressure left; start from the tanks' current pressures.
-    level = list(fixed.values()) or [network.storage[node].pressure(tank_old[node].mass_kg) for node in tanks]
+    level = list(fixed.values()) or [network.storage[node].pressure(tank_old[node].mass_kg, tank_old[node].enthalpy_j_kg) for node in tanks]
     cold = np.concatenate((np.full(len(unknown), np.mean(level) / PRESSURE_SCALE), np.zeros(len(tanks)), np.full(m, .1)))
     if (air_mass_factors is not None and not python_runners and max(level)-min(level)<1e-10
             and all(b.solver_model!='pump_curve' and not network.parameters[b.instance_id].get('height_m',0.)
@@ -637,7 +672,7 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
     else:
         start = cold
 
-    def attempt(vector, numeric_jacobian=False):
+    def attempt(vector, numeric_jacobian=False, scale_valves=False):
         started = time.perf_counter()
         if counters is not None:
             counters.solver_attempts += 1
@@ -650,7 +685,13 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
             sparse_options['jac'] = analytic_jacobian
         elif method == 'sparse':
             sparse_options['jac_sparsity'] = pattern_csr
-        result = least_squares(residual, vector, max_nfev=options.max_iterations, xtol=1e-12, ftol=1e-12, gtol=1e-12, x_scale='jac', **sparse_options)
+        target_residual = residual
+        if scale_valves:
+            residual(vector)
+            valve_reference = {key: relation.parameters['opening_ratio']**2 or 1.
+                               for key, relation in final_relations.items() if relation.kind == 'valve'}
+            target_residual = lambda trial: residual(trial, valve_reference)
+        result = least_squares(target_residual, vector, max_nfev=options.max_iterations, xtol=1e-12, ftol=1e-12, gtol=1e-12, x_scale='jac', **sparse_options)
         if counters is not None:
             counters.nfev += int(result.nfev)
             counters.njev += int(getattr(result, 'njev', 0) or 0)
@@ -675,13 +716,22 @@ def _solve_hydraulics(network: CompiledNetwork, runners, time_s=0., branch_densi
             counters.method_fallback = 'dense'
         result, drops, balance, closed, constraints, ok = attempt(cold)
     if not ok and analytic_supported:
-        # 解析 Jacobian 的已知退化：q=0 是 q|q| 项的驻点，Newton 步可能停在零流量假收敛点
-        # （gtol 满足但压力残差不为 0）。只允许一次可诊断回退到有限差分，容差不放宽。
+        # Preserve useful progress after budget exhaustion. Pressure-dependent module
+        # valves additionally use an equivalent scaled equation to escape the closure
+        # pole; their last iterate remains useful even after xtol stagnation. Pure
+        # quadratic zero-flow false convergence still restarts cold. This reuses the
+        # existing single numeric fallback, with unchanged physical acceptance gates.
+        scale_valves = any(relation.kind == 'valve' for relation in final_relations.values())
+        fallback_start = result.x if (result.status == 0 or scale_valves) and np.all(np.isfinite(result.x)) else cold
         jacobian_mode = 'finite_difference'
-        jacobian_reason = '解析 Jacobian 在零流量驻点假收敛，已回退有限差分（仅一次）'
+        jacobian_reason = '解析／混合 Jacobian 未收敛，已回退有限差分（仅一次，容差未放宽）'
+        if fallback_start is not cold:
+            jacobian_reason += '；保留末次试算点'
+        if scale_valves:
+            jacobian_reason += '；阀门开度平方等价缩放'
         if counters is not None:
             counters.jacobian_fallback = 'finite_difference'
-        result, drops, balance, closed, constraints, ok = attempt(cold, numeric_jacobian=True)
+        result, drops, balance, closed, constraints, ok = attempt(fallback_start, numeric_jacobian=True, scale_valves=scale_valves)
     pressures, flows = unpack(result.x)
     # Zero-flow and forced-flow relations do not determine a pressure difference.
     # Every pressure component left after removing them needs its own reference.
@@ -788,14 +838,14 @@ def port_mass_flows(network: CompiledNetwork, flows) -> dict[str, float]:
                 progress = True
         for inst in network.instances.values():
             model = network.modules[inst.module_id].solver_model
-            if model not in ('junction', 'tank', 'air_mixing_box', 'air_room'):
+            if model not in ('junction', 'tank', 'expansion_tank', 'tower_pool', 'coupled_tower_pool', 'air_mixing_box', 'air_room'):
                 continue
             keys = [f'{inst.id}:{p.id}' for p in network.modules[inst.module_id].ports]
             connected = {key for pair in pairs for key in pair}
             for key in keys:
                 if key not in connected:
                     port_flows[key] = 0.
-            if model == 'tank':
+            if model in ('tank', 'expansion_tank', 'tower_pool', 'coupled_tower_pool'):
                 continue  # a tank stores the difference; its port flows do not have to cancel
             missing = [key for key in keys if key not in port_flows]
             if len(missing) == 1:
@@ -909,6 +959,10 @@ def solve_network(network: CompiledNetwork, runners=None, time_s=0., warm: Netwo
     step_id = begin_module_step(active)
     try:
         result = _solve_network(network, active, time_s, warm, service, storage_step)
+        # Both water-only and air/water paths have completed their property outer loop here.
+        from .air_liquid import validate_chiller_flows, validate_final_device_ranges
+        validate_chiller_flows(network, result.hydraulic.flows)
+        validate_final_device_ranges(network,result)
         result.module_step_id = step_id
         from .module_phases import observe_modules
         observe_modules(network, active, result, time_s)
@@ -923,11 +977,14 @@ def solve_network(network: CompiledNetwork, runners=None, time_s=0., warm: Netwo
 
 
 def _solve_network(network, runners, time_s, warm, service, storage_step=None) -> NetworkResult:
+    from .coupled_tower_pool import CoupledPoolStorage, solve_coupled_pool
+    if any(isinstance(spec,CoupledPoolStorage) and not spec.exchange_frozen for spec in network.storage.values()):
+        return solve_coupled_pool(network,runners,time_s,warm,service,storage_step)
     from .module_phases import heat_hook
     options = network.project.solver
     if options.moist_air:
         from .air_transport import solve_air_network
-        return solve_air_network(network, runners, time_s, warm, getattr(network, 'air_room_step', None))
+        return solve_air_network(network, runners, time_s, warm, getattr(network, 'air_room_step', None), storage_step)
     start = warm.hydraulic.solution if warm is not None else None
     if not options.thermal:
         hydraulic = _solve_hydraulics(network, runners, time_s, initial=start, storage_step=storage_step)
@@ -962,9 +1019,13 @@ def _solve_network(network, runners, time_s, warm, service, storage_step=None) -
     previous_defect = None
     topology_signature = None
     for iteration in range(1, options.max_coupling_iterations + 1):
+        hydraulic_storage = storage_step
+        if storage_step is not None and any(hasattr(spec, 'gas_constant_j') for spec in network.storage.values()):
+            hydraulic_storage = (storage_step[0], {node: TankState(old.mass_kg, node_states[node].enthalpy_j_kg)
+                if hasattr(network.storage[node], 'gas_constant_j') else old for node, old in storage_step[1].items()})
         hydraulic = _solve_hydraulics(network, runners, time_s, branch_density=rho_b, branch_viscosity=mu_b,
                                       port_base=_node_ports(network, node_states) if runners else None, initial=start,
-                                      storage_step=storage_step)
+                                      storage_step=hydraulic_storage)
         thermal = solve_thermal(network, service, hydraulic.pressures, hydraulic.flows, hydraulic.relations,
                                 shaft_power(network, hydraulic), h_start, storage_step,
                                 module_heat=heat_hook(network, runners, hydraulic, service, time_s))
@@ -974,6 +1035,13 @@ def _solve_network(network, runners, time_s, warm, service, storage_step=None) -
         density_change = float(np.max(np.abs(new_rho - rho_b) / new_rho, initial=0.0))
         converged = (previous_t is not None and density_change < options.coupling_density_rtol
                      and float(np.max(np.abs(temperatures - previous_t), initial=0.0)) < options.thermal_tolerance_k)
+        if converged and storage_step is not None:
+            for node, old in storage_step[1].items():
+                spec = network.storage[node]
+                if hasattr(spec, 'gas_constant_j'):
+                    mass = old.mass_kg + storage_step[0] * hydraulic.storage_rates[node]
+                    pressure = spec.state(mass, float(thermal.enthalpies[node]))[0]
+                    converged &= abs(pressure-hydraulic.pressures[node]) <= options.pressure_tolerance_pa
         if converged:
             return NetworkResult(hydraulic, thermal, iteration, build_port_states(network, hydraulic, thermal))
         current_signature = (tuple(branch.closed for branch in network.branches),
@@ -1060,12 +1128,26 @@ def tank_states_from(network: CompiledNetwork, result: NetworkResult | None, pre
 
 def tank_variables(network: CompiledNetwork, result: NetworkResult, tanks: dict[int, TankState], service):
     """`<tank>.state.*` frame variables and storage metrics for the given tank states."""
+    from .expansion_tank import ExpansionStorage
     variables, mass_rate, power = {}, 0.0, 0.0
     hydraulic, thermal = result.hydraulic, result.thermal
     for node, spec in network.storage.items():
         tank = tanks[node]
-        net = hydraulic.storage_rates.get(node, node_net_inflow(network, hydraulic.flows, node))
-        pressure = spec.pressure(tank.mass_kg)
+        net = hydraulic.storage_rates.get(node, node_net_inflow(network, hydraulic.flows, node)-spec.loss_mass_rate())
+        if node not in hydraulic.storage_rates and thermal is not None and hasattr(spec,'exchange_frozen'):
+            output=thermal.coil_outputs.get(spec.instance_id,{})
+            net-=output.get('evaporation_kg_s',0.)+output.get('drift_kg_s',0.)
+        pressure = spec.pressure(tank.mass_kg, tank.enthalpy_j_kg)
+        if isinstance(spec, ExpansionStorage):
+            pressure, state, volume, gas = spec.state(tank.mass_kg, tank.enthalpy_j_kg)
+            variables.update({f'{spec.instance_id}.state.{key}': value for key, value in {
+                'mass_kg':tank.mass_kg, 'volume_m3':volume, 'gas_volume_m3':gas, 'pressure_pa':pressure,
+                'temperature_k':state.temperature_k, 'internal_energy_j':tank.mass_kg*state.internal_energy_j_kg,
+                'gas_work_j':spec.gas_constant_j*math.log(gas/spec.initial_gas_volume_m3), 'net_inflow_kg_s':net}.items()})
+            mass_rate += net
+            if thermal is not None:
+                power += float(thermal.storage_power_w.get(node, 0.))
+            continue
         if thermal is not None:
             state = thermal.node_states[node]
         else:
@@ -1077,6 +1159,12 @@ def tank_variables(network: CompiledNetwork, result: NetworkResult, tanks: dict[
                           f'{spec.instance_id}.state.volume_m3': level * spec.area_m2,
                           f'{spec.instance_id}.state.temperature_k': state.temperature_k,
                           f'{spec.instance_id}.state.net_inflow_kg_s': net})
+        if hasattr(spec, 'sink_energy'):
+            from .tower_pool import PoolStorage
+            if isinstance(spec, PoolStorage):
+                vapor = property_service(spec.fluid).state_tq(state.temperature_k,1.)
+                variables.update({f'{spec.instance_id}.evaporation_enthalpy_w':spec.evaporation_kg_s*vapor.enthalpy_j_kg,
+                                  f'{spec.instance_id}.drift_enthalpy_w':spec.drift_kg_s*state.enthalpy_j_kg})
         mass_rate += net
         if thermal is not None:
             power += float(thermal.storage_power_w.get(node, 0.0))
@@ -1163,7 +1251,8 @@ def snapshot(network, result, time_s=0., warning=None):
         from .air_transport import air_frame_values
         air_frame_values(network, result, frame.variables, frame.metrics, frame.solve_summary)
     from .composites import map_frame
-    return map_frame(network,frame)
+    from .measurements import apply_measurements
+    return apply_measurements(network.project,map_frame(network,frame))
 
 
 def cell_variables(network: CompiledNetwork, result: NetworkResult, service):
@@ -1174,6 +1263,10 @@ def cell_variables(network: CompiledNetwork, result: NetworkResult, service):
         raise ValueError('管道热容变量需要热力求解结果')
     for j, values in thermal.cell_enthalpies.items():
         branch = network.branches[j]
+        if j in thermal.buffer_outputs:
+            variables.update({f'{branch.instance_id}.{key}': value for key, value in thermal.buffer_outputs[j].items()})
+            power += thermal.cell_power_w[j]
+            continue
         pressure = float(result.hydraulic.pressures[branch.start_node] + result.hydraulic.pressures[branch.end_node]) / 2
         try:
             mean = float(np.mean([service_at(network, branch.start_node, service).state_ph(pressure, float(value)).temperature_k
@@ -1207,6 +1300,12 @@ def _with_states(network, frame: RunFrame, result: NetworkResult, tanks: dict[in
 
 
 def solve_steady(network):
+    if any(network.modules[instance.module_id].solver_model in ('tower_pool','coupled_tower_pool') for instance in network.instances.values()):
+        raise CompilationError('POOL_DYNAMIC_REQUIRED','塔池净蒸发与补排水需要动态库存计算')
+    if any(network.modules[instance.module_id].solver_model == 'expansion_tank' for instance in network.instances.values()):
+        raise CompilationError('EXPANSION_DYNAMIC_REQUIRED', '气垫罐质量和压力耦合需动态运行，不能当作固定压力源')
+    if any(network.modules[instance.module_id].solver_model == 'closed_buffer_tank' for instance in network.instances.values()):
+        raise CompilationError('BUFFER_DYNAMIC_REQUIRED', '闭式缓冲水箱首版只支持动态计算，初温不是稳态热源')
     if getattr(network, 'execution_domain', None) == 'coupled':
         from .refrigeration.coupling import solve_coupled_steady
         return solve_coupled_steady(network)
@@ -1247,9 +1346,10 @@ def _retryable(error: Exception) -> bool:
 
 
 def has_cells(network: CompiledNetwork) -> bool:
-    """Some pipe declares heat capacity (thermal_cells > 0); it only matters with the thermal layer on."""
+    """Pipe cells or mixed buffers need an accepted enthalpy state when thermal solving is enabled."""
     return network.project.solver.thermal and any(
-        b.solver_model == 'pipe' and int(network.parameters[b.instance_id].get('thermal_cells', 0) or 0) > 0
+        (b.solver_model == 'pipe' and int(network.parameters[b.instance_id].get('thermal_cells', 0) or 0) > 0)
+        or network.modules[network.instances[b.instance_id].module_id].solver_model == 'closed_buffer_tank'
         for b in network.branches)
 
 
@@ -1281,7 +1381,7 @@ def _step_network(network: CompiledNetwork, tanks: dict[int, TankState], service
     """
     pressures, temperatures = dict(network.fixed_pressures), dict(network.fixed_temperatures)
     for node, spec in network.storage.items():
-        pressures[node] = spec.pressure(tanks[node].mass_kg)
+        pressures[node] = spec.pressure(tanks[node].mass_kg, tanks[node].enthalpy_j_kg)
         if network.project.solver.thermal:
             try:
                 temperatures[node] = service_at(network, node, service).state_ph(pressures[node], tanks[node].enthalpy_j_kg).temperature_k
@@ -1322,8 +1422,12 @@ def _commit_modules(network, runners, result: NetworkResult, time_s: float, dt_s
 
 def _tank_event(network: CompiledNetwork, tanks: dict[int, TankState], service):
     """(code, spec) of the first tank outside [empty, full] in `tanks`, else None."""
+    from .expansion_tank import ExpansionStorage
     for node, spec in network.storage.items():
         mass = tanks[node].mass_kg
+        if isinstance(spec, ExpansionStorage):
+            spec.state(mass,tanks[node].enthalpy_j_kg)
+            continue
         if mass < 0:
             return 'TANK_EMPTY', spec
         pressure = spec.pressure(mass)

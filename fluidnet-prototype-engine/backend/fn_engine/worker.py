@@ -10,7 +10,14 @@ from contextlib import redirect_stdout, redirect_stderr
 # （stdout 只走 JSON RPC，保持协议不变），startup_report 动作也能读回。
 _STARTED_AT = time.perf_counter()
 
-from .models import CommitStepRequest, EvaluateRequest, InitializeRequest, ModuleDefinition, ModuleRequestContext, RefrigerationEvaluateRequest
+from .model_types.protocol import (
+    CommitStepRequest,
+    EvaluateRequest,
+    InitializeRequest,
+    ModuleRequestContext,
+    RefrigerationEvaluateRequest,
+)
+from .model_types.module import ModuleDefinition
 
 _IMPORTS_READY_AT = time.perf_counter()
 _FIRST_REQUEST_AT: float | None = None
@@ -79,6 +86,10 @@ def main():
             _ensure_lazy_properties()
             from .design import run_in_worker
             return run_in_worker(message['definition'], message['parameters'], message['fluid'])
+        if action == 'replay':
+            _ensure_lazy_properties()
+            from .module_replay import replay_in_worker
+            return replay_in_worker(message['replay'])
         key = message.get('instance_id', 'default')
         runner = runners.get(key)
         if action == 'batch':
@@ -138,14 +149,14 @@ def main():
             return runner.prepare_step(CommitStepRequest.model_validate(message['request']),
                 base_revision=message['base_revision'], authoritative_state=message['state']).model_dump(mode='json')
         if action == 'synchronize_state':
-            from .models import ModuleStepCandidate
+            from .model_types.protocol import ModuleStepCandidate
             runner.synchronize_state(ModuleStepCandidate.model_validate(message['candidate']))
             return {'ok': True, 'revision': runner.state_revision}
         if action == 'discard_candidate':
             runner.discard_candidate()
             return {'ok': True}
         if action in ('thermal', 'observe', 'jacobian'):
-            from .models import ModulePhaseRequest
+            from .model_types.protocol import ModulePhaseRequest
             return runner.phase_call(action, ModulePhaseRequest.model_validate(message['request'])).model_dump(mode='json')
         raise ValueError(f'未知 Worker 操作：{action}')
 

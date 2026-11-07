@@ -18,7 +18,9 @@ from .batch_store import BatchConflict, BatchStore
 from .bridge import normalize_prototype_export
 from .compiler import CompilationError, compile_project, validate_scenarios
 from .jobs import RunManager
-from .models import Project, ProjectDocument, RunCommand, RunRequest, Scenario, UnitSpec
+from .model_types.domain import Project, ProjectDocument, Scenario
+from .model_types.run import RunCommand, RunRequest
+from ._module_schema_v1 import UnitSpec
 from .storage import StorageError, WorkspaceStore
 
 logger = logging.getLogger(__name__)
@@ -49,6 +51,19 @@ def observation_choices(project: Project) -> list[BatchVariable]:
             if spec.value_type == 'number':
                 key = node.id + '.param.' + spec.id
                 result.setdefault(key, BatchVariable(key=key, label=f'{node.name} · {spec.label}', unit=spec.unit or RATIO))
+        if (project.thermal_couplings and definition.runtime == 'python'
+                and len(definition.channels) == 1 and definition.channels[0].enabled
+                and definition.ports and all(port.domain == 'fluid' for port in definition.ports)):
+            # These values are produced by the coupled host even when the author
+            # does not list them. Keep host units/meaning authoritative.
+            for suffix, label, quantity, unit, display, scale in (
+                ('mass_flow_kg_s', '质量流量', 'mass_flow', 'kg/s', 'kg/s', 1.),
+                ('pressure_drop_pa', '压差', 'pressure', 'Pa', 'kPa', 1000.),
+                ('state.transferred_mass_kg', '累计通过质量（平台积分）', 'mass', 'kg', 'kg', 1.),
+            ):
+                key = node.id + '.' + suffix
+                result[key] = BatchVariable(key=key, label=f'{node.name} · {label}', unit=UnitSpec(
+                    quantity=quantity, canonical_unit=unit, display_unit=display, display_scale=scale))
     for coupling in project.thermal_couplings:
         for suffix, label, quantity, canonical, display, scale, offset in (
             ('heat_w', '换热量', 'power', 'W', 'kW', 1000., 0.),

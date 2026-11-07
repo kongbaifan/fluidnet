@@ -1,0 +1,127 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "tube_inner_diameter_m": {
+      "default": 0.01,
+      "exclusiveMinimum": 0,
+      "maximum": 1,
+      "title": "Tube Inner Diameter M",
+      "type": "number"
+    },
+    "tube_outer_diameter_m": {
+      "default": 0.012,
+      "exclusiveMinimum": 0,
+      "maximum": 1,
+      "title": "Tube Outer Diameter M",
+      "type": "number"
+    },
+    "tube_length_m": {
+      "default": 1.0,
+      "exclusiveMinimum": 0,
+      "maximum": 100,
+      "title": "Tube Length M",
+      "type": "number"
+    },
+    "parallel_tubes": {
+      "default": 20,
+      "maximum": 10000,
+      "minimum": 1,
+      "title": "Parallel Tubes",
+      "type": "integer"
+    },
+    "face_width_m": {
+      "default": 0.6,
+      "exclusiveMinimum": 0,
+      "maximum": 100,
+      "title": "Face Width M",
+      "type": "number"
+    },
+    "face_height_m": {
+      "default": 0.5,
+      "exclusiveMinimum": 0,
+      "maximum": 100,
+      "title": "Face Height M",
+      "type": "number"
+    },
+    "fins": {
+      "default": 100,
+      "maximum": 10000,
+      "minimum": 0,
+      "title": "Fins",
+      "type": "integer"
+    },
+    "fin_thickness_m": {
+      "default": 0.0001,
+      "maximum": 0.1,
+      "minimum": 0,
+      "title": "Fin Thickness M",
+      "type": "number"
+    },
+    "fin_efficiency": {
+      "default": 0.8,
+      "exclusiveMinimum": 0,
+      "maximum": 1,
+      "title": "Fin Efficiency",
+      "type": "number"
+    },
+    "air_film_w_m2_k": {
+      "default": 30.0,
+      "exclusiveMinimum": 0,
+      "maximum": 1000000.0,
+      "title": "Air Film W M2 K",
+      "type": "number"
+    },
+    "water_film_w_m2_k": {
+      "default": 1500.0,
+      "exclusiveMinimum": 0,
+      "maximum": 10000000.0,
+      "title": "Water Film W M2 K",
+      "type": "number"
+    },
+    "wall_conductivity_w_m_k": {
+      "default": 200.0,
+      "exclusiveMinimum": 0,
+      "maximum": 100000.0,
+      "title": "Wall Conductivity W M K",
+      "type": "number"
+    },
+    "air_free_area_m2": {
+      "default": 0.2,
+      "exclusiveMinimum": 0,
+      "maximum": 10000,
+      "title": "Air Free Area M2",
+      "type": "number"
+    },
+    "air_loss_coefficient": {
+      "default": 3.0,
+      "maximum": 100000.0,
+      "minimum": 0,
+      "title": "Air Loss Coefficient",
+      "type": "number"
+    },
+    "water_darcy_friction_factor": {
+      "default": 0.03,
+      "exclusiveMinimum": 0,
+      "maximum": 1,
+      "title": "Water Darcy Friction Factor",
+      "type": "number"
+    },
+    "water_minor_loss_coefficient": {
+      "default": 2.0,
+      "maximum": 100000.0,
+      "minimum": 0,
+      "title": "Water Minor Loss Coefficient",
+      "type": "number"
+    },
+    "source": {
+      "default": "教学指定h/摩阻/K/翅片效率，未经厂家或全Re关联标定",
+      "maxLength": 1000,
+      "minLength": 1,
+      "title": "Source",
+      "type": "string"
+    }
+  },
+  "title": "CoilGeometryRequest",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

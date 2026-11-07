@@ -1,0 +1,234 @@
+{
+  "schema_version": 3,
+  "id": "design_valve",
+  "name": "流量压差选型阀",
+  "version": 1,
+  "category": "选型示例",
+  "description": "普通单相液体线性阀：设计函数按目标体积流量、设计压差与工质密度反算Kv；设计条件不作为运行边界，运行由实际端口与开度决定。",
+  "ports": [
+    {
+      "id": "in0",
+      "label": "入口",
+      "domain": "fluid",
+      "direction": "in",
+      "required": true,
+      "circuit": "fluid"
+    },
+    {
+      "id": "out0",
+      "label": "出口",
+      "domain": "fluid",
+      "direction": "out",
+      "required": true,
+      "circuit": "fluid"
+    }
+  ],
+  "parameters": [
+    {
+      "id": "opening_ratio",
+      "label": "阀门开度",
+      "value_type": "number",
+      "default": 0.8,
+      "unit": {
+        "quantity": "ratio",
+        "canonical_unit": "1",
+        "display_unit": "%",
+        "display_scale": 0.01,
+        "display_offset": 0
+      },
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "runtime": true,
+      "writable": true
+    },
+    {
+      "id": "kv_m3_h",
+      "label": "流量系数 Kv",
+      "value_type": "number",
+      "default": 16.0,
+      "unit": {
+        "quantity": "flow_coefficient",
+        "canonical_unit": "m3/h",
+        "display_unit": "m3/h",
+        "display_scale": 1.0,
+        "display_offset": 0
+      },
+      "minimum": 0.001,
+      "maximum": null,
+      "runtime": false,
+      "writable": true
+    },
+    {
+      "id": "design_flow_m3_s",
+      "label": "目标体积流量",
+      "value_type": "number",
+      "default": 0.002777777777777778,
+      "unit": {
+        "quantity": "volume_flow",
+        "canonical_unit": "m3/s",
+        "display_unit": "m3/h",
+        "display_scale": 0.0002777777777777778,
+        "display_offset": 0
+      },
+      "minimum": 1e-10,
+      "runtime": false,
+      "writable": true
+    },
+    {
+      "id": "design_pressure_drop_pa",
+      "label": "设计压差",
+      "value_type": "number",
+      "default": 100000.0,
+      "unit": {
+        "quantity": "pressure",
+        "canonical_unit": "Pa",
+        "display_unit": "kPa",
+        "display_scale": 1000,
+        "display_offset": 0
+      },
+      "minimum": 1.0,
+      "runtime": false,
+      "writable": true
+    },
+    {
+      "id": "design_inlet_pressure_pa",
+      "label": "设计进口绝压",
+      "value_type": "number",
+      "default": 250000.0,
+      "unit": {
+        "quantity": "pressure",
+        "canonical_unit": "Pa",
+        "display_unit": "kPa",
+        "display_scale": 1000,
+        "display_offset": 0
+      },
+      "minimum": 1.0,
+      "runtime": false,
+      "writable": true
+    },
+    {
+      "id": "design_temperature_k",
+      "label": "设计液温",
+      "value_type": "number",
+      "default": 293.15,
+      "unit": {
+        "quantity": "temperature",
+        "canonical_unit": "K",
+        "display_unit": "°C",
+        "display_scale": 1,
+        "display_offset": -273.15
+      },
+      "minimum": 1.0,
+      "runtime": false,
+      "writable": true
+    }
+  ],
+  "variables": [
+    {
+      "id": "density_kg_m3",
+      "label": "参考密度",
+      "quantity": "density",
+      "unit": {
+        "quantity": "density",
+        "canonical_unit": "kg/m³",
+        "display_unit": "kg/m³",
+        "display_scale": 1.0,
+        "display_offset": 0.0
+      },
+      "source": "derived",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": null,
+      "port_id": null
+    },
+    {
+      "id": "opening_ratio",
+      "label": "有效开度",
+      "quantity": "ratio",
+      "unit": {
+        "quantity": "ratio",
+        "canonical_unit": "1",
+        "display_unit": "%",
+        "display_scale": 0.01,
+        "display_offset": 0.0
+      },
+      "source": "derived",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": null,
+      "port_id": null
+    },
+    {
+      "id": "state.throughput_kg",
+      "label": "累计通过质量",
+      "quantity": "mass",
+      "unit": {
+        "quantity": "mass",
+        "canonical_unit": "kg",
+        "display_unit": "kg",
+        "display_scale": 1.0,
+        "display_offset": 0.0
+      },
+      "source": "state",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": null,
+      "port_id": null
+    },
+    {
+      "id": "state.commit_count",
+      "label": "已接受时间步",
+      "quantity": "count",
+      "unit": null,
+      "source": "state",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": null,
+      "port_id": null
+    }
+  ],
+  "channels": [
+    {
+      "id": "main",
+      "name": "主通路",
+      "input_port": "in0",
+      "output_port": "out0",
+      "relation": "resistance",
+      "solver_model": "valve",
+      "enabled": true
+    }
+  ],
+  "solver_model": "valve",
+  "state_model": null,
+  "thermal_model": null,
+  "source_format": "python-v1",
+  "runtime": "python",
+  "entrypoint": "module:Module",
+  "bank_names": [
+    "额定工况",
+    "部分负荷",
+    "调试备份"
+  ],
+  "sdk": {
+    "api_version": "0.5.0",
+    "capabilities": [
+      "context.execution.v1",
+      "hydraulic.signed_start.v1",
+      "lifecycle.v1",
+      "net.valve",
+      "state.json.v1"
+    ],
+    "state_contract_version": 1
+  },
+  "applicability": {
+    "execution_domains": [
+      "fluid"
+    ],
+    "phases": [
+      "liquid"
+    ],
+    "assumptions": [
+      "单相不可压缩近似；未模拟闪蒸、气蚀、噪声或厂家阀权度。"
+    ]
+  }
+}

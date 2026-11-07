@@ -1112,6 +1112,578 @@
         }
       }
     },
+    "/api/v1/performance-data": {
+      "get": {
+        "tags": [
+          "performance-data"
+        ],
+        "summary": "Listing",
+        "operationId": "listing_api_v1_performance_data_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PerformanceList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "STORAGE_FAILED：工作区存储故障（磁盘空间或目录权限）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/performance-data/preview": {
+      "post": {
+        "tags": [
+          "performance-data"
+        ],
+        "summary": "Preview File",
+        "operationId": "preview_file_api_v1_performance_data_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PerformanceImport"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PerformancePreview"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "PERFORMANCE_INVALID：性能资料、单位、参考条件或目标曲线合同无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/performance-data/versions": {
+      "post": {
+        "tags": [
+          "performance-data"
+        ],
+        "summary": "Save",
+        "operationId": "save_api_v1_performance_data_versions_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PerformanceImport"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PerformanceVersion"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "PERFORMANCE_VERSION_CONFLICT：性能资料末版已变化",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "PERFORMANCE_INVALID：性能资料、单位、参考条件或目标曲线合同无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "STORAGE_FAILED：工作区存储故障（磁盘空间或目录权限）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/performance-data/proposal": {
+      "post": {
+        "tags": [
+          "performance-data"
+        ],
+        "summary": "Propose",
+        "operationId": "propose_api_v1_performance_data_proposal_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PerformanceProposalRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PerformanceProposal"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "PERFORMANCE_NOT_FOUND：性能资料版本不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "PERFORMANCE_INVALID：性能资料、单位、参考条件或目标曲线合同无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "STORAGE_FAILED：工作区存储故障（磁盘空间或目录权限）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/performance-data/compare": {
+      "get": {
+        "tags": [
+          "performance-data"
+        ],
+        "summary": "Compare Versions",
+        "operationId": "compare_versions_api_v1_performance_data_compare_get",
+        "parameters": [
+          {
+            "name": "left_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Left Id"
+            }
+          },
+          {
+            "name": "left_version",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Left Version"
+            }
+          },
+          {
+            "name": "right_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Right Id"
+            }
+          },
+          {
+            "name": "right_version",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Right Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PerformanceComparison"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "PERFORMANCE_NOT_FOUND：性能资料版本不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "PERFORMANCE_INVALID：性能资料、单位、参考条件或目标曲线合同无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "STORAGE_FAILED：工作区存储故障（磁盘空间或目录权限）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/performance-data/{identifier}/versions/{version}": {
+      "get": {
+        "tags": [
+          "performance-data"
+        ],
+        "summary": "Get",
+        "operationId": "get_api_v1_performance_data__identifier__versions__version__get",
+        "parameters": [
+          {
+            "name": "identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identifier"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PerformanceVersion"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "PERFORMANCE_NOT_FOUND：性能资料版本不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "STORAGE_FAILED：工作区存储故障（磁盘空间或目录权限）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/performance-data/{identifier}/versions/{version}/export": {
+      "get": {
+        "tags": [
+          "performance-data"
+        ],
+        "summary": "Export",
+        "operationId": "export_api_v1_performance_data__identifier__versions__version__export_get",
+        "parameters": [
+          {
+            "name": "identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identifier"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "原始性能资料文件，按导入格式逐字节下载",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "PERFORMANCE_NOT_FOUND：性能资料版本不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "STORAGE_FAILED：工作区存储故障（磁盘空间或目录权限）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/health": {
       "get": {
         "summary": "Health",
@@ -2636,6 +3208,238 @@
         }
       }
     },
+    "/api/v1/catalog/presentation": {
+      "get": {
+        "summary": "Catalog Presentation",
+        "operationId": "catalog_presentation_api_v1_catalog_presentation_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogPresentationResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/equipment-library/coil-geometry": {
+      "post": {
+        "summary": "Coil Geometry Design",
+        "operationId": "coil_geometry_design_api_v1_equipment_library_coil_geometry_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CoilGeometryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoilGeometryResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "请求体或计算结果校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/equipment-library": {
+      "get": {
+        "summary": "Equipment Library",
+        "operationId": "equipment_library_api_v1_equipment_library_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryCatalog"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/equipment-library/project": {
+      "post": {
+        "summary": "Equipment Library Project",
+        "operationId": "equipment_library_project_api_v1_equipment_library_project_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LibraryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "请求体或计算结果校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/examples/{name}": {
       "get": {
         "summary": "Example",
@@ -3149,6 +3953,74 @@
         }
       }
     },
+    "/api/v1/modules/composites/test-context": {
+      "post": {
+        "summary": "Composite Test Context",
+        "operationId": "composite_test_context_api_v1_modules_composites_test_context_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompositeTestContextRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModuleTestConditions"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "请求体或计算结果校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/modules/from-template": {
       "post": {
         "summary": "Module From Template",
@@ -3374,6 +4246,74 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ModuleDesignResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "请求体或计算结果校验失败；MODULE_WORKER_IO_ERROR：模块 Worker 子进程 I/O 故障",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/modules/replay": {
+      "post": {
+        "summary": "Replay Module Callback",
+        "operationId": "replay_module_callback_api_v1_modules_replay_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModuleReplayRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModuleReplayResponse"
                 }
               }
             }
@@ -3787,6 +4727,350 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/runs/{run_id}/module-failure": {
+      "get": {
+        "summary": "Run Module Failure",
+        "operationId": "run_module_failure_api_v1_runs__run_id__module_failure_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModuleFailureResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "资源不存在（运行记录、项目修订、模块版本、示例或工作区修订）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "STORAGE_FAILED：工作区存储故障（磁盘空间或目录权限）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/runs/{run_id}/inspection": {
+      "get": {
+        "summary": "Inspect Run",
+        "operationId": "inspect_run_api_v1_runs__run_id__inspection_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemInspection"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "资源不存在（运行记录、项目修订、模块版本、示例或工作区修订）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "STORAGE_FAILED：工作区存储故障（磁盘空间或目录权限）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inspection/compare": {
+      "get": {
+        "summary": "Compare Inspection",
+        "operationId": "compare_inspection_api_v1_inspection_compare_get",
+        "parameters": [
+          {
+            "name": "a",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "A"
+            }
+          },
+          {
+            "name": "b",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "B"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InspectionComparison"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "资源不存在（运行记录、项目修订、模块版本、示例或工作区修订）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "STORAGE_FAILED：工作区存储故障（磁盘空间或目录权限）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/project-inspection": {
+      "post": {
+        "summary": "Inspect Project",
+        "operationId": "inspect_project_api_v1_project_inspection_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Project"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemInspection"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "请求体或计算结果校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -6750,6 +8034,29 @@
         ],
         "title": "CanonicalUnitConversion"
       },
+      "CatalogPresentationResponse": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "const": 1,
+            "title": "Version",
+            "default": 1
+          },
+          "devices": {
+            "items": {
+              "$ref": "#/components/schemas/DevicePresentation"
+            },
+            "type": "array",
+            "title": "Devices"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "devices"
+        ],
+        "title": "CatalogPresentationResponse"
+      },
       "CatalogResponse": {
         "properties": {
           "modules": {
@@ -6825,6 +8132,61 @@
           "solver_model"
         ],
         "title": "ChannelSpec"
+      },
+      "ChannelState": {
+        "properties": {
+          "dry_air_mass_flow_kg_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dry Air Mass Flow Kg S"
+          },
+          "inlet_mass_flow_kg_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inlet Mass Flow Kg S"
+          },
+          "outlet_mass_flow_kg_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outlet Mass Flow Kg S"
+          },
+          "mass_flow_kg_s": {
+            "type": "number",
+            "title": "Mass Flow Kg S",
+            "default": 0.0
+          },
+          "pressure_drop_pa": {
+            "type": "number",
+            "title": "Pressure Drop Pa",
+            "default": 0.0
+          },
+          "heat_w": {
+            "type": "number",
+            "title": "Heat W",
+            "default": 0.0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ChannelState"
       },
       "ChannelTestBoundary": {
         "properties": {
@@ -6928,6 +8290,175 @@
         ],
         "title": "CircuitInfo",
         "description": "One fluid circuit of a compiled project: its fluid and the ports it contains."
+      },
+      "CoilGeometryRequest": {
+        "properties": {
+          "tube_inner_diameter_m": {
+            "type": "number",
+            "maximum": 1.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Tube Inner Diameter M",
+            "default": 0.01
+          },
+          "tube_outer_diameter_m": {
+            "type": "number",
+            "maximum": 1.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Tube Outer Diameter M",
+            "default": 0.012
+          },
+          "tube_length_m": {
+            "type": "number",
+            "maximum": 100.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Tube Length M",
+            "default": 1.0
+          },
+          "parallel_tubes": {
+            "type": "integer",
+            "maximum": 10000.0,
+            "minimum": 1.0,
+            "title": "Parallel Tubes",
+            "default": 20
+          },
+          "face_width_m": {
+            "type": "number",
+            "maximum": 100.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Face Width M",
+            "default": 0.6
+          },
+          "face_height_m": {
+            "type": "number",
+            "maximum": 100.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Face Height M",
+            "default": 0.5
+          },
+          "fins": {
+            "type": "integer",
+            "maximum": 10000.0,
+            "minimum": 0.0,
+            "title": "Fins",
+            "default": 100
+          },
+          "fin_thickness_m": {
+            "type": "number",
+            "maximum": 0.1,
+            "minimum": 0.0,
+            "title": "Fin Thickness M",
+            "default": 0.0001
+          },
+          "fin_efficiency": {
+            "type": "number",
+            "maximum": 1.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Fin Efficiency",
+            "default": 0.8
+          },
+          "air_film_w_m2_k": {
+            "type": "number",
+            "maximum": 1000000.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Air Film W M2 K",
+            "default": 30.0
+          },
+          "water_film_w_m2_k": {
+            "type": "number",
+            "maximum": 10000000.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Water Film W M2 K",
+            "default": 1500.0
+          },
+          "wall_conductivity_w_m_k": {
+            "type": "number",
+            "maximum": 100000.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Wall Conductivity W M K",
+            "default": 200.0
+          },
+          "air_free_area_m2": {
+            "type": "number",
+            "maximum": 10000.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Air Free Area M2",
+            "default": 0.2
+          },
+          "air_loss_coefficient": {
+            "type": "number",
+            "maximum": 100000.0,
+            "minimum": 0.0,
+            "title": "Air Loss Coefficient",
+            "default": 3.0
+          },
+          "water_darcy_friction_factor": {
+            "type": "number",
+            "maximum": 1.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Water Darcy Friction Factor",
+            "default": 0.03
+          },
+          "water_minor_loss_coefficient": {
+            "type": "number",
+            "maximum": 100000.0,
+            "minimum": 0.0,
+            "title": "Water Minor Loss Coefficient",
+            "default": 2.0
+          },
+          "source": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Source",
+            "default": "教学指定h/摩阻/K/翅片效率，未经厂家或全Re关联标定"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "CoilGeometryRequest"
+      },
+      "CoilGeometryResponse": {
+        "properties": {
+          "parameters": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Parameters"
+          },
+          "areas": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Areas"
+          },
+          "effective_ua_w_k": {
+            "type": "number",
+            "title": "Effective Ua W K"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "assumptions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Assumptions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "parameters",
+          "areas",
+          "effective_ua_w_k",
+          "source",
+          "assumptions"
+        ],
+        "title": "CoilGeometryResponse"
       },
       "CommitStepResponse": {
         "properties": {
@@ -7151,6 +8682,34 @@
         ],
         "title": "CompositeParameterTarget"
       },
+      "CompositeTestContextRequest": {
+        "properties": {
+          "project": {
+            "$ref": "#/components/schemas/Project"
+          },
+          "instance_ids": {
+            "items": {
+              "type": "string",
+              "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Instance Ids"
+          },
+          "module": {
+            "$ref": "#/components/schemas/ModuleDefinition"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "project",
+          "instance_ids",
+          "module"
+        ],
+        "title": "CompositeTestContextRequest"
+      },
       "Connection": {
         "properties": {
           "id": {
@@ -7305,6 +8864,59 @@
           "source"
         ],
         "title": "ControlScript"
+      },
+      "DevicePresentation": {
+        "properties": {
+          "module_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+            "title": "Module Id"
+          },
+          "runtime": {
+            "type": "string",
+            "const": "builtin",
+            "title": "Runtime"
+          },
+          "domains": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "fluid",
+                "thermal",
+                "refrigerant",
+                "signal"
+              ]
+            },
+            "type": "array",
+            "title": "Domains"
+          },
+          "capabilities": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Capabilities"
+          },
+          "icon": {
+            "type": "string",
+            "title": "Icon"
+          },
+          "canvas_family": {
+            "type": "string",
+            "title": "Canvas Family"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "module_id",
+          "runtime",
+          "domains",
+          "capabilities",
+          "icon",
+          "canvas_family"
+        ],
+        "title": "DevicePresentation"
       },
       "Diagnostic": {
         "properties": {
@@ -8119,6 +9731,11 @@
             "title": "Air Liquid Coupling",
             "default": false
           },
+          "room_temperature_control": {
+            "type": "boolean",
+            "title": "Room Temperature Control",
+            "default": false
+          },
           "air_reports": {
             "type": "boolean",
             "title": "Air Reports",
@@ -8127,6 +9744,11 @@
           "thermal_coupling": {
             "type": "boolean",
             "title": "Thermal Coupling",
+            "default": false
+          },
+          "thermal_coupling_liquid_modules": {
+            "type": "boolean",
+            "title": "Thermal Coupling Liquid Modules",
             "default": false
           },
           "dual_thermal_coupling": {
@@ -8365,6 +9987,143 @@
         "title": "HealthResponse",
         "description": "`GET /health`：版本、能力标志与全局上限。"
       },
+      "InspectionComparison": {
+        "properties": {
+          "left_run_id": {
+            "type": "string",
+            "title": "Left Run Id"
+          },
+          "right_run_id": {
+            "type": "string",
+            "title": "Right Run Id"
+          },
+          "same_project": {
+            "type": "boolean",
+            "title": "Same Project"
+          },
+          "differences": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Differences"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Notes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "left_run_id",
+          "right_run_id",
+          "same_project",
+          "differences",
+          "notes"
+        ],
+        "title": "InspectionComparison"
+      },
+      "InspectionDevice": {
+        "properties": {
+          "instance_id": {
+            "type": "string",
+            "title": "Instance Id"
+          },
+          "module_id": {
+            "type": "string",
+            "title": "Module Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "assumptions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Assumptions"
+          },
+          "values": {
+            "items": {
+              "$ref": "#/components/schemas/InspectionValue"
+            },
+            "type": "array",
+            "title": "Values"
+          },
+          "curves": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Curves"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "instance_id",
+          "module_id",
+          "name",
+          "version"
+        ],
+        "title": "InspectionDevice"
+      },
+      "InspectionValue": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "unit": {
+            "type": "string",
+            "title": "Unit",
+            "default": ""
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "observed"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "source"
+        ],
+        "title": "InspectionValue"
+      },
       "LibraryBank": {
         "properties": {
           "name": {
@@ -8383,6 +10142,141 @@
           "name"
         ],
         "title": "LibraryBank"
+      },
+      "LibraryCatalog": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/LibraryItem"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "LibraryCatalog"
+      },
+      "LibraryItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "group",
+              "design",
+              "recipe"
+            ],
+            "title": "Kind"
+          },
+          "medium": {
+            "type": "string",
+            "title": "Medium"
+          },
+          "assumptions": {
+            "type": "string",
+            "title": "Assumptions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "medium",
+          "assumptions"
+        ],
+        "title": "LibraryItem"
+      },
+      "LibraryRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "prefix": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,15}$",
+            "title": "Prefix",
+            "default": "Own"
+          },
+          "room_count": {
+            "type": "integer",
+            "maximum": 4.0,
+            "minimum": 1.0,
+            "title": "Room Count",
+            "default": 1
+          },
+          "compressor_count": {
+            "type": "integer",
+            "maximum": 4.0,
+            "minimum": 1.0,
+            "title": "Compressor Count",
+            "default": 1
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "LibraryRequest"
+      },
+      "MeasurementSpec": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "value",
+              "difference",
+              "volume_flow",
+              "thermal_power"
+            ],
+            "title": "Kind",
+            "default": "value"
+          },
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 3,
+            "minItems": 1,
+            "title": "Sources"
+          },
+          "unit": {
+            "$ref": "#/components/schemas/UnitSpec"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "sources",
+          "unit"
+        ],
+        "title": "MeasurementSpec"
       },
       "ModuleApplicability": {
         "properties": {
@@ -9418,6 +11312,183 @@
         ],
         "title": "ModuleDesignResponse"
       },
+      "ModuleExecutionInfo": {
+        "properties": {
+          "phase": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "initialize",
+              "evaluate",
+              "thermal",
+              "observe",
+              "jacobian",
+              "commit_step",
+              "finalize"
+            ],
+            "title": "Phase",
+            "default": "manual"
+          },
+          "time_s": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time S"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "instance_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instance Id"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          },
+          "step_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Id"
+          },
+          "iteration_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Iteration Id"
+          },
+          "dt_s": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dt S"
+          },
+          "accepted_time_s": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accepted Time S"
+          },
+          "port_data": {
+            "type": "string",
+            "enum": [
+              "unavailable",
+              "trial",
+              "converged"
+            ],
+            "title": "Port Data",
+            "default": "unavailable"
+          },
+          "channel_data": {
+            "type": "string",
+            "enum": [
+              "unavailable",
+              "hydraulic_trial",
+              "converged"
+            ],
+            "title": "Channel Data",
+            "default": "unavailable"
+          },
+          "state_data": {
+            "type": "string",
+            "enum": [
+              "unavailable",
+              "initial",
+              "input_copy",
+              "candidate",
+              "module_committed"
+            ],
+            "title": "State Data",
+            "default": "unavailable"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ModuleExecutionInfo"
+      },
+      "ModuleFailureResponse": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "replay": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ModuleReplaySnapshot"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "diagnostics": {
+            "items": {
+              "$ref": "#/components/schemas/Diagnostic"
+            },
+            "type": "array",
+            "title": "Diagnostics"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "run_id"
+        ],
+        "title": "ModuleFailureResponse"
+      },
       "ModuleGroupRequest": {
         "properties": {
           "project": {
@@ -9743,6 +11814,166 @@
         ],
         "title": "ModulePackageRef"
       },
+      "ModuleReplayRequest": {
+        "properties": {
+          "replay": {
+            "$ref": "#/components/schemas/ModuleReplaySnapshot"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "replay"
+        ],
+        "title": "ModuleReplayRequest"
+      },
+      "ModuleReplayResponse": {
+        "properties": {
+          "module_id": {
+            "type": "string",
+            "title": "Module Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "failed",
+              "completed"
+            ],
+            "title": "Status"
+          },
+          "matched_failure": {
+            "type": "boolean",
+            "title": "Matched Failure"
+          },
+          "execution": {
+            "$ref": "#/components/schemas/ModuleExecutionInfo"
+          },
+          "content_hash": {
+            "type": "string",
+            "title": "Content Hash"
+          },
+          "definition_hash": {
+            "type": "string",
+            "title": "Definition Hash"
+          },
+          "diagnostics": {
+            "items": {
+              "$ref": "#/components/schemas/Diagnostic"
+            },
+            "type": "array",
+            "title": "Diagnostics"
+          },
+          "result": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Result"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "module_id",
+          "status",
+          "matched_failure",
+          "execution",
+          "content_hash",
+          "definition_hash"
+        ],
+        "title": "ModuleReplayResponse"
+      },
+      "ModuleReplaySnapshot": {
+        "properties": {
+          "format_version": {
+            "type": "integer",
+            "const": 1,
+            "title": "Format Version"
+          },
+          "capture_kind": {
+            "type": "string",
+            "const": "callback_input",
+            "title": "Capture Kind"
+          },
+          "module": {
+            "$ref": "#/components/schemas/ModuleDefinition"
+          },
+          "parameters": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Parameters"
+          },
+          "state": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "State"
+          },
+          "fluid": {
+            "$ref": "#/components/schemas/FluidConfig"
+          },
+          "port_fluids": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/FluidConfig"
+            },
+            "type": "object",
+            "title": "Port Fluids"
+          },
+          "ports": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/PortState"
+            },
+            "type": "object",
+            "title": "Ports"
+          },
+          "channels": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ChannelState"
+            },
+            "type": "object",
+            "title": "Channels"
+          },
+          "execution": {
+            "$ref": "#/components/schemas/ModuleExecutionInfo"
+          },
+          "refrigeration": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RefrigerationThrottleInput"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "content_hash": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{64}$",
+            "title": "Content Hash"
+          },
+          "definition_hash": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{64}$",
+            "title": "Definition Hash"
+          },
+          "failure": {
+            "$ref": "#/components/schemas/Diagnostic"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "format_version",
+          "capture_kind",
+          "module",
+          "parameters",
+          "state",
+          "fluid",
+          "execution",
+          "content_hash",
+          "definition_hash",
+          "failure"
+        ],
+        "title": "ModuleReplaySnapshot",
+        "description": "Inputs captured before one Python callback; never an accepted network frame."
+      },
       "ModuleSDKRequirements": {
         "properties": {
           "api_version": {
@@ -9809,7 +12040,8 @@
               "pump",
               "heat_exchanger",
               "managed_state",
-              "refrigeration_throttle"
+              "refrigeration_throttle",
+              "custom_pressure_drop"
             ],
             "title": "Template"
           },
@@ -10056,6 +12288,22 @@
       },
       "ModuleTestConditions": {
         "properties": {
+          "host_project": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Project"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "host_instance_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+            "title": "Host Instance Id",
+            "default": "D1"
+          },
           "moist_air": {
             "type": "boolean",
             "title": "Moist Air",
@@ -10143,6 +12391,22 @@
       },
       "ModuleTestRequest": {
         "properties": {
+          "host_project": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Project"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "host_instance_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,80}$",
+            "title": "Host Instance Id",
+            "default": "D1"
+          },
           "moist_air": {
             "type": "boolean",
             "title": "Moist Air",
@@ -10640,7 +12904,8 @@
               "valve",
               "pump",
               "compressor",
-              "resistance"
+              "resistance",
+              "pressure_drop"
             ],
             "title": "Kind"
           },
@@ -10899,6 +13164,590 @@
         ],
         "title": "ParameterSweep"
       },
+      "PerformanceComparison": {
+        "properties": {
+          "left": {
+            "$ref": "#/components/schemas/PerformanceVersion"
+          },
+          "right": {
+            "$ref": "#/components/schemas/PerformanceVersion"
+          },
+          "comparable": {
+            "type": "boolean",
+            "title": "Comparable"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "samples": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Samples"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "left",
+          "right",
+          "comparable",
+          "reason"
+        ],
+        "title": "PerformanceComparison"
+      },
+      "PerformanceImport": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,79}$",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "pump_head",
+              "fan_pressure",
+              "efficiency"
+            ],
+            "title": "Kind"
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "csv",
+              "json"
+            ],
+            "title": "Format"
+          },
+          "file_name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "File Name",
+            "default": "curve.csv"
+          },
+          "content_base64": {
+            "type": "string",
+            "maxLength": 2796210,
+            "minLength": 1,
+            "title": "Content Base64"
+          },
+          "flow_unit": {
+            "type": "string",
+            "enum": [
+              "m3/h",
+              "m3/s",
+              "L/s"
+            ],
+            "title": "Flow Unit"
+          },
+          "value_unit": {
+            "type": "string",
+            "enum": [
+              "m",
+              "Pa",
+              "kPa",
+              "1",
+              "%"
+            ],
+            "title": "Value Unit"
+          },
+          "flow_column": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Flow Column",
+            "default": "flow"
+          },
+          "value_column": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Value Column",
+            "default": "value"
+          },
+          "source": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Source"
+          },
+          "manufacturer": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Manufacturer",
+            "default": ""
+          },
+          "model_name": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Model Name",
+            "default": ""
+          },
+          "reference_fluid": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Reference Fluid",
+            "default": "Water"
+          },
+          "reference_density_kg_m3": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Reference Density Kg M3"
+          },
+          "reference_speed_rpm": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Reference Speed Rpm"
+          },
+          "valid_flow_min": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid Flow Min"
+          },
+          "valid_flow_max": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid Flow Max"
+          },
+          "expected_latest_version": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Expected Latest Version",
+            "default": 0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "format",
+          "content_base64",
+          "flow_unit",
+          "value_unit",
+          "source",
+          "reference_density_kg_m3",
+          "reference_speed_rpm"
+        ],
+        "title": "PerformanceImport"
+      },
+      "PerformanceList": {
+        "properties": {
+          "persistent": {
+            "type": "boolean",
+            "title": "Persistent"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PerformanceSummary"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "persistent",
+          "items"
+        ],
+        "title": "PerformanceList"
+      },
+      "PerformancePreview": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "source_points": {
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Source Points"
+          },
+          "points_m3_h": {
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Points M3 H"
+          },
+          "canonical_value_unit": {
+            "type": "string",
+            "title": "Canonical Value Unit"
+          },
+          "valid_flow_m3_h": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Valid Flow M3 H"
+          },
+          "source_hash": {
+            "type": "string",
+            "title": "Source Hash"
+          },
+          "content_hash": {
+            "type": "string",
+            "title": "Content Hash"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "source_points",
+          "points_m3_h",
+          "canonical_value_unit",
+          "valid_flow_m3_h",
+          "source_hash",
+          "content_hash",
+          "warnings"
+        ],
+        "title": "PerformancePreview"
+      },
+      "PerformanceProposal": {
+        "properties": {
+          "parameters": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Parameters"
+          },
+          "provenance": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Provenance"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "parameters",
+          "provenance",
+          "warnings"
+        ],
+        "title": "PerformanceProposal"
+      },
+      "PerformanceProposalRequest": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,79}$",
+            "title": "Id"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Version"
+          },
+          "module": {
+            "$ref": "#/components/schemas/ModuleDefinition"
+          },
+          "parameter_id": {
+            "type": "string",
+            "title": "Parameter Id"
+          },
+          "fluid": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FluidConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "parameters": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Parameters"
+          },
+          "references": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/PerformanceReference"
+            },
+            "type": "object",
+            "title": "References"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "version",
+          "module",
+          "parameter_id"
+        ],
+        "title": "PerformanceProposalRequest"
+      },
+      "PerformanceReference": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,79}$",
+            "title": "Id"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Version"
+          },
+          "content_hash": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Content Hash"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "version",
+          "content_hash"
+        ],
+        "title": "PerformanceReference"
+      },
+      "PerformanceSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "manufacturer": {
+            "type": "string",
+            "title": "Manufacturer"
+          },
+          "model_name": {
+            "type": "string",
+            "title": "Model Name"
+          },
+          "reference_fluid": {
+            "type": "string",
+            "title": "Reference Fluid"
+          },
+          "reference_density_kg_m3": {
+            "type": "number",
+            "title": "Reference Density Kg M3"
+          },
+          "reference_speed_rpm": {
+            "type": "number",
+            "title": "Reference Speed Rpm"
+          },
+          "source_hash": {
+            "type": "string",
+            "title": "Source Hash"
+          },
+          "content_hash": {
+            "type": "string",
+            "title": "Content Hash"
+          },
+          "point_count": {
+            "type": "integer",
+            "title": "Point Count"
+          },
+          "valid_flow_m3_h": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Valid Flow M3 H"
+          },
+          "canonical_value_unit": {
+            "type": "string",
+            "title": "Canonical Value Unit"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "version",
+          "created_at",
+          "source",
+          "manufacturer",
+          "model_name",
+          "reference_fluid",
+          "reference_density_kg_m3",
+          "reference_speed_rpm",
+          "source_hash",
+          "content_hash",
+          "point_count",
+          "valid_flow_m3_h",
+          "canonical_value_unit"
+        ],
+        "title": "PerformanceSummary"
+      },
+      "PerformanceVersion": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "source_points": {
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Source Points"
+          },
+          "points_m3_h": {
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Points M3 H"
+          },
+          "canonical_value_unit": {
+            "type": "string",
+            "title": "Canonical Value Unit"
+          },
+          "valid_flow_m3_h": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Valid Flow M3 H"
+          },
+          "source_hash": {
+            "type": "string",
+            "title": "Source Hash"
+          },
+          "content_hash": {
+            "type": "string",
+            "title": "Content Hash"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "import_data": {
+            "$ref": "#/components/schemas/PerformanceImport"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "source_points",
+          "points_m3_h",
+          "canonical_value_unit",
+          "valid_flow_m3_h",
+          "source_hash",
+          "content_hash",
+          "warnings",
+          "version",
+          "created_at",
+          "import_data"
+        ],
+        "title": "PerformanceVersion"
+      },
       "PortSpec": {
         "properties": {
           "id": {
@@ -10936,6 +13785,196 @@
           "label"
         ],
         "title": "PortSpec"
+      },
+      "PortState": {
+        "properties": {
+          "pressure_pa": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pressure Pa"
+          },
+          "temperature_k": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Temperature K"
+          },
+          "enthalpy_j_kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enthalpy J Kg"
+          },
+          "density_kg_m3": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Density Kg M3"
+          },
+          "viscosity_pa_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Viscosity Pa S"
+          },
+          "specific_heat_j_kg_k": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Specific Heat J Kg K"
+          },
+          "mass_flow_kg_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mass Flow Kg S"
+          },
+          "dry_air_mass_flow_kg_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dry Air Mass Flow Kg S"
+          },
+          "water_vapor_mass_flow_kg_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Water Vapor Mass Flow Kg S"
+          },
+          "quality": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quality"
+          },
+          "humidity_ratio_kg_kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Humidity Ratio Kg Kg"
+          },
+          "relative_humidity": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Relative Humidity"
+          },
+          "enthalpy_j_kg_dry_air": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enthalpy J Kg Dry Air"
+          },
+          "specific_heat_j_kg_dry_air_k": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Specific Heat J Kg Dry Air K"
+          },
+          "dew_point_k": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dew Point K"
+          },
+          "wet_bulb_k": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wet Bulb K"
+          },
+          "composition": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Composition"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PortState"
       },
       "Position": {
         "properties": {
@@ -11015,6 +14054,14 @@
             "maxItems": 64,
             "title": "Selected Variables"
           },
+          "measurements": {
+            "items": {
+              "$ref": "#/components/schemas/MeasurementSpec"
+            },
+            "type": "array",
+            "maxItems": 64,
+            "title": "Measurements"
+          },
           "import_diagnostics": {
             "items": {
               "$ref": "#/components/schemas/Diagnostic"
@@ -11048,12 +14095,21 @@
             "maxItems": 64,
             "title": "Circuit Fluids"
           },
+          "coupling_mode": {
+            "type": "string",
+            "enum": [
+              "legacy",
+              "storage_v1"
+            ],
+            "title": "Coupling Mode",
+            "default": "legacy"
+          },
           "thermal_couplings": {
             "items": {
               "$ref": "#/components/schemas/ThermalCoupling"
             },
             "type": "array",
-            "maxItems": 2,
+            "maxItems": 8,
             "title": "Thermal Couplings"
           },
           "events": {
@@ -11759,6 +14815,57 @@
           "effective_kv_m3_h"
         ],
         "title": "RefrigerationThrottleFlow"
+      },
+      "RefrigerationThrottleInput": {
+        "properties": {
+          "inlet_pressure_pa": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Inlet Pressure Pa"
+          },
+          "outlet_pressure_pa": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Outlet Pressure Pa"
+          },
+          "inlet_temperature_k": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Inlet Temperature K"
+          },
+          "inlet_enthalpy_j_kg": {
+            "type": "number",
+            "title": "Inlet Enthalpy J Kg"
+          },
+          "inlet_density_kg_m3": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Inlet Density Kg M3"
+          },
+          "opening_ratio": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Opening Ratio"
+          },
+          "rated_kv_m3_h": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Rated Kv M3 H"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "inlet_pressure_pa",
+          "outlet_pressure_pa",
+          "inlet_temperature_k",
+          "inlet_enthalpy_j_kg",
+          "inlet_density_kg_m3",
+          "opening_ratio",
+          "rated_kv_m3_h"
+        ],
+        "title": "RefrigerationThrottleInput"
       },
       "RunCommand": {
         "properties": {
@@ -13010,6 +16117,88 @@
           "count"
         ],
         "title": "SweepRange"
+      },
+      "SystemInspection": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "time_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time S"
+          },
+          "valid": {
+            "type": "boolean",
+            "title": "Valid"
+          },
+          "diagnostics": {
+            "items": {
+              "$ref": "#/components/schemas/Diagnostic"
+            },
+            "type": "array",
+            "title": "Diagnostics"
+          },
+          "circuits": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Circuits"
+          },
+          "devices": {
+            "items": {
+              "$ref": "#/components/schemas/InspectionDevice"
+            },
+            "type": "array",
+            "title": "Devices"
+          },
+          "balances": {
+            "items": {
+              "$ref": "#/components/schemas/InspectionValue"
+            },
+            "type": "array",
+            "title": "Balances"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Notes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "project_id",
+          "status",
+          "valid"
+        ],
+        "title": "SystemInspection"
       },
       "ThermalCoupling": {
         "properties": {

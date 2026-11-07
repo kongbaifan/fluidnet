@@ -1,0 +1,38 @@
+flowchart TB
+  subgraph CLIENT["客户端"]
+    UI["浏览器 Studio<br/>project-model / state / run-state<br/>建模 · 模块 · 控制 · 结果"]
+    EXT["外部客户端<br/>Python / JavaScript / 三维界面"]
+  end
+  subgraph MAIN["单个 Python 服务进程"]
+    API["FastAPI 接入层<br/>静态页面 · 鉴权 · REST / WS"]
+    AUTHOR["模块平台<br/>目录 · 验证台 · 不可变版本"]
+    BATCH["批量工况<br/>BatchService · 顺序调度"]
+    RUN["编译与运行编排<br/>compiler · RunManager<br/>SessionBase / sessions"]
+    NUM["数值内核与物性<br/>水力 · 热力 · 湿空气 · 制冷<br/>NumPy / SciPy / CoolProp"]
+    TX["代码执行与接受事务<br/>runtime / batch / control<br/>主进程确认候选状态"]
+    RESULT["统一结果与归档<br/>RunFrame · 测点 · 曲线<br/>后台归档线程"]
+    API --> AUTHOR
+    API --> RUN
+    API --> BATCH --> RUN
+    AUTHOR -->|真实试算| RUN
+    RUN --> NUM
+    NUM --> TX
+    RUN -->|控制与状态| TX
+    RUN --> RESULT
+  end
+  WORKER["独立 Python Worker 子进程<br/>设备代码 / 控制脚本"]
+  DB[("SQLite 工作区<br/>项目修订 · 运行 · 批次")]
+  PKG[("模块版本目录<br/>合同 · 源码 · 验证证据")]
+  UI -->|HTTP / 增量轮询| API
+  EXT -->|REST / 变量订阅| API
+  TX <-->|JSON RPC| WORKER
+  API -->|保存项目| DB
+  BATCH -->|固定快照与结果| DB
+  RESULT -->|持久确认| DB
+  AUTHOR <-->|发布 / 加载| PKG
+  classDef client fill:#eaf4ff,stroke:#79a4cc;
+  classDef worker fill:#fff4df,stroke:#c7a255;
+  classDef data fill:#eaf6ef,stroke:#80aa90;
+  class UI,EXT client;
+  class WORKER worker;
+  class DB,PKG data;

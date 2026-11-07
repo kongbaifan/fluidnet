@@ -5,6 +5,8 @@ import { mkdirSync } from 'node:fs';
 
 // 8 个倍思鹿参考模块必须由 /api/v1/modules 自动发现并渲染进模块目录。
 const CATEGORY = '倍思鹿参考模块';
+// The existing icon bundle keeps the legacy API name Home for the house glyph.
+const iconSlug=name=>({Home:'house'}[name]||name.replace(/([a-z0-9])([A-Z])/g,'$1-$2').toLowerCase());
 const MODULES = [
   ['pipe_fitting', 'GitBranch'],
   ['check_valve', 'ArrowRightLeft'],
@@ -24,6 +26,28 @@ page.on('pageerror', error => errors.push(error.message));
 try {
   await page.goto(fixture.base + '/#modules');
   await expect(page.locator('#app-header')).toContainText(/v\d+\.\d+\.\d+/);
+
+  // Every built-in family supplies the actual library icon; Python references still use their fallback.
+  const presentationResponse=await page.request.get(fixture.base+'/api/v1/catalog/presentation');
+  expect(presentationResponse.ok()).toBe(true);
+  const presentation=await presentationResponse.json();expect(presentation.version).toBe(1);
+  expect(presentation.devices).toHaveLength(60);
+  const expectedDevices=presentation.devices.map(item=>({...item,expectedClass:'lucide-'+iconSlug(item.icon)}));
+  await expect(page.locator('[data-module-id="room_heat_manifold"]')).toHaveCount(1);
+  // Inspect rendered SVGs through the UI, reporting every missing glyph together.
+  const missingGlyphs=await page.locator('#module-results').evaluate((root,devices)=>devices.flatMap(item=>{
+    const card=[...root.querySelectorAll('[data-module-id]')].find(node=>node.dataset.moduleId===item.module_id);
+    const expected=item.expectedClass;
+    const svg=card?.querySelector('.object-icon svg');
+    return svg?.classList.contains(expected)?[]:[{id:item.module_id,expected,actual:svg?.getAttribute('class')||'missing'}];
+  }),expectedDevices);
+  expect(missingGlyphs,'registered catalog icons must all have rendered glyphs').toEqual([]);
+  for(const item of presentation.devices){
+    const card=page.locator(`[data-module-id="${item.module_id}"]`);
+    await expect(card).toHaveCount(1);
+    const slug=iconSlug(item.icon);
+    await expect(card.locator('.object-icon svg')).toHaveClass(new RegExp(`lucide-${slug}`));
+  }
 
   const nav = page.locator(`[data-action="module-category"][data-value="${CATEGORY}"]`);
   await expect(nav).toBeVisible({ timeout: 15000 });
@@ -45,7 +69,7 @@ try {
     await expect(card.locator('.stat-line')).toContainText(/\d+ 个端口/);
     await expect(card.locator('.stat-line')).toContainText(/\d+ 条通路/);
     await expect(card.locator('.stat-line')).toContainText(/\d+ 个变量/);
-    const slug = icon.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase();
+    const slug = iconSlug(icon);
     await expect(card.locator('.object-icon svg')).toHaveClass(new RegExp(`lucide-${slug}`));
   }
 

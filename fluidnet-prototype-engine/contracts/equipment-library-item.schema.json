@@ -1,0 +1,40 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "kind": {
+      "enum": [
+        "group",
+        "design",
+        "recipe"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "medium": {
+      "title": "Medium",
+      "type": "string"
+    },
+    "assumptions": {
+      "title": "Assumptions",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "kind",
+    "medium",
+    "assumptions"
+  ],
+  "title": "LibraryItem",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

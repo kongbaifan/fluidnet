@@ -1,0 +1,45 @@
+sequenceDiagram
+  autonumber
+  actor U as Studio / 外部客户端
+  participant A as FastAPI
+  participant J as RunManager
+  participant C as compiler / sessions
+  participant S as 执行域会话
+  participant D as 归档线程 / SQLite
+  U->>A: POST /api/v1/projects/validate
+  A->>C: compile_project(Project)
+  C-->>A: 拓扑与合同诊断
+  A-->>U: 校验结果
+  U->>A: POST /api/v1/runs?background=true
+  A->>J: submit(固定 RunRequest)
+  J->>D: 保存初始运行记录
+  A-->>U: HTTP 202 + run_id
+  J->>C: 应用工况，编译并 create_session
+  C-->>J: 对应物理域会话
+  J->>S: initialize
+  S-->>J: t=0 RunFrame
+  J->>D: 初始帧与运行状态持久确认
+  opt 运行控制或整批参数写入
+    U->>A: POST /runs/id/command 或 /variables
+    A->>J: 校验命令标识并入队
+    J->>D: 回执持久化
+    A-->>U: accepted 回执
+  end
+  loop 每个输出帧
+    J->>S: 帧边界应用命令，再 advance
+    Note over J,S: 暂停、继续、单步、停止复用同一会话
+    S->>S: 控制采样、候选求解、接受一个或多个子步
+    S-->>J: RunFrame，含 sequence 与参数修订
+    J->>J: 更新最新帧、窗口历史、概览与事件
+    J-)D: 普通帧排队，由归档线程合并写入
+    U->>A: GET history / events / overview
+    A->>J: 读取运行记录
+    A-->>U: 增量历史、状态、命令回执
+    opt 外部变量订阅
+      A-->>U: WS /runs/id/stream 推送最新选定变量
+    end
+  end
+  J->>S: 完成、停止或失败时 close
+  S->>S: finalize，回收设备及控制 Worker
+  J->>D: 终态及未结算回执持久确认
+  Note over J,D: 重启后可读档案；未结束运行标为 interrupted

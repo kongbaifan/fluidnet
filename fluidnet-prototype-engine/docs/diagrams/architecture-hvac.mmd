@@ -1,0 +1,30 @@
+flowchart TB
+  subgraph BUILD["开发时生成设备"]
+    SOURCE["hvac_basic.py<br/>基础设备与组合模板定义"]
+    GENERATE["generate_hvac_modules.py<br/>生成 / --check 一致性检查"]
+    SOURCE --> GENERATE
+  end
+  PACKS[("modules/ 设备包<br/>manifest.json + module.py")]
+  EXAMPLES["hvac_examples.py 示例工厂<br/>开发与运行共用<br/>七个组网项目与控制配置"]
+  JSON[("可导入的示例 JSON<br/>examples/hvac-basic/")]
+  GENERATE -.->|生成设备包| PACKS
+  EXAMPLES -.->|生成脚本 / --check| JSON
+  PACKS -->|加载合同与固定源码| EXAMPLES
+  subgraph RUNTIME["编译与运行"]
+    PROJECT["建模项目 / 暖通示例<br/>设备实例 · 模块快照<br/>controllers / control_scripts / measurements"]
+    COMPILE["compiler + composites<br/>校验测点与端口，展开组合<br/>映射公开参数、端口及变量"]
+    SOLVE["稳态 solver / 动态 SimulationSession<br/>内置设备 + Python 叶子设备<br/>水力、热力与风水联合求解"]
+    PUBLIC["composites.map_frame<br/>将叶子结果映射到公开设备变量"]
+    METERS["measurements.apply_measurements<br/>取值 / 两点差 / 体积流量 / 热功率"]
+    RESULTS["RunFrame：measurement.*<br/>仪表 · 曲线 · 归档<br/>风侧冻结 CSV / HTML 报告"]
+    CONTROL["PID / 控制脚本 Worker<br/>按采样读取已接受变量<br/>写入允许的运行参数"]
+    PROJECT --> COMPILE --> SOLVE --> PUBLIC --> METERS --> RESULTS
+    PROJECT -.->|动态运行控制配置| CONTROL
+    CONTROL -->|参数提案与校验| SOLVE
+    RESULTS -->|已接受反馈| CONTROL
+  end
+  PACKS -->|目录 / 拖入 / 版本绑定| PROJECT
+  EXAMPLES -->|示例 API| PROJECT
+  JSON -.->|导入| PROJECT
+  classDef data fill:#eaf6ef,stroke:#80aa90;
+  class PACKS,JSON,RESULTS data;

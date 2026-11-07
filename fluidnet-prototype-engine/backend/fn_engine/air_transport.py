@@ -8,7 +8,7 @@ import numpy as np
 from .air_devices import AirDeviceResult, evaluate_cooling_coil, evaluate_humidifier, evaluate_pass_through
 from .air_liquid import coupled_device_results, enthalpy, humidity
 from .compiler import CompilationError, service_at
-from .models import Diagnostic
+from .model_types.base import Diagnostic
 from .moist_air import AIR_STATE_FIELDS, AirPropertyError, MoistAirService
 from .properties import PropertyError
 
@@ -30,7 +30,7 @@ def _initial(network, service, warm):
     return initial
 
 
-def solve_air_network(network, runners, time_s, warm=None, room_step=None):
+def solve_air_network(network, runners, time_s, warm=None, room_step=None, storage_step=None):
     from .solver import NetworkResult, _solve_hydraulics, _node_ports, build_port_states
     service = MoistAirService()
     try:
@@ -46,7 +46,7 @@ def solve_air_network(network, runners, time_s, warm=None, room_step=None):
             factors = np.array([[1+humidity(states[b.start_node]), 1+humidity(states[b.end_node])] for b in network.branches])
             hydraulic = _solve_hydraulics(network,runners,time_s,branch_density=rho,branch_viscosity=mu,
                 port_base=_node_ports(network,states),initial=start,air_mass_factors=factors)
-            thermal = solve_air_transport(network,hydraulic,states,service,runners,time_s,room_step)
+            thermal = solve_air_transport(network,hydraulic,states,service,runners,time_s,room_step,storage_step)
             new_upstream = thermal.upstream
             rho_new = np.array([thermal.node_states[n].density_kg_m3 for n in new_upstream])
             density_defect = float(np.max(np.abs(rho_new-rho)/rho_new))
@@ -63,7 +63,7 @@ def solve_air_network(network, runners, time_s, warm=None, room_step=None):
         raise CompilationError(error.code,str(error)) from error
 
 
-def solve_air_transport(network, hydraulic, previous, service, runners, time_s, room_step=None):
+def solve_air_transport(network, hydraulic, previous, service, runners, time_s, room_step=None, storage_step=None):
     from .thermal import ThermalResult
     from .module_phases import heat_hook
     from .solver import shaft_power
@@ -109,6 +109,7 @@ def solve_air_transport(network, hydraulic, previous, service, runners, time_s, 
         extra_heat, heat_diagnostics = module_heat(states,heat_previous) if module_heat else ({},[])
         coupled = coupled_device_results(network, states, flows, p, up, down, service)
         devices = []
+        buffers = {}
         for j,b in enumerate(branches):
             params = network.parameters[b.instance_id]
             definition = network.modules[network.instances[b.instance_id].module_id]
@@ -117,6 +118,14 @@ def solve_air_transport(network, hydraulic, previous, service, runners, time_s, 
             try:
                 if j in coupled:
                     device = coupled[j]
+                elif kind == 'closed_buffer_tank':
+                    from .buffer_tank import candidate as buffer_candidate
+                    dt, _, old = storage_step if storage_step is not None else (None, {}, {})
+                    old_h = float(old[j][0]) if j in old else None
+                    h, outputs = buffer_candidate(params, service_at(network, up[j]), pressure,
+                        enthalpy(inlet), float(mass[j]), old_h, dt, b.instance_id)
+                    buffers[j] = (h, outputs)
+                    device = AirDeviceResult(state_phw(down[j], h, 0.), mass[j]*(h-enthalpy(inlet)))
                 elif kind == 'cooling_coil':
                     device = evaluate_cooling_coil(inlet,float(flows[j]),params,pressure,service)
                 elif kind == 'humidifier':
@@ -287,6 +296,10 @@ def solve_air_transport(network, hydraulic, previous, service, runners, time_s, 
         'liquid_mass_residual_kg_s':max((abs(balance[node]) for node in range(n) if node not in network.air_nodes and node not in network.fixed_pressures),default=0.),
         'condensate_kg_s':sum(d.water_removed_kg_s for d in devices),
         'room_moisture_storage_rate_kg_s':sum(r.moisture_storage_kg_s for r in room_results.values())}
+    for j,(h,values) in buffers.items():
+        result.cell_enthalpies[j] = np.array([h])
+        result.cell_power_w[j] = values['state.stored_power_w']
+        result.buffer_outputs[j] = values
     result.air_room_results = room_results
     return result
 

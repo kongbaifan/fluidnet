@@ -1,0 +1,35 @@
+sequenceDiagram
+  autonumber
+  participant S as SimulationSession
+  participant C as 控制脚本 Worker / PID
+  participant H as solver / air_transport
+  participant X as air_liquid / 设备模型
+  participant P as CoolProp 物性
+  participant F as 接受状态 / RunFrame
+  Note over S,F: 三回路属于 fluid 默认路径；房间有热湿储量
+  loop 帧内推进，步长对齐控制采样边界
+    S->>S: 保存控制与参数回滚点
+    S->>C: 到采样时刻，读取当前已接受变量
+    C-->>S: 脚本提案；PID 算出水阀 opening_ratio
+    S->>S: 整批校验可写目标与所有权，构造候选参数
+    S->>H: _trial(h)，传入房间上一接受状态
+    loop 水力与热湿物性外迭代
+      H->>P: 按空气/冷冻水/冷却水回路查询物性
+      P-->>H: rho / mu / h / 含湿量等
+      H->>H: 求各回路压力与流量，空气按干空气连续性
+      H->>X: 用同一候选状态计算水盘管与冷水机组
+      X-->>H: 盘管冷凝与水侧热量；机组冷量、排热与功率
+      H->>X: 房间隐式热湿推进；湿冷却塔换热与水耗
+      X-->>H: 候选房间状态、设备量及守恒残差
+      H->>H: 更新焓/湿量输运，检查温度/湿量/密度收敛
+    end
+    H-->>S: 收敛结果或失败诊断
+    alt 候选求解或接受前校验失败
+      S->>S: 丢弃候选，回滚；可重试错误按条件缩步
+    else 候选整帧与模块事务校验通过
+      S->>F: 一次接受物理状态、控制提案及累计账本
+      Note over S,F: air_ledger 按接受 dt 累计冷凝水、水耗、电能
+    end
+  end
+  S->>F: 映射公开变量与理想测点，发布同一 RunFrame
+  Note over S,F: 变量统一驱动画布、控制曲线、归档及冻结报告

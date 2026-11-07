@@ -1,0 +1,1834 @@
+{
+  "schema_version": 1,
+  "id": "tower-pool-evaporation",
+  "name": "塔池 · 蒸发库存",
+  "description": "",
+  "fluid": {
+    "backend": "coolprop",
+    "fluid": "Water",
+    "composition": {},
+    "reference": "mass",
+    "phase_policy": "liquid"
+  },
+  "modules": [
+    {
+      "schema_version": 1,
+      "id": "source",
+      "name": "压力边界",
+      "version": 1,
+      "category": "边界与节点",
+      "description": "",
+      "ports": [
+        {
+          "id": "out0",
+          "label": "out0",
+          "domain": "fluid",
+          "direction": "out",
+          "required": true,
+          "circuit": "fluid"
+        }
+      ],
+      "parameters": [
+        {
+          "id": "pressure_pa",
+          "label": "绝对压力",
+          "value_type": "number",
+          "default": 201325.0,
+          "unit": {
+            "quantity": "pressure",
+            "canonical_unit": "Pa",
+            "display_unit": "kPa",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "minimum": 1.0,
+          "maximum": null,
+          "runtime": true,
+          "writable": true
+        },
+        {
+          "id": "temperature_k",
+          "label": "边界温度",
+          "value_type": "number",
+          "default": 293.15,
+          "unit": {
+            "quantity": "temperature",
+            "canonical_unit": "K",
+            "display_unit": "°C",
+            "display_scale": 1.0,
+            "display_offset": -273.15
+          },
+          "minimum": 1.0,
+          "maximum": null,
+          "runtime": true,
+          "writable": true
+        },
+        {
+          "id": "humidity_ratio_kg_kg",
+          "label": "边界含湿量（湿空气模式）",
+          "value_type": "number",
+          "default": 0.0,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": 0.2,
+          "runtime": true,
+          "writable": true
+        }
+      ],
+      "variables": [
+        {
+          "id": "out0.pressure_pa",
+          "label": "out0 绝对压力",
+          "quantity": "pressure",
+          "unit": {
+            "quantity": "pressure",
+            "canonical_unit": "Pa",
+            "display_unit": "kPa",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "port",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": "out0"
+        },
+        {
+          "id": "out0.mass_flow_kg_s",
+          "label": "out0 端口流量（流入设备为正）",
+          "quantity": "mass_flow",
+          "unit": {
+            "quantity": "mass_flow",
+            "canonical_unit": "kg/s",
+            "display_unit": "kg/s",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "port",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": "out0"
+        },
+        {
+          "id": "out0.temperature_k",
+          "label": "out0 温度",
+          "quantity": "temperature",
+          "unit": {
+            "quantity": "temperature",
+            "canonical_unit": "K",
+            "display_unit": "°C",
+            "display_scale": 1.0,
+            "display_offset": -273.15
+          },
+          "source": "port",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": "out0"
+        },
+        {
+          "id": "out0.enthalpy_j_kg",
+          "label": "out0 比焓",
+          "quantity": "specific_enthalpy",
+          "unit": {
+            "quantity": "specific_enthalpy",
+            "canonical_unit": "J/kg",
+            "display_unit": "kJ/kg",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "port",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": "out0"
+        },
+        {
+          "id": "out0.density_kg_m3",
+          "label": "out0 密度",
+          "quantity": "density",
+          "unit": {
+            "quantity": "density",
+            "canonical_unit": "kg/m³",
+            "display_unit": "kg/m³",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "port",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": "out0"
+        },
+        {
+          "id": "out0.viscosity_pa_s",
+          "label": "out0 动力黏度",
+          "quantity": "dynamic_viscosity",
+          "unit": {
+            "quantity": "dynamic_viscosity",
+            "canonical_unit": "Pa·s",
+            "display_unit": "mPa·s",
+            "display_scale": 0.001,
+            "display_offset": 0.0
+          },
+          "source": "port",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": "out0"
+        },
+        {
+          "id": "out0.specific_heat_j_kg_k",
+          "label": "out0 定压比热",
+          "quantity": "specific_heat",
+          "unit": {
+            "quantity": "specific_heat",
+            "canonical_unit": "J/(kg·K)",
+            "display_unit": "kJ/(kg·K)",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "port",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": "out0"
+        },
+        {
+          "id": "out0.quality",
+          "label": "out0 干度（单相为空）",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "port",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": "out0"
+        },
+        {
+          "id": "param.pressure_pa",
+          "label": "绝对压力",
+          "quantity": "pressure",
+          "unit": {
+            "quantity": "pressure",
+            "canonical_unit": "Pa",
+            "display_unit": "kPa",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "pressure_pa",
+          "port_id": null
+        },
+        {
+          "id": "param.temperature_k",
+          "label": "边界温度",
+          "quantity": "temperature",
+          "unit": {
+            "quantity": "temperature",
+            "canonical_unit": "K",
+            "display_unit": "°C",
+            "display_scale": 1.0,
+            "display_offset": -273.15
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "temperature_k",
+          "port_id": null
+        },
+        {
+          "id": "param.humidity_ratio_kg_kg",
+          "label": "边界含湿量（湿空气模式）",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "humidity_ratio_kg_kg",
+          "port_id": null
+        }
+      ],
+      "channels": [],
+      "solver_model": "pressure_source",
+      "state_model": null,
+      "thermal_model": null,
+      "source_format": "python-v1",
+      "source": {},
+      "runtime": "builtin",
+      "entrypoint": "",
+      "content_hash": null,
+      "definition_hash": null,
+      "package_path": null,
+      "bank_names": [
+        "额定工况",
+        "部分负荷",
+        "调试备份"
+      ]
+    },
+    {
+      "schema_version": 1,
+      "id": "valve",
+      "name": "调节阀",
+      "version": 1,
+      "category": "管道与阻力",
+      "description": "",
+      "ports": [
+        {
+          "id": "in0",
+          "label": "in0",
+          "domain": "fluid",
+          "direction": "in",
+          "required": true,
+          "circuit": "fluid"
+        },
+        {
+          "id": "out0",
+          "label": "out0",
+          "domain": "fluid",
+          "direction": "out",
+          "required": true,
+          "circuit": "fluid"
+        }
+      ],
+      "parameters": [
+        {
+          "id": "opening_ratio",
+          "label": "阀门开度",
+          "value_type": "number",
+          "default": 0.8,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "runtime": true,
+          "writable": true
+        },
+        {
+          "id": "kv_m3_h",
+          "label": "流量系数 Kv",
+          "value_type": "number",
+          "default": 16.0,
+          "unit": {
+            "quantity": "flow_coefficient",
+            "canonical_unit": "m³/h",
+            "display_unit": "m³/h",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.001,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        }
+      ],
+      "variables": [
+        {
+          "id": "in0.pressure_pa",
+          "label": "in0 绝对压力",
+          "quantity": "pressure",
+          "unit": {
+            "quantity": "pressure",
+            "canonical_unit": "Pa",
+            "display_unit": "kPa",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "port",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": "in0"
+        },
+        {
+          "id": "in0.mass_flow_kg_s",
+          "label": "in0 端口流量（流入设备为正）",
+          "quantity": "mass_flow",
+          "unit": {
+            "quantity": "mass_flow",
+            "canonical_unit": "kg/s",
+            "display_unit": "kg/s",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "port",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": "in0"
+        },
+        {
+          "id": "in0.temperature_k",
+          "label": "in0 温度",
+          "quantity": "temperature",
+          "unit": {
+            "quantity": "temperature",
+            "canonical_unit": "K",
+            "display_unit": "°C",
+            "display_scale": 1.0,
+            "display_offset": -273.15
+          },
+          "source": "port",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": "in0"
+        },
+        {
+          "id": "in0.enthalpy_j_kg",
+          "label": "in0 比焓",
+          "quantity": "specific_enthalpy",
+          "unit": {
+            "quantity": "specific_enthalpy",
+            "canonical_unit": "J/kg",
+            "display_unit": "kJ/kg",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "port",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": "in0"
+        },
+        {
+          "id": "in0.density_kg_m3",
+          "label": "in0 密度",
+          "quantity": "density",
+          "unit": {
+            "quantity": "density",
+            "canonical_unit": "kg/m³",
+            "display_unit": "kg/m³",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "port",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": "in0"
+        },
+        {
+          "id": "in0.viscosity_pa_s",
+          "label": "in0 动力黏度",
+          "quantity": "dynamic_viscosity",
+          "unit": {
+            "quantity": "dynamic_viscosity",
+            "canonical_unit": "Pa·s",
+            "display_unit": "mPa·s",
+            "display_scale": 0.001,
+            "display_offset": 0.0
+          },
+          "source": "port",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": "in0"
+        },
+        {
+          "id": "in0.specific_heat_j_kg_k",
+          "label": "in0 定压比热",
+          "quantity": "specific_heat",
+          "unit": {
+            "quantity": "specific_heat",
+            "canonical_unit": "J/(kg·K)",
+            "display_unit": "kJ/(kg·K)",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "port",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": "in0"
+        },
+        {
+          "id": "in0.quality",
+          "label": "in0 干度（单相为空）",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "port",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": "in0"
+        },
+        {
+          "id": "out0.pressure_pa",
+          "label": "out0 绝对压力",
+          "quantity": "pressure",
+          "unit": {
+            "quantity": "pressure",
+            "canonical_unit": "Pa",
+            "display_unit": "kPa",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "port",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": "out0"
+        },
+        {
+          "id": "out0.mass_flow_kg_s",
+          "label": "out0 端口流量（流入设备为正）",
+          "quantity": "mass_flow",
+          "unit": {
+            "quantity": "mass_flow",
+            "canonical_unit": "kg/s",
+            "display_unit": "kg/s",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "port",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": "out0"
+        },
+        {
+          "id": "out0.temperature_k",
+          "label": "out0 温度",
+          "quantity": "temperature",
+          "unit": {
+            "quantity": "temperature",
+            "canonical_unit": "K",
+            "display_unit": "°C",
+            "display_scale": 1.0,
+            "display_offset": -273.15
+          },
+          "source": "port",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": "out0"
+        },
+        {
+          "id": "out0.enthalpy_j_kg",
+          "label": "out0 比焓",
+          "quantity": "specific_enthalpy",
+          "unit": {
+            "quantity": "specific_enthalpy",
+            "canonical_unit": "J/kg",
+            "display_unit": "kJ/kg",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "port",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": "out0"
+        },
+        {
+          "id": "out0.density_kg_m3",
+          "label": "out0 密度",
+          "quantity": "density",
+          "unit": {
+            "quantity": "density",
+            "canonical_unit": "kg/m³",
+            "display_unit": "kg/m³",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "port",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": "out0"
+        },
+        {
+          "id": "out0.viscosity_pa_s",
+          "label": "out0 动力黏度",
+          "quantity": "dynamic_viscosity",
+          "unit": {
+            "quantity": "dynamic_viscosity",
+            "canonical_unit": "Pa·s",
+            "display_unit": "mPa·s",
+            "display_scale": 0.001,
+            "display_offset": 0.0
+          },
+          "source": "port",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": "out0"
+        },
+        {
+          "id": "out0.specific_heat_j_kg_k",
+          "label": "out0 定压比热",
+          "quantity": "specific_heat",
+          "unit": {
+            "quantity": "specific_heat",
+            "canonical_unit": "J/(kg·K)",
+            "display_unit": "kJ/(kg·K)",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "port",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": "out0"
+        },
+        {
+          "id": "out0.quality",
+          "label": "out0 干度（单相为空）",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "port",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": "out0"
+        },
+        {
+          "id": "ch0.mass_flow_kg_s",
+          "label": "ch0 质量流量",
+          "quantity": "mass_flow",
+          "unit": {
+            "quantity": "mass_flow",
+            "canonical_unit": "kg/s",
+            "display_unit": "kg/s",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "mass_flow_kg_s",
+          "label": "ch0 质量流量",
+          "quantity": "mass_flow",
+          "unit": {
+            "quantity": "mass_flow",
+            "canonical_unit": "kg/s",
+            "display_unit": "kg/s",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "ch0.volume_flow_m3_h",
+          "label": "ch0 体积流量",
+          "quantity": "volume_flow",
+          "unit": {
+            "quantity": "volume_flow",
+            "canonical_unit": "m³/h",
+            "display_unit": "m³/h",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "volume_flow_m3_h",
+          "label": "ch0 体积流量",
+          "quantity": "volume_flow",
+          "unit": {
+            "quantity": "volume_flow",
+            "canonical_unit": "m³/h",
+            "display_unit": "m³/h",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "ch0.inlet_pressure_pa",
+          "label": "ch0 入口绝对压力",
+          "quantity": "pressure",
+          "unit": {
+            "quantity": "pressure",
+            "canonical_unit": "Pa",
+            "display_unit": "Pa",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "inlet_pressure_pa",
+          "label": "ch0 入口绝对压力",
+          "quantity": "pressure",
+          "unit": {
+            "quantity": "pressure",
+            "canonical_unit": "Pa",
+            "display_unit": "Pa",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "ch0.outlet_pressure_pa",
+          "label": "ch0 出口绝对压力",
+          "quantity": "pressure",
+          "unit": {
+            "quantity": "pressure",
+            "canonical_unit": "Pa",
+            "display_unit": "Pa",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "outlet_pressure_pa",
+          "label": "ch0 出口绝对压力",
+          "quantity": "pressure",
+          "unit": {
+            "quantity": "pressure",
+            "canonical_unit": "Pa",
+            "display_unit": "Pa",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "ch0.pressure_drop_pa",
+          "label": "ch0 压降",
+          "quantity": "pressure",
+          "unit": {
+            "quantity": "pressure",
+            "canonical_unit": "Pa",
+            "display_unit": "Pa",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "pressure_drop_pa",
+          "label": "ch0 压降",
+          "quantity": "pressure",
+          "unit": {
+            "quantity": "pressure",
+            "canonical_unit": "Pa",
+            "display_unit": "Pa",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "ch0.inlet_temperature_k",
+          "label": "ch0 入口温度（上风侧）",
+          "quantity": "temperature",
+          "unit": {
+            "quantity": "temperature",
+            "canonical_unit": "K",
+            "display_unit": "°C",
+            "display_scale": 1.0,
+            "display_offset": -273.15
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "inlet_temperature_k",
+          "label": "ch0 入口温度（上风侧）",
+          "quantity": "temperature",
+          "unit": {
+            "quantity": "temperature",
+            "canonical_unit": "K",
+            "display_unit": "°C",
+            "display_scale": 1.0,
+            "display_offset": -273.15
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "ch0.outlet_temperature_k",
+          "label": "ch0 出口温度（下风侧）",
+          "quantity": "temperature",
+          "unit": {
+            "quantity": "temperature",
+            "canonical_unit": "K",
+            "display_unit": "°C",
+            "display_scale": 1.0,
+            "display_offset": -273.15
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "outlet_temperature_k",
+          "label": "ch0 出口温度（下风侧）",
+          "quantity": "temperature",
+          "unit": {
+            "quantity": "temperature",
+            "canonical_unit": "K",
+            "display_unit": "°C",
+            "display_scale": 1.0,
+            "display_offset": -273.15
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "ch0.heat_w",
+          "label": "ch0 流体焓流增量（换热+轴功+位能）",
+          "quantity": "power",
+          "unit": {
+            "quantity": "power",
+            "canonical_unit": "W",
+            "display_unit": "W",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "heat_w",
+          "label": "ch0 流体焓流增量（换热+轴功+位能）",
+          "quantity": "power",
+          "unit": {
+            "quantity": "power",
+            "canonical_unit": "W",
+            "display_unit": "W",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "param.opening_ratio",
+          "label": "阀门开度",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "opening_ratio",
+          "port_id": null
+        },
+        {
+          "id": "param.kv_m3_h",
+          "label": "流量系数 Kv",
+          "quantity": "flow_coefficient",
+          "unit": {
+            "quantity": "flow_coefficient",
+            "canonical_unit": "m³/h",
+            "display_unit": "m³/h",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "kv_m3_h",
+          "port_id": null
+        }
+      ],
+      "channels": [
+        {
+          "id": "ch0",
+          "name": "ch0",
+          "input_port": "in0",
+          "output_port": "out0",
+          "relation": "resistance",
+          "solver_model": "valve",
+          "enabled": true
+        }
+      ],
+      "solver_model": "valve",
+      "state_model": null,
+      "thermal_model": null,
+      "source_format": "python-v1",
+      "source": {},
+      "runtime": "builtin",
+      "entrypoint": "",
+      "content_hash": null,
+      "definition_hash": null,
+      "package_path": null,
+      "bank_names": [
+        "额定工况",
+        "部分负荷",
+        "调试备份"
+      ]
+    },
+    {
+      "schema_version": 1,
+      "id": "tower_pool",
+      "name": "冷却塔池（外给蒸发）",
+      "version": 1,
+      "category": "边界与节点",
+      "description": "开式充分混合池体，补排流量由真实支路计算；外给蒸发/飘水进入质量与焓储量。蒸气焓取池温下饱和水蒸气，不与现有湿空气冷却塔自动联算。",
+      "ports": [
+        {
+          "id": "in0",
+          "label": "循环回水",
+          "domain": "fluid",
+          "direction": "in",
+          "required": true,
+          "circuit": "fluid"
+        },
+        {
+          "id": "in1",
+          "label": "补水",
+          "domain": "fluid",
+          "direction": "in",
+          "required": true,
+          "circuit": "fluid"
+        },
+        {
+          "id": "out0",
+          "label": "循环供水",
+          "domain": "fluid",
+          "direction": "out",
+          "required": true,
+          "circuit": "fluid"
+        },
+        {
+          "id": "out1",
+          "label": "排污",
+          "domain": "fluid",
+          "direction": "out",
+          "required": true,
+          "circuit": "fluid"
+        }
+      ],
+      "parameters": [
+        {
+          "id": "area_m2",
+          "label": "池面面积",
+          "value_type": "number",
+          "default": 1.0,
+          "unit": {
+            "quantity": "area",
+            "canonical_unit": "m²",
+            "display_unit": "m²",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.001,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "height_m",
+          "label": "池体高度",
+          "value_type": "number",
+          "default": 2.0,
+          "unit": {
+            "quantity": "length",
+            "canonical_unit": "m",
+            "display_unit": "m",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.01,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "level_m",
+          "label": "初始水位",
+          "value_type": "number",
+          "default": 1.0,
+          "unit": {
+            "quantity": "length",
+            "canonical_unit": "m",
+            "display_unit": "m",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.001,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "surface_pressure_pa",
+          "label": "池面绝对压力",
+          "value_type": "number",
+          "default": 101325.0,
+          "unit": {
+            "quantity": "pressure",
+            "canonical_unit": "Pa",
+            "display_unit": "kPa",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "minimum": 1000.0,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "temperature_k",
+          "label": "初始水温",
+          "value_type": "number",
+          "default": 303.15,
+          "unit": {
+            "quantity": "temperature",
+            "canonical_unit": "K",
+            "display_unit": "°C",
+            "display_scale": 1.0,
+            "display_offset": -273.15
+          },
+          "minimum": 1.0,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "heat_input_w",
+          "label": "独立外部热源（不含蒸发）",
+          "value_type": "number",
+          "default": 0.0,
+          "unit": {
+            "quantity": "power",
+            "canonical_unit": "W",
+            "display_unit": "kW",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "minimum": null,
+          "maximum": null,
+          "runtime": true,
+          "writable": true
+        },
+        {
+          "id": "heat_loss_ua_w_k",
+          "label": "对环境显热 UA",
+          "value_type": "number",
+          "default": 0.0,
+          "unit": {
+            "quantity": "conductance",
+            "canonical_unit": "W/K",
+            "display_unit": "W/K",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "ambient_temperature_k",
+          "label": "环境温度",
+          "value_type": "number",
+          "default": 293.15,
+          "unit": {
+            "quantity": "temperature",
+            "canonical_unit": "K",
+            "display_unit": "°C",
+            "display_scale": 1.0,
+            "display_offset": -273.15
+          },
+          "minimum": 1.0,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "evaporation_kg_s",
+          "label": "外给蒸发质量流量",
+          "value_type": "number",
+          "default": 0.0,
+          "unit": {
+            "quantity": "mass_flow",
+            "canonical_unit": "kg/s",
+            "display_unit": "kg/s",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "drift_kg_s",
+          "label": "外给液滴飘水质量流量",
+          "value_type": "number",
+          "default": 0.0,
+          "unit": {
+            "quantity": "mass_flow",
+            "canonical_unit": "kg/s",
+            "display_unit": "kg/s",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        }
+      ],
+      "variables": [
+        {
+          "id": "param.area_m2",
+          "label": "池面面积",
+          "quantity": "area",
+          "unit": {
+            "quantity": "area",
+            "canonical_unit": "m²",
+            "display_unit": "m²",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "area_m2",
+          "port_id": null
+        },
+        {
+          "id": "param.height_m",
+          "label": "池体高度",
+          "quantity": "length",
+          "unit": {
+            "quantity": "length",
+            "canonical_unit": "m",
+            "display_unit": "m",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "height_m",
+          "port_id": null
+        },
+        {
+          "id": "param.level_m",
+          "label": "初始水位",
+          "quantity": "length",
+          "unit": {
+            "quantity": "length",
+            "canonical_unit": "m",
+            "display_unit": "m",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "level_m",
+          "port_id": null
+        },
+        {
+          "id": "param.surface_pressure_pa",
+          "label": "池面绝对压力",
+          "quantity": "pressure",
+          "unit": {
+            "quantity": "pressure",
+            "canonical_unit": "Pa",
+            "display_unit": "kPa",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "surface_pressure_pa",
+          "port_id": null
+        },
+        {
+          "id": "param.temperature_k",
+          "label": "初始水温",
+          "quantity": "temperature",
+          "unit": {
+            "quantity": "temperature",
+            "canonical_unit": "K",
+            "display_unit": "°C",
+            "display_scale": 1.0,
+            "display_offset": -273.15
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "temperature_k",
+          "port_id": null
+        },
+        {
+          "id": "param.heat_input_w",
+          "label": "独立外部热源（不含蒸发）",
+          "quantity": "power",
+          "unit": {
+            "quantity": "power",
+            "canonical_unit": "W",
+            "display_unit": "kW",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "heat_input_w",
+          "port_id": null
+        },
+        {
+          "id": "param.heat_loss_ua_w_k",
+          "label": "对环境显热 UA",
+          "quantity": "conductance",
+          "unit": {
+            "quantity": "conductance",
+            "canonical_unit": "W/K",
+            "display_unit": "W/K",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "heat_loss_ua_w_k",
+          "port_id": null
+        },
+        {
+          "id": "param.ambient_temperature_k",
+          "label": "环境温度",
+          "quantity": "temperature",
+          "unit": {
+            "quantity": "temperature",
+            "canonical_unit": "K",
+            "display_unit": "°C",
+            "display_scale": 1.0,
+            "display_offset": -273.15
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "ambient_temperature_k",
+          "port_id": null
+        },
+        {
+          "id": "param.evaporation_kg_s",
+          "label": "外给蒸发质量流量",
+          "quantity": "mass_flow",
+          "unit": {
+            "quantity": "mass_flow",
+            "canonical_unit": "kg/s",
+            "display_unit": "kg/s",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "evaporation_kg_s",
+          "port_id": null
+        },
+        {
+          "id": "param.drift_kg_s",
+          "label": "外给液滴飘水质量流量",
+          "quantity": "mass_flow",
+          "unit": {
+            "quantity": "mass_flow",
+            "canonical_unit": "kg/s",
+            "display_unit": "kg/s",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "drift_kg_s",
+          "port_id": null
+        },
+        {
+          "id": "state.mass_kg",
+          "label": "池水质量",
+          "quantity": "mass",
+          "unit": {
+            "quantity": "mass",
+            "canonical_unit": "kg",
+            "display_unit": "kg",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.level_m",
+          "label": "水位",
+          "quantity": "length",
+          "unit": {
+            "quantity": "length",
+            "canonical_unit": "m",
+            "display_unit": "m",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.volume_m3",
+          "label": "水体积",
+          "quantity": "volume",
+          "unit": {
+            "quantity": "volume",
+            "canonical_unit": "m³",
+            "display_unit": "m³",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.net_inflow_kg_s",
+          "label": "库存变化率",
+          "quantity": "mass_flow",
+          "unit": {
+            "quantity": "mass_flow",
+            "canonical_unit": "kg/s",
+            "display_unit": "kg/s",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.evaporated_kg",
+          "label": "累计蒸发",
+          "quantity": "mass",
+          "unit": {
+            "quantity": "mass",
+            "canonical_unit": "kg",
+            "display_unit": "kg",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.drift_kg",
+          "label": "累计飘水",
+          "quantity": "mass",
+          "unit": {
+            "quantity": "mass",
+            "canonical_unit": "kg",
+            "display_unit": "kg",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.temperature_k",
+          "label": "池温",
+          "quantity": "temperature",
+          "unit": {
+            "quantity": "temperature",
+            "canonical_unit": "K",
+            "display_unit": "°C",
+            "display_scale": 1.0,
+            "display_offset": -273.15
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "evaporation_enthalpy_w",
+          "label": "蒸气带走焓流",
+          "quantity": "power",
+          "unit": {
+            "quantity": "power",
+            "canonical_unit": "W",
+            "display_unit": "W",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "drift_enthalpy_w",
+          "label": "飘水带走焓流",
+          "quantity": "power",
+          "unit": {
+            "quantity": "power",
+            "canonical_unit": "W",
+            "display_unit": "W",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        }
+      ],
+      "channels": [],
+      "solver_model": "tower_pool",
+      "state_model": "open_pool_losses",
+      "thermal_model": null,
+      "source_format": "python-v1",
+      "source": {},
+      "runtime": "builtin",
+      "entrypoint": "",
+      "content_hash": null,
+      "definition_hash": null,
+      "package_path": null,
+      "bank_names": [
+        "额定工况",
+        "部分负荷",
+        "调试备份"
+      ]
+    }
+  ],
+  "instances": [
+    {
+      "id": "Pool",
+      "module_id": "tower_pool",
+      "name": "塔池",
+      "page_id": "main",
+      "position": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "area_m2": 1.0,
+        "level_m": 1.0,
+        "height_m": 2.0,
+        "temperature_k": 303.15,
+        "evaporation_kg_s": 0.001,
+        "drift_kg_s": 0.0001
+      },
+      "draft_parameters": {},
+      "banks": [],
+      "model_id": null,
+      "model_version": null,
+      "package": null
+    },
+    {
+      "id": "Valve0",
+      "module_id": "valve",
+      "name": "Valve0",
+      "page_id": "main",
+      "position": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "opening_ratio": 0.0,
+        "kv_m3_h": 1.0
+      },
+      "draft_parameters": {},
+      "banks": [],
+      "model_id": null,
+      "model_version": null,
+      "package": null
+    },
+    {
+      "id": "Boundary0",
+      "module_id": "source",
+      "name": "Boundary0",
+      "page_id": "main",
+      "position": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "pressure_pa": 111000.0,
+        "temperature_k": 293.15
+      },
+      "draft_parameters": {},
+      "banks": [],
+      "model_id": null,
+      "model_version": null,
+      "package": null
+    },
+    {
+      "id": "Valve1",
+      "module_id": "valve",
+      "name": "Valve1",
+      "page_id": "main",
+      "position": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "opening_ratio": 0.0,
+        "kv_m3_h": 1.0
+      },
+      "draft_parameters": {},
+      "banks": [],
+      "model_id": null,
+      "model_version": null,
+      "package": null
+    },
+    {
+      "id": "Boundary1",
+      "module_id": "source",
+      "name": "Boundary1",
+      "page_id": "main",
+      "position": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "pressure_pa": 200000.0,
+        "temperature_k": 293.15
+      },
+      "draft_parameters": {},
+      "banks": [],
+      "model_id": null,
+      "model_version": null,
+      "package": null
+    },
+    {
+      "id": "Valve2",
+      "module_id": "valve",
+      "name": "Valve2",
+      "page_id": "main",
+      "position": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "opening_ratio": 0.0,
+        "kv_m3_h": 1.0
+      },
+      "draft_parameters": {},
+      "banks": [],
+      "model_id": null,
+      "model_version": null,
+      "package": null
+    },
+    {
+      "id": "Boundary2",
+      "module_id": "source",
+      "name": "Boundary2",
+      "page_id": "main",
+      "position": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "pressure_pa": 111000.0,
+        "temperature_k": 293.15
+      },
+      "draft_parameters": {},
+      "banks": [],
+      "model_id": null,
+      "model_version": null,
+      "package": null
+    },
+    {
+      "id": "Valve3",
+      "module_id": "valve",
+      "name": "Valve3",
+      "page_id": "main",
+      "position": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "opening_ratio": 0.0,
+        "kv_m3_h": 1.0
+      },
+      "draft_parameters": {},
+      "banks": [],
+      "model_id": null,
+      "model_version": null,
+      "package": null
+    },
+    {
+      "id": "Boundary3",
+      "module_id": "source",
+      "name": "Boundary3",
+      "page_id": "main",
+      "position": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "pressure_pa": 101325.0,
+        "temperature_k": 293.15
+      },
+      "draft_parameters": {},
+      "banks": [],
+      "model_id": null,
+      "model_version": null,
+      "package": null
+    }
+  ],
+  "connections": [
+    {
+      "id": "a0",
+      "source": {
+        "instance_id": "Boundary0",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Valve0",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "b0",
+      "source": {
+        "instance_id": "Valve0",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Pool",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "a1",
+      "source": {
+        "instance_id": "Boundary1",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Valve1",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "b1",
+      "source": {
+        "instance_id": "Valve1",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Pool",
+        "port_id": "in1"
+      }
+    },
+    {
+      "id": "a2",
+      "source": {
+        "instance_id": "Boundary2",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Valve2",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "b2",
+      "source": {
+        "instance_id": "Valve2",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Pool",
+        "port_id": "out0"
+      }
+    },
+    {
+      "id": "a3",
+      "source": {
+        "instance_id": "Boundary3",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Valve3",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "b3",
+      "source": {
+        "instance_id": "Valve3",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "Pool",
+        "port_id": "out1"
+      }
+    }
+  ],
+  "scenarios": [],
+  "selected_variables": [],
+  "import_diagnostics": [],
+  "solver": {
+    "module_mixed_jacobian": false,
+    "module_cache": false,
+    "pressure_tolerance_pa": 1.0,
+    "mass_tolerance_kg_s": 1e-08,
+    "max_iterations": 80,
+    "dynamic_step_s": 10.0,
+    "thermal": true,
+    "property_coupling": "node",
+    "thermal_tolerance_k": 1e-08,
+    "max_thermal_iterations": 50,
+    "max_coupling_iterations": 60,
+    "coupling_density_rtol": 1e-06,
+    "thermal_acceleration": "none",
+    "coupling_acceleration": "none",
+    "moist_air": false,
+    "max_step_halvings": 6,
+    "hydraulic_method": "dense",
+    "hydraulic_diagnostics": false,
+    "analytic_jacobian": true,
+    "series_compression": false,
+    "hydraulic_blocks": false,
+    "module_parallelism": 1,
+    "batch_modules": true,
+    "time_step": {
+      "enabled": false,
+      "mass_atol_kg": 1e-09,
+      "energy_atol_j": 0.001,
+      "temperature_atol_k": 1e-05,
+      "rtol": 1e-06,
+      "min_internal_step_s": 0.001,
+      "max_internal_step_s": null,
+      "safety": 0.9,
+      "growth_factor": 2.0,
+      "shrink_factor": 0.5
+    }
+  },
+  "controllers": [],
+  "control_scripts": [],
+  "circuit_fluids": [],
+  "events": []
+}

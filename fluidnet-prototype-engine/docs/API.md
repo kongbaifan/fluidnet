@@ -20,6 +20,8 @@
 | GET /api/v1/modules | 无 | `ModuleCatalogResponse`：可安装模块包和内置模块清单、版本与内容哈希 | 500 `MODULE_STORAGE_ERROR`；401/403 |
 | POST /api/v1/modules/validate | ModuleDefinition | `ValidationResponse`：契约、Python 语法、Worker 入口与四阶段签名诊断 | 422（请求体校验）；401/403 |
 | POST /api/v1/modules/test | ModuleTestRequest | `ModuleTestResponse`：独立边界求解，返回 evaluation、committed、frame、history | 422（含 `MODULE_WORKER_IO_ERROR`）；401/403 |
+| POST /api/v1/modules/replay | ModuleReplayRequest：replay为调用前失败快照 | `ModuleReplayResponse`：独立Worker执行一个冻结回调、原诊断匹配情况及结果；[范围](MODULE_FAILURE_REPLAY.md) | 422（快照/哈希/阶段无效或Worker错误）；401/403 |
+| GET /api/v1/runs/{run_id}/module-failure | 无 | `ModuleFailureResponse`：run_id、replay或null、diagnostics；来自终态档案，失败候选不混入接受帧 | 404、507；401/403 |
 | POST /api/v1/modules/design | ModuleDesignRequest | `ModuleDesignResponse`：独立 Worker 执行 design.py；返回 design_hash、parameters、changes、diagnostics | 422（非法输出，含 `MODULE_WORKER_IO_ERROR`）；401/403 |
 | POST /api/v1/modules/versions | ModuleSaveRequest | **201** `ModuleVersionResponse`：校验试算通过后保存新版本 | 409 `MODULE_VERSION_CONFLICT`、422 `MODULE_SAVE_INVALID`、500 `MODULE_STORAGE_ERROR`；401/403 |
 | GET /api/v1/modules/{module_id}/versions | 无 | `ModuleVersionsResponse`：倒序版本记录，未知模块返回空列表 | 500 `MODULE_STORAGE_ERROR`；401/403 |
@@ -214,6 +216,12 @@ scenario_id 指向 Project.scenarios。覆盖只修改本次运行的项目副�
 
 该示例取自 `contracts/reference-result.json`，省略了其他变量和归一化提示。valid 表示当前声明的水力方程和热力层（`thermal=True` 时）已通过验收；含水箱的动态帧还表示水箱储能方程已通过验收。`SolverOptions.thermal=False` 时热力变量为 null，指标中没有热力项。
 
+### 理想测点（2026-11-02）
+
+项目可用 `Project.measurements`（最多 64 项）声明理想测点，每项为 `{id, label, kind, sources, unit}`，`kind` 取 `value`（1 个输入）、`difference`（2 个，第一点减第二点）、`volume_flow`（质量流量 ÷ 密度）、`thermal_power`（质量流量 × 进出口比焓差）。测点结果写入每帧的 `measurement.<id>`，不新增网络方程，因此不改变水力/热力结果。
+
+任一输入缺失、非数值或非有限时结果为 `null` 并附 `MEASUREMENT_UNAVAILABLE` 诊断（不以零值代替）。编译期校验失败返回 `MEASUREMENT_INVALID`（未知引用、单位与计算类型不符、两点差值单位不同、显示单位带偏移、ID 重复）；带热耦合或非流体端口的项目报 `MEASUREMENT_DOMAIN_UNSUPPORTED`。绑定端口密度/比焓的测点要求 `solver.thermal=true`，纯水力项目里这类测点会得到 `null` 和诊断。测点可直接作为 PID 反馈变量（`measurement.<id>`）使用，`history='trend'` 时测点帧始终保留。
+
 ### 时间误差控制设置与指标（A0–A4）
 
 `Project.solver.time_step` 保存时间误差控制设置（`TimeStepOptions`）：`enabled`（默认 false）、`mass_atol_kg`、`energy_atol_j`、`temperature_atol_k`、`rtol`、`min_internal_step_s`、`max_internal_step_s`（null 表示沿用 `dynamic_step_s`）、`safety`、`growth_factor`、`shrink_factor`。项目保存/恢复、工况复制和运行请求都携带这些字段；缺字段按旧固定步长行为解释。首轮只在理想热模型（`thermal`）与冷库 B（`refrigeration`）生效，其他执行域开启时编译/建会话报 `TIMESTEP_DOMAIN_UNSUPPORTED`。
@@ -253,7 +261,7 @@ POST /runs 对类型正确但编译或求解失败的请求仍创建可查询的
 
 需要 format=`fluidnet-studio-prototype`、modules、projects 和可选 activeProject。只处理活动项目使用的模块；库中未使用的 PID、物性等原型模块不会阻塞水力项目。
 
-支持内置模型及其复制模块（kind 指向已注册模型），以及 runtime=python 的完整清单/前端 manifest 快照，保留实例原有 ID。Python 参数使用清单 ID，显示单位通过 UnitSpec 转换，不能丢弃 entrypoint/source/content_hash。端口/通路 ID 必须与注册模型相容，读取真实端口领域、通路端点和 enabled 状态。编辑为非流体端口或禁用必要通路会在检查/求解时报错。
+支持内置模型及其复制模块（kind 指向已注册模型），以及 runtime=python 的完整清单/前端 manifest 快照，保留实例原有 ID。Python 参数使用清单 ID，显示单位通过 UnitSpec 转换，不能丢弃 entrypoint/source/content_hash。端口/通路 ID 必须与注册模型相容，读取真实端口领域、通路端点和 enabled 状态。编辑为非流体端口或禁用必要通路会在检查/求解时报错。原型导出中的 `measurements` 按规范 `MeasurementSpec` 原样保留，引用名随模块版本迁移一起改写。
 
 原型项目的 `moduleSnapshots` 以模块 ID 保存已绑定定义，归一化时优先于全局模块库和编辑草稿。实例 `package` 进入规范合同；已有版本快照不随目录更新。原型格式仍由浏览器导出保存，模块发布不替代项目文件持久化。
 
@@ -386,3 +394,6 @@ Worker RPC 超时默认 10 秒，超时返回 `MODULE_RUNTIME_TIMEOUT` 并终止
 ```
 
 完整对象见 `contracts/air-*.schema.json`、`contracts/moist-air-options.schema.json` 及 OpenAPI。示例可通过 `/examples/{name}` 获取，见[示例目录](../examples/air-side/README.md)。操作与质量基准见[风侧使用说明](AIR_SIDE_USER_GUIDE.md)。
+
+
+2026-11-06增补：设备组与设计库`GET /api/v1/equipment-library`、`POST /api/v1/equipment-library/project`；几何盘管`POST /api/v1/equipment-library/coil-geometry`；系统预检`POST /api/v1/project-inspection`；冻结解释`GET /api/v1/runs/{run_id}/inspection`；末帧对照`GET /api/v1/inspection/compare?a=...&b=...`。严格请求/响应见生成OpenAPI，使用与边界见[阶段交付](FORWARD_IMPLEMENTATION_PROGRESS.md)。

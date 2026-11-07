@@ -1,5 +1,7 @@
 # NH3CO2ZL 工程案例映射（M2-C 第二部分）
 
+> 2026-11-05复核：新增原始资料包已直接核对，重新提取的完整对象JSON与现有fixture相等。本文保留2026-10-22的降阶映射；当前新增设备及源码差距见[原始资料核对](BASELU_SOURCE_INTAKE_2026_11_05.md)。原PJTDB没有明确连接表，但工程PNG可供人工确认局部连线；“不能迁移拓扑”专指不能据数据库自动恢复整站。
+
 > 范围：把倍思鹿 `NH3CO2ZL` 工程（63 节点 / 222 模块）映射为 FluidNet 的
 > `station_case`（NH₃/CO₂ 集总制冷站，`backend/fn_engine/refrigeration/examples.py`），
 > 说明可迁移与不可迁移的内容，并给出一个不依赖原拓扑的“最小可运行替代方案”。
@@ -29,7 +31,7 @@
 | 提取脚本 | `scripts/extract_nh3co2zl_parameters.py`（argparse，默认自动定位资料包） |
 | fixture | `tests/fixtures/nh3co2zl/parameters.json`（1,626,500 字节，UTF-8） |
 | 复现 | `python scripts/extract_nh3co2zl_parameters.py` |
-| SHA256 | `940276B0AB806930DFFE7683BDD35229B86E31E092B05F354D788725A6F11225` |
+| fixture SHA256（LF生成内容，非原PJTDB） | `940276B0AB806930DFFE7683BDD35229B86E31E092B05F354D788725A6F11225` |
 
 脚本不 `import extract_baselu_cases`，只复刻其解析思路（同一套 `runing()` 前全局变量
 识别规则），因此两个提取器可以各自演进。连续运行两次输出字节完全一致；`module_guess`、
@@ -101,7 +103,7 @@
 
 1. `.pjt` 文件首字节为 `G8sjjUgsolggJg37QRty…`，不是 JSON；`AlgModule/*.Modu`
    同样以 `VFeLG8qh…` 开头，34 个模块文件全部是加密二进制。
-2. PJTDB 顶层只有 `NOD0–62`、`MOD0–221`、`PjtVarValue`；递归扫描全库，
+2. PJTDB 顶层只有63个`NOD*`、222个`MOD*`及`PjtVarValue`；MOD编号非连续，最大305。递归扫描全库，
    **字符串值数量为 0**，即没有对象名、位号、管道编号、端口名或邻接关系。
 3. `MOD` 的变量是组件内部状态（进出口集总量 + 计算量），没有 `IN/OUT` 端口索引，
    也没有 `MOD_x → MOD_y` 的字段。
@@ -110,7 +112,7 @@
 
 ### 3.3 两相只在设备内部
 
-- 倍思鹿侧：`EX0_X`/`IM0_X` 是 8 分量的相分数数组，干度只出现在组件端口；
+- 倍思鹿侧：`EX0_X`/`IM0_X` 是组分数组，不是干度；
   `EX0_Q`/`IM0_Q` 里 `-998`/`998` 是“不适用/单相”哨兵值。
 - FluidNet 侧：`devices.py` 规定“压力只存在于饱和容器”，`station.py` 明确
   管网不做两相流（`ALGORITHM.md` 把网络两相流列为范围外）。

@@ -5,8 +5,9 @@ import math
 from typing import Any
 
 from .catalog import catalog_map, cold_store_catalog, refrigeration_catalog, thermal_catalog
-from .models import (ChannelSpec, Connection, Diagnostic, Endpoint, FluidConfig, LibraryBank, ModuleInstance, PortSpec,
-                     Position, Project, SolverOptions)
+from ._module_schema_v1 import ChannelSpec, PortSpec
+from .model_types.domain import Connection, Endpoint, LibraryBank, ModuleInstance, Position, Project, SolverOptions
+from .model_types.base import Diagnostic, FluidConfig
 
 # Prototype project `medium` -> CoolProp fluid string for the single project fluid. Range checks
 # (temperature/pressure per fluid) are done by the engine; one fluid per project until phase B.
@@ -38,10 +39,10 @@ PARAMETER_BINDINGS = {
        for definition in (*thermal_catalog(), *cold_store_catalog(), *refrigeration_catalog())},
 }
 
-# 新风侧设备使用合同参数 ID；UI 值仍按 UnitSpec 显示单位保存。
-for _air_definition in catalog_map().values():
-    if _air_definition.id in ('duct','cooling_coil','humidifier','air_mixing_box','air_filter','air_room','cooling_tower_moist','water_coil','water_chiller'):
-        PARAMETER_BINDINGS[_air_definition.id] = {p.id:p.id for p in _air_definition.parameters}
+# Devices without prototype-era aliases use canonical IDs, with UI display units
+# still supplied by UnitSpec. New catalog members need no second model-ID list.
+for _definition in catalog_map().values():
+    PARAMETER_BINDINGS.setdefault(_definition.id, {p.id: p.id for p in _definition.parameters})
 
 
 def parameter_map(kind, params, definition):
@@ -109,7 +110,7 @@ def normalize_prototype_export(data: dict[str, Any]) -> Project:
             # The manifest is the source of truth for a versioned package. It
             # is still constrained by the registered hydraulic solver model,
             # but its ports, parameters, channels and source remain intact.
-            from .models import ModuleDefinition
+            from .model_types.module import ModuleDefinition
             allowed = set(ModuleDefinition.model_fields)
             manifest = deepcopy(original.get('manifest', original))
             if original.get('manifest') and not original.get('frozen'):
@@ -210,8 +211,9 @@ def normalize_prototype_export(data: dict[str, Any]) -> Project:
         modules=list(definitions.values()),instances=instances,connections=connections,import_diagnostics=diagnostics,
         controllers=raw.get('controllers', []),
         control_scripts=raw.get('controlScripts', []),
-        thermal_couplings=couplings,
+        coupling_mode=raw.get('couplingMode','legacy'), thermal_couplings=couplings,
         scenarios=scenarios,selected_variables=deepcopy(raw.get('selectedVariables', [])),
+        measurements=deepcopy(raw.get('measurements', [])),
         events=deepcopy(raw.get('events', [])),
         circuit_fluids=[{'id': c['id'], 'anchor': c['anchor'], 'fluid': prototype_fluid(c)}
                         for c in raw.get('circuitFluids', [])],

@@ -282,18 +282,20 @@ def test_contract_check_cli_passes_without_writing():
 # ---- 契约完整性（v0.4.10，task-3）：所有路由有响应模型，错误包络与错误码集中登记 ----
 
 API_PREFIX='/api/'
-# 二进制下载没有 JSON response_model；OpenAPI 里已显式声明 application/zip 的 content schema。
+# 原始文件下载没有 JSON response_model；OpenAPI 里须显式声明各下载格式的 content schema。
 RESPONSE_MODEL_EXCEPTIONS={
     '/api/v1/workspace/backup': 'application/zip 二进制下载（FileResponse），由 responses= 声明二进制 schema',
     '/api/v1/runs/{run_id}/report.csv': 'text/csv 下载（冷库运行曲线数据）',
     '/api/v1/runs/{run_id}/report.html': 'text/html 下载（冷库运行报告）',
     '/api/v1/runs/compare/report.html': 'text/html 下载（两次运行对照报告）',
     '/api/v1/batches/{batch_id}/export': 'text/csv 下载（批次比较表）',
+    '/api/v1/performance-data/{identifier}/versions/{version}/export': '原始 CSV/JSON 文件字节下载，由 responses= 声明二进制 schema',
 }
 # 白名单路由的成功响应媒体类型。
 EXCEPTION_MEDIA={'/api/v1/workspace/backup': 'application/zip', '/api/v1/runs/{run_id}/report.csv': 'text/csv',
                  '/api/v1/runs/{run_id}/report.html': 'text/html', '/api/v1/runs/compare/report.html': 'text/html',
-                 '/api/v1/batches/{batch_id}/export': 'text/csv'}
+                 '/api/v1/batches/{batch_id}/export': 'text/csv',
+                 '/api/v1/performance-data/{identifier}/versions/{version}/export': ('text/csv','application/json')}
 # 运行时由 api.py 写进 detail.code 的静态错误码；诊断码（编译/求解/物性）另行透传，见 errors.DIAGNOSTIC_CODES。
 EXPECTED_ERROR_CODES={
     'AUTH_REQUIRED', 'AUTH_SCOPE', 'RUN_NOT_FOUND', 'PROJECT_CONFLICT', 'WORKSPACE_CONFLICT',
@@ -317,8 +319,8 @@ def api_http_routes():
 
 def test_every_api_route_has_response_model_or_whitelist():
     routes=api_http_routes()
-    # 批量工况 10 条、风侧查询/迁移 5 条；包括 included router 中的路由。
-    assert len(routes)==60,f'HTTP 路由数量变化：{len(routes)}'
+    # 包括 included router；设备/诊断等此前新增 7 条，本次性能资料/开放组合新增 9 条。
+    assert len(routes)==76,f'HTTP 路由数量变化：{len(routes)}'
     missing=[f'{sorted(route.methods)} {route.path}' for route in routes
              if route.response_model is None and route.path not in RESPONSE_MODEL_EXCEPTIONS]
     assert missing==[],f'以下路由缺少 response_model 且不在白名单：{missing}'
@@ -338,7 +340,9 @@ def test_every_success_response_has_openapi_schema():
                     continue
                 content=response.get('content') or {}
                 if path in RESPONSE_MODEL_EXCEPTIONS:
-                    assert 'schema' in content.get(EXCEPTION_MEDIA[path],{}),f'{method.upper()} {path} 缺少下载内容 schema'
+                    media_types=EXCEPTION_MEDIA[path]
+                    for media in (media_types,) if isinstance(media_types,str) else media_types:
+                        assert 'schema' in content.get(media,{}),f'{method.upper()} {path} 缺少 {media} 下载内容 schema'
                     continue
                 if 'schema' not in (content.get('application/json') or {}):
                     missing.append(f'{method.upper()} {path} {status}')

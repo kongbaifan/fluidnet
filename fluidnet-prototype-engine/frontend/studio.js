@@ -1,7 +1,42 @@
+import {DeviceBatchEditor} from './device-batch.js';
+import {EquipmentSelection} from './equipment-selection.js';
+import {FluidNetActionRouter} from './action-router.js';
+import {FluidNetApiExamples} from './api-examples.js';
+import {FluidNetCanvasSymbols} from './canvas-symbols.js';
+import {FluidNetCanvasWorkspace} from './canvas-workspace.js';
+import {FluidNetControls} from './control-programs.js';
+import {FluidNetDeviceApplication} from './device-application.js';
+import {FluidNetDeviceWindows} from './device-windows.js';
+import {FluidNetDraftStore} from './draft-store.js';
+import {FluidNetLinks} from './project-links.js';
+import {FluidNetModuleEditorView} from './module-editor-view.js';
+import {FluidNetPanelLayout} from './panel-layout.js';
+import {FluidNetPathTrace} from './path-trace.js';
+import {FluidNetPerformanceData} from './performance-library.js';
+import {FluidNetProjectEditing} from './project-editing.js';
+import {FluidNetProjectModel} from './project-model.js';
+import {FluidNetProjectRunState} from './project-run-state.js';
+import {FluidNetProjectState} from './project-state.js';
+import {FluidNetRunResultsView} from './run-results-view.js';
+import {FluidNetSvgDom} from './svg-dom.js';
+import {FluidNetWorkbenchRefresh} from './workbench-refresh.js';
+import {FluidNetWorkspaceInteractions} from './workspace-interactions.js';
+import {FluidNetWorkspaceNormalization} from './workspace-normalization.js';
+import {FluidNetWorkspaceStorage} from './workspace-storage.js';
+import {ModuleTestEditor} from './module-test-editor.js';
+import {createAirSideUI} from './air-side.js';
+import {createColdStorageUI} from './cold-storage.js';
+import {createDevicePanel} from './device-panel.js';
+import {createEngineClient} from './engine-client.js';
+import {createEquipmentLibrary} from './equipment-library.js';
+import {createModelingWorkflows} from './modeling-workflows.js';
+import {createModuleReplayUI} from './module-replay-adapter.js';
+import {createScenarioBatchesUI} from './scenario-batches.js';
+import {createSystemInspection} from './system-inspection.js';
 
-(() => {
+export function startStudio() {
 'use strict';
-const ICONS = {"Activity":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-activity\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2\"></path></svg>","ArrowDownToLine":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-arrow-down-to-line\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M12 17V3\"></path><path d=\"m6 11 6 6 6-6\"></path><path d=\"M19 21H5\"></path></svg>","ArrowRight":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-arrow-right\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M5 12h14\"></path><path d=\"m12 5 7 7-7 7\"></path></svg>","ArrowRightLeft":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-arrow-right-left\" aria-hidden=\"true\" focusable=\"false\"><path d=\"m16 3 4 4-4 4\"></path><path d=\"M20 7H4\"></path><path d=\"m8 21-4-4 4-4\"></path><path d=\"M4 17h16\"></path></svg>","ArrowUpRight":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-arrow-up-right\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M7 7h10v10\"></path><path d=\"M7 17 17 7\"></path></svg>","Bell":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-bell\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M10.268 21a2 2 0 0 0 3.464 0\"></path><path d=\"M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326\"></path></svg>","BookOpen":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-book-open\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M12 7v14\"></path><path d=\"M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z\"></path></svg>","Box":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-box\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z\"></path><path d=\"m3.3 7 8.7 5 8.7-5\"></path><path d=\"M12 22V12\"></path></svg>","Boxes":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-boxes\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M2.97 12.92A2 2 0 0 0 2 14.63v3.24a2 2 0 0 0 .97 1.71l3 1.8a2 2 0 0 0 2.06 0L12 19v-5.5l-5-3-4.03 2.42Z\"></path><path d=\"m7 16.5-4.74-2.85\"></path><path d=\"m7 16.5 5-3\"></path><path d=\"M7 16.5v5.17\"></path><path d=\"M12 13.5V19l3.97 2.38a2 2 0 0 0 2.06 0l3-1.8a2 2 0 0 0 .97-1.71v-3.24a2 2 0 0 0-.97-1.71L17 10.5l-5 3Z\"></path><path d=\"m17 16.5-5-3\"></path><path d=\"m17 16.5 4.74-2.85\"></path><path d=\"M17 16.5v5.17\"></path><path d=\"M7.97 4.42A2 2 0 0 0 7 6.13v4.37l5 3 5-3V6.13a2 2 0 0 0-.97-1.71l-3-1.8a2 2 0 0 0-2.06 0l-3 1.8Z\"></path><path d=\"M12 8 7.26 5.15\"></path><path d=\"m12 8 4.74-2.85\"></path><path d=\"M12 13.5V8\"></path></svg>","Braces":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-braces\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5c0 1.1.9 2 2 2h1\"></path><path d=\"M16 21h1a2 2 0 0 0 2-2v-5c0-1.1.9-2 2-2a2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1\"></path></svg>","Cable":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-cable\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M17 21v-2a1 1 0 0 1-1-1v-1a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v1a1 1 0 0 1-1 1\"></path><path d=\"M19 15V6.5a1 1 0 0 0-7 0v11a1 1 0 0 1-7 0V9\"></path><path d=\"M21 21v-2h-4\"></path><path d=\"M3 5h4V3\"></path><path d=\"M7 5a1 1 0 0 1 1 1v1a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a1 1 0 0 1 1-1V3\"></path></svg>","Check":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-check\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M20 6 9 17l-5-5\"></path></svg>","CheckCheck":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-check-check\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M18 6 7 17l-5-5\"></path><path d=\"m22 10-7.5 7.5L13 16\"></path></svg>","CheckCircle2":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-circle-check\" aria-hidden=\"true\" focusable=\"false\"><circle cx=\"12\" cy=\"12\" r=\"10\"></circle><path d=\"m9 12 2 2 4-4\"></path></svg>","ChevronDown":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-chevron-down\" aria-hidden=\"true\" focusable=\"false\"><path d=\"m6 9 6 6 6-6\"></path></svg>","ChevronLeft":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-chevron-left\" aria-hidden=\"true\" focusable=\"false\"><path d=\"m15 18-6-6 6-6\"></path></svg>","ChevronRight":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-chevron-right\" aria-hidden=\"true\" focusable=\"false\"><path d=\"m9 18 6-6-6-6\"></path></svg>","Circle":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-circle\" aria-hidden=\"true\" focusable=\"false\"><circle cx=\"12\" cy=\"12\" r=\"10\"></circle></svg>","CircleDot":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-circle-dot\" aria-hidden=\"true\" focusable=\"false\"><circle cx=\"12\" cy=\"12\" r=\"10\"></circle><circle cx=\"12\" cy=\"12\" r=\"1\"></circle></svg>","CircleHelp":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-circle-help\" aria-hidden=\"true\" focusable=\"false\"><circle cx=\"12\" cy=\"12\" r=\"10\"></circle><path d=\"M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3\"></path><path d=\"M12 17h.01\"></path></svg>","CirclePlus":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-circle-plus\" aria-hidden=\"true\" focusable=\"false\"><circle cx=\"12\" cy=\"12\" r=\"10\"></circle><path d=\"M8 12h8\"></path><path d=\"M12 8v8\"></path></svg>","Clipboard":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-clipboard\" aria-hidden=\"true\" focusable=\"false\"><rect width=\"8\" height=\"4\" x=\"8\" y=\"2\" rx=\"1\" ry=\"1\"></rect><path d=\"M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2\"></path></svg>","Clock3":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-clock3\" aria-hidden=\"true\" focusable=\"false\"><circle cx=\"12\" cy=\"12\" r=\"10\"></circle><polyline points=\"12 6 12 12 16.5 12\"></polyline></svg>","Code2":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-code-xml\" aria-hidden=\"true\" focusable=\"false\"><path d=\"m18 16 4-4-4-4\"></path><path d=\"m6 8-4 4 4 4\"></path><path d=\"m14.5 4-5 16\"></path></svg>","Columns2":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-columns2\" aria-hidden=\"true\" focusable=\"false\"><rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\"></rect><path d=\"M12 3v18\"></path></svg>","Copy":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-copy\" aria-hidden=\"true\" focusable=\"false\"><rect width=\"14\" height=\"14\" x=\"8\" y=\"8\" rx=\"2\" ry=\"2\"></rect><path d=\"M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2\"></path></svg>","Database":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-database\" aria-hidden=\"true\" focusable=\"false\"><ellipse cx=\"12\" cy=\"5\" rx=\"9\" ry=\"3\"></ellipse><path d=\"M3 5V19A9 3 0 0 0 21 19V5\"></path><path d=\"M3 12A9 3 0 0 0 21 12\"></path></svg>","Download":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-download\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"></path><polyline points=\"7 10 12 15 17 10\"></polyline><line x1=\"12\" x2=\"12\" y1=\"15\" y2=\"3\"></line></svg>","Droplets":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-droplets\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M7 16.3c2.2 0 4-1.83 4-4.05 0-1.16-.57-2.26-1.71-3.19S7.29 6.75 7 5.3c-.29 1.45-1.14 2.84-2.29 3.76S3 11.1 3 12.25c0 2.22 1.8 4.05 4 4.05z\"></path><path d=\"M12.56 6.6A10.97 10.97 0 0 0 14 3.02c.5 2.5 2 4.9 4 6.5s3 3.5 3 5.5a6.98 6.98 0 0 1-11.91 4.97\"></path></svg>","Ellipsis":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-ellipsis\" aria-hidden=\"true\" focusable=\"false\"><circle cx=\"12\" cy=\"12\" r=\"1\"></circle><circle cx=\"19\" cy=\"12\" r=\"1\"></circle><circle cx=\"5\" cy=\"12\" r=\"1\"></circle></svg>","ExternalLink":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-external-link\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M15 3h6v6\"></path><path d=\"M10 14 21 3\"></path><path d=\"M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6\"></path></svg>","Eye":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-eye\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0\"></path><circle cx=\"12\" cy=\"12\" r=\"3\"></circle></svg>","FileCode2":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-file-code2\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M4 22h14a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v4\"></path><path d=\"M14 2v4a2 2 0 0 0 2 2h4\"></path><path d=\"m5 12-3 3 3 3\"></path><path d=\"m9 18 3-3-3-3\"></path></svg>","FileJson":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-file-json\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z\"></path><path d=\"M14 2v4a2 2 0 0 0 2 2h4\"></path><path d=\"M10 12a1 1 0 0 0-1 1v1a1 1 0 0 1-1 1 1 1 0 0 1 1 1v1a1 1 0 0 0 1 1\"></path><path d=\"M14 18a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1 1 1 0 0 1-1-1v-1a1 1 0 0 0-1-1\"></path></svg>","FileText":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-file-text\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z\"></path><path d=\"M14 2v4a2 2 0 0 0 2 2h4\"></path><path d=\"M10 9H8\"></path><path d=\"M16 13H8\"></path><path d=\"M16 17H8\"></path></svg>","Filter":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-filter\" aria-hidden=\"true\" focusable=\"false\"><polygon points=\"22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3\"></polygon></svg>","Flame":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-flame\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z\"></path></svg>","Folder":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-folder\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z\"></path></svg>","FolderOpen":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-folder-open\" aria-hidden=\"true\" focusable=\"false\"><path d=\"m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2\"></path></svg>","Gauge":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-gauge\" aria-hidden=\"true\" focusable=\"false\"><path d=\"m12 14 4-4\"></path><path d=\"M3.34 19a10 10 0 1 1 17.32 0\"></path></svg>","GitBranch":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-git-branch\" aria-hidden=\"true\" focusable=\"false\"><line x1=\"6\" x2=\"6\" y1=\"3\" y2=\"15\"></line><circle cx=\"18\" cy=\"6\" r=\"3\"></circle><circle cx=\"6\" cy=\"18\" r=\"3\"></circle><path d=\"M18 9a9 9 0 0 1-9 9\"></path></svg>","GitCompareArrows":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-git-compare-arrows\" aria-hidden=\"true\" focusable=\"false\"><circle cx=\"5\" cy=\"6\" r=\"3\"></circle><path d=\"M12 6h5a2 2 0 0 1 2 2v7\"></path><path d=\"m15 9-3-3 3-3\"></path><circle cx=\"19\" cy=\"18\" r=\"3\"></circle><path d=\"M12 18H7a2 2 0 0 1-2-2V9\"></path><path d=\"m9 15 3 3-3 3\"></path></svg>","Grid2X2":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-grid2x2\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M12 3v18\"></path><path d=\"M3 12h18\"></path><rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"></rect></svg>","Grip":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-grip\" aria-hidden=\"true\" focusable=\"false\"><circle cx=\"12\" cy=\"5\" r=\"1\"></circle><circle cx=\"19\" cy=\"5\" r=\"1\"></circle><circle cx=\"5\" cy=\"5\" r=\"1\"></circle><circle cx=\"12\" cy=\"12\" r=\"1\"></circle><circle cx=\"19\" cy=\"12\" r=\"1\"></circle><circle cx=\"5\" cy=\"12\" r=\"1\"></circle><circle cx=\"12\" cy=\"19\" r=\"1\"></circle><circle cx=\"19\" cy=\"19\" r=\"1\"></circle><circle cx=\"5\" cy=\"19\" r=\"1\"></circle></svg>","GripVertical":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-grip-vertical\" aria-hidden=\"true\" focusable=\"false\"><circle cx=\"9\" cy=\"12\" r=\"1\"></circle><circle cx=\"9\" cy=\"5\" r=\"1\"></circle><circle cx=\"9\" cy=\"19\" r=\"1\"></circle><circle cx=\"15\" cy=\"12\" r=\"1\"></circle><circle cx=\"15\" cy=\"5\" r=\"1\"></circle><circle cx=\"15\" cy=\"19\" r=\"1\"></circle></svg>","History":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-history\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8\"></path><path d=\"M3 3v5h5\"></path><path d=\"M12 7v5l4 2\"></path></svg>","Home":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-house\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8\"></path><path d=\"M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z\"></path></svg>","Info":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-info\" aria-hidden=\"true\" focusable=\"false\"><circle cx=\"12\" cy=\"12\" r=\"10\"></circle><path d=\"M12 16v-4\"></path><path d=\"M12 8h.01\"></path></svg>","Keyboard":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-keyboard\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M10 8h.01\"></path><path d=\"M12 12h.01\"></path><path d=\"M14 8h.01\"></path><path d=\"M16 12h.01\"></path><path d=\"M18 8h.01\"></path><path d=\"M6 8h.01\"></path><path d=\"M7 16h10\"></path><path d=\"M8 12h.01\"></path><rect width=\"20\" height=\"16\" x=\"2\" y=\"4\" rx=\"2\"></rect></svg>","Layers":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-layers\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z\"></path><path d=\"M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12\"></path><path d=\"M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17\"></path></svg>","LayoutDashboard":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-layout-dashboard\" aria-hidden=\"true\" focusable=\"false\"><rect width=\"7\" height=\"9\" x=\"3\" y=\"3\" rx=\"1\"></rect><rect width=\"7\" height=\"5\" x=\"14\" y=\"3\" rx=\"1\"></rect><rect width=\"7\" height=\"9\" x=\"14\" y=\"12\" rx=\"1\"></rect><rect width=\"7\" height=\"5\" x=\"3\" y=\"16\" rx=\"1\"></rect></svg>","List":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-list\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M3 12h.01\"></path><path d=\"M3 18h.01\"></path><path d=\"M3 6h.01\"></path><path d=\"M8 12h13\"></path><path d=\"M8 18h13\"></path><path d=\"M8 6h13\"></path></svg>","ListChecks":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-list-checks\" aria-hidden=\"true\" focusable=\"false\"><path d=\"m3 17 2 2 4-4\"></path><path d=\"m3 7 2 2 4-4\"></path><path d=\"M13 6h8\"></path><path d=\"M13 12h8\"></path><path d=\"M13 18h8\"></path></svg>","Lock":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-lock\" aria-hidden=\"true\" focusable=\"false\"><rect width=\"18\" height=\"11\" x=\"3\" y=\"11\" rx=\"2\" ry=\"2\"></rect><path d=\"M7 11V7a5 5 0 0 1 10 0v4\"></path></svg>","Maximize2":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-maximize2\" aria-hidden=\"true\" focusable=\"false\"><polyline points=\"15 3 21 3 21 9\"></polyline><polyline points=\"9 21 3 21 3 15\"></polyline><line x1=\"21\" x2=\"14\" y1=\"3\" y2=\"10\"></line><line x1=\"3\" x2=\"10\" y1=\"21\" y2=\"14\"></line></svg>","MessageSquare":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-message-square\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z\"></path></svg>","Minimize2":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-minimize2\" aria-hidden=\"true\" focusable=\"false\"><polyline points=\"4 14 10 14 10 20\"></polyline><polyline points=\"20 10 14 10 14 4\"></polyline><line x1=\"14\" x2=\"21\" y1=\"10\" y2=\"3\"></line><line x1=\"3\" x2=\"10\" y1=\"21\" y2=\"14\"></line></svg>","Minus":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-minus\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M5 12h14\"></path></svg>","Monitor":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-monitor\" aria-hidden=\"true\" focusable=\"false\"><rect width=\"20\" height=\"14\" x=\"2\" y=\"3\" rx=\"2\"></rect><line x1=\"8\" x2=\"16\" y1=\"21\" y2=\"21\"></line><line x1=\"12\" x2=\"12\" y1=\"17\" y2=\"21\"></line></svg>","Moon":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-moon\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z\"></path></svg>","MoreHorizontal":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-ellipsis\" aria-hidden=\"true\" focusable=\"false\"><circle cx=\"12\" cy=\"12\" r=\"1\"></circle><circle cx=\"19\" cy=\"12\" r=\"1\"></circle><circle cx=\"5\" cy=\"12\" r=\"1\"></circle></svg>","MousePointer2":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-mouse-pointer2\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M4.037 4.688a.495.495 0 0 1 .651-.651l16 6.5a.5.5 0 0 1-.063.947l-6.124 1.58a2 2 0 0 0-1.438 1.435l-1.579 6.126a.5.5 0 0 1-.947.063z\"></path></svg>","Move":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-move\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M12 2v20\"></path><path d=\"m15 19-3 3-3-3\"></path><path d=\"m19 9 3 3-3 3\"></path><path d=\"M2 12h20\"></path><path d=\"m5 9-3 3 3 3\"></path><path d=\"m9 5 3-3 3 3\"></path></svg>","Network":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-network\" aria-hidden=\"true\" focusable=\"false\"><rect x=\"16\" y=\"16\" width=\"6\" height=\"6\" rx=\"1\"></rect><rect x=\"2\" y=\"16\" width=\"6\" height=\"6\" rx=\"1\"></rect><rect x=\"9\" y=\"2\" width=\"6\" height=\"6\" rx=\"1\"></rect><path d=\"M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3\"></path><path d=\"M12 12V8\"></path></svg>","PanelLeftClose":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-panel-left-close\" aria-hidden=\"true\" focusable=\"false\"><rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\"></rect><path d=\"M9 3v18\"></path><path d=\"m16 15-3-3 3-3\"></path></svg>","PanelLeftOpen":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-panel-left-open\" aria-hidden=\"true\" focusable=\"false\"><rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\"></rect><path d=\"M9 3v18\"></path><path d=\"m14 9 3 3-3 3\"></path></svg>","Pause":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-pause\" aria-hidden=\"true\" focusable=\"false\"><rect x=\"14\" y=\"4\" width=\"4\" height=\"16\" rx=\"1\"></rect><rect x=\"6\" y=\"4\" width=\"4\" height=\"16\" rx=\"1\"></rect></svg>","Pencil":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-pencil\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z\"></path><path d=\"m15 5 4 4\"></path></svg>","Pin":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-pin\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M12 17v5\"></path><path d=\"M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z\"></path></svg>","Play":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-play\" aria-hidden=\"true\" focusable=\"false\"><polygon points=\"6 3 20 12 6 21 6 3\"></polygon></svg>","Plug":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-plug\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M12 22v-5\"></path><path d=\"M9 8V2\"></path><path d=\"M15 8V2\"></path><path d=\"M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z\"></path></svg>","Plus":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-plus\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M5 12h14\"></path><path d=\"M12 5v14\"></path></svg>","Redo2":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-redo2\" aria-hidden=\"true\" focusable=\"false\"><path d=\"m15 14 5-5-5-5\"></path><path d=\"M20 9H9.5A5.5 5.5 0 0 0 4 14.5A5.5 5.5 0 0 0 9.5 20H13\"></path></svg>","RefreshCw":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-refresh-cw\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8\"></path><path d=\"M21 3v5h-5\"></path><path d=\"M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16\"></path><path d=\"M8 16H3v5\"></path></svg>","RotateCcw":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-rotate-ccw\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8\"></path><path d=\"M3 3v5h5\"></path></svg>","RotateCw":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-rotate-cw\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8\"></path><path d=\"M21 3v5h-5\"></path></svg>","Save":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-save\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z\"></path><path d=\"M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7\"></path><path d=\"M7 3v4a1 1 0 0 0 1 1h7\"></path></svg>","Scan":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-scan\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M3 7V5a2 2 0 0 1 2-2h2\"></path><path d=\"M17 3h2a2 2 0 0 1 2 2v2\"></path><path d=\"M21 17v2a2 2 0 0 1-2 2h-2\"></path><path d=\"M7 21H5a2 2 0 0 1-2-2v-2\"></path></svg>","Search":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-search\" aria-hidden=\"true\" focusable=\"false\"><circle cx=\"11\" cy=\"11\" r=\"8\"></circle><path d=\"m21 21-4.3-4.3\"></path></svg>","Settings2":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-settings2\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M20 7h-9\"></path><path d=\"M14 17H5\"></path><circle cx=\"17\" cy=\"17\" r=\"3\"></circle><circle cx=\"7\" cy=\"7\" r=\"3\"></circle></svg>","ShieldCheck":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-shield-check\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z\"></path><path d=\"m9 12 2 2 4-4\"></path></svg>","SlidersHorizontal":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-sliders-horizontal\" aria-hidden=\"true\" focusable=\"false\"><line x1=\"21\" x2=\"14\" y1=\"4\" y2=\"4\"></line><line x1=\"10\" x2=\"3\" y1=\"4\" y2=\"4\"></line><line x1=\"21\" x2=\"12\" y1=\"12\" y2=\"12\"></line><line x1=\"8\" x2=\"3\" y1=\"12\" y2=\"12\"></line><line x1=\"21\" x2=\"16\" y1=\"20\" y2=\"20\"></line><line x1=\"12\" x2=\"3\" y1=\"20\" y2=\"20\"></line><line x1=\"14\" x2=\"14\" y1=\"2\" y2=\"6\"></line><line x1=\"8\" x2=\"8\" y1=\"10\" y2=\"14\"></line><line x1=\"16\" x2=\"16\" y1=\"18\" y2=\"22\"></line></svg>","Square":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-square\" aria-hidden=\"true\" focusable=\"false\"><rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\"></rect></svg>","SquareDashed":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-square-dashed\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M5 3a2 2 0 0 0-2 2\"></path><path d=\"M19 3a2 2 0 0 1 2 2\"></path><path d=\"M21 19a2 2 0 0 1-2 2\"></path><path d=\"M5 21a2 2 0 0 1-2-2\"></path><path d=\"M9 3h1\"></path><path d=\"M9 21h1\"></path><path d=\"M14 3h1\"></path><path d=\"M14 21h1\"></path><path d=\"M3 9v1\"></path><path d=\"M21 9v1\"></path><path d=\"M3 14v1\"></path><path d=\"M21 14v1\"></path></svg>","Star":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-star\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z\"></path></svg>","StepForward":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-step-forward\" aria-hidden=\"true\" focusable=\"false\"><line x1=\"6\" x2=\"6\" y1=\"4\" y2=\"20\"></line><polygon points=\"10,4 20,12 10,20\"></polygon></svg>","Sun":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-sun\" aria-hidden=\"true\" focusable=\"false\"><circle cx=\"12\" cy=\"12\" r=\"4\"></circle><path d=\"M12 2v2\"></path><path d=\"M12 20v2\"></path><path d=\"m4.93 4.93 1.41 1.41\"></path><path d=\"m17.66 17.66 1.41 1.41\"></path><path d=\"M2 12h2\"></path><path d=\"M20 12h2\"></path><path d=\"m6.34 17.66-1.41 1.41\"></path><path d=\"m19.07 4.93-1.41 1.41\"></path></svg>","Table2":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-table2\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18\"></path></svg>","Terminal":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-terminal\" aria-hidden=\"true\" focusable=\"false\"><polyline points=\"4 17 10 11 4 5\"></polyline><line x1=\"12\" x2=\"20\" y1=\"19\" y2=\"19\"></line></svg>","Thermometer":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-thermometer\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z\"></path></svg>","Trash2":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-trash2\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M3 6h18\"></path><path d=\"M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6\"></path><path d=\"M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2\"></path><line x1=\"10\" x2=\"10\" y1=\"11\" y2=\"17\"></line><line x1=\"14\" x2=\"14\" y1=\"11\" y2=\"17\"></line></svg>","Triangle":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-triangle\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M13.73 4a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z\"></path></svg>","Undo2":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-undo2\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M9 14 4 9l5-5\"></path><path d=\"M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11\"></path></svg>","Upload":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-upload\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"></path><polyline points=\"17 8 12 3 7 8\"></polyline><line x1=\"12\" x2=\"12\" y1=\"3\" y2=\"15\"></line></svg>","Waypoints":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-waypoints\" aria-hidden=\"true\" focusable=\"false\"><circle cx=\"12\" cy=\"4.5\" r=\"2.5\"></circle><path d=\"m10.2 6.3-3.9 3.9\"></path><circle cx=\"4.5\" cy=\"12\" r=\"2.5\"></circle><path d=\"M7 12h10\"></path><circle cx=\"19.5\" cy=\"12\" r=\"2.5\"></circle><path d=\"m13.8 17.7 3.9-3.9\"></path><circle cx=\"12\" cy=\"19.5\" r=\"2.5\"></circle></svg>","Wind":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-wind\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M12.8 19.6A2 2 0 1 0 14 16H2\"></path><path d=\"M17.5 8a2.5 2.5 0 1 1 2 4H2\"></path><path d=\"M9.8 4.4A2 2 0 1 1 11 8H2\"></path></svg>","Wrench":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-wrench\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z\"></path></svg>","X":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-x\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M18 6 6 18\"></path><path d=\"m6 6 12 12\"></path></svg>","Zap":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-zap\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z\"></path></svg>"};
+const ICONS = {"Activity":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-activity\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2\"></path></svg>","ArrowDownToLine":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-arrow-down-to-line\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M12 17V3\"></path><path d=\"m6 11 6 6 6-6\"></path><path d=\"M19 21H5\"></path></svg>","ArrowRight":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-arrow-right\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M5 12h14\"></path><path d=\"m12 5 7 7-7 7\"></path></svg>","ArrowRightLeft":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-arrow-right-left\" aria-hidden=\"true\" focusable=\"false\"><path d=\"m16 3 4 4-4 4\"></path><path d=\"M20 7H4\"></path><path d=\"m8 21-4-4 4-4\"></path><path d=\"M4 17h16\"></path></svg>","ArrowUpRight":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-arrow-up-right\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M7 7h10v10\"></path><path d=\"M7 17 17 7\"></path></svg>","Bell":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-bell\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M10.268 21a2 2 0 0 0 3.464 0\"></path><path d=\"M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326\"></path></svg>","BookOpen":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-book-open\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M12 7v14\"></path><path d=\"M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z\"></path></svg>","Box":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-box\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z\"></path><path d=\"m3.3 7 8.7 5 8.7-5\"></path><path d=\"M12 22V12\"></path></svg>","Boxes":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-boxes\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M2.97 12.92A2 2 0 0 0 2 14.63v3.24a2 2 0 0 0 .97 1.71l3 1.8a2 2 0 0 0 2.06 0L12 19v-5.5l-5-3-4.03 2.42Z\"></path><path d=\"m7 16.5-4.74-2.85\"></path><path d=\"m7 16.5 5-3\"></path><path d=\"M7 16.5v5.17\"></path><path d=\"M12 13.5V19l3.97 2.38a2 2 0 0 0 2.06 0l3-1.8a2 2 0 0 0 .97-1.71v-3.24a2 2 0 0 0-.97-1.71L17 10.5l-5 3Z\"></path><path d=\"m17 16.5-5-3\"></path><path d=\"m17 16.5 4.74-2.85\"></path><path d=\"M17 16.5v5.17\"></path><path d=\"M7.97 4.42A2 2 0 0 0 7 6.13v4.37l5 3 5-3V6.13a2 2 0 0 0-.97-1.71l-3-1.8a2 2 0 0 0-2.06 0l-3 1.8Z\"></path><path d=\"M12 8 7.26 5.15\"></path><path d=\"m12 8 4.74-2.85\"></path><path d=\"M12 13.5V8\"></path></svg>","Braces":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-braces\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5c0 1.1.9 2 2 2h1\"></path><path d=\"M16 21h1a2 2 0 0 0 2-2v-5c0-1.1.9-2 2-2a2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1\"></path></svg>","Cable":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-cable\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M17 21v-2a1 1 0 0 1-1-1v-1a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v1a1 1 0 0 1-1 1\"></path><path d=\"M19 15V6.5a1 1 0 0 0-7 0v11a1 1 0 0 1-7 0V9\"></path><path d=\"M21 21v-2h-4\"></path><path d=\"M3 5h4V3\"></path><path d=\"M7 5a1 1 0 0 1 1 1v1a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a1 1 0 0 1 1-1V3\"></path></svg>","Check":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-check\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M20 6 9 17l-5-5\"></path></svg>","CheckCheck":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-check-check\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M18 6 7 17l-5-5\"></path><path d=\"m22 10-7.5 7.5L13 16\"></path></svg>","CheckCircle2":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-circle-check\" aria-hidden=\"true\" focusable=\"false\"><circle cx=\"12\" cy=\"12\" r=\"10\"></circle><path d=\"m9 12 2 2 4-4\"></path></svg>","ChevronDown":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-chevron-down\" aria-hidden=\"true\" focusable=\"false\"><path d=\"m6 9 6 6 6-6\"></path></svg>","ChevronLeft":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-chevron-left\" aria-hidden=\"true\" focusable=\"false\"><path d=\"m15 18-6-6 6-6\"></path></svg>","ChevronRight":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-chevron-right\" aria-hidden=\"true\" focusable=\"false\"><path d=\"m9 18 6-6-6-6\"></path></svg>","Circle":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-circle\" aria-hidden=\"true\" focusable=\"false\"><circle cx=\"12\" cy=\"12\" r=\"10\"></circle></svg>","CircleDot":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-circle-dot\" aria-hidden=\"true\" focusable=\"false\"><circle cx=\"12\" cy=\"12\" r=\"10\"></circle><circle cx=\"12\" cy=\"12\" r=\"1\"></circle></svg>","CircleHelp":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-circle-help\" aria-hidden=\"true\" focusable=\"false\"><circle cx=\"12\" cy=\"12\" r=\"10\"></circle><path d=\"M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3\"></path><path d=\"M12 17h.01\"></path></svg>","CirclePlus":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-circle-plus\" aria-hidden=\"true\" focusable=\"false\"><circle cx=\"12\" cy=\"12\" r=\"10\"></circle><path d=\"M8 12h8\"></path><path d=\"M12 8v8\"></path></svg>","Clipboard":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-clipboard\" aria-hidden=\"true\" focusable=\"false\"><rect width=\"8\" height=\"4\" x=\"8\" y=\"2\" rx=\"1\" ry=\"1\"></rect><path d=\"M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2\"></path></svg>","Clock3":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-clock3\" aria-hidden=\"true\" focusable=\"false\"><circle cx=\"12\" cy=\"12\" r=\"10\"></circle><polyline points=\"12 6 12 12 16.5 12\"></polyline></svg>","Code2":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-code-xml\" aria-hidden=\"true\" focusable=\"false\"><path d=\"m18 16 4-4-4-4\"></path><path d=\"m6 8-4 4 4 4\"></path><path d=\"m14.5 4-5 16\"></path></svg>","Columns2":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-columns2\" aria-hidden=\"true\" focusable=\"false\"><rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\"></rect><path d=\"M12 3v18\"></path></svg>","Copy":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-copy\" aria-hidden=\"true\" focusable=\"false\"><rect width=\"14\" height=\"14\" x=\"8\" y=\"8\" rx=\"2\" ry=\"2\"></rect><path d=\"M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2\"></path></svg>","Database":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-database\" aria-hidden=\"true\" focusable=\"false\"><ellipse cx=\"12\" cy=\"5\" rx=\"9\" ry=\"3\"></ellipse><path d=\"M3 5V19A9 3 0 0 0 21 19V5\"></path><path d=\"M3 12A9 3 0 0 0 21 12\"></path></svg>","Download":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-download\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"></path><polyline points=\"7 10 12 15 17 10\"></polyline><line x1=\"12\" x2=\"12\" y1=\"15\" y2=\"3\"></line></svg>","Droplets":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-droplets\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M7 16.3c2.2 0 4-1.83 4-4.05 0-1.16-.57-2.26-1.71-3.19S7.29 6.75 7 5.3c-.29 1.45-1.14 2.84-2.29 3.76S3 11.1 3 12.25c0 2.22 1.8 4.05 4 4.05z\"></path><path d=\"M12.56 6.6A10.97 10.97 0 0 0 14 3.02c.5 2.5 2 4.9 4 6.5s3 3.5 3 5.5a6.98 6.98 0 0 1-11.91 4.97\"></path></svg>","Ellipsis":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-ellipsis\" aria-hidden=\"true\" focusable=\"false\"><circle cx=\"12\" cy=\"12\" r=\"1\"></circle><circle cx=\"19\" cy=\"12\" r=\"1\"></circle><circle cx=\"5\" cy=\"12\" r=\"1\"></circle></svg>","ExternalLink":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-external-link\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M15 3h6v6\"></path><path d=\"M10 14 21 3\"></path><path d=\"M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6\"></path></svg>","Eye":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-eye\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0\"></path><circle cx=\"12\" cy=\"12\" r=\"3\"></circle></svg>","FileCode2":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-file-code2\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M4 22h14a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v4\"></path><path d=\"M14 2v4a2 2 0 0 0 2 2h4\"></path><path d=\"m5 12-3 3 3 3\"></path><path d=\"m9 18 3-3-3-3\"></path></svg>","FileJson":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-file-json\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z\"></path><path d=\"M14 2v4a2 2 0 0 0 2 2h4\"></path><path d=\"M10 12a1 1 0 0 0-1 1v1a1 1 0 0 1-1 1 1 1 0 0 1 1 1v1a1 1 0 0 0 1 1\"></path><path d=\"M14 18a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1 1 1 0 0 1-1-1v-1a1 1 0 0 0-1-1\"></path></svg>","FileText":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-file-text\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z\"></path><path d=\"M14 2v4a2 2 0 0 0 2 2h4\"></path><path d=\"M10 9H8\"></path><path d=\"M16 13H8\"></path><path d=\"M16 17H8\"></path></svg>","Filter":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-filter\" aria-hidden=\"true\" focusable=\"false\"><polygon points=\"22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3\"></polygon></svg>","Flame":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-flame\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z\"></path></svg>","Folder":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-folder\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z\"></path></svg>","FolderOpen":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-folder-open\" aria-hidden=\"true\" focusable=\"false\"><path d=\"m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2\"></path></svg>","Gauge":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-gauge\" aria-hidden=\"true\" focusable=\"false\"><path d=\"m12 14 4-4\"></path><path d=\"M3.34 19a10 10 0 1 1 17.32 0\"></path></svg>","GitBranch":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-git-branch\" aria-hidden=\"true\" focusable=\"false\"><line x1=\"6\" x2=\"6\" y1=\"3\" y2=\"15\"></line><circle cx=\"18\" cy=\"6\" r=\"3\"></circle><circle cx=\"6\" cy=\"18\" r=\"3\"></circle><path d=\"M18 9a9 9 0 0 1-9 9\"></path></svg>","GitCompareArrows":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-git-compare-arrows\" aria-hidden=\"true\" focusable=\"false\"><circle cx=\"5\" cy=\"6\" r=\"3\"></circle><path d=\"M12 6h5a2 2 0 0 1 2 2v7\"></path><path d=\"m15 9-3-3 3-3\"></path><circle cx=\"19\" cy=\"18\" r=\"3\"></circle><path d=\"M12 18H7a2 2 0 0 1-2-2V9\"></path><path d=\"m9 15 3 3-3 3\"></path></svg>","Grid2X2":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-grid2x2\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M12 3v18\"></path><path d=\"M3 12h18\"></path><rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"></rect></svg>","Grip":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-grip\" aria-hidden=\"true\" focusable=\"false\"><circle cx=\"12\" cy=\"5\" r=\"1\"></circle><circle cx=\"19\" cy=\"5\" r=\"1\"></circle><circle cx=\"5\" cy=\"5\" r=\"1\"></circle><circle cx=\"12\" cy=\"12\" r=\"1\"></circle><circle cx=\"19\" cy=\"12\" r=\"1\"></circle><circle cx=\"5\" cy=\"12\" r=\"1\"></circle><circle cx=\"12\" cy=\"19\" r=\"1\"></circle><circle cx=\"19\" cy=\"19\" r=\"1\"></circle><circle cx=\"5\" cy=\"19\" r=\"1\"></circle></svg>","GripVertical":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-grip-vertical\" aria-hidden=\"true\" focusable=\"false\"><circle cx=\"9\" cy=\"12\" r=\"1\"></circle><circle cx=\"9\" cy=\"5\" r=\"1\"></circle><circle cx=\"9\" cy=\"19\" r=\"1\"></circle><circle cx=\"15\" cy=\"12\" r=\"1\"></circle><circle cx=\"15\" cy=\"5\" r=\"1\"></circle><circle cx=\"15\" cy=\"19\" r=\"1\"></circle></svg>","History":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-history\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8\"></path><path d=\"M3 3v5h5\"></path><path d=\"M12 7v5l4 2\"></path></svg>","Home":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-house\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8\"></path><path d=\"M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z\"></path></svg>","Info":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-info\" aria-hidden=\"true\" focusable=\"false\"><circle cx=\"12\" cy=\"12\" r=\"10\"></circle><path d=\"M12 16v-4\"></path><path d=\"M12 8h.01\"></path></svg>","Keyboard":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-keyboard\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M10 8h.01\"></path><path d=\"M12 12h.01\"></path><path d=\"M14 8h.01\"></path><path d=\"M16 12h.01\"></path><path d=\"M18 8h.01\"></path><path d=\"M6 8h.01\"></path><path d=\"M7 16h10\"></path><path d=\"M8 12h.01\"></path><rect width=\"20\" height=\"16\" x=\"2\" y=\"4\" rx=\"2\"></rect></svg>","Layers":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-layers\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z\"></path><path d=\"M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12\"></path><path d=\"M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17\"></path></svg>","LayoutDashboard":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-layout-dashboard\" aria-hidden=\"true\" focusable=\"false\"><rect width=\"7\" height=\"9\" x=\"3\" y=\"3\" rx=\"1\"></rect><rect width=\"7\" height=\"5\" x=\"14\" y=\"3\" rx=\"1\"></rect><rect width=\"7\" height=\"9\" x=\"14\" y=\"12\" rx=\"1\"></rect><rect width=\"7\" height=\"5\" x=\"3\" y=\"16\" rx=\"1\"></rect></svg>","List":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-list\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M3 12h.01\"></path><path d=\"M3 18h.01\"></path><path d=\"M3 6h.01\"></path><path d=\"M8 12h13\"></path><path d=\"M8 18h13\"></path><path d=\"M8 6h13\"></path></svg>","ListChecks":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-list-checks\" aria-hidden=\"true\" focusable=\"false\"><path d=\"m3 17 2 2 4-4\"></path><path d=\"m3 7 2 2 4-4\"></path><path d=\"M13 6h8\"></path><path d=\"M13 12h8\"></path><path d=\"M13 18h8\"></path></svg>","Lock":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-lock\" aria-hidden=\"true\" focusable=\"false\"><rect width=\"18\" height=\"11\" x=\"3\" y=\"11\" rx=\"2\" ry=\"2\"></rect><path d=\"M7 11V7a5 5 0 0 1 10 0v4\"></path></svg>","Maximize2":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-maximize2\" aria-hidden=\"true\" focusable=\"false\"><polyline points=\"15 3 21 3 21 9\"></polyline><polyline points=\"9 21 3 21 3 15\"></polyline><line x1=\"21\" x2=\"14\" y1=\"3\" y2=\"10\"></line><line x1=\"3\" x2=\"10\" y1=\"21\" y2=\"14\"></line></svg>","MessageSquare":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-message-square\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z\"></path></svg>","Minimize2":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-minimize2\" aria-hidden=\"true\" focusable=\"false\"><polyline points=\"4 14 10 14 10 20\"></polyline><polyline points=\"20 10 14 10 14 4\"></polyline><line x1=\"14\" x2=\"21\" y1=\"10\" y2=\"3\"></line><line x1=\"3\" x2=\"10\" y1=\"21\" y2=\"14\"></line></svg>","Minus":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-minus\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M5 12h14\"></path></svg>","Monitor":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-monitor\" aria-hidden=\"true\" focusable=\"false\"><rect width=\"20\" height=\"14\" x=\"2\" y=\"3\" rx=\"2\"></rect><line x1=\"8\" x2=\"16\" y1=\"21\" y2=\"21\"></line><line x1=\"12\" x2=\"12\" y1=\"17\" y2=\"21\"></line></svg>","Moon":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-moon\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z\"></path></svg>","MoreHorizontal":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-ellipsis\" aria-hidden=\"true\" focusable=\"false\"><circle cx=\"12\" cy=\"12\" r=\"1\"></circle><circle cx=\"19\" cy=\"12\" r=\"1\"></circle><circle cx=\"5\" cy=\"12\" r=\"1\"></circle></svg>","MousePointer2":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-mouse-pointer2\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M4.037 4.688a.495.495 0 0 1 .651-.651l16 6.5a.5.5 0 0 1-.063.947l-6.124 1.58a2 2 0 0 0-1.438 1.435l-1.579 6.126a.5.5 0 0 1-.947.063z\"></path></svg>","Move":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-move\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M12 2v20\"></path><path d=\"m15 19-3 3-3-3\"></path><path d=\"m19 9 3 3-3 3\"></path><path d=\"M2 12h20\"></path><path d=\"m5 9-3 3 3 3\"></path><path d=\"m9 5 3-3 3 3\"></path></svg>","Network":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-network\" aria-hidden=\"true\" focusable=\"false\"><rect x=\"16\" y=\"16\" width=\"6\" height=\"6\" rx=\"1\"></rect><rect x=\"2\" y=\"16\" width=\"6\" height=\"6\" rx=\"1\"></rect><rect x=\"9\" y=\"2\" width=\"6\" height=\"6\" rx=\"1\"></rect><path d=\"M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3\"></path><path d=\"M12 12V8\"></path></svg>","PanelLeftClose":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-panel-left-close\" aria-hidden=\"true\" focusable=\"false\"><rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\"></rect><path d=\"M9 3v18\"></path><path d=\"m16 15-3-3 3-3\"></path></svg>","PanelLeftOpen":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-panel-left-open\" aria-hidden=\"true\" focusable=\"false\"><rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\"></rect><path d=\"M9 3v18\"></path><path d=\"m14 9 3 3-3 3\"></path></svg>","Pause":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-pause\" aria-hidden=\"true\" focusable=\"false\"><rect x=\"14\" y=\"4\" width=\"4\" height=\"16\" rx=\"1\"></rect><rect x=\"6\" y=\"4\" width=\"4\" height=\"16\" rx=\"1\"></rect></svg>","Pencil":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-pencil\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z\"></path><path d=\"m15 5 4 4\"></path></svg>","Pin":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-pin\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M12 17v5\"></path><path d=\"M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z\"></path></svg>","Play":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-play\" aria-hidden=\"true\" focusable=\"false\"><polygon points=\"6 3 20 12 6 21 6 3\"></polygon></svg>","Plug":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-plug\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M12 22v-5\"></path><path d=\"M9 8V2\"></path><path d=\"M15 8V2\"></path><path d=\"M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z\"></path></svg>","Plus":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-plus\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M5 12h14\"></path><path d=\"M12 5v14\"></path></svg>","Redo2":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-redo2\" aria-hidden=\"true\" focusable=\"false\"><path d=\"m15 14 5-5-5-5\"></path><path d=\"M20 9H9.5A5.5 5.5 0 0 0 4 14.5A5.5 5.5 0 0 0 9.5 20H13\"></path></svg>","RefreshCw":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-refresh-cw\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8\"></path><path d=\"M21 3v5h-5\"></path><path d=\"M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16\"></path><path d=\"M8 16H3v5\"></path></svg>","RotateCcw":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-rotate-ccw\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8\"></path><path d=\"M3 3v5h5\"></path></svg>","RotateCw":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-rotate-cw\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8\"></path><path d=\"M21 3v5h-5\"></path></svg>","Save":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-save\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z\"></path><path d=\"M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7\"></path><path d=\"M7 3v4a1 1 0 0 0 1 1h7\"></path></svg>","Scan":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-scan\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M3 7V5a2 2 0 0 1 2-2h2\"></path><path d=\"M17 3h2a2 2 0 0 1 2 2v2\"></path><path d=\"M21 17v2a2 2 0 0 1-2 2h-2\"></path><path d=\"M7 21H5a2 2 0 0 1-2-2v-2\"></path></svg>","Search":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-search\" aria-hidden=\"true\" focusable=\"false\"><circle cx=\"11\" cy=\"11\" r=\"8\"></circle><path d=\"m21 21-4.3-4.3\"></path></svg>","Settings2":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-settings2\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M20 7h-9\"></path><path d=\"M14 17H5\"></path><circle cx=\"17\" cy=\"17\" r=\"3\"></circle><circle cx=\"7\" cy=\"7\" r=\"3\"></circle></svg>","ShieldCheck":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-shield-check\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z\"></path><path d=\"m9 12 2 2 4-4\"></path></svg>","SlidersHorizontal":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-sliders-horizontal\" aria-hidden=\"true\" focusable=\"false\"><line x1=\"21\" x2=\"14\" y1=\"4\" y2=\"4\"></line><line x1=\"10\" x2=\"3\" y1=\"4\" y2=\"4\"></line><line x1=\"21\" x2=\"12\" y1=\"12\" y2=\"12\"></line><line x1=\"8\" x2=\"3\" y1=\"12\" y2=\"12\"></line><line x1=\"21\" x2=\"16\" y1=\"20\" y2=\"20\"></line><line x1=\"12\" x2=\"3\" y1=\"20\" y2=\"20\"></line><line x1=\"14\" x2=\"14\" y1=\"2\" y2=\"6\"></line><line x1=\"8\" x2=\"8\" y1=\"10\" y2=\"14\"></line><line x1=\"16\" x2=\"16\" y1=\"18\" y2=\"22\"></line></svg>","Square":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-square\" aria-hidden=\"true\" focusable=\"false\"><rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\"></rect></svg>","SquareDashed":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-square-dashed\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M5 3a2 2 0 0 0-2 2\"></path><path d=\"M19 3a2 2 0 0 1 2 2\"></path><path d=\"M21 19a2 2 0 0 1-2 2\"></path><path d=\"M5 21a2 2 0 0 1-2-2\"></path><path d=\"M9 3h1\"></path><path d=\"M9 21h1\"></path><path d=\"M14 3h1\"></path><path d=\"M14 21h1\"></path><path d=\"M3 9v1\"></path><path d=\"M21 9v1\"></path><path d=\"M3 14v1\"></path><path d=\"M21 14v1\"></path></svg>","Star":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-star\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z\"></path></svg>","StepForward":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-step-forward\" aria-hidden=\"true\" focusable=\"false\"><line x1=\"6\" x2=\"6\" y1=\"4\" y2=\"20\"></line><polygon points=\"10,4 20,12 10,20\"></polygon></svg>","Sun":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-sun\" aria-hidden=\"true\" focusable=\"false\"><circle cx=\"12\" cy=\"12\" r=\"4\"></circle><path d=\"M12 2v2\"></path><path d=\"M12 20v2\"></path><path d=\"m4.93 4.93 1.41 1.41\"></path><path d=\"m17.66 17.66 1.41 1.41\"></path><path d=\"M2 12h2\"></path><path d=\"M20 12h2\"></path><path d=\"m6.34 17.66-1.41 1.41\"></path><path d=\"m19.07 4.93-1.41 1.41\"></path></svg>","Table2":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-table2\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18\"></path></svg>","Terminal":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-terminal\" aria-hidden=\"true\" focusable=\"false\"><polyline points=\"4 17 10 11 4 5\"></polyline><line x1=\"12\" x2=\"20\" y1=\"19\" y2=\"19\"></line></svg>","Thermometer":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-thermometer\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z\"></path></svg>","Trash2":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-trash2\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M3 6h18\"></path><path d=\"M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6\"></path><path d=\"M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2\"></path><line x1=\"10\" x2=\"10\" y1=\"11\" y2=\"17\"></line><line x1=\"14\" x2=\"14\" y1=\"11\" y2=\"17\"></line></svg>","Triangle":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-triangle\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M13.73 4a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z\"></path></svg>","Undo2":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-undo2\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M9 14 4 9l5-5\"></path><path d=\"M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11\"></path></svg>","Upload":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-upload\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"></path><polyline points=\"17 8 12 3 7 8\"></polyline><line x1=\"12\" x2=\"12\" y1=\"3\" y2=\"15\"></line></svg>","Waypoints":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-waypoints\" aria-hidden=\"true\" focusable=\"false\"><circle cx=\"12\" cy=\"4.5\" r=\"2.5\"></circle><path d=\"m10.2 6.3-3.9 3.9\"></path><circle cx=\"4.5\" cy=\"12\" r=\"2.5\"></circle><path d=\"M7 12h10\"></path><circle cx=\"19.5\" cy=\"12\" r=\"2.5\"></circle><path d=\"m13.8 17.7 3.9-3.9\"></path><circle cx=\"12\" cy=\"19.5\" r=\"2.5\"></circle></svg>","Wind":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-wind\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M12.8 19.6A2 2 0 1 0 14 16H2\"></path><path d=\"M17.5 8a2.5 2.5 0 1 1 2 4H2\"></path><path d=\"M9.8 4.4A2 2 0 1 1 11 8H2\"></path></svg>","Wrench":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-wrench\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z\"></path></svg>","X":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-x\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M18 6 6 18\"></path><path d=\"m6 6 12 12\"></path></svg>","Zap":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-zap\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z\"></path></svg>","Snowflake":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-snowflake\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M12 2v20M3.34 7l17.32 10M3.34 17 20.66 7\"></path><path d=\"m9 4 3 3 3-3m-6 16 3-3 3 3M4 10l4-1-1-4m10 14-1-4 4-1M7 19l1-4-4-1M20 10l-4-1 1-4\"></path></svg>","GitMerge":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-git-merge\" aria-hidden=\"true\" focusable=\"false\"><circle cx=\"6\" cy=\"5\" r=\"3\"></circle><path d=\"M6 8v10m0-9a9 9 0 0 0 9 9\"></path><circle cx=\"6\" cy=\"21\" r=\"1\"></circle><circle cx=\"18\" cy=\"18\" r=\"3\"></circle></svg>"};
 // 模块编辑采用 Python；source.header 保留为旧存档中的公共代码字段。
 function pythonModuleSource(kind, code) {
   return {
@@ -24,15 +59,6 @@ function legacyModuleSource(kind, code) {
       ? `// 库值 ${i + 1} · ${['额定工况', '部分负荷', '调试备份'][i]}\nvoid Design${i + 1}() {\n  OPENING = ${opening}.0;\n  KV = 16.0;\n}\n`
       : `// ${code} · 库值 ${i + 1}\nvoid Design${i + 1}() {\n  // 编辑设计参数\n}\n`)
   };
-}
-function normalizePythonSource(m) {
-  if (m.runtime === 'python' || m.sourceFormat === 'python-v1') return;
-  const next = pythonModuleSource(m.kind, m.code);
-  const candidates = [m.code, MODULE_SPECS.find(spec => spec[0] === m.kind)?.[2]].filter(Boolean).map(code => legacyModuleSource(m.kind, code));
-  const same = (a, b) => typeof a === 'string' && a.replace(/\r\n/g, '\n') === b;
-  for (const key of ['runtime', 'header']) if (candidates.some(old => same(m.source[key], old[key]))) m.source[key] = next[key];
-  m.source.design = m.source.design.map((source, i) => candidates.some(old => same(source, old.design[i])) ? next.design[i] : source);
-  m.sourceFormat = 'python-v1';
 }
 // 浏览器仅做轻量结构检查：忽略 Python 注释与字符串中的括号，不执行代码。
 function pythonCodeIssue(source) {
@@ -70,14 +96,13 @@ function pythonCodeIssue(source) {
 
 const STORAGE_KEY = 'fluidnet-prototype-engine-v1';
 let engine = null;
+let moduleReplay;
+let systemInspection;
 let workflows = null;
 let airSide = {markup:()=>'',afterRender:()=>{},action:async()=>{},refresh:()=>{}};
 let scenarioBatches = {markup:()=>'',afterRender:()=>{},action:async()=>{}};
 let coldStorage = {markup:()=>'',refresh:()=>{},action:async()=>{},couplingToolbar:()=>'',couplingReferences:()=>[],assertCouplingIdle:()=>{},syncCouplingCharts:()=>{},couplingChartBindings:()=>[]};
 const UI_KEY = STORAGE_KEY + '-ui';
-// 本地草稿写入 localStorage 的降级阶梯：配额不足时只在“用于存储的副本”上裁剪运行历史，
-// 每级为 [每次运行保留的最近帧数, 保留的运行快照条数]；内存中的 state 不裁剪，用户仍可导出原型。
-const LOCAL_DRAFT_STEPS = [[200, null], [200, 5], [200, 1], [50, 0]];
 const PAGE_META = {
   home:['首页','Home','项目、模块与任务概览'],
   projects:['项目','FolderOpen','项目管理与示例'],
@@ -101,7 +126,7 @@ const DOMAINS = { fluid:{label:'流体',color:'orange',unit:'kg/s',icon:'Droplet
 // Port name prefixes for ports added in the module editor (station refrigerant ports are built-in only).
 const PORT_PREFIX = { fluid: ['IM', 'EX'], info: ['II', 'IO'], power: ['PI', 'PO'], mech: ['MI', 'MO'] };
 const PARAM_DEFS = {
-  source:[['pressure','绝对压力','kPa',110,1000,1,201.325],['temperature','温度','°C',-100,400,1,20]],
+  source:[['pressure','绝对压力','kPa',110,1000,1,201.325],['temperature','温度','°C',-100,400,1,20],['humidity_ratio_kg_kg','含湿量（kg/kg干空气）','1',0,.2,.001,0]],
   pump:[['speed','转速比','倍',.2,1.3,.05,1],['efficiency','泵效率','%',1,100,1,75]],
   valve:[['opening','阀门开度','%',0,100,1,80],['kv','流量系数 Kv','m³/h',.1,200,.5,16]],
   pipe:[['length','管道长度','m',.1,1000,.5,30],['diameter','管道内径','mm',5,1000,1,40],['heatLoss','散热能力 UA','W/K',0,10000,1,0],['ambient','环境温度','°C',-100,400,1,20],['cells','热容分段数（0 为无热惯性）','段',0,50,1,0],['wallHeat','管壁热容','kJ/K',0,10000,1,0]],
@@ -133,30 +158,24 @@ const FLUIDS = [['water','水',125],['air','空气',3],['ammonia','氨',4],['co2
 const MEDIA = [['water','纯液态水'],['air','空气'],['ammonia','氨'],['co2','二氧化碳'],['r134a','R134a'],['meg30','乙二醇溶液 30%']];
 const SERIES = { q:{name:'主管流量',short:'主管',unit:'kg/s',color:'blue'},a:{name:'A 路流量',short:'A 路',unit:'kg/s',color:'orange'},b:{name:'B 路流量',short:'B 路',unit:'kg/s',color:'green'},pressure:{name:'出口压力',short:'压力',unit:'kPa',color:'blue'},temperature:{name:'出口温度',short:'温度',unit:'°C',color:'orange'} };
 const clone = v => JSON.parse(JSON.stringify(v));
-function manifestFields(manifest) {
-  return manifest.parameters.filter(p => p.value_type === 'number').map(p => {
-    const display = value => value / (p.unit?.display_scale || 1) + (p.unit?.display_offset || 0);
-    return [p.id,p.label,p.unit?.display_unit || '',p.minimum == null ? -1e12 : display(p.minimum),p.maximum == null ? 1e12 : display(p.maximum),'any',display(p.default)];
-  });
-}
+const projectModel=FluidNetProjectModel;
+const projectState=FluidNetProjectState;
+const projectRunState=FluidNetProjectRunState;
+const {manifestFields,manifestParamSpecs,manifestParamDefaults}=projectModel;
 const defaultsFor = id => Object.fromEntries((PARAM_DEFS[id]||[]).map(f=>[f[0],f[6]]));
 // Full parameter model for Python modules: numbers drive the numeric quick controls,
 // while boolean/text/curve keep their own editors instead of being forced into a number input.
-function manifestParamSpecs(manifest) {
-  return (manifest?.parameters || []).map(p => {
-    const display=value=>value==null?null:p.value_type==='number'&&p.unit?value/p.unit.display_scale+p.unit.display_offset:clone(value);
-    return {id:p.id,label:p.label,value_type:p.value_type || 'number',unit:p.unit || null,
-      minimum:display(p.minimum),maximum:display(p.maximum),default:display(p.default),writable:p.writable!==false,runtime:!!p.runtime};
-  });
-}
-function manifestParamDefaults(manifest) {
-  return Object.fromEntries(manifestParamSpecs(manifest).map(p => [p.id, clone(p.default)]));
-}
 function deviceParamSpecs(n) {
   const m = moduleOf(n);
   if (m.manifest) return manifestParamSpecs(m.manifest);
-  return (PARAM_DEFS[m.kind] || []).map(f => ({id:f[0], label:f[1], value_type:'number',
-    unit:f[2] ? {display_unit:f[2]} : null, minimum:f[3], maximum:f[4], default:f[6], display:f[2]}));
+  const definition=engine?.catalog?.modules.find(d=>d.id===m.kind);
+  return moduleParamDefs(m).map(f => {
+    const key=engine?.catalog?.prototype_parameter_bindings[m.kind]?.[f[0]]||f[0];
+    const spec=definition?.parameters.find(p=>p.id===key);
+    return {id:f[0], label:f[1], value_type:'number',unit:f[2] ? {display_unit:f[2]} : null,
+      minimum:f[3],maximum:f[4],default:f[6],display:f[2],writable:spec?.writable!==false,runtime:spec?.runtime};
+  }).concat((definition?.parameters||[]).filter(p=>p.value_type&&p.value_type!=='number').map(p=>({...p,
+    id:Object.keys(engine.catalog.prototype_parameter_bindings[m.kind]||{}).find(k=>engine.catalog.prototype_parameter_bindings[m.kind][k]===p.id)||p.id})));
 }
 const deviceParamIds = n => deviceParamSpecs(n).map(p => p.id);
 function parameterValueText(value, type) {
@@ -208,7 +227,40 @@ function waterPage(){return {id:'main',name:'主系统',zoom:1,pan:[0,0],nodes:[
 function heatPage(){return {id:'main',name:'一次与二次回路',zoom:1,pan:[0,0],nodes:[makeInstance('B1','source','一次侧供水',100,155,{temperature:65}),makeInstance('P1','pump','一次泵',290,155),makeInstance('HX1','exchanger','板式换热器',545,235),makeInstance('B2','source','一次侧回水',825,155,{pressure:120}),makeInstance('B3','source','二次侧供水',100,335,{temperature:25}),makeInstance('P2','pump','二次泵',290,335),makeInstance('B4','source','二次侧回水',825,335,{pressure:120})],edges:[['h1','B1','out0','P1','in0'],['h2','P1','out0','HX1','in0'],['h3','HX1','out0','B2','out0'],['h4','B3','out0','P2','in0'],['h5','P2','out0','HX1','in1'],['h6','HX1','out1','B4','out0']]};}
 function tankPage(){return {id:'main',name:'储水与调节',zoom:1,pan:[0,0],nodes:[makeInstance('B1','source','补水边界',120,230),makeInstance('V1','valve','进水调节阀',330,230,{opening:65}),makeInstance('TK1','tank','储水罐',540,230),makeInstance('V2','valve','出水调节阀',750,230,{opening:40}),makeInstance('B2','source','回水边界',960,230,{pressure:120})],edges:[['t1','B1','out0','V1','in0'],['t2','V1','out0','TK1','in0'],['t3','TK1','out0','V2','in0'],['t4','V2','out0','B2','out0']]};}
 function emptyRun(scope='project') {return {scope,status:'ready',time:0,step:.1,history:[],events:[],id:'',values:{q:0,a:0,b:0,pressure:0,temperature:20}};}
-function controlTemplate() {return `def initialize(ctx):
+function controlTemplate(kind) {
+  if (kind === 'interlock') return `# 机房联锁：启动顺序 → 压差确认 → 低压差停机 → 工作泵切换。
+MIN_DP_PA = 20000.
+CONFIRM_S = 2.
+SWITCH_S = 10.
+
+
+def initialize(ctx):
+    ctx.state["phase"] = "starting"
+    ctx.state["switched"] = False
+
+
+def step(ctx, dt_s):
+    dp = ctx.read("Discharge.common.pressure_pa") - ctx.read("Suction.common.pressure_pa")
+    if ctx.state["phase"] == "starting":
+        ctx.write("Pump1.param.running", 1.)
+        if ctx.time_s >= CONFIRM_S:
+            if dp < MIN_DP_PA:
+                ctx.write("Pump1.param.running", 0.)
+                ctx.write("Pump2.param.running", 0.)
+                ctx.state["phase"] = "tripped"
+            else:
+                ctx.state["phase"] = "running"
+    elif ctx.state["phase"] == "running" and not ctx.state["switched"] and ctx.time_s >= SWITCH_S:
+        ctx.write("Pump2.param.running", 1.)
+        ctx.write("Pump1.param.running", 0.)
+        ctx.state["switched"] = True
+
+
+def finalize(ctx):
+    ctx.write("Pump1.param.running", 0.)
+    ctx.write("Pump2.param.running", 0.)
+`;
+  return `def initialize(ctx):
     ctx.state["samples"] = 0
 
 
@@ -240,7 +292,8 @@ function initialState(){
 
 const root=document.getElementById('fn-studio');
 const page=document.getElementById('page');
-const controls=window.FluidNetControls;
+const controls=FluidNetControls;
+const links=FluidNetLinks;
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const icon=name=>ICONS[name]||ICONS.Box;
 const number=(n,d=2)=>n !== null && n !== undefined && Number.isFinite(Number(n))?Number(n).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d}):'—';
@@ -253,127 +306,42 @@ const option=(value,label,current)=>`<option value="${esc(value)}"${String(value
 const clockLabel=t=>`t = ${number(t,1)} s`;
 let recovery='', editRevision=0, savePhase='', saveError='', localSaveError='', localSaveTrimmed=false;
 let state=initialState();
-try { const saved=JSON.parse(localStorage.getItem(STORAGE_KEY)||'null');if(saved&&saved.schema===1&&Array.isArray(saved.projects)&&saved.projects.length&&Array.isArray(saved.modules)&&saved.modules.length&&Array.isArray(saved.models)){state=saved;state.projects.forEach(p=>{if(p.run.status==='running')p.run.status='paused';});if(state.bench.run.status==='running')state.bench.run.status='paused';} } catch { recovery='上次原型记录无法读取，已打开内置示例。'; }
+try { const saved=FluidNetDraftStore.parse(localStorage.getItem(STORAGE_KEY)||'null');if(saved&&saved.schema===1&&Array.isArray(saved.projects)&&saved.projects.length&&Array.isArray(saved.modules)&&saved.modules.length&&Array.isArray(saved.models)){state=saved;state.projects.forEach(p=>{if(p.run.status==='running')p.run.status='paused';});if(state.bench.run.status==='running')state.bench.run.status='paused';} } catch { recovery='上次原型记录无法读取，已打开内置示例。'; }
 const ui={route:'home',theme:matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light',moduleTab:'drawing',selectedNode:'',selectedEdge:'',editorPort:'',category:'全部模块',moduleSearch:'',moduleView:'cards',projectSearch:'',projectFilter:'all',projectView:'grid',bank:0,allBanks:false,variableSearch:'',onlyCommon:false,valueSearch:'',arrayVar:'system:form',codeKind:'runtime',designIndex:0,modelSearch:'',modelFilter:'all',modelTab:'parameters',benchTab:'results',settingsTab:'project',connectionTab:'variables',selectedConnector:'serial1',nodeDomain:'fluid',nodeTab:'definition',selectedRecord:'DEMO-003',runFilter:'all',pageGrid:false,placing:null,connecting:null,canvasMode:'select',floats:[],frontId:'',floatSerial:0,taskDrawer:false,selectedChart:'q',clipboard:null,showLibrary:innerWidth>500,showChart:false,workbenchChart:'flow',compileOutput:'尚未检查。可检查 Python 括号与字符串，或预览模块调用流程。',controlOutput:'控制脚本尚未预览。',connectionSearch:'',guideStep:0};
-try {const savedUI=JSON.parse(localStorage.getItem(UI_KEY)||'null');if(savedUI){for(const key of ['theme','moduleTab','settingsTab','connectionTab','bank','pageGrid','codeKind','designIndex','showLibrary','showChart','workbenchChart','moduleView'])if(savedUI[key]!==undefined)ui[key]=savedUI[key];}}catch{}
+try {const savedUI=JSON.parse(localStorage.getItem(UI_KEY)||'null');if(savedUI){for(const key of ['theme','moduleTab','settingsTab','connectionTab','bank','pageGrid','codeKind','designIndex','showLibrary','showChart','workbenchChart','moduleView','canvasModeValue','canvasLabels','canvasAnimate','canvasScales'])if(savedUI[key]!==undefined)ui[key]=savedUI[key];}}catch{}
 if (!['cards','list'].includes(ui.moduleView)) ui.moduleView = 'cards';
 if (['design','header'].includes(ui.moduleTab)) { ui.codeKind=ui.moduleTab; ui.moduleTab='code'; }
 if (!['runtime','design','header'].includes(ui.codeKind)) ui.codeKind='runtime';
 if (![0,1,2].includes(ui.designIndex)) ui.designIndex=0;
-let modal=null,contextMenu=null,pointer=null,toastTimer,runInterval,undoStack=[],redoStack=[],lastTick=0;
+let modal=null,contextMenu=null,toastTimer,runInterval,undoStack=[],redoStack=[],lastTick=0;
 const project=()=>state.projects.find(p=>p.id===state.activeProject)||state.projects[0];
 const activePage=()=>project().pages.find(p=>p.id===project().activePage)||project().pages[0];
 const mod=(id=state.selectedModule)=>state.modules.find(m=>m.id===id)||state.modules[0];
 const instance=id=>project().pages.flatMap(p=>p.nodes).find(n=>n.id===id);
 const moduleOf=n=>ownerOfInstance(n)?.moduleSnapshots?.[n.moduleId] || mod(n.moduleId);
 const model=(id=state.selectedModel)=>state.models.find(m=>m.id===id);
-const paramDefs=n=>moduleOf(n).runtime === 'python' ? manifestFields(moduleOf(n).manifest) : PARAM_DEFS[moduleOf(n).kind]||[];
-const pendingCount=n=>deviceParamIds(n).filter(id=>!sameValue(n.draft[id],n.params[id])).length+instanceCustomPending(n)+(n.draftModelId&&(n.draftModelId!==n.modelId||n.draftModelVersion!==n.modelVersion)?1:0);
+const moduleParamDefs=m=>m.manifest?manifestFields(m.manifest):m.parameterDefs||PARAM_DEFS[m.kind]||[];
+const paramDefs=n=>moduleParamDefs(moduleOf(n));
+const pendingCount=n=>deviceParamIds(n).filter(id=>!sameValue(n.draft[id],n.params[id])).length+instanceCustomPending(n)+(n.draftModelId&&(n.draftModelId!==n.modelId||n.draftModelVersion!==n.modelVersion)?1:0)+(FluidNetPerformanceData?.pending(n)?1:0);
 const anyPending=()=>state.projects.reduce((sum,p)=>sum+p.pages.flatMap(p=>p.nodes).reduce((s,n)=>s+pendingCount(n),0),0);
 const statusText=run=>({ready:'就绪',running:'运行中',paused:'已暂停',stopped:'已停止',completed:'已完成',failed:'失败',solving:'求解中'}[run.status]||'就绪');
 function msg(text,error=false){const toast=document.getElementById('toast');toast.className='toast'+(error?' error':'');toast.innerHTML=icon(error?'Info':'CheckCircle2')+`<span>${esc(text)}</span>`;toast.hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>toast.hidden=true,3500);document.getElementById('announcement').textContent=text;}
-function saveUI(){try{localStorage.setItem(UI_KEY,JSON.stringify({theme:ui.theme,moduleTab:ui.moduleTab,settingsTab:ui.settingsTab,connectionTab:ui.connectionTab,bank:ui.bank,pageGrid:ui.pageGrid,codeKind:ui.codeKind,designIndex:ui.designIndex,showLibrary:ui.showLibrary,showChart:ui.showChart,workbenchChart:ui.workbenchChart,moduleView:ui.moduleView}));}catch{/* 界面偏好体积很小；失败只影响主题/页签记忆，草稿失败由 persistLocal 提示。 */}}
-// 配额类存储异常：Chrome/Edge 的 QuotaExceededError、Firefox 的 NS_ERROR_DOM_QUOTA_REACHED，
-// 旧浏览器报 code 22（QUOTA_EXCEEDED_ERR）或 1014，另外按 name/message 兜底。
-function isQuotaError(error){
-  if(!error)return false;
-  const name=String(error.name||''), message=String(error.message||'');
-  return /quota/i.test(name)||name==='NS_ERROR_DOM_QUOTA_REACHED'||error.code===22||error.code===1014
-    ||/quota|exceeded the quota|storage space|存储空间/i.test(message);
-}
-// 在“仅用于存储”的副本上裁剪运行历史：每次运行保留最近 frames 帧，运行快照保留最近 records 条
-// （null 表示不裁剪快照）。只改副本；返回是否真的裁掉了内容。
-function trimDraft(draft,frames,records){
-  let trimmed=false;
-  const trim=run=>{if(!run||!Array.isArray(run.history)||run.history.length<=frames)return;run.history=run.history.slice(-frames);trimmed=true;};
-  for(const p of draft.projects||[])trim(p.run);
-  trim(draft.bench?.run);
-  if(Array.isArray(draft.records)){
-    if(records!==null&&draft.records.length>records){draft.records=draft.records.slice(0,records);trimmed=true;}
-    for(const record of draft.records)trim(record);
-  }
-  return trimmed;
-}
-function failLocalSave(text){
-  const repeat=localSaveError===text;
-  localSaveError=text;localSaveTrimmed=false;syncChrome();
-  if(!repeat)msg(text,true);
-  return false;
-}
-// 依次产出可写入的草稿文本：第一项为原样 state，之后为逐级裁剪运行历史的副本（懒生成，
-// 前一项写入成功就不再序列化后面的副本）。内存中的 state 不会被修改。
-function* draftTexts(){
-  let last='', draft=null;
-  for(const step of [null,...LOCAL_DRAFT_STEPS]){
-    let text;
-    if(step===null)text=JSON.stringify(state);
-    else{
-      draft||=clone(state);
-      if(!trimDraft(draft,step[0],step[1]))continue;
-      text=JSON.stringify(draft);
-    }
-    if(text===last)continue;
-    last=text;
-    yield {frames:step?step[0]:null,text};
-  }
-}
-// 统一的本地草稿写入（“保存原型”与引擎/流程里的 ui.persist 共用）：
-// 先原样写；配额不足时按 LOCAL_DRAFT_STEPS 逐级裁剪副本重试；全部失败则保留内存数据并显示可见错误。
-function persistLocal(){
-  try{
-    for(const {frames,text} of draftTexts()){
-      try{localStorage.setItem(STORAGE_KEY,text);}
-      catch(error){if(isQuotaError(error))continue;return failLocalSave('本地草稿保存失败：'+(error.message||'浏览器拒绝写入')+'；内存数据仍在，请导出原型。');}
-      if(frames===null){if(localSaveError||localSaveTrimmed){localSaveError='';localSaveTrimmed=false;syncChrome();}return true;}
-      const first=!localSaveTrimmed;
-      localSaveError='';localSaveTrimmed=true;syncChrome();
-      if(first)msg(`浏览器草稿已保存；存储空间不足，运行历史已裁剪为最近 ${frames} 帧，完整曲线仍在内存，请导出原型。`);
-      return true;
-    }
-    return failLocalSave('本地草稿保存失败：存储空间不足，已保留内存数据，请导出原型后清理浏览器存储。');
-  }catch(error){return failLocalSave('本地草稿保存失败：'+(error.message||'未知错误')+'；内存数据仍在，请导出原型。');}
-}
-// 载入服务器工作区、导入或恢复示例前备份当前草稿；配额不足时同样裁剪副本，
-// 仍放不下就抛出可见原因，避免静默丢掉旧草稿。
-function backupLocalDraft(key){
-  try{
-    for(const {text} of draftTexts()){
-      try{localStorage.setItem(key,text);return true;}
-      catch(error){if(isQuotaError(error))continue;throw Error('本地草稿备份失败：'+(error.message||'浏览器拒绝写入'));}
-    }
-  }catch(error){if(!/^本地草稿备份失败/.test(error.message||''))throw Error('本地草稿备份失败：'+(error.message||'未知错误')+'，请先导出原型再继续。');throw error;}
-  throw Error('本地草稿备份失败：存储空间不足，请先导出原型再继续。');
-}
-function markDirty(target){editRevision++;if(savePhase==='saved')savePhase='';state.dirty=true;if(target)target.dirty=true;root.querySelectorAll("[data-float-save]").forEach(el=>el.textContent="草稿未保存");syncChrome();}
-async function saveAll(){
-  if(savePhase==='saving')return;
-  const owner=state, version=editRevision, payload=clone(state);
-  payload.dirty=false;payload.savedAt=new Date().toISOString();payload.projects.forEach(p=>p.dirty=false);
-  payload.modules.forEach(m=>{if(m.runtime!=='python')m.dirty=false;});
-  savePhase='saving';saveError='';syncChrome();
-  // 本地草稿先落盘：失败不再静默——persistLocal 会按策略裁剪副本重试，仍失败则显示可见错误，
-  // 内存中的 state 保持完整，用户仍可导出原型。
-  persistLocal();
-  try{
-    const receipt=await engine.saveWorkspace(payload);
-    if(state===owner){
-      state.workspaceRevision=receipt.revision;state.savedAt=receipt.saved_at;
-      if(editRevision===version){state.dirty=false;state.projects.forEach(p=>p.dirty=false);state.modules.forEach(m=>{if(m.runtime!=='python')m.dirty=false;});}
-      persistLocal();
-    }
-    savePhase='saved';syncChrome();updateFloatBodies();
-    msg(`工作区已保存 · 修订 ${receipt.revision}${state.dirty?' · 仍有后续修改未保存':''}${anyPending()?` · ${anyPending()} 项参数待应用`:''}`);
-  }catch(error){savePhase='error';saveError=error.message;state.dirty=true;persistLocal();syncChrome();msg('保存失败：'+error.message,true);}
-}
-function restoreWorkspace(data){
-  const incoming=clone(data);
-  validateImport(incoming);
-  backupLocalDraft(STORAGE_KEY+'-before-workspace');
-  const previous=state;
-  try{state=incoming;normalizeState();}catch(error){state=previous;throw error;}
-  ui.floats=[];ui.selectedNode='';undoStack=[];redoStack=[];
-  editRevision++;savePhase='';saveError='';render();
-}
+function saveUI(){try{localStorage.setItem(UI_KEY,JSON.stringify({theme:ui.theme,moduleTab:ui.moduleTab,settingsTab:ui.settingsTab,connectionTab:ui.connectionTab,bank:ui.bank,pageGrid:ui.pageGrid,codeKind:ui.codeKind,designIndex:ui.designIndex,showLibrary:ui.showLibrary,showChart:ui.showChart,workbenchChart:ui.workbenchChart,moduleView:ui.moduleView,canvasModeValue:ui.canvasModeValue,canvasLabels:ui.canvasLabels,canvasAnimate:ui.canvasAnimate,canvasScales:ui.canvasScales}));}catch{/* 界面偏好体积很小；失败只影响主题/页签记忆，草稿失败由 persistLocal 提示。 */}}
+// 草稿持久化和工作区替换由独立存储边界管理，状态仍由 shell 持有。
+let workspaceStorageController;
+function workspaceStorage(){return workspaceStorageController ||= FluidNetWorkspaceStorage.create({
+  read:()=>state,write:value=>{state=value;},definitions:PARAM_DEFS,validate:validateImport,normalize:normalizeState,projectState,model:projectModel,storage:localStorage,key:STORAGE_KEY,draftStore:FluidNetDraftStore,
+  ready:()=>engine.whenReady(),save:payload=>engine.saveWorkspace(payload),revision:()=>editRevision,
+  status:()=>({phase:savePhase,error:saveError,localError:localSaveError,trimmed:localSaveTrimmed}),
+  changed:patch=>{if('phase'in patch)savePhase=patch.phase;if('error'in patch)saveError=patch.error;if('localError'in patch)localSaveError=patch.localError;if('trimmed'in patch)localSaveTrimmed=patch.trimmed;syncChrome();},
+  message:msg,resetView:()=>{ui.floats=[];ui.selectedNode='';undoStack=[];redoStack=[];editRevision++;},render,updateWindows:updateFloatBodies,pending:anyPending
+});}
+function persistLocal(){return workspaceStorage().persist();}
+function backupLocalDraft(key,source=state){return workspaceStorage().backup(key,source);}
+function markDirty(target){editRevision++;if(savePhase==='saved')savePhase='';projectState.markDirty(state,target);root.querySelectorAll("[data-float-save]").forEach(el=>el.textContent="草稿未保存");syncChrome();}
+function saveAll(){return workspaceStorage().saveAll();}
+function replaceWorkspaceState(data,beforeReplace=()=>{},afterNormalize=()=>{}){return workspaceStorage().replace(data,beforeReplace,afterNormalize);}
+function restoreWorkspace(data){return workspaceStorage().restore(data);}
 async function workspaceTools(){
   const [usage,history]=await engine.workspaceInfo();
   openDialog('工作区备份与恢复','备份包含已保存的项目、运行历史和模块版本；当前未保存草稿请先保存或导出。',`
@@ -391,46 +359,34 @@ root.addEventListener('change',async event=>{
     openDialog('备份已恢复',result.message,`<div class="stack"><p>修订 ${result.revision}</p><p class="mono">${esc(result.directory)}</p><pre class="code-preview">${esc(result.command)}</pre></div>`,null,'',true);
   }catch(error){msg(error.message,true);}
 });
-function receiveArchives(runs){
-  ui.archivedRuns=runs;
-  for(const p of state.projects)if(p.run.live && !runs.some(r=>r.id===p.run.runId)){
-    p.run.live=false;p.run.runId=null;p.run.status='stopped';p.run.events.push({t:p.run.time,text:'原运行已过期，请新建运行。'});
-  }
+function receiveArchives(runs,observed){
+  ui.archivedRuns=runs;projectRunState.reconcileArchives(state,runs,observed);
   if(ui.route==='runs')render();
 }
 function showArchive(record,overview){
-  const source=record.request.project;
-  const overviewBindings=engine.overviewBindings(source);
-  const history=overview.rows.map(frame=>({t:frame.time_s,canonical:frame.variables,variables:{},variableValues:{},diagnostics:frame.diagnostics,metrics:frame.metrics,
-    ...engine.overviewValues(overviewBindings,frame.variables)}));
-  const item={id:record.id,name:source.name,projectName:source.name,projectId:state.projects.find(p=>p.id===source.id)?.id,
-    scope:'project',status:record.status,mode:record.mode==='steady'?'稳态':'动态',time:record.frame?.time_s||0,
-    history,overviewBindings,events:record.events.map(e=>({t:e.time_s,text:e.message||e.type})),
-    params:Object.fromEntries(source.instances.map(n=>[n.id,n.parameters])),source:'engine',sample:false,
-    archive:record,archiveStride:overview.stride,totalRows:overview.total_rows,
-    chartBindings:source.thermal_couplings?.length?clone(state.charts.extra.filter(v=>v.projectId===source.id&&!isCouplingChart(v)))
-      .concat(coldStorage.couplingChartBindings({id:source.id,thermalCouplings:source.thermal_couplings})):undefined};
-  state.records=state.records.filter(r=>r.id!==item.id);state.records.unshift(item);state.records=state.records.slice(0,30);
-  ui.selectedRecord=item.id;render();
+  const source=record.request.project,overviewBindings=engine.overviewBindings(source);
+  const chartBindings=source.thermal_couplings?.length?clone(state.charts.extra.filter(v=>v.projectId===source.id&&!isCouplingChart(v)))
+    .concat(coldStorage.couplingChartBindings({id:source.id,thermalCouplings:source.thermal_couplings})):undefined;
+  const item=projectRunState.archiveRecord(record,overview,{projectId:state.projects.find(p=>p.id===source.id)?.id,
+    overviewBindings,overviewValues:engine.overviewValues,chartBindings});
+  projectRunState.rememberArchive(state,item);ui.selectedRecord=item.id;render();
 }
 function log(text,kind='INFO'){state.messages.unshift({time:new Date().toLocaleTimeString('zh-CN',{hour12:false}),kind,text});state.messages=state.messages.slice(0,80);}
 function isCouplingChart(binding) {
   return Boolean(binding.couplingId||binding.couplingTotal||binding.canonicalKey?.startsWith('coupling.')||binding.canonicalKey?.startsWith('metrics.coupling_'));
 }
 function canvasEditSnapshot(owner=project()) {
-  return clone({pages:owner.pages,activePage:owner.activePage,thermalCouplings:owner.thermalCouplings,
-    charts:state.charts.extra.filter(binding=>binding.projectId===owner.id),workbenchChart:ui.workbenchChart,showChart:ui.showChart});
+  return projectState.canvasSnapshot(owner,state.charts.extra,ui);
 }
 function remember(){undoStack.push(canvasEditSnapshot());if(undoStack.length>30)undoStack.shift();redoStack=[];}
 function undo(redo=false) {
   const from=redo?redoStack:undoStack,to=redo?undoStack:redoStack;if(!from.length)return;
-  const owner=project(),next=from.at(-1);
+  const owner=project(),next=from.at(-1),canvasEditSnapshotFromCurrent=canvasEditSnapshot(owner);
   // Restoring a canvas can also remove or restore a coupling endpoint. A live run
   // owns its original topology, including when paused.
   if(owner.thermalCouplings?.length||next.thermalCouplings?.length)coldStorage.assertCouplingIdle(owner);
-  to.push(canvasEditSnapshot(owner));from.pop();owner.pages=next.pages;owner.activePage=next.activePage;
-  if('thermalCouplings' in next)owner.thermalCouplings=next.thermalCouplings;else delete owner.thermalCouplings;
-  state.charts.extra=state.charts.extra.filter(binding=>binding.projectId!==owner.id).concat(next.charts);
+  const restoredCharts=projectState.restoreCanvas(owner,next,state.charts.extra);
+  to.push(canvasEditSnapshotFromCurrent);from.pop();state.charts.extra=restoredCharts;
   ui.workbenchChart=next.workbenchChart;ui.showChart=next.showChart;
   ui.selectedNode='';ui.selectedEdge='';ui.connecting=null;ui.pinnedChart=null;
   ui.floats=ui.floats.filter(f=>instance(f.id));markDirty(owner);persistLocal();render();msg(redo?'已重做':'已撤销');
@@ -451,58 +407,57 @@ function thumbnail(p){return `<svg viewBox="0 0 1100 470" role="img" aria-label=
 function projectCard(p){return `<article class="project-card"><button class="project-preview" data-action="open-project" data-id="${p.id}" aria-label="打开 ${esc(p.name)}">${thumbnail(p)}${badge(p.id===state.activeProject?'当前项目':'示例','')}</button><div class="project-info"><h3>${esc(p.name)}</h3><div class="meta"><span>${p.pages.length} 张画布</span><span>·</span><span>${p.pages.reduce((s,c)=>s+c.nodes.length,0)} 个设备</span><span>·</span><span>${p.caseId==='cold-room-ideal-v1'?'库房热系统':esc(fluidBadge(p))}</span></div><div class="row spread"><small class="muted">${p.dirty?'草稿有修改':esc(p.modified||'示例项目')}</small><div class="row gap-6">${workflows.projectActions(p)}${ibtn('duplicate-project','复制项目','Copy',`data-id="${p.id}"`)}${btn('open-project','打开','ArrowUpRight',`data-id="${p.id}"`,'small')}</div></div></div></article>`;}
 function renderHome(){return `<div class="page-shell">${heading('工作从这里开始','继续建模，或从一个验证过操作流程的示例开始。',btn('import','导入原型','Upload')+btn('new-project','新建项目','Plus','','primary'),'FLUIDNET WORKSPACE')}${entryPathsMarkup()}<div class="home-main"><div class="stack gap-20"><section><div class="section-title"><h2>最近项目</h2>${btn('nav','全部项目','ChevronRight','data-route="projects"','ghost small')}</div><div class="project-grid">${state.projects.slice(0,3).map(projectCard).join('')}</div></section><section class="panel"><div class="panel-head"><h2>最近使用的模块</h2>${btn('nav','模块库','ArrowUpRight','data-route="modules"','ghost small')}</div>${['valve','pump','exchanger','tank'].map(id=>{const m=mod(id);return `<div class="list-row"><span class="object-icon">${icon(m.icon)}</span><div class="grow"><strong>${m.name}</strong><small>${m.code} · ${m.ports.length} 个端口 · ${m.channels.length} 条内部通路</small></div>${badge('v'+m.version)}${btn('edit-module','编辑定义','Pencil',`data-id="${id}"`,'ghost small')}</div>`;}).join('')}</section></div><aside class="home-aside stack"><section class="panel"><div class="panel-head"><h2>快捷入口</h2>${icon('Grid2X2')}</div><div class="quick-list">${[['new-module','新建算法模块','Box'],['nav','管理设备型号','Database','models'],['nav','查看运行记录','History','runs'],['nav','页面与使用指南','BookOpen','help']].map(([act,label,i,r])=>`<button data-action="${act}" ${r?`data-route="${r}"`:''}>${icon(i)}<span class="grow">${label}</span>${icon('ChevronRight')}</button>`).join('')}</div></section><section class="panel"><div class="panel-head"><h2>消息与任务</h2>${badge('本地原型')}</div><div class="timeline">${state.messages.slice(0,3).map(m=>`<div class="timeline-item"><span class="timeline-point">${icon('CheckCircle2')}</span><div>${esc(m.text)}<small>${m.time} · ${m.kind}</small></div></div>`).join('')}</div></section><section class="panel"><div class="panel-body stack"><div class="row">${icon('Info')}<strong>当前体验范围</strong></div><p class="muted" style="font-size:12px">主系统运行已接入真实水力与热力求解。含水箱或管道热容分段的项目按隐式 Euler 积分液位、水温与管内温度，其余动态为准稳态时间序列。动态运行是可暂停、单步和运行中改参数的会话；「控制」页可配置 PID（Lua 控制脚本尚未接入）。Python 模块支持独立验证与版本保存。</p>${btn('page-map','查看全部页面','LayoutDashboard','','small')}</div></section></aside></div></div>`;}
 function renderProjects(){let list=state.projects.filter(p=>(p.name+p.description).toLowerCase().includes(ui.projectSearch.toLowerCase()));if(ui.projectFilter==='current')list=list.filter(p=>p.id===state.activeProject);return `<div class="page-shell">${heading('项目管理','按项目保存、导入导出与恢复修订；运行记录独立保存。',workflows.projectToolbar()+btn('cs-create','−18°C 冷库案例','Thermometer')+btn('cs-create-station','NH₃/CO₂ 冷库案例','Wind')+btn('cs-create-coupled','制冷站热耦合','ArrowRightLeft')+btn('cs-create-dual','双盘管示例','Network')+btn('import','导入原型','Upload')+btn('new-project','新建项目','Plus','','primary'))}<div class="filterbar"><label class="search">${icon('Search')}<input aria-label="搜索项目" data-filter="projectSearch" placeholder="搜索项目名称" value="${esc(ui.projectSearch)}"></label><div class="segmented">${[['all','全部项目'],['current','当前项目']].map(([k,v])=>`<button data-action="project-filter" data-value="${k}" class="${ui.projectFilter===k?'active':''}">${v}</button>`).join('')}</div><span class="push"></span><span class="muted">${list.length} 个项目</span><div class="segmented">${['grid','list'].map(k=>`<button aria-label="${k==='grid'?'卡片视图':'列表视图'}" data-action="project-view" data-value="${k}" class="${ui.projectView===k?'active':''}">${icon(k==='grid'?'Grid2X2':'List')}</button>`).join('')}</div></div><div id="project-results" class="project-grid${ui.projectView==='list'?' project-list-view':''}">${list.map(projectCard).join('')||empty('没有匹配的项目','换个关键词，或新建一个项目。')}</div><div class="home-note"><span class="note-icon">${icon('Folder')}</span><div class="grow"><strong>项目与修订保存在服务器工作区</strong><p>“管理”可单独保存项目、导出及恢复修订；“保存原型”保存完整工作区。</p></div>${btn('export','导出原型','Download','data-format="prototype"','ghost')}</div></div>`;}
-function symbol(n,mini=false){const kind=moduleOf(n).kind;let s='';const stroke='var(--muted)',fill='var(--surface)';if(kind==='junction')s=`<circle r="5" fill="var(--orange)"/>`;else if(kind==='source')s=`<circle r="17" fill="var(--blue-soft)" stroke="var(--blue)" stroke-width="1.3"/><text y="4" text-anchor="middle" font-size="13" fill="var(--blue)">P</text>`;else if(kind==='pump')s=`<circle r="18" fill="var(--soft)" stroke="${stroke}" stroke-width="1.3"/><path d="M -5 -9 L 10 0 L -5 9 Z" fill="none" stroke="${stroke}" stroke-width="1.5"/><path d="M -13 22 H 13" stroke="${stroke}" stroke-width="2"/>`;else if(kind==='valve'||kind==='check')s=`<path d="M -15 -10 L 15 10 V -10 L -15 10 Z" fill="${fill}" stroke="var(--accent)" stroke-width="1.4"/>${kind==='check'?'<path d="M 0 -13 V 13" stroke="var(--accent)"/>':''}`;else if(kind==='pipe')s=`<rect x="-22" y="-5" width="44" height="10" rx="2" fill="${fill}" stroke="var(--accent)" stroke-width="1.3"/>`;else if(kind==='tank')s=`<rect x="-20" y="-28" width="40" height="56" rx="7" fill="var(--blue-soft)" stroke="${stroke}" stroke-width="1.3"/><path d="M -18 0 Q -9 -5 0 0 T 18 0" fill="none" stroke="var(--blue)"/>`;else if(kind==='exchanger')s=`<rect x="-29" y="-32" width="58" height="64" rx="5" fill="${fill}" stroke="${stroke}"/><path d="M -25 -17 H 23 M -25 17 H 23 M -10 -23 L 10 23 M 0 -23 L 20 23" stroke="var(--orange)" fill="none"/>`;else s=`<rect x="-18" y="-18" width="36" height="36" rx="6" fill="var(--soft)" stroke="${stroke}"/><text y="4" text-anchor="middle" fill="var(--text)" font-size="11">${kind==='heater'?'Q':kind==='pid'?'PID':kind==='sensor'?'F':'ƒ'}</text>`;return `<g transform="rotate(${n.rotation||0})">${s}</g>`;}
-function portOffset(n,p){if(moduleOf(n).kind==='source')return {x:/^B[24](?:-|$)/.test(n.id)?-28:28,y:0};if(moduleOf(n).kind==='junction'){const flip=/^N2(?:-|$)/.test(n.id)?-1:1;return p.id==='in0'?{x:-24*flip,y:0}:{x:24*flip,y:p.id==='out0'?-18:18};}const m=moduleOf(n);if(m.category==='制冷站设备'){const side=m.ports.filter(q=>q.direction===p.direction),i=side.indexOf(p);return {x:p.direction==='in'?-32:32,y:side.length>1?-21+42*i/(side.length-1):0};}return {x:p.direction==='in'?-32:32,y:m.kind==='exchanger'?(p.id.endsWith('0')?-19:19):0};}
-function endpoint(pg,nodeId,portId){const n=pg.nodes.find(n=>n.id===nodeId);if(!n)return null;const p=moduleOf(n).ports.find(p=>p.id===portId);if(!p)return null;const d=portOffset(n,p);const a=(n.rotation||0)*Math.PI/180;return {x:n.x+d.x*Math.cos(a)-d.y*Math.sin(a),y:n.y+d.x*Math.sin(a)+d.y*Math.cos(a),node:n,port:p};}
-function routeLine(a,b){const mid=(a.x+b.x)/2;return Math.abs(a.y-b.y)<2?`M ${a.x} ${a.y} H ${b.x}`:`M ${a.x} ${a.y} H ${mid} V ${b.y} H ${b.x}`;}
+let engineeringCanvas;
+function canvasView(){return engineeringCanvas ||= FluidNetCanvasWorkspace.create({getState:()=>state,project,activePage,moduleOf,ui,esc,btn,links,domains:DOMAINS,quick:quickCanvasMarkup,channels:internalChannelsMarkup,projectKey:projectParameterKey,selectedIds:groupSelected,engine:()=>engine,openDialog,closeDialog,render,saveUI,
+  locate:id=>{const found=links.locate(project(),id);if(!found)throw Error('设备已不存在');project().activePage=found.page.id;ui.selectedNode=id;fitNetwork(found.page);render();openDevice(id);}});}
+function portOffset(n,p){return FluidNetCanvasSymbols.portOffset(n,moduleOf(n),p);}
+function portHitRadius(n,p){return FluidNetCanvasSymbols.hitRadius(n,moduleOf(n),p);}
+function endpoint(pg,nodeId,portId){return canvasView().endpoint(pg,nodeId,portId);}
+function globalEndpoint(owner,nodeId,portId){const found=links.locate(owner,nodeId);return found?endpoint(found.page,nodeId,portId):null;}
+function pageLinkStrip(pg){
+  const entries=links.cross(project(),pg.id);
+  if(!entries.length)return '';
+  return `<div class="cross-page-strip" aria-label="当前画布跨页连接">${entries.map(link=>`<button type="button" data-action="jump-page-link" data-id="${esc(link.edge[0])}" data-node="${esc(link.remote[0])}" title="跳转到 ${esc(link.remotePage.name)} · ${esc(link.remote.join(':'))}">${icon('ArrowRightLeft')}<span>${esc(link.local.join(':'))} ↔ ${esc(link.remotePage.name)} · ${esc(link.remote.join(':'))}</span>${icon('ArrowUpRight')}</button>`).join('')}</div>`;
+}
 // Trend-history runs (RunFrame.full=false) carry only curve variables between key frames; device
 // panels and canvas readings show the most recent full row instead of blanking out.
 function panelRow(run){const history=run?.history||[];for(let i=history.length-1;i>=0;i--)if(!history[i].partial)return history[i];return history.at(-1);}
 function replayingKeyFrame(run){return !!run?.history?.length&&!!run.history.at(-1).partial;}
-function flowFor(n){return panelRow(project().run)?.canonical?.[n.id+'.mass_flow_kg_s'] ?? null;}
-function outletTemperature(n){
-  const port=moduleOf(n).ports.find(port=>port.direction==='out' && port.domain==='fluid');
-  const value=port && panelRow(ownerOfInstance(n).run)?.canonical?.[`${n.id}.${port.id}.temperature_k`];
-  return Number.isFinite(value)?value-273.15:null;
-}
 const CIRCUIT_COLORS=['var(--orange)','#2f80ed','#27ae60','#9b51e0','#eb5757','#f2994a','#219653','#56ccf2'];
-function circuitOfPort(key){const circuits=engine.circuits?.(project().id)||[];return circuits.length>1?circuits.find(c=>c.ports.includes(key)):null;}
-function circuitLabel(c){return `回路 ${c.id+1} · ${c.fluid.fluid}${c.source==='project'?'（项目默认）':' · '+c.source}`;}
-function networkMarkup(pg,mini=false){const lines=pg.edges.map(([id,a,ap,b,bp])=>{const e1=endpoint(pg,a,ap),e2=endpoint(pg,b,bp);if(!e1||!e2)return '';const d=routeLine(e1,e2),c=circuitOfPort(a+':'+ap);return `<path d="${d}" class="net-line${ui.selectedEdge===id?' selected':''}"${c?` style="stroke:${CIRCUIT_COLORS[c.id%CIRCUIT_COLORS.length]}"`:''}>${c?`<title>${esc(circuitLabel(c))}</title>`:''}</path>${mini?'':`<path d="${d}" class="net-hit" data-edge="${id}" role="button" aria-label="连接 ${a} 到 ${b}" tabindex="0"/>`}`;}).join('');
-  const nodes=pg.nodes.map(n=>{const m=moduleOf(n);return `<g transform="translate(${n.x},${n.y})" class="net-node${!mini&&ui.selectedNode===n.id?' selected':''}" ${mini?'':`data-node="${n.id}" tabindex="0" role="button" aria-label="${esc(n.id+' '+n.name)}"`}><rect class="node-hit" x="-28" y="-35" width="56" height="101" fill="transparent" pointer-events="all"/><rect class="node-selection" x="-27" y="-28" width="54" height="56" rx="5"/>${portStubs(n)}${symbol(n,mini)}${mini?'':internalChannelsMarkup(n)}${!mini&&project().run.history.length&&ui.pageGrid!==null?`<text class="node-reading" x="0" y="-43" text-anchor="middle">${number(flowFor(n),3)}</text>`:''}${m.ports.map(p=>{const offset=portOffset(n,p),connected=pg.edges.some(e=>(e[1]===n.id&&e[2]===p.id)||(e[3]===n.id&&e[4]===p.id));return `<g transform="rotate(${n.rotation||0})"><g class="port-group${ui.connecting?.nodeId===n.id&&ui.connecting?.portId===p.id?' pending':''}" ${mini?'':`data-port-node="${n.id}" data-port-id="${p.id}" role="button" aria-label="${esc(n.id+' '+p.label)}" tabindex="0"`}><title>${esc(n.id+' · '+p.label+' · '+DOMAINS[p.domain].label)}${connected?' · 已连接':''}</title><circle cx="${offset.x}" cy="${offset.y}" r="${mini?3:3.5}" class="net-port${connected?' connected':''}"/>${mini?'':`<circle cx="${offset.x}" cy="${offset.y}" r="10" class="port-hit"/>`}</g></g>`;}).join('')}${mini?'':`<text class="node-code" x="0" y="44" text-anchor="middle">${esc(n.id)}</text><text class="node-name" x="0" y="60" text-anchor="middle">${esc(n.name)}</text>${quickCanvasMarkup(n,m)}`}</g>`;}).join('');return lines+nodes;}
+function networkMarkup(pg,mini=false){return canvasView().markup(pg,mini);}
 function fluidBadge(p){const circuits=engine.circuits?.(p.id)||[];if(new Set(circuits.map(c=>c.fluid.fluid)).size>1)return `多工质 · ${circuits.length} 个回路`;const declared=new Set((p.circuitFluids||[]).map(c=>c.fluid||c.medium).filter(Boolean));if(!circuits.length&&declared.size>1)return `多工质 · ${[...declared].join(' / ')}`;return p.fluid||(MEDIA.find(m=>m[0]===p.medium)||MEDIA[0])[1];}
-function renderWorkbench(){const p=project(),pg=activePage(),selected=instance(ui.selectedNode);return `<div class="workbench${ui.showLibrary?' show-library':''}${ui.showChart?' with-chart':''}"><aside class="canvas-library" id="canvas-library"><div class="library-heading"><strong>模块库</strong><small class="muted">${state.modules.length} 类</small>${ibtn('toggle-library','关闭模块库','PanelLeftClose')}</div><label class="search">${icon('Search')}<input placeholder="查找模块" aria-label="画布模块搜索" data-filter="canvasModuleSearch"></label><div class="library-scroll" id="canvas-library-list">${libraryMarkup()}</div><div class="selected-properties" id="selected-properties">${propertiesMarkup(selected)}</div></aside><div class="canvas-column"><div class="canvas-bar"><div class="canvas-pages">${pgTabs()}${ibtn('new-canvas','新增画布','Plus')}</div><div class="canvas-tools">${workflows.scenarioToolbar(p)}${coldStorage.couplingToolbar(p)}${ibtn('toggle-library',ui.showLibrary?'收起模块库':'展开模块库',ui.showLibrary?'PanelLeftClose':'PanelLeftOpen',`aria-expanded="${ui.showLibrary}" aria-controls="canvas-library"`)}${ibtn('select-mode','选择设备','MousePointer2')}${ibtn('connect-mode','连接端口','Cable')}<span class="tool-divider"></span>${ibtn('undo','撤销 Ctrl+Z','Undo2',undoStack.length?'':'disabled')}${ibtn('redo','重做 Ctrl+Y','Redo2',redoStack.length?'':'disabled')}${ibtn('fit','适应画布','Scan')}${ibtn('grid','显示点阵','Grid2X2','class="optional"')}${ibtn('validate','检查连接','ListChecks')}</div></div><div id="canvas-device-tools">${deviceToolsMarkup(selected)}</div><div class="canvas-area${ui.pageGrid?' grid':''}" id="network-area"><div class="canvas-caption"><span>${esc(pg.name)}</span><span class="muted">${p.caseId==='cold-room-ideal-v1'?'库房热平衡 · W':p.run.history.length?'质量流量 · kg/s':'单击选择 · 双击参数'}</span>${badge(p.caseId==='cold-room-ideal-v1'?'传热系统':fluidBadge(p),'blue')}</div>${pg.nodes.length?`<svg id="network" class="network-svg" viewBox="${networkViewBox(pg)}" role="group" aria-label="${esc(p.name+' '+pg.name+' 管网画布')}">${networkMarkup(pg)}</svg>`:`<div class="empty" style="padding-top:18%">${icon('Network')}<h3>在这里搭建新系统</h3><p>从左侧选择模块，再点击画布放置设备。</p>${btn('insert-defaults','放入泵阀示例','Plus','','primary')}</div><svg id="network" class="network-svg" viewBox="-35 -5 1140 510" style="position:absolute;inset:0" aria-label="空画布"></svg>`}<div class="runbar" aria-label="主系统运行控制"><button data-action="run-project" data-command="run" class="go" ${['running','solving'].includes(p.run.status)?'disabled':''}>${icon('Play')}<span>${p.run.status==='paused'?'继续':'运行'}</span></button><button data-action="run-project" data-command="pause" ${p.run.status==='running'?'':'disabled'}>${icon('Pause')}暂停</button><button data-action="run-project" data-command="step" ${['running','solving'].includes(p.run.status)?'disabled':''}>${icon('StepForward')}单步</button><button data-action="run-project" data-command="stop" ${['ready','stopped'].includes(p.run.status)?'disabled':''}>${icon('Square')}停止</button><span class="spacer"></span><button data-action="toggle-chart" aria-label="${ui.showChart?'收起同屏曲线':'展开同屏曲线'}" aria-expanded="${ui.showChart}" class="${ui.showChart?'active':''}">${icon('Activity')}曲线</button></div><div id="canvas-inspection" class="canvas-inspection" role="status" hidden></div><div class="canvas-bottom"><span data-canvas-hint>${ui.placing?'点击画布放置 '+mod(ui.placing).name:ui.connecting?'选择另一个空闲端口 · Esc 取消':'双击设备编辑参数 · 拖动空白处平移'}</span><div class="zoom">${ibtn('zoom-out','缩小','Minus')}<span>${Math.round(pg.zoom*100)}%</span>${ibtn('zoom-in','放大','Plus')}</div></div></div>${renderWorkbenchChart()}${coldStorage.markup(p)}<div class="canvas-info"><span data-result-status></span><span class="optional">${pg.nodes.length} 个设备 · ${pg.edges.length} 条连接</span><span class="push"></span>${btn('nav','项目设置','Settings2','data-route="settings"','ghost small')}${btn('nav','控制逻辑','Code2','data-route="controls"','ghost small')}</div></div><aside id="inspector-dock" aria-hidden="true"></aside></div>`;}
+function renderWorkbench(){const p=project(),pg=activePage(),selected=instance(ui.selectedNode);return `<div class="workbench${ui.showLibrary?' show-library':''}${ui.showChart?' with-chart':''}"><aside class="canvas-library" id="canvas-library"><div class="library-heading"><strong>模块库</strong><small class="muted">${state.modules.length} 类</small>${ibtn('toggle-library','关闭模块库','PanelLeftClose')}</div><label class="search">${icon('Search')}<input placeholder="查找模块" aria-label="画布模块搜索" data-filter="canvasModuleSearch"></label><div class="library-scroll" id="canvas-library-list">${libraryMarkup()}</div><div class="selected-properties" id="selected-properties">${propertiesMarkup(selected)}</div></aside><div class="canvas-column"><div class="canvas-bar"><div class="canvas-pages">${pgTabs()}${ibtn('new-canvas','新增画布','Plus')}</div><div class="canvas-tools">${workflows.scenarioToolbar(p)}${coldStorage.couplingToolbar(p)}${coldStorage.assemblyToolbar(p)}${ibtn('toggle-library',ui.showLibrary?'收起模块库':'展开模块库',ui.showLibrary?'PanelLeftClose':'PanelLeftOpen',`aria-expanded="${ui.showLibrary}" aria-controls="canvas-library"`)}${ibtn('select-mode','选择设备','MousePointer2')}${ibtn('project-group-tools','多选与设备组操作','Boxes')}${ibtn('project-find','全项目查找','Search')}${ibtn('device-batch-edit','批量编辑设备','SlidersHorizontal')}${ibtn('connect-mode','连接端口','Cable')}${ibtn('page-links','跨页连接','ArrowRightLeft')}<span class="tool-divider"></span>${ibtn('undo','撤销 Ctrl+Z','Undo2',undoStack.length?'':'disabled')}${ibtn('redo','重做 Ctrl+Y','Redo2',redoStack.length?'':'disabled')}${ibtn('fit','适应画布','Scan')}${ibtn('grid','显示点阵','Grid2X2','class="optional"')}${ibtn('validate','检查连接','ListChecks')}</div></div>${pageLinkStrip(pg)}${canvasView().tools()}<div id="canvas-device-tools">${deviceToolsMarkup(selected)}</div><div class="canvas-area${ui.pageGrid?' grid':''}" id="network-area"><div class="canvas-caption"><span>${esc(pg.name)}</span><span class="muted">${p.caseId==='cold-room-ideal-v1'?'库房热平衡 · W':p.run.history.length?'真实采样 · 结果图例见上方':'单击选择 · 双击参数'}</span>${badge(p.caseId==='cold-room-ideal-v1'?'传热系统':fluidBadge(p),'blue')}</div>${pg.nodes.length?`<svg id="network" data-project="${esc(p.id)}" data-page="${esc(pg.id)}" class="network-svg" viewBox="${networkViewBox(pg)}" role="group" aria-label="${esc(p.name+' '+pg.name+' 管网画布')}">${networkMarkup(pg)}</svg>`:`<div class="empty" style="padding-top:18%">${icon('Network')}<h3>在这里搭建新系统</h3><p>从左侧选择模块，再点击画布放置设备。</p>${p.modelingDomain==='refrigeration'?btn('cs-assembly-guide','查看设备与连接说明','ListChecks','','primary'):btn('insert-defaults','放入泵阀示例','Plus','','primary')}</div><svg id="network" data-project="${esc(p.id)}" data-page="${esc(pg.id)}" class="network-svg" viewBox="-35 -5 1140 510" style="position:absolute;inset:0" aria-label="空画布"></svg>`}<div class="runbar" aria-label="主系统运行控制"><button data-action="run-project" data-command="run" class="go" ${['running','solving'].includes(p.run.status)?'disabled':''}>${icon('Play')}<span>${p.run.status==='paused'?'继续':'运行'}</span></button><button data-action="run-project" data-command="pause" ${p.run.status==='running'?'':'disabled'}>${icon('Pause')}暂停</button><button data-action="run-project" data-command="step" ${['running','solving'].includes(p.run.status)?'disabled':''}>${icon('StepForward')}单步</button><button data-action="run-project" data-command="stop" ${['ready','stopped'].includes(p.run.status)?'disabled':''}>${icon('Square')}停止</button><span class="spacer"></span><button data-action="toggle-chart" aria-label="${ui.showChart?'收起同屏曲线':'展开同屏曲线'}" aria-expanded="${ui.showChart}" class="${ui.showChart?'active':''}">${icon('Activity')}曲线</button></div><div id="canvas-inspection" class="canvas-inspection" role="status" hidden></div><div class="canvas-bottom"><span data-canvas-hint>${ui.placing?'点击画布放置 '+mod(ui.placing).name:ui.connecting?'可切换画布选择另一个空闲端口 · Esc 取消':'双击设备编辑参数 · 拖动空白处平移'}</span><div class="zoom">${ibtn('zoom-out','缩小','Minus')}<span>${Math.round(pg.zoom*100)}%</span>${ibtn('zoom-in','放大','Plus')}</div></div></div>${renderWorkbenchChart()}${coldStorage.markup(p)}<div class="canvas-info"><span data-result-status></span><span class="optional">${pg.nodes.length} 个设备 · ${pg.edges.length} 条连接</span><span class="push"></span>${btn('nav','项目设置','Settings2','data-route="settings"','ghost small')}${btn('nav','控制逻辑','Code2','data-route="controls"','ghost small')}</div></div><aside id="inspector-dock" aria-hidden="true"></aside></div>`;}
 function pgTabs(){return project().pages.map(p=>`<button data-action="canvas-tab" data-id="${p.id}" class="${p.id===project().activePage?'active':''}">${esc(p.name)}</button>`).join('');}
 function libraryMarkup(query=''){return moduleGroupNames().map(c=>{const modules=state.modules.filter(m=>m.category===c&&(m.name+m.code).toLowerCase().includes(query.toLowerCase()));return modules.length?`<div class="library-caption">${icon('ChevronDown')}${esc(c)}</div>${modules.map(m=>`<button class="library-item${ui.placing===m.id?' active':''}" data-action="place-module" data-id="${m.id}" draggable="true" data-drag-module="${m.id}">${icon(m.icon)}<span>${m.name}</span><small>${m.runtime === 'python' ? 'Python' : m.code.slice(0,2)}</small></button>`).join('')}`:'';}).join('');}
 function propertiesMarkup(n){if(n){const m=moduleOf(n);return `<div class="row spread"><h3>对象属性</h3>${badge(n.id,'warn')}</div><dl><dt>名称</dt><dd>${esc(n.name)}</dd><dt>模块</dt><dd>${esc(m.name)}</dd>${m.runtime==='python'?`<dt>模块版本</dt><dd data-module-binding>v${m.version} · ${esc((m.manifest.definition_hash || m.contentHash).slice(0,12))}</dd>`:''}<dt>型号</dt><dd>${esc(model(n.modelId)?.name||'自定义参数')}</dd>${paramDefs(n).slice(0,2).map(f=>`<dt>${f[1].replace('阀门','').replace('流量系数 ','')}</dt><dd>${number(n.params[f[0]],f[0]==='opening'?0:2)} ${f[2]}</dd>`).join('')}</dl><div class="row gap-6">${btn('open-device','详细参数','SlidersHorizontal',`data-id="${n.id}"`,'small')}${ibtn('delete-node','删除选中设备','Trash2',`data-id="${n.id}"`)}</div>`;}return `<h3>画布属性</h3><dl><dt>画布</dt><dd>${esc(activePage().name)}</dd><dt>介质</dt><dd>${esc(fluidBadge(project()))}</dd><dt>选择</dt><dd>${ui.selectedEdge?'已选连接 '+esc(ui.selectedEdge):'单击设备或连接'}</dd></dl>${ui.selectedEdge?btn('delete-edge','删除连接','Trash2',`data-id="${ui.selectedEdge}"`,'small'):btn('nav','管理模块','Boxes','data-route="modules"','small ghost')}`;}
 function channelFor(m,v){return m.channels.find(c=>c.enabled&&(c.input===v.port||c.output===v.port));}
-function renderEditor(){const m=mod();const contents={contract:renderModuleContract,drawing:renderDrawing,attributes:renderAttributes,values:renderValues,models:renderEditorModels,code:renderCode,channels:renderChannels};return `<div class="editor-page"><header class="editor-header">${ibtn('nav','返回模块库','ChevronLeft','data-route="modules"')}${ui.editorOrigin?btn('return-device','返回 '+esc(ui.editorOrigin.nodeId)+' 设备','ArrowRight','','small'):''}<span class="object-icon">${icon(m.icon)}</span><div><h1>${esc(m.name)} <span class="muted mono" style="font-size:13px">${esc(m.code)}</span></h1><small>模块定义 · v${m.version} · ${m.ports.length} 端口 / ${m.channels.length} 通路</small></div><span class="push"></span>${badge(m.dirty?'有修改':'定义已载入',m.dirty?'warn':'')}${m.runtime === 'python' ? btn('test-module','独立验证','CheckCheck',`data-id="${m.id}"`) : ''}${btn('compile-preview','检查与调用预览','CheckCheck')}${m.runtime === 'python' ? btn('save-module-version',m.saving?'校验与试算中…':'保存新版本','Save',m.saving?'disabled':'','primary') : btn('save','保存定义','Save','','primary')}</header><nav class="tabs editor-tabs" aria-label="模块编辑页面">${[...EDITOR_TABS,...(m.runtime === 'python' ? [['contract','契约与版本','FileJson']] : [])].map(([id,label,glyph])=>`<button data-action="editor-tab" data-value="${id}" class="${ui.moduleTab===id?'active':''}" aria-current="${ui.moduleTab===id?'page':'false'}">${icon(glyph)}${label}</button>`).join('')}</nav><section class="editor-content">${(contents[ui.moduleTab]||renderDrawing)()}</section><footer class="editor-footer"><span class="row gap-6">${icon('Box')}编辑模块定义</span><span class="optional">${m.runtime === 'python' ? '项目绑定已保存版本，编辑草稿不影响项目' : '项目实例通过型号应用更新'}</span><span class="push"></span><span>${m.runtime === 'python' ? 'Python Worker · initialize → evaluate → commit_step → finalize' : '内置注册水力模型'}</span></footer></div>`;}
-function drawingSVG(m){const selected=ui.editorPort;const shape=m.drawing;return `<svg id="module-drawing" viewBox="0 0 720 430" role="group" aria-label="${esc(m.name)}图形与端口"><g class="draw-object${selected==='picture'?' selected':''}" data-draw-id="picture" tabindex="0" role="button" aria-label="设备图形"><rect x="${360-shape.width*3}" y="${215-shape.height*2}" width="${shape.width*6}" height="${shape.height*4}" rx="${shape.shape==='circle'?70:8}" fill="var(--surface)" stroke="var(--blue)" stroke-width="1.6"/><text x="360" y="215" fill="var(--text)" text-anchor="middle" font-size="18">${esc(shape.label)}</text><text x="360" y="239" fill="var(--muted)" text-anchor="middle" font-size="12">${esc(m.code)}</text></g>${m.channels.filter(c=>c.enabled).map(c=>{const a=m.ports.find(p=>p.id===c.input),b=m.ports.find(p=>p.id===c.output);return a&&b?`<path d="M ${a.x*7.2} ${a.y*4.3} H ${(a.x+b.x)*3.6} V ${b.y*4.3} H ${b.x*7.2}" fill="none" stroke="var(--orange)" stroke-width="1.2" stroke-dasharray="5 4" opacity=".7"/><text x="${(a.x*.82+b.x*.18)*7.2}" y="${a.y*4.3-15}" text-anchor="middle" fill="var(--accent)" font-size="11">${esc(c.name)}</text>`:'';}).join('')}${m.ports.map(p=>`<g class="draw-object${selected===p.id?' selected':''}" data-draw-id="${p.id}" tabindex="0" role="button" aria-label="端口 ${esc(p.name)}"><rect x="${p.x*7.2-16}" y="${p.y*4.3-16}" width="32" height="32" rx="5" fill="transparent" stroke="transparent"/><circle cx="${p.x*7.2}" cy="${p.y*4.3}" r="6" fill="${p.direction==='in'?`var(--${DOMAINS[p.domain].color})`:'var(--surface)'}" stroke="var(--${DOMAINS[p.domain].color})" stroke-width="1.7"/><text x="${p.x*7.2}" y="${p.y*4.3+27}" fill="var(--text)" font-size="12" text-anchor="middle">${esc(p.name)}</text><text x="${p.x*7.2}" y="${p.y*4.3+44}" fill="var(--muted)" font-size="11" text-anchor="middle">${esc(p.label)}</text></g>`).join('')}</svg>`;}
-function renderDrawing(){const m=mod(),selected=m.ports.find(p=>p.id===ui.editorPort);return `<div class="editor-drawing"><div class="draw-left"><div class="draw-toolbar"><strong>图形与端口</strong><span class="muted">拖动布置 · 方向键微调</span><span class="push"></span>${btn('editor-tab','配置内部通路','Waypoints','data-value="channels"','small')}${ibtn('draw-center','居中图形','Scan')}</div><div class="draw-board" id="draw-board">${drawingSVG(m)}</div><div class="draw-toolbar"><span class="row gap-6"><span class="port-mark in"></span>入口</span><span class="row gap-6"><span class="port-mark"></span>出口</span><span class="push muted">虚线表示设备内部通路</span></div></div><aside class="draw-sidebar"><section><h3>添加绘制对象</h3><div class="draw-palette"><button data-action="select-picture">${icon('SquareDashed')}设备图形</button><button data-action="edit-drawing-label">${icon('Pencil')}图形名称</button>${Object.entries(DOMAINS).filter(([key])=>PORT_PREFIX[key]).flatMap(([key,d])=>['in','out'].map(dir=>`<button data-action="add-port" data-domain="${key}" data-direction="${dir}"><span class="port-mark ${key} ${dir}"></span>${d.label}${dir==='in'?'输入':'输出'}</button>`)).join('')}</div><div class="notice"><span>${icon('Info')}</span><span>添加端口后，变量表会自动生成对应变量。</span></div></section><section><div class="spacer"></div><div class="row spread"><h3>对象属性</h3>${selected?ibtn('delete-port','删除选中端口','Trash2',`data-id="${selected.id}"`):''}</div><div class="stack" style="margin-top:14px">${selected?`<label class="field"><span>端口标识</span><input data-port-field="name" data-id="${selected.id}" value="${esc(selected.name)}" aria-label="端口标识"></label><label class="field"><span>中文说明</span><input data-port-field="label" data-id="${selected.id}" value="${esc(selected.label)}" aria-label="端口中文说明"></label><div class="row">${badge(DOMAINS[selected.domain].label,DOMAINS[selected.domain].color==='orange'?'warn':'blue')}${badge(selected.direction==='in'?'输入':'输出')}</div><div class="fields"><label class="field"><span>X / %</span><input type="number" min="5" max="95" data-port-field="x" data-id="${selected.id}" value="${selected.x}"></label><label class="field"><span>Y / %</span><input type="number" min="10" max="85" data-port-field="y" data-id="${selected.id}" value="${selected.y}"></label></div><small class="muted">通路：${esc(m.channels.find(c=>c.input===selected.id||c.output===selected.id)?.name||'未绑定')}</small>`:`<label class="field"><span>图形名称</span><input data-drawing-field="label" value="${esc(m.drawing.label)}" aria-label="图形名称"></label><label class="field"><span>图形形状</span><select data-drawing-field="shape">${option('rectangle','圆角矩形',m.drawing.shape)}${option('circle','椭圆',m.drawing.shape)}</select></label><div class="fields"><label class="field"><span>宽度</span><input type="number" min="15" max="60" data-drawing-field="width" value="${m.drawing.width}"></label><label class="field"><span>高度</span><input type="number" min="15" max="55" data-drawing-field="height" value="${m.drawing.height}"></label></div><small class="muted">选择端口查看编号、类型和通路。</small>`}</div></section></aside></div>`;}
-function variableRows(m){return m.variables.filter(v=>(v.name+v.label+v.note).toLowerCase().includes(ui.variableSearch.toLowerCase())&&(!ui.onlyCommon||v.display)).map(v=>`<tr data-variable-row="${esc(v.id)}"><td><span class="mono">${esc(v.name)}</span><small>${esc(v.label)}</small></td><td>${v.type}</td><td>${esc(v.unit)}</td><td>${esc(m.ports.find(p=>p.id===v.port)?.name||'—')}<small>${esc(channelFor(m,v)?.name||'未绑定通路')}</small></td><td><input type="text" data-var-note="${esc(v.id)}" aria-label="${esc(v.name)} 备注" value="${esc(v.note)}" maxlength="120"></td><td><label class="check-label"><input type="checkbox" data-var-display="${esc(v.id)}" aria-label="常用变量 ${esc(v.name)}" ${v.display?'checked':''}>显示</label></td><td>${badge(v.origin==='parameter'?'参数':v.origin==='system'?'系统':v.writable?'输入':'输出',v.origin==='parameter'?'warn':'')}</td><td>${v.origin==='custom'?ibtn('delete-variable','删除变量 '+v.name,'Trash2',`data-id="${esc(v.id)}"`):'<span class="muted">—</span>'}</td></tr>`).join('');}
-function renderAttributes(){const m=mod();if(m.runtime==='python')return renderPythonAttributes();return `<div class="editor-table-section"><div class="filterbar"><label class="search">${icon('Search')}<input data-filter="variableSearch" aria-label="搜索变量定义" value="${esc(ui.variableSearch)}" placeholder="变量名、中文名称或备注"></label><label class="check-label"><input type="checkbox" data-ui-toggle="onlyCommon" ${ui.onlyCommon?'checked':''}>仅常用变量</label><span class="push muted">${m.variables.length} 个变量</span>${btn('new-variable','新增变量','Plus','','primary')}</div><div class="panel table-wrap"><table class="variable-table"><thead><tr><th>变量 / 含义</th><th>类型</th><th>单位</th><th>端口 / 通路</th><th>备注</th><th>常用</th><th>属性</th><th></th></tr></thead><tbody id="variable-rows">${variableRows(m)}</tbody></table></div><section class="panel" style="margin-top:18px"><div class="panel-head"><h3>项目画布上的快捷控件</h3>${badge('由模块定义')}</div><div class="panel-body fields"><label class="field"><span>常用参数</span><select data-module-field="quickParam">${(PARAM_DEFS[m.kind]||[]).map(f=>option(f[0],f[1]+' · '+f[2],m.quickParam)).join('')||option('','暂无可调参数','')}</select></label><label class="field"><span>控件形式</span><select data-module-field="quickType">${[['slider','滑块与数值'],['switch','开关'],['number','数值输入'],['display','只读数显']].map(([k,v])=>option(k,v,m.quickType)).join('')}</select></label><div class="notice wide">${icon('Info')}<span>项目窗口优先呈现常用参数；修改模块定义后，通过型号应用更新项目实例。</span></div></div></section></div>`;}
-function valueTable(m){const columns=ui.allBanks?[-1,0,1,2]:[-1,ui.bank];const vars=m.variables.filter(v=>(v.name+v.label).toLowerCase().includes(ui.valueSearch.toLowerCase()));return `<table class="value-table"><thead><tr><th>变量 / 单位</th>${columns.map(c=>`<th class="num">${c<0?'当前值':esc(m.bankNames[c])}<small style="display:block;font-weight:400">${c<0?'模块默认值':'库值 '+(c+1)}</small></th>`).join('')}</tr></thead><tbody>${vars.map(v=>`<tr><td><strong>${esc(v.label)}</strong><small><span class="mono">${esc(v.name)}</span> · ${esc(v.unit)}</small></td>${columns.map(c=>{const val=(c<0?m.values:m.banks[c])[v.id]??v.value;const diff=c>=0&&JSON.stringify(val)!==JSON.stringify(m.values[v.id]);return `<td class="num${diff?' edited':''}">${Array.isArray(val)?`<button class="array-btn" data-action="array-select" data-id="${esc(v.id)}" data-bank="${c<0?ui.bank:c}" aria-label="编辑 ${esc(v.name)} ${c<0?'当前值':'库值'+(c+1)}数组"${c<0?' disabled':''}>${val.map(n=>number(n,v.type.startsWith('int')?0:3)).join(', ')}</button>`:`<input type="number" step="${v.type==='int'?'1':'any'}" data-value-id="${esc(v.id)}" data-bank="${c}" aria-label="${esc(v.name)} ${c<0?'当前值':'库值'+(c+1)}" value="${typeof val==='number'?v.type==='int'?val:val.toFixed(m.precision):esc(val)}" ${c<0?'readonly':!v.writable?'disabled':''}>`}</td>`;}).join('')}</tr>`).join('')}</tbody></table>`;}
-function bankDiff(m,index=ui.bank){return m.variables.filter(v=>v.writable&&JSON.stringify(m.values[v.id])!==JSON.stringify(m.banks[index][v.id]));}
-function renderValues(){const m=mod(),array=m.variables.find(v=>v.id===ui.arrayVar&&v.type.endsWith('[8]'))||m.variables.find(v=>v.id==='system:form');const arr=m.banks[ui.bank][array.id];const form=m.banks[ui.bank]['system:form'],mix=m.banks[ui.bank]['system:mix'];return `<div class="value-layout"><section class="value-main"><div class="filterbar"><label class="search">${icon('Search')}<input data-filter="valueSearch" aria-label="查找变量值" value="${esc(ui.valueSearch)}" placeholder="查找参数或端口变量"></label><span class="push"></span><label class="check-label"><input type="checkbox" data-ui-toggle="allBanks" ${ui.allBanks?'checked':''}>三组对照</label></div><div class="row wrap spread" style="margin-bottom:14px"><div class="segmented">${[0,1,2].map(i=>`<button data-action="bank-select" data-value="${i}" class="${ui.bank===i?'active':''}">库值 ${i+1} · ${esc(m.bankNames[i])}</button>`).join('')}</div>${badge(bankDiff(m).length+' 项差异',bankDiff(m).length?'warn':'good')}</div><div class="panel table-wrap" id="value-table">${valueTable(m)}</div><div class="notice" style="margin-top:14px">${icon('Info')}<span>库值是独立的参数方案。保存保留草稿；点击“应用到当前值”后才改变模块当前值。</span></div></section><aside class="value-side"><section><h3>库值 ${ui.bank+1} · ${esc(m.bankNames[ui.bank])}</h3><label class="field"><span>方案名称</span><input data-bank-name="${ui.bank}" value="${esc(m.bankNames[ui.bank])}" maxlength="30" aria-label="库值方案名称"></label><div class="bank-direction"><span>库值 ${ui.bank+1}</span>${icon('ArrowRight')}<span>模块当前值</span></div><div class="stack" style="gap:8px">${btn('apply-bank','应用到当前值','ArrowRight','','primary')}${btn('capture-bank','当前值存入此库','Copy')}${btn('new-model','保存为设备型号','Database')}${btn('preview-design',(m.runtime==='python'?'执行设计函数 → 库值 ':'预览设计函数 ')+(ui.bank+1),'Braces','',m.runtime==='python'?'small':'ghost small')}</div><div class="spacer"></div><div class="row spread" style="margin:14px 0 10px"><h3>数组编辑</h3><span class="badge">库值 ${ui.bank+1}</span></div><label class="field"><select data-array-var aria-label="选择数组变量">${m.variables.filter(v=>v.type.endsWith('[8]')).map(v=>option(v.id,v.name,ui.arrayVar)).join('')}</select></label><div class="array-grid" style="margin-top:10px">${arr.map((v,i)=>`<label>[${i}]<input type="number" step="${array.type.startsWith('int')?'1':'any'}" data-array-index="${i}" data-id="${array.id}" aria-label="${array.name} 数组第 ${i+1} 项" value="${v}"></label>`).join('')}</div></section><section><div class="spacer"></div><h3 style="margin-top:14px">工质与质量比例</h3><div class="stack" style="gap:7px">${FLUIDS.map(([key,name,id])=>`<label class="check-label"><input type="checkbox" data-fluid-id="${id}" ${form.includes(id)?'checked':''}>${name}<small class="muted push">${id}</small></label>`).join('')}</div><div class="stack" style="gap:8px;margin-top:13px">${form.map((id,i)=>id?`<label class="mixture-row"><span>${esc(FLUIDS.find(f=>f[2]===id)?.[1]||id)}</span><input type="number" min="0" max="1" step=".01" data-mixture-index="${i}" aria-label="${esc(FLUIDS.find(f=>f[2]===id)?.[1]||id)}质量比例" value="${mix[i]}"><span></span></label>`:'').join('')}</div><div class="row spread" style="margin:14px 0"><span class="muted">合计 ${number(mix.reduce((a,b)=>a+Number(b),0),4)}</span>${btn('normalize-mixture','归一化','','','small')}</div><small class="muted">物性数据用于界面示例；此处不调用 REFPROP。</small></section></aside></div>`;}
-function renderEditorModels(){const m=mod(),list=state.models.filter(v=>v.moduleId===m.id&&!v.archived);return `<div class="editor-table-section"><div class="section-title"><div><h2>${esc(m.name)}的设备型号</h2><p class="muted" style="font-size:12px;margin-top:6px">从库值保存型号，在项目中复用参数。</p></div>${btn('new-model','从库值保存型号','Plus','','primary')}</div><div class="panel table-wrap"><table><thead><tr><th>型号名称</th><th>版本</th><th>参数摘要</th><th>来源</th><th></th></tr></thead><tbody>${list.map(v=>`<tr><td><strong>${esc(v.name)}</strong><small>${esc(v.description)}</small></td><td>${badge('v'+v.version)}</td><td>${Object.entries(v.params).map(([k,val])=>`${esc((PARAM_DEFS[m.kind]||[]).find(f=>f[0]===k)?.[1]||k)} ${val}`).join(' · ')}</td><td>${esc(v.sourceLabel || "库值 " + v.bank)}</td><td>${btn('select-model','查看型号','ArrowUpRight',`data-id="${v.id}"`,'small')}</td></tr>`).join('')||'<tr><td colspan="5">暂无型号，从一组库值保存开始。</td></tr>'}</tbody></table></div><div class="concept-flow"><div class="connection-node">编辑库值<small class="muted" style="display:block">参数方案</small></div>${icon('ArrowRight')}<div class="connection-node">保存命名型号<small class="muted" style="display:block">版本与来源</small></div>${icon('ArrowRight')}<div class="connection-node">应用到项目实例<small class="muted" style="display:block">预览差异后生效</small></div></div>${btn('nav','打开完整型号库','Database','data-route="models"','ghost')}</div>`;}
-function renderCodePane(kind) {
-  const m=mod(), source=kind==='design'?m.source.design[ui.designIndex]:m.source[kind];
-  const title={runtime:'运行代码',header:'公共代码',design:'设计函数'}[kind];
-  const name=kind==='runtime'?(m.runtime==='python'?'module.py':'run.py'):kind==='header'?'common.py':`design${ui.designIndex+1}.py`;
-  return `<section class="module-code-pane" data-code-pane="${kind}" aria-labelledby="code-heading-${kind}">
-    <header class="code-pane-head"><h3 id="code-heading-${kind}">${icon(kind==='design'?'Braces':'FileCode2')}${title}</h3><span class="mono code-file-name">${name}</span><span class="push"></span>${btn('check-code','检查结构','CheckCheck',`data-kind="${kind}" aria-label="检查${esc(title)}结构"`,'small')}${kind==='design'?btn('preview-design','调用预览','Play',`data-index="${ui.designIndex}"`,'small'):''}</header>
-    ${kind==='design'?`<label class="code-design-picker">当前函数<select data-design-select aria-label="选择设计函数">${[0,1,2].map(i=>option(i,`设计函数 ${i+1} · ${m.bankNames[i]}`,ui.designIndex)).join('')}</select></label>`:''}
-    <div class="code-editor"><div class="code-lines" aria-hidden="true">${source.split('\n').map((_,i)=>i+1).join('\n')}</div><textarea spellcheck="false" wrap="off" id="${kind==='runtime'?'module-code':'module-code-'+kind}" data-code-kind="${kind}"${kind==='design'?` data-design-index="${ui.designIndex}"`:''} aria-label="${esc(title)}编辑器">${esc(source)}</textarea></div>
-  </section>`;
-}
-const DESIGN_PLACEHOLDER = '# design.py：由一组库值计算派生参数（可选）\n# 在“变量值”页选择库值后执行；确认后才写回该库值。\n#\n# def design(ctx):\n#     d = ctx.parameter("diameter_m")\n#     ctx.set("area_m2", 3.14159 * d * d / 4)';
-function renderDesignSourcePane() {
-  const source=mod().designSource || '';
-  return `<section class="module-code-pane" data-code-pane="design" aria-labelledby="code-heading-design-source">
-    <header class="code-pane-head"><h3 id="code-heading-design-source">${icon('Braces')}设计函数</h3><span class="mono code-file-name">design.py</span><span class="push"></span>${btn('editor-tab','到变量值执行','Play','data-value="values"','small')}</header>
-    <div class="code-editor"><div class="code-lines" aria-hidden="true">${source.split('\n').map((_,i)=>i+1).join('\n')}</div><textarea spellcheck="false" wrap="off" id="module-code-design" data-code-kind="design-source" aria-label="设计函数编辑器" placeholder="${esc(DESIGN_PLACEHOLDER)}">${esc(source)}</textarea></div>
-  </section>`;
-}
+let moduleEditorPresentation,runResultsPresentation;
+function moduleEditorView(){return moduleEditorPresentation ||= FluidNetModuleEditorView.create({
+  currentModule:mod,editorState:()=>ui,models:()=>state.models,parameterDefinitions:kind=>PARAM_DEFS[kind],contractText:m=>engine.contractText(m),
+  chrome:{esc,icon,btn,ibtn,badge,option,number},constants:{DOMAINS,PORT_PREFIX,FLUIDS,EDITOR_TABS,PARAM_TYPE_LABELS},
+  actions:{selectTab:value=>{ui.moduleTab=value;saveUI();render();},selectPort:id=>{ui.editorPort=id;render();},editLabel:()=>{ui.editorPort='picture';render();root.querySelector('[data-drawing-field="label"]')?.focus();}}
+});}
+function runResultsView(){return runResultsPresentation ||= FluidNetRunResultsView.create({
+  currentRun:currentChartRun,currentProject:project,records:()=>state.records,chartState:()=>state.charts,viewState:()=>ui,overviewSeries,
+  chartBindings:chartBindingsForRun,extraValue:extraVariableValue,series:SERIES,registerChart:(id,data)=>chartRegistry.set(id,data),
+  measureWidth:id=>document.getElementById(id)?.getBoundingClientRect().width||(ui.route==='bench'?page.clientWidth-390:page.clientWidth-125),
+  comparisonMarkup:()=>workflows.comparisonMarkup(),reportAvailable:record=>engine.refrigerationReportAvailable(record),runControls,
+  chrome:{esc,icon,btn,ibtn,badge,option,number,heading,clockLabel},actions:{
+    selectRecord:id=>{ui.selectedRecord=id;render();},recordCurves:id=>{state.charts.source=id;navigate('curves');},
+    toggleSeries:key=>{ui.pinnedChart=null;state.charts.series[key]=!state.charts.series[key];markDirty();render();},
+    removeVariable:id=>{state.charts.extra=state.charts.extra.filter(v=>v.id!==id||v.projectId!==project().id);markDirty();render();}}
+});}
+function renderEditor(...args){return moduleEditorView().renderEditor(...args);}
+function drawingSVG(...args){return moduleEditorView().drawingSVG(...args);}
+function renderDrawing(...args){return moduleEditorView().renderDrawing(...args);}
+function variableRows(...args){return moduleEditorView().variableRows(...args);}
+function renderAttributes(...args){return moduleEditorView().renderAttributes(...args);}
+function valueTable(...args){return moduleEditorView().valueTable(...args);}
+function bankDiff(...args){return moduleEditorView().bankDiff(...args);}
+function renderValues(...args){return moduleEditorView().renderValues(...args);}
+function renderEditorModels(...args){return moduleEditorView().renderEditorModels(...args);}
+function renderCodePane(...args){return moduleEditorView().renderCodePane(...args);}
+function renderDesignSourcePane(...args){return moduleEditorView().renderDesignSourcePane(...args);}
 async function runDesign(bank = ui.bank) {
   const m = mod();
   if (m.runtime !== 'python') { previewDesign(bank); return; }
@@ -521,12 +476,7 @@ async function runDesign(bank = ui.bank) {
   } catch (error) { msg('设计函数执行失败：' + error.message, true); }
   finally { m.designing = false; }
 }
-function renderPythonAttributes() {
-  const m=mod();
-  return `<div class="editor-table-section stack gap-20"><div class="notice">${icon('Info')}<span>参数通过 ctx.parameter(id) 读取，计算输出通过 ctx.var(id, value) 返回；状态输出使用 state.字段名。编辑后校验并保存新版本。</span>${btn('editor-tab','完整契约','FileJson','data-value="contract"','small')}</div>
-    <section class="panel"><div class="panel-head"><h2>算法参数</h2>${btn('edit-contract-item','新增参数','Plus','data-section="parameters"','primary small')}</div><div class="table-wrap"><table><thead><tr><th>标识</th><th>名称</th><th>类型</th><th>默认值 / SI</th><th>范围</th><th></th></tr></thead><tbody>${m.parameters.map(p=>`<tr><td class="mono">${esc(p.id)}</td><td>${esc(p.label)}</td><td>${esc(PARAM_TYPE_LABELS[p.value_type] || p.value_type)}</td><td>${esc(parameterValueText(p.default, p.value_type))} ${esc(p.unit?.canonical_unit || '')}</td><td>${p.value_type==='number'?`${p.minimum ?? '—'} ~ ${p.maximum ?? '—'}`:'—'}</td><td>${btn('edit-contract-item','编辑','Pencil',`data-section="parameters" data-id="${esc(p.id)}"`,'small')}</td></tr>`).join('')}</tbody></table></div></section>
-    <section class="panel"><div class="panel-head"><h2>输出变量</h2>${btn('edit-contract-item','新增输出','Plus','data-section="variables"','primary small')}</div><div class="table-wrap"><table><thead><tr><th>标识</th><th>名称</th><th>来源</th><th>单位</th><th></th></tr></thead><tbody>${m.manifest.variables.filter(v=>['derived','state'].includes(v.source)).map(v=>`<tr><td class="mono">${esc(v.id)}</td><td>${esc(v.label)}</td><td>${esc(v.source)}</td><td>${esc(v.unit?.canonical_unit || '')}</td><td>${btn('edit-contract-item','编辑','Pencil',`data-section="variables" data-id="${esc(v.id)}"`,'small')}</td></tr>`).join('')}</tbody></table></div></section></div>`;
-}
+function renderPythonAttributes(...args){return moduleEditorView().renderPythonAttributes(...args);}
 function editContractItem(section,id) {
   const m=mod(),spec=engine.manifestPayload(m)[section].find(p=>p.id===id) || {},parameter=section==='parameters';
   const type=spec.value_type || 'number';
@@ -567,33 +517,9 @@ document.addEventListener('input',event=>{
   const fields=Object.fromEntries(new FormData(form)),value=fields.display_value!=='' && fields.display_value!==undefined ? (Number(fields.display_value)-Number(fields.display_offset))*Number(fields.display_scale) : Number(fields.default);
   output.textContent=Number.isFinite(value)?`引擎默认值预览：${value} ${fields.unit || ''}`:'请输入有效的显示值与单位换算。';
 });
-function renderModuleContract() {
-  const m=mod();
-  if(m.runtime!=='python') return '<div class="notice">请选择 Python 模块。</div>';
-  const release=m.publishedManifest;
-  return `<div class="editor-table-section stack gap-20">
-    <section class="panel"><div class="panel-head"><h2>模块契约</h2>${badge(release ? '已保存 v'+release.version : '未保存版本',release?'good':'warn')}</div>
-      <div class="panel-body stack"><div class="row spread"><span class="mono">${esc(m.id)} · ${esc(m.entrypoint)}</span>${btn('validate-module-contract','校验并应用契约','CheckCheck','','primary')}</div>
-      <p class="muted">编辑参数默认值与范围、端口、通路和输出变量。数值、布尔、文本和曲线参数都可以在设备面板按类型调整。契约使用 SI 单位，显示换算由 unit 定义。</p>
-      <div class="notice">${icon('Info')}<span>编辑 JSON 后点击“校验并应用契约”同步到图形和参数面板。保存版本会重新校验当前契约及代码，并使用参数默认值进行独立试算。</span></div>
-      <textarea data-module-contract aria-label="模块契约 JSON" spellcheck="false" style="width:100%;min-height:440px;font-family:monospace;line-height:1.6;white-space:pre;tab-size:2">${esc(engine.contractText(m))}</textarea>
-      <label class="field"><span>版本备注</span><textarea data-release-notes aria-label="版本备注" maxlength="2000" rows="2" placeholder="说明算法、参数或端口的变化">${esc(m.releaseNotes || '')}</textarea></label>
-      <pre id="module-output" class="code-output" role="status" style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(m.authoringOutput || '尚未校验。保存后按模块 ID 自动递增版本，旧版本永久保留。')}</pre>${renderAuthoringDiagnostics(m)}</div></section>
-    <section class="panel"><div class="panel-head"><h2>后端版本记录</h2>${btn('module-versions','刷新版本','RefreshCw','','small')}</div><div class="table-wrap"><table><thead><tr><th>版本</th><th>保存时间</th><th>备注与契约哈希</th><th>验证</th><th></th></tr></thead><tbody>${(m.versions || []).map(v=>`<tr><td>v${esc(v.package.version)}</td><td>${esc(v.created_at ? new Date(v.created_at).toLocaleString() : '内置示例')}</td><td>${esc(v.release_notes || '—')}<small class="mono" title="${esc(v.package.definition_hash || v.package.content_hash)}">${esc((v.package.definition_hash || v.package.content_hash).slice(0,16))}</small></td><td>${v.tested?'Worker 试算通过':'示例包'}</td><td>${btn('load-module-version','载入为草稿','History',`data-version="${Number(v.package.version.split('.')[0])}"`,'small')}</td></tr>`).join('') || '<tr><td colspan="5">点击刷新读取版本记录；尚未保存的新模块没有版本。</td></tr>'}</tbody></table></div></section>
-  </div>`;
-}
-function renderCode() {
-  const variables=mod().variables.filter(v=>v.origin==='parameter'||v.display);
-  if (mod().runtime === 'python') return `<div class="module-code-page"><div class="notice">${icon('Info')}<span>module.py：编辑四阶段生命周期。design.py：可选，由库值计算派生参数，随版本保存。参数、端口和输出变量在“契约与版本”中定义。</span>${btn('editor-tab','契约与版本','FileJson','data-value="contract"','small')}</div><div class="module-code-grid python">${renderCodePane('runtime')}${renderDesignSourcePane()}</div><pre class="code-output" role="status" id="code-output">${esc(mod().authoringOutput || '尚未校验。检查结构将调用后端语法与入口校验。')}</pre>${renderAuthoringDiagnostics(mod())}</div>`;
-  return `<div class="module-code-page">
-    <div class="module-code-tools"><label>插入位置<select data-code-target aria-label="变量插入位置">${[['runtime','运行代码'],['header','公共代码'],['design','当前设计函数']].map(([key,label])=>option(key,label,ui.codeKind)).join('')}</select></label><label class="code-variable-picker">变量<select data-code-variable aria-label="选择插入变量" ${variables.length?'':'disabled'}>${variables.map(v=>option(v.name,`${v.name} · ${v.label}`,ui.codeVariable||variables[0]?.name)).join('')||option('','无可用变量','')}</select></label>${btn('insert-code-variable','插入到光标','Plus',variables.length?'':'disabled','small')}<span class="push muted">Python</span></div>
-    <div class="module-code-grid">${renderCodePane('runtime')}${renderCodePane('header')}${renderCodePane('design')}</div>
-    <div class="code-output" role="status" id="code-output"><strong>检查与调用输出</strong>\n${esc(ui.compileOutput)}</div>
-  </div>`;
-}
-function renderAuthoringDiagnostics(m) {
-  return `<div id="authoring-diagnostics" class="stack">${(m.authoringDiagnostics || []).map(d=>`<div class="row">${d.source_line ? btn('module-error-line',`${d.source_file || 'module.py'}:${d.source_line}`,'ArrowRight',`data-line="${d.source_line}" data-file="${esc(d.source_file || 'module.py')}"`,'small') : ''}<span>${esc(d.message)}${d.occurrences > 1 ? ` ×${d.occurrences}` : ''}</span></div>`).join('')}${m.authoringReplay ? btn('export-module-replay','导出错误重放输入','Download','','small') : ''}${m.manifest?.composite ? btn('view-composite','查看组合展开','Network','','small') : ''}${btn('configure-module-tests','配置工况与预期值','Settings2','','small')}${btn('module-test-suite','运行测试组合','ListChecks',ui.moduleSuiteAbort?'disabled':'','small')}${btn('cancel-module-suite','取消测试','Square',ui.moduleSuiteAbort?'':'disabled','small')}</div>`;
-}
+function renderModuleContract(...args){return moduleEditorView().renderModuleContract(...args);}
+function renderCode(...args){return moduleEditorView().renderCode(...args);}
+function renderAuthoringDiagnostics(...args){return moduleEditorView().renderAuthoringDiagnostics(...args);}
 function configureAuthoringSuite(m) {
   const definition=engine.manifestPayload(m);
   let editor;
@@ -601,36 +527,27 @@ function configureAuthoringSuite(m) {
     m.authoringTestCases=editor.read();m.authoringOutput='测试配置已更新，请运行测试组合。';m.authoringDiagnostics=[];
     markDirty();render();
   },'保存测试配置',true);
-  editor=window.ModuleTestEditor.mount(document.getElementById('module-suite-editor'),window.ModuleTestEditor.cases(m,definition),definition);
+  editor=ModuleTestEditor.mount(document.getElementById('module-suite-editor'),ModuleTestEditor.cases(m,definition),definition);
 }
-function moduleEvidenceSummary(m) {
-  const definition=m.publishedManifest || m.manifest;
-  if(!definition)return '';
-  const records=(m.manifest?.validation_evidence || m.versions?.[0]?.validation_evidence || []).filter(e=>e.definition_hash===definition.definition_hash && e.content_hash===definition.content_hash);
-  const names={L1:'接口',L2:'单模块逻辑',L3:'网络',L4:'独立解析',external:'外部标定'};
-  const evidence=records.length?records.map(e=>`${names[e.level]}${e.status==='passed'?'验证通过':e.status==='failed'?'验证失败':'待数据'}`).join(' · '):'验证证据未登记';
-  const scope=definition.applicability;
-  const scopeText=scope ? [definition.execution_role ? '集总制冷站 · 饱和液体等焓节流' : (scope.phases || []).join('／'),...(scope.assumptions || [])].filter(Boolean).join('；') : '';
-  return `<p class="muted">${esc((m.dirty?'发布版本：':'')+evidence)}${scopeText?`<br>${esc(scopeText)}`:''}</p>`;
-}
+function moduleEvidenceSummary(...args){return moduleEditorView().moduleEvidenceSummary(...args);}
 async function runAuthoringSuite(m) {
   ui.moduleSuiteAbort?.abort();
   const controller=new AbortController(); ui.moduleSuiteAbort=controller;
   const definition=engine.manifestPayload(m), before=JSON.stringify(definition);
-  const cases=window.ModuleTestEditor.cases(m,definition), casesBefore=JSON.stringify(cases);
+  const cases=ModuleTestEditor.cases(m,definition), casesBefore=JSON.stringify(cases);
   m.authoringOutput=`正在执行 ${cases.length} 个工况及预期值检查…`;render();
   try {
     const response=await fetch('/api/v1/modules/test-suite',{method:'POST',headers:{'Content-Type':'application/json',...engine.authHeaders()},body:JSON.stringify({module:definition,cases}),signal:controller.signal});
     const data=await response.json(); if(!response.ok)throw Error(data.detail?.message || JSON.stringify(data.detail));
-    if(before!==JSON.stringify(engine.manifestPayload(m)) || casesBefore!==JSON.stringify(window.ModuleTestEditor.cases(m,definition)))throw Error('测试期间草稿或测试配置已变化，请重新验证。');
+    if(before!==JSON.stringify(engine.manifestPayload(m)) || casesBefore!==JSON.stringify(ModuleTestEditor.cases(m,definition)))throw Error('测试期间草稿或测试配置已变化，请重新验证。');
     m.authoringDiagnostics=data.cases.flatMap(c=>c.diagnostics);
-    m.authoringOutput=window.ModuleTestEditor.summary(data);
+    m.authoringOutput=ModuleTestEditor.summary(data);
   } catch(error){m.authoringOutput=error.name==='AbortError'?'测试已取消，草稿已保留。':'测试失败：'+error.message;}
   finally{if(ui.moduleSuiteAbort===controller){ui.moduleSuiteAbort=null;render();}}
 }
-function renderChannels(){const m=mod();const first=m.channels[0],a=m.ports.find(p=>p.id===first?.input),b=m.ports.find(p=>p.id===first?.output);return `<div class="editor-table-section"><div class="section-title"><div><h2>定义设备内部通路</h2><p class="muted" style="font-size:12px;margin-top:6px">将同一物理通道的入口与出口关联；变量的通道列随绑定更新。</p></div>${btn('add-channel','新增通路','Plus','','primary')}</div><div class="panel table-wrap"><table class="channel-table"><thead><tr><th>通路名称</th><th>入口</th><th>出口</th><th>关系类型</th><th>启用</th><th></th></tr></thead><tbody>${m.channels.map(c=>`<tr><td><input class="cell-input" data-channel-id="${c.id}" data-channel-field="name" aria-label="${c.id} 通路名称" value="${esc(c.name)}"></td><td><select data-channel-id="${c.id}" data-channel-field="input" aria-label="${c.id} 入口">${option('','选择入口',c.input)}${m.ports.filter(p=>p.direction==='in').map(p=>option(p.id,p.name+' · '+p.label,c.input)).join('')}</select></td><td><select data-channel-id="${c.id}" data-channel-field="output" aria-label="${c.id} 出口">${option('','选择出口',c.output)}${m.ports.filter(p=>p.direction==='out').map(p=>option(p.id,p.name+' · '+p.label,c.output)).join('')}</select></td><td><select data-channel-id="${c.id}" data-channel-field="kind" aria-label="${c.id} 关系类型">${[['resistance','阻力关系'],['pressure','压差关系'],['flow','指定流量'],['signal','信号映射']].map(([k,v])=>option(k,v,c.kind)).join('')}</select></td><td><label class="check-label"><input type="checkbox" data-channel-id="${c.id}" data-channel-field="enabled" aria-label="启用 ${c.name}" ${c.enabled?'checked':''}>启用</label></td><td>${ibtn('delete-channel','删除 '+c.name,'Trash2',`data-id="${c.id}"`)}</td></tr>`).join('')||'<tr><td colspan="6">此模块尚未设置内部通路。</td></tr>'}</tbody></table></div><div class="row spread" style="margin:14px 0 20px"><small class="muted">类型相同的端口才能组成通路；每个端口只绑定一条启用通路。</small>${btn('check-channels','检查通路','ListChecks','','small')}</div><div id="channel-feedback"></div><div class="channel-diagram"><div class="stack" style="gap:5px;text-align:center"><span class="mono">${a?esc(a.name):'入口'}</span><small class="muted">${a?esc(a.label):'选择端口'}</small></div><span class="channel-link"></span><div class="channel-box"><strong>${esc(m.name)}</strong><small class="muted" style="display:block;margin-top:4px">${first?esc(first.name):'内部关系'}</small></div><span class="channel-link"></span><div class="stack" style="gap:5px;text-align:center"><span class="mono">${b?esc(b.name):'出口'}</span><small class="muted">${b?esc(b.label):'选择端口'}</small></div></div></div>`;}
+function renderChannels(...args){return moduleEditorView().renderChannels(...args);}
 function renderNodesPage(){const domain=DOMAINS[ui.nodeDomain];return `<div class="page-shell">${heading('节点与端口定义','按物理类型组织接口，明确变量含义与连接规则。',btn('nav','返回模块库','ChevronLeft','data-route="modules"'))}<div class="split-view"><aside class="side-nav"><div class="side-caption">接口领域</div>${Object.entries(DOMAINS).map(([k,d])=>`<button data-action="node-domain" data-value="${k}" class="${k===ui.nodeDomain?'active':''}">${icon(d.icon)}${d.label}端口</button>`).join('')}</aside><div class="stack"><section class="panel"><div class="panel-head"><div class="row"><span class="object-icon">${icon(domain.icon)}</span><div><h2>${domain.label}端口</h2><small class="muted">${ui.nodeDomain==='fluid'?'状态量、流量与工质组成':'接口与变量定义示例'}</small></div></div>${badge(ui.nodeDomain==='fluid'?'液态水场景':'接口预留',ui.nodeDomain==='fluid'?'good':'warn')}</div><div class="table-wrap"><table><thead><tr><th>变量后缀</th><th>中文名称</th><th>单位</th><th>说明</th></tr></thead><tbody>${(ui.nodeDomain==='fluid'?[['FLOW','质量流量','kg/s','沿端口约定方向记录，可表达反向流动'],['PRE','绝对压力','MPa','与求解器约定之间显式换算'],['ENTHALPY','比焓','kJ/kg','能量输运状态量'],['TEMP','温度','°C','工程显示单位'],['VOLUME','密度','kg/m³','参考命名对应密度，不能当作比容'],['Q','干度','—','相态描述；当前水网范围不扩展两相求解'],['X','质量组分','—','与 FORM 工质顺序对应']]:ui.nodeDomain==='info'?[['VALUE','信号数值','自定义','根据物理量定义单位'],['QUALITY','数据质量','—','有效、过期或缺失状态']]:ui.nodeDomain==='power'?[['VOLTAGE','电压','V','电气接口的定义示例'],['CURRENT','电流','A','当前原型不提供电网计算']]:[['SPEED','转速','r/min','机械接口的定义示例'],['TORQUE','转矩','N·m','当前原型不提供机械求解']]).map(row=>`<tr>${row.map((v,i)=>`<td${i===0?' class="mono"':''}>${v}</td>`).join('')}</tr>`).join('')}</tbody></table></div></section><section class="panel"><div class="panel-head"><h3>连接规则</h3></div><div class="panel-body stack"><div class="row">${icon('CheckCircle2')}同一内部通路的两端类型一致</div><div class="row">${icon('CheckCircle2')}端口拥有稳定标识，显示名称可以独立编辑</div><div class="row">${icon('CheckCircle2')}一个项目端口对应一条连接，分支使用连接节点</div><div class="row">${icon('CheckCircle2')}类型与单位定义供变量表、图形、型号和曲线共用</div></div></section>${btn('edit-module','在模块中配置端口','ArrowRight',`data-id="${ui.nodeDomain==='fluid'?'valve':'pid'}"`,'primary')}</div></div></div>`;}
-function renderModels(){let models=state.models.filter(m=>(ui.modelFilter==='archived'?m.archived:!m.archived)&&(m.name+mod(m.moduleId).name).toLowerCase().includes(ui.modelSearch.toLowerCase()));const selected=models.find(m=>m.id===state.selectedModel)||models[0];return `<div class="page-shell">${heading('设备型号库','从已验证的参数形成型号；项目实例保留自己的参数与来源版本。',btn('new-model','保存新型号','Plus','','primary'))}<div class="filterbar"><label class="search">${icon('Search')}<input data-filter="modelSearch" aria-label="搜索型号" placeholder="型号名称或模块名称" value="${esc(ui.modelSearch)}"></label><div class="segmented">${[['all','在用型号'],['archived','已归档']].map(([k,v])=>`<button data-action="model-filter" data-value="${k}" class="${ui.modelFilter===k?'active':''}">${v}</button>`).join('')}</div><span class="push muted">${models.length} 个型号</span>${btn('export','导出型号库','Download','data-format="models"','small')}</div><div class="model-layout"><section class="panel"><div class="table-wrap"><table><thead><tr><th>型号名称</th><th>所属模块</th><th>版本</th><th>主要参数</th><th></th></tr></thead><tbody>${models.map(m=>`<tr class="${m.id===selected?.id?'model-selected':''}"><td><button data-action="focus-model" data-id="${m.id}" style="text-align:left;padding:0"><strong>${esc(m.name)}</strong><small>${esc(m.description)}</small></button></td><td>${esc(mod(m.moduleId).name)}</td><td>${badge('v'+m.version)}</td><td>${Object.entries(m.params).slice(0,2).map(([k,v])=>`<span class="mono">${v}</span> ${(PARAM_DEFS[mod(m.moduleId).kind]||[]).find(f=>f[0]===k)?.[2]||''}`).join(' · ')}</td><td>${ibtn('focus-model','查看型号 '+m.name,'ChevronRight',`data-id="${m.id}"`)}</td></tr>`).join('')||'<tr><td colspan="5">没有匹配的型号。</td></tr>'}</tbody></table></div></section>${selected?`<aside class="model-detail stack"><section class="panel"><div class="panel-head"><div><h2>${esc(selected.name)}</h2><small class="muted">${esc(mod(selected.moduleId).name)} · v${selected.version}</small></div>${icon('Database')}</div><div class="panel-body stack"><p class="muted" style="font-size:12px">${esc(selected.description)}</p><div class="fields">${Object.entries(selected.params).map(([key,val])=>{const f=(PARAM_DEFS[mod(selected.moduleId).kind]||[]).find(f=>f[0]===key);return `<div class="field"><span>${esc(f?.[1]||key)}</span><strong>${number(val,f?.[0]==='opening'?0:2)} <small class="muted">${f?.[2]||''}</small></strong></div>`;}).join('')}</div>${modelVariableSummary(selected)}<div class="spacer"></div>${btn('insert-model','插入当前项目','Plus',`data-id="${selected.id}"`,'primary')}${btn('apply-model-to-instance','应用到已有设备','GitCompareArrows',`data-id="${selected.id}"`)}<div class="row">${btn('edit-model','保存新版本','Pencil',`data-id="${selected.id}"`,'small')}${btn('archive-model',selected.archived?'恢复型号':'归档型号','History',`data-id="${selected.id}"`,'ghost small')}</div><small class="muted">更新型号不会自动改动已插入的实例。</small></div></section><section class="panel"><div class="panel-head"><h3>版本记录</h3>${badge(selected.versions.length+' 个版本')}</div><div class="panel-body">${selected.versions.slice().reverse().map(v=>`<div class="version-item"><span class="object-icon" style="width:26px;height:26px">${icon('History')}</span><div class="grow"><strong>v${v.version}</strong><small>${esc(v.note)}</small></div>${v.version===selected.version?badge('当前'):btn('model-version','对照','','data-version="'+v.version+'" data-id="'+selected.id+'"','small')}</div>`).join('')}</div></section></aside>`:''}</div></div>`;}
+function renderModels(){let models=state.models.filter(m=>(ui.modelFilter==='archived'?m.archived:!m.archived)&&(m.name+mod(m.moduleId).name).toLowerCase().includes(ui.modelSearch.toLowerCase()));const selected=models.find(m=>m.id===state.selectedModel)||models[0];return `<div class="page-shell">${heading('设备型号库','从已验证的参数形成型号；项目实例保留自己的参数与来源版本。',btn('new-model','保存新型号','Plus','','primary'))}<div class="filterbar"><label class="search">${icon('Search')}<input data-filter="modelSearch" aria-label="搜索型号" placeholder="型号名称或模块名称" value="${esc(ui.modelSearch)}"></label><div class="segmented">${[['all','在用型号'],['archived','已归档']].map(([k,v])=>`<button data-action="model-filter" data-value="${k}" class="${ui.modelFilter===k?'active':''}">${v}</button>`).join('')}</div><span class="push muted">${models.length} 个型号</span>${btn('export','导出型号库','Download','data-format="models"','small')}</div><div class="model-layout"><section class="panel"><div class="table-wrap"><table><thead><tr><th>型号名称</th><th>所属模块</th><th>版本</th><th>主要参数</th><th></th></tr></thead><tbody>${models.map(m=>`<tr class="${m.id===selected?.id?'model-selected':''}"><td><button data-action="focus-model" data-id="${m.id}" style="text-align:left;padding:0"><strong>${esc(m.name)}</strong><small>${esc(m.description)}</small></button></td><td>${esc(mod(m.moduleId).name)}</td><td>${badge('v'+m.version)}</td><td>${Object.entries(m.params).slice(0,2).map(([k,v])=>`<span class="mono">${esc(typeof v==='object'?JSON.stringify(v):v)}</span> ${(PARAM_DEFS[mod(m.moduleId).kind]||[]).find(f=>f[0]===k)?.[2]||''}`).join(' · ')}</td><td>${ibtn('focus-model','查看型号 '+m.name,'ChevronRight',`data-id="${m.id}"`)}</td></tr>`).join('')||'<tr><td colspan="5">没有匹配的型号。</td></tr>'}</tbody></table></div></section>${selected?`<aside class="model-detail stack"><section class="panel"><div class="panel-head"><div><h2>${esc(selected.name)}</h2><small class="muted">${esc(mod(selected.moduleId).name)} · v${selected.version}</small></div>${icon('Database')}</div><div class="panel-body stack"><p class="muted" style="font-size:12px">${esc(selected.description)}</p><div class="fields">${Object.entries(selected.params).map(([key,val])=>{const f=(PARAM_DEFS[mod(selected.moduleId).kind]||[]).find(f=>f[0]===key),spec=mod(selected.moduleId).manifest?.parameters.find(p=>p.id===key);return `<div class="field"><span>${esc(f?.[1]||spec?.label||key)}</span><strong>${typeof val==='number'?number(val,f?.[0]==='opening'?0:2):esc(typeof val==='object'?JSON.stringify(val):String(val))} <small class="muted">${f?.[2]||''}</small></strong></div>`;}).join('')}</div>${modelVariableSummary(selected)}<div class="spacer"></div>${btn('insert-model','插入当前项目','Plus',`data-id="${selected.id}"`,'primary')}${btn('apply-model-to-instance','应用到已有设备','GitCompareArrows',`data-id="${selected.id}"`)}<div class="row">${btn('edit-model','保存新版本','Pencil',`data-id="${selected.id}"`,'small')}${btn('archive-model',selected.archived?'恢复型号':'归档型号','History',`data-id="${selected.id}"`,'ghost small')}</div><small class="muted">更新型号不会自动改动已插入的实例。</small></div></section><section class="panel"><div class="panel-head"><h3>版本记录</h3>${badge(selected.versions.length+' 个版本')}</div><div class="panel-body">${selected.versions.slice().reverse().map(v=>`<div class="version-item"><span class="object-icon" style="width:26px;height:26px">${icon('History')}</span><div class="grow"><strong>v${v.version}</strong><small>${esc(v.note)}</small></div>${v.version===selected.version?badge('当前'):btn('model-version','对照','','data-version="'+v.version+'" data-id="'+selected.id+'"','small')}</div>`).join('')}</div></section></aside>`:''}</div></div>`;}
 function benchParamFields(m, b) {
   const locked = ['running','solving'].includes(b.run.status) ? 'disabled' : '';
   const numeric = (PARAM_DEFS[m.kind] || []).map(f => `<label class="field"><span>${esc(f[1])}</span><div class="field-unit"><input type="number" data-bench-param="${esc(f[0])}" min="${f[3]}" max="${f[4]}" step="${f[5]}" value="${b.params[f[0]] ?? f[6]}" ${locked}><span>${esc(f[2])}</span></div></label>`).join('');
@@ -645,13 +562,19 @@ function benchParamFields(m, b) {
   }).join('');
   return numeric + extra;
 }
-function renderBench(){const b=state.bench,m=mod(b.moduleId),run=b.run,refrigeration=Boolean(m.manifest?.execution_role);return `<div class="page-shell">${heading('独立验证台','用独立边界与参数检查设备；测试不会改变项目实例。',btn('edit-module','编辑模块','Pencil',`data-id="${m.id}"`)+btn('save','保存测试配置','Save'))}<div class="bench-layout"><aside class="stack"><section class="panel"><div class="panel-head"><h3>被测设备</h3>${badge(m.runtime === 'python' ? 'Python Worker · v'+m.version : '请选择 Python 模块','blue')}</div><div class="panel-body stack"><label class="field"><span>模块</span><select data-bench-module aria-label="选择被测模块" ${['running','solving'].includes(run.status)?'disabled':''}>${state.modules.filter(x=>x.runtime === 'python').map(x=>option(x.id,x.name,m.id)).join('')}</select></label>${benchParamFields(m, b)}<small class="muted">参数仅用于此测试副本。</small></div></section><section class="panel"><div class="panel-head"><h3>边界条件</h3></div><div class="panel-body stack">${refrigeration ? `<p class="muted">入口为饱和液体，温度由压力确定；出口为给定压力的同焓流股。压力均为绝压。</p><label class="field"><span>制冷剂名称</span><input data-bench-fluid value="${esc(b.boundary.fluid || 'Ammonia')}" aria-label="测试制冷剂" ${['running','solving'].includes(run.status)?'disabled':''}></label>` : ''}${[['inlet','入口压力','kPa'],['outlet','出口压力','kPa'],...(!refrigeration ? [['temperature','入口温度','°C']] : [])].map(([key,label,unit])=>`<label class="field"><span>${label}</span><div class="field-unit"><input type="number" data-bench-boundary="${key}" step="any" value="${b.boundary[key]}" aria-label="测试${label}" ${['running','solving'].includes(run.status)?'disabled':''}><span>${unit}</span></div></label>`).join('')}<label class="field"><span>时间步长</span><div class="field-unit"><input type="number" data-bench-step ${['running','solving'].includes(run.status)?'disabled':''} value="${run.step}" min=".01" max="10" step=".01"><span>s</span></div></label></div></section></aside><section class="panel"><div class="run-control"><div class="runtime"><span class="dot" style="color:var(--green)"></span><strong>${m.name} · ${statusText(run)}</strong><span class="mono" data-bench-time>${clockLabel(run.time)}</span></div><span class="push"></span>${runControls('bench',run)}</div><div class="bench-schematic"><svg viewBox="0 0 780 180" role="img" aria-label="独立边界与被测设备"><path d="M 145 80 H 620" class="net-line"/><circle cx="145" cy="80" r="25" fill="var(--blue-soft)" stroke="var(--blue)"/><circle cx="620" cy="80" r="25" fill="var(--blue-soft)" stroke="var(--blue)"/><rect x="300" y="48" width="165" height="65" rx="7" fill="var(--surface)" stroke="var(--orange)"/><text x="382" y="84" text-anchor="middle" fill="var(--text)" font-size="15">${esc(m.name)}</text><text x="145" y="85" text-anchor="middle" fill="var(--blue)" font-size="14">P</text><text x="620" y="85" text-anchor="middle" fill="var(--blue)" font-size="14">P</text><text x="145" y="136" text-anchor="middle" fill="var(--muted)" font-size="12">${b.boundary.inlet} kPa</text><text x="620" y="136" text-anchor="middle" fill="var(--muted)" font-size="12">${b.boundary.outlet} kPa</text><text x="382" y="150" text-anchor="middle" fill="var(--muted)" font-size="11">${refrigeration ? '饱和液体 → 等焓节流 → 定压出口' : '独立网络 · Worker 实际求解'}</text></svg></div><div class="tabs">${[['results','运行结果'],['curves','趋势曲线'],['events','事件记录']].map(([k,v])=>`<button data-action="bench-tab" data-value="${k}" class="${ui.benchTab===k?'active':''}">${v}</button>`).join('')}</div><div id="bench-results">${benchResults()}</div></section></div></div>`;}
+function renderBench(){if(moduleReplay?.active)return moduleReplay.body();const b=state.bench,m=mod(b.moduleId),run=b.run,refrigeration=Boolean(m.manifest?.execution_role);if(m.manifest?.sdk?.capabilities?.includes('composite.refrigeration.open.v1'))return renderHostBench(b,m);return `<div class="page-shell">${heading('独立验证台','用独立边界与参数检查设备；测试不会改变项目实例。',btn('edit-module','编辑模块','Pencil',`data-id="${m.id}"`)+btn('save','保存测试配置','Save'))}<div class="bench-layout"><aside class="stack"><section class="panel"><div class="panel-head"><h3>被测设备</h3>${badge(m.runtime === 'python' ? 'Python Worker · v'+m.version : '请选择 Python 模块','blue')}</div><div class="panel-body stack"><label class="field"><span>模块</span><select data-bench-module aria-label="选择被测模块" ${['running','solving'].includes(run.status)?'disabled':''}>${state.modules.filter(x=>x.runtime === 'python').map(x=>option(x.id,x.name,m.id)).join('')}</select></label>${benchParamFields(m, b)}<small class="muted">参数仅用于此测试副本。</small></div></section><section class="panel"><div class="panel-head"><h3>边界条件</h3></div><div class="panel-body stack">${refrigeration ? `<p class="muted">入口为饱和液体，温度由压力确定；出口为给定压力的同焓流股。压力均为绝压。</p><label class="field"><span>制冷剂名称</span><input data-bench-fluid value="${esc(b.boundary.fluid || 'Ammonia')}" aria-label="测试制冷剂" ${['running','solving'].includes(run.status)?'disabled':''}></label>` : ''}${[['inlet','入口压力','kPa'],['outlet','出口压力','kPa'],...(!refrigeration ? [['temperature','入口温度','°C']] : [])].map(([key,label,unit])=>`<label class="field"><span>${label}</span><div class="field-unit"><input type="number" data-bench-boundary="${key}" step="any" value="${b.boundary[key]}" aria-label="测试${label}" ${['running','solving'].includes(run.status)?'disabled':''}><span>${unit}</span></div></label>`).join('')}<label class="field"><span>时间步长</span><div class="field-unit"><input type="number" data-bench-step ${['running','solving'].includes(run.status)?'disabled':''} value="${run.step}" min=".01" max="10" step=".01"><span>s</span></div></label></div></section></aside><section class="panel"><div class="run-control"><div class="runtime"><span class="dot" style="color:var(--green)"></span><strong>${m.name} · ${statusText(run)}</strong><span class="mono" data-bench-time>${clockLabel(run.time)}</span></div><span class="push"></span>${runControls('bench',run)}</div><div class="bench-schematic"><svg viewBox="0 0 780 180" role="img" aria-label="独立边界与被测设备"><path d="M 145 80 H 620" class="net-line"/><circle cx="145" cy="80" r="25" fill="var(--blue-soft)" stroke="var(--blue)"/><circle cx="620" cy="80" r="25" fill="var(--blue-soft)" stroke="var(--blue)"/><rect x="300" y="48" width="165" height="65" rx="7" fill="var(--surface)" stroke="var(--orange)"/><text x="382" y="84" text-anchor="middle" fill="var(--text)" font-size="15">${esc(m.name)}</text><text x="145" y="85" text-anchor="middle" fill="var(--blue)" font-size="14">P</text><text x="620" y="85" text-anchor="middle" fill="var(--blue)" font-size="14">P</text><text x="145" y="136" text-anchor="middle" fill="var(--muted)" font-size="12">${b.boundary.inlet} kPa</text><text x="620" y="136" text-anchor="middle" fill="var(--muted)" font-size="12">${b.boundary.outlet} kPa</text><text x="382" y="150" text-anchor="middle" fill="var(--muted)" font-size="11">${refrigeration ? '饱和液体 → 等焓节流 → 定压出口' : '独立网络 · Worker 实际求解'}</text></svg></div><div class="tabs">${[['results','运行结果'],['curves','趋势曲线'],['events','事件记录']].map(([k,v])=>`<button data-action="bench-tab" data-value="${k}" class="${ui.benchTab===k?'active':''}">${v}</button>`).join('')}</div><div id="bench-results">${benchResults()}</div></section></div></div>`;}
 function runControls(scope,run){return `${btn(scope==='bench'?'run-bench':'run-project',run.status==='paused'?'继续':'运行','Play',`data-command="run" ${['running','solving'].includes(run.status)?'disabled':''}`,'run small')}${btn(scope==='bench'?'run-bench':'run-project','暂停','Pause',`data-command="pause" ${run.status==='running'?'':'disabled'}`,'small')}${btn(scope==='bench'?'run-bench':'run-project','单步','StepForward',`data-command="step" ${['running','solving'].includes(run.status)?'disabled':''}`,'small')}${btn(scope==='bench'?'run-bench':'run-project','停止','Square',`data-command="stop" ${['ready','stopped'].includes(run.status)?'disabled':''}`,'small')}`;}
+function renderHostBench(b,m) {
+  const run=b.run,host=m.testConditions?.host_project,locked=['running','solving'].includes(run.status)?'disabled':'';
+  return `<div class="page-shell">${heading('独立验证台','在封装时保留的完整宿主网络中验证开放设备组。',btn('edit-module','编辑模块','Pencil',`data-id="${m.id}"`)+btn('save','保存测试配置','Save'))}<div class="bench-layout"><aside class="stack"><section class="panel"><div class="panel-head"><h3>被测设备组</h3>${badge('开放制冷组 · v'+m.version,'blue')}</div><div class="panel-body stack"><label class="field"><span>模块</span><select data-bench-module aria-label="选择被测模块" ${locked}>${state.modules.filter(x=>x.runtime==='python').map(x=>option(x.id,x.name,m.id)).join('')}</select></label>${benchParamFields(m,b)}<small class="muted">参数仅用于此测试副本。</small></div></section><section class="panel"><div class="panel-head"><h3>宿主工况</h3></div><div class="panel-body stack">${host?`<strong data-host-project>${esc(host.name)}</strong><p>${host.instances.length} 台设备 · ${host.connections.length} 条连接 · ${esc(host.fluid.fluid)}</p><p class="muted">容器初始状态、制冷剂与外部连接使用封装时的系统快照。当前组参数代入该网络后进行真实求解。</p><dl><dt>被测实例</dt><dd>${esc(m.testConditions.host_instance_id || 'D1')}</dd><dt>公开端口</dt><dd>${m.ports.map(p=>esc(p.id)).join('、')}</dd></dl>`:'<p class="notice">缺少宿主工况，请在已连接的制冷项目中重新封装设备组。</p>'}<label class="field"><span>时间步长</span><div class="field-unit"><input type="number" data-bench-step ${locked} value="${run.step}" min=".01" max="10" step=".01"><span>s</span></div></label></div></section></aside><section class="panel"><div class="run-control"><div class="runtime"><strong>${esc(m.name)} · ${statusText(run)}</strong><span class="mono" data-bench-time>${clockLabel(run.time)}</span></div><span class="push"></span>${runControls('bench',run)}</div><div class="panel-body"><p class="notice">公开端口连接完整宿主回路；运行结果来自该回路中的被测设备组。</p></div><div class="tabs">${[['results','运行结果'],['events','事件记录']].map(([k,v])=>`<button data-action="bench-tab" data-value="${k}" class="${ui.benchTab===k?'active':''}">${v}</button>`).join('')}</div><div id="bench-results">${benchResults()}</div></section></div></div>`;
+}
 function benchResults() {
+  if(state.bench.run.status==='failed')return `<div class="panel-body stack"><h3>模块测试失败</h3>${(state.bench.run.diagnostics||[]).map(d=>`<p>${esc(d.source_file||'')}${d.source_line?':'+d.source_line:''} · ${esc(d.message)}</p>`).join('')}${state.bench.run.failureReplay?btn('bench-failure-replay','带入验证台复现','Bug','','small'):'<p>此次错误未捕获完整回调输入。</p>'}</div>`;
   const b=state.bench,run=b.run,v=run.values,worker=run.worker,m=mod(b.moduleId);
   const benchChannels=(m.manifest?.channels || []).filter(c => c.enabled !== false);
   if (ui.benchTab === 'events') return `<div class="panel-body"><div class="notice">${icon('Info')}显示 Worker 生命周期与后端诊断。</div><div class="log-list">${run.events.slice().reverse().map(e=>`<div class="log-line"><time>${number(e.t,2)} s</time><span>${esc(e.text)}</span></div>`).join('') || empty('还没有测试事件','选择 Python 模块包后运行。')}</div></div>`;
   const table=(title,items)=>`<div class="panel-head"><h3>${title}</h3></div><div class="table-wrap"><table><thead><tr><th>字段</th><th>值</th></tr></thead><tbody>${Object.entries(items || {}).map(([key,value])=>`<tr><td class="mono">${esc(key)}</td><td class="mono">${esc(typeof value === 'object' ? JSON.stringify(value) : value)}</td></tr>`).join('') || '<tr><td colspan="2">尚无返回值</td></tr>'}</tbody></table></div>`;
+  if(m.manifest?.sdk?.capabilities?.includes('composite.refrigeration.open.v1'))return `<div class="panel-body">${badge(worker?'宿主网络试算完成':'等待宿主网络试算',worker?'good':'')}<p class="muted">${worker?'返回公开端口状态、组内输出与状态别名；数值采用引擎单位。':'运行后显示真实回路中的设备组结果。'}</p></div>${table('设备组公开变量',worker?.evaluation.variables)}<div class="panel-body">${btn('record-bench','保存测试记录','Save','','small')}</div>`;
   return `<div class="metric-row"><div class="metric"><span>${benchChannels.length > 1 ? '通路合计流量' : '质量流量'}</span><strong data-bench-q>${number(run.history.length ? v.q : null,4)}</strong><small>kg/s · ${m.manifest?.execution_role ? '等焓节流' : (benchChannels.length || 1)+' 条通路'}</small></div><div class="metric"><span>边界压差</span><strong>${number(b.boundary.inlet-b.boundary.outlet,2)}</strong><small>kPa</small></div><div class="metric"><span>提交次数</span><strong data-bench-commits>${worker ? number(worker.committed.state.accepted_segments ?? worker.committed.state.commit_count,0) : '—'}</strong><small>commit_step</small></div></div>
   <div class="chart-panel"><div class="chart-heading"><h3>${m.manifest?.execution_role ? '节流质量流量' : '独立网络流量'}</h3><span class="push"></span>${badge(worker ? 'Worker 已完成 · v'+worker.version : '等待测试',worker ? 'good' : '')}</div>${chartSvg(run.history,['q'],'bench-chart')}<div class="chart-readout" id="bench-chart-readout">${clockLabel(run.time)} · ${esc(mod(b.moduleId).name)}</div></div>
   ${ui.benchTab === 'results' ? table('evaluate 变量与物性',worker?.evaluation.variables) + table('commit_step 状态',worker?.committed.state) + (m.manifest?.execution_role ? table('制冷流股',worker?.refrigeration?.flow) : table('网络关系',Object.fromEntries((worker?.evaluation.relations || []).map(r=>[r.channel,{kind:r.kind,...r.parameters}])))) : ''}
@@ -666,25 +589,8 @@ function overviewSeries(run) {
   }
   return bindings;
 }
-function renderCurves(){
-  const run=currentChartRun(),history=run.history,bindings=overviewSeries(run),flowKeys=['q','a','b'].filter(key=>bindings[key]);
-  return `<div class="page-shell">${heading('曲线与工况对照','从设备变量加入曲线，跟随运行、暂停和单步观察变化。',btn('add-chart-variable','添加观察变量','Plus','','primary')+btn('export','导出曲线','Download','data-format="csv"'))}${workflows.comparisonMarkup()}
-    <div class="filterbar"><label class="field" style="flex-direction:row;align-items:center"><span>数据来源</span><select data-chart-source aria-label="曲线数据来源">${option('live','当前主系统 · '+project().name,state.charts.source)}${state.records.filter(r=>r.history.length).map(r=>option(r.id,r.name+(r.sample?' · 演示记录':' · 计算记录'),state.charts.source)).join('')}</select></label>${state.charts.source==='live'?`<label class="field" style="flex-direction:row;align-items:center"><span>时间范围</span><select data-chart-range aria-label="曲线时间范围">${option('window','最近 2001 帧',state.charts.range)}${option('all','全程（抽稀）',state.charts.range)}</select></label>`:''}<label class="check-label"><input type="checkbox" data-chart-compare ${state.charts.compare?'checked':''}>叠加最近保存的真实工况</label><span class="push"></span>${state.charts.source==='live'?runControls('project',project().run):badge('历史记录','blue')}</div>
-    <div class="chart-grid-layout"><section class="panel"><div class="chart-panel"><div class="chart-heading"><h2>管网流量</h2><span class="muted">${esc(state.charts.source==='live'?project().name:run.projectName)}</span><span class="push"></span><div class="chart-legend">${flowKeys.map(k=>`<button data-action="toggle-series" data-value="${k}" class="${state.charts.series[k]?'':'off'}" aria-pressed="${state.charts.series[k]}"><span class="series-key ${SERIES[k].color}"></span>${esc(SERIES[k].short)}</button>`).join('')}</div></div><div id="main-chart">${flowKeys.length?chartSvg(history,flowKeys,'main-flow-chart',state.charts.compare):'<p>请从设备变量添加观察曲线。</p>'}</div><div class="chart-readout" id="main-flow-chart-readout">${history.length&&flowKeys.length?`${clockLabel(history.at(-1).t)} · ${esc(bindings.q.short)} ${number(history.at(-1).q,3)} kg/s`:'还没有当前运行数据。'}</div></div>
-    <div class="chart-variable-list">${flowKeys.map(key=>`<span class="badge">${esc(bindings[key].label)}</span>`).join('')}${chartBindingsForRun(run).map(v=>`<span class="badge blue">${esc(v.label)}${state.charts.source==='live'?`<button data-action="remove-chart-var" data-id="${esc(v.id)}" aria-label="移除 ${esc(v.label)}">${icon('X')}</button>`:''}</span>`).join('')}</div></section>
-    ${['pressure','temperature'].filter(key=>bindings[key]).map(key=>`<section class="panel"><div class="chart-panel"><div class="chart-heading"><h3>${key==='pressure'?'出口压力':'出口温度'}</h3><span class="push muted">${esc(bindings[key].label)} · ${bindings[key].unit}</span></div><div id="${key}-chart">${chartSvg(history,[key],key==='pressure'?'pressure-line':'temperature-line')}</div><div class="chart-readout" id="${key}-line-readout">${badge('后端计算结果')}</div></div></section>`).join('')}</div>
-    <div id="extra-charts" class="chart-grid-layout" style="margin-top:18px">${extraChartsMarkup()}</div>${run.events?.length?`<section class="panel" style="margin-top:18px"><div class="panel-head"><h3>本次运行事件</h3></div><div class="log-list">${run.events.slice(-5).map(e=>`<div class="log-line"><time>${number(e.t,1)} s</time><span>${esc(e.text)}</span></div>`).join('')}</div></section>`:''}</div>`;
-}
-function renderRuns(){
-  const list=state.records.filter(r=>ui.runFilter==='all'||r.status===ui.runFilter), selected=list.find(r=>r.id===ui.selectedRecord)||list[0];
-  return `<div class="page-shell">${heading('运行记录','服务端自动归档最近 20 次结束运行；长运行保留最近窗口与全程抽稀曲线。',btn('refresh-archives','刷新档案','RefreshCw')+btn('record-project','记录当前运行','Save'))}
-  <section class="panel"><div class="panel-head"><h2>服务端档案</h2></div><div class="panel-body">${(ui.archivedRuns||[]).map(r=>`<div class="row spread" style="margin-bottom:8px"><span>${esc(r.name)} · ${esc(r.status)} · ${number(r.time_s,1)} s</span><span class="row">${btn('open-archive','查看档案','FolderOpen',`data-id="${esc(r.id)}"`,'small')}${['completed','failed','cancelled','interrupted'].includes(r.status)?btn('delete-archive','删除','Trash2',`data-id="${esc(r.id)}"`,'small'):''}</span></div>`).join('')||'<p class="muted">暂无服务端档案。</p>'}</div></section>
-  <div class="filterbar"><div class="segmented">${[['all','全部记录'],['completed','已完成'],['failed','失败记录']].map(([k,v])=>`<button data-action="run-filter" data-value="${k}" class="${ui.runFilter===k?'active':''}">${v}</button>`).join('')}</div><span class="push muted">${list.length} 条已载入记录</span></div>
-  <div class="model-layout"><section class="panel table-wrap"><table><thead><tr><th>记录名称 / 来源</th><th>模式</th><th>仿真时间</th><th>状态</th><th></th></tr></thead><tbody>${list.map(r=>`<tr><td><button data-action="select-record" data-id="${r.id}"><strong>${esc(r.name)}</strong><small>${esc(r.projectName)} · ${esc(r.id)}</small></button></td><td>${esc(r.mode)}</td><td>${number(r.time,1)} s</td><td>${esc(r.status)}</td><td>${ibtn('select-record','查看运行记录','ChevronRight',`data-id="${r.id}"`)}</td></tr>`).join('')||'<tr><td colspan="5">点击服务端档案以载入曲线及快照。</td></tr>'}</tbody></table></section>
-  ${selected?`<aside class="panel"><div class="panel-head"><h2>记录详情</h2>${badge(selected.archive?'服务端归档':selected.sample?'示例记录':'运行快照')}</div><div class="run-details"><dl><dt>项目</dt><dd>${esc(selected.projectName)}</dd><dt>运行标识</dt><dd class="mono">${esc(selected.id)}</dd><dt>仿真时间</dt><dd>${number(selected.time,1)} s</dd><dt>最后落盘</dt><dd>${esc(selected.archive?.persisted_at||'—')}</dd><dt>记录点数</dt><dd>${selected.history.length}${selected.archive?` / 共 ${selected.totalRows} 帧（抽稀间隔 ${selected.archiveStride}）`:''}</dd><dt>状态</dt><dd>${esc(selected.status)}</dd></dl><h3>参数快照</h3><div class="code-preview">${esc(JSON.stringify(selected.params,null,2))}</div>
-  ${(selected.archive?.frame?.diagnostics||[]).length?`<div class="notice">${esc(selected.archive.frame.diagnostics.map(d=>d.message).join('；'))}</div>`:''}
-  ${(selected.events||[]).slice(-5).map(e=>`<p>${number(e.t,1)} s · ${esc(e.text)}</p>`).join('')}<div class="stack" style="margin-top:18px">${btn('record-curves','查看该次曲线','Activity',`data-id="${selected.id}" ${selected.history.length?'':'disabled'}`,'primary')}${btn('export','导出记录 JSON','FileJson',`data-format="record" data-id="${selected.id}"`)}${engine.refrigerationReportAvailable(selected.archive)?['html','csv'].map(format=>btn('archive-report',format==='html'?'下载 HTML 报告':'下载报告 CSV','Download',`data-id="${selected.id}" data-format="${format}"`)).join(''):''}${selected.projectId?btn('open-project','打开来源项目','ArrowUpRight',`data-id="${selected.projectId}"`):''}</div></div></aside>`:''}</div></div>`;
-}
+function renderCurves(...args){return runResultsView().renderCurves(...args);}
+function renderRuns(...args){return runResultsView().renderRuns(...args);}
 
 document.addEventListener('click',async event=>{
   const button=event.target.closest('[data-action="pid-example"]');
@@ -697,16 +603,80 @@ document.addEventListener('click',async event=>{
       const definition=model.modules.find(m=>m.id===n.module_id), params={};
       for(const [uiName,id] of Object.entries(bindings[n.module_id] || {})) {
         const spec=definition.parameters.find(p=>p.id===id), value=n.parameters[id] ?? spec.default;
-        params[uiName]=spec.unit ? value/spec.unit.display_scale+spec.unit.display_offset : value;
+        params[uiName]=projectModel.toDisplay(spec,value);
       }
       return makeInstance(n.id,n.module_id,n.name,100+i*180,230,params);
     });
     const pg={id:'main',name:'控制回路',zoom:1,pan:[0,0],nodes,edges:model.connections.map(c=>[c.id,c.source.instance_id,c.source.port_id,c.target.instance_id,c.target.port_id])};
     const owner=makeProject(uid('project'),model.name,'内置 PID 验收示例',pg);
     owner.controllers=model.controllers;owner.solver.duration=button.dataset.kind==='level'?600:1200;owner.solver.dt=1;
-    state.projects.push(owner);normalizeState();markDirty(owner);openProject(owner.id);
+    projectState.addProject(state,owner);normalizeState();markDirty(owner);openProject(owner.id);
   }catch(error){msg(error.message,true);}
 });
+const meterKinds = {value:'单点测量',difference:'两点差值',volume_flow:'体积流量',thermal_power:'热功率'};
+function meterSources(p) {
+  const result=[];
+  const fields=[['pressure_pa','压力','pressure','Pa','kPa',1000,0],['temperature_k','温度','temperature','K','°C',1,-273.15],
+    ['mass_flow_kg_s','质量流量','mass_flow','kg/s','kg/s',1,0],['density_kg_m3','密度','density','kg/m3','kg/m³',1,0],
+    ['enthalpy_j_kg','比焓','specific_enthalpy','J/kg','kJ/kg',1000,0]];
+  for(const n of p.pages.flatMap(pg=>pg.nodes)) {
+    const m=moduleOf(n),d=m.manifest||engine.catalog?.modules.find(d=>d.id===m.kind);
+    if(!d)continue;
+    for(const v of d.variables.filter(v=>v.sampleable&&v.source!=='parameter'&&v.unit&&v.value_type==='number'))
+      result.push({key:n.id+'.'+v.id,label:n.name+' · '+v.label,unit:clone(v.unit)});
+    for(const port of d.ports)for(const [id,label,quantity,canonical_unit,display_unit,display_scale,display_offset] of fields)
+      result.push({key:n.id+'.'+port.id+'.'+id,label:n.name+' · '+port.label+' · '+label,unit:{quantity,canonical_unit,display_unit,display_scale,display_offset}});
+    for(const ch of d.channels.filter(c=>c.enabled))for(const [id,label,quantity,canonical_unit,display_unit,display_scale,display_offset] of fields.filter(f=>f[0]==='mass_flow_kg_s'))
+      result.push({key:n.id+'.'+ch.id+'.'+id,label:n.name+' · '+ch.name+' · '+label,unit:{quantity,canonical_unit,display_unit,display_scale,display_offset}});
+  }
+  return result.filter((v,i)=>result.findIndex(s=>s.key===v.key)===i);
+}
+function meterValue(p,m) {
+  const value=p.run.history.at(-1)?.canonical?.['measurement.'+m.id];
+  return Number.isFinite(value)?number(value/m.unit.display_scale+m.unit.display_offset,3)+' '+esc(m.unit.display_unit):'—';
+}
+function meterPanel(p) {
+  const disabled=p.run.live?'disabled':'';
+  return `<section class="panel" style="margin-bottom:20px"><div class="panel-head"><h2>仪表与测点</h2><span class="push"></span>${Object.entries(meterKinds).map(([kind,label])=>btn('add-meter',label,'Plus',`data-kind="${kind}" ${disabled||((p.measurements||[]).length>=64?'disabled':'')}`,'small')).join('')}</div><div class="panel-body stack"><p class="muted">测点读取同一运行帧，可用于 PID 反馈和趋势。计算测点按所选输入的顺序求差；流量与热功率保留通路方向。</p>${(p.measurements||[]).map(m=>`<div class="row gap-6" data-meter-card="${esc(m.id)}"><strong>${esc(m.label)}</strong><span>${esc(meterKinds[m.kind])}</span><span class="push" data-meter-value="${esc(m.id)}">${meterValue(p,m)}</span>${btn('edit-meter','编辑','Pencil',`data-id="${esc(m.id)}" ${disabled}`,'small')}${btn('meter-curve','加入曲线','Activity',`data-id="${esc(m.id)}"`,'small')}${btn('remove-meter','移除','Trash2',`data-id="${esc(m.id)}" ${disabled}`,'small')}</div>`).join('')||'<p>尚未添加测点。</p>'}</div></section>`;
+}
+function editMeter(p,existing,kind) {
+  const sources=meterSources(p),count={value:1,difference:2,volume_flow:2,thermal_power:3}[kind];
+  const quantities=kind==='volume_flow'?['mass_flow','density']:kind==='thermal_power'?['mass_flow','specific_enthalpy','specific_enthalpy']:[];
+  const choices=Array.from({length:count},(_,i)=>sources.filter(v=>!quantities[i]||v.unit.quantity===quantities[i]));
+  if(choices.some(c=>!c.length))throw Error('当前设备没有这类测点所需的变量。');
+  const labels=kind==='thermal_power'?['通路质量流量','出口比焓','入口比焓']:kind==='volume_flow'?['通路质量流量','通路密度']:kind==='difference'?['第一点','第二点']:['绑定变量'];
+  openDialog(existing?'编辑测点':'添加'+meterKinds[kind],'数值按设备单位计算；测点可在控制反馈和曲线中选用。',
+    field('label','测点名称',existing?.label||meterKinds[kind],'required maxlength="80"')+choices.map((items,i)=>selectField('source'+i,labels[i],items.map(s=>[s.key,s.label+' ('+s.unit.display_unit+')']),existing?.sources[i]||items[0].key)).join(''),data=>{
+      if(project()!==p||p.run.live)throw Error('项目状态已改变，请重新编辑测点。');
+      const selected=choices.map((items,i)=>items.find(v=>v.key===data['source'+i]));
+      if(selected.some(v=>!v))throw Error('请选择有效的绑定变量。');
+      if(kind==='difference'&&selected[0].unit.canonical_unit!==selected[1].unit.canonical_unit)throw Error('两点差值须选择相同单位的变量。');
+      let unit=clone(selected[0].unit);
+      if(kind==='difference'){unit.display_offset=0;if(unit.canonical_unit==='K')unit.display_unit='K';}
+      if(kind==='volume_flow')unit={quantity:'volume_flow',canonical_unit:'m3/s',display_unit:'m³/h',display_scale:1/3600,display_offset:0};
+      if(kind==='thermal_power')unit={quantity:'power',canonical_unit:'W',display_unit:'kW',display_scale:1000,display_offset:0};
+      p.measurements||=[];
+      const value={id:existing?.id||uid('meter'),label:data.label.trim(),kind,sources:selected.map(s=>s.key),unit};
+      if(!value.label)throw Error('请填写测点名称。');
+      if(existing)Object.assign(existing,value);else p.measurements.push(value);
+      for(const chart of state.charts.extra.filter(c=>c.projectId===p.id&&c.canonicalKey==='measurement.'+value.id))Object.assign(chart,{label:value.label,unit:unit.display_unit,canonicalScale:unit.display_scale,canonicalOffset:unit.display_offset});
+      markDirty(p);render();
+    },'保存测点');
+}
+function measurementAction(action,button){
+  const p=project(),m=p.measurements?.find(m=>m.id===button.dataset.id);
+  try {
+    if(button.dataset.action==='meter-curve'){if(m)addChartVariable('measurement.'+m.id,m.label);return;}
+    if(p.run.live)return;
+    if(button.dataset.action==='remove-meter') {
+      if(p.controllers?.some(c=>c.measurement==='measurement.'+m.id)||controls.normalize(p).some(s=>(s.inputs||[]).includes('measurement.'+m.id)))throw Error('测点已被控制器或脚本使用，请先修改反馈绑定。');
+      p.measurements=p.measurements.filter(v=>v!==m);
+      p.selectedVariables=(p.selectedVariables||[]).filter(k=>k!=='measurement.'+m.id);
+      state.charts.extra=state.charts.extra.filter(c=>c.projectId!==p.id||c.canonicalKey!=='measurement.'+m.id);
+      markDirty(p);render();
+    } else editMeter(p,m,m?.kind||button.dataset.kind);
+  }catch(error){msg(error.message,true);}
+}
 function pidOptions(p) {
   const measurements=[],targets=[];
   for(const node of p.pages.flatMap(pg=>pg.nodes)) {
@@ -717,6 +687,7 @@ function pidOptions(p) {
     for(const spec of definition.parameters.filter(v=>v.runtime && v.writable && v.value_type==='number'))
       targets.push([`${node.id}.${spec.id}`,`${node.name} · ${spec.label}${spec.unit?' ('+spec.unit.canonical_unit+')':''}`,spec]);
   }
+  for(const m of p.measurements||[])measurements.push(['measurement.'+m.id,m.label+' ('+m.unit.canonical_unit+')']);
   return {measurements,targets};
 }
 function pidPanel(p) {
@@ -753,7 +724,7 @@ document.addEventListener('change',async event=>{
   if(!c) return;
   try {
     const value=['mode','measurement','target'].includes(key)?el.value:Number(el.value);
-    if(p.run.live) await engine.confirmedCommand(p,{action:'controller',controller_id:c.id,parameter_id:key,value});
+    if(p.run.live) await engine.applyController(p,c.id,key,value);
     if(key==='target') {
       [c.instance_id,c.parameter_id]=value.split('.');
       const spec=pidOptions(p).targets.find(t=>t[0]===value)[2];
@@ -766,7 +737,7 @@ function controlLiveValues(p=project()){
   const values=p.run.history.at(-1)?.canonical||{}, keys=new Set((p.controlOutputs||'').split(/[\s,，]+/));
   return JSON.stringify(Object.fromEntries(Object.entries(values).filter(([key])=>keys.has(key)||key.startsWith(`script.${p.selectedControlId}.`))),null,2);
 }
-function renderControls(){const p=project(),programs=controls.normalize(p),selected=controls.current(p);return `<div class="page-shell">${heading('项目控制逻辑','按脚本组织控制策略；修改会在下次新运行生效。',btn('control-template','载入示例','FileCode2',selected?'':'disabled')+btn('preview-control','预览一个周期','StepForward',selected?'':'disabled','primary')+btn('save','保存脚本','Save'))}${pidPanel(p)}<section class="panel" style="margin-bottom:20px"><div class="panel-head"><h2>控制脚本</h2>${badge(programs.length+' / '+controls.MAX_PROGRAMS)}<span class="push"></span>${btn('add-control-program','新建脚本','Plus',programs.length>=controls.MAX_PROGRAMS?'disabled':'','small')}${btn('remove-control-program','删除所选脚本','Trash2',selected?`data-id="${esc(selected.id)}"`:'disabled','small')}</div><div class="panel-body">${programs.length?`<label class="field"><span>当前脚本</span><select data-control-program aria-label="选择控制脚本">${programs.map(program=>option(program.id,`${program.name} · ${program.id} · ${program.language!=='python'?'待迁移':program.enabled?'已启用':'未启用'}`,p.selectedControlId)).join('')}</select></label>`:'<p>尚无控制脚本。新建脚本后可编辑、预览并单独启用。</p>'}</div></section>${selected?`<details open><summary>编辑 ${esc(selected.id)}</summary><div class="connection-layout"><aside class="stack"><section class="panel"><div class="panel-head"><h3>控制程序</h3>${badge(p.controlLanguage==='python'?'Python':'旧脚本待迁移',p.controlLanguage==='python'?'good':'warn')}</div><div class="panel-body stack">
+function renderControls(){const p=project(),programs=controls.normalize(p),selected=controls.current(p);return `<div class="page-shell">${heading('项目控制逻辑','按脚本组织控制策略；修改会在下次新运行生效。',btn('control-template','载入示例','FileCode2',selected?'':'disabled')+btn('control-template','载入机房联锁','ShieldCheck',(selected?'':'disabled')+' data-kind="interlock"','small')+btn('preview-control','预览一个周期','StepForward',selected?'':'disabled','primary')+btn('save','保存脚本','Save'))}${meterPanel(p)}${pidPanel(p)}<section class="panel" style="margin-bottom:20px"><div class="panel-head"><h2>控制脚本</h2>${badge(programs.length+' / '+controls.MAX_PROGRAMS)}<span class="push"></span>${btn('add-control-program','新建脚本','Plus',programs.length>=controls.MAX_PROGRAMS?'disabled':'','small')}${btn('remove-control-program','删除所选脚本','Trash2',selected?`data-id="${esc(selected.id)}"`:'disabled','small')}</div><div class="panel-body">${programs.length?`<label class="field"><span>当前脚本</span><select data-control-program aria-label="选择控制脚本">${programs.map(program=>option(program.id,`${program.name} · ${program.id} · ${program.language!=='python'?'待迁移':program.enabled?'已启用':'未启用'}`,p.selectedControlId)).join('')}</select></label>`:'<p>尚无控制脚本。新建脚本后可编辑、预览并单独启用。</p>'}</div></section>${selected?`<details open><summary>编辑 ${esc(selected.id)}</summary><div class="connection-layout"><aside class="stack"><section class="panel"><div class="panel-head"><h3>控制程序</h3>${badge(p.controlLanguage==='python'?'Python':'旧脚本待迁移',p.controlLanguage==='python'?'good':'warn')}</div><div class="panel-body stack">
   <label class="check-label"><input type="checkbox" data-control-enabled ${p.controlEnabled?'checked':''} ${p.controlLanguage!=='python'?'disabled':''}>启用 Python 控制（下次新运行生效）</label>
   <label class="field"><span>脚本语言</span><select data-control-language aria-label="脚本语言">${option('python','Python',p.controlLanguage)}${p.controlLanguage!=='python'?option('legacy','旧脚本文本（待迁移）',p.controlLanguage):''}</select></label>
   <label class="field"><span>名称</span><input value="${esc(p.controlConfig.name)}" aria-label="控制程序名称" data-control-name></label><label class="field"><span>控制周期</span><div class="field-unit"><input type="number" value="${p.controlConfig.period}" min="1" max="60000" step="1" data-control-setting="period" aria-label="控制周期"><span>ms</span></div></label><label class="field"><span>执行超时</span><div class="field-unit"><input type="number" value="${p.controlTimeout}" min="0.1" max="30" step="0.1" data-control-timeout aria-label="控制执行超时"><span>s</span></div></label></div></section>
@@ -778,7 +749,7 @@ function connectionVariableRows(){return projectVariables().filter(v=>(v.id+v.na
 function renderConnections(){return `<div class="page-shell">${heading('数据与外部对接','统一查找变量，配置接口、串口与消息观察。',badge('接口调用已接入 · 串口与绑定为演示','warn')+btn('save','保存对接配置','Save'))}<section class="panel"><nav class="tabs" aria-label="数据对接页面">${[['variables','变量浏览','Table2'],['api','接口调用','Braces'],['serial','串口配置','Plug'],['bindings','变量绑定','Cable'],['messages','消息中心','MessageSquare']].map(([k,v,i])=>`<button data-action="connection-tab" data-value="${k}" class="${ui.connectionTab===k?'active':''}">${icon(i)}${v}</button>`).join('')}</nav><div class="panel-body">${connectionContent()}</div></section></div>`;}
 function connectionContent(){
   if(ui.connectionTab==='variables')return `<div class="filterbar"><label class="search">${icon('Search')}<input data-filter="connectionSearch" aria-label="搜索对接变量" placeholder="设备、变量名或标识" value="${esc(ui.connectionSearch)}"></label><span class="muted">${esc(project().name)}</span><span class="push"></span>${btn('export','导出变量表','Download','data-format="variables"','small')}</div><div class="table-wrap"><table><thead><tr><th>变量标识 / 名称</th><th class="num">当前值</th><th>单位</th><th>读写属性</th><th>数据来源</th><th></th></tr></thead><tbody id="connection-variable-rows">${connectionVariableRows()}</tbody></table></div>`;
-  if(ui.connectionTab==='api')return `<div class="connection-layout"><aside class="stack"><h3>调用场景</h3><div class="side-nav">${[['read','读取变量','ArrowDownToLine'],['set','批量写入','Pencil'],['stream','订阅推送','Activity'],['status','运行状态','Info']].map(([k,l,i])=>`<button class="${(ui.apiKind||'read')===k?'active':''}" data-action="api-example" data-value="${k}">${icon(i)}${l}</button>`).join('')}</div><label class="field"><span>当前运行</span><input value="${esc(project().run.id||'尚未运行')}" readonly></label><div class="notice">${icon('Info')}<span>${engine.health?.auth?.required?'服务已开启令牌认证：外部调用需要 Authorization 头。':'服务只监听本机，未开启认证；对外开放前请用令牌启动（见 README）。'}</span></div></aside><div class="stack"><div class="row"><span class="badge blue">GET</span><strong class="mono" id="api-path"></strong><span class="push"></span>${btn('api-preview','发送请求','Play','','primary')}</div><div class="code-preview" id="api-request"></div><div class="code-output" id="api-response" role="status"></div></div></div>`;
+  if(ui.connectionTab==='api')return `<div class="connection-layout"><aside class="stack"><h3>调用场景</h3><div class="side-nav">${[['read','读取变量','ArrowDownToLine'],['set','批量写入','Pencil'],['stream','订阅推送','Activity'],['status','运行状态','Info']].map(([k,l,i])=>`<button class="${(ui.apiKind||'read')===k?'active':''}" data-action="api-example" data-value="${k}">${icon(i)}${l}</button>`).join('')}</div><label class="field"><span>当前运行</span><input value="${esc(apiRunId()||'尚未运行')}" readonly></label><div class="notice">${icon('Info')}<span>${engine.health?.auth?.required?'服务已开启令牌认证：外部调用需要 Authorization 头。':'服务只监听本机，未开启认证；对外开放前请用令牌启动（见 README）。'}</span></div></aside><div class="stack"><div class="row">${btn('api-refresh','刷新变量目录','RefreshCw','','small ghost')}</div><div id="api-target"></div><div class="row"><span class="badge blue">GET</span><strong class="mono" id="api-path"></strong><span class="push"></span>${btn('api-preview','发送请求','Play','','primary')}</div><div class="code-preview" id="api-request"></div><div class="code-output" id="api-response" role="status"></div></div></div>`;
   if(ui.connectionTab==='serial'){const c=state.connectors.find(c=>c.id===ui.selectedConnector&&c.kind==='serial')||state.connectors.find(c=>c.kind==='serial');return `<div class="connection-layout"><aside class="stack"><div class="row spread"><h3>串口连接</h3>${ibtn('add-connector','添加串口连接','Plus')}</div><div class="side-nav">${state.connectors.filter(c=>c.kind==='serial').map(c=>`<button data-action="select-connector" data-id="${c.id}" class="${c.id===ui.selectedConnector?'active':''}">${icon('Plug')}<span>${esc(c.name)}<small class="muted" style="display:block">${c.port} · ${c.baud}</small></span></button>`).join('')}</div><div class="notice">${icon('Info')}串口打开和收发仅模拟状态，不访问硬件。</div></aside><div class="stack"><div class="row spread"><div><h3>${esc(c.name)}</h3><small class="muted">保存后保留连接参数</small></div>${badge(c.connected?'演示已连接':'未连接',c.connected?'good':'')}</div><div class="fields"><label class="field"><span>端口</span><select data-connector-id="${c.id}" data-connector-field="port">${['COM1','COM3','COM5'].map(x=>option(x,x,c.port)).join('')}</select></label><label class="field"><span>波特率</span><select data-connector-id="${c.id}" data-connector-field="baud">${['9600','19200','57600','115200'].map(x=>option(x,x,c.baud)).join('')}</select></label><label class="field"><span>数据位</span><select data-connector-id="${c.id}" data-connector-field="bits">${option('8','8',c.bits||'8')}${option('7','7',c.bits||'8')}</select></label><label class="field"><span>校验位</span><select data-connector-id="${c.id}" data-connector-field="parity">${['None','Even','Odd'].map(x=>option(x,x,c.parity||'None')).join('')}</select></label></div><div class="row">${btn('connect-demo',c.connected?'断开演示':'连接演示','Plug',`data-id="${c.id}"`,'primary')}<small class="muted">${c.connected?'可以模拟一条消息收发':'尚未启动模拟连接'}</small></div><div class="spacer"></div><h3>发送消息</h3><div class="row"><input id="serial-message" aria-label="串口模拟发送消息" value="#Get/V1.OPENING" style="flex:1">${btn('serial-send','模拟发送','ArrowUpRight',`data-id="${c.id}" ${c.connected?'':'disabled'}`)}</div><div class="code-output" id="serial-output" role="status">等待模拟消息。</div></div></div>`;}
   if(ui.connectionTab==='bindings')return `<div class="stack"><div class="row spread"><div><h3>输入输出映射</h3><p class="muted" style="font-size:12px;margin-top:4px">给外部字段指定变量、方向与单位。</p></div>${btn('add-binding','添加映射','Plus','','primary')}</div><div class="table-wrap"><table><thead><tr><th>外部字段</th><th>项目变量</th><th>方向</th><th>单位</th><th>状态</th></tr></thead><tbody id="binding-rows">${bindingsForProject().map((b,i)=>`<tr><td class="mono">${esc(b.external)}</td><td><select data-binding-index="${i}" aria-label="映射 ${i+1} 的变量">${projectVariables().filter(v=>b.direction!=='write'||v.writable).map(v=>option(v.id,v.id+' · '+v.name,b.variable)).join('')}</select></td><td>${badge(b.direction==='write'?'外部 → 项目':'项目 → 外部',b.direction==='write'?'warn':'blue')}</td><td>${esc(b.unit)}</td><td>${badge('未连接')}</td></tr>`).join('')}</tbody></table></div><div class="notice">${icon('Info')}外部写入目标的类型、范围和单位需与变量定义一致；此处仅保存映射配置。</div></div>`;
   return `<div class="stack"><div class="row spread"><h3>消息与事件</h3><div class="row">${badge(state.messages.length+' 条记录')}${btn('demo-message','生成示例消息','Plus','','small')}${btn('export','导出消息','Download','data-format="messages"','small')}</div></div><div class="log-list" style="max-height:560px">${state.messages.map(m=>`<div class="log-line"><time>${esc(m.time)}</time><span class="log-kind">${esc(m.kind)}</span><span>${esc(m.text)}</span></div>`).join('')}</div></div>`;
@@ -810,13 +781,13 @@ document.addEventListener('change',event=>{
 function renderSettings(){return `<div class="page-shell">${heading('项目与工作台设置','配置项目、介质、求解参数与界面偏好。',btn('save','保存设置','Save','','primary'))}<div class="settings-layout"><aside class="side-nav">${[['project','项目属性','Folder'],['medium','介质与单位','Droplets'],['solver','运行与求解','SlidersHorizontal'],['appearance','界面与布局','Monitor'],['storage','保存与交换','Database']].map(([k,l,i])=>`<button data-action="settings-tab" data-value="${k}" class="${ui.settingsTab===k?'active':''}">${icon(i)}${l}</button>`).join('')}</aside><section class="panel">${settingsContent()}</section></div></div>`;}
 function settingsContent(){const p=project();
   if(ui.settingsTab==='project')return `<div class="settings-section"><h3>项目属性</h3><p>名称和说明用于项目列表、运行记录与导出文件。</p><div class="fields"><label class="field"><span>项目名称</span><input data-project-field="name" value="${esc(p.name)}" maxlength="50" aria-label="项目名称"></label><label class="field"><span>项目标识</span><input value="${p.id}" readonly></label><label class="field wide"><span>项目说明</span><textarea data-project-field="description" aria-label="项目说明" maxlength="240">${esc(p.description)}</textarea></label></div></div><div class="settings-section"><div class="row spread"><h3>画布</h3>${btn('new-canvas','添加画布','Plus','','small')}</div>${p.pages.map(pg=>`<div class="list-row" style="padding:12px 0">${icon('Layers')}<div class="grow"><strong>${esc(pg.name)}</strong><small>${pg.nodes.length} 个设备 · ${pg.edges.length} 条连接</small></div>${btn('rename-canvas','重命名','Pencil',`data-id="${pg.id}"`,'small ghost')}</div>`).join('')}</div>`;
-  if(ui.settingsTab==='medium')return `<div class="settings-section"><h3>介质配置</h3><p>默认介质用于没有单独指定工质的回路；温度和压力范围由计算服务按各回路的流体检查。</p><div class="fields"><label class="field"><span>默认介质</span><select data-project-field="medium">${MEDIA.map(([key,name])=>option(key,name,p.medium)).join('')}</select></label><label class="field wide"><span>物性字符串（可选，填写后替代默认介质）</span><input data-project-field="fluid" value="${esc(p.fluid||'')}" placeholder="如 REFPROP::R407C.MIX、REFPROP::R32[0.5]&amp;R125[0.5]、HEOS::R134a" aria-label="物性字符串" spellcheck="false"></label><label class="field"><span>组分比例基准</span><select data-project-field="fluidReference">${option('mass','质量分数',p.fluidReference||'mass')}${option('mole','摩尔分数',p.fluidReference||'mass')}</select></label><label class="field"><span>显示单位方案</span><input value="工程单位 · 本轮原型" readonly></label></div>${circuitFluidsMarkup(p)}<p class="muted" style="font-size:12px">${(()=>{const r=engine.health?.capabilities?.refprop;if(!r?.installed)return '未检测到 REFPROP；可将内置副本放到 vendor/refprop9.1/，或设置 FLUIDNET_REFPROP_PATH，或安装到 Windows 默认安装目录。';const src={bundled:'内置',env:'环境变量',system:'系统安装'}[r.source]||'未知来源';return `已检测到 REFPROP${r.version?' '+esc(r.version):''}（${esc(src)}），可使用 REFPROP:: 前缀（纯质写名称，混合物写 A[x]&amp;B[y] 或预定义的 名称.MIX）。`})()}</p><div class="notice" style="margin-top:20px">${icon('Droplets')}换热器两侧回路保留独立的介质归属，不通过图形分组自动合并。</div></div><div class="settings-section"><h3>物理量与单位</h3><div class="table-wrap"><table><thead><tr><th>物理量</th><th>工程显示</th><th>内部约定</th></tr></thead><tbody>${[['绝对压力','kPa / MPa','Pa'],['温度','°C','K'],['质量流量','kg/s','kg/s'],['比焓','kJ/kg','J/kg'],['密度','kg/m³','kg/m³'],['比容','m³/kg','m³/kg']].map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div><p class="muted" style="margin:12px 0 0;font-size:12px">密度与比容是不同物理量，独立命名与换算。</p></div>`;
-  if(ui.settingsTab==='solver')return `<div class="settings-section"><h3>运行设置</h3><p>设置仿真时间、时间步长及停止条件。原型记录配置并演示控制流程。</p><div class="fields"><label class="field"><span>运行模式</span><select data-solver-field="mode">${option('dynamic','动态',p.solver.mode)}${option('steady','稳态',p.solver.mode)}</select></label><label class="field"><span>仿真时长</span><div class="field-unit"><input type="number" data-solver-field="duration" value="${p.solver.duration}" min="1" max="86400" ${p.solver.continuous?'disabled':''}><span>s</span></div></label><label class="check-label"><input type="checkbox" data-solver-continuous ${p.solver.continuous?'checked':''}>持续运行（不设时长，直到停止；浏览器保留最近 2001 帧，曲线页可看全程抽稀）</label><label class="field"><span>时间步长</span><div class="field-unit"><input type="number" data-solver-field="dt" value="${p.solver.dt}" min=".01" max="60" step=".01"><span>s</span></div></label><label class="field"><span>最大迭代次数</span><input type="number" data-solver-field="maxIter" value="${p.solver.maxIter}" min="5" max="500"></label><label class="field"><span>水力算法</span><select data-solver-field="hydraulicMethod">${option('auto','自动（按未知量与稀疏度）',p.solver.hydraulicMethod||'auto')}${option('dense','稠密',p.solver.hydraulicMethod)}${option('sparse','稀疏',p.solver.hydraulicMethod)}</select></label></div></div><div class="settings-section"><h3>收敛判据</h3><p>质量与压力使用独立容差；数值设置需要在真实求解阶段验证。</p><div class="fields"><label class="field"><span>质量绝对容差</span><div class="field-unit"><input type="number" data-solver-field="massAtol" step="any" value="${p.solver.massAtol}" min="0"><span>kg/s</span></div></label><label class="field"><span>压力绝对容差</span><div class="field-unit"><input type="number" data-solver-field="pressureAtol" step="any" value="${p.solver.pressureAtol}" min="0"><span>Pa</span></div></label></div></div>`;
+  if(ui.settingsTab==='medium')return `<div class="settings-section"><h3>介质配置</h3><p>默认介质用于没有单独指定工质的回路；温度和压力范围由计算服务按各回路的流体检查。</p><div class="fields"><label class="field"><span>默认介质</span><select data-project-field="medium">${MEDIA.map(([key,name])=>option(key,name,p.medium)).join('')}</select></label><label class="field wide"><span>物性字符串（可选，填写后替代默认介质）</span><input data-project-field="fluid" value="${esc(p.fluid||'')}" placeholder="如 REFPROP::R407C.MIX、REFPROP::R32[0.5]&amp;R125[0.5]、HEOS::R134a" aria-label="物性字符串" spellcheck="false"></label><label class="field"><span>组分比例基准</span><select data-project-field="fluidReference">${option('mass','质量分数',p.fluidReference||'mass')}${option('mole','摩尔分数',p.fluidReference||'mass')}</select></label><label class="field"><span>相态策略</span><select data-project-phase-policy aria-label="项目相态策略">${[['single_phase','单相'],['liquid','液相'],['gas','气相'],['any','按设备模型检查（制冷容器含两相）']].map(([key,label])=>option(key,label,p.fluidConfig?.phase_policy||'single_phase')).join('')}</select></label><label class="field"><span>显示单位方案</span><input value="工程单位 · 本轮原型" readonly></label></div>${circuitFluidsMarkup(p)}<p class="muted" style="font-size:12px">${(()=>{const r=engine.health?.capabilities?.refprop;if(!r?.installed)return '未检测到 REFPROP；可将内置副本放到 vendor/refprop9.1/，或设置 FLUIDNET_REFPROP_PATH，或安装到 Windows 默认安装目录。';const src={bundled:'内置',env:'环境变量',system:'系统安装'}[r.source]||'未知来源';return `已检测到 REFPROP${r.version?' '+esc(r.version):''}（${esc(src)}），可使用 REFPROP:: 前缀（纯质写名称，混合物写 A[x]&amp;B[y] 或预定义的 名称.MIX）。`})()}</p><div class="notice" style="margin-top:20px">${icon('Droplets')}换热器两侧回路保留独立的介质归属，不通过图形分组自动合并。</div></div><div class="settings-section"><h3>物理量与单位</h3><div class="table-wrap"><table><thead><tr><th>物理量</th><th>工程显示</th><th>内部约定</th></tr></thead><tbody>${[['绝对压力','kPa / MPa','Pa'],['温度','°C','K'],['质量流量','kg/s','kg/s'],['比焓','kJ/kg','J/kg'],['密度','kg/m³','kg/m³'],['比容','m³/kg','m³/kg']].map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div><p class="muted" style="margin:12px 0 0;font-size:12px">密度与比容是不同物理量，独立命名与换算。</p></div>`;
+  if(ui.settingsTab==='solver')return `<div class="settings-section"><h3>运行设置</h3><p>设置仿真时间、时间步长及停止条件。配置会进入后端求解与运行控制。</p><div class="fields"><label class="field"><span>运行模式</span><select data-solver-field="mode">${option('dynamic','动态',p.solver.mode)}${option('steady','稳态',p.solver.mode)}</select></label><label class="field"><span>仿真时长</span><div class="field-unit"><input type="number" data-solver-field="duration" value="${p.solver.duration}" min="1" max="86400" ${p.solver.continuous?'disabled':''}><span>s</span></div></label><label class="check-label"><input type="checkbox" data-solver-continuous ${p.solver.continuous?'checked':''}>持续运行（不设时长，直到停止；浏览器保留最近 2001 帧，曲线页可看全程抽稀）</label><label class="field"><span>时间步长</span><div class="field-unit"><input type="number" data-solver-field="dt" value="${p.solver.dt}" min=".01" max="60" step=".01"><span>s</span></div></label><label class="field"><span>最大迭代次数</span><input type="number" data-solver-field="maxIter" value="${p.solver.maxIter}" min="5" max="500"></label><label class="field"><span>物性反馈</span><select data-solver-option="property_coupling">${option('reference','参考物性（水力独立）',p.solverOptions?.property_coupling||'reference')}${option('node','温度与密度联算',p.solverOptions?.property_coupling)}</select></label><label class="field"><span>水力算法</span><select data-solver-field="hydraulicMethod">${option('auto','自动（按未知量与稀疏度）',p.solver.hydraulicMethod||'auto')}${option('dense','稠密',p.solver.hydraulicMethod)}${option('sparse','稀疏',p.solver.hydraulicMethod)}</select></label></div></div><div class="settings-section"><h3>收敛判据</h3><p>质量与压力使用独立容差；数值设置需要在真实求解阶段验证。</p><div class="fields"><label class="field"><span>质量绝对容差</span><div class="field-unit"><input type="number" data-solver-field="massAtol" step="any" value="${p.solver.massAtol}" min="0"><span>kg/s</span></div></label><label class="field"><span>压力绝对容差</span><div class="field-unit"><input type="number" data-solver-field="pressureAtol" step="any" value="${p.solver.pressureAtol}" min="0"><span>Pa</span></div></label></div></div>`;
   if(ui.settingsTab==='appearance')return `<div class="settings-section"><h3>界面显示</h3><p>切换主题与画布辅助显示，原型会记住偏好。</p><div class="fields"><label class="field"><span>主题</span><select data-theme-select>${option('light','浅色',ui.theme)}${option('dark','深色',ui.theme)}</select></label><label class="field"><span>模块数值显示精度</span><select data-module-field="precision">${[2,4,6,8].map(n=>option(n,n+' 位小数',mod().precision)).join('')}</select></label></div><div style="margin-top:20px"><label class="check-label"><input type="checkbox" data-ui-toggle="pageGrid" ${ui.pageGrid?'checked':''}>显示画布点阵</label></div></div><div class="settings-section"><h3>窗口布局</h3><p>参数窗口可以移动、调整大小、置顶和收起。关闭查看窗口不会终止运行。</p>${btn('reset-windows','恢复窗口位置','Columns2')}${btn('nav','到画布查看','ArrowRight','data-route="workbench"','ghost')}</div><div class="settings-section"><h3>键盘操作</h3><div class="shortcut-grid" style="margin-top:15px">${shortcutMarkup()}</div></div>`;
   return `<div class="settings-section"><h3>原型保存</h3><p>保存当前浏览器中的项目、模块、型号、参数和配置。</p><div class="notice good">${icon('Database')}<span>${state.savedAt?'已保存原型草稿；再次保存会更新这份浏览器记录。':'当前使用内置示例，点击保存后记录你的编辑。'}</span></div><div class="row wrap" style="margin-top:18px">${btn('save','保存原型','Save','','primary')}${btn('export','导出原型 JSON','Download','data-format="prototype"')}${btn('import','导入原型 JSON','Upload')}</div></div><div class="settings-section"><h3>数据交换</h3><p>原型交换文件仅用于此设计版本，不直接修改正式项目工作区。</p><div class="row wrap">${btn('export','导出型号库','Database','data-format="models"')}${btn('export','导出变量表','Table2','data-format="variables"')}</div></div><div class="settings-section"><h3>恢复示例</h3><p>开始一轮新的原型体验前，可以先导出当前数据，再恢复示例。</p>${btn('reset-prototype','恢复内置示例','RotateCcw','','danger')}</div>`;
 }
 function shortcutMarkup(){return [['保存原型','Ctrl S'],['页面导航','Ctrl K'],['撤销 / 重做','Ctrl Z / Y'],['复制 / 粘贴设备','Ctrl C / V'],['删除选中对象','Delete'],['取消连线 / 关闭弹窗','Esc']].map(([label,key])=>`<div><span>${label}</span><kbd>${key}</kbd></div>`).join('');}
-function renderHelp(){return `<div class="page-shell">${heading('页面导览与使用指南','先用已有设备完成一次调参，再按需进入自定义模块开发。',btn('page-map','页面导航','LayoutDashboard')+btn('start-modeling','从示例调参开始','ArrowRight','','primary')+btn('guided-demo','进入模块开发','Code2'))}<div class="journey">${[['01','打开示例','选择已有管网与设备'],['02','调整参数','编辑草稿，核对当前值'],['03','明确应用','确认变化与生效时刻'],['04','运行或单步','更新当前参数对应的结果'],['05','观察与保存','同屏对照曲线、保存记录']].map(([n,t,d])=>`<div class="journey-step"><span class="step-number">${n}</span><strong>${t}</strong><p>${d}</p></div>`).join('')}</div><div class="section-title"><h2>所有页面</h2><span class="muted">${Object.keys(PAGE_META).length} 个页面 · ${EDITOR_TABS.length} 个模块编辑页签</span></div><div class="help-grid">${Object.entries(PAGE_META).filter(([id])=>id!=='help').map(([id,[name,i,desc]])=>`<article class="help-card">${icon(i)}<h3>${name}</h3><p>${desc}</p>${btn('nav','打开页面','ArrowUpRight',`data-route="${id}"`,'small')}</article>`).join('')}</div><div class="fields" style="margin-top:22px"><section class="panel"><div class="panel-head"><h3>三个不同的对象</h3></div><div class="panel-body stack"><p><strong>模块定义</strong><br><span class="muted">描述图形、端口、变量、通路和算法。</span></p><p><strong>设备型号</strong><br><span class="muted">保存一组命名参数，并保留版本。</span></p><p><strong>项目实例</strong><br><span class="muted">放在项目中的设备，可单独改参数。</span></p></div></section><section class="panel"><div class="panel-head"><h3>保存、应用与运行</h3></div><div class="panel-body stack"><p><strong>保存</strong>：保留当前编辑草稿。</p><p><strong>应用</strong>：检查差异，将参数写入当前设备。</p><p><strong>运行</strong>：推进项目运行并记录结果。</p><div class="notice">${icon('Info')}项目通过后端求解；Python 模块包在独立 Worker 中执行。控制脚本仍为编辑预览。</div></div></section></div><section class="panel" style="margin-top:20px"><div class="panel-head"><h3>常用快捷键</h3></div><div class="panel-body shortcut-grid">${shortcutMarkup()}</div></section></div>`;}
+function renderHelp(){return `<div class="page-shell">${heading('页面导览与使用指南','先用已有设备完成一次调参，再按需进入自定义模块开发。',btn('page-map','页面导航','LayoutDashboard')+btn('start-modeling','从示例调参开始','ArrowRight','','primary')+btn('guided-demo','进入模块开发','Code2'))}<div class="journey">${[['01','打开示例','选择已有管网与设备'],['02','调整参数','编辑草稿，核对当前值'],['03','明确应用','确认变化与生效时刻'],['04','运行或单步','更新当前参数对应的结果'],['05','观察与保存','同屏对照曲线、保存记录']].map(([n,t,d])=>`<div class="journey-step"><span class="step-number">${n}</span><strong>${t}</strong><p>${d}</p></div>`).join('')}</div><div class="section-title"><h2>所有页面</h2><span class="muted">${Object.keys(PAGE_META).length} 个页面 · ${EDITOR_TABS.length} 个模块编辑页签</span></div><div class="help-grid">${Object.entries(PAGE_META).filter(([id])=>id!=='help').map(([id,[name,i,desc]])=>`<article class="help-card">${icon(i)}<h3>${name}</h3><p>${desc}</p>${btn('nav','打开页面','ArrowUpRight',`data-route="${id}"`,'small')}</article>`).join('')}</div><div class="fields" style="margin-top:22px"><section class="panel"><div class="panel-head"><h3>三个不同的对象</h3></div><div class="panel-body stack"><p><strong>模块定义</strong><br><span class="muted">描述图形、端口、变量、通路和算法。</span></p><p><strong>设备型号</strong><br><span class="muted">保存一组命名参数，并保留版本。</span></p><p><strong>项目实例</strong><br><span class="muted">放在项目中的设备，可单独改参数。</span></p></div></section><section class="panel"><div class="panel-head"><h3>保存、应用与运行</h3></div><div class="panel-body stack"><p><strong>保存</strong>：保留当前编辑草稿。</p><p><strong>应用</strong>：检查差异，将参数写入当前设备。</p><p><strong>运行</strong>：推进项目运行并记录结果。</p><div class="notice">${icon('Info')}项目通过后端求解；Python 模块包在独立 Worker 中执行。Python 控制脚本可预览，启用后在新建动态运行中执行。</div></div></section></div><section class="panel" style="margin-top:20px"><div class="panel-head"><h3>常用快捷键</h3></div><div class="panel-body shortcut-grid">${shortcutMarkup()}</div></section></div>`;}
 
 // Device data is independent of the module's test values and other instances.
 const sameValue = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -869,34 +840,34 @@ function validateInstanceEdits(n, values, m = moduleOf(n)) {
     if (array && (!Array.isArray(value) || value.length !== 8)) throw Error(`${v.label}必须包含 8 项。`);
     try {
       for (const item of array ? value : [value]) numeric(item, -1e12, 1e12, v.type.startsWith('int'));
-      const def = (m.manifest ? manifestFields(m.manifest) : PARAM_DEFS[m.kind] || []).find(f => f[0] === v.param);
+      const def = moduleParamDefs(m).find(f => f[0] === v.param);
       if (def) numeric(value, def[3], def[4]);
     } catch (error) { throw Error(`${v.label}：${error.message}`); }
   }
-}
-function commitInstanceEdits(n, values) {
-  const data = ensureInstanceVariables(n);
-  for (const v of moduleOf(n).variables.filter(instanceWritable)) {
-    if (v.origin === 'parameter') n.params[v.param] = n.draft[v.param] = values[v.id];
-    else { data.values[v.id] = clone(values[v.id]); data.draft[v.id] = clone(values[v.id]); }
-  }
-  // Boolean/text/curve parameters have no projected variable row, so commit every declared draft.
-  for (const spec of deviceParamSpecs(n)) if (spec.id in n.draft) n.params[spec.id] = clone(n.draft[spec.id]);
 }
 function instanceBankDiff(n, bank) {
   const data = ensureInstanceVariables(n);
   return moduleOf(n).variables.filter(v => instanceWritable(v) && !sameValue(instanceVariableValue(n, v), data.banks[bank][v.id]));
 }
+let deviceApplicationController;
+function deviceApplications(){return deviceApplicationController ||= FluidNetDeviceApplication.create({
+  state:()=>state,projectRunState,projectState,engine,performance:FluidNetPerformanceData,
+  clone,sameValue,ownerOfInstance,moduleOf,instanceWritable,ensureInstanceVariables,
+  validateInstanceEdits,markDirty,remember,render
+});}
+function instanceApplication(n,values,bank=-1){return deviceApplications().capture(n,values,bank);}
+function applyInstanceApplication(owner,n,application){return deviceApplications().apply(owner,n,application);}
 function applyInstanceBank(n, bank) {
   const values = instanceEdits(n, bank), differences = instanceBankDiff(n, bank);
   validateInstanceEdits(n, values);
-  const owner = ownerOfInstance(n);
+  const owner = ownerOfInstance(n),application=instanceApplication(n,values,bank);
   openDialog(`库值 ${bank + 1} → ${n.id} · ${n.name}`, `仅应用可编辑参数与自定义变量，端口结果和项目系统设置保持只读。${pendingCount(n) ? '确认后会替换这台设备已有的待应用草稿。' : ''}`,
-    diffMarkup(differences.map(v => [`${v.label} · ${v.unit}`, instanceVariableValue(n, v), values[v.id]])), () => {
-      validateInstanceEdits(n, values); remember(); commitInstanceEdits(n, values);
-      n.draftModelId = null; n.draftModelVersion = null;
-      owner.run.events.push({ t: owner.run.time, kind: 'parameters', text: `${n.id} 应用库值 ${bank + 1}：${differences.map(v => `${v.name}=${values[v.id]}`).join('，')}` });
-      markDirty(owner); render(); msg(`${n.id} 的库值 ${bank + 1} 已应用`);
+    diffMarkup(differences.map(v => [`${v.label} · ${v.unit}`, instanceVariableValue(n, v), values[v.id]])), async () => {
+      try {
+        await applyInstanceApplication(owner,n,application);
+        owner.run.events.push({ t: owner.run.time, kind: 'parameters', text: `${n.id} 应用库值 ${bank + 1}：${differences.map(v => `${v.name}=${values[v.id]}`).join('，')}` });
+        msg(`${n.id} 的库值 ${bank + 1} 已应用`);
+      } catch(error) {msg(error.message,true);}
     }, '确认应用', true);
 }
 function captureInstanceBank(n, bank) {
@@ -931,6 +902,7 @@ function instanceVariableRows(f, n) {
   const groups = [
     ['parameter', '设备参数', m.variables.filter(v => v.origin === 'parameter')],
     ...m.ports.map(p => [p.id, `${p.label} · ${p.name} / ${DOMAINS[p.domain].label}`, m.variables.filter(v => v.port === p.id)]),
+    ['runtime', '计算结果', m.variables.filter(v => v.origin === 'runtime')],
     ['custom', '自定义变量', m.variables.filter(v => v.origin === 'custom')],
     ['system', '系统变量 · 项目设置', m.variables.filter(v => v.origin === 'system')]
   ];
@@ -959,7 +931,7 @@ function instanceVariablesBody(f, n) {
   const config = variableWindowState(f), data = ensureInstanceVariables(n), owner = ownerOfInstance(n);
   return `<div class="instance-variables">
     <div class="instance-source"><strong>${esc(n.id)} · ${esc(owner.name)}</strong><span data-instance-run>${statusText(owner.run)} · ${clockLabel(owner.run.time)}</span></div>
-    <div class="instance-filters"><label class="search">${icon('Search')}<input data-instance-search="${n.id}" aria-label="${n.id} 搜索全部变量" value="${esc(config.search)}" placeholder="中文名称、变量标识"></label><select data-instance-group="${n.id}" aria-label="${n.id} 变量分组">${[['all', '全部分组'], ['parameter', '设备参数'], ['port', '端口变量'], ['custom', '自定义变量'], ['system', '系统变量']].map(([key, label]) => option(key, label, config.group)).join('')}</select><label class="instance-edit-source">编辑<select data-instance-source-select="${n.id}" aria-label="${n.id} 编辑目标">${option(-1, '待应用草稿', config.source)}${data.bankNames.map((name, i) => option(i, '库值 ' + (i + 1) + ' · ' + name, config.source)).join('')}</select></label></div>
+    <div class="instance-filters"><label class="search">${icon('Search')}<input data-instance-search="${n.id}" aria-label="${n.id} 搜索全部变量" value="${esc(config.search)}" placeholder="中文名称、变量标识"></label><select data-instance-group="${n.id}" aria-label="${n.id} 变量分组">${[['all', '全部分组'], ['parameter', '设备参数'], ['port', '端口变量'], ['runtime', '计算结果'], ['custom', '自定义变量'], ['system', '系统变量']].map(([key, label]) => option(key, label, config.group)).join('')}</select><label class="instance-edit-source">编辑<select data-instance-source-select="${n.id}" aria-label="${n.id} 编辑目标">${option(-1, '待应用草稿', config.source)}${data.bankNames.map((name, i) => option(i, '库值 ' + (i + 1) + ' · ' + name, config.source)).join('')}</select></label></div>
     <div class="instance-bank-actions"><label class="check-label"><input type="checkbox" data-instance-toggle="allBanks" data-id="${n.id}" ${config.allBanks ? 'checked' : ''}>三组对照</label><label class="check-label"><input type="checkbox" data-instance-toggle="onlyDiff" data-id="${n.id}" ${config.onlyDiff ? 'checked' : ''}>仅可写差异</label>${config.source < 0 ? `<span>草稿 → ${esc(n.id)}</span><span class="badge ${pendingCount(n) ? 'warn' : 'good'}" data-pending-for="${n.id}">${pendingCount(n)} 项待应用</span>` : `<span>库值 ${config.source + 1} → ${esc(n.id)}</span><span class="badge warn" data-bank-diff>${instanceBankDiff(n, config.source).length} 项差异</span>${btn('capture-instance-bank', '当前值存入此库', 'Copy', `data-id="${n.id}" data-bank="${config.source}"`, 'small ghost')}`}</div>
     <div class="instance-table-wrap" data-instance-table="${n.id}">${instanceVariableRows(f, n)}</div>
     <div class="instance-footnote">${btn('save-instance-model', '保存为型号', 'Database', `data-id="${n.id}"`, 'small ghost')}<span>曲线记录已生效值。端口“—”表示未采样；保存保留草稿，确认应用后生效。</span></div>
@@ -971,7 +943,7 @@ function editInstanceArray(n, id, source) {
   const data = ensureInstanceVariables(n), value = source < 0 ? instanceDraftValue(n, v) : data.banks[source][id];
   openDialog(`${n.id} · ${v.label}`, source < 0 ? '编辑待应用草稿，确认应用后才改变当前值。' : `编辑这台设备的库值 ${source + 1}。`, `<div class="fields">${value.map((n, i) => field('item' + i, `[${i}]`, n, `type="number" step="${v.type.startsWith('int') ? '1' : 'any'}" required`)).join('')}</div>`, fields => {
     const result = value.map((_, i) => numeric(fields['item' + i], -1e12, 1e12, v.type.startsWith('int')));
-    if (source < 0) data.draft[id] = result; else data.banks[source][id] = result;
+    projectState.setVariableDraft(ownerOfInstance(n),n,v,source,result);
     markDirty(ownerOfInstance(n)); renderFloats();
   }, '保存到草稿');
 }
@@ -979,8 +951,7 @@ function updateInstanceVariableInput(el) {
   const n = instance(el.dataset.id), v = moduleOf(n).variables.find(v => v.id === el.dataset.instanceValue);
   if (!v || !instanceWritable(v) || v.type.endsWith('[8]')) return;
   const source = Number(el.dataset.instanceSource), data = ensureInstanceVariables(n), value = el.value === '' ? '' : Number(el.value);
-  if (source < 0) { if (v.origin === 'parameter') n.draft[v.param] = value; else data.draft[v.id] = value; }
-  else data.banks[source][v.id] = value;
+  projectState.setVariableDraft(ownerOfInstance(n),n,v,source,value);
   el.closest('td').classList.toggle('edited', !sameValue(instanceVariableValue(n, v), value));
   const shell = el.closest('.floater');
   const pending = shell.querySelector('[data-pending-for]'); if (pending) pending.textContent = `${pendingCount(n)} 项待应用`;
@@ -1020,10 +991,11 @@ function currentProjectPending() {
 function fitNetwork(pg = activePage()) {
   if (!pg.nodes.length) { pg.viewBounds = [-35, -5, 1140, 510]; }
   else {
-    const xs = pg.nodes.map(n => n.x), ys = pg.nodes.map(n => n.y);
-    pg.viewBounds = [Math.min(...xs) - 65, Math.min(...ys) - 65,
-      Math.max(240, Math.max(...xs) - Math.min(...xs) + 130),
-      Math.max(240, Math.max(...ys) - Math.min(...ys) + 170)];
+    const boxes=pg.nodes.map(n=>{const m=moduleOf(n),b=FluidNetCanvasSymbols.hitBounds(n,m),r=(n.rotation||0)*Math.PI/180;
+      const points=[[b.x,b.y],[b.x+b.width,b.y],[b.x,b.y+b.height],[b.x+b.width,b.y+b.height]].map(([x,y])=>({x:n.x+x*Math.cos(r)-y*Math.sin(r),y:n.y+x*Math.sin(r)+y*Math.cos(r)}));
+      return {left:Math.min(...points.map(p=>p.x)),right:Math.max(...points.map(p=>p.x)),top:Math.min(...points.map(p=>p.y))-16,bottom:Math.max(...points.map(p=>p.y),n.y+FluidNetCanvasSymbols.labelY(n,m)+48)};});
+    const left=Math.min(...boxes.map(b=>b.left))-30,top=Math.min(...boxes.map(b=>b.top))-30;
+    pg.viewBounds=[left,top,Math.max(240,Math.max(...boxes.map(b=>b.right))-left+30),Math.max(240,Math.max(...boxes.map(b=>b.bottom))-top+30)];
   }
   pg.zoom = 1; pg.pan = [0, 0];
 }
@@ -1034,12 +1006,7 @@ function networkViewBox(pg) {
   return `${x + (width - width / zoom) / 2 - pg.pan[0]} ${y + (height - height / zoom) / 2 - pg.pan[1]} ${width / zoom} ${height / zoom}`;
 }
 
-function projectParameterKey(owner = project()) {
-  return JSON.stringify({scenarios:owner.scenarios||[],events:owner.events||[],activeScenarioId:owner.activeScenarioId||'',medium:owner.medium,fluid:owner.fluid,fluidReference:owner.fluidReference,fluidConfig:owner.fluidConfig,circuitFluids:owner.circuitFluids,thermalCouplings:owner.thermalCouplings,solverOptions:owner.solverOptions,controls:controls.key(owner), solver: owner.solver, modules: state.modules.filter(m => owner.pages.some(pg => pg.nodes.some(n => n.moduleId === m.id))).map(m => ({id:m.id,kind:m.kind,version:m.version,ports:m.ports,channels:m.channels})), pages: owner.pages.map(pg => ({
-    nodes: pg.nodes.map(n => ({ id: n.id, moduleId: n.moduleId, params: n.params, values: n.variableState?.values })),
-    edges: pg.edges,
-  })) });
-}
+function projectParameterKey(owner=project()){return projectModel.parameterKey(owner,state.modules,controls.key);}
 
 function workbenchResultState() {
   const run = project().run;
@@ -1062,7 +1029,7 @@ function startModeling() {
   if (!p) {
     if (state.projects.length >= 20) throw Error('项目数量已达上限，请从项目管理打开已有项目。');
     p = makeProject(uid('project'), '泵阀并联管网', '调参并观察两条支路的流量。', waterPage());
-    state.projects.push(p); normalizeState(); markDirty(p);
+    projectState.addProject(state,p); normalizeState(); markDirty(p);
   }
   ui.showChart = true; ui.showLibrary = false; ui.workbenchChart = 'flow'; ui.pinnedChart = null;
   openProject(p.id);
@@ -1071,39 +1038,25 @@ function startModeling() {
     p.activePage = p.pages.find(pg => pg.nodes.includes(n)).id;
     openDevice(n.id);
     const f = ui.floats.find(f => f.id === n.id);
-    f.docked = innerWidth >= 1000; rememberWindow(f);
+    f.tab = 'overview'; f.docked = innerWidth >= 1000; rememberWindow(f);
   }
   fitNetwork();
   saveUI(); render();
   msg('先运行或单步，再修改开度、应用参数，观察底部两条支路的曲线。');
 }
 
-function isDocked(f) {
-  return !!f.docked && !f.minimized && innerWidth >= 1000;
-}
-
-function syncDockLayout() {
-  const workbench = root.querySelector('.workbench');
-  if (!workbench) return;
-  const active = ui.floats.find(f => instance(f.id) && isDocked(f));
-  workbench.classList.toggle('has-docked', !!active);
-  workbench.classList.toggle('has-docked-variables', active?.tab === 'variables');
-}
-
-function dockWindowBounds(f) {
-  const rect = document.getElementById('inspector-dock').getBoundingClientRect();
-  return { x: rect.left, y: rect.top, w: rect.width, h: rect.height };
-}
-
-function toggleDeviceDock(id) {
-  const f = ui.floats.find(f => f.id === id);
-  if (!f) return;
-  if (innerWidth < 1000 && !f.docked) { msg('较宽的窗口可将参数停靠到右侧；当前使用浮窗。'); return; }
-  const next = !f.docked;
-  for (const other of ui.floats) if (other.docked && other !== f) { other.docked = false; rememberWindow(other); }
-  f.docked = next; f.minimized = false; delete f.restore;
-  rememberWindow(f); markDirty(); renderFloats();
-}
+let deviceWindowsController;
+function deviceWindows(){return deviceWindowsController ||= FluidNetDeviceWindows.create({
+  windows:{list:()=>ui.floats,replace:value=>{ui.floats=value;},front:()=>ui.frontId,focus:id=>{ui.frontId=id;return ++ui.floatSerial;},route:()=>ui.route,select:id=>{ui.selectedNode=id;},project:()=>state.activeProject},
+  storage:{read:(projectId,id)=>state.windowPositions?.[projectId+':'+id],write:(projectId,id,value)=>{state.windowPositions||={};state.windowPositions[projectId+':'+id]=value;}},
+  elements:{root:()=>root,page:()=>page,layer:()=>document.getElementById('floating-layer'),dock:()=>document.getElementById('inspector-dock'),viewport:()=>({width:innerWidth,height:innerHeight})},
+  content:{node:instance,body:floatBody,footer:deviceWindowFooter,extras:deviceWindowExtras},chrome:{esc,icon,ibtn},
+  effects:{dirty:markDirty,selection:syncDeviceSelection,message:msg,retainFocus,rendered:()=>{syncWorkbenchStatus();requestAnimationFrame(()=>{resizeCharts();restoreChartCursor();});}}
+});}
+function isDocked(f){return deviceWindows().isDocked(f);}
+function syncDockLayout(){return deviceWindows().syncDockLayout();}
+function dockWindowBounds(){return deviceWindows().dockBounds();}
+function toggleDeviceDock(id){return deviceWindows().toggleDock(id);}
 
 function chartDockChoices() {
   const bindings=overviewSeries(project().run);
@@ -1155,7 +1108,7 @@ function renderWorkbenchChart() {
 function refreshWorkbenchChart() {
   const plot = document.getElementById('workbench-chart-plot');
   if (!plot) return;
-  plot.innerHTML = workbenchChartMarkup();
+  FluidNetSvgDom.patch(plot,workbenchChartMarkup());
   const readout = document.getElementById('workbench-flow-chart-readout');
   if (readout) readout.textContent = workbenchChartReadout();
   restoreChartCursor();
@@ -1164,6 +1117,7 @@ function refreshWorkbenchChart() {
 function syncWorkbenchStatus() {
   const result = workbenchResultState();
   root.querySelectorAll('[data-result-status]').forEach(el => { el.textContent = result.text; el.className = 'result-status ' + result.tone; });
+  for (const f of ui.floats) { const n=instance(f.id), shell=root.querySelector(`[data-float-id="${f.id}"]`); if(n&&shell)devicePanelView().refresh(shell,n); }
   root.querySelectorAll('[data-float-save]').forEach(el => el.textContent = state.dirty ? '草稿未保存' : '草稿已保存');
   root.querySelectorAll('[data-float-keyframe]').forEach(el => { el.hidden = !replayingKeyFrame(project().run); });
   root.querySelectorAll('[data-device-apply-status]').forEach(el => {
@@ -1224,12 +1178,6 @@ function validateModuleGroups(data) {
   collectModuleGroups(data);
 }
 
-function normalizeModuleGroups() {
-  for (const m of state.modules) if (!m.category) m.category = '自定义模块';
-  state.moduleGroups = collectModuleGroups(state);
-  if (ui.category !== '全部模块' && !moduleGroupNames().includes(ui.category)) ui.category = '全部模块';
-}
-
 function moduleGroupDialog(previous = '') {
   if (previous && !state.moduleGroups.includes(previous)) throw Error('内置分类保留原名称。');
   openDialog(previous ? '重命名分组' : '新增分组', previous ? '组内模块会同步更新分类，项目设备与型号保持原引用。' : '创建一个空分组，随后可在组内新建模块或移入已有模块。',
@@ -1284,12 +1232,12 @@ function renderModules() {
   const members = state.modules.filter(m => ui.category === '全部模块' || m.category === ui.category);
   const list = members.filter(m => (m.name + m.code).toLowerCase().includes(ui.moduleSearch.toLowerCase()));
   const custom = state.moduleGroups.includes(ui.category), blankGroup = ui.category !== '全部模块' && !members.length;
-  return `<div class="page-shell">${heading('模块库', '定义可复用的设备：图形、端口、通路、变量与算法。', btn('nav', '节点定义', 'Waypoints', 'data-route="nodes"') + btn('new-module', '新建模块', 'Plus', '', 'primary'))}
+  return `<div class="page-shell">${heading('模块库', '定义可复用的设备：图形、端口、通路、变量与算法。', btn('nav', '节点定义', 'Waypoints', 'data-route="nodes"') + btn('equipment-library','设备组与选型','Boxes','','small')+btn('performance-library','性能资料库','Database','','small')+btn('new-module', '新建模块', 'Plus', '', 'primary'))}
     <div class="split-view">${moduleGroupSidebar()}<div class="module-content">
       ${ui.category === '倍思鹿参考模块' ? `<div class="notice module-reference-note">${icon('Info')}<span>来自倍思鹿参考实现，L1/L2/L3 验证状态见文档。</span></div>` : ''}
       ${ui.category !== '全部模块' ? `<div class="module-group-context"><div class="grow"><h2>${esc(ui.category)}</h2><small>${custom ? '自建分组' : '内置分类'} · ${members.length} 个模块</small></div>${custom ? btn('rename-module-group', '重命名', 'Pencil', `data-value="${esc(ui.category)}"`, 'small') + btn('delete-module-group', '删除分组', 'Trash2', `data-value="${esc(ui.category)}" ${members.length ? 'disabled title="请先将组内模块移到其他分组"' : ''}`, 'small') : ''}</div>` : ''}
       <div class="filterbar"><label class="search">${icon('Search')}<input data-filter="moduleSearch" aria-label="搜索模块" placeholder="名称或模块标识" value="${esc(ui.moduleSearch)}"></label><span class="push muted">${list.length} 个模块</span><div class="segmented" role="group" aria-label="模块库视图">${[['cards', '卡片视图', 'Grid2X2'], ['list', '紧凑列表', 'List']].map(([value, label, glyph]) => `<button data-action="module-view" data-value="${value}" aria-label="${label}" title="${label}" aria-pressed="${ui.moduleView === value}" class="${ui.moduleView === value ? 'active' : ''}">${icon(glyph)}</button>`).join('')}</div>${btn('compile-preview', '批量检查预览', 'CheckCheck', '', 'small')}</div>
-      <div id="module-results" class="module-grid${ui.moduleView === 'list' ? ' module-compact-list' : ''}">${list.map(m => `<article class="module-card" data-module-id="${m.id}"><div class="row module-card-title"><span class="object-icon">${icon(m.icon)}</span><div class="grow"><h3>${esc(m.name)}</h3><small class="muted mono">${esc(m.code)}</small></div>${isReferenceModule(m) ? badge('参考模块', 'good') : ''}${badge(m.runtime === 'python' ? (m.publishedManifest ? 'Python · v'+m.publishedManifest.version : 'Python · 未发布') + (m.dirty?' · 有草稿':'') : '内置 · v'+m.version,m.runtime === 'python' ? 'blue' : '')}</div><button class="module-group-chip" data-action="move-module-group" data-id="${m.id}" aria-label="调整 ${esc(m.name)} 的分组" title="调整所属分组">${icon('Folder')}<span>${esc(m.category)}</span>${icon('ChevronDown')}</button><p>${esc(m.description)}</p>${moduleEvidenceSummary(m)}<div class="stat-line"><span>${(m.parameters || PARAM_DEFS[m.kind] || []).length} 个参数</span><span>${m.ports.length} 个端口</span><span>${m.channels.length} 条通路</span><span>${m.variables.length} 个变量</span></div><div class="card-footer">${isReferenceModule(m) ? btn('module-doc', '说明', 'BookOpen', `data-id="${m.id}"`, 'small') : ''}${btn('edit-module', '编辑模块', 'Pencil', `data-id="${m.id}"`, 'small')}${m.runtime === 'python' ? btn('test-module','独立验证','CheckCheck',`data-id="${m.id}"`,'small') + (m.manifest?.execution_role ? '' : btn('module-example','管网算例','Network',`data-id="${m.id}"`,'small')) : ''}<span class="push"></span>${ibtn('insert-module', '插入项目 ' + m.name, 'Plus', `data-id="${m.id}"`)}</div></article>`).join('') || (blankGroup ? empty('分组已建好，添加第一个模块', '可在此分组中新建模块，也可从“全部模块”的模块卡片调整所属分组。', btn('new-module', '在此分组新建模块', 'Plus', '', 'primary')) : empty('没有匹配的模块', '尝试其他分类或关键词。'))}</div>
+      <div id="module-results" class="module-grid${ui.moduleView === 'list' ? ' module-compact-list' : ''}">${list.map(m => `<article class="module-card" data-module-id="${m.id}"><div class="row module-card-title"><span class="object-icon">${icon(m.icon)}</span><div class="grow"><h3>${esc(m.name)}</h3><small class="muted mono">${esc(m.code)}</small></div>${isReferenceModule(m) ? badge('参考模块', 'good') : ''}${badge(m.runtime === 'python' ? (m.publishedManifest ? 'Python · v'+m.publishedManifest.version : 'Python · 未发布') + (m.dirty?' · 有草稿':'') : '内置 · v'+m.version,m.runtime === 'python' ? 'blue' : '')}</div><button class="module-group-chip" data-action="move-module-group" data-id="${m.id}" aria-label="调整 ${esc(m.name)} 的分组" title="调整所属分组">${icon('Folder')}<span>${esc(m.category)}</span>${icon('ChevronDown')}</button><p>${esc(m.description)}</p>${moduleEvidenceSummary(m)}<div class="stat-line"><span>${(m.parameters || PARAM_DEFS[m.kind] || []).length} 个参数</span><span>${m.ports.length} 个端口</span><span>${m.channels.length} 条通路</span><span>${m.variables.length} 个变量</span></div><div class="card-footer">${isReferenceModule(m) ? btn('module-doc', '说明', 'BookOpen', `data-id="${m.id}"`, 'small') : ''}${btn('edit-module', '编辑模块', 'Pencil', `data-id="${m.id}"`, 'small')}${m.runtime === 'python' ? btn('test-module','独立验证','CheckCheck',`data-id="${m.id}"`,'small') + (m.manifest?.execution_role ? '' : btn('module-example',m.manifest?.sdk?.capabilities?.includes('composite.refrigeration.open.v1')?'宿主验收':'管网算例','Network',`data-id="${m.id}"`,'small')) : ''}<span class="push"></span>${ibtn('insert-module', '插入项目 ' + m.name, 'Plus', `data-id="${m.id}"`)}</div></article>`).join('') || (blankGroup ? empty('分组已建好，添加第一个模块', '可在此分组中新建模块，也可从“全部模块”的模块卡片调整所属分组。', btn('new-module', '在此分组新建模块', 'Plus', '', 'primary')) : empty('没有匹配的模块', '尝试其他分类或关键词。'))}</div>
     </div></div></div>`;
 }
 
@@ -1314,30 +1262,32 @@ function openModuleDoc(id) {
 // 画布操作与模块定义共用端口 / 通路，不根据图形猜测内部连接。
 function deviceToolsMarkup(n) {
   if (!n) return '';
-  return `<div class="device-tools" role="toolbar" aria-label="选中设备操作"><strong>${esc(n.id)} · ${esc(n.name)}</strong>${ibtn('open-device', '参数与型号', 'SlidersHorizontal', `data-id="${n.id}"`)}${ibtn('device-variables', '查看全部变量', 'Table2', `data-id="${n.id}"`)}${ibtn('choose-device-model', '选择设备型号', 'Database', `data-id="${n.id}"`)}${ibtn('rotate-device', '顺时针旋转 90° · R', 'RotateCw', `data-id="${n.id}"`)}${ibtn('rotate-device', '逆时针旋转 90° · Shift+R', 'RotateCcw', `data-id="${n.id}" data-direction="-1"`)}${ibtn('device-definition', '查看模块定义', 'Box', `data-id="${n.id}"`)}</div>`;
+  return `<div class="device-tools" role="toolbar" aria-label="选中设备操作"><strong>${esc(n.id)} · ${esc(n.name)}</strong>${ibtn('device-overview', '设备总览', 'Gauge', `data-id="${n.id}"`)}${ibtn('open-device', '参数与型号', 'SlidersHorizontal', `data-id="${n.id}"`)}${ibtn('device-variables', '查看全部变量', 'Table2', `data-id="${n.id}"`)}${ibtn('choose-device-model', '选择设备型号', 'Database', `data-id="${n.id}"`)}${ibtn('rotate-device', '顺时针旋转 90° · R', 'RotateCw', `data-id="${n.id}"`)}${ibtn('rotate-device', '逆时针旋转 90° · Shift+R', 'RotateCcw', `data-id="${n.id}" data-direction="-1"`)}${ibtn('device-definition', '查看模块定义', 'Box', `data-id="${n.id}"`)}${ibtn('move-device-page','移到其他画布','Layers',`data-id="${n.id}"`)}</div>`;
 }
-function syncDeviceSelection() {
+let workbenchRefreshController;
+function refreshWorkbench(){
+  workbenchRefreshController ||= FluidNetWorkbenchRefresh.create({root,project,page:activePage,ui,viewBox:networkViewBox,canvas:canvasView,
+    selection:()=>syncDeviceSelection(false),chartMarkup:renderWorkbenchChart,chartRefresh:refreshWorkbenchChart,chrome:syncChrome,icon,
+    history:action=>action==='undo'?undoStack.length:redoStack.length,placingName:()=>mod(ui.placing).name,
+    layout:()=>{syncDockLayout();requestAnimationFrame(()=>{resizeCharts();restoreChartCursor();});}});
+  if(!workbenchRefreshController.refresh())render();
+}
+function syncDeviceSelection(paint=true) {
   if (ui.route !== 'workbench') return;
   const n = activePage().nodes.find(n => n.id === ui.selectedNode);
   const props = document.getElementById('selected-properties'), tools = document.getElementById('canvas-device-tools');
-  if (props) props.innerHTML = propertiesMarkup(n);
-  if (tools) tools.innerHTML = deviceToolsMarkup(n);
-  root.querySelectorAll('#network [data-node]').forEach(el => el.classList.toggle('selected', el.dataset.node === n?.id));
+  if(props){const html=propertiesMarkup(n);if(props._selectionMarkup!==html){props.innerHTML=html;props._selectionMarkup=html;}}
+  if(tools){const html=deviceToolsMarkup(n);if(tools._selectionMarkup!==html){tools.innerHTML=html;tools._selectionMarkup=html;}}
+  root.querySelectorAll('#network [data-node]').forEach(el=>el.classList.toggle('selected',el.dataset.node===n?.id||groupSelected().includes(el.dataset.node)));
+  if(paint)canvasView().refresh();
 }
 function rotateDevice(id, direction = 1) {
   const n = activePage().nodes.find(n => n.id === id); if (!n) return;
-  remember(); n.rotation = ((n.rotation || 0) + direction * 90 + 360) % 360;
+  remember(); projectState.updateNode(project(),n,{rotation:((n.rotation || 0) + direction * 90 + 360) % 360});
   ui.selectedNode = n.id; markDirty(project()); render();
   root.querySelector(`#network [data-node="${n.id}"]`)?.focus({ preventScroll: true });
 }
-function setDeviceTab(f, tab) {
-  f.tab = tab;
-  if (tab === 'variables' && !f.variablesOpened) {
-    const r = page.getBoundingClientRect(); f.variablesOpened = true;
-    f.w = Math.min(780, r.width - 16); f.h = Math.min(650, r.height - 16);
-    f.x = r.right - f.w - 12; f.y = r.top + 12;
-  }
-}
+function setDeviceTab(f,tab){return deviceWindows().setTab(f,tab);}
 function openDeviceVariables(id, variableId) {
   const n = instance(id); if (!n) return;
   openDevice(id);
@@ -1359,8 +1309,24 @@ function chooseDeviceModel(id) {
 }
 function openDeviceDefinition(id, variableId) {
   const n = instance(id); if (!n) return;
+  const bound=moduleOf(n),draft=state.modules.find(m=>m.id===n.moduleId);
+  const variable=variableId && bound.variables.find(v=>v.id===variableId);
+  const definition=bound.manifest || {id:bound.id,version:bound.version,ports:bound.ports,channels:bound.channels,variables:bound.variables};
+  const {source,...contract}=definition,code=source?.runtime || bound.source?.runtime;
+  const hash=definition.definition_hash || n.package?.definition_hash || bound.contentHash || '';
+  const body=`<div data-bound-definition="${esc(bound.id)}" data-bound-version="${esc(bound.version)}"><p><strong>${esc(n.id)} · ${esc(bound.name)} · v${esc(bound.version)}</strong></p>${hash?`<p class="mono">${esc(hash)}</p>`:''}
+    ${variable?`<section data-bound-variable="${esc(variable.id)}"><h3>${esc(variable.label)} · ${esc(variable.name)}</h3><pre class="code-preview">${esc(JSON.stringify(variable,null,2))}</pre></section>`:''}
+    <details ${variable?'':'open'}><summary>绑定版本合同</summary><pre class="code-preview">${esc(JSON.stringify(contract,null,2))}</pre></details>
+    ${code?`<details><summary>绑定版本源码</summary><pre class="code-preview">${esc(code)}</pre></details>`:''}
+    <div class="row wrap">${btn('close-dialog','返回设备','ArrowLeft','','small')}${draft?btn('edit-device-library',`编辑模块库草稿 · v${draft.version}`,'Pencil',`data-id="${esc(n.id)}" data-variable="${esc(variableId||'')}"`,'small'):''}</div></div>`;
+  openDialog(`设备绑定定义 · ${n.id} · v${bound.version}`,'只读查看此项目实际使用的版本；模块库草稿独立编辑，发布和升级后才改变项目绑定。',body,null,'',true);
+}
+function editDeviceLibrary(id, variableId) {
+  const n=instance(id);if(!n)return;
+  if(!state.modules.some(m=>m.id===n.moduleId))throw Error('模块库中没有此草稿，请先从绑定版本建立模块草稿。');
   const origin = { projectId: project().id, pageId: activePage().id, nodeId: id, variableId };
   if (variableId) ui.variableSearch = moduleOf(n).variables.find(v => v.id === variableId)?.name || '';
+  closeDialog();
   openEditor(n.moduleId, variableId ? 'attributes' : 'drawing', origin);
 }
 function returnToDevice() {
@@ -1375,8 +1341,7 @@ function deviceContextMarkup(id) {
   return `${btn('open-device', '参数与型号', 'SlidersHorizontal', `data-id="${id}"`)}${btn('device-variables', '全部变量', 'Table2', `data-id="${id}"`)}${btn('choose-device-model', '选择设备型号', 'Database', `data-id="${id}"`)}${btn('device-definition', '查看模块定义', 'Box', `data-id="${id}"`)}<div class="spacer"></div>${btn('rotate-device', '顺时针旋转 · R', 'RotateCw', `data-id="${id}"`)}${btn('rotate-device', '逆时针旋转 · Shift+R', 'RotateCcw', `data-id="${id}" data-direction="-1"`)}${btn('copy-device', '复制设备', 'Copy', `data-id="${id}"`)}${btn('delete-node', '删除设备', 'Trash2', `data-id="${id}"`)}`;
 }
 function internalChannels(n) {
-  const m = moduleOf(n);
-  return m.channels.filter(c => c.enabled && m.ports.some(p => p.id === c.input) && m.ports.some(p => p.id === c.output));
+  return FluidNetPathTrace.channels(moduleOf(n));
 }
 function internalChannelsMarkup(n) {
   const m = moduleOf(n);
@@ -1386,22 +1351,39 @@ function internalChannelsMarkup(n) {
   }).join('')}</g>`;
 }
 function showCanvasInspection(target) {
+  if (target?.closest?.('#canvas-inspection')) return;
   const node = target?.closest?.('#network [data-node]'), port = target?.closest?.('[data-port-node]');
-  ui.canvasInspection = node ? { id: node.dataset.node, portId: port?.dataset.portId } : null;
+  // Keep a port trace while crossing the canvas to its navigation controls.
+  if (!node && target?.closest?.('#network-area') && ui.canvasInspection?.portId) return;
+  if (node?.dataset.node === ui.canvasInspection?.id && !port && ui.canvasInspection?.portId) return;
+  const next = node ? { id: node.dataset.node, portId: port?.dataset.portId } : null;
+  if (next?.id === ui.canvasInspection?.id && next?.portId === ui.canvasInspection?.portId && !document.getElementById('canvas-inspection')?.hidden) return;
+  ui.canvasInspection = next;
   paintCanvasInspection();
 }
 function paintCanvasInspection() {
   const hint = document.getElementById('canvas-inspection'); if (!hint) return;
-  const selected = ui.canvasInspection, n = activePage().nodes.find(n => n.id === selected?.id), m = n && moduleOf(n), p = m?.ports.find(p => p.id === selected.portId);
-  root.querySelectorAll('#network .inspecting,#network .channel-active').forEach(el => el.classList.remove('inspecting', 'channel-active'));
-  hint.hidden = !n;
-  if (!n) return;
-  const node = root.querySelector(`#network [data-node="${n.id}"]`); node?.classList.add('inspecting');
-  const channels = internalChannels(n).filter(c => !p || c.input === p.id || c.output === p.id);
-  node?.querySelectorAll('[data-channel-id]').forEach(el => el.classList.toggle('channel-active', channels.some(c => c.id === el.dataset.channelId)));
-  const edge = p && activePage().edges.find(e => e[1] === n.id && e[2] === p.id || e[3] === n.id && e[4] === p.id);
-  const connected = edge ? `已连接 ${edge[1] === n.id ? edge[3] : edge[1]}` : '未连接';
-  hint.textContent = p ? `${n.id} · ${p.label} (${p.name}) · ${DOMAINS[p.domain].label}${p.direction === 'in' ? '入口' : '出口'} · ${channels.map(c => c.name).join(' / ') || '未绑定内部通路'} · ${connected}` : `${n.id} · ${n.name} · ${channels.length ? channels.map(c => c.name).join(' / ') : '未设置内部通路'} · 双击参数，R 旋转`;
+  const selected = ui.canvasInspection;
+  const n = activePage().nodes.find(n => n.id === selected?.id);
+  const trace = n && FluidNetPathTrace.describe(project(), n.id, selected.portId, moduleOf);
+  root.querySelectorAll('.inspecting,.channel-active,.path-trace-active,.path-trace-remote').forEach(el =>
+    el.classList.remove('inspecting','channel-active','path-trace-active','path-trace-remote'));
+  hint.hidden = !trace;
+  if (!trace) { hint.replaceChildren();delete hint.dataset.traceSignature;return; }
+  const nodes = [...root.querySelectorAll('#network [data-node]')];
+  const node = nodes.find(el => el.dataset.node === n.id); node?.classList.add('inspecting');
+  node?.querySelectorAll('[data-channel-id]').forEach(el => el.classList.toggle('channel-active',trace.channels.some(c => c.id === el.dataset.channelId)));
+  root.querySelectorAll('#network [data-port-node]').forEach(el => {
+    const local = el.dataset.portNode === n.id && trace.ports.some(p => p.id === el.dataset.portId);
+    const remote = trace.connections.some(c => c.valid && c.remote[0] === el.dataset.portNode && c.remote[1] === el.dataset.portId);
+    el.classList.toggle('path-trace-active',local);el.classList.toggle('path-trace-remote',remote);
+  });
+  root.querySelectorAll('#network [data-trace-edge],.cross-page-strip [data-action="jump-page-link"]').forEach(el =>
+    el.classList.toggle('path-trace-active',trace.connections.some(c => c.valid && c.id === (el.dataset.traceEdge || el.dataset.id))));
+  const signature=JSON.stringify(trace);
+  if(hint.dataset.traceSignature!==signature) {
+    hint.innerHTML=FluidNetPathTrace.markup(trace,esc);hint.dataset.traceSignature=signature;
+  }
 }
 
 // 曲线绑定稳定的变量 ID，采样使用变量表中的单位；旧曲线仍可读取旧采样格式。
@@ -1417,7 +1399,8 @@ function variableObservation(n, v, owner = ownerOfInstance(n)) {
     origin: v.origin, sampleKey: n.id + ':' + v.id, legacyFactor: factor };
 }
 function projectVariables(owner = project()) {
-  return owner.pages.flatMap(pg => pg.nodes).flatMap(n => moduleOf(n).variables.map(v => variableObservation(n, v, owner)).filter(Boolean));
+  return [...owner.pages.flatMap(pg => pg.nodes).flatMap(n => moduleOf(n).variables.map(v => variableObservation(n, v, owner)).filter(Boolean)),
+    ...(owner.measurements||[]).map(m=>({id:'measurement.'+m.id,identifier:'measurement.'+m.id,nodeId:'measurement',variableId:m.id,sampleKey:'measurement.'+m.id,name:m.label,device:'测点',origin:'measurement',writable:false,unit:m.unit.display_unit,value:owner.run.history.at(-1)?.canonical?.['measurement.'+m.id]}))];
 }
 function sampleVariableValues(owner, legacyValues) {
   return Object.fromEntries(projectVariables(owner).map(v => [v.sampleKey,
@@ -1451,6 +1434,28 @@ function instanceModelPreview(n, source) {
   const values = instanceModelValues(n, source);
   return `<div class="table-wrap"><table class="model-source-table"><thead><tr><th>变量</th><th>保存值</th><th>单位</th></tr></thead><tbody>${moduleOf(n).variables.filter(instanceWritable).map(v => `<tr><td>${esc(v.label)}<small>${esc(v.name)}</small></td><td class="mono">${esc(variableDisplay(values[v.id], v, moduleOf(n).precision))}</td><td>${esc(v.unit)}</td></tr>`).join('')}</tbody></table></div>`;
 }
+let equipmentSelection;
+let deviceBatchEditor;
+function openDeviceBatch() {
+  deviceBatchEditor ||= DeviceBatchEditor.create({getState:()=>state,project,moduleOf,engine,deviceParamSpecs,openDialog,closeDialog,esc,msg});
+  deviceBatchEditor.open();
+}
+let equipmentLibrary;
+function openEquipmentLibrary(){
+  equipmentLibrary ||= createEquipmentLibrary({engine,getState:()=>state,replaceState:replaceWorkspaceState,emptyRun,uid,openDialog,esc,msg,navigate,persist:persistLocal,dirty:markDirty});
+  equipmentLibrary.open().catch(e=>msg(e.message,true));
+}
+let performanceLibrary;
+function openPerformanceLibrary(id){
+  performanceLibrary ||= FluidNetPerformanceData.create({engine,getState:()=>state,project,instance,moduleOf,ownerOfInstance,
+    openDialog,esc,msg,download:downloadFile,persist:persistLocal,dirty:markDirty,renderFloats});
+  performanceLibrary.open(id).catch(e=>msg(e.message,true));
+}
+function openEquipmentSelection(id) {
+  equipmentSelection ||= EquipmentSelection.create({esc,openDialog,instance,moduleOf,ownerOfInstance,
+    engine,getState:()=>state,uid,markDirty,persist:persistLocal,renderFloats,msg});
+  equipmentSelection.open(id);
+}
 function saveInstanceModel(id) {
   const n = instance(id); if (!n) return;
   const m = moduleOf(n), config = ui.floats.find(f => f.id === id), source = config?.tab === 'variables' && variableWindowState(config).source >= 0 ? 'bank:' + variableWindowState(config).source : 'current';
@@ -1464,16 +1469,23 @@ function saveInstanceModel(id) {
       if (state.models.length >= 500) throw Error('已达到型号数量上限。');
       validateInstanceEdits(n, values);
       const params = Object.fromEntries(m.variables.filter(v => v.origin === 'parameter').map(v => [v.param, values[v.id]]));
+      const definition=m.manifest||engine.catalog.modules.find(d=>d.id===m.kind);
+      for(const spec of deviceParamSpecs(n).filter(p=>p.value_type!=='number')){
+        if(fields.source.startsWith('bank:'))throw Error('此设备含曲线/文本参数，请选择当前值或待应用草稿保存完整型号。');
+        params[spec.id]=clone((fields.source==='draft'?n.draft:n.params)[spec.id]??spec.default);
+      }
+      const performanceData=FluidNetPerformanceData.references(n,definition,params,fields.source==='draft'?'draft':'current');
       const sourceLabel = `${n.id} · ${sources.find(([key]) => key === fields.source)[1]}`, note = `从 ${project().name} / ${sourceLabel} 保存`;
       state.models.push({ id: uid('model'), moduleId: m.id, name, description: note, sourceLabel, version: 1, moduleVersion: m.version,
-        params, values: clone(values), bank: fields.source.startsWith('bank:') ? Number(fields.source.slice(-1)) + 1 : 1, archived: false,
-        versions: [{ version: 1, note, params: clone(params), values: clone(values) }] });
+        params, performanceData, values: clone(values), bank: fields.source.startsWith('bank:') ? Number(fields.source.slice(-1)) + 1 : 1, archived: false,
+        versions: [{ version: 1, note, params: clone(params), values: clone(values), performanceData:clone(performanceData) }] });
       markDirty(); retainFocus(renderFloats); msg('型号已保存，可在当前设备或同模块设备中选择应用。');
     }, '保存型号', true);
 }
 function modelVariableSummary(item) {
   const variables = mod(item.moduleId).variables.filter(v => v.origin === 'custom' && item.values?.[v.id] !== undefined);
-  return `${item.sourceLabel ? `<small class="muted">来源：${esc(item.sourceLabel)}</small>` : ''}${variables.length ? `<div class="model-variable-summary"><h3>自定义变量</h3><dl>${variables.map(v => `<dt>${esc(v.label)} <small>${esc(v.unit)}</small></dt><dd class="mono">${esc(variableDisplay(item.values[v.id], v, mod(item.moduleId).precision))}</dd>`).join('')}</dl></div>` : ''}`;
+  const sources=Object.values(item.performanceData||item.selection?.performanceData||{}).map(entry=>entry.provenance).filter(Boolean);
+  return `${sources.length?`<div data-model-performance-source>保存时的性能资料：${sources.map(s=>`<p>${esc(s.name)} v${s.version} · ${esc(s.source)}</p>`).join('')}</div>`:''}${item.sourceLabel ? `<small class="muted">来源：${esc(item.sourceLabel)}</small>` : ''}${variables.length ? `<div class="model-variable-summary"><h3>自定义变量</h3><dl>${variables.map(v => `<dt>${esc(v.label)} <small>${esc(v.unit)}</small></dt><dd class="mono">${esc(variableDisplay(item.values[v.id], v, mod(item.moduleId).precision))}</dd>`).join('')}</dl></div>` : ''}`;
 }
 function validateModelVariables(item, m) {
   if (item.values !== undefined && (!item.values || typeof item.values !== 'object' || Array.isArray(item.values))) throw Error('型号变量数据不完整。');
@@ -1497,8 +1509,8 @@ function numeric(value, min = -1e12, max = 1e12, integer = false) {
 function readParams(data, kind, prefix = '', definitions = PARAM_DEFS[kind] || []) {
   return Object.fromEntries(definitions.map(f => [f[0], numeric(data[prefix + f[0]], f[3], f[4])]));
 }
-function paramsFields(kind, values) {
-  return (PARAM_DEFS[kind] || []).map(f => field(f[0], `${f[1]} · ${f[2]}`, values[f[0]] ?? f[6], `type="number" min="${f[3]}" max="${f[4]}" step="any" required`)).join('');
+function paramsFields(kind, values, definitions = PARAM_DEFS[kind] || []) {
+  return definitions.map(f => field(f[0], `${f[1]} · ${f[2]}`, values[f[0]] ?? f[6], `type="number" min="${f[3]}" max="${f[4]}" step="any" required`)).join('');
 }
 function retainFocus(renderFn = render) {
   const el = document.activeElement, selection = el?.selectionStart;
@@ -1558,7 +1570,7 @@ function validateBank(m, bank) {
     const value = bank[v.id], arr = v.type.endsWith('[8]');
     if (arr && (!Array.isArray(value) || value.length !== 8)) throw Error(`${v.name} 必须含 8 项。`);
     for (const n of arr ? value : [value]) numeric(n, -1e12, 1e12, v.type.startsWith('int'));
-    const f = (m.manifest ? manifestFields(m.manifest) : PARAM_DEFS[m.kind] || []).find(f => f[0] === v.param);
+    const f = moduleParamDefs(m).find(f => f[0] === v.param);
     if (f) numeric(value, f[3], f[4]);
   }
   numeric(bank['system:step'], 1, 10000, true);
@@ -1588,17 +1600,20 @@ function showBankApplication() {
   }, '应用到当前值', true);
 }
 function createModelDialog(existingId) {
-  const existing = existingId && model(existingId), m = existing ? mod(existing.moduleId) : mod();
+  const existing = existingId && model(existingId), m = existing ? engine.moduleForInsert(existing.moduleId) : mod();
+  if(existing)EquipmentSelection.assertModelCompatible(existing,engine.manifestPayload(m));
+  const definitions=m.parameterDefs || PARAM_DEFS[m.kind] || [];
   if (!existing) validateBank(m, m.banks[ui.bank]);
   const values = existing?.params || Object.fromEntries((PARAM_DEFS[m.kind] || []).map(f => [f[0], m.banks[ui.bank]['param:' + f[0]]]));
-  openDialog(existing ? '保存型号新版本' : '保存为设备型号', `${m.name} · ${existing ? '已插入的项目设备不会自动更新。' : `来源：库值 ${ui.bank + 1} · ${m.bankNames[ui.bank]}`}`, `<div class="fields">${field('name', '型号名称', existing?.name || `${m.name} · ${m.bankNames[ui.bank]}`, 'required maxlength="60"')}${field('description', '说明 / 版本备注', existing?.description || '', 'maxlength="160"')}${paramsFields(m.kind, values)}</div>`, data => {
+  openDialog(existing ? '保存型号新版本' : '保存为设备型号', `${m.name} · ${existing ? '已插入的项目设备不会自动更新。' : `来源：库值 ${ui.bank + 1} · ${m.bankNames[ui.bank]}`}`, `<div class="fields">${field('name', '型号名称', existing?.name || `${m.name} · ${m.bankNames[ui.bank]}`, 'required maxlength="60"')}${field('description', '说明 / 版本备注', existing?.description || '', 'maxlength="160"')}${paramsFields(m.kind, values, definitions)}</div>`, data => {
     const name = data.name.trim(); if (!name) throw Error('型号名称不能为空。');
     if (state.models.some(v => v.id !== existingId && v.moduleId === m.id && v.name === name)) throw Error('此模块已有同名型号。');
-    const params = readParams(data, m.kind), note = data.description.trim() || '参数更新';
+    const params = {...clone(existing?.params||{}),...readParams(data, m.kind,'',definitions)}, note = data.description.trim() || '参数更新';
     if (existing) {
       existing.version++; existing.name = name; existing.description = note; existing.params = params;
       if (existing.values) for (const [key, value] of Object.entries(params)) existing.values['param:' + key] = value;
-      existing.versions.push({ version: existing.version, note, params: clone(params), ...(existing.values ? { values: clone(existing.values) } : {}) });
+      existing.performanceData=FluidNetPerformanceData.references({performanceData:existing.performanceData||existing.selection?.performanceData},engine.manifestPayload(m),params);
+      existing.versions.push({ version: existing.version, note, params: clone(params), performanceData:clone(existing.performanceData), ...(existing.values ? { values: clone(existing.values) } : {}) });
       state.selectedModel = existing.id;
     } else {
       const id = uid('model');
@@ -1612,110 +1627,93 @@ function createModelDialog(existingId) {
 function stageModel(n, id) {
   const item = model(id);
   if (!item || item.archived || item.moduleId !== n.moduleId) throw Error('请选择同一模块的在用型号。');
-  n.draft = {...n.draft, ...clone(item.params)}; n.draftModelId = id; n.draftModelVersion = item.version;
+  EquipmentSelection.assertModelCompatible(item,engine.manifestPayload(moduleOf(n)));
+  projectState.setDraft(ownerOfInstance(n),n,item.params); n.performanceDataDraft=clone(item.performanceData||item.selection?.performanceData||{}); projectState.updateNode(ownerOfInstance(n),n,{draftModelId:id,draftModelVersion:item.version});
   const data = ensureInstanceVariables(n);
   for (const v of moduleOf(n).variables.filter(v => v.origin === 'custom' && instanceWritable(v))) data.draft[v.id] = clone(item.values?.[v.id] ?? data.values[v.id]);
   markDirty(project());
 }
 function applyInstanceDialog(n) {
+  const owner=ownerOfInstance(n);
   const values = instanceEdits(n);
+  const application=instanceApplication(n,values);
   const rows = moduleOf(n).variables.filter(v => instanceWritable(v) && !sameValue(instanceVariableValue(n, v), values[v.id])).map(v => [`${v.label} · ${v.unit}`, instanceVariableValue(n, v), values[v.id]]);
   for (const p of deviceParamSpecs(n).filter(p => p.value_type !== 'number' && !sameValue(n.draft[p.id], n.params[p.id])))
     rows.push([`${p.label} · ${PARAM_TYPE_LABELS[p.value_type] || p.value_type}`, parameterValueText(n.params[p.id], p.value_type), parameterValueText(n.draft[p.id], p.value_type)]);
   if (n.draftModelId) rows.unshift(['来源型号', `${model(n.modelId)?.name || '自定义'} v${n.modelVersion || 1}`, `${model(n.draftModelId)?.name} v${n.draftModelVersion}`]);
+  if(FluidNetPerformanceData.pending(n)){const labels=map=>Object.values(map||{}).map(entry=>entry.provenance.name+' v'+entry.provenance.version).join('；')||'无资料绑定';rows.unshift(['性能资料来源',labels(n.performanceData),labels(n.performanceDataDraft)]);}
   openDialog(`应用到 ${n.id} · ${n.name}`, '保存保留草稿；确认应用后参数生效，并在运行事件中记录时间。', diffMarkup(rows), async () => {
-    validateInstanceEdits(n, values);
-    if (project().run.live) { try { await engine.applyParameters(project(), n); } catch (error) { msg(error.message, true); } return; }
-    remember(); commitInstanceEdits(n, values);
-    if (n.draftModelId) { n.modelId = n.draftModelId; n.modelVersion = n.draftModelVersion; }
-    n.draftModelId = null; n.draftModelVersion = null;
-    project().run.events.push({ t: project().run.time, kind: 'parameters', text: `${n.id} 参数已应用：${rows.map(([label, , value]) => `${label}=${value}`).join('，')}` });
-    markDirty(project()); render(); msg(`${n.id} 参数已应用 · ${clockLabel(project().run.time)}`);
+    try {
+      await applyInstanceApplication(owner,n,application);
+      owner.run.events.push({ t: owner.run.time, kind: 'parameters', text: `${n.id} 参数已应用：${rows.map(([label, , value]) => `${label}=${value}`).join('，')}` });
+      msg(`${n.id} 参数已应用 · ${clockLabel(owner.run.time)}`);
+    } catch(error) {msg(error.message,true);}
   }, '确认应用', true);
 }
-function windowBounds(f) {
-  const p = page.getBoundingClientRect(), minW = Math.min(320, p.width - 16);
-  f.w = clamp(f.w || 440, minW, p.width - 16);
-  f.h = clamp(f.h || 520, Math.min(270, p.height - 16), p.height - 16);
-  f.x = clamp(f.x ?? p.right - f.w - 20, p.left + 8, p.right - f.w - 8);
-  f.y = clamp(f.y ?? p.top + 28, p.top + 8, p.bottom - (f.minimized ? 46 : f.h) - 8);
-  return f;
-}
-function rememberWindow(f) { state.windowPositions ||= {}; state.windowPositions[windowKey(f.id)] = { x: f.x, y: f.y, w: f.w, h: f.h, pinned: f.pinned, docked: !!f.docked }; }
-function openDevice(id) {
-  if (!instance(id)) return;
-  ui.selectedNode = id;
-  let f = ui.floats.find(f => f.id === id);
-  if (!f) { f = { id, tab: 'parameters', ...(state.windowPositions?.[windowKey(id)] || {}), order: ++ui.floatSerial }; ui.floats.push(f); }
-  if (f.docked) for (const other of ui.floats) if (other !== f && other.docked) { other.docked = false; rememberWindow(other); }
-  f.minimized = false; f.order = ++ui.floatSerial; ui.frontId = id;
-  syncDeviceSelection(); renderFloats();
-}
+function windowBounds(f){return deviceWindows().bounds(f);}
+function rememberWindow(f){return deviceWindows().remember(f);}
+function openDevice(id){return deviceWindows().open(id);}
 const PARAM_TYPE_LABELS = {number:'数值', boolean:'布尔', text:'文本', curve:'曲线'};
-function deviceExtraParamRows(n, m) {
-  const specs = deviceParamSpecs(n).filter(p => p.value_type !== 'number');
-  if (!specs.length) return '';
-  const rows = specs.map(p => {
-    const draft = n.draft[p.id], current = n.params[p.id], edited = !sameValue(draft, current);
-    const text = parameterValueText(draft, p.value_type);
-    const editor = p.value_type === 'boolean'
-      ? `<label class="check-label"><input type="checkbox" data-instance-param="${esc(p.id)}" data-param-type="boolean" data-id="${n.id}" aria-label="${esc(n.id)} ${esc(p.label)}草稿" ${draft === true ? 'checked' : ''}>启用</label>`
-      : p.value_type === 'curve'
-        ? `<textarea class="cell-input mono" rows="3" data-instance-param="${esc(p.id)}" data-param-type="curve" data-id="${n.id}" aria-label="${esc(n.id)} ${esc(p.label)}草稿">${esc(text)}</textarea>`
-        : `<input type="text" data-instance-param="${esc(p.id)}" data-param-type="text" data-id="${n.id}" value="${esc(text)}" aria-label="${esc(n.id)} ${esc(p.label)}草稿" maxlength="200">`;
-    return `<div class="parameter-row${edited ? ' edited' : ''}"><div class="param-title"><div class="parameter-label-actions"><strong>${esc(p.label)}</strong>${badge(PARAM_TYPE_LABELS[p.value_type] || p.value_type)}</div><small>当前 ${esc(parameterValueText(current, p.value_type)) || '—'}</small></div>${editor}</div>`;
-  }).join('');
-  return `<div class="row spread" style="margin-top:18px"><strong>其他参数</strong>${badge('非数值类型')}</div><p class="muted" style="font-size:12px;margin:0 0 10px">布尔、文本和曲线参数按各自类型编辑；曲线使用 JSON 点对数组。</p>${rows}`;
+let devicePanel;
+function configureDevicePanel(id=null) {
+  const node=id?instance(id):null,owner=node?ownerOfInstance(node):null,m=node?moduleOf(node):mod();
+  const specs=node?deviceParamSpecs(node):m.manifest?manifestParamSpecs(m.manifest):(PARAM_DEFS[m.kind]||[]).map(f=>({id:f[0],label:f[1],value_type:'number',minimum:f[3],maximum:f[4]}));
+  const before=JSON.stringify(FluidNetPanelLayout.binding(m));
+  FluidNetPanelLayout.editor({m,specs,esc,openDialog:(title,description,...rest)=>openDialog(title,description+(owner?' 保存仅更新此项目同模块设备的面板。':' 保存作为此模块版本以后插入设备的默认面板，已有项目保留原布局。'),...rest),onSave:layout=>{
+    if(JSON.stringify(FluidNetPanelLayout.binding(m))!==before)throw Error('模块版本或字段已变化，请重新配置。');
+    if(owner){
+      projectState.assertCurrent(state,owner);projectState.node(owner,node);
+      if(moduleOf(node)!==m)throw Error('项目模块已变化，请重新配置。');
+      owner.moduleSnapshots||={};owner.moduleSnapshots[m.id]={...clone(m),frozen:true};
+      if(layout)owner.moduleSnapshots[m.id].panelLayout=layout;else delete owner.moduleSnapshots[m.id].panelLayout;
+      markDirty(owner);
+    }else{
+      if(!state.modules.includes(m))throw Error('模块已被替换，请重新配置。');
+      for(const p of state.projects)if(p.pages.some(pg=>pg.nodes.some(n=>n.moduleId===m.id))&&!p.moduleSnapshots?.[m.id]){
+        p.moduleSnapshots||={};p.moduleSnapshots[m.id]={...clone(m),frozen:true};
+      }
+      if(layout)m.panelLayout=layout;else delete m.panelLayout;
+      markDirty();
+    }
+    persistLocal();render();msg('面板配置已保存；设备参数与物理模块版本保持原值。');
+  }});
 }
-function floatBody(f, n) {
-  const m = moduleOf(n), run = project().run;
-  if (f.tab === 'variables') return instanceVariablesBody(f, n);
-  if (f.tab === 'results') return `<div class="notice">${icon('Info')}主系统 · ${statusText(run)} · ${clockLabel(run.time)}</div><div class="metric-row"><div class="metric"><span>质量流量 · kg/s</span><strong>${number(flowFor(n), 3)}</strong></div><div class="metric"><span>温度 · °C</span><strong>${number(outletTemperature(n), 1)}</strong></div></div>${btn('device-curve', '将流量加入曲线', 'Activity', `data-id="${n.id}"`)}`;
-  if (f.tab === 'connections') return `<div class="stack">${m.ports.map(p => { const pg = project().pages.find(pg => pg.nodes.some(x => x.id === n.id)), edge = pg.edges.find(e => e[1] === n.id && e[2] === p.id || e[3] === n.id && e[4] === p.id); return `<div class="list-row" style="padding:10px 0"><div class="grow"><strong>${esc(p.name)} · ${esc(p.label)}</strong><small>${DOMAINS[p.domain].label} · ${edge ? esc(edge[1] + ' ↔ ' + edge[3]) : '未连接'}</small></div>${edge ? btn('delete-edge', '断开', 'X', `data-id="${edge[0]}"`, 'small') : badge('空闲')}</div>`; }).join('')}</div>`;
-  return `<label class="field"><span>设备名称</span><input data-instance-name="${n.id}" value="${esc(n.name)}" aria-label="${n.id} 设备名称" maxlength="50"></label><div class="field" style="margin-top:13px"><span>选择型号 → 进入待应用草稿</span><select data-instance-model="${n.id}" aria-label="${n.id} 设备型号">${option('', '自定义参数', n.draftModelId || n.modelId)}${state.models.filter(v => v.moduleId === m.id && !v.archived).map(v => option(v.id, v.name + ' · v' + v.version, n.draftModelId || n.modelId)).join('')}</select></div><div class="row spread" style="margin-top:12px"><strong>常用参数</strong><span class="badge ${pendingCount(n) ? 'warn' : 'good'}" data-pending-for="${n.id}">${pendingCount(n)} 项待应用</span></div>${paramDefs(n).filter(f => m.variables.find(v => v.param === f[0])?.display !== false).map(f => `<div class="parameter-row${n.draft[f[0]] !== n.params[f[0]] ? ' edited' : ''}"><div class="param-title"><div class="parameter-label-actions"><strong>${f[1]}</strong>${ibtn('device-variables', '查看 ' + f[1] + ' 的全部变量', 'Table2', `data-id="${n.id}" data-variable="param:${f[0]}"`)}</div><small>当前 ${number(n.params[f[0]], f[0] === 'opening' ? 0 : 2)} ${f[2]}</small>${quickFieldMarkup(n, m, f)}</div><input type="number" step="any" min="${f[3]}" max="${f[4]}" data-instance-param="${f[0]}" data-id="${n.id}" value="${n.draft[f[0]]}" aria-label="${n.id} ${f[1]}草稿" ${m.quickParam === f[0] && m.quickType === "display" ? "readonly" : ""}><span class="muted">${f[2]}</span></div>`).join('') || '<p class="muted" style="margin:14px 0">此模块没有常用可调参数。</p>'}${deviceExtraParamRows(n, m)}<div class="row wrap" style="margin-top:16px">${btn('device-definition', '完整模块定义', 'Box', `data-id="${n.id}"`, 'small ghost')}${btn('save-instance-model', '保存为型号', 'Database', `data-id="${n.id}"`, 'small')}</div>`;
+function devicePanelView() {
+  return devicePanel ||= createDevicePanel({moduleOf, ownerOfInstance, instanceVariablesBody,
+    esc, icon, btn, ibtn, badge, number, option, pendingCount, model, paramDefs, deviceParamSpecs,
+    sameValue, parameterValueText, PARAM_TYPE_LABELS, DOMAINS, links, project, getState:()=>state,
+    panelRow, parameterKey:projectParameterKey, observation:(n,v)=>engine.observation(n,v),
+    observationButton:variableObservationButton});
 }
+function floatBody(f,n) { return devicePanelView().body(f,n); }
 function quickCanvasMarkup(n, m) {
   const def = paramDefs(n).find(f => f[0] === m.quickParam);
   if (!def || m.variables.find(v => v.param === def[0])?.display === false) return '';
   return `<g data-quick-node="${n.id}" role="button" tabindex="0" aria-label="修改 ${esc(n.name + ' ' + def[1])}"><rect class="quick-param" x="-35" y="68" width="70" height="20" rx="4"/><text class="quick-param-label" x="0" y="82" text-anchor="middle">${number(n.params[def[0]], def[0] === 'opening' ? 0 : 1)} ${esc(def[2])}${m.quickType === 'display' ? '' : ' ▾'}</text></g>`;
 }
-function portStubs(n) {
-  return `<g transform="rotate(${n.rotation || 0})">${moduleOf(n).ports.map(p => { const d = portOffset(n, p); return `<path d="M ${d.x} ${d.y} H 0 V 0" fill="none" stroke="var(--${DOMAINS[p.domain].color})" stroke-width="1.3"/>`; }).join('')}</g>`;
+function deviceWindowFooter(f,n){
+  const bank=f.tab==='variables'?variableWindowState(f).source:-1;
+  const apply=bank<0?btn('apply-instance','预览并应用','Check',`data-id="${n.id}" ${pendingCount(n)?'':'disabled'}`,'primary small')
+    :btn('apply-instance-bank',`应用库值 ${bank+1}`,'Check',`data-id="${n.id}" data-bank="${bank}" ${instanceBankDiff(n,bank).length?'':'disabled'}`,'primary small');
+  return `<footer class="float-footer"><div class="float-save-state grow"><small data-float-save>${state.dirty?'草稿未保存':'草稿已保存'}</small><small data-float-keyframe ${replayingKeyFrame(project().run)?'':'hidden'}>回放：显示最近关键帧</small><small data-device-apply-status="${n.id}"></small></div>${btn('save','保存草稿','Save','title="保存整个原型；待应用参数保持草稿状态"','small')}${apply}</footer>`;
 }
-function quickFieldMarkup(n, m, f) {
-  if (m.quickParam !== f[0]) return '';
-  if (m.quickType === 'slider') return `<input type="range" data-instance-param="${f[0]}" data-id="${n.id}" min="${f[3]}" max="${f[4]}" step="${f[5]}" value="${n.draft[f[0]]}" aria-label="${n.id} ${f[1]}滑块">`;
-  if (m.quickType === 'switch') return `<label class="check-label" style="margin-top:6px"><input type="checkbox" data-instance-switch="${f[0]}" data-id="${n.id}" ${n.draft[f[0]] > f[3] ? 'checked' : ''}>切换 ${f[3]} / ${f[4]} ${esc(f[2])}</label>`;
-  return '';
+function taskDrawerMarkup(){return `<section class="task-drawer"><div class="panel-head"><h3>运行任务</h3>${ibtn('tasks','关闭任务列表','X')}</div><div class="panel-body stack">${state.projects.filter(p=>['running','paused'].includes(p.run.status)).map(p=>`<div class="row"><div class="grow"><strong>${esc(p.name)}</strong><small>${statusText(p.run)} · ${clockLabel(p.run.time)}</small></div>${btn('open-project','查看','',`data-id="${p.id}"`,'small')}${btn('stop-task','停止','',`data-id="${p.id}"`,'small')}</div>`).join('')}<small class="muted">切换页面或关闭查看窗口后，任务继续保留。</small></div></section>`;}
+function refreshTaskDrawer(){const drawer=root.querySelector('.task-drawer');if(drawer&&ui.taskDrawer)FluidNetSvgDom.update(drawer,taskDrawerMarkup());}
+function deviceWindowExtras(){
+  let html='';
+  if(contextMenu)html+=`<div class="context-menu" style="left:${contextMenu.x}px;top:${contextMenu.y}px">${deviceContextMarkup(contextMenu.id)}</div>`;
+  if(ui.taskDrawer)html+=taskDrawerMarkup();
+  return html;
 }
-function renderFloats() {
-  const layer = document.getElementById('floating-layer');
-  syncDockLayout();
-  let html = '';
-  if (ui.route === 'workbench') html = ui.floats.filter(f => instance(f.id)).map(f => {
-    const bounds = isDocked(f) ? dockWindowBounds(f) : windowBounds(f); const n = instance(f.id);
-    const bank = f.tab === 'variables' ? variableWindowState(f).source : -1;
-    const apply = bank < 0
-      ? btn('apply-instance', '预览并应用', 'Check', `data-id="${n.id}" ${pendingCount(n) ? '' : 'disabled'}`, 'primary small')
-      : btn('apply-instance-bank', `应用库值 ${bank + 1}`, 'Check', `data-id="${n.id}" data-bank="${bank}" ${instanceBankDiff(n, bank).length ? '' : 'disabled'}`, 'primary small');
-    return `<section class="floater${isDocked(f) ? ' docked' : ''}${ui.frontId === f.id ? ' front' : ''}${f.minimized ? ' minimized' : ''}${f.tab === 'variables' ? ' variables-floater' : ''}" role="region" aria-label="${esc(n.id + ' 设备参数')}" data-float-id="${f.id}" style="left:${bounds.x}px;top:${bounds.y}px;width:${bounds.w}px;height:${f.minimized ? 46 : bounds.h}px;z-index:${50 + (f.pinned ? 50 : 0) + f.order % 40}">
-      <header class="float-head" data-float-move="${f.id}">${icon('SlidersHorizontal')}<strong class="float-title">${esc(n.id + ' · ' + n.name)}</strong>${ibtn('float-dock', f.docked ? '取消停靠' : '停靠到右侧', f.docked ? 'ExternalLink' : 'Columns2', `data-id="${f.id}" aria-pressed="${!!f.docked}" ${innerWidth < 1000 && !f.docked ? 'hidden' : ''}`)}${ibtn('float-pin', '置顶窗口', 'Pin', `data-id="${f.id}" aria-pressed="${!!f.pinned}"`)}${ibtn('float-max', '最大化或还原', 'Maximize2', `data-id="${f.id}"`)}${ibtn('float-min', f.minimized ? '还原窗口' : '收起窗口', f.minimized ? 'ChevronDown' : 'Minus', `data-id="${f.id}"`)}${ibtn('float-close', '关闭设备窗口', 'X', `data-id="${f.id}"`)}</header>
-      ${f.minimized ? '' : `<nav class="tabs float-tabs" aria-label="设备属性页签">${[['parameters', '参数与型号'], ['variables', '全部变量'], ['results', '运行结果'], ['connections', '连接']].map(([id, label]) => `<button type="button" data-action="float-tab" data-id="${f.id}" data-value="${id}" class="${f.tab === id ? 'active' : ''}" aria-pressed="${f.tab === id}">${label}</button>`).join('')}</nav><div class="float-body">${floatBody(f, n)}</div><footer class="float-footer"><div class="float-save-state grow"><small data-float-save>${state.dirty ? '草稿未保存' : '草稿已保存'}</small><small data-float-keyframe ${replayingKeyFrame(project().run) ? '' : 'hidden'}>回放：显示最近关键帧</small><small data-device-apply-status="${n.id}"></small></div>${btn('save', '保存草稿', 'Save', 'title="保存整个原型；待应用参数保持草稿状态"', 'small')}${apply}</footer><button class="float-resize" data-float-resize="${f.id}" aria-label="调整窗口大小">${icon('Grip')}</button>`}
-    </section>`;
-  }).join('');
-  if (contextMenu) html += `<div class="context-menu" style="left:${contextMenu.x}px;top:${contextMenu.y}px">${deviceContextMarkup(contextMenu.id)}</div>`;
-  if (ui.taskDrawer) html += `<section class="task-drawer"><div class="panel-head"><h3>运行任务</h3>${ibtn('tasks', '关闭任务列表', 'X')}</div><div class="panel-body stack">${state.projects.filter(p => ['running', 'paused'].includes(p.run.status)).map(p => `<div class="row"><div class="grow"><strong>${esc(p.name)}</strong><small>${statusText(p.run)} · ${clockLabel(p.run.time)}</small></div>${btn('open-project', '查看', '', `data-id="${p.id}"`, 'small')}${btn('stop-task', '停止', '', `data-id="${p.id}"`, 'small')}</div>`).join('')}<small class="muted">切换页面或关闭查看窗口后，任务继续保留。</small></div></section>`;
-  layer.innerHTML = html;
-  syncWorkbenchStatus();
-  requestAnimationFrame(() => { resizeCharts(); restoreChartCursor(); });
-}
-function updateFloatBodies() { retainFocus(renderFloats); }
+function renderFloats(){return deviceWindows().render();}
+function updateFloatBodies(){return deviceWindows().updateBodies();}
 async function setBench(id, params) {
   if (['running', 'solving'].includes(state.bench.run.status)) throw Error('先停止当前单机测试，再切换被测设备。');
   const m = mod(id);
   if(m.contractDraft !== undefined && !await engine.checkModule(m,true)) { msg('契约未通过校验，请先修正。',true); return; }
+  moduleReplay?.close();
   state.bench.moduleId = m.id;
-  const conditions=m.testConditions || window.ModuleTestEditor.defaultConditions(m.manifest || {});
+  const conditions=m.testConditions || ModuleTestEditor.defaultConditions(m.manifest || {});
   state.bench.boundary={inlet:(conditions.inlet_pressure_pa ?? 250000)/1000,
     outlet:(conditions.outlet_pressure_pa ?? 120000)/1000,temperature:(conditions.temperature_k ?? 293.15)-273.15,
     fluid:conditions.fluid?.fluid || 'Ammonia'};
@@ -1726,8 +1724,22 @@ async function setBench(id, params) {
   state.bench.run.step = Math.max(.01, (m.values['system:step'] || 100) / 1000);
   markDirty(); navigate('bench');
 }
-function createModuleExample(id) {
+async function createModuleExample(id) {
   const m=engine.moduleForInsert(id), channel=m.channels.find(c=>c.enabled);
+  if(m.manifest.sdk?.capabilities?.includes('composite.refrigeration.open.v1')) {
+    if(state.projects.length>=20)throw Error('项目数量已达到上限。');
+    const conditions=state.modules.find(module=>module.id===id)?.testConditions;
+    if(!conditions?.host_project)throw Error('开放设备组需要真实宿主回路；请在已连接的制冷项目中重新封装，或把本组插入项目并连接所有公开端口。');
+    const owner=state,host=clone(conditions.host_project),target=host.instances.find(n=>n.id===(conditions.host_instance_id || 'D1'));
+    if(!target || target.module_id!==id)throw Error('宿主工况与此设备组不匹配，请重新封装。');
+    host.modules=host.modules.filter(definition=>definition.id!==id).concat([engine.manifestPayload(m)]);
+    target.parameters={};target.draft_parameters={};target.package=null;target.model_id=null;target.model_version=null;
+    host.name=m.name+' · 宿主验收';
+    const doc=await engine.exchangeDocument(host);
+    if(state!==owner)throw Error('工作区已变化，请重新创建宿主验收项目。');
+    doc.project.id=uid('project');doc.project.solver.duration=1;doc.project.solver.dt=conditions.dt_s || .1;
+    replaceWorkspaceState(projectState.mergeDocument(owner,doc,emptyRun));markDirty();persistLocal();openProject(doc.project.id);return;
+  }
   if(m.manifest.execution_role)throw Error('制冷模块请插入集总制冷站，连接上游饱和容器液相出口与下游压力等级。可先使用独立验证台检查开度特性。');
   if (m.ports.length !== 2 || m.channels.filter(c=>c.enabled).length !== 1) {
     const channels=m.channels.filter(c=>c.enabled),used=channels.flatMap(c=>[c.input,c.output]);
@@ -1742,7 +1754,7 @@ function createModuleExample(id) {
       pg.edges.push(['in'+index,a,'out0','V1',c.input],['out'+index,'V1',c.output,b,'out0']);
     });
     const p=makeProject(uid('project'),m.name+' · 多通路验收','各通路独立边界',pg);p.moduleSnapshots={[m.id]:clone(m)};
-    p.solver.duration=1;p.solver.dt=.1;state.projects.push(p);normalizeState();markDirty(p);openProject(p.id);return;
+    p.solver.duration=1;p.solver.dt=.1;projectState.addProject(state,p);normalizeState();markDirty(p);openProject(p.id);return;
   }
   if (state.projects.length >= 20) throw Error('项目数量已达到上限。');
   const params=Object.fromEntries((m.parameterDefs || PARAM_DEFS[m.kind] || []).map(f=>[f[0],f[6]]));
@@ -1759,59 +1771,118 @@ function createModuleExample(id) {
   const p=makeProject(uid('project'),m.name+' · 管网验收','压力源 → 管道 → Python 模块 → 出口',pg);
   if(m.frozen) p.moduleSnapshots={[m.id]:clone(m)};
   p.solver.duration=1; p.solver.dt=.1;
-  state.projects.push(p); normalizeState(); markDirty(p); ui.showLibrary=true; openProject(p.id);
+  projectState.addProject(state,p); normalizeState(); markDirty(p); ui.showLibrary=true; openProject(p.id);
 }
 function newInstance(moduleId, point, selectedModel) {
   const m = engine.bindModule(project(),moduleId), pg = activePage();
+  EquipmentSelection.assertModelCompatible(selectedModel,engine.manifestPayload(m));
   if (pg.nodes.length >= 64) throw Error('当前原型每张画布最多演示 64 台设备。');
   remember();
   const node = makeInstance(uid(m.kind === 'valve' ? 'V' : m.kind === 'pump' ? 'P' : 'D'), m.kind, m.name, point?.x ?? 250 + pg.nodes.length % 5 * 110, point?.y ?? 140 + Math.floor(pg.nodes.length / 5) * 100);
   node.moduleId = m.id;
-  if (m.runtime === 'python') { node.params=manifestParamDefaults(m.manifest); node.draft=clone(node.params); }
-  if (selectedModel) { node.params = clone(selectedModel.params); node.draft = clone(node.params); node.modelId = selectedModel.id; node.modelVersion = selectedModel.version; }
-  else if (m.id !== m.kind) { node.modelId = null; node.params = Object.fromEntries((PARAM_DEFS[m.kind] || []).map(f => [f[0], m.values['param:' + f[0]] ?? f[6]])); node.draft = clone(node.params); }
+  if (m.manifest) { node.params=manifestParamDefaults(m.manifest); node.draft=clone(node.params); }
+  if (selectedModel) { node.params = clone(selectedModel.params); node.draft = clone(node.params); node.modelId = selectedModel.id; node.modelVersion = selectedModel.version; node.performanceData=clone(selectedModel.performanceData||selectedModel.selection?.performanceData||{}); }
+  else if (m.id !== m.kind) { node.modelId = null; if (!m.manifest) { node.params = Object.fromEntries((PARAM_DEFS[m.kind] || []).map(f => [f[0], m.values['param:' + f[0]] ?? f[6]])); node.draft = clone(node.params); } }
   ensureInstanceVariables(node, m);
   if (selectedModel?.values) for (const v of m.variables.filter(v => v.origin === 'custom')) {
     const value = clone(selectedModel.values[v.id] ?? node.variableState.values[v.id]);
     node.variableState.values[v.id] = clone(value); node.variableState.draft[v.id] = clone(value); node.variableState.banks[0][v.id] = clone(value);
   }
-  pg.nodes.push(node); engine.pinProject(project()); ui.selectedNode = node.id; ui.placing = null; if (innerWidth <= 500) ui.showLibrary = false;
+  projectState.addNode(project(),pg.id,node); engine.pinProject(project()); ui.selectedNode = node.id; ui.placing = null; if (innerWidth <= 500) ui.showLibrary = false;
+  // Default grid insertion must remain reachable when a large diagram exceeds the view.
+  // Keep the current pan/zoom when the new symbol and its label already fit.
+  const [vx,vy,vw,vh]=networkViewBox(pg).split(' ').map(Number);
+  if(node.x-65<vx||node.x+65>vx+vw||node.y-65<vy||node.y+105>vy+vh)fitNetwork(pg);
   markDirty(project()); render(); return node;
 }
+function assertLinksIdle(owner=project()){
+  if(owner.run.live || ['running','solving','paused'].includes(owner.run.status))throw Error('请先停止运行，再修改连接或移动设备；切换画布可直接进行。');
+}
+function jumpPageLink(id,nodeId){
+  const owner=project(),edge=links.find(owner,id),target=links.locate(owner,nodeId);
+  if(!edge || !target || ![edge[1],edge[3]].includes(nodeId))throw Error('跨页连接已失效，请检查连接列表。');
+  closeDialog();owner.activePage=target.page.id;ui.connecting=null;ui.selectedNode=nodeId;ui.selectedEdge='';
+  fitNetwork(target.page);render();openDevice(nodeId);
+}
+function pageLinksDialog(){
+  const owner=project(),entries=links.cross(owner),errors=links.validate(owner,moduleOf,false);
+  openDialog('跨页连接',owner.name,`<div class="stack">${btn('add-page-link','新建跨页连接','Plus','','primary')}${entries.map(link=>`<div class="list-row" data-page-link="${esc(link.edge[0])}"><div class="grow"><strong>${esc(link.localPage.name)} · ${esc(link.local.join(':'))}</strong><small>↔ ${esc(link.remotePage.name)} · ${esc(link.remote.join(':'))}</small></div>${ibtn('jump-page-link','跳到起点','ChevronLeft',`data-id="${esc(link.edge[0])}" data-node="${esc(link.local[0])}"`)}${ibtn('jump-page-link','跳到终点','ArrowRight',`data-id="${esc(link.edge[0])}" data-node="${esc(link.remote[0])}"`)}${btn('edit-page-link','修改','Pencil',`data-id="${esc(link.edge[0])}"`,'small')}${btn('delete-edge','断开','X',`data-id="${esc(link.edge[0])}"`,'small')}</div>`).join('')||'<p>暂无跨页连接。也可以在设备的“连接”页签选择跨页端口。</p>'}${errors.map(error=>`<p role="alert">${esc(error.text)}</p>`).join('')}</div>`,null,'',true);
+}
+function pageLinkDialog(nodeId,portId,edgeId){
+  assertLinksIdle();const owner=project(),existing=edgeId&&links.find(owner,edgeId);
+  if(edgeId&&!existing)throw Error('连接已不存在，请重新打开。');
+  if(existing){nodeId=existing[1];portId=existing[2];}
+  const sources=owner.pages.flatMap(pg=>pg.nodes.flatMap(node=>moduleOf(node).ports
+    .filter(port=>(!nodeId||(node.id===nodeId&&port.id===portId))&&!links.atPort(owner,node.id,port.id,edgeId))
+    .map(port=>[node.id+':'+port.id,pg.name+' · '+node.id+' · '+port.label])));
+  if(owner.pages.length<2)throw Error('请先新增另一张画布。');
+  if(!sources.length)throw Error('没有可用起点；请先断开已有连接。');
+  closeDialog();
+  openDialog(existing?'修改跨页连接':'新建跨页连接','连接属于同一项目，跨页两端由同一次计算求解。',
+    selectField('source','起点端口',sources,sources[0][0])+selectField('targetPage','目标画布',[], '')+selectField('target','目标端口',[], ''),data=>{
+      if(project()!==owner)throw Error('项目已切换，请重新选择。');
+      assertLinksIdle(owner);const source=data.source.split(':'),target=data.target.split(':');
+      const start=links.locate(owner,source[0]),end=links.locate(owner,target[0]);
+      if(!start||!end||start.page===end.page)throw Error('请选择其他画布上的有效端口。');
+      links.check(owner,source,target,moduleOf,edgeId);remember();
+      projectState.connect(owner,edgeId||uid('edge'),source,target,moduleOf,!!edgeId);
+      ui.connecting=null;markDirty(owner);persistLocal();render();msg('跨页连接已保存到项目，重新运行后生效。');
+    },existing?'应用修改':'建立连接');
+  const form=document.getElementById('dialog-form'),sourceSelect=form.elements.source,pageSelect=form.elements.targetPage,targetSelect=form.elements.target;
+  function refreshTargets(){
+    const source=sourceSelect.value.split(':'),start=links.locate(owner,source[0]);
+    const port=moduleOf(start.node).ports.find(port=>port.id===source[1]);
+    const previous=pageSelect.value;
+    pageSelect.innerHTML=owner.pages.filter(pg=>pg!==start.page).map(pg=>option(pg.id,pg.name,previous||links.locate(owner,existing?.[3])?.page.id)).join('');
+    const targetPage=owner.pages.find(pg=>pg.id===pageSelect.value);
+    targetSelect.innerHTML=(targetPage?.nodes||[]).flatMap(node=>moduleOf(node).ports
+      .filter(candidate=>candidate.domain===port.domain&&(port.domain==='fluid'||candidate.direction!==port.direction)&&!links.atPort(owner,node.id,candidate.id,edgeId))
+      .map(candidate=>option(node.id+':'+candidate.id,node.id+' · '+candidate.label,existing?existing[3]+':'+existing[4]:''))).join('')||'<option value="">没有兼容的空闲端口</option>';
+  }
+  sourceSelect.addEventListener('change',()=>{pageSelect.value='';refreshTargets();});
+  pageSelect.addEventListener('change',refreshTargets);refreshTargets();
+}
+function moveDevicePage(id){
+  assertLinksIdle();const owner=project(),found=links.locate(owner,id);
+  if(!found)return;
+  const targets=owner.pages.filter(pg=>pg!==found.page);
+  if(!targets.length)throw Error('请先新增另一张画布。');
+  openDialog('移动设备到其他画布','已有连接和变量引用会保留，跨页连接自动显示在两端画布。',selectField('page','目标画布',targets.map(pg=>[pg.id,pg.name]),targets[0].id),data=>{
+    if(project()!==owner)throw Error('项目已切换，请重新选择。');assertLinksIdle(owner);
+    const target=owner.pages.find(pg=>pg.id===data.page);
+    if(!target||target.nodes.length>=64)throw Error('目标画布不存在或已达到设备上限。');
+    remember();projectState.moveNode(owner,id,target.id);projectState.updateNode(owner,found.node,{x:150+(target.nodes.length-1)%5*160,y:150+Math.floor((target.nodes.length-1)/5)*150});
+    fitNetwork(found.page);fitNetwork(target);owner.activePage=target.id;ui.selectedNode=id;ui.connecting=null;
+    markDirty(owner);persistLocal();render();msg('设备已移动，已有连接保持不变。');
+  },'移动设备');
+}
 function validateNetwork(p = project()) {
-  const errors = [];
+  const errors = links.validate(p, moduleOf);
   if (!p.pages.some(pg => pg.nodes.length)) errors.push({ text: '项目没有设备。' });
   for (const pg of p.pages) {
-    const used = new Set();
-    for (const [id, na, pa, nb, pb] of pg.edges) {
-      const a = endpoint(pg, na, pa), b = endpoint(pg, nb, pb);
-      if (!a || !b) { errors.push({ text: `${id}：连接端口不存在。`, page: pg.id, node: na }); continue; }
-      if (a.port.domain !== b.port.domain) errors.push({ text: `${id}：两端领域不一致。`, page: pg.id, node: na });
-      for (const key of [na + ':' + pa, nb + ':' + pb]) { if (used.has(key)) errors.push({ text: `${key}：端口重复连接。`, page: pg.id, node: na }); used.add(key); }
-    }
     for (const n of pg.nodes) {
       const m = moduleOf(n);
-      for (const p of m.ports) if (p.required !== false && !used.has(n.id + ':' + p.id)) errors.push({ text: `${n.id} · ${p.label} 尚未连接。`, page: pg.id, node: n.id });
       for (const text of checkChannels(m)) errors.push({ text: `${n.id} · ${text}`, page: pg.id, node: n.id });
     }
   }
   return errors;
 }
 function connectPort(nodeId, portId) {
-  const pg = activePage(), next = endpoint(pg, nodeId, portId);
+  assertLinksIdle();
+  const owner = project(), next = globalEndpoint(owner, nodeId, portId);
   if (!next) return;
-  const used = pg.edges.some(e => e[1] === nodeId && e[2] === portId || e[3] === nodeId && e[4] === portId);
+  const used = links.atPort(owner, nodeId, portId);
   if (used) throw Error('此端口已经连接。请先断开原连接，或使用连接节点分支。');
-  if (!ui.connecting) { ui.connecting = { nodeId, portId }; render(); return; }
+  if (!ui.connecting) { ui.connecting = { nodeId, portId }; refreshWorkbench(); return; }
   const first = ui.connecting;
-  if (first.nodeId === nodeId) { ui.connecting = null; render(); return; }
-  const previous = endpoint(pg, first.nodeId, first.portId);
-  if (previous.port.domain !== next.port.domain) throw Error('两端的物理类型必须相同。');
-  if (next.port.domain !== 'fluid' && previous.port.direction === next.port.direction) throw Error('此类端口需要输入与输出相连。');
-  remember(); pg.edges.push([uid('edge'), first.nodeId, first.portId, nodeId, portId]); ui.connecting = null;
+  if (first.nodeId === nodeId) { ui.connecting = null; refreshWorkbench(); return; }
+  const source = [first.nodeId, first.portId], target = [nodeId, portId];
+  links.check(owner, source, target, moduleOf);
+  remember(); projectState.connect(owner, uid('edge'), source, target, moduleOf); ui.connecting = null;
   markDirty(project()); render(); msg('连接已建立。');
 }
 function deleteNode(id) {
+  assertLinksIdle();
   const owner=project(),pg=owner.pages.find(pg=>pg.nodes.some(n=>n.id===id));if(!pg)return;
   const references=coldStorage.couplingReferences(owner,[id]);
   const key=projectParameterKey(owner);
@@ -1821,44 +1892,78 @@ function deleteNode(id) {
     if(projectParameterKey(owner)!==key)throw Error('确认期间项目发生变化，请重新选择要删除的设备。');
     const targetPage=owner.pages.find(page=>page.nodes.some(node=>node.id===id));
     if(!targetPage)throw Error('设备已不存在，请重新选择。');
-    const links=coldStorage.couplingReferences(owner,[id]);
-    if(links.length)coldStorage.assertCouplingIdle(owner);
-    remember();targetPage.nodes=targetPage.nodes.filter(n=>n.id!==id);targetPage.edges=targetPage.edges.filter(e=>e[1]!==id&&e[3]!==id);
-    if(links.length){
-      const removed=new Set(links.map(link=>link.id));
+    assertLinksIdle(owner);
+    const couplingLinks=coldStorage.couplingReferences(owner,[id]);
+    if(couplingLinks.length)coldStorage.assertCouplingIdle(owner);
+    remember();projectState.removeNodes(owner,[id]);
+    if(couplingLinks.length){
+      const removed=new Set(couplingLinks.map(link=>link.id));
       owner.thermalCouplings=owner.thermalCouplings.filter(link=>!removed.has(link.id));
       coldStorage.syncCouplingCharts(owner);
     }
     ui.floats=ui.floats.filter(f=>f.id!==id);ui.selectedNode='';ui.connecting=null;
-    markDirty(owner);persistLocal();render();msg(links.length?'设备、关联连接与热耦合已删除，可撤销。':'设备与关联连接已删除，可撤销。');
+    markDirty(owner);persistLocal();render();msg(couplingLinks.length?'设备、关联连接与热耦合已删除，可撤销。':'设备与关联连接已删除，可撤销。');
   };
   if(references.length)confirmChange('删除热耦合设备',`删除 ${id} 将同时解除热耦合 ${references.map(link=>link.id).join('、')}。相关当前曲线也会移除，已保存运行记录保留。`,remove,'删除并解除耦合');
   else remove();
 }
-function deleteEdge(id) { remember(); project().pages.forEach(pg => pg.edges = pg.edges.filter(e => e[0] !== id)); ui.selectedEdge = ''; markDirty(project()); render(); }
+function deleteEdge(id) { assertLinksIdle(); remember(); projectState.removeConnection(project(),id); closeDialog(); ui.selectedEdge = ''; markDirty(project()); render(); }
+function groupSelected(){return ui.multiProject===project().id?(ui.multiSelected||[]).filter(id=>instance(id)):[];}
+function groupSelection(ids){ui.multiProject=project().id;ui.multiSelected=[...new Set(ids)];ui.selectedNode=ids.at(-1)||'';refreshWorkbench();}
+function projectGroupTools(){
+  const owner=project(),before=JSON.stringify(owner.pages),run=owner.run,selected=groupSelected();
+  openDialog('设备组操作','Shift+单击切换多选；Shift+拖动空白处框选。复制保留内部连线，外部引用处理会在下一步预览。',
+    `<label class="field"><span>操作</span><select name="group-action" aria-label="设备组操作">${[['copy','复制到画布'],['move','移动到画布'],['left','左对齐'],['top','顶对齐'],['horizontal','水平分布'],['vertical','垂直分布']].map(([k,v])=>option(k,v,'copy')).join('')}</select></label><label class="field"><span>目标画布</span><select name="group-page" aria-label="设备组目标画布">${owner.pages.map(g=>option(g.id,g.name,owner.activePage)).join('')}</select></label><div class="fields">${owner.pages.flatMap(g=>g.nodes.map(n=>`<label class="check-label"><input name="group-node:${esc(n.id)}" type="checkbox" aria-label="组选择 ${esc(n.id)}" ${selected.includes(n.id)?'checked':''}>${esc(g.name+' · '+n.id+' · '+n.name)}</label>`)).join('')}</div>`,data=>{
+      projectState.assertCurrent(state,owner);if(owner.run!==run||JSON.stringify(owner.pages)!==before)throw Error('项目已变化，请重新选择');
+      const ids=owner.pages.flatMap(g=>g.nodes).filter(n=>data['group-node:'+n.id]).map(n=>n.id),tools=FluidNetProjectEditing;
+      tools.idle(owner);tools.select(owner,ids);
+      if(data['group-action']==='copy'){
+        const plan=tools.copy(owner,ids,data['group-page'],uid),frozen=JSON.stringify(owner);
+        openDialog('复制设备组预览',`${ids.length} 台设备、${plan.edges.length} 条内部连线；${plan.external.length} 条外部连线不复制。`,
+          `<div class="stack">${plan.warnings.map(w=>`<p>${esc(w)}</p>`).join('')}<p>内部测点 ${plan.measurements.length}、完整热耦合 ${plan.couplings.length}、工质锚点 ${plan.circuits.length} 将按新ID复制。部分选中的关系保留原对象，副本需补齐后检查。</p><pre>${esc(JSON.stringify(plan.map,null,2))}</pre></div>`,()=>{
+            projectState.assertCurrent(state,owner);if(JSON.stringify(owner)!==frozen)throw Error('预览后项目已变化');
+            remember();const copied=tools.commitCopy(owner,plan);owner.activePage=plan.pageId;markDirty(owner);persistLocal();groupSelection(copied);msg('设备组已复制，请检查未连接端口及回路边界。');
+          },'确认复制',true);
+      }else{
+        remember();if(data['group-action']==='move'){tools.move(owner,ids,data['group-page']);owner.activePage=data['group-page'];}
+        else tools.align(owner,ids,data['group-action']);
+        markDirty(owner);persistLocal();groupSelection(ids);msg('设备组操作已应用，可撤销。');
+      }
+    },'预览或应用',true);
+}
+function projectFind(){
+  const owner=project();openDialog('全项目查找','按实例编号、名称、模块、画布或声明回路查找。',
+    '<label class="field"><span>关键词</span><input data-project-find aria-label="全项目查找关键词"></label><div data-project-find-results></div>');
+  const input=document.querySelector('[data-project-find]'),out=document.querySelector('[data-project-find-results]');
+  const update=()=>{out.innerHTML=FluidNetProjectEditing.search(owner,input.value,moduleOf,engine.circuits(owner.id)||[]).map(({node,page})=>`<button type="button" class="btn ghost small" data-action="project-find-node" data-id="${esc(node.id)}" data-project="${esc(owner.id)}">${esc(page.name+' · '+node.id+' · '+node.name+' · '+moduleOf(node).name)}</button>`).join('')||'<p>没有匹配设备。</p>';};
+  input.addEventListener('input',update);update();
+}
 function copyDevice(id = ui.selectedNode) { const n = instance(id); if (n) { ui.clipboard = clone(n); msg(`${n.id} 已复制；Ctrl+V 粘贴。`); } }
 function pasteDevice() {
   if (!ui.clipboard) return;
   remember(); const n = clone(ui.clipboard); n.id = uid('D'); n.name += ' 副本'; n.x += 60; n.y += 60;
-  activePage().nodes.push(n); ui.selectedNode = n.id; markDirty(project()); render();
+  projectState.addNode(project(),activePage().id,n); ui.selectedNode = n.id; markDirty(project()); render();
 }
 function commandRun(scope, command, projectId) { return engine.command(scope, command, projectId); }
-function refreshLive() {
+function refreshLive(paintCanvas=true) {
+  refreshTaskDrawer();
   coldStorage.refresh(project());
   airSide.refresh();
   const controlLive=document.getElementById('control-live');if(controlLive)controlLive.textContent=controlLiveValues();
+  for(const m of project().measurements||[]){const el=document.querySelector(`[data-meter-value="${m.id}"]`);if(el)el.innerHTML=meterValue(project(),m);}
+  for(const c of project().controllers||[]){const el=document.querySelector(`[data-pid-readout="${c.id}"]`);if(el)el.textContent=pidReadout(project(),c);}
   if (ui.route === 'curves') {
     const run = currentChartRun();
     const items = [['main-chart', ['q', 'a', 'b'], 'main-flow-chart'], ['pressure-chart', ['pressure'], 'pressure-line'], ['temperature-chart', ['temperature'], 'temperature-line']];
-    for (const [id, keys, chartId] of items) { const e = document.getElementById(id); if (e) e.innerHTML = chartSvg(run.history, keys, chartId, id === 'main-chart' && state.charts.compare); }
+    for (const [id, keys, chartId] of items) { const e = document.getElementById(id); if (e) FluidNetSvgDom.patch(e,chartSvg(run.history, keys, chartId, id === 'main-chart' && state.charts.compare)); }
     updateExtraCharts();
     const readout = document.getElementById('main-flow-chart-readout');
     if (readout && !ui.pinnedChart) readout.textContent = `${clockLabel(run.time)} · 主管 ${number(run.values?.q ?? run.history.at(-1)?.q, 3)} kg/s`;
   }
   if (ui.route === 'workbench') refreshWorkbenchChart();
   restoreChartCursor();
-  if (ui.route === 'workbench' && !pointer) {
-    const svg = document.getElementById('network'); if (svg) svg.innerHTML = networkMarkup(activePage()); paintCanvasInspection();
+  if (ui.route === 'workbench' && !workspaceInput?.busy()) {
+    if(paintCanvas)canvasView().refresh(); paintCanvasInspection();
     for (const f of ui.floats.filter(f => f.tab === 'results' && !f.minimized)) {
       const body = root.querySelector(`[data-float-id="${f.id}"] .float-body`); if (body) body.innerHTML = floatBody(f, instance(f.id));
     }
@@ -1914,29 +2019,51 @@ function bindingsForProject() {
   }
   return project().bindings;
 }
-function apiCall(kind = ui.apiKind || 'read') {
-  const runId = project().run.id || '{run_id}', keys = ['V1.mass_flow_kg_s', 'V1.param.opening_ratio'];
-  if (kind === 'status') return { method: 'GET', path: `/api/v1/runs/${runId}` };
-  if (kind === 'set') return { method: 'POST', path: `/api/v1/runs/${runId}/variables`, body: { values: { 'V1.param.opening_ratio': 0.65 }, wait_s: 2 } };
-  if (kind === 'stream') return { method: 'WS', path: `/api/v1/runs/${runId}/stream?keys=${keys.join(',')}` };
-  return { method: 'GET', path: `/api/v1/runs/${runId}/variables?keys=${keys.join(',')}` };
+let apiContext=null;
+function apiRunId(owner=project()) { return owner.run.runId||owner.run.id; }
+function apiContextCurrent(context) {
+  return apiContext===context && project()===context.owner && context.owner.run===context.run && apiRunId(context.owner)===context.id;
 }
-function apiPreview(kind = ui.apiKind || 'read', response = null) {
-  const call = apiCall(kind), auth = engine.health?.auth?.required ? ' -H "Authorization: Bearer $FLUIDNET_TOKEN"' : '';
-  const path = document.getElementById('api-path'); if (path) path.textContent = call.path;
-  const method = path?.previousElementSibling; if (method) method.textContent = call.method;
-  const curl = call.method === 'WS' ? `# WebSocket：每个新帧推送一次所选变量，结束时发 {"type":"end"}\n# 浏览器无法设置请求头时，用子协议 fluidnet.bearer.<令牌> 传令牌\nws://${location.host}${call.path}`
-    : `curl${auth}${call.body ? ` -H "Content-Type: application/json" -d '${JSON.stringify(call.body)}'` : ''} ${location.origin}${call.path}`;
-  const request = document.getElementById('api-request'); if (request) request.textContent = curl;
-  const out = document.getElementById('api-response');
-  if (out) out.textContent = response ? JSON.stringify(response, null, 2) : call.method === 'GET' ? (project().run.id ? '点击“发送请求”读取当前运行。' : '先运行项目，生成 run_id。') : '写入会改变正在运行的模型，此页只展示请求；需要时在终端执行上面的命令。';
+function apiCall(kind=ui.apiKind||'read') {
+  const context=apiContext;
+  if(!context || !apiContextCurrent(context) || !context.items)throw Error('先运行项目并等待变量目录载入。');
+  const items=context.items.filter(v=>kind!=='set'||v.writable);
+  const selected=items.find(v=>v.key===context.selected[kind])||items[0];
+  const value=kind==='set' ? JSON.parse(document.getElementById('api-write-value')?.value||JSON.stringify(selected?.value??null)) : undefined;
+  return FluidNetApiExamples.request(context.id,kind,selected,value);
+}
+function apiPreview(kind=ui.apiKind||'read',response=null) {
+  const owner=project(),id=apiRunId(owner),target=document.getElementById('api-target');
+  if(!target)return;
+  if(!apiContext || !apiContextCurrent(apiContext)) {
+    const context=apiContext={owner,run:owner.run,id,selected:{},items:null,error:''};
+    if(id)Promise.all([engine.request(`/runs/${encodeURIComponent(id)}`),engine.request(`/runs/${encodeURIComponent(id)}/variables`).catch(error=>{if(error.detail?.code==='NO_FRAME')return {values:{}};throw error;})])
+      .then(([record,sample])=>{if(!apiContextCurrent(context))return;context.items=FluidNetApiExamples.directory(record,sample.values);apiPreview();})
+      .catch(error=>{if(!apiContextCurrent(context))return;context.error=error.message;apiPreview();});
+  }
+  const context=apiContext,output=document.getElementById('api-response'),path=document.getElementById('api-path'),request=document.getElementById('api-request'),button=root.querySelector('[data-action="api-preview"]');
+  if(!context.items) {
+    target.textContent=context.error||(!id?'先运行项目，生成运行编号。':'正在读取当前运行的变量目录…');
+    path.textContent='';request.textContent='';output.textContent='';button.disabled=true;return;
+  }
+  const items=context.items.filter(v=>kind!=='set'||v.writable),selected=items.find(v=>v.key===context.selected[kind])||items[0];
+  context.selected[kind]=selected?.key;
+  target.innerHTML=kind==='status'?'':`<label class="field"><span>${kind==='set'?'写入参数':'读取／订阅变量'} · 引擎单位</span><select data-api-variable aria-label="接口变量" ${items.length?'':'disabled'}>${items.map(v=>option(v.key,`${v.label||v.key} · ${v.key}${v.unit?' ('+v.unit+')':''}`,selected?.key)).join('')}</select></label>${kind==='set'&&selected?`<label class="field"><span>写入值（JSON） · ${esc(selected.unit||'无量纲')}</span><input id="api-write-value" data-api-write aria-label="接口写入值" value="${esc(context.writeValues?.[selected.key]??JSON.stringify(selected.value))}"></label>`:''}`;
+  try {
+    const call=apiCall(kind),auth=engine.health?.auth?.required?' -H "Authorization: Bearer $FLUIDNET_TOKEN"':'';
+    path.textContent=call.path;path.previousElementSibling.textContent=call.method;
+    request.textContent=call.method==='WS'
+      ? `${location.protocol==='https:'?'wss':'ws'}://${location.host}${call.path}${engine.health?.auth?.required?'\n# 浏览器连接使用子协议 fluidnet.bearer.<令牌>':''}`
+      : `curl${auth}${call.body?` -H "Content-Type: application/json" -d '${JSON.stringify(call.body)}'`:''} ${location.origin}${call.path}`;
+    button.disabled=call.method!=='GET';
+    output.textContent=response?JSON.stringify(response,null,2):call.method==='GET'?'点击“发送请求”读取所选运行。':call.method==='POST'?'此页仅展示请求格式，写入值使用引擎单位；写入要求运行尚未结束，已完成的运行需先新建持续运行。':'此页仅展示订阅格式；已结束运行返回结束消息。';
+  } catch(error) { path.textContent='';request.textContent='';output.textContent=error.message;button.disabled=true; }
 }
 async function apiSend() {
-  const call = apiCall();
-  if (call.method !== 'GET') { apiPreview(); return; }
-  if (!project().run.id) throw Error('先运行项目，生成 run_id。');
-  const response = await fetch(call.path, { headers: engine.authHeaders() });
-  apiPreview(ui.apiKind || 'read', { status: response.status, body: await response.json() });
+  const context=apiContext,kind=ui.apiKind||'read',call=apiCall(kind);
+  if(call.method!=='GET')return;
+  const response=await fetch(call.path,{headers:engine.authHeaders()}),body=await response.json();
+  if(apiContextCurrent(context)&&(ui.apiKind||'read')===kind&&apiCall(kind).path===call.path)apiPreview(kind,{status:response.status,body});
 }
 function legacyApiPreview(kind = ui.apiKind || 'read') {
   const value = projectVariables().find(v => v.id === 'V1.OPENING') || projectVariables()[0];
@@ -1948,6 +2075,12 @@ function legacyApiPreview(kind = ui.apiKind || 'read') {
   const method = path?.previousElementSibling; if (method) method.textContent = kind === 'set' ? 'POST' : 'GET';
 }
 function addChartVariable(id, label, inline = false) {
+  const meter=project().measurements?.find(m=>'measurement.'+m.id===id);
+  if(meter){
+    const key='measurement.'+meter.id;
+    if(!state.charts.extra.some(c=>c.projectId===project().id&&c.canonicalKey===key))state.charts.extra.push({id:key,projectId:project().id,label:meter.label,unit:meter.unit.display_unit,canonicalKey:key,canonicalScale:meter.unit.display_scale,canonicalOffset:meter.unit.display_offset,identifier:key,sampleKey:key});
+    state.charts.source='live';markDirty(project());navigate('curves');return;
+  }
   const v = projectVariables().find(v => v.id === id); if (!v) throw Error('变量不属于当前项目或暂未提供采样。');
   let binding = state.charts.extra.find(x => x.projectId === project().id && (x.nodeId === v.nodeId && x.variableId === v.variableId || !x.variableId && v.origin !== 'custom' && x.id === v.legacyId));
   if (!binding) { binding = {}; state.charts.extra.push(binding); }
@@ -1982,39 +2115,15 @@ function extraVariableValue(row, binding, live=true) {
   if (id.endsWith('.OUT_TEMP')) return row.temperature;
   return null;
 }
-function chartSvg(history, keys = ['q', 'a', 'b'], id = 'flow-chart', compare = false, options = {}) {
-  const measured = document.getElementById(id)?.getBoundingClientRect().width;
-  const w = Math.max(200, Math.round(measured || (ui.route === 'bench' ? page.clientWidth - 390 : page.clientWidth - 125)));
-  const h = options.compact ? 168 : 270, left = w < 360 ? 42 : 58, right = w - 20, top = 23, bottom = h - 48;
-  const rows = history.length ? history : [{ t: 0, q: 0, a: 0, b: 0, pressure: 0, temperature: 0 }, { t: 10, q: 0, a: 0, b: 0, pressure: 0, temperature: 0 }];
-  const minT = rows[0].t, maxT = Math.max(minT + .1, rows.at(-1).t);
-  const baseline = compare ? (state.records.find(r => r.source === 'engine' && r.projectId === project().id)?.history || []).filter(r => r.t >= minT && r.t <= maxT) : [];
-  const values = rows.flatMap(r => keys.map(k => Number(r[k]) || 0)).concat(baseline.map(r => r.q));
-  const lo = Math.min(0, ...values), hi = Math.max(1, ...values), padding = (hi - lo) * .12;
-  const maxY = hi + padding, minY = lo < 0 ? lo - padding : 0;
-  const x = t => left + (t - minT) / (maxT - minT) * (right - left), y = n => bottom - (Number(n) - minY) / (maxY - minY) * (bottom - top);
-  const unit = SERIES[keys[0]]?.unit || 'kg/s', visible = keys.filter(k => state.charts.series[k] !== false || id === 'bench-chart');
-  const path = (rows, key) => { let active = false; return rows.map(r => { if (!Number.isFinite(r[key])) { active = false; return ''; } const command = active ? 'L' : 'M'; active = true; return `${command} ${x(r.t).toFixed(2)} ${y(r[key]).toFixed(2)}`; }).join(' '); };
-  const ticks = w < 420 ? 3 : 4;
-  chartRegistry.set(id, { rows, keys: visible, minT, maxT, left, right, top, bottom, y, options });
-  return `<svg class="chart" id="${id}" viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(keys.map(k => SERIES[k]?.name || k).join('、'))}随时间变化，单位 ${esc(unit)}" data-chart="${id}"><text x="5" y="14" class="chart-text">${esc(unit)}</text>${[0, 1, 2, 3, 4].map(i => { const n = minY + (maxY - minY) * i / 4, yy = y(n); return `<line x1="${left}" y1="${yy}" x2="${right}" y2="${yy}" class="chart-grid"/><text x="${left - 9}" y="${yy + 4}" text-anchor="end" class="chart-text">${number(n, maxY > 10 ? 0 : 1)}</text>`; }).join('')}${Array.from({ length: ticks + 1 }, (_, i) => `<text x="${left + i / ticks * (right - left)}" y="${bottom + 20}" text-anchor="${i === 0 ? 'start' : i === ticks ? 'end' : 'middle'}" class="chart-text">${number(minT + (maxT - minT) * i / ticks, 1)}</text>`).join('')}<text x="${right}" y="${h - 6}" text-anchor="end" class="chart-text">时间 · s</text>${visible.map(k => `<path d="${path(rows, k)}" class="chart-line" stroke="var(--${SERIES[k]?.color || 'blue'})"/>`).join('')}${baseline.length ? `<path d="${path(baseline, 'q')}" class="chart-line" stroke="var(--muted)" stroke-dasharray="5 5"/>` : ''}${(options.events || []).filter(e => e.t >= minT && e.t <= maxT).slice(-12).map(e => `<g class="chart-event"><title>${esc(clockLabel(e.t) + ' · ' + e.text)}</title><line x1="${x(e.t)}" x2="${x(e.t)}" y1="${top}" y2="${bottom}" stroke="var(--accent)" stroke-dasharray="3 4" opacity=".65"/><circle cx="${x(e.t)}" cy="${top}" r="3" fill="var(--accent)"/></g>`).join('')}<line data-chart-guide x1="0" x2="0" y1="${top}" y2="${bottom}" stroke="var(--muted)" opacity="0"/>${visible.map(k => `<circle data-hover-mark="${esc(k)}" r="3" fill="var(--${SERIES[k]?.color || 'blue'})" opacity="0"/>`).join('')}<rect x="${left}" y="${top}" width="${right - left}" height="${bottom - top}" fill="transparent" data-chart-hit="${id}" style="cursor:crosshair"/></svg>`;
-}
+function chartSvg(...args){return runResultsView().chartSvg(...args);}
 function resizeCharts() {
   for (const svg of root.querySelectorAll('svg[data-chart]')) {
     const data = chartRegistry.get(svg.id); if (!data) continue;
     const html = chartSvg(data.rows, data.keys, svg.id, svg.id === 'main-flow-chart' && state.charts.compare, data.options);
-    svg.outerHTML = html;
+    FluidNetSvgDom.update(svg,html);
   }
 }
-function extraChartsMarkup() {
-  const run=currentChartRun(),live=state.charts.source==='live';
-  return chartBindingsForRun(run).map((v, i) => {
-    const key = 'extra:' + v.id;
-    const history = run.history.filter(r => extraVariableValue(r, v,live) !== null).map(r => ({ t: r.t, [key]: extraVariableValue(r, v,live) }));
-    SERIES[key] = { name: v.label, unit: v.unit, color: 'blue' };
-    return `<section class="panel"><div class="chart-panel"><div class="chart-heading"><div class="grow"><h3>${esc(v.label)}</h3><small class="muted">${esc(v.identifier || v.id)} · ${esc(v.unit)}</small></div>${live?ibtn('remove-chart-var', '移除观察变量', 'X', `data-id="${v.id}"`):''}</div>${history.length ? chartSvg(history, [key], 'extra-chart-' + i) : '<div class="empty"><p>此变量尚未采样或结果已过期，运行或单步后查看。</p></div>'}<div class="chart-readout" id="extra-chart-${i}-readout"></div></div></section>`;
-  }).join('');
-}
+function extraChartsMarkup(...args){return runResultsView().extraChartsMarkup(...args);}
 function chartBindingsForRun(run=currentChartRun()) {
   if(state.charts.source==='live')return state.charts.extra.filter(v=>v.projectId===project().id);
   if(Array.isArray(run.chartBindings))return run.chartBindings;
@@ -2022,7 +2131,7 @@ function chartBindingsForRun(run=currentChartRun()) {
   // remain useful; a current coupling could refer to entirely different equipment.
   return state.charts.extra.filter(v=>v.projectId===run.projectId&&!isCouplingChart(v));
 }
-function updateExtraCharts() { const e = document.getElementById('extra-charts'); if (e) e.innerHTML = extraChartsMarkup(); }
+function updateExtraCharts() { const e = document.getElementById('extra-charts'); if (e) FluidNetSvgDom.patch(e,extraChartsMarkup()); }
 function downloadFile(name, text, type = 'application/json') {
   const blob = text instanceof Blob ? text : new Blob([text], { type: type + ';charset=utf-8' }), url = URL.createObjectURL(blob), link = document.createElement('a');
   link.href = url; link.download = name; link.click(); setTimeout(() => URL.revokeObjectURL(url), 3000); msg('已生成导出文件。');
@@ -2050,7 +2159,7 @@ function validateImport(data) {
   const safeId = id => typeof id === 'string' && /^[A-Za-z][A-Za-z0-9_-]{0,80}$/.test(id);
   if (!data || data.schema !== 1 || !Array.isArray(data.modules) || !data.modules.length || !Array.isArray(data.models)) throw Error('不是本版本的原型交换文件。');
   validateModuleGroups(data);
-  if (data.modules.length > 64 || data.models.length > 500) throw Error('导入数据超出原型演示容量。');
+  if (data.modules.length > 256 || data.models.length > 500) throw Error('导入数据超出工作区容量。');
   backfillBuiltinParams(data);
   const unique = values => new Set(values).size === values.length;
   if (!unique(data.modules.map(m => m.id)) || !unique(data.models.map(m => m.id))) throw Error('模块或型号标识重复。');
@@ -2073,7 +2182,7 @@ function validateImport(data) {
   for (const item of data.models) {
     const m = data.modules.find(m => m.id === item.moduleId);
     if (!safeId(item.id) || !m || typeof item.name !== 'string' || !Array.isArray(item.versions) || !item.versions.length) throw Error('型号引用或版本数据不完整。');
-    readParams(item.params, m.kind); validateModelVariables(item, m);
+    readParams(item.params, m.kind,'',moduleParamDefs(m)); validateModelVariables(item, m);
   }
   if (data.format === 'fluidnet-prototype-models') return;
   if (!Array.isArray(data.projects) || !data.projects.length || data.projects.length > 20 || !unique(data.projects.map(p => p.id)) || !data.bench || !data.charts || !Array.isArray(data.records) || !Array.isArray(data.messages) || !Array.isArray(data.connectors) || !Number.isInteger(data.serial)) throw Error('项目、测试或运行数据不完整。');
@@ -2083,9 +2192,12 @@ function validateImport(data) {
     const ids = p.pages.flatMap(pg => pg.nodes?.map(n => n.id) || []); if (!unique(ids)) throw Error('项目设备标识重复。');
     for (const pg of p.pages) {
       if (!safeId(pg.id) || !Array.isArray(pg.nodes) || pg.nodes.length > 64 || !Array.isArray(pg.edges)) throw Error('画布结构不合法。');
-      for (const n of pg.nodes) { const m = p.moduleSnapshots?.[n.moduleId] || data.modules.find(m => m.id === n.moduleId); if (!safeId(n.id) || !m || !Number.isFinite(n.x) || !Number.isFinite(n.y)) throw Error('设备引用不合法。'); readParams(n.params, m.kind, '', m.manifest ? manifestFields(m.manifest) : undefined); readParams(n.draft, m.kind, '', m.manifest ? manifestFields(m.manifest) : undefined); validateInstanceVariableState(n, m); }
-      for (const e of pg.edges) if (!Array.isArray(e) || e.length !== 5 || !safeId(e[0]) || !pg.nodes.some(n => n.id === e[1] && (p.moduleSnapshots?.[n.moduleId] || data.modules.find(m => m.id === n.moduleId)).ports.some(p => p.id === e[2])) || !pg.nodes.some(n => n.id === e[3] && (p.moduleSnapshots?.[n.moduleId] || data.modules.find(m => m.id === n.moduleId)).ports.some(p => p.id === e[4]))) throw Error('连接引用不存在。');
+      for (const n of pg.nodes) { const m = p.moduleSnapshots?.[n.moduleId] || data.modules.find(m => m.id === n.moduleId); if (!safeId(n.id) || !m || !Number.isFinite(n.x) || !Number.isFinite(n.y)) throw Error('设备引用不合法。'); readParams(n.params, m.kind, '', moduleParamDefs(m)); readParams(n.draft, m.kind, '', moduleParamDefs(m)); validateInstanceVariableState(n, m); }
+      for (const e of pg.edges) if (!Array.isArray(e) || e.length !== 5 || !safeId(e[0])) throw Error('连接格式不合法。');
     }
+    if(!unique(p.pages.map(pg=>pg.id)))throw Error('画布标识重复。');
+    const connectionErrors=links.validate(p,n=>p.moduleSnapshots?.[n.moduleId]||data.modules.find(m=>m.id===n.moduleId),false);
+    if(connectionErrors.length)throw Error(connectionErrors.map(error=>error.text).join('；'));
     numeric(p.solver.dt, .01, 60); numeric(p.solver.duration, 1, 86400);
   }
   if (!data.projects.some(p => p.id === data.activeProject) || !data.modules.some(m => m.id === data.bench.moduleId) || !data.bench.run?.values || !Array.isArray(data.bench.run.history) || !Array.isArray(data.bench.run.events)) throw Error('当前项目或测试引用无效。');
@@ -2101,8 +2213,7 @@ function importDialog() {
       state.moduleGroups = mergedGroups;
       state.modules.push(...clone(incoming.modules.filter(m => !state.modules.some(v => v.id === m.id)))); state.models.push(...clone(incoming.models));
     } else {
-      backupLocalDraft(STORAGE_KEY + '-before-import');
-      state = {...clone(incoming),workspaceRevision:state.workspaceRevision}; state.projects.forEach(p => { if (p.run.status === 'running') p.run.status = 'paused'; }); if (state.bench.run.status === 'running') state.bench.run.status = 'paused';
+      replaceWorkspaceState({...incoming,workspaceRevision:state.workspaceRevision},()=>backupLocalDraft(STORAGE_KEY+'-before-import')); state.projects.forEach(p => { if (p.run.status === 'running') p.run.status = 'paused'; }); if (state.bench.run.status === 'running') state.bench.run.status = 'paused';
     }
     ui.floats = []; undoStack = []; redoStack = []; ui.selectedNode = ''; normalizeState(); markDirty(); navigate('home'); msg('导入已应用；点击保存原型以保留。');
   }, '应用导入');
@@ -2120,12 +2231,9 @@ function chooseChartVariables(control = false) {
   } else openDialog('添加观察变量', '选择设备和物理量；曲线采样与主系统的仿真时间一致。', selectField('variable', '项目变量', variables.map(v => [v.id, `${v.identifier || v.id} · ${v.device} · ${v.name} / ${v.unit}`]), variables[0].id), data => addChartVariable(data.variable), '加入曲线');
 }
 function handleAction(action, el) {
-  if(action.startsWith('wf-')){workflows.action(action,el).catch(error=>msg(error.message,true));return;}
-  if(action.startsWith('batch-')){scenarioBatches.action(action,el).catch(error=>msg(error.message,true));return;}
-  if(action.startsWith('air-')){airSide.action(action,el).catch(error=>msg(error.message,true));return;}
-  if(action.startsWith('cs-')){coldStorage.action(action,el).catch(error=>msg(error.message,true));return;}
+  if(featureActions().dispatch(action,el))return;
   const d = el.dataset, id = d.id;
-  const changes = { 'editor-tab': 'moduleTab', 'project-filter': 'projectFilter', 'project-view': 'projectView', 'module-category': 'category', 'module-view': 'moduleView', 'model-filter': 'modelFilter', 'bench-tab': 'benchTab', 'run-filter': 'runFilter', 'settings-tab': 'settingsTab', 'connection-tab': 'connectionTab', 'node-domain': 'nodeDomain' };
+  const changes = { 'project-filter': 'projectFilter', 'project-view': 'projectView', 'module-category': 'category', 'module-view': 'moduleView', 'model-filter': 'modelFilter', 'bench-tab': 'benchTab', 'run-filter': 'runFilter', 'settings-tab': 'settingsTab', 'connection-tab': 'connectionTab', 'node-domain': 'nodeDomain' };
   if (changes[action]) { ui[changes[action]] = d.value; saveUI(); render(); return; }
   switch (action) {
     case 'nav': closeDialog(); navigate(d.route, d.sub ? { connectionTab: d.sub } : {}); break;
@@ -2136,11 +2244,11 @@ function handleAction(action, el) {
     case 'workspace-tools': workspaceTools().catch(error=>msg(error.message,true));break;
     case 'download-backup': engine.downloadBackup().then(blob=>{downloadFile('fluidnet-backup.zip',blob,'application/zip');msg('备份已生成。');}).catch(error=>msg(error.message,true));break;
     case 'choose-backup': document.getElementById('workspace-backup-file').click();break;
-    case 'export-old-draft': {const original=localStorage.getItem(STORAGE_KEY+'-before-workspace');if(!original)throw Error('没有载入前的浏览器草稿备份。');downloadFile('fluidnet-browser-draft.json',original);break;}
+    case 'export-old-draft': {const original=localStorage.getItem(STORAGE_KEY+'-before-workspace');if(!original)throw Error('没有载入前的浏览器草稿备份。');downloadFile('fluidnet-browser-draft.json',JSON.stringify(FluidNetDraftStore.parse(original)));break;}
     case 'restore-workspace-revision': {const revision=Number(d.revision);confirmChange('恢复工作区修订 '+revision,'当前草稿先备份到浏览器；恢复后生成一个新修订，已有运行档案保留。',()=>engine.restoreRevision(revision).then(receipt=>msg('已恢复为修订 '+receipt.revision)).catch(error=>msg(error.message,true)));break;}
 
     case 'reload-workspace':
-      if(savePhase==='saving')throw Error('请等待当前保存结束。');
+      if(workspaceStorage().isSaving())throw Error('请等待当前保存结束。');
       confirmChange('载入服务器工作区','当前草稿将先备份到浏览器；可先导出原型保留独立文件。',()=>engine.init(true));break;
     case 'refresh-archives': engine.refreshArchives();break;
     case 'delete-archive': confirmChange('删除运行档案','将删除该运行的服务端快照和历史。',()=>engine.deleteArchive(id).then(()=>{state.records=state.records.filter(r=>r.id!==id);render();}).catch(error=>msg(error.message,true)));break;
@@ -2148,17 +2256,22 @@ function handleAction(action, el) {
     case 'theme': ui.theme = ui.theme === 'dark' ? 'light' : 'dark'; saveUI(); render(); break;
     case 'open-project': closeDialog(); if (id) openProject(id); break;
     case 'start-modeling': startModeling(); break;
-    case 'toggle-chart': ui.showChart = !ui.showChart; ui.pinnedChart = null; saveUI(); retainFocus(); break;
+    case 'toggle-chart': ui.showChart = !ui.showChart; ui.pinnedChart = null; saveUI(); refreshWorkbench(); break;
     case 'full-curves': state.charts.source = 'live'; ui.pinnedChart = null; navigate('curves'); break;
     case 'release-cursor': ui.pinnedChart = null; ui.chartCursor = null; refreshWorkbenchChart(); break;
-    case 'float-dock': toggleDeviceDock(id); break;
     case 'guided-demo': state.selectedModule = 'valve'; ui.bank = 1; openEditor('valve', 'channels'); msg('从端口与通路开始，再编辑库值、保存型号并应用到项目。'); break;
     case 'new-project':
-      openDialog('新建项目', '选择一份示例作为起点，或创建空白画布。', `<div class="stack">${field('name', '项目名称', '新管网项目', 'required maxlength="50"')}${selectField('template', '起始内容', [['blank', '空白画布'], ['water', '泵阀并联管网'], ['heat', '双侧换热机组'], ['tank', '水箱液位调节']], 'blank')}</div>`, data => {
+      openDialog('新建项目', '选择一份示例作为起点，或创建空白画布。', `<div class="stack">${field('name', '项目名称', '新管网项目', 'required maxlength="50"')}${selectField('template', '起始内容', [['blank', '空白画布'], ['cold-storage-blank', '空白冷库画布 · 自选设备组装'], ['water', '泵阀并联管网'], ['heat', '双侧换热机组'], ['tank', '水箱液位调节']], 'blank')}</div>`, data => {
         if (state.projects.length >= 20) throw Error('当前原型最多保存 20 个项目。');
         const name = data.name.trim(); if (!name) throw Error('请输入项目名称。');
         const pg = data.template === 'water' ? waterPage() : data.template === 'heat' ? heatPage() : data.template === 'tank' ? tankPage() : { id: 'main', name: '主系统', nodes: [], edges: [], zoom: 1, pan: [0, 0] };
-        const p = makeProject(uid('project'), name, '', pg); if (data.template === 'blank' || data.template === 'heat') p.controlPrograms=[]; state.projects.push(p); normalizeState(); markDirty(p); openProject(p.id);
+        const p = makeProject(uid('project'), name, '', pg);
+        if (['blank','cold-storage-blank','heat'].includes(data.template))p.controlPrograms=[];
+        if(data.template==='cold-storage-blank') {
+          Object.assign(p,{modelingDomain:'refrigeration',medium:'r134a',fluid:'HEOS::R134a',fluidReference:'mass',fluidConfig:{fluid:'HEOS::R134a',phase_policy:'any'}});
+          Object.assign(p.solver,{mode:'dynamic',dt:1,duration:60,executionMode:'fast'});ui.showLibrary=true;
+        }
+        projectState.addProject(state,p); normalizeState(); markDirty(p); openProject(p.id);
       }, '创建项目'); break;
     case 'duplicate-project': {
       if(state.projects.length>=20)throw Error('最多保存 20 个项目。');
@@ -2166,33 +2279,38 @@ function handleAction(action, el) {
       const p=clone(original);p.id=uid('project');p.name+=' 副本';p.run=emptyRun();p.modified='本地草稿';
       const copiedCharts=clone(state.charts.extra.filter(binding=>binding.projectId===original.id));
       for(const binding of copiedCharts){binding.id=uid('chart');binding.projectId=p.id;}
-      state.projects.push(p);state.charts.extra.push(...copiedCharts);markDirty(p);persistLocal();render();break;
+      projectState.addProject(state,p);state.charts.extra.push(...copiedCharts);markDirty(p);persistLocal();render();break;
     }
     case 'new-canvas':
     case 'rename-canvas': {
       const pg = action === 'rename-canvas' && project().pages.find(pg => pg.id === id);
       openDialog(pg ? '重命名画布' : '新增画布', project().name, field('name', '画布名称', pg?.name || `画布 ${project().pages.length + 1}`, 'required maxlength="40"'), data => {
         const name = data.name.trim(); if (!name) throw Error('请输入画布名称。'); if (!pg && project().pages.length >= 8) throw Error('当前原型每个项目最多演示 8 张画布。');
-        remember(); if (pg) pg.name = name; else { const next = { id: uid('canvas'), name, nodes: [], edges: [], zoom: 1, pan: [0, 0] }; project().pages.push(next); project().activePage = next.id; }
+        remember(); if (pg) pg.name = name; else { const next = { id: uid('canvas'), name, nodes: [], edges: [], zoom: 1, pan: [0, 0] }; projectState.addCanvas(project(),next); }
         ui.selectedNode = ''; ui.connecting = null; markDirty(project()); render();
       }, pg ? '保存名称' : '新增画布'); break;
     }
-    case 'canvas-tab': project().activePage = id; ui.selectedNode = ''; ui.selectedEdge = ''; ui.connecting = null; render(); break;
+    case 'page-links': pageLinksDialog(); break;
+    case 'add-page-link': pageLinkDialog(d.node, d.port); break;
+    case 'edit-page-link': pageLinkDialog(null, null, id); break;
+    case 'jump-page-link': jumpPageLink(id, d.node); break;
+    case 'move-device-page': moveDevicePage(id); break;
     case 'new-module-group': moduleGroupDialog(); break;
     case 'rename-module-group': moduleGroupDialog(d.value); break;
     case 'delete-module-group': removeModuleGroup(d.value); break;
     case 'move-module-group': moveModuleGroup(id); break;
+    case 'performance-library': openPerformanceLibrary(id||undefined); break;
+    case 'equipment-library': openEquipmentLibrary(); break;
     case 'new-module':
-      openDialog('新建算法模块', '选择模板后编辑端口、参数和算法。制冷等焓节流模板用于纯集总制冷站，入口须来自饱和容器液相。', `<div class="fields">${field('name', '模块名称', '自定义调节阀', 'required maxlength="40"')}${field('code', '模块标识', 'CUSTOM_VALVE', 'required pattern="[A-Za-z_][A-Za-z0-9_]*" maxlength="48"')}${selectField('base', 'Python 模板', [['template:resistance','两端口局部阻力'],['template:pump','泵／风机'],['template:heat_exchanger','双侧换热'],['template:managed_state','受管理状态'],['template:refrigeration_throttle','制冷等焓节流阀'],...state.modules.filter(m=>m.runtime==='python').map(m=>[m.id,m.name])], 'programmable_valve')}${selectField('category', '所属分组', moduleGroupNames().map(name => [name, name]), ui.route === 'modules' && ui.category !== '全部模块' ? ui.category : '自定义模块')}</div>`, async data => {
+      openDialog('新建算法模块', '选择模板后编辑端口、参数和算法。制冷等焓节流模板用于纯集总制冷站，入口须来自饱和容器液相。', `<div class="fields">${field('name', '模块名称', '自定义调节阀', 'required maxlength="40"')}${field('code', '模块标识', 'CUSTOM_VALVE', 'required pattern="[A-Za-z_][A-Za-z0-9_]*" maxlength="48"')}${selectField('base', 'Python 模板', [['template:resistance','两端口局部阻力'],['template:custom_pressure_drop','自定义压降公式'],['template:pump','泵／风机'],['template:heat_exchanger','双侧换热'],['template:managed_state','受管理状态'],['template:refrigeration_throttle','制冷等焓节流阀'],...state.modules.filter(m=>m.runtime==='python').map(m=>[m.id,m.name])], 'programmable_valve')}${selectField('category', '所属分组', moduleGroupNames().map(name => [name, name]), ui.route === 'modules' && ui.category !== '全部模块' ? ui.category : '自定义模块')}</div>`, async data => {
         if (!isIdentifier(data.code) || state.modules.some(m => m.code === data.code)) throw Error('模块标识需合法且唯一。');
-        if (state.modules.length >= 64) throw Error('已达到原型模块数量上限。');
+        if (state.modules.length >= 256) throw Error('已达到工作区模块数量上限（256）。');
         if (!moduleGroupNames().includes(data.category)) throw Error('请选择已有分组。');
         if (!data.name.trim()) throw Error('请输入模块名称。');
         if (!/^[A-Za-z][A-Za-z0-9_]{0,47}$/.test(data.code) || state.modules.some(m=>m.id===data.code.toLowerCase())) throw Error('模块标识需以字母开头且唯一。');
         const m=data.base.startsWith('template:') ? await engine.newTemplate(data.code.toLowerCase(),data.name.trim(),data.category,data.base.slice(9)) : engine.newModule(data.code.toLowerCase(),data.name.trim(),data.category,data.base); state.modules.push(m); markDirty(m); openEditor(m.id,'code');
       }, '创建模块'); break;
     case 'edit-contract-item': editContractItem(d.section,id); break;
-    case 'save-module-version': engine.saveModule(mod()); break;
     case 'create-composite': {
       const choices=activePage().nodes.filter(n=>moduleOf(n).manifest?.solver_model!=='pressure_source' && moduleOf(n).kind!=='source');
       openDialog('封装设备组','选择设备，生成带精确子版本绑定的组合草稿。',`<div class="fields">${field('id','组合标识','custom_group','required pattern="[A-Za-z][A-Za-z0-9_]*"')}${field('name','组合名称','设备组','required')}</div><div class="stack">${choices.map(n=>`<label class="check-label"><input name="node_${n.id}" type="checkbox" ${ui.selectedNode===n.id?'checked':''}>${esc(n.id+' · '+n.name)}</label>`).join('')}</div>`,async data=>{
@@ -2216,13 +2334,18 @@ function handleAction(action, el) {
       if(editor){const lines=editor.value.split('\n'), start=lines.slice(0,line-1).reduce((sum,text)=>sum+text.length+1,0);editor.focus();editor.setSelectionRange(start,start+(lines[line-1]?.length || 0));editor.scrollTop=(line-1)*parseFloat(getComputedStyle(editor).lineHeight);}
       break;
     }
+    case 'inspect-module-replay': moduleReplay.load(mod().authoringReplay,mod().authoringDiagnostics); break;
+    case 'bench-failure-replay': moduleReplay.load(state.bench.run.failureReplay,state.bench.run.diagnostics); break;
+    case 'archive-module-replay': moduleReplay.archive(id); break;
+    case 'run-module-replay': moduleReplay.run(); break;
+    case 'download-module-replay': moduleReplay.exportInput(); break;
+    case 'locate-replay-source': (document.querySelector('[data-replay-error-line]')||document.getElementById('replay-code'))?.scrollIntoView({block:'center'}); break;
+    case 'close-module-replay': moduleReplay.close(); break;
     case 'export-module-replay': downloadFile(`${mod().id}-replay.json`,JSON.stringify(mod().authoringReplay,null,2)); break;
     case 'configure-module-tests': configureAuthoringSuite(mod()); break;
     case 'module-test-suite': runAuthoringSuite(mod()); break;
     case 'cancel-module-suite': ui.moduleSuiteAbort?.abort(); break;
     case 'validate-module-contract': engine.checkModule(mod(),true); break;
-    case 'module-versions': engine.versions(mod()); break;
-    case 'load-module-version': engine.loadVersion(mod(),Number(d.version)); break;
     case 'edit-module': openEditor(id || state.selectedModule, d.tab || 'drawing'); break;
     case 'module-doc': openModuleDoc(id); break;
     case 'insert-module': navigate('workbench'); newInstance(id); break;
@@ -2233,7 +2356,8 @@ function handleAction(action, el) {
       w.nodes.forEach(n => n.id = mapping[n.id]); w.edges = w.edges.map(e => [uid('edge'), mapping[e[1]], e[2], mapping[e[3]], e[4]]);
       activePage().nodes = w.nodes; activePage().edges = w.edges;
     } markDirty(project()); render(); break;
-    case 'open-device': openDevice(id); break;
+    case 'device-overview': openDevice(id); setDeviceTab(ui.floats.find(f=>f.id===id),'overview'); renderFloats(); break;
+    case 'open-device': openDevice(id); setDeviceTab(ui.floats.find(f=>f.id===id),'parameters'); renderFloats(); break;
     case 'apply-instance': applyInstanceDialog(instance(id)); break;
     case 'apply-instance-bank': applyInstanceBank(instance(id), Number(d.bank)); break;
     case 'capture-instance-bank': captureInstanceBank(instance(id), Number(d.bank)); break;
@@ -2243,25 +2367,23 @@ function handleAction(action, el) {
     case 'device-variables': openDeviceVariables(id, d.variable); break;
     case 'choose-device-model': chooseDeviceModel(id); break;
     case 'device-definition': openDeviceDefinition(id, d.variable); break;
+    case 'edit-device-library': editDeviceLibrary(id, d.variable); break;
     case 'return-device': returnToDevice(); break;
     case 'observe-instance-variable': observeInstanceVariable(id, d.variable); break;
+    case 'project-group-tools': projectGroupTools(); break;
+    case 'project-find': projectFind(); break;
+    case 'project-find-node': {if(project().id!==d.project)throw Error('项目已变化');const found=links.locate(project(),id);if(!found)throw Error('设备不存在');closeDialog();project().activePage=found.page.id;fitNetwork(found.page);ui.selectedNode=id;render();openDevice(id);break;}
+    case 'device-batch-edit': openDeviceBatch(); break;
+    case 'configure-module-panel': configureDevicePanel(); break;
+    case 'configure-device-panel': configureDevicePanel(id); break;
+    case 'equipment-selection': openEquipmentSelection(id); break;
+    case 'coil-geometry-design': openEquipmentSelection(id); equipmentSelection.geometry(id); break;
+    case 'equipment-provenance': openEquipmentSelection(id); equipmentSelection.provenance(id); break;
     case 'save-instance-model': saveInstanceModel(id); break;
-    case 'delete-node': deleteNode(id || ui.selectedNode); break;
-    case 'delete-edge': deleteEdge(id || ui.selectedEdge); break;
-    case 'undo': undo(); break;
-    case 'redo': undo(true); break;
-    case 'select-mode': ui.canvasMode = 'select'; ui.connecting = null; ui.placing = null; render(); break;
-    case 'connect-mode': ui.canvasMode = 'connect'; ui.placing = null; msg('点击两个空闲端口建立连接，也可以拖动连线。'); break;
-    case 'toggle-library': ui.showLibrary = !ui.showLibrary; saveUI(); retainFocus(); break;
-    case 'zoom-in': activePage().zoom = clamp(activePage().zoom * 1.2, .35, 3); render(); break;
-    case 'zoom-out': activePage().zoom = clamp(activePage().zoom / 1.2, .35, 3); render(); break;
-    case 'fit': fitNetwork(); render(); break;
-    case 'grid': ui.pageGrid = !ui.pageGrid; saveUI(); render(); break;
-    case 'validate': engine.validate(); break;
+    case 'toggle-library': ui.showLibrary = !ui.showLibrary; saveUI(); refreshWorkbench(); break;
+    case 'validate': systemInspection.check(); break;
     case 'locate-issue': closeDialog(); if (d.page) project().activePage = d.page; navigate('workbench'); if (id) openDevice(id); break;
-    case 'select-picture': ui.editorPort = 'picture'; render(); break;
     case 'draw-center': for (const p of mod().ports) { p.x = p.direction === 'in' ? 20 : 80; p.y = 30 + mod().ports.filter(x => x.direction === p.direction).indexOf(p) * 25; } markDirty(mod()); render(); break;
-    case 'edit-drawing-label': ui.editorPort = 'picture'; render(); root.querySelector('[data-drawing-field="label"]')?.focus(); break;
     case 'add-port': {
       const m = mod(); if (m.ports.length >= 24 || m.variables.length + 7 > 160) throw Error('达到本原型的端口或变量容量。');
       const prefix = PORT_PREFIX[d.domain][d.direction === 'in' ? 0 : 1];
@@ -2272,7 +2394,7 @@ function handleAction(action, el) {
     case 'delete-port': {
       const m = mod();
       if (m.channels.some(c => c.input === id || c.output === id)) throw Error('先解除此端口的内部通路绑定，再删除。');
-      if (state.projects.some(p => p.pages.some(pg => pg.edges.some(e => [1, 3].some(i => pg.nodes.find(n => n.id === e[i])?.moduleId === m.id && e[i + 1] === id))))) throw Error('项目中仍有连接使用此端口，请先断开连接。');
+      if (state.projects.some(p => p.pages.some(pg => pg.edges.some(e => [1, 3].some(i => p.pages.flatMap(page=>page.nodes).find(n => n.id === e[i])?.moduleId === m.id && e[i + 1] === id))))) throw Error('项目中仍有连接使用此端口，请先断开连接。');
       m.ports = m.ports.filter(p => p.id !== id); refreshPortVariables(m); ui.editorPort = ''; markDirty(m); render(); break;
     }
     case 'add-channel': {
@@ -2324,18 +2446,14 @@ function handleAction(action, el) {
       if (!area || !mod().variables.some(v => v.name === variable)) break;
       area.setRangeText(variable, area.selectionStart, area.selectionEnd, 'end'); area.dispatchEvent(new Event('input', { bubbles: true })); area.focus(); break;
     }
-    case 'module-example': createModuleExample(id); break;
-    case 'test-module': setBench(id); break;
     case 'run-bench': commandRun('bench', d.command); break;
     case 'record-bench': recordRun('bench'); break;
     case 'run-project': commandRun('project', d.command); break;
     case 'stop-task': commandRun('project', 'stop', id); break;
     case 'record-project': recordRun('project'); break;
     case 'tasks': ui.taskDrawer = !ui.taskDrawer; renderFloats(); break;
-    case 'select-record': ui.selectedRecord = id; render(); break;
+    case 'inspect-run': systemInspection.run(id); break;
     case 'archive-report': engine.exportRunReport(id,d.format).then(blob=>downloadFile('run-'+id+'.'+d.format,blob)).catch(error=>msg(error.message,true)); break;
-    case 'record-curves': state.charts.source = id; navigate('curves'); break;
-    case 'toggle-series': ui.pinnedChart = null; state.charts.series[d.value] = !state.charts.series[d.value]; markDirty(); render(); break;
     case 'add-chart-variable': chooseChartVariables(); break;
     case 'choose-control-vars': chooseChartVariables(true); break;
     case 'add-specific-curve': addChartVariable(id, d.label); break;
@@ -2344,7 +2462,6 @@ function handleAction(action, el) {
       if (!v) throw Error('此设备暂未提供出口流量采样。');
       addChartVariable(v.id); break;
     }
-    case 'remove-chart-var': state.charts.extra = state.charts.extra.filter(v => v.id !== id || v.projectId !== project().id); markDirty(); render(); break;
     case 'add-control-program': {
       const p=project(),programs=controls.normalize(p);let suffix=1;
       while(programs.some(program=>program.id==='control_'+suffix))suffix++;
@@ -2353,7 +2470,18 @@ function handleAction(action, el) {
       },'新建');break;
     }
     case 'remove-control-program': {const p=project(),id=d.id;confirmChange('删除控制脚本',`删除 ${id}；当前运行仍使用启动时的脚本快照。`,()=>{controls.remove(p,id);ui.controlOutput='控制脚本尚未预览。';markDirty(p);render();});break;}
-    case 'control-template': confirmChange('载入 Python 控制示例','替换所选脚本、输入和输出声明，启用状态保持关闭；示例要求存在 V1 阀门。',()=>{const p=project();controls.update(p,{source:controlTemplate(),language:'python',enabled:false,inputs:['V1.mass_flow_kg_s'],outputs:['V1.param.opening_ratio']});markDirty(p);render();});break;
+    case 'control-template': {
+      const interlock=d.kind==='interlock';
+      confirmChange(interlock?'载入机房联锁控制模板':'载入 Python 控制示例',
+        interlock?'替换所选脚本、输入和输出声明，启用状态保持关闭；模板要求存在两台循环泵、止回阀和供回水总管的 Discharge／Suction 节点。'
+          :'替换所选脚本、输入和输出声明，启用状态保持关闭；示例要求存在 V1 阀门。',
+        ()=>{const p=project();controls.update(p,interlock
+          ?{source:controlTemplate('interlock'),language:'python',enabled:false,
+            inputs:['Discharge.common.pressure_pa','Suction.common.pressure_pa'],
+            outputs:['Pump1.param.running','Pump2.param.running']}
+          :{source:controlTemplate(),language:'python',enabled:false,inputs:['V1.mass_flow_kg_s'],outputs:['V1.param.opening_ratio']});
+          markDirty(p);render();});break;
+    }
     case 'preview-control': {
       const owner=project(),scriptId=owner.selectedControlId;
       ui.controlOutput='正在执行一个控制周期…';document.getElementById('control-output').textContent=ui.controlOutput;
@@ -2361,6 +2489,7 @@ function handleAction(action, el) {
     }
 
     case 'api-example': ui.apiKind = d.value; apiPreview(d.value); root.querySelectorAll('[data-action="api-example"]').forEach(e => e.classList.toggle('active', e.dataset.value === d.value)); break;
+    case 'api-refresh': apiContext=null; apiPreview(); break;
     case 'api-preview': apiSend().catch(error => msg(error.message, true)); break;
     case 'copy-var': if (navigator.clipboard?.writeText) navigator.clipboard.writeText(d.value).then(() => msg('变量标识已复制。')).catch(() => openDialog('变量标识', '可选中复制。', field('identifier', '变量标识', d.value, 'readonly'))); else openDialog('变量标识', '可选中复制。', field('identifier', '变量标识', d.value, 'readonly')); break;
     case 'add-connector': { const c = { id: uid('serial'), name: '串口连接 ' + state.connectors.length, kind: 'serial', port: 'COM3', baud: '115200', connected: false }; state.connectors.push(c); ui.selectedConnector = c.id; markDirty(); render(); break; }
@@ -2381,14 +2510,6 @@ function handleAction(action, el) {
     case 'import': importDialog(); break;
     case 'reset-windows': state.windowPositions = {}; ui.floats.forEach(f => { delete f.x; delete f.y; delete f.restore; f.docked = false; f.minimized = false; f.w = 440; f.h = 520; }); markDirty(); render(); msg('窗口位置已恢复。'); break;
     case 'reset-prototype': confirmChange('恢复内置示例', '替换当前原型草稿。可先取消并导出编辑内容。', () => { backupLocalDraft(STORAGE_KEY + '-before-reset'); state = initialState(); normalizeState(); ui.floats = []; ui.selectedNode = ''; undoStack = []; redoStack = []; state.dirty = true; navigate('home'); msg('已恢复示例；保存后更新浏览器记录。'); }, '恢复示例'); break;
-    case 'float-close': { const f = ui.floats.find(f => f.id === id); rememberWindow(f); ui.floats = ui.floats.filter(f => f.id !== id); renderFloats(); break; }
-    case 'float-tab': {
-      const f = ui.floats.find(f => f.id === id); setDeviceTab(f, d.value);
-      renderFloats(); break;
-    }
-    case 'float-pin': { const f = ui.floats.find(f => f.id === id); f.pinned = !f.pinned; rememberWindow(f); renderFloats(); break; }
-    case 'float-min': { const f = ui.floats.find(f => f.id === id); f.minimized = !f.minimized; renderFloats(); break; }
-    case 'float-max': { const f = ui.floats.find(f => f.id === id), r = page.getBoundingClientRect(); f.docked = false; rememberWindow(f); if (f.restore) { Object.assign(f, f.restore); delete f.restore; } else { f.restore = { x: f.x, y: f.y, w: f.w, h: f.h }; Object.assign(f, { x: r.left + 8, y: r.top + 8, w: r.width - 16, h: r.height - 16 }); } renderFloats(); break; }
     // Handled by their own document listeners (PID panel, circuit fluids).
     case 'pid-example': case 'add-pid': case 'remove-pid': case 'add-circuit-fluid': case 'remove-circuit-fluid': break;
     default: throw Error(`尚未识别此操作：${action}`);
@@ -2409,8 +2530,11 @@ function setInstanceParamDraft(el) {
     : type === 'text' ? el.value
     : type === 'curve' ? parseCurveDraft(el.value)
     : el.value === '' ? '' : Number(el.value);
-  n.draft[d.instanceParam] = value;
+  projectState.setDraft(ownerOfInstance(n),n,{[d.instanceParam]:value});
   el.closest('.parameter-row')?.classList.toggle('edited', !sameValue(value, n.params[d.instanceParam]));
+  const float = el.closest('.floater'), pending = float?.querySelector('[data-pending-for]');
+  if (pending) { pending.textContent = `${pendingCount(n)} 项待应用`; pending.className = `badge ${pendingCount(n) ? 'warn' : 'good'}`; }
+  const apply = float?.querySelector('[data-action="apply-instance"]'); if (apply) apply.disabled = !pendingCount(n);
   markDirty(project());
 }
 function setBenchParam(el) {
@@ -2426,6 +2550,7 @@ function setBenchParam(el) {
 }
 function handleInput(el) {
   const d = el.dataset, value = el.value;
+  if ('apiWrite' in d) { apiContext.writeValues ||= {}; apiContext.writeValues[apiContext.selected[ui.apiKind||'read']]=value; return; }
   if (d.instanceSearch) {
     const f = ui.floats.find(f => f.id === d.instanceSearch); variableWindowState(f).search = value;
     const table = root.querySelector(`[data-instance-table="${f.id}"]`); table.innerHTML = instanceVariableRows(f, instance(f.id)); return;
@@ -2454,12 +2579,9 @@ function handleInput(el) {
     if (d.paramType === 'curve') return;  // curve drafts validate on change, not on every keystroke
     const n = instance(d.id); setInstanceParamDraft(el);
     if ((d.paramType || 'number') === 'number') el.closest('.parameter-row')?.querySelectorAll('input[type="range"],input[type="number"]').forEach(other => { if (other !== el) other.value = el.value; });
-    const float = el.closest('.floater'), pending = float?.querySelector('[data-pending-for]');
-    if (pending) { pending.textContent = `${pendingCount(n)} 项待应用`; pending.className = `badge ${pendingCount(n) ? 'warn' : 'good'}`; }
-    const apply = float?.querySelector('[data-action="apply-instance"]'); if (apply) apply.disabled = !pendingCount(n);
     return;
   }
-  if (d.instanceName) { const n = instance(d.instanceName); if (value.trim()) n.name = value; markDirty(project()); return; }
+  if (d.instanceName) { const n = instance(d.instanceName); if (value.trim()) projectState.updateNode(ownerOfInstance(n),n,{name:value}); markDirty(project()); return; }
   if (d.valueId) {
     const v = mod().variables.find(v => v.id === d.valueId); if (Number(d.bank) < 0 || !v.writable) return;
     mod().banks[Number(d.bank)][d.valueId] = value === '' ? '' : Number(value); el.closest('td')?.classList.add('edited'); markDirty(mod()); return;
@@ -2468,7 +2590,10 @@ function handleInput(el) {
   if (d.projectField && ['name', 'description'].includes(d.projectField)) { if (d.projectField !== 'name' || value.trim()) project()[d.projectField] = value; markDirty(project()); }
 }
 function handleChange(el) {
+  if(canvasView().change(el))return;
   const d = el.dataset, value = el.value; let redraw = true;
+  if ('apiVariable' in el.dataset) { apiContext.selected[ui.apiKind||'read']=el.value; apiPreview(); return; }
+  if ('apiWrite' in el.dataset) { apiPreview(); return; }
   if (d.deviceModelSource) { document.getElementById('device-model-preview').innerHTML = instanceModelPreview(instance(d.deviceModelSource), value); return; }
   if ('workbenchChart' in d) { ui.workbenchChart = value; ui.pinnedChart = null; saveUI(); retainFocus(); return; }
   if (el.type === 'file' && modal && el.name === 'file') {
@@ -2516,9 +2641,9 @@ function handleChange(el) {
     root.querySelector('[data-design-select]').focus({ preventScroll: true }); return;
   }
   else if (d.instanceModel) {
-    const n = instance(d.instanceModel); if (value) stageModel(n, value); else { n.draftModelId = null; n.draftModelVersion = null; markDirty(project()); }
+    const n = instance(d.instanceModel); if (value) stageModel(n, value); else { projectState.updateNode(ownerOfInstance(n),n,{draftModelId:null,draftModelVersion:null}); markDirty(project()); }
   }
-  else if (d.instanceSwitch) { const n = instance(d.id), f = paramDefs(n).find(f => f[0] === d.instanceSwitch); n.draft[f[0]] = el.checked ? f[4] : f[3]; markDirty(project()); }
+  else if (d.instanceSwitch) { const n = instance(d.id), f = paramDefs(n).find(f => f[0] === d.instanceSwitch); projectState.setDraft(ownerOfInstance(n),n,{[f[0]]:el.checked ? f[4] : f[3]}); markDirty(project()); }
   else if (d.instanceParam) { setInstanceParamDraft(el); redraw = false; }  // a blur-driven change must not replace the float DOM mid-click
   else if ('benchModule' in d) { setBench(value); return; }
   else if (d.benchParam) { setBenchParam(el); }
@@ -2529,7 +2654,9 @@ function handleChange(el) {
   else if ('chartCompare' in d) { state.charts.compare = el.checked; markDirty(); }
   else if ('chartRange' in d) { state.charts.range = value; markDirty(); if (value === 'all') engine.loadOverview(project()); }
   else if ('solverContinuous' in d) { project().solver.continuous = el.checked; markDirty(project()); }
+  else if ('projectPhasePolicy' in d) { project().fluidConfig={...project().fluidConfig,phase_policy:value};markDirty(project()); }
   else if (d.projectField) { project()[d.projectField] = value; markDirty(project()); }
+  else if (d.solverOption) { assertLinksIdle(); project().solverOptions ||= {}; project().solverOptions[d.solverOption]=value; markDirty(project()); }
   else if (d.solverField) {
     const bounds = { duration: [1, 86400], dt: [.01, 60], massAtol: [1e-12, 1], pressureAtol: [1e-12, 100000], maxIter: [5, 500] };
     project().solver[d.solverField] = (d.solverField === 'mode' || d.solverField === 'hydraulicMethod') ? value : numeric(value, ...bounds[d.solverField], d.solverField === 'maxIter'); markDirty(project());
@@ -2545,85 +2672,51 @@ function handleChange(el) {
   if (d.benchParam || d.benchBoundary || 'benchStep' in d) { const step=state.bench.run.step; state.bench.run={...emptyRun('bench'),step}; }
   if (redraw) retainFocus();
 }
-function svgPoint(svg, e) { return new DOMPoint(e.clientX, e.clientY).matrixTransform(svg.getScreenCTM().inverse()); }
-function setPointer(e, data) { pointer = { ...data, startX: e.clientX, startY: e.clientY, pointerId: e.pointerId, moved: false }; }
-root.addEventListener('pointerdown', e => {
-  if (e.button !== 0 || modal) return;
-  const target = e.target, resize = target.closest('[data-float-resize]'), move = target.closest('[data-float-move]'), draw = target.closest('[data-draw-id]'), portEl = target.closest('[data-port-node]'), node = target.closest('[data-node]');
-  if (resize || move && !target.closest('button,input,select')) {
-    const f = ui.floats.find(f => f.id === (resize ? resize.dataset.floatResize : move.dataset.floatMove)); if (isDocked(f)) return; ui.frontId = f.id; f.order = ++ui.floatSerial;
-    setPointer(e, { kind: resize ? 'resize' : 'window', id: f.id, original: { x: f.x, y: f.y, w: f.w, h: f.h } }); e.preventDefault(); return;
-  }
-  if (draw && draw.dataset.drawId !== 'picture') {
-    const p = mod().ports.find(p => p.id === draw.dataset.drawId); ui.editorPort = p.id;
-    setPointer(e, { kind: 'draw-port', id: p.id, original: { x: p.x, y: p.y }, origin: svgPoint(document.getElementById('module-drawing'), e) }); e.preventDefault(); return;
-  }
-  if (portEl) { setPointer(e, { kind: 'port', nodeId: portEl.dataset.portNode, portId: portEl.dataset.portId }); e.preventDefault(); return; }
-  if (node && !target.closest('[data-quick-node]')) { const n = instance(node.dataset.node); ui.selectedNode = n.id; setPointer(e, { kind: 'node', id: n.id, original: { x: n.x, y: n.y }, origin: svgPoint(document.getElementById('network'), e) }); e.preventDefault(); return; }
-  if (target.closest('#network') && !target.closest('[data-edge]') && !ui.placing) setPointer(e, { kind: 'pan', original: [...activePage().pan], origin: svgPoint(document.getElementById('network'), e), matrix: document.getElementById('network').getScreenCTM().inverse() });
-});
-root.addEventListener('pointermove', e => {
-  if (!pointer || pointer.pointerId !== e.pointerId) { chartHover(e); return; }
-  const dx = e.clientX - pointer.startX, dy = e.clientY - pointer.startY;
-  if (!pointer.moved && Math.hypot(dx, dy) > 4) { pointer.moved = true; root.setPointerCapture(e.pointerId); if (pointer.kind === 'node') remember(); }
-  if (!pointer.moved) return;
-  if (pointer.kind === 'window' || pointer.kind === 'resize') {
-    const f = ui.floats.find(f => f.id === pointer.id);
-    if (pointer.kind === 'window') { f.x = pointer.original.x + dx; f.y = pointer.original.y + dy; } else { f.w = pointer.original.w + dx; f.h = pointer.original.h + dy; }
-    windowBounds(f); const el = root.querySelector(`[data-float-id="${f.id}"]`); Object.assign(el.style, { left: f.x + 'px', top: f.y + 'px', width: f.w + 'px', height: (f.minimized ? 46 : f.h) + 'px' });
-  } else if (pointer.kind === 'node') {
-    const svg = document.getElementById('network'), p = svgPoint(svg, e), n = instance(pointer.id);
-    n.x = Math.round(pointer.original.x + p.x - pointer.origin.x); n.y = Math.round(pointer.original.y + p.y - pointer.origin.y); svg.innerHTML = networkMarkup(activePage());
-  } else if (pointer.kind === 'pan') {
-    const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(pointer.matrix); activePage().pan = [pointer.original[0] + p.x - pointer.origin.x, pointer.original[1] + p.y - pointer.origin.y];
-    const pg = activePage(); document.getElementById('network').setAttribute('viewBox', networkViewBox(pg));
-  } else if (pointer.kind === 'draw-port') {
-    const svg = document.getElementById('module-drawing'), p = svgPoint(svg, e), port = mod().ports.find(p => p.id === pointer.id);
-    port.x = Math.round(clamp(pointer.original.x + (p.x - pointer.origin.x) / 7.2, 5, 95)); port.y = Math.round(clamp(pointer.original.y + (p.y - pointer.origin.y) / 4.3, 10, 85)); svg.innerHTML = drawingSVG(mod());
-  }
-});
-root.addEventListener('pointerup', e => {
-  if (!pointer) return; const completed = pointer; pointer = null;
-  try { root.releasePointerCapture(e.pointerId); } catch {}
-  if (!completed.moved) return;
-  ui.ignoreClickUntil = Date.now() + 100;
-  if (completed.kind === 'port') {
-    const hit = document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-port-node]');
-    if (hit) try { ui.connecting = null; connectPort(completed.nodeId, completed.portId); connectPort(hit.dataset.portNode, hit.dataset.portId); } catch (err) { msg(err.message, true); }
-  } else if (['window', 'resize'].includes(completed.kind)) { rememberWindow(ui.floats.find(f => f.id === completed.id)); markDirty(); renderFloats(); }
-  else { markDirty(completed.kind === 'draw-port' ? mod() : project()); render(); }
-});
-root.addEventListener('pointercancel', () => { pointer = null; render(); });
-root.addEventListener('click', e => {
-  const target = e.target, action = target.closest('[data-action]');
-  if (Date.now() < (ui.ignoreClickUntil || 0) && !action) return;
-  try {
-    if (action && !action.disabled) { contextMenu = null; handleAction(action.dataset.action, action); return; }
-    if (modal) return;
-    const port = target.closest('[data-port-node]'), quick = target.closest('[data-quick-node]'), node = target.closest('[data-node]'), edge = target.closest('[data-edge]'), draw = target.closest('[data-draw-id]');
-    if (port) connectPort(port.dataset.portNode, port.dataset.portId);
-    else if (quick) openDevice(quick.dataset.quickNode);
-    else if (node) { ui.selectedNode = node.dataset.node; ui.selectedEdge = ''; syncDeviceSelection(); }
-    else if (edge) { ui.selectedEdge = edge.dataset.edge; ui.selectedNode = ''; render(); }
-    else if (draw) { ui.editorPort = draw.dataset.drawId; render(); }
-    else if (target.closest('#network') && ui.placing) newInstance(ui.placing, svgPoint(document.getElementById('network'), e));
-    else if (target.closest('[data-chart-hit]')) { ui.pinnedChart = ui.pinnedChart ? null : target.closest('svg').id; chartHover(e, true); }
-    else if (contextMenu) { contextMenu = null; renderFloats(); }
-  } catch (err) { msg(err.message, true); }
-});
-root.addEventListener('dblclick', e => { const n = e.target.closest('[data-node]'); if (n && !e.target.closest('[data-port-node]')) openDevice(n.dataset.node); });
-root.addEventListener('contextmenu', e => {
-  const n = e.target.closest('[data-node]'); if (!n) return; e.preventDefault(); ui.selectedNode = n.dataset.node;
-  contextMenu = { id: n.dataset.node, x: clamp(e.clientX, 70, innerWidth - 202), y: clamp(e.clientY, 60, innerHeight - 370) }; syncDeviceSelection(); renderFloats();
-});
+const svgPoint=(svg,event)=>FluidNetWorkspaceInteractions.svgPoint(svg,event);
+let workspaceInput,featureRouter;
+function workspaceInteractions(){return workspaceInput ||= FluidNetWorkspaceInteractions.create({
+  root,document,getView:()=>({modal:!!modal,route:ui.route,drawing:ui.moduleTab==='drawing',placing:ui.placing,selectedNode:ui.selectedNode,selectedEdge:ui.selectedEdge}),
+  canvas:{owner:project,page:activePage,node:instance,svg:()=>document.getElementById('network'),remember,
+    move:(node,x,y)=>{projectState.updateNode(project(),node,{x,y});canvasView().move(node.id);},
+    pan:value=>{activePage().pan=value;document.getElementById('network').setAttribute('viewBox',networkViewBox(activePage()));},
+    flush:()=>canvasView().flush(),commit:()=>{markDirty(project());refreshWorkbench();},connect:connectPort,insert:newInstance,hasModule:id=>state.modules.some(m=>m.id===id),
+    rotate:rotateDevice,undo,copy:copyDevice,paste:pasteDevice,removeNode:deleteNode,removeEdge:deleteEdge,
+    pageSelect:id=>{if(!project().pages.some(p=>p.id===id))throw Error('画布已不存在');project().activePage=id;ui.selectedNode='';ui.selectedEdge='';render();},
+    zoom:factor=>{activePage().zoom=clamp(activePage().zoom*factor,.35,3);refreshWorkbench();},fit:()=>{fitNetwork();refreshWorkbench();},grid:()=>{ui.pageGrid=!ui.pageGrid;saveUI();refreshWorkbench();}},
+  selection:{ids:groupSelected,group:groupSelection,node:id=>{ui.selectedNode=id;},single:id=>{ui.selectedNode=id;ui.selectedEdge='';syncDeviceSelection();},edge:id=>{ui.selectedEdge=id;ui.selectedNode='';refreshWorkbench();},
+    clearConnection:()=>{ui.connecting=null;},mode:mode=>{ui.canvasMode=mode;ui.placing=null;if(mode==='select'){ui.connecting=null;refreshWorkbench();}else msg('点击两个空闲端口建立连接，也可以拖动连线。');}},
+  editor:{current:mod,svg:()=>document.getElementById('module-drawing'),select:id=>{ui.editorPort=id;},
+    move:(id,x,y)=>{const p=mod().ports.find(p=>p.id===id);if(!p)throw Error('端口已不存在');p.x=x;p.y=y;document.getElementById('module-drawing').innerHTML=drawingSVG(mod());},
+    commit:()=>{markDirty(mod());render();},nudge:event=>{const p=mod().ports.find(p=>p.id===ui.editorPort);if(!p)return;event.preventDefault();p.x=clamp(p.x+(event.key==='ArrowRight'?1:event.key==='ArrowLeft'?-1:0),5,95);p.y=clamp(p.y+(event.key==='ArrowDown'?1:event.key==='ArrowUp'?-1:0),10,85);markDirty(mod());render();}},
+  windows:{beginPointer:event=>deviceWindows().beginPointer(event),movePointer:(ticket,x,y)=>deviceWindows().movePointer(ticket,x,y),finishPointer:ticket=>deviceWindows().finishPointer(ticket),open:openDevice},
+  charts:{hover:chartHover,pin:event=>{ui.pinnedChart=ui.pinnedChart?null:event.target.closest('svg').id;chartHover(event,true);}},
+  shell:{error:error=>msg(error.message,true),render,action:handleAction,clearContext:()=>{contextMenu=null;root.querySelector('.context-menu')?.remove();},dismissContext:()=>{if(contextMenu){contextMenu=null;renderFloats();}},
+    context:(id,x,y)=>{contextMenu={id,x:clamp(x,70,innerWidth-202),y:clamp(y,60,innerHeight-370)};syncDeviceSelection();renderFloats();}}
+});}
+function featureActions(){
+  if(featureRouter)return featureRouter;
+  const router=FluidNetActionRouter.create(error=>msg(error.message,true));
+  for(const [name,handler] of Object.entries(workspaceInteractions().actions))router.action(name,handler);
+  for(const name of ['add-meter','edit-meter','remove-meter','meter-curve'])router.action(name,measurementAction);
+  for(const name of deviceWindows().actionNames)router.action(name,(action,el)=>deviceWindows().action(action,el));
+  for(const feature of [moduleEditorView(),runResultsView()])for(const name of feature.actionNames)router.action(name,(action,el)=>feature.action(action,el));
+  for(const [prefix,feature] of [['canvas-',()=>canvasView()],['wf-',()=>workflows],['batch-',()=>scenarioBatches],['air-',()=>airSide],['cs-',()=>coldStorage]])router.prefix(prefix,(action,el)=>feature().action(action,el));
+  for(const [name,handler] of Object.entries({
+    'save-module-version':()=>engine.saveModule(mod()),'module-versions':()=>engine.versions(mod()),'load-module-version':(_,el)=>engine.loadVersion(mod(),Number(el.dataset.version)),
+    'module-example':(_,el)=>createModuleExample(el.dataset.id),'test-module':(_,el)=>setBench(el.dataset.id)
+  }))router.action(name,handler);
+  return featureRouter=router;
+}
 function selectCodeTarget(kind) {
   if (!['runtime', 'header', 'design'].includes(kind)) return;
   ui.codeKind = kind;
   const picker = root.querySelector('[data-code-target]'); if (picker) picker.value = kind;
   saveUI();
 }
-root.addEventListener('pointerover', e => { if (!pointer) showCanvasInspection(e.target); });
-root.addEventListener('pointerout', e => { if (!pointer) showCanvasInspection(e.relatedTarget); });
+root.addEventListener('click', e => { if(e.target.closest('[data-trace-close]')) { ui.canvasInspection=null;paintCanvasInspection(); } });
+root.addEventListener('keydown', e => { if(e.key==='Escape') { ui.canvasInspection=null;paintCanvasInspection(); } });
+root.addEventListener('pointerover', e => { if (!workspaceInput?.busy()) showCanvasInspection(e.target); });
+root.addEventListener('pointerout', e => { if (!workspaceInput?.busy()) showCanvasInspection(e.relatedTarget); });
 root.addEventListener('focusin', e => { if (e.target.closest('#network [data-node]')) showCanvasInspection(e.target); if (e.target.matches('textarea[data-code-kind]')) selectCodeTarget(e.target.dataset.codeKind); });
 root.addEventListener('focusout', e => { if (e.target.closest('#network [data-node]')) showCanvasInspection(e.relatedTarget); });
 root.addEventListener('scroll', e => { if (e.target.matches?.('textarea[data-code-kind]')) e.target.previousElementSibling.scrollTop = e.target.scrollTop; }, true);
@@ -2634,12 +2727,6 @@ root.addEventListener('submit', e => {
   const current = modal; if (!current?.onSubmit) return;
   try { current.onSubmit(Object.fromEntries(new FormData(e.target))); if (modal === current) closeDialog(); }
   catch (err) { const target = document.getElementById('dialog-error'); if (target) { target.hidden = false; target.textContent = err.message; } }
-});
-root.addEventListener('dragstart', e => { const el = e.target.closest('[data-drag-module]'); if (el) { e.dataTransfer.setData('text/plain', el.dataset.dragModule); e.dataTransfer.effectAllowed = 'copy'; } });
-root.addEventListener('dragover', e => { if (e.target.closest('#network-area')) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; } });
-root.addEventListener('drop', e => {
-  if (!e.target.closest('#network-area')) return; e.preventDefault();
-  const id = e.dataTransfer.getData('text/plain'); if (state.modules.some(m => m.id === id)) try { newInstance(id, svgPoint(document.getElementById('network'), e)); } catch (err) { msg(err.message, true); }
 });
 function chartHover(e, force = false) {
   const svg = e.target.closest?.('svg[data-chart]'); if (!svg || ui.pinnedChart && !force) return;
@@ -2657,101 +2744,51 @@ document.addEventListener('keydown', e => {
   }
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); saveAll(); return; }
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); pageMap(); return; }
-  if (e.key === 'Escape') { closeDialog(); contextMenu = null; ui.connecting = null; ui.placing = null; ui.pinnedChart = null; render(); return; }
+  if (e.key === 'Escape') { workspaceInput?.cancel(); closeDialog(); contextMenu = null; ui.connecting = null; ui.placing = null; ui.pinnedChart = null; if(ui.route==='workbench'){refreshWorkbench();renderFloats();}else render(); return; }
   if (edit) {
     if (e.key === 'Tab' && e.target.tagName === 'TEXTAREA' && (e.target.dataset.codeKind || 'controlCode' in e.target.dataset)) { e.preventDefault(); const el = e.target; el.setRangeText(el.dataset.codeKind ? '    ' : '  ', el.selectionStart, el.selectionEnd, 'end'); el.dispatchEvent(new Event('input', { bubbles: true })); }
     return;
   }
   if (modal) return;
-  if (e.key === 'Enter' || e.key === ' ') {
-    const p = e.target.closest('[data-port-node]'), n = e.target.closest('[data-node]'), draw = e.target.closest('[data-draw-id]');
-    if (p || n || draw) { e.preventDefault(); if (p) { try { connectPort(p.dataset.portNode, p.dataset.portId); } catch (err) { msg(err.message, true); } } else if (n) openDevice(n.dataset.node); else { ui.editorPort = draw.dataset.drawId; render(); } return; }
-  }
-  if (ui.route === 'workbench') {
-    if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === 'r' && ui.selectedNode) { e.preventDefault(); rotateDevice(ui.selectedNode, e.shiftKey ? -1 : 1); return; }
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(e.shiftKey); }
-    else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); undo(true); }
-    else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') copyDevice();
-    else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') { e.preventDefault(); pasteDevice(); }
-    else if (e.key === 'Delete') { if (ui.selectedNode) deleteNode(ui.selectedNode); else if (ui.selectedEdge) deleteEdge(ui.selectedEdge); }
-  }
-  if (ui.route === 'editor' && ui.moduleTab === 'drawing' && e.key.startsWith('Arrow')) {
-    const p = mod().ports.find(p => p.id === ui.editorPort); if (!p) return;
-    e.preventDefault(); p.x = clamp(p.x + (e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0), 5, 95); p.y = clamp(p.y + (e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0), 10, 85); markDirty(mod()); render();
-  }
 });
-// Saves and exports made before a built-in parameter existed (e.g. pipe heat loss / ambient)
-// get its default in module variables/values/banks, models and instances. Idempotent.
-function backfillBuiltinParams(data) {
-  const builtin = (data.modules || []).filter(m => m && m.runtime !== 'python' && PARAM_DEFS[m.kind]);
-  for (const m of builtin) {
-    if (!Array.isArray(m.variables)) continue;
-    for (const v of variablesFor({kind:m.kind, ports:[]}).filter(v => v.origin === 'parameter' || v.origin === 'runtime')) {
-      if (m.variables.some(x => x.id === v.id)) continue;
-      const before = m.variables.findIndex(x => x.origin === 'system');
-      m.variables.splice(before < 0 ? m.variables.length : before, 0, v);
-      if (m.values && !(v.id in m.values)) m.values[v.id] = clone(v.value);
-      (m.banks || []).forEach(bank => { if (bank && !(v.id in bank)) bank[v.id] = clone(v.value); });
-    }
-  }
-  const fill = (params, kind) => { if (params && typeof params === 'object') for (const f of PARAM_DEFS[kind]) if (!(f[0] in params)) params[f[0]] = f[6]; };
-  const kindOf = id => builtin.find(m => m.id === id)?.kind;
-  for (const item of data.models || []) { const kind = kindOf(item?.moduleId); if (kind) { fill(item.params, kind); (item.versions || []).forEach(v => fill(v?.params, kind)); } }
-  for (const p of data.projects || []) for (const pg of p?.pages || []) for (const n of pg?.nodes || []) {
-    const kind = !p.moduleSnapshots?.[n?.moduleId] && kindOf(n?.moduleId);
-    if (kind) { fill(n.params, kind); fill(n.draft, kind); }
-  }
-}
-function normalizeState() {
-  normalizeModuleGroups();
-  state.modules.forEach(m => { m.saving=false; if (m.manifest) PARAM_DEFS[m.kind] = manifestFields(m.manifest); normalizePythonSource(m); });
-  backfillBuiltinParams(state);
-  state.windowPositions ||= {}; state.charts ||= {}; state.charts.series ||= {q:true,a:true,b:true}; state.charts.extra ||= []; state.charts.range ||= 'window'; state.serial ||= 30; state.messages ||= [];
-  // 兼容旧草稿：运行快照/验证台/项目运行可能缺少 history、events、values 等字段（例如被裁剪过的草稿），
-  // 补齐默认值后继续打开与保存，而不是让 normalizeState 抛错、整份草稿被内置示例覆盖。
-  state.records = Array.isArray(state.records) ? state.records : [];
-  for (const record of state.records) { record.history = Array.isArray(record.history) ? record.history : []; record.events = Array.isArray(record.events) ? record.events : []; }
-  state.bench ||= {}; state.bench.run ||= emptyRun('bench');
-  const benchModule = state.bench && state.modules.find(m => m.id === state.bench.moduleId);
-  if (benchModule?.runtime === 'python') { state.bench.params ||= {}; for (const spec of manifestParamSpecs(benchModule.manifest)) if (!(spec.id in state.bench.params)) state.bench.params[spec.id] = clone(spec.default); }
-  for (const p of state.projects) {
-    p.scenarios ||= [];p.activeScenarioId ||= '';
-    engine.pinProject(p,true);
-    controls.normalize(p);
-    if (!p.run || typeof p.run !== 'object') p.run = emptyRun();
-    if (p.run.source !== 'engine') p.run = emptyRun();
-    if (p.run.status === 'solving') p.run.status = 'ready';
-    p.run.events ||= []; p.run.history ||= []; p.run.values ||= emptyRun().values;
-    for (const pg of p.pages) { pg.zoom ||= 1; pg.pan ||= [0, 0]; for (const n of pg.nodes) { const m = moduleOf(n); if (m.runtime === 'python') for (const spec of manifestParamSpecs(m.manifest)) { if (!(spec.id in n.params)) n.params[spec.id] = clone(spec.default); if (!n.draft || !(spec.id in n.draft)) { n.draft ||= clone(n.params); n.draft[spec.id] = clone(n.params[spec.id]); } } n.draft ||= clone(n.params); validateInstanceVariableState(n, m); ensureInstanceVariables(n, m, p); } }
-    const variables = projectVariables(p);
-    for (const field of ['input', 'output']) if (!variables.some(v => v.id === p.controlConfig[field])) {
-      const legacy = variables.find(v => v.legacyId === p.controlConfig[field]); if (legacy) p.controlConfig[field] = legacy.id;
-    }
-  }
-  if (state.bench.run.status === 'solving') state.bench.run.status = 'ready';
-  state.bench.run.events ||= []; state.bench.run.history ||= []; state.bench.run.values ||= emptyRun().values;
+let workspaceNormalizer;
+function workspaceNormalization(){return workspaceNormalizer ||= FluidNetWorkspaceNormalization.create({
+  parameterDefinitions:PARAM_DEFS,variablesFor,clone,moduleSpecs:MODULE_SPECS,pythonModuleSource,legacyModuleSource,
+  defaultGroups:DEFAULT_MODULE_GROUPS,manifestFields,manifestParamSpecs,emptyRun,
+  pinProject:(p,allowLegacy)=>engine.pinProject(p,allowLegacy),normalizeControls:p=>controls.normalize(p),
+  moduleOf,validateInstanceVariableState,ensureInstanceVariables,rehome:p=>links.rehome(p),projectVariables
+});}
+function backfillBuiltinParams(data){return workspaceNormalization().backfillBuiltinParams(data);}
+function normalizeState(){
+  workspaceNormalization().normalize(state);
+  if(ui.category!=='全部模块'&&!moduleGroupNames().includes(ui.category))ui.category='全部模块';
 }
 const chartRegistry = new Map();
-engine = window.createEngineClient({state:()=>state, project, parameterKey:projectParameterKey, moduleOf,
+engine = createEngineClient({state:()=>state, project, parameterKey:projectParameterKey, moduleOf,
+  prepareLegacyParameters:()=>backfillBuiltinParams(state),
   makeProject,
   persist:()=>persistLocal(),
   restoreWorkspace,validateWorkspace:validateImport,archives:receiveArchives,showArchive,
   moduleOutput:(m,text)=>{m.authoringOutput=text;if(m.id===state.selectedModule){const el=document.getElementById('module-output') || document.getElementById('code-output');if(el){el.textContent=text;document.getElementById('authoring-diagnostics')?.remove();el.insertAdjacentHTML('afterend',renderAuthoringDiagnostics(m));}}},
   parameterDefinitions:PARAM_DEFS, emptyRun, render:()=>retainFocus(), refresh:refreshLive,
+  refreshRun:()=>{if(ui.route==='workbench'){refreshWorkbench();refreshLive(false);}else retainFocus();},
   message:msg, diagnostics:showDiagnostics, dirty:markDirty,
   askToken:(reason,done)=>openDialog('输入访问令牌',reason+'令牌由服务端管理员用 python -m fn_engine token create 生成，只保存在当前浏览器标签页。',
     `<label class="field"><span>访问令牌</span><input name="token" type="password" autocomplete="off" required aria-label="访问令牌" placeholder="fn_…"></label>`,
     data=>{if(!data.token?.trim())throw Error('请输入令牌。');done(data.token);},'连接')});
-scenarioBatches=window.createScenarioBatchesUI({engine:()=>engine,ui:()=>ui,project,projectKey:projectParameterKey,
+systemInspection=createSystemInspection({engine:()=>engine,project,openDialog,esc,btn,download:downloadFile,
+  locate:(projectId,id)=>{const owner=state.projects.find(p=>p.id===projectId),found=owner&&links.locate(owner,id);if(!found){msg('原设备已不在当前项目；请按冻结档案查看。',true);return;}closeDialog();openProject(owner.id);owner.activePage=found.page.id;ui.selectedNode=id;render();openDevice(id);}});
+moduleReplay=createModuleReplayUI({request:(...args)=>engine.request(...args),render,navigate,download:downloadFile,message:msg,route:()=>ui.route});
+scenarioBatches=createScenarioBatchesUI({engine:()=>engine,ui:()=>ui,project,projectKey:projectParameterKey,
   esc,btn,heading,msg,render,confirm:confirmChange,download:downloadFile});
-workflows=window.createModelingWorkflows({state:()=>state,engine:()=>engine,ui:()=>ui,project,
+workflows=createModelingWorkflows({state:()=>state,engine:()=>engine,ui:()=>ui,project,
   esc,btn,openDialog,closeDialog,msg,clone,uid,emptyRun,confirm:confirmChange,paramSpecs:deviceParamSpecs,
   projectKey:projectParameterKey,dirty:markDirty,render,persist:()=>persistLocal(),download:downloadFile,
-  replaceState:next=>{validateImport(next);const previous=state;try{state=next;normalizeState();ui.floats=[];ui.selectedNode='';undoStack=[];redoStack=[];}catch(error){state=previous;throw error;}}});
-coldStorage=window.createColdStorageUI({state:()=>state,engine:()=>engine,ui:()=>ui,makeInstance,makeProject,project,
+  replaceState:next=>{replaceWorkspaceState(next);ui.floats=[];ui.selectedNode='';undoStack=[];redoStack=[];}});
+coldStorage=createColdStorageUI({state:()=>state,engine:()=>engine,ui:()=>ui,makeInstance,makeProject,project,
   uid,normalizeState,markDirty,persist:()=>persistLocal(),openProject,msg,esc,btn,openDialog,closeDialog,render,fitNetwork,remember,moduleOf,
   download:downloadFile,projectKey:projectParameterKey});
-airSide=window.createAirSideUI({state:()=>state,engine:()=>engine,ui:()=>ui,project,moduleOf,projectKey:projectParameterKey,
+airSide=createAirSideUI({state:()=>state,engine:()=>engine,ui:()=>ui,project,moduleOf,projectKey:projectParameterKey,
   esc,btn,heading,msg,render,markDirty,persist:()=>persistLocal(),openDialog,closeDialog,makeInstance,makeProject,uid,
   normalizeState,openProject,navigate,download:downloadFile});
 try { normalizeState(); } catch { state = initialState(); normalizeState(); recovery = '原型记录不完整，已恢复内置示例。'; }
@@ -2762,6 +2799,7 @@ function routeFromLocation() {
   return 'home';
 }
 ui.route = routeFromLocation();
+workspaceInteractions().mount();
 render();
 engine.init();
 window.addEventListener('hashchange', () => { ui.route = routeFromLocation(); render(); });
@@ -2769,4 +2807,4 @@ let resizeTimer;
 window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => { renderFloats(); if (['curves', 'workbench'].includes(ui.route)) refreshLive(); }, 120); });
 runInterval = setInterval(() => engine.tick(), 200);
 
-})();
+}

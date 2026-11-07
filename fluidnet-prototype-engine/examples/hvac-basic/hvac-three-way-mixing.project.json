@@ -1,0 +1,1290 @@
+{
+  "schema_version": 1,
+  "id": "hvac-three-way-mixing",
+  "name": "暖通基础 · 三通阀混流",
+  "description": "基础设备组网与控制演示；尺寸、曲线和负荷为可复现教学假设。",
+  "fluid": {
+    "backend": "coolprop",
+    "fluid": "Water",
+    "composition": {},
+    "reference": "mass",
+    "phase_policy": "liquid"
+  },
+  "modules": [
+    {
+      "schema_version": 1,
+      "id": "source",
+      "name": "压力边界",
+      "version": 1,
+      "category": "边界与节点",
+      "description": "",
+      "ports": [
+        {
+          "id": "out0",
+          "label": "out0",
+          "domain": "fluid",
+          "direction": "out",
+          "required": true,
+          "circuit": "fluid"
+        }
+      ],
+      "parameters": [
+        {
+          "id": "pressure_pa",
+          "label": "绝对压力",
+          "value_type": "number",
+          "default": 201325.0,
+          "unit": {
+            "quantity": "pressure",
+            "canonical_unit": "Pa",
+            "display_unit": "kPa",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "minimum": 1.0,
+          "maximum": null,
+          "runtime": true,
+          "writable": true
+        },
+        {
+          "id": "temperature_k",
+          "label": "边界温度",
+          "value_type": "number",
+          "default": 293.15,
+          "unit": {
+            "quantity": "temperature",
+            "canonical_unit": "K",
+            "display_unit": "°C",
+            "display_scale": 1.0,
+            "display_offset": -273.15
+          },
+          "minimum": 1.0,
+          "maximum": null,
+          "runtime": true,
+          "writable": true
+        },
+        {
+          "id": "humidity_ratio_kg_kg",
+          "label": "边界含湿量（湿空气模式）",
+          "value_type": "number",
+          "default": 0.0,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": 0.2,
+          "runtime": true,
+          "writable": true
+        }
+      ],
+      "variables": [
+        {
+          "id": "out0.pressure_pa",
+          "label": "out0 绝对压力",
+          "quantity": "pressure",
+          "unit": {
+            "quantity": "pressure",
+            "canonical_unit": "Pa",
+            "display_unit": "kPa",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "port",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": "out0"
+        },
+        {
+          "id": "out0.mass_flow_kg_s",
+          "label": "out0 端口流量（流入设备为正）",
+          "quantity": "mass_flow",
+          "unit": {
+            "quantity": "mass_flow",
+            "canonical_unit": "kg/s",
+            "display_unit": "kg/s",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "port",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": "out0"
+        },
+        {
+          "id": "out0.temperature_k",
+          "label": "out0 温度",
+          "quantity": "temperature",
+          "unit": {
+            "quantity": "temperature",
+            "canonical_unit": "K",
+            "display_unit": "°C",
+            "display_scale": 1.0,
+            "display_offset": -273.15
+          },
+          "source": "port",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": "out0"
+        },
+        {
+          "id": "out0.enthalpy_j_kg",
+          "label": "out0 比焓",
+          "quantity": "specific_enthalpy",
+          "unit": {
+            "quantity": "specific_enthalpy",
+            "canonical_unit": "J/kg",
+            "display_unit": "kJ/kg",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "port",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": "out0"
+        },
+        {
+          "id": "out0.density_kg_m3",
+          "label": "out0 密度",
+          "quantity": "density",
+          "unit": {
+            "quantity": "density",
+            "canonical_unit": "kg/m³",
+            "display_unit": "kg/m³",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "port",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": "out0"
+        },
+        {
+          "id": "out0.viscosity_pa_s",
+          "label": "out0 动力黏度",
+          "quantity": "dynamic_viscosity",
+          "unit": {
+            "quantity": "dynamic_viscosity",
+            "canonical_unit": "Pa·s",
+            "display_unit": "mPa·s",
+            "display_scale": 0.001,
+            "display_offset": 0.0
+          },
+          "source": "port",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": "out0"
+        },
+        {
+          "id": "out0.specific_heat_j_kg_k",
+          "label": "out0 定压比热",
+          "quantity": "specific_heat",
+          "unit": {
+            "quantity": "specific_heat",
+            "canonical_unit": "J/(kg·K)",
+            "display_unit": "kJ/(kg·K)",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "port",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": "out0"
+        },
+        {
+          "id": "out0.quality",
+          "label": "out0 干度（单相为空）",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "port",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": "out0"
+        },
+        {
+          "id": "param.pressure_pa",
+          "label": "绝对压力",
+          "quantity": "pressure",
+          "unit": {
+            "quantity": "pressure",
+            "canonical_unit": "Pa",
+            "display_unit": "kPa",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "pressure_pa",
+          "port_id": null
+        },
+        {
+          "id": "param.temperature_k",
+          "label": "边界温度",
+          "quantity": "temperature",
+          "unit": {
+            "quantity": "temperature",
+            "canonical_unit": "K",
+            "display_unit": "°C",
+            "display_scale": 1.0,
+            "display_offset": -273.15
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "temperature_k",
+          "port_id": null
+        },
+        {
+          "id": "param.humidity_ratio_kg_kg",
+          "label": "边界含湿量（湿空气模式）",
+          "quantity": "ratio",
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "parameter",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": "humidity_ratio_kg_kg",
+          "port_id": null
+        }
+      ],
+      "channels": [],
+      "solver_model": "pressure_source",
+      "state_model": null,
+      "thermal_model": null,
+      "source_format": "python-v1",
+      "source": {},
+      "runtime": "builtin",
+      "entrypoint": "",
+      "content_hash": null,
+      "definition_hash": null,
+      "package_path": null,
+      "bank_names": [
+        "额定工况",
+        "部分负荷",
+        "调试备份"
+      ]
+    },
+    {
+      "schema_version": 3,
+      "id": "water_three_way_valve",
+      "name": "三通调节阀（分流／混流）",
+      "version": 1,
+      "category": "暖通基础设备",
+      "description": "三通调节阀（分流／混流）：内部展开为固定版本部件，按节点质量与焓守恒求解。",
+      "ports": [
+        {
+          "id": "common",
+          "label": "公共口",
+          "domain": "fluid",
+          "direction": "in",
+          "required": true,
+          "circuit": "fluid0"
+        },
+        {
+          "id": "a",
+          "label": "A 口",
+          "domain": "fluid",
+          "direction": "out",
+          "required": true,
+          "circuit": "fluid1"
+        },
+        {
+          "id": "b",
+          "label": "B 口",
+          "domain": "fluid",
+          "direction": "out",
+          "required": true,
+          "circuit": "fluid2"
+        }
+      ],
+      "parameters": [
+        {
+          "id": "Common_loss_coefficient",
+          "label": "Common · 基准阻力系数 K",
+          "value_type": "number",
+          "default": 0.0,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "1",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": null,
+          "runtime": true,
+          "writable": true
+        },
+        {
+          "id": "Valve_opening_ratio",
+          "label": "Valve · A 路开度（B 路为互补）",
+          "value_type": "number",
+          "default": 0.5,
+          "unit": {
+            "quantity": "ratio",
+            "canonical_unit": "1",
+            "display_unit": "%",
+            "display_scale": 0.01,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "runtime": true,
+          "writable": true
+        },
+        {
+          "id": "Common_diameter_m",
+          "label": "公共通路 · 通路内径",
+          "value_type": "number",
+          "default": 0.05,
+          "unit": {
+            "quantity": "length",
+            "canonical_unit": "m",
+            "display_unit": "mm",
+            "display_scale": 0.001,
+            "display_offset": 0.0
+          },
+          "minimum": 0.001,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "Node_elevation_m",
+          "label": "内部汇合 · 标高（当前仅支持零标高）",
+          "value_type": "number",
+          "default": 0.0,
+          "unit": {
+            "quantity": "length",
+            "canonical_unit": "m",
+            "display_unit": "m",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.0,
+          "maximum": 0.0,
+          "runtime": false,
+          "writable": true
+        },
+        {
+          "id": "Valve_kv_m3_h",
+          "label": "阀芯 · 两通路全开 Kv",
+          "value_type": "number",
+          "default": 16.0,
+          "unit": {
+            "quantity": "flow_coefficient",
+            "canonical_unit": "m³/h",
+            "display_unit": "m³/h",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "minimum": 0.001,
+          "maximum": null,
+          "runtime": false,
+          "writable": true
+        }
+      ],
+      "variables": [
+        {
+          "id": "Common.actual_drop_pa",
+          "label": "Common · 通路压差",
+          "quantity": "pressure",
+          "unit": {
+            "quantity": "pressure",
+            "canonical_unit": "Pa",
+            "display_unit": "kPa",
+            "display_scale": 1000.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.Common.throughput_kg",
+          "label": "Common · 累计通过质量",
+          "quantity": "mass",
+          "unit": {
+            "quantity": "mass",
+            "canonical_unit": "kg",
+            "display_unit": "kg",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "Valve.a_flow_kg_s",
+          "label": "Valve · A 路流量",
+          "quantity": "mass_flow",
+          "unit": {
+            "quantity": "mass_flow",
+            "canonical_unit": "kg/s",
+            "display_unit": "kg/s",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "Valve.b_flow_kg_s",
+          "label": "Valve · B 路流量",
+          "quantity": "mass_flow",
+          "unit": {
+            "quantity": "mass_flow",
+            "canonical_unit": "kg/s",
+            "display_unit": "kg/s",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "derived",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        },
+        {
+          "id": "state.Valve.throughput_kg",
+          "label": "Valve · 两通路累计通过质量",
+          "quantity": "mass",
+          "unit": {
+            "quantity": "mass",
+            "canonical_unit": "kg",
+            "display_unit": "kg",
+            "display_scale": 1.0,
+            "display_offset": 0.0
+          },
+          "source": "state",
+          "writable": false,
+          "sampleable": true,
+          "parameter_id": null,
+          "port_id": null
+        }
+      ],
+      "channels": [],
+      "solver_model": "generic",
+      "state_model": null,
+      "thermal_model": null,
+      "source_format": "python-v1",
+      "source": {
+        "runtime": "class Module:\n    def initialize(self,ctx): pass\n    def evaluate(self,ctx): pass\n    def commit_step(self,ctx,dt): pass\n    def finalize(self,ctx): pass\n"
+      },
+      "runtime": "python",
+      "entrypoint": "module:Module",
+      "content_hash": "7745a90a996269e1d4ffa34b751ae3e0baeee14d2a4116dcb5c650083bb63400",
+      "definition_hash": "b9b0603dc89ebcdb6f62a1c8e623ee85024086161cdc2b73e4bcc17c8c0bbeb9",
+      "package_path": null,
+      "bank_names": [
+        "额定工况",
+        "部分负荷",
+        "调试备份"
+      ],
+      "sdk": {
+        "api_version": "0.5.0",
+        "capabilities": [
+          "composite.v1"
+        ],
+        "state_contract_version": 1
+      },
+      "applicability": {
+        "execution_domains": [
+          "fluid"
+        ],
+        "phases": [
+          "liquid",
+          "gas"
+        ],
+        "fluids": [],
+        "limits": [],
+        "assumptions": [
+          "组合展开复用子模块精确版本；外端口和公开参数一对一映射。"
+        ]
+      },
+      "hydraulic_dependencies": {},
+      "dependency_mode": "conservative",
+      "pure_evaluate": false,
+      "composite": {
+        "children": [
+          {
+            "id": "Common",
+            "module_id": "hvac_branch_resistance",
+            "version": 1,
+            "content_hash": "de319ea010733fdaf971a5ccbd5324465ef132cf760a660c7951d3c58ede5ab6",
+            "definition_hash": "4bed1da2f7721cc5a1f9368ab330446f07628cfbb6314dd7c97948a75926baea",
+            "parameters": {
+              "loss_coefficient": 0.0
+            }
+          },
+          {
+            "id": "Node",
+            "module_id": "hvac_junction_3",
+            "version": 1,
+            "content_hash": null,
+            "definition_hash": "f1379c7a3d05932b549a462ff25e50d872c8135758e1315789cd02a0ba05b66b",
+            "parameters": {}
+          },
+          {
+            "id": "Valve",
+            "module_id": "hvac_three_way_core",
+            "version": 1,
+            "content_hash": "fb3aacf40357823f7e19685a7e02754a7b13301a0c5fb89931970bca53dd6ea5",
+            "definition_hash": "e5b4db778d6e8bbddf6b503123f37c942a04340bab7a3f05caf4b2f5a998696d",
+            "parameters": {}
+          }
+        ],
+        "modules": [
+          {
+            "schema_version": 3,
+            "id": "hvac_branch_resistance",
+            "name": "管路局部阻力",
+            "version": 1,
+            "category": "暖通基础设备",
+            "description": "管路局部阻力：单相基础设备，型号参数须按工程资料填写。",
+            "ports": [
+              {
+                "id": "in0",
+                "label": "入口",
+                "domain": "fluid",
+                "direction": "in",
+                "required": true,
+                "circuit": "fluid"
+              },
+              {
+                "id": "out0",
+                "label": "出口",
+                "domain": "fluid",
+                "direction": "out",
+                "required": true,
+                "circuit": "fluid"
+              }
+            ],
+            "parameters": [
+              {
+                "id": "diameter_m",
+                "label": "通路内径",
+                "value_type": "number",
+                "default": 0.05,
+                "unit": {
+                  "quantity": "length",
+                  "canonical_unit": "m",
+                  "display_unit": "mm",
+                  "display_scale": 0.001,
+                  "display_offset": 0.0
+                },
+                "minimum": 0.001,
+                "maximum": null,
+                "runtime": false,
+                "writable": true
+              },
+              {
+                "id": "loss_coefficient",
+                "label": "基准阻力系数 K",
+                "value_type": "number",
+                "default": 0.2,
+                "unit": {
+                  "quantity": "ratio",
+                  "canonical_unit": "1",
+                  "display_unit": "1",
+                  "display_scale": 1.0,
+                  "display_offset": 0.0
+                },
+                "minimum": 0.0,
+                "maximum": null,
+                "runtime": true,
+                "writable": true
+              }
+            ],
+            "variables": [
+              {
+                "id": "actual_drop_pa",
+                "label": "通路压差",
+                "quantity": "pressure",
+                "unit": {
+                  "quantity": "pressure",
+                  "canonical_unit": "Pa",
+                  "display_unit": "kPa",
+                  "display_scale": 1000.0,
+                  "display_offset": 0.0
+                },
+                "source": "derived",
+                "writable": false,
+                "sampleable": true,
+                "parameter_id": null,
+                "port_id": null
+              },
+              {
+                "id": "state.throughput_kg",
+                "label": "累计通过质量",
+                "quantity": "mass",
+                "unit": {
+                  "quantity": "mass",
+                  "canonical_unit": "kg",
+                  "display_unit": "kg",
+                  "display_scale": 1.0,
+                  "display_offset": 0.0
+                },
+                "source": "state",
+                "writable": false,
+                "sampleable": true,
+                "parameter_id": null,
+                "port_id": null
+              }
+            ],
+            "channels": [
+              {
+                "id": "main",
+                "name": "主通路",
+                "input_port": "in0",
+                "output_port": "out0",
+                "relation": "resistance",
+                "solver_model": "generic",
+                "enabled": true
+              }
+            ],
+            "solver_model": "generic",
+            "state_model": null,
+            "thermal_model": null,
+            "source_format": "python-v1",
+            "source": {
+              "runtime": "class Module:\n    def initialize(self,ctx): ctx.state.setdefault('throughput_kg',0.)\n    def evaluate(self,ctx):\n        ctx.net.resistance(channel='main',diameter_m=ctx.parameters['diameter_m'],loss_coefficient=ctx.parameters['loss_coefficient'],density_kg_m3=ctx.port('in0').density_kg_m3)\n    def observe(self,ctx): ctx.var('actual_drop_pa',ctx.channel('main').pressure_drop_pa)\n    def commit_step(self,ctx,dt_s): ctx.state['throughput_kg']+=abs(ctx.channel('main').mass_flow_kg_s)*dt_s\n    def finalize(self,ctx): pass\n"
+            },
+            "runtime": "python",
+            "entrypoint": "module:Module",
+            "content_hash": "de319ea010733fdaf971a5ccbd5324465ef132cf760a660c7951d3c58ede5ab6",
+            "definition_hash": "4bed1da2f7721cc5a1f9368ab330446f07628cfbb6314dd7c97948a75926baea",
+            "bank_names": [
+              "额定工况",
+              "部分负荷",
+              "调试备份"
+            ],
+            "sdk": {
+              "api_version": "0.6.0",
+              "capabilities": [
+                "air.pass_through.v1",
+                "evaluate.pure.v1",
+                "hydraulic.signed_start.v1",
+                "net.resistance",
+                "net.valve",
+                "observe.v1",
+                "state.transactions.v1"
+              ],
+              "state_contract_version": 1
+            },
+            "applicability": {
+              "execution_domains": [
+                "fluid"
+              ],
+              "phases": [
+                "liquid",
+                "gas"
+              ],
+              "fluids": [],
+              "limits": [],
+              "assumptions": [
+                "单相、无独立物理储量；设备默认参数为演示参数。"
+              ]
+            },
+            "hydraulic_dependencies": {},
+            "dependency_mode": "conservative",
+            "pure_evaluate": true
+          },
+          {
+            "schema_version": 1,
+            "id": "hvac_junction_3",
+            "name": "理想汇合节点",
+            "version": 1,
+            "category": "边界与节点",
+            "description": "",
+            "ports": [
+              {
+                "id": "p0",
+                "label": "连接 0",
+                "domain": "fluid",
+                "direction": "in",
+                "required": true,
+                "circuit": "fluid"
+              },
+              {
+                "id": "p1",
+                "label": "连接 1",
+                "domain": "fluid",
+                "direction": "out",
+                "required": true,
+                "circuit": "fluid"
+              },
+              {
+                "id": "p2",
+                "label": "连接 2",
+                "domain": "fluid",
+                "direction": "out",
+                "required": true,
+                "circuit": "fluid"
+              }
+            ],
+            "parameters": [
+              {
+                "id": "elevation_m",
+                "label": "标高（当前仅支持零标高）",
+                "value_type": "number",
+                "default": 0.0,
+                "unit": {
+                  "quantity": "length",
+                  "canonical_unit": "m",
+                  "display_unit": "m",
+                  "display_scale": 1.0,
+                  "display_offset": 0.0
+                },
+                "minimum": 0.0,
+                "maximum": 0.0,
+                "runtime": false,
+                "writable": true
+              }
+            ],
+            "variables": [],
+            "channels": [],
+            "solver_model": "junction",
+            "state_model": null,
+            "thermal_model": null,
+            "source_format": "python-v1",
+            "source": {},
+            "runtime": "builtin",
+            "entrypoint": "",
+            "content_hash": null,
+            "definition_hash": "f1379c7a3d05932b549a462ff25e50d872c8135758e1315789cd02a0ba05b66b",
+            "bank_names": [
+              "额定工况",
+              "部分负荷",
+              "调试备份"
+            ]
+          },
+          {
+            "schema_version": 3,
+            "id": "hvac_three_way_core",
+            "name": "三通阀双通路",
+            "version": 1,
+            "category": "暖通基础设备",
+            "description": "三通阀双通路：单相基础设备，型号参数须按工程资料填写。",
+            "ports": [
+              {
+                "id": "a_in",
+                "label": "a in",
+                "domain": "fluid",
+                "direction": "in",
+                "required": true,
+                "circuit": "fluid"
+              },
+              {
+                "id": "a_out",
+                "label": "a out",
+                "domain": "fluid",
+                "direction": "out",
+                "required": true,
+                "circuit": "fluid"
+              },
+              {
+                "id": "b_in",
+                "label": "b in",
+                "domain": "fluid",
+                "direction": "in",
+                "required": true,
+                "circuit": "fluid"
+              },
+              {
+                "id": "b_out",
+                "label": "b out",
+                "domain": "fluid",
+                "direction": "out",
+                "required": true,
+                "circuit": "fluid"
+              }
+            ],
+            "parameters": [
+              {
+                "id": "opening_ratio",
+                "label": "A 路开度（B 路为互补）",
+                "value_type": "number",
+                "default": 0.5,
+                "unit": {
+                  "quantity": "ratio",
+                  "canonical_unit": "1",
+                  "display_unit": "%",
+                  "display_scale": 0.01,
+                  "display_offset": 0.0
+                },
+                "minimum": 0.0,
+                "maximum": 1.0,
+                "runtime": true,
+                "writable": true
+              },
+              {
+                "id": "kv_m3_h",
+                "label": "两通路全开 Kv",
+                "value_type": "number",
+                "default": 16.0,
+                "unit": {
+                  "quantity": "flow_coefficient",
+                  "canonical_unit": "m³/h",
+                  "display_unit": "m³/h",
+                  "display_scale": 1.0,
+                  "display_offset": 0.0
+                },
+                "minimum": 0.001,
+                "maximum": null,
+                "runtime": false,
+                "writable": true
+              }
+            ],
+            "variables": [
+              {
+                "id": "a_flow_kg_s",
+                "label": "A 路流量",
+                "quantity": "mass_flow",
+                "unit": {
+                  "quantity": "mass_flow",
+                  "canonical_unit": "kg/s",
+                  "display_unit": "kg/s",
+                  "display_scale": 1.0,
+                  "display_offset": 0.0
+                },
+                "source": "derived",
+                "writable": false,
+                "sampleable": true,
+                "parameter_id": null,
+                "port_id": null
+              },
+              {
+                "id": "b_flow_kg_s",
+                "label": "B 路流量",
+                "quantity": "mass_flow",
+                "unit": {
+                  "quantity": "mass_flow",
+                  "canonical_unit": "kg/s",
+                  "display_unit": "kg/s",
+                  "display_scale": 1.0,
+                  "display_offset": 0.0
+                },
+                "source": "derived",
+                "writable": false,
+                "sampleable": true,
+                "parameter_id": null,
+                "port_id": null
+              },
+              {
+                "id": "state.throughput_kg",
+                "label": "两通路累计通过质量",
+                "quantity": "mass",
+                "unit": {
+                  "quantity": "mass",
+                  "canonical_unit": "kg",
+                  "display_unit": "kg",
+                  "display_scale": 1.0,
+                  "display_offset": 0.0
+                },
+                "source": "state",
+                "writable": false,
+                "sampleable": true,
+                "parameter_id": null,
+                "port_id": null
+              }
+            ],
+            "channels": [
+              {
+                "id": "a",
+                "name": "a",
+                "input_port": "a_in",
+                "output_port": "a_out",
+                "relation": "resistance",
+                "solver_model": "valve",
+                "enabled": true
+              },
+              {
+                "id": "b",
+                "name": "b",
+                "input_port": "b_in",
+                "output_port": "b_out",
+                "relation": "resistance",
+                "solver_model": "valve",
+                "enabled": true
+              }
+            ],
+            "solver_model": "generic",
+            "state_model": null,
+            "thermal_model": null,
+            "source_format": "python-v1",
+            "source": {
+              "runtime": "class Module:\n    def initialize(self,ctx): ctx.state.setdefault('throughput_kg',0.)\n    def evaluate(self,ctx):\n        p=ctx.parameters\n        for channel,port,opening in [('a','a_in',p['opening_ratio']),('b','b_in',1-p['opening_ratio'])]:\n            ctx.net.valve(channel=channel,kv=p['kv_m3_h'],opening=opening,density_kg_m3=ctx.port(port).density_kg_m3)\n    def observe(self,ctx):\n        ctx.var('a_flow_kg_s',ctx.channel('a').mass_flow_kg_s)\n        ctx.var('b_flow_kg_s',ctx.channel('b').mass_flow_kg_s)\n    def commit_step(self,ctx,dt_s): ctx.state['throughput_kg']+=(abs(ctx.channel('a').mass_flow_kg_s)+abs(ctx.channel('b').mass_flow_kg_s))*dt_s\n    def finalize(self,ctx): pass\n"
+            },
+            "runtime": "python",
+            "entrypoint": "module:Module",
+            "content_hash": "fb3aacf40357823f7e19685a7e02754a7b13301a0c5fb89931970bca53dd6ea5",
+            "definition_hash": "e5b4db778d6e8bbddf6b503123f37c942a04340bab7a3f05caf4b2f5a998696d",
+            "bank_names": [
+              "额定工况",
+              "部分负荷",
+              "调试备份"
+            ],
+            "sdk": {
+              "api_version": "0.6.0",
+              "capabilities": [
+                "air.pass_through.v1",
+                "evaluate.pure.v1",
+                "hydraulic.signed_start.v1",
+                "net.resistance",
+                "net.valve",
+                "observe.v1",
+                "state.transactions.v1"
+              ],
+              "state_contract_version": 1
+            },
+            "applicability": {
+              "execution_domains": [
+                "fluid"
+              ],
+              "phases": [
+                "liquid",
+                "gas"
+              ],
+              "fluids": [],
+              "limits": [],
+              "assumptions": [
+                "单相、无独立物理储量；设备默认参数为演示参数。"
+              ]
+            },
+            "hydraulic_dependencies": {},
+            "dependency_mode": "conservative",
+            "pure_evaluate": true
+          }
+        ],
+        "connections": [
+          {
+            "id": "link0",
+            "source": {
+              "instance_id": "Common",
+              "port_id": "out0"
+            },
+            "target": {
+              "instance_id": "Node",
+              "port_id": "p0"
+            }
+          },
+          {
+            "id": "link1",
+            "source": {
+              "instance_id": "Node",
+              "port_id": "p1"
+            },
+            "target": {
+              "instance_id": "Valve",
+              "port_id": "a_in"
+            }
+          },
+          {
+            "id": "link2",
+            "source": {
+              "instance_id": "Node",
+              "port_id": "p2"
+            },
+            "target": {
+              "instance_id": "Valve",
+              "port_id": "b_in"
+            }
+          }
+        ],
+        "external_ports": {
+          "common": {
+            "instance_id": "Common",
+            "port_id": "in0"
+          },
+          "a": {
+            "instance_id": "Valve",
+            "port_id": "a_out"
+          },
+          "b": {
+            "instance_id": "Valve",
+            "port_id": "b_out"
+          }
+        },
+        "parameter_maps": {
+          "Common_loss_coefficient": [
+            {
+              "instance_id": "Common",
+              "parameter_id": "loss_coefficient"
+            }
+          ],
+          "Valve_opening_ratio": [
+            {
+              "instance_id": "Valve",
+              "parameter_id": "opening_ratio"
+            }
+          ],
+          "Common_diameter_m": [
+            {
+              "instance_id": "Common",
+              "parameter_id": "diameter_m"
+            }
+          ],
+          "Node_elevation_m": [
+            {
+              "instance_id": "Node",
+              "parameter_id": "elevation_m"
+            }
+          ],
+          "Valve_kv_m3_h": [
+            {
+              "instance_id": "Valve",
+              "parameter_id": "kv_m3_h"
+            }
+          ]
+        },
+        "output_aliases": {
+          "Common.actual_drop_pa": "Common.actual_drop_pa",
+          "state.Common.throughput_kg": "Common.state.throughput_kg",
+          "Valve.a_flow_kg_s": "Valve.a_flow_kg_s",
+          "Valve.b_flow_kg_s": "Valve.b_flow_kg_s",
+          "state.Valve.throughput_kg": "Valve.state.throughput_kg"
+        }
+      }
+    }
+  ],
+  "instances": [
+    {
+      "id": "Hot",
+      "module_id": "source",
+      "name": "Hot",
+      "page_id": "main",
+      "position": {
+        "x": 110.0,
+        "y": 110.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "pressure_pa": 250000.0,
+        "temperature_k": 313.15
+      },
+      "draft_parameters": {},
+      "banks": [],
+      "model_id": null,
+      "model_version": null,
+      "package": null
+    },
+    {
+      "id": "Cold",
+      "module_id": "source",
+      "name": "Cold",
+      "page_id": "main",
+      "position": {
+        "x": 320.0,
+        "y": 110.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "pressure_pa": 250000.0,
+        "temperature_k": 283.15
+      },
+      "draft_parameters": {},
+      "banks": [],
+      "model_id": null,
+      "model_version": null,
+      "package": null
+    },
+    {
+      "id": "Return",
+      "module_id": "source",
+      "name": "Return",
+      "page_id": "main",
+      "position": {
+        "x": 530.0,
+        "y": 110.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "pressure_pa": 200000.0,
+        "temperature_k": 293.15
+      },
+      "draft_parameters": {},
+      "banks": [],
+      "model_id": null,
+      "model_version": null,
+      "package": null
+    },
+    {
+      "id": "ThreeWay",
+      "module_id": "water_three_way_valve",
+      "name": "ThreeWay",
+      "page_id": "main",
+      "position": {
+        "x": 740.0,
+        "y": 110.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "Valve_opening_ratio": 0.5
+      },
+      "draft_parameters": {},
+      "banks": [],
+      "model_id": null,
+      "model_version": null,
+      "package": null
+    }
+  ],
+  "connections": [
+    {
+      "id": "hvac0",
+      "source": {
+        "instance_id": "Hot",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "ThreeWay",
+        "port_id": "a"
+      }
+    },
+    {
+      "id": "hvac1",
+      "source": {
+        "instance_id": "Cold",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "ThreeWay",
+        "port_id": "b"
+      }
+    },
+    {
+      "id": "hvac2",
+      "source": {
+        "instance_id": "ThreeWay",
+        "port_id": "common"
+      },
+      "target": {
+        "instance_id": "Return",
+        "port_id": "out0"
+      }
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "cold",
+      "name": "冷路全开",
+      "overrides": {
+        "ThreeWay": {
+          "Valve_opening_ratio": 0.0
+        }
+      },
+      "events": null
+    },
+    {
+      "id": "mixed",
+      "name": "两路各半",
+      "overrides": {
+        "ThreeWay": {
+          "Valve_opening_ratio": 0.5
+        }
+      },
+      "events": null
+    },
+    {
+      "id": "hot",
+      "name": "热路全开",
+      "overrides": {
+        "ThreeWay": {
+          "Valve_opening_ratio": 1.0
+        }
+      },
+      "events": null
+    }
+  ],
+  "selected_variables": [],
+  "measurements": [
+    {
+      "id": "mixed-temperature",
+      "label": "混合水温",
+      "kind": "value",
+      "sources": [
+        "ThreeWay.common.temperature_k"
+      ],
+      "unit": {
+        "quantity": "temperature",
+        "canonical_unit": "K",
+        "display_unit": "°C",
+        "display_scale": 1.0,
+        "display_offset": -273.15
+      }
+    }
+  ],
+  "import_diagnostics": [],
+  "solver": {
+    "module_mixed_jacobian": true,
+    "module_cache": true,
+    "pressure_tolerance_pa": 1.0,
+    "mass_tolerance_kg_s": 1e-08,
+    "max_iterations": 80,
+    "dynamic_step_s": 0.1,
+    "thermal": true,
+    "property_coupling": "node",
+    "thermal_tolerance_k": 1e-06,
+    "max_thermal_iterations": 50,
+    "max_coupling_iterations": 20,
+    "coupling_density_rtol": 1e-06,
+    "thermal_acceleration": "none",
+    "coupling_acceleration": "none",
+    "moist_air": false,
+    "max_step_halvings": 6,
+    "hydraulic_method": "dense",
+    "hydraulic_diagnostics": false,
+    "analytic_jacobian": true,
+    "series_compression": false,
+    "hydraulic_blocks": false,
+    "module_parallelism": 1,
+    "batch_modules": true,
+    "time_step": {
+      "enabled": false,
+      "mass_atol_kg": 1e-09,
+      "energy_atol_j": 0.001,
+      "temperature_atol_k": 1e-05,
+      "rtol": 1e-06,
+      "min_internal_step_s": 0.001,
+      "max_internal_step_s": null,
+      "safety": 0.9,
+      "growth_factor": 2.0,
+      "shrink_factor": 0.5
+    }
+  },
+  "controllers": [],
+  "control_scripts": [],
+  "circuit_fluids": [],
+  "events": []
+}

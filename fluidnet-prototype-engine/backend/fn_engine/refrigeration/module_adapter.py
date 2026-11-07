@@ -1,7 +1,9 @@
 """Typed refrigeration Workers and host-owned flow/state observations."""
 from copy import deepcopy
 
-from ..models import CommitStepRequest, Diagnostic, PortState, RefrigerationEvaluateRequest, RefrigerationThrottleInput
+from ..model_types.protocol import CommitStepRequest, RefrigerationEvaluateRequest
+from ..model_types.base import Diagnostic, PortState
+from ..refrigeration_models import RefrigerationThrottleInput
 from ..module_execution import new_identity, mark_module_accepted
 from ..module_transactions import ModuleStepTransaction
 from ..runtime import RuntimeErrorBase, WorkerProcess

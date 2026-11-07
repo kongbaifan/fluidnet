@@ -1,48 +1,56 @@
-# 原型与后端接入
+# 前端与真实引擎接入
 
-前端来源为当前 Studio 原型，保留 HTML/CSS 布局与交互。原单文件内的 JavaScript 已移入 studio.js，新增 engine-client.js；index.html 依次加载二者。
+更新日期：2026-11-07。本文描述当前接入边界；早期原型的静态演示说明见 `PROTOTYPE_BASELINE.md`，不代表当前运行能力。设备物理范围以模块合同和对应设计/验收文档为准。
 
-已完成的映射：
+## 入口与证据
 
-1. 启动读取 /health、/catalog 和 /modules；内置目录与版本化 Python 模块包合并到模块库，清单参数和版本/哈希同步到原型控件。
-2. 检查连接提交原型活动项目到 /prototype/normalize，再调用 /projects/validate。
-3. 稳态调用 /runs。health 报告 `live_runs` 时，动态项目的运行/单步创建一个后台会话（`execution_mode` 默认 realtime，单步时 `start_paused`，`history:'trend'`），之后的运行、单步、暂停、停止和运行中“应用参数”都是对同一 run_id 的命令；前端等待命令的 applied/rejected 事件，并用 `history?offset=` 增量拉取新帧。会话结束（completed/failed/cancelled/interrupted）后清空 `runId`。勾选“持续运行”时 `duration_s=null`；浏览器只保留最近 2001 行（`LIVE_ROWS`），曲线页“全程（抽稀）”读 `/runs/{id}/overview`，运行中每 2 秒刷新一次，抽稀数据不写入 localStorage。
-4. 暂停/停止先调用后端 `POST /runs/{run_id}/command`(仅后台运行),再停止本地回放;独立验证台没有后台 `run_id`,只停本地回放;已暂停的项目运行继续时额外调用 `resume` 同步后端。无进行中的后台任务时只停止本地回放。改动已应用参数后重新提交运行。
-5. 每帧保留 canonical 规范变量字典，并映射到原型变量表的显示单位及 sampleKey。
-6. 主系统演示 sampleStep/sampleHistory 已移除。初始演示记录为空，不从公式构造伪造流量或温度。
-7. 本地存储使用 fluidnet-prototype-engine-v1，与原型原有 storage key 分开。
+- [当前工程画布](../docs/ENGINEERING_CANVAS.md)：设备图形、真实流向/着色、运行告警、避障与增量更新。
+- [大项目编辑与保存](../docs/LARGE_PROJECT_EDITING.md)：多选、跨页、撤销和30/100/300实例容量记录。
+- [画布交互性能](../docs/CANVAS_INTERACTION_PERFORMANCE.md)：本轮拖动/平移/缩放实测与适用范围。
+- [P1交付](../docs/P1_DELIVERY.md)：开放制冷组、性能资料版本、型号与草稿来源。
+- [架构整理](../docs/ARCHITECTURE_REFACTOR_PLAN.md)：已经拆分的转换、项目状态、运行状态、服务与接受事务。
+- [前端功能边界](../docs/FRONTEND_FEATURE_BOUNDARIES.md)：工作台交互、设备浮窗、模块服务及动作路由；[CI分组](../docs/FRONTEND_CI_GROUPS.md)包含全部登记浏览器流程。
 
-后台 `run_id` 记录在 `owner.run.runId`,暂停/停止据此取消真实任务;控制端点返回 404/501 时降级为仅本地回放,并在事件中说明。后台轮询有 3000 次或 300 秒双重上限,先到者生效,超时把该次前端运行标为失败并给出原因。
+## 启动与模块
 
-绘图保留原型的主管、A 路、B 路快捷观察，对应 P1/V1/V2 的真实单通路变量；其他设备从“全部变量”加入观察。前端端口流量按照标称方向显示，后端端口流量统一按流入设备为正。
+启动读取 `/health`、`/catalog`、`/modules`，把内置目录和版本化Python模块包合并到模块库；可选的 `/catalog/presentation` 提供登记设备的图标和画布符号族。旧后端缺少该端点时使用兼容展示，计算目录仍可用。默认值、参数类型、单位、范围、变量与可写属性继续来自物理合同；展示元数据不参与模块哈希或物理兼容判断。
 
-热力层的端口变量映射到原型端口变量槽：`TEMP`←`temperature_k`（°C）、`ENTHALPY`←`enthalpy_j_kg`（kJ/kg）、`VOLUME`←`density_kg_m3`、`Q`←`quality`；组分 `X` 不映射。密度与干度是状态量，不随标称流向取反。总览温度和各设备 `OUT_TEMP` 读取 `out0.temperature_k`。求解器关闭热力（`SolverOptions.thermal=false`）时这些值为 null，曲线留空。原型管道新增 `heatLoss`（散热 UA，W/K，默认 0 即绝热）与 `ambient`（环境温度，°C，默认 20），分别绑定 `heat_loss_ua_w_k` 和 `ambient_temperature_k`，单位按目录 UnitSpec 换算；旧存档在载入时按默认值补齐这两个参数及对应变量、库值和型号参数。热力诊断（THERMAL_*、COUPLING_NOT_CONVERGED、PHASE_UNSUPPORTED）与其他诊断一样按 message 显示在诊断面板。
+`project-model.js` 做显示/规范单位转换及项目文档组装；`project-state.js` 管理项目/参数/拓扑写入；`project-run-state.js` 管理运行归属、帧与归档；`project-services.js` 管理保存、项目与控制接口；`engine-client.js` 负责模块、计算请求和轮询。功能页面及新的 `canvas-*.js` 通过依赖注入使用这些模块。`index.html` 明确列出加载顺序，目前没有前端构建步骤。
 
-历史瘦身：完整动态运行请求 `history:'trend'`，`trend_variables` 由 `engine-client.js` 的 `trendVariables(owner)` 生成——总览固定键 `P1/V1/V2.mass_flow_kg_s`（仅当该节点存在且只有一条启用通路，即有无前缀别名）、`P1.out0.pressure_pa`、`P1.out0.temperature_k`（仅当 P1 有流体端口 out0），加上 `state.charts.extra` 中属于当前项目的变量（经 `canonicalKeyOf` 换成规范键；旧式 `X.OUT_FLOW/PRE/TEMP` 绑定按同样规则换算），去重后最多 256 个。后端拒绝未知变量（`TREND_VARIABLE_UNKNOWN`）时自动以完整历史重跑一次。后端在关键帧之间的帧标 `full=false`，`rowFromFrame` 记为 `row.partial`：曲线和总览照常读取；设备面板、画布读数和“全部变量”经 studio `panelRow()` 取最近一个完整行，并在画布状态与设备窗口底部显示“回放：显示最近关键帧”。末帧始终完整，所以运行结束后面板显示的是最终结果。
+模块领域逻辑现由 `module-service.js` 承担，engine-client保留原接口代理。`workspace-interactions.js`统一指针捕获并将画布、作者端口和窗口手势分别交给对应功能；`device-windows.js`只管理展示窗口；`action-router.js`按功能登记动作，未知动作继续交给shell。参数接受事务与这些界面模块分开。
 
-介质：项目设置“默认介质”可选 water、air、ammonia、co2、r134a、meg30，bridge 的 `PROTOTYPE_MEDIA` 映射为 CoolProp 工质（`meg30`→`INCOMP::MEG[0.3]`）写入 `Project.fluid`；一个项目只用一种流体。压力边界温度与管道环境温度的原型控件范围放宽到 −100…400 °C，按工质的范围检查由计算服务完成。
+`module-editor-view.js`负责作者页面展示，`run-results-view.js`负责曲线和运行记录展示，`workspace-storage.js`负责浏览器草稿、服务端保存确认及恢复回滚。保存回执通过原工作区对象与编辑修订核对，迟到回执不能清除后来编辑或替换工作区的未保存状态。加载方式仍为普通脚本与显式依赖注入；ES Module迁移的评估结论见[前端功能边界](../docs/FRONTEND_FEATURE_BOUNDARIES.md)。
 
-独立验证台已对接 `/modules/test`：Python 模块的每条启用通路各接一组真实压力边界并一次求解，返回 Worker 的 evaluate 关系、模块变量、commit_step 状态、源码哈希和历史帧。设备面板与验证台按 `value_type` 渲染数值、布尔、文本和曲线参数，曲线使用 JSON 点对数组。项目中的 Python 模块同样在独立 Worker 中执行；每个实例在一次动态运行内复用同一个 Worker，成功时间步提交一次，异常或超时统一回收。
+`device-application.js`管理设备应用票据和锁，`workspace-normalization.js`负责旧工作区补全，`run-commands.js`负责实时运行命令、轮询和全程曲线请求。命令确认会等待在途帧轮询，旧运行的成功和失败回包均核对对象归属。`workbench-refresh.js`与`svg-dom.js`支持非结构操作和运行生命周期的局部更新；普通帧继续刷新既有观察层，结构改变仍完整渲染。详见[本轮交互与工程验收](../docs/INTERACTION_DELIVERY_ACCEPTANCE.md)。
 
-Python 包代码页的检查调用后端 `/modules/validate`，包含完整语法、Pydantic 和 Worker 入口校验；内置原型代码仍保留轻量预览。Python 控制脚本已通过 project-services.js 接入真实采样执行；串口与未实现的设备模型仍不进入物理求解。
+内置展示目录已覆盖全部60项，模块库安装由`project-model.installBuiltinCatalog`统一处理。旧原型设备的显示参数别名保持原样；自定义Python模块与旧后端继续使用兼容展示。湿空气设置现在可编辑后端已有的热湿迭代上限（1–500，默认60），复杂机房可明确使用其参考工程配置。
 
-PID（v0.4.2）：「控制」页的 PID 面板写入项目的 `controllers`，归一化时原样进入 `Project.controllers`。反馈变量下拉列出目录中可采样的变量，执行参数下拉只列出 `runtime` 可写数值参数。“液位示例”“温控示例”从 `GET /api/v1/examples/{level|temperature}` 生成新项目。运行中只有设定值、手自动和手动输出可改（`controller` 命令），其余字段禁用。
+模块的 `publishedManifest` 是可插入版本，编辑器草稿不进入运行。项目 `moduleSnapshots` 固定模块定义及展示布局，Python实例携带版本/双哈希引用。新发布不会自动改变旧项目。模块作者图形和同ID端口布局在新插入时复制到项目展示快照，不改物理manifest或其哈希。
 
-新建模块使用 Python 包模板；变量属性页可编辑数值参数与输出，契约与版本页可修改完整 JSON、保存备注、查看历史并载入版本。`POST /modules/versions` 会重新试算当前提交内容，成功后更新可插入版本。保存期间继续输入会保留为后续草稿。
+## 项目与运行
 
-模块的 `publishedManifest` 表示可插入的保存版本，正在编辑的 source/contractDraft 不进入项目求解。项目 `moduleSnapshots` 固定完整定义，实例携带 `package` 引用。设备参数、端口和变量面板读取项目快照，避免库中新版参数覆盖旧项目。原型保存/导出包含快照；归一化优先使用快照并由编译器检查双哈希。浏览器草稿保存与磁盘模块版本保存是两个明确动作。
+画布保存设备实例、端口连接和页面布局。规范项目的 `modules` 是模块定义、`instances` 是实例、`connections` 是明确端点，另外保留工质、控制、测点、工况和版本。旧原型格式经 `/prototype/normalize` 归一化，`/projects/validate` 执行后端校验；编辑器不承担物理求解。
 
-水箱（v0.4）：`PARAM_DEFS.tank` 增加罐高、初始水温、加热功率、散热 UA 和环境温度，经 `PARAMETER_BINDINGS.tank` 映射到规范参数；`STATE_VARIABLES.tank` 把 `<实例>.state.level_m` 等引擎状态量作为 runtime 变量（`canonicalId`）放进设备变量表，可加入曲线并随 trend 历史保留。旧的本地存档由 `backfillBuiltinParams` 补齐新参数与状态变量。运行以 `TANK_EMPTY`/`TANK_FULL`/`STEP_NOT_CONVERGED` 停止时，前端回放已算出的帧并在事件中给出停止原因。
+稳态调用 `/runs`；动态在服务声明支持时创建后台运行会话。运行、继续、暂停、单步、停止和参数应用针对同一个 `run_id`，参数写入等待后端 `applied/rejected` 回执。结束后保留档案ID，清空活动runId；继续研究需新建运行，不把跨服务重启查看档案称作恢复原物理会话。
 
-管道热容（v0.4.1）：`PARAM_DEFS.pipe` 增加热容分段数和管壁热容（kJ/K），绑定 `thermal_cells`、`wall_heat_capacity_j_k`；`STATE_VARIABLES.pipe` 提供管内平均温度和储热功率，只有分段数大于 0 时后端才输出，否则曲线显示为空。
+每帧保留规范变量字典，再按实际实例/变量/端口ID转换显示单位。端口质量流量按流入设备为正；温度K→°C、压力Pa→kPa/MPa、比焓J/kg→kJ/kg，密度不随流向变号。主系统结果只来自真实求解，没有公式伪造的初始流量或温度。设备开关设定与真实运行状态分别显示。
 
-后续可把剩余 UI 描述完全迁移为目录驱动；不需要重写画布与设备编辑器。
+后台通过 `history?offset=` 增量读取，内存保留最近2001行；全程抽稀走 `/runs/{id}/overview`，不重复写入localStorage。趋势帧可能只有选定变量，设备/画布读取最近完整关键帧并注明时刻；末帧完整。画布动画只在当前配置对应的运行中完整采样上启用，暂停/失败/过期/趋势帧停用。
 
-工质（v0.4.4）：项目设置 → 介质配置新增“物性字符串”和“组分比例基准”，保存为原型项目的 `fluid`、`fluidReference`；非空时替代下拉的默认介质，归一化后进入 `FluidConfig.fluid/reference`。提示文字根据 health 的 `capabilities.refprop.installed` 显示是否检测到 REFPROP。
+异步回包始终核对原项目对象和运行身份；切换项目、替换工作区或新运行不会被旧请求覆盖。终态失败诊断单独保留，尚无有效帧时只显示错误，不展示失败试算变量。温压流色谱与线宽仅为显示，不修改参数和计算结果。
 
-多工质（v0.4.5）：介质配置新增“回路工质”列表，每行选一个代表回路的端口、预设介质或物性字符串、比例基准，保存为原型项目的 `circuitFluids`。“检查连接”的响应带 `circuits`，前端按项目缓存（不持久化）：画布连线按回路着色并在悬停提示中写出工质，画布标签显示“多工质 · N 个回路”，介质配置页列出各回路。
+## 工质、控制与连线
 
-接口与令牌（v0.4.6）：`engine-client.js` 的 `request()` 在 sessionStorage 有令牌时加 `Authorization` 头；health 报告 `auth.required` 且没有令牌，或任何请求返回 401 时，弹出“输入访问令牌”对话框，确认后重新加载页面。新增「对接」页（原有的数据与外部对接页面此前没有接入路由）：接口调用页签按当前运行生成读取、批量写入、订阅和状态的调用示例（curl 或 ws 地址，开启认证时带令牌头），读取类请求可以直接发送并显示响应；写入只展示请求不发送。
+默认工质和按回路端口锚定的 `circuitFluids` 一起进入 `FluidConfig`。支持范围由物性后端和执行域决定；同型端口检查不意味着任意物理组合都可求解。回路色来自实际编译回路，制冷/热连接由对应执行域处理。信息、电力、机械图形枚举不等于相应网络求解能力。
 
+PID和Python项目控制使用真实变量输入、已声明可写输出以及接受点提交。控制脚本可预览，启用后在新运行中执行；旧Lua只保留待迁移文本。当前控制绑定与流体拓扑分开，本轮没有新增信号网络执行器或可视化控制块。
 
-项目控制与可靠保存：index.html 依次加载 project-services.js、engine-client.js、studio.js。控制页声明规范变量键、预览真实 Worker 返回值，勾选后只对新运行生效。保存原型先保留浏览器草稿，再发送工作区与本页面基于的 expected_revision；其他标签页保存不会推进本页基线。服务端确认后才清除对应编辑版本的 dirty 标记。修改发生在保存等待期间时仍保留为未保存；507/409 显示失败并支持重试/重新载入。载入服务端工作区前保留本地原始备份。运行记录页读取 /runs 与 /overview，原始请求和最终诊断随导出保存。
+## 设备验证、保存与恢复
+
+属性面板按number/boolean/text/curve渲染，参数草稿与已应用值分开。普通Python模块验证台使用声明通路的真实边界；制冷作者角色使用其专用合同；开放制冷组使用完整冻结宿主工况，不能套普通压力边界。发布会重新验证候选内容。
+
+保存先保留浏览器草稿，再提交服务器工作区及预期修订。只有对应编辑版本收到保存回执才清除dirty；409/507保留草稿并提示。SQLite工作区、单项目文档、运行档案和数据库备份各有明确边界；localStorage是备份/缓存。较大草稿使用无损DAG封装，读取应调用 `FluidNetDraftStore.parse`。
+
+旧内置参数别名与规范字段之间仍有适配层；缺省值迁移只用于旧格式，冻结物理合同不被静默改写。结果变量缺失保留未知。接口令牌留在sessionStorage，HTTP与WebSocket使用现有认证机制。
+
+培训课程、训练会话、评分与学员操作回放暂未开发。已有工况、运行事件、趋势档案和失败回调复现不能等同于培训系统。

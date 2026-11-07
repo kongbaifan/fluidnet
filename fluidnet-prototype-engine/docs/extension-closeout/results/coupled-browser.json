@@ -1,0 +1,18 @@
+{
+  "projectId": "project-22",
+  "finalProjectId": "project-24",
+  "versions": [
+    1,
+    2,
+    1
+  ],
+  "flowV1": 1.1882519438685635,
+  "flowV2": 1.0525486078704873,
+  "batch": "b97eda98701f43eab3eb8a780a91c26d",
+  "formats": [
+    "fluidnet-project",
+    "Project"
+  ],
+  "restarted": true,
+  "errors": []
+}

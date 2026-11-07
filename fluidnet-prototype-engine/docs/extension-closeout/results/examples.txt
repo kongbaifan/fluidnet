@@ -1,0 +1,7 @@
+npm warn Unknown user config "allow-scripts". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+
+> fluidnet-prototype-engine-ui@0.5.0 check:extension-examples
+> python scripts/generate_coupled_liquid_example.py --check && python scripts/generate_room_control_examples.py --check
+
+Coupled liquid author example verified.
+Three room-control examples verified.

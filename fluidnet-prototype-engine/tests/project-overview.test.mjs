@@ -1,14 +1,29 @@
+import {loadFrontend} from './frontend-module-loader.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 
 const context = vm.createContext({window:{createProjectServices:()=>({})}});
-vm.runInContext(readFileSync(new URL('../frontend/engine-client.js',import.meta.url),'utf8'),context);
+loadFrontend(new URL('../frontend/project-model.js',import.meta.url),context);
+loadFrontend(new URL('../frontend/project-run-state.js',import.meta.url),context);
+loadFrontend(new URL('../frontend/module-service.js',import.meta.url),context);
+loadFrontend(new URL('../frontend/engine-client.js',import.meta.url),context);
 const engine=context.window.createEngineClient({moduleOf:node=>node.definition});
 const plain=value=>JSON.parse(JSON.stringify(value));
 const definition=(id,model,channels=[{id:'main',input_port:'feed',output_port:'return',enabled:true}])=>({id,solver_model:model,
   ports:channels.flatMap(channel=>[{id:channel.input_port,domain:'fluid'},{id:channel.output_port,domain:'fluid'}]),channels});
+
+test('frame observation can use its frozen module without re-reading another project',()=>{
+  const client=context.window.createEngineClient({moduleOf:()=>{throw Error('Unexpected current-project lookup');}});
+  const frozen={ports:[{id:'out0',direction:'out'}],manifest:{parameters:[
+    {id:'opening_ratio',unit:{display_scale:.01,display_offset:0}}]}};
+  const n={id:'V'};
+  assert.deepEqual(plain(client.observation(n,{id:'port:out0:FLOW',origin:'port',port:'out0'},frozen)),
+    {canonicalKey:'V.out0.mass_flow_kg_s',canonicalScale:-1,canonicalOffset:0});
+  assert.deepEqual(plain(client.observation(n,{id:'param:opening_ratio',origin:'parameter',param:'opening_ratio'},frozen)),
+    {canonicalKey:'V.param.opening_ratio',canonicalScale:.01,canonicalOffset:0});
+  assert.deepEqual(plain(client.observation(n,{id:'custom',origin:'custom'},frozen)),{});
+});
 
 test('refrigeration author overview follows the declared role and instance ID',()=>{
   const manifest={id:'cold_author',execution_role:'refrigeration.isenthalpic_throttle.v1',channels:[],
@@ -32,8 +47,15 @@ test('report availability uses the frozen run domain, status and used instances'
   assert.equal(engine.refrigerationReportAvailable({...record,status:'running'}),false);
   record.request.project.thermal_couplings=[{id:'coil'}];
   assert.equal(engine.refrigerationReportAvailable(record),false);
-  record.request.project.thermal_couplings=[];record.request.project.instances.push({module_id:'unused_water'});
+  record.request.project.instances.push({module_id:'unused_water'});
+  assert.equal(engine.refrigerationReportAvailable(record),true);
+  record.request.project.thermal_couplings=[];
   assert.equal(engine.refrigerationReportAvailable(record),false);
+  record.request.project.instances=[{module_id:'unused_water'}];
+  record.request.project.thermal_couplings=[{id:'coil'}];
+  assert.equal(engine.refrigerationReportAvailable(record),false);
+  record.request.project.thermal_couplings=[];
+  assert.equal(engine.refrigerationReportAvailable(record),true);
 });
 
 test('overview follows device roles and actual custom IDs, with no example-name dependency',()=>{

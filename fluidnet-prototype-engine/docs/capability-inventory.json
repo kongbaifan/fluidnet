@@ -1,0 +1,4438 @@
+[
+  {
+    "id": "ahu_standard",
+    "version": 1,
+    "name": "空调箱（混风＋过滤＋盘管＋风机）",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "water_in",
+        "required": true,
+        "circuit": "fluid0"
+      },
+      {
+        "id": "water_out",
+        "required": true,
+        "circuit": "fluid0"
+      },
+      {
+        "id": "supply_out",
+        "required": true,
+        "circuit": "fluid1"
+      },
+      {
+        "id": "fresh_in",
+        "required": true,
+        "circuit": "fluid2"
+      },
+      {
+        "id": "return_in",
+        "required": true,
+        "circuit": "fluid3"
+      }
+    ],
+    "scope": {
+      "execution_domains": [
+        "fluid"
+      ],
+      "phases": [
+        "liquid",
+        "gas"
+      ],
+      "fluids": [],
+      "limits": [],
+      "assumptions": [
+        "组合展开复用子模块精确版本；外端口和公开参数一对一映射。"
+      ]
+    },
+    "design": false,
+    "composite": true,
+    "description": "空调箱（混风箱＋过滤器＋水盘管＋风机）：新风与回风混合后处理并加压送出；水侧为独立液体回路。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "air_branch_box",
+    "version": 1,
+    "name": "三端口风侧分支箱",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "branch1",
+        "required": true,
+        "circuit": "fluid0"
+      },
+      {
+        "id": "branch2",
+        "required": true,
+        "circuit": "fluid1"
+      },
+      {
+        "id": "common",
+        "required": true,
+        "circuit": "fluid2"
+      }
+    ],
+    "scope": {
+      "execution_domains": [
+        "fluid"
+      ],
+      "phases": [
+        "liquid",
+        "gas"
+      ],
+      "fluids": [],
+      "limits": [],
+      "assumptions": [
+        "组合展开复用子模块精确版本；外端口和公开参数一对一映射。"
+      ]
+    },
+    "design": false,
+    "composite": true,
+    "description": "三条独立阻力通路＋中心理想混合节点；普通气体与湿空气透传。K为用户给定定值，按各腿内径速度为参考；无储量，不含流量比相关局部K。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "air_cooled_chiller",
+    "version": 1,
+    "name": "风冷冷水机组",
+    "runtime": "builtin",
+    "solver_model": "air_cooled_chiller",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "一个冷冻水回路与环境干空气边界。有限风量ε–NTU、循环热平衡与风机立方电耗；低负荷为周期平均，不模拟启停储热或实际风网。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "air_cooled_condenser",
+    "version": 1,
+    "name": "风冷冷凝器",
+    "runtime": "builtin",
+    "solver_model": "air_cooled_condenser",
+    "port_domains": [
+      "refrigerant"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "refrigerant"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "单一制冷剂压力等级上的饱和排热设备；环境干空气边界，按恒定 UA 与有限空气热容量流率计算。有效掠过风量随转速变化，风机电功率按转速立方；可配置独立自然散热通道。负排热表示环境反向加热，不截断。未解析实际风网、冷凝管路或厂家性能表。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "air_cooler",
+    "version": 1,
+    "name": "冷风机（泵供液）",
+    "runtime": "builtin",
+    "solver_model": "air_cooler",
+    "port_domains": [
+      "refrigerant",
+      "thermal"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "heat",
+        "required": true,
+        "circuit": "thermal"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "空气侧 UA·(T_库 − T_蒸发)，受供液量与出口干度上限约束；风机热量留在库内。供液阀开度决定同一供液集管下各冷风机的分流比例。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "air_filter",
+    "version": 1,
+    "name": "空气过滤器",
+    "runtime": "builtin",
+    "solver_model": "air_filter",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "按实际体积流量平方计算压降；污堵比例可在运行中改变。允许反向，热湿状态透传。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "air_mixing_box",
+    "version": 1,
+    "name": "新回风混合箱",
+    "runtime": "builtin",
+    "solver_model": "air_mixing_box",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "fresh_in",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "return_in",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "supply_out",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "三端口同压理想混合；按干空气流量混合焓和含湿量，新风比例由上游风管阻力决定。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "air_recovery_sensible",
+    "version": 1,
+    "name": "双风道显热回收器",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "exhaust_in",
+        "required": true,
+        "circuit": "exhaust"
+      },
+      {
+        "id": "exhaust_out",
+        "required": true,
+        "circuit": "exhaust"
+      },
+      {
+        "id": "supply_in",
+        "required": true,
+        "circuit": "supply"
+      },
+      {
+        "id": "supply_out",
+        "required": true,
+        "circuit": "supply"
+      }
+    ],
+    "scope": {
+      "execution_domains": [
+        "fluid"
+      ],
+      "phases": [
+        "gas"
+      ],
+      "fluids": [
+        "Air",
+        "HEOS::Air"
+      ],
+      "limits": [],
+      "assumptions": [
+        "单相、无独立物理储量；设备默认参数为演示参数。"
+      ]
+    },
+    "design": false,
+    "composite": false,
+    "description": "两条独立风路显热ε–NTU，无漏风、水分交换和储热；各路湿量透传，凝结/结霜不支持，端口温度须不低于0°C。旁通是UA折减，不隐含额外风路。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "air_room",
+    "version": 1,
+    "name": "房间热湿节点",
+    "runtime": "builtin",
+    "solver_model": "air_room",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "supply_in",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "return_out",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "完全混合、固定有效干空气存量房间；围护、散湿与平衡渗透独立记账。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "air_source_heat_pump",
+    "version": 1,
+    "name": "空气源供热热泵（干盘管）",
+    "runtime": "builtin",
+    "solver_model": "air_source_heat_pump",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "单水回路供热，室外空气是显热边界；按压缩循环和两侧ε–NTU联立求解。连续调节，低于0°C蒸发或空气露点时拒绝，不包含结霜除霜/潜热/厂家标定。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "air_vent",
+    "version": 1,
+    "name": "送/回风口",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "按额定风量与额定压降折算等效 Kv 的送/回风口（定风量阻力件）；仅作风量分配与阻力教学用，不含射流与气流组织。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "air_vent",
+    "version": 2,
+    "name": "送/回风口",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": {
+      "execution_domains": [
+        "fluid"
+      ],
+      "phases": [
+        "liquid",
+        "gas"
+      ],
+      "fluids": [],
+      "limits": [],
+      "assumptions": []
+    },
+    "design": false,
+    "composite": false,
+    "description": "按额定风量与额定压降折算等效 Kv 的送/回风口（定风量阻力件）；仅作风量分配与阻力教学用，不含射流与气流组织。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "capillary_tube",
+    "version": 1,
+    "name": "毛细管",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "毛细管/毛细节流阀的单相液体近似：按细长圆管阻力关系注册水力支路，输出流通面积、平均流速并累计通过质量。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "capillary_tube",
+    "version": 2,
+    "name": "毛细管",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "毛细管/毛细节流阀的单相液体近似：按细长圆管阻力关系注册水力支路，输出流通面积、平均流速并累计通过质量。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "cascade_exchanger",
+    "version": 1,
+    "name": "复叠换热器（蒸发/冷凝）",
+    "runtime": "builtin",
+    "solver_model": "cascade_exchanger",
+    "port_domains": [
+      "refrigerant"
+    ],
+    "ports": [
+      {
+        "id": "evap_in",
+        "required": true,
+        "circuit": "evaporating"
+      },
+      {
+        "id": "evap_out",
+        "required": true,
+        "circuit": "evaporating"
+      },
+      {
+        "id": "cond_in",
+        "required": true,
+        "circuit": "condensing"
+      },
+      {
+        "id": "cond_out",
+        "required": true,
+        "circuit": "condensing"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "满液式：蒸发侧与冷凝侧均按饱和处理，Q = UA·(T_sat,冷凝 − T_sat,蒸发)。两侧分属不同回路与工质。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "check_valve",
+    "version": 1,
+    "name": "止回阀",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "按进出口压差判断流向的止回阀参考模块：反向压差超过开启压力时关断并累计关断步数。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "check_valve",
+    "version": 2,
+    "name": "止回阀",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "V2 语义修正：正向开启压差 p_crack_pa 之后按阀门阻力律通过，Δp ≤ p_crack（含全部反向）时精确零流量；可选迟滞仅用于动态开关抖振。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "closed_buffer_tank",
+    "version": 1,
+    "name": "闭式缓冲水箱（定热质量）",
+    "runtime": "builtin",
+    "solver_model": "closed_buffer_tank",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "双口充分混合液体储热，显式固定热质量；水力压力由外网给定，两口流量相等。仅普通单相液体动态，不提供压力参考或质量储存，不计算热膨胀、气垫或分层。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "closed_volume",
+    "version": 1,
+    "name": "封闭定容液腔（原型）",
+    "runtime": "builtin",
+    "solver_model": "closed_volume",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "刚性封闭液腔：V、M 固定，由总内能 U 经 state_du 得 p/T；仅 HEOS 纯水单相液体、两端阀门全关。I0–I4 只交付单容积封闭原型，不包含完整开闭周期（I5–I9）。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "cold_room",
+    "version": 1,
+    "name": "库房热节点",
+    "runtime": "builtin",
+    "solver_model": "cold_room",
+    "port_domains": [
+      "thermal"
+    ],
+    "ports": [
+      {
+        "id": "heat",
+        "required": true,
+        "circuit": "thermal"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "空气及内部构件等效热容；围护漏热与热负荷。A1 不含货物热节点。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "cold_room_multi",
+    "version": 1,
+    "name": "库房热节点（多冷风机）",
+    "runtime": "builtin",
+    "solver_model": "cold_room",
+    "port_domains": [
+      "thermal"
+    ],
+    "ports": [
+      {
+        "id": "heat0",
+        "required": true,
+        "circuit": "thermal"
+      },
+      {
+        "id": "heat1",
+        "required": false,
+        "circuit": "thermal"
+      },
+      {
+        "id": "heat2",
+        "required": false,
+        "circuit": "thermal"
+      },
+      {
+        "id": "heat3",
+        "required": false,
+        "circuit": "thermal"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "一个库房热容接最多四个独立冷风机热端口；净冷量求和，风机热在各冷风机内扣除，不复制房间热容。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "condensing_unit",
+    "version": 1,
+    "name": "单级制冷机组",
+    "runtime": "builtin",
+    "solver_model": "condensing_unit",
+    "port_domains": [
+      "thermal"
+    ],
+    "ports": [
+      {
+        "id": "cold",
+        "required": true,
+        "circuit": "thermal"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "压缩—冷凝—节流—蒸发集中循环（工质为项目工质）。排量与冷凝器 UA 在额定点反算一次后固定；蒸发/冷凝温度与冷风机、室外温度联立求解。最小开/停机时间由机组状态机保证。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "cooling_coil",
+    "version": 2,
+    "name": "湿工况表冷器",
+    "runtime": "builtin",
+    "solver_model": "cooling_coil",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "规定外部冷源机器露点与旁通系数；湿区按焓/含湿量混合，输出冷量、凝水和显潜热；不含真实冷水侧。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "cooling_tower",
+    "version": 1,
+    "name": "冷却塔",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "以湿球温度为冷源的逆流 ε-NTU 干工况冷却塔参考模块：水侧注册管道阻力并输出换热量、出水温度、空气出口温度、效能与逼近度。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "cooling_tower",
+    "version": 2,
+    "name": "冷却塔",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "以湿球温度为冷源的逆流 ε-NTU 干工况冷却塔参考模块：水侧注册管道阻力并输出换热量、出水温度、空气出口温度、效能与逼近度。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "cooling_tower_moist",
+    "version": 1,
+    "name": "湿空气冷却塔",
+    "runtime": "builtin",
+    "solver_model": "cooling_tower_moist",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "接触效能教学模型：循环水与规定外界空气交换热湿，核算蒸发、飘水、排污和补水；无空气端口。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "coupled_liquid_valve",
+    "version": 1,
+    "name": "热耦合液体作者阀门",
+    "runtime": "python",
+    "solver_model": "valve",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "liquid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "liquid"
+      }
+    ],
+    "scope": {
+      "execution_domains": [
+        "fluid"
+      ],
+      "phases": [
+        "liquid"
+      ],
+      "fluids": [],
+      "limits": [],
+      "assumptions": [
+        "无独立质量或能量储量",
+        "无主动热流",
+        "开度指数关系为可编辑教学假设，未经厂家标定"
+      ]
+    },
+    "design": false,
+    "composite": false,
+    "description": "水平、无储量、无附加热流的液体阀门；可编辑开度特性并参与制冷站与二次水网热耦合。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "coupled_tower_pool",
+    "version": 1,
+    "name": "湿接触冷却塔池（真实储量）",
+    "runtime": "builtin",
+    "solver_model": "coupled_tower_pool",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "in1",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out1",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "完全混合池体与规定环境湿空气接触，蒸发和飘水进入真实质量/焓库存；补水与排污经独立水口实际计算，无隐含补水。膜温取池温，非填料与池体双温模型。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "defrost_air_cooler",
+    "version": 1,
+    "name": "泵供液冷风机（电融霜）",
+    "runtime": "builtin",
+    "solver_model": "air_cooler",
+    "port_domains": [
+      "refrigerant",
+      "thermal"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "heat",
+        "required": true,
+        "circuit": "thermal"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "独立电融霜/滴水状态；请求上升沿触发，融霜与滴水停供液停风机；加热按显式份额进入库房/制冷剂。未模拟霜量或热气融霜。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "design_fan",
+    "version": 1,
+    "name": "多点曲线选型风机",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": {
+      "execution_domains": [
+        "fluid"
+      ],
+      "phases": [
+        "gas"
+      ],
+      "fluids": [
+        "Air",
+        "HEOS::Air"
+      ],
+      "limits": [],
+      "assumptions": [
+        "单相、无独立物理储量；设备默认参数为演示参数。"
+      ]
+    },
+    "design": true,
+    "composite": false,
+    "description": "单相多点性能/效率图与相似律设计；转速为建议值，实际流量由网络求解；数据来源与范围须用户确认。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "design_plate_exchanger",
+    "version": 1,
+    "name": "双侧参考物性板换选型",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "hot_in",
+        "required": true,
+        "circuit": "hot"
+      },
+      {
+        "id": "hot_out",
+        "required": true,
+        "circuit": "hot"
+      },
+      {
+        "id": "cold_in",
+        "required": true,
+        "circuit": "cold"
+      },
+      {
+        "id": "cold_out",
+        "required": true,
+        "circuit": "cold"
+      }
+    ],
+    "scope": {
+      "execution_domains": [
+        "fluid"
+      ],
+      "phases": [
+        "liquid",
+        "gas"
+      ],
+      "fluids": [],
+      "limits": [],
+      "assumptions": [
+        "单相、无独立物理储量；设备默认参数为演示参数。"
+      ]
+    },
+    "design": true,
+    "composite": false,
+    "description": "逆流ε–NTU设计，分别输入两侧有来源的比热；运行复用板换真实双回路物性，不自动替换项目工质。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "design_pump",
+    "version": 1,
+    "name": "多点曲线选型泵",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": {
+      "execution_domains": [
+        "fluid"
+      ],
+      "phases": [
+        "liquid"
+      ],
+      "fluids": [],
+      "limits": [],
+      "assumptions": [
+        "单相、无独立物理储量；设备默认参数为演示参数。"
+      ]
+    },
+    "design": true,
+    "composite": false,
+    "description": "单相多点性能/效率图与相似律设计；转速为建议值，实际流量由网络求解；数据来源与范围须用户确认。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "design_valve",
+    "version": 1,
+    "name": "流量压差选型阀",
+    "runtime": "python",
+    "solver_model": "valve",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": {
+      "execution_domains": [
+        "fluid"
+      ],
+      "phases": [
+        "liquid"
+      ],
+      "fluids": [],
+      "limits": [],
+      "assumptions": [
+        "单相不可压缩近似；未模拟闪蒸、气蚀、噪声或厂家阀权度。"
+      ]
+    },
+    "design": true,
+    "composite": false,
+    "description": "普通单相液体线性阀：设计函数按目标体积流量、设计压差与工质密度反算Kv；设计条件不作为运行边界，运行由实际端口与开度决定。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "differential_bypass_valve",
+    "version": 1,
+    "name": "自力式压差旁通阀（比例式）",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": {
+      "execution_domains": [
+        "fluid"
+      ],
+      "phases": [
+        "liquid"
+      ],
+      "fluids": [],
+      "limits": [],
+      "assumptions": [
+        "单相液体、无储量、稳态机械平衡、正向通流；不含动作时间、回差、汽蚀或厂家标定。"
+      ]
+    },
+    "design": false,
+    "composite": false,
+    "description": "自力式压差旁通阀（比例式）。反压关闭，超出允许压差拒绝最终结果。开启阈值以上内部开度随压差线性上升，达到比例带末端后全开，不保证压差严格恒定。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "duct",
+    "version": 1,
+    "name": "风管",
+    "runtime": "builtin",
+    "solver_model": "duct",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "矩形风管：沿程阻力按水力直径与 Haaland 湍流摩擦计算，可选向环境散热；无储热、无局部阻力（弯头/三通/变径等用 duct_fitting 模块）。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "duct_damper",
+    "version": 1,
+    "name": "风阀",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "风阀：按额定 Kv 与开度特性（线性/等百分比/快开）计算有效 Kv，0% 开度精确关断；开度可在运行中调整。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "duct_damper",
+    "version": 2,
+    "name": "风阀",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": {
+      "execution_domains": [
+        "fluid"
+      ],
+      "phases": [
+        "liquid",
+        "gas"
+      ],
+      "fluids": [],
+      "limits": [],
+      "assumptions": []
+    },
+    "design": false,
+    "composite": false,
+    "description": "风阀：按额定 Kv 与开度特性（线性/等百分比/快开）计算有效 Kv，0% 开度精确关断；开度可在运行中调整。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "duct_fitting",
+    "version": 1,
+    "name": "风管管件",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "按局部阻力系数 K 换算阀门等效 Kv 的矩形风管管件（弯头/三通/变径/进出口），并累计通过质量。K 为教学默认值，可用 custom 覆盖。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "duct_fitting",
+    "version": 2,
+    "name": "风管管件",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": {
+      "execution_domains": [
+        "fluid"
+      ],
+      "phases": [
+        "liquid",
+        "gas"
+      ],
+      "fluids": [],
+      "limits": [],
+      "assumptions": []
+    },
+    "design": false,
+    "composite": false,
+    "description": "按局部阻力系数 K 换算阀门等效 Kv 的矩形风管管件（弯头/三通/变径/进出口），并累计通过质量。K 为教学默认值，可用 custom 覆盖。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "dx_compressor",
+    "version": 1,
+    "name": "DX真实吸气压缩机",
+    "runtime": "builtin",
+    "solver_model": "dx_compressor",
+    "port_domains": [
+      "refrigerant"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "refrigerant"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "与DX蒸发器和阀联合求蒸发压力；由实际出口气态密度/焓计算流量和功，冷媒侧无储量。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "dx_evaporator",
+    "version": 1,
+    "name": "DX两区蒸发器",
+    "runtime": "builtin",
+    "solver_model": "dx_evaporator",
+    "port_domains": [
+      "refrigerant",
+      "thermal"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "heat",
+        "required": true,
+        "circuit": "thermal"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "沸腾区UA按潜热需求划分，剩余UA加热气相；实际焓进入压缩机。冷媒无储量，库房有热容。过供无气相出口时拒绝；不含结霜/压降。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "dx_expansion_valve",
+    "version": 1,
+    "name": "DX供液调节阀",
+    "runtime": "builtin",
+    "solver_model": "dx_expansion_valve",
+    "port_domains": [
+      "refrigerant"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "refrigerant"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "DX局部联立专用Kv等焓阀；供液量和蒸发压力与蒸发器/压缩机联合求解，非单独过热控制器。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "enthalpy_compressor",
+    "version": 1,
+    "name": "真实入口焓压缩机",
+    "runtime": "builtin",
+    "solver_model": "enthalpy_compressor",
+    "port_domains": [
+      "refrigerant"
+    ],
+    "ports": [
+      {
+        "id": "suction",
+        "required": true,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "discharge",
+        "required": true,
+        "circuit": "refrigerant"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "显式流股桥：实际入口p/h决定吸气密度和压缩功，出口焓真实进入下游。定效率教学模型，非厂家标定。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "enthalpy_recovery",
+    "version": 1,
+    "name": "双风道全热回收器（无凝结）",
+    "runtime": "builtin",
+    "solver_model": "enthalpy_recovery",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "exhaust_in",
+        "required": true,
+        "circuit": "exhaust"
+      },
+      {
+        "id": "exhaust_out",
+        "required": true,
+        "circuit": "exhaust"
+      },
+      {
+        "id": "supply_in",
+        "required": true,
+        "circuit": "supply"
+      },
+      {
+        "id": "supply_out",
+        "required": true,
+        "circuit": "supply"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "四口双流股，干空气无泄漏，显热与水汽跨膜成对交换；固定有效度为教学参数。出口饱和、夹点越界或低于0°C拒绝，不含凝液、结霜、转轮蓄热。仅湿空气域。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "enthalpy_valve",
+    "version": 1,
+    "name": "真实入口焓节流阀",
+    "runtime": "builtin",
+    "solver_model": "enthalpy_valve",
+    "port_domains": [
+      "refrigerant"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "refrigerant"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "显式流股桥：入口实际液态p/h及密度决定Kv流量，出口保留入口焓。两相出口仅能直接入容器，不能接单相管段。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "evaporative_condenser",
+    "version": 1,
+    "name": "蒸发式冷凝器",
+    "runtime": "builtin",
+    "solver_model": "evaporative_condenser",
+    "port_domains": [
+      "refrigerant"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "refrigerant"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "排热 = UA_eff·(T_cond − T_wb)。风机比例与贮液器回气阀开度修正 UA；回气阀关小时冷凝液积存、有效面积减小。按湿球温差近似，不解喷淋水与空气焓差。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "exchanger",
+    "version": 1,
+    "name": "双侧换热器（水力）",
+    "runtime": "builtin",
+    "solver_model": "heat_exchanger",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "in1",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out1",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "expansion_valve",
+    "version": 1,
+    "name": "电磁节流阀",
+    "runtime": "builtin",
+    "solver_model": "expansion_valve",
+    "port_domains": [
+      "refrigerant"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "refrigerant"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "饱和液经 Kv 节流（与调节阀同一 Kv 定义），等焓闪发；只允许正向流动。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "fahu_standard",
+    "version": 1,
+    "name": "新风机组（过滤＋盘管＋风机）",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "water_in",
+        "required": true,
+        "circuit": "fluid0"
+      },
+      {
+        "id": "water_out",
+        "required": true,
+        "circuit": "fluid0"
+      },
+      {
+        "id": "air_out",
+        "required": true,
+        "circuit": "fluid1"
+      },
+      {
+        "id": "air_in",
+        "required": true,
+        "circuit": "fluid1"
+      }
+    ],
+    "scope": {
+      "execution_domains": [
+        "fluid"
+      ],
+      "phases": [
+        "liquid",
+        "gas"
+      ],
+      "fluids": [],
+      "limits": [],
+      "assumptions": [
+        "组合展开复用子模块精确版本；外端口和公开参数一对一映射。"
+      ]
+    },
+    "design": false,
+    "composite": true,
+    "description": "新风机组（过滤器＋水盘管＋风机）：只处理新风，风侧与水侧各自成通路。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "fan",
+    "version": 1,
+    "name": "风机",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "按风压-风量曲线注册泵曲线关系的风机参考模块：输出风压升、轴功率与电功率并累计能量。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "fan",
+    "version": 2,
+    "name": "风机",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": {
+      "execution_domains": [
+        "fluid"
+      ],
+      "phases": [
+        "liquid",
+        "gas"
+      ],
+      "fluids": [],
+      "limits": [],
+      "assumptions": []
+    },
+    "design": false,
+    "composite": false,
+    "description": "按风压-风量曲线注册泵曲线关系的风机参考模块：输出风压升、轴功率与电功率并累计能量。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "fan_coil_unit",
+    "version": 1,
+    "name": "风机盘管机组",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "ε-NTU 空气-水换热的风机盘管参考模块：注册水路管道关系并输出换热量、出风温度与效能。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "fan_coil_unit",
+    "version": 2,
+    "name": "风机盘管机组",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "ε-NTU 空气-水换热的风机盘管参考模块：注册水路管道关系并输出换热量、出风温度与效能。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "fan_performance",
+    "version": 1,
+    "name": "风机（停机阻力与效率曲线）",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": {
+      "execution_domains": [
+        "fluid"
+      ],
+      "phases": [
+        "gas"
+      ],
+      "fluids": [
+        "Air",
+        "HEOS::Air"
+      ],
+      "limits": [],
+      "assumptions": [
+        "单相、无独立物理储量；设备默认参数为演示参数。"
+      ]
+    },
+    "design": false,
+    "composite": false,
+    "description": "气相风机，额定压升及Q/n效率曲线；停机为被动阻力。轴功进入气流，电机损失留环境。运行反流拒绝；曲线为教学输入，非厂家标定。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "fcu_terminal",
+    "version": 1,
+    "name": "风机盘管末端（过滤＋盘管＋风机）",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "water_in",
+        "required": true,
+        "circuit": "fluid0"
+      },
+      {
+        "id": "water_out",
+        "required": true,
+        "circuit": "fluid0"
+      },
+      {
+        "id": "supply_out",
+        "required": true,
+        "circuit": "fluid1"
+      },
+      {
+        "id": "return_in",
+        "required": true,
+        "circuit": "fluid1"
+      }
+    ],
+    "scope": {
+      "execution_domains": [
+        "fluid"
+      ],
+      "phases": [
+        "liquid",
+        "gas"
+      ],
+      "fluids": [],
+      "limits": [],
+      "assumptions": [
+        "组合展开复用子模块精确版本；外端口和公开参数一对一映射。"
+      ]
+    },
+    "design": false,
+    "composite": true,
+    "description": "风机盘管末端（过滤器＋水盘管＋风机）：室内回风经处理后送回房间；水侧为独立液体回路。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "flow_limiter",
+    "version": 1,
+    "name": "自定义分段限流阀",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": {
+      "execution_domains": [
+        "fluid"
+      ],
+      "phases": [
+        "liquid",
+        "gas"
+      ],
+      "fluids": [],
+      "limits": [],
+      "assumptions": [
+        "单相、无独立物理储量、被动压降；参数仅为公式演示，不代表厂家标定"
+      ]
+    },
+    "design": false,
+    "composite": false,
+    "description": "流量越过拐点后压降增长加快；软限流，不是严格限幅。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "gas_expansion_tank",
+    "version": 1,
+    "name": "气垫膨胀罐（等温气体）",
+    "runtime": "builtin",
+    "solver_model": "expansion_tank",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "两水口共用压力节点；气体pV常数、液体M/rho(p,h)联立压力，液体内能计气垫压缩功。气体等温热浴显式记账；仅普通液体动态，不含气体溶解、膜片弹性或高度静压。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "geometry_bend",
+    "version": 1,
+    "name": "圆弯头（几何系数表）",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": {
+      "execution_domains": [
+        "fluid"
+      ],
+      "phases": [
+        "liquid",
+        "gas"
+      ],
+      "fluids": [],
+      "limits": [],
+      "assumptions": [
+        "单相、无独立物理储量；设备默认参数为演示参数。"
+      ]
+    },
+    "design": false,
+    "composite": false,
+    "description": "圆截面局部阻力：K=用户R/D表×角度倍率表，按本设备截面平均速度；分段线性禁止外推。无内置全Re经验式，不含沿程摩擦、矩形变径或导流叶片。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "group_filter_fan",
+    "version": 1,
+    "name": "过滤与性能风机段",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid0"
+      },
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid0"
+      }
+    ],
+    "scope": {
+      "execution_domains": [
+        "fluid"
+      ],
+      "phases": [
+        "liquid",
+        "gas"
+      ],
+      "fluids": [],
+      "limits": [],
+      "assumptions": [
+        "组合展开复用子模块精确版本；外端口和公开参数一对一映射。"
+      ]
+    },
+    "design": false,
+    "composite": true,
+    "description": "过滤与性能风机段：内部展开为固定版本部件，按节点质量与焓守恒求解。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "group_parallel_pumps",
+    "version": 1,
+    "name": "双支路并联泵组",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid0"
+      },
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid1"
+      }
+    ],
+    "scope": {
+      "execution_domains": [
+        "fluid"
+      ],
+      "phases": [
+        "liquid",
+        "gas"
+      ],
+      "fluids": [],
+      "limits": [],
+      "assumptions": [
+        "组合展开复用子模块精确版本；外端口和公开参数一对一映射。"
+      ]
+    },
+    "design": false,
+    "composite": true,
+    "description": "双支路并联泵组：内部展开为固定版本部件，按节点质量与焓守恒求解。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "group_pump_branch",
+    "version": 1,
+    "name": "循环泵支路（过滤/水泵/止回）",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid0"
+      },
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid0"
+      }
+    ],
+    "scope": {
+      "execution_domains": [
+        "fluid"
+      ],
+      "phases": [
+        "liquid",
+        "gas"
+      ],
+      "fluids": [],
+      "limits": [],
+      "assumptions": [
+        "组合展开复用子模块精确版本；外端口和公开参数一对一映射。"
+      ]
+    },
+    "design": false,
+    "composite": true,
+    "description": "循环泵支路（过滤/水泵/止回）：内部展开为固定版本部件，按节点质量与焓守恒求解。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "group_recovery_section",
+    "version": 1,
+    "name": "双风道过滤与显热回收段",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "exhaust_in",
+        "required": true,
+        "circuit": "fluid0"
+      },
+      {
+        "id": "exhaust_out",
+        "required": true,
+        "circuit": "fluid0"
+      },
+      {
+        "id": "supply_out",
+        "required": true,
+        "circuit": "fluid1"
+      },
+      {
+        "id": "supply_in",
+        "required": true,
+        "circuit": "fluid1"
+      }
+    ],
+    "scope": {
+      "execution_domains": [
+        "fluid"
+      ],
+      "phases": [
+        "liquid",
+        "gas"
+      ],
+      "fluids": [],
+      "limits": [],
+      "assumptions": [
+        "组合展开复用子模块精确版本；外端口和公开参数一对一映射。"
+      ]
+    },
+    "design": false,
+    "composite": true,
+    "description": "双风道过滤与显热回收段：内部展开为固定版本部件，按节点质量与焓守恒求解。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "group_secondary_exchanger",
+    "version": 1,
+    "name": "双侧换热与平衡阀组",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "cold_in",
+        "required": true,
+        "circuit": "fluid0"
+      },
+      {
+        "id": "hot_out",
+        "required": true,
+        "circuit": "fluid1"
+      },
+      {
+        "id": "cold_out",
+        "required": true,
+        "circuit": "fluid0"
+      },
+      {
+        "id": "hot_in",
+        "required": true,
+        "circuit": "fluid1"
+      }
+    ],
+    "scope": {
+      "execution_domains": [
+        "fluid"
+      ],
+      "phases": [
+        "liquid",
+        "gas"
+      ],
+      "fluids": [],
+      "limits": [],
+      "assumptions": [
+        "组合展开复用子模块精确版本；外端口和公开参数一对一映射。"
+      ]
+    },
+    "design": false,
+    "composite": true,
+    "description": "双侧换热与平衡阀组：内部展开为固定版本部件，按节点质量与焓守恒求解。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "headed_receiver",
+    "version": 1,
+    "name": "带半球封头及高度取口的容器",
+    "runtime": "builtin",
+    "solver_model": "saturated_vessel",
+    "port_domains": [
+      "refrigerant"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "in1",
+        "required": false,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "vapor",
+        "required": false,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "liquid",
+        "required": false,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "tap0",
+        "required": false,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "tap1",
+        "required": false,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "tap2",
+        "required": false,
+        "circuit": "refrigerant"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "水平直筒加两半球封头，M/U闪蒸；tap0..2按高度判断气液及液柱静压。取口相态不符合设备要求时停止；不模拟液面晃动、夹带或端口瞬时两相流。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "heater",
+    "version": 1,
+    "name": "电加热器",
+    "runtime": "builtin",
+    "solver_model": "heater",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "理想加热段：heat_input_w 全部进入流体，按质量流量折算比焓升；无储热，零流量时拒绝加热；loss_coefficient=0 时不产生附加压降。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "horizontal_drum",
+    "version": 1,
+    "name": "卧式圆筒低压循环桶",
+    "runtime": "builtin",
+    "solver_model": "saturated_vessel",
+    "port_domains": [
+      "refrigerant"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "in1",
+        "required": false,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "vapor",
+        "required": true,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "liquid",
+        "required": false,
+        "circuit": "refrigerant"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "水平直圆筒的饱和两相低压容器；内径与长度决定容积，气相出口接吸气、液相出口接泵或满液蒸发器。液体体积分数和液位高度分别输出；不含封头、倾斜或液面晃动。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "horizontal_receiver",
+    "version": 1,
+    "name": "卧式圆筒贮液器",
+    "runtime": "builtin",
+    "solver_model": "saturated_vessel",
+    "port_domains": [
+      "refrigerant"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "in1",
+        "required": false,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "vapor",
+        "required": false,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "liquid",
+        "required": true,
+        "circuit": "refrigerant"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "水平直圆筒：内径与长度决定容积，M/U 决定压力与液体体积分数；液位高度由圆截面弓形面积反算。初始液位及适用上下限仍为体积分数，不是高度比例；不含封头、倾斜或液面晃动。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "hp_receiver",
+    "version": 1,
+    "name": "高压贮液器",
+    "runtime": "builtin",
+    "solver_model": "saturated_vessel",
+    "port_domains": [
+      "refrigerant"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "in1",
+        "required": false,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "vapor",
+        "required": false,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "liquid",
+        "required": true,
+        "circuit": "refrigerant"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "饱和两相集总容器：由存量 M、内能 U 与容积反求压力和液位。冷凝液进 in0，供液从 liquid 出。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "hp_receiver_multi",
+    "version": 1,
+    "name": "高压贮液器（多支路）",
+    "runtime": "builtin",
+    "solver_model": "saturated_vessel",
+    "port_domains": [
+      "refrigerant"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "in1",
+        "required": false,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "in2",
+        "required": false,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "in3",
+        "required": false,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "vapor",
+        "required": false,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "liquid",
+        "required": true,
+        "circuit": "refrigerant"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "同一饱和容器的四个进口：可接入多台冷凝器或回气支路；vapor/liquid 为气相、液相出口。集总模型只有一个压力等级，多出口同相态没有额外物理意义，分支请用集管。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "humidifier",
+    "version": 2,
+    "name": "加湿器",
+    "runtime": "builtin",
+    "solver_model": "humidifier",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "加湿器：mode=adiabatic 等焓加湿（温度下降），isothermal 等温加湿（补入蒸汽焓）；moisture_addition_kg_kg 为每 kg 干空气的加湿量。需开启湿空气模式。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "hvac_check_valve",
+    "version": 1,
+    "name": "止回阀（开启／关闭压差）",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": {
+      "execution_domains": [
+        "fluid"
+      ],
+      "phases": [
+        "liquid",
+        "gas"
+      ],
+      "fluids": [],
+      "limits": [],
+      "assumptions": [
+        "单相、无独立物理储量；设备默认参数为演示参数。"
+      ]
+    },
+    "design": false,
+    "composite": false,
+    "description": "止回阀（开启／关闭压差）：单相基础设备，型号参数须按工程资料填写。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "hvac_water_pump",
+    "version": 1,
+    "name": "循环水泵（含停机阻力）",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": {
+      "execution_domains": [
+        "fluid"
+      ],
+      "phases": [
+        "liquid",
+        "gas"
+      ],
+      "fluids": [],
+      "limits": [],
+      "assumptions": [
+        "单相、无独立物理储量；设备默认参数为演示参数。"
+      ]
+    },
+    "design": false,
+    "composite": false,
+    "description": "循环水泵（含停机阻力）：单相基础设备，型号参数须按工程资料填写。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "hydronic_boiler",
+    "version": 1,
+    "name": "热水锅炉（容量与效率）",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": {
+      "execution_domains": [
+        "fluid"
+      ],
+      "phases": [
+        "liquid"
+      ],
+      "fluids": [],
+      "limits": [],
+      "assumptions": [
+        "普通单相液体；额定能力与固定低位热值效率，锅炉本体无储热；不模拟燃烧、排烟、冷凝或启停损失。"
+      ]
+    },
+    "design": false,
+    "composite": false,
+    "description": "额定供热×负荷比例进入水侧，按固定热效率统计燃料输入；最小流量/出水超温拒绝最终运行点，停炉水侧保留阻力。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "hydronic_buffer_tank",
+    "version": 1,
+    "name": "风水联算混合缓冲箱",
+    "runtime": "builtin",
+    "solver_model": "closed_buffer_tank",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "独立液体回路中的双口固定热质量缓冲箱，支持普通液体及风水动态联算；混合焓与房间热湿在同一接受步提升。不提供压力参考、质量库存、分层或热膨胀。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "ideal_cold_source",
+    "version": 1,
+    "name": "理想恒容量冷源 · A1",
+    "runtime": "builtin",
+    "solver_model": "ideal_cold_source",
+    "port_domains": [
+      "thermal"
+    ],
+    "ports": [
+      {
+        "id": "heat",
+        "required": true,
+        "circuit": "thermal"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "开发基准：指定制冷功率，不计算制冷循环、压缩功或 COP。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "immersed_tube_bundle",
+    "version": 1,
+    "name": "有限UA浸没管束",
+    "runtime": "builtin",
+    "solver_model": "immersed_tube_bundle",
+    "port_domains": [
+      "refrigerant"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "tube"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "tube"
+      },
+      {
+        "id": "shell_in",
+        "required": true,
+        "circuit": "shell"
+      },
+      {
+        "id": "shell_out",
+        "required": true,
+        "circuit": "shell"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "管程真实单相p/h流股与壳侧饱和容器交换有限UA热量；壳体M/U只由连接的唯一容器持有。管程无库存，shell两口无净质量，禁止重复计壳体存量。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "isenthalpic_throttle",
+    "version": 1,
+    "name": "Python 等焓节流阀",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "refrigerant"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "refrigerant"
+      }
+    ],
+    "scope": {
+      "execution_domains": [
+        "refrigeration"
+      ],
+      "fluids": [],
+      "assumptions": []
+    },
+    "design": false,
+    "composite": false,
+    "description": "饱和液体单向等焓节流，支持 linear / equal_percentage 开度特性；平台积分累计通过质量。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "junction",
+    "version": 1,
+    "name": "连接节点",
+    "runtime": "builtin",
+    "solver_model": "junction",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": false,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": false,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out1",
+        "required": false,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "lp_drum",
+    "version": 1,
+    "name": "低压循环桶",
+    "runtime": "builtin",
+    "solver_model": "saturated_vessel",
+    "port_domains": [
+      "refrigerant"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "in1",
+        "required": false,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "vapor",
+        "required": true,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "liquid",
+        "required": false,
+        "circuit": "refrigerant"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "饱和两相集总容器：节流供液与满液式蒸发器回气进入，压缩机从 vapor 吸气，liquid 向蒸发器供液。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "lp_drum_multi",
+    "version": 1,
+    "name": "低压循环桶（多支路）",
+    "runtime": "builtin",
+    "solver_model": "saturated_vessel",
+    "port_domains": [
+      "refrigerant"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "in1",
+        "required": false,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "in2",
+        "required": false,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "in3",
+        "required": false,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "vapor",
+        "required": true,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "liquid",
+        "required": false,
+        "circuit": "refrigerant"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "同一饱和容器的四个进口：可接入多路回气或供液支路；vapor/liquid 为气相、液相出口。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "makeup_water_unit",
+    "version": 1,
+    "name": "定压补水装置（止回阀＋过滤器＋平衡阀）",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "supply_out",
+        "required": true,
+        "circuit": "fluid0"
+      },
+      {
+        "id": "makeup_in",
+        "required": true,
+        "circuit": "fluid0"
+      }
+    ],
+    "scope": {
+      "execution_domains": [
+        "fluid"
+      ],
+      "phases": [
+        "liquid",
+        "gas"
+      ],
+      "fluids": [],
+      "limits": [],
+      "assumptions": [
+        "组合展开复用子模块精确版本；外端口和公开参数一对一映射。"
+      ]
+    },
+    "design": false,
+    "composite": true,
+    "description": "定压补水装置（过滤器＋止回阀＋调节阀）：补水边界固定在组合外部，回路压力低于定压设定时止回阀自动导通；补水量看 state.Check.throughput_kg。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "performance_compressor",
+    "version": 1,
+    "name": "性能曲线压缩机",
+    "runtime": "builtin",
+    "solver_model": "performance_compressor",
+    "port_domains": [
+      "refrigerant"
+    ],
+    "ports": [
+      {
+        "id": "suction",
+        "required": true,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "discharge",
+        "required": true,
+        "circuit": "refrigerant"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "饱和吸气、压比效率曲线×载量/转速修正；默认曲线为人为教学假设，非厂家标定。分段线性插值，不允许外推；电机损失排向机房；不模拟真实过热吸气、油冷或惯性。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "pipe",
+    "version": 1,
+    "name": "圆管",
+    "runtime": "builtin",
+    "solver_model": "pipe",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "pipe_fitting",
+    "version": 1,
+    "name": "管道管件",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "按局部阻力系数 K 换算阀门等效 Kv 的管件参考模块，并累计通过质量。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "pipe_reducer",
+    "version": 1,
+    "name": "异径管（渐缩／渐扩）",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": {
+      "execution_domains": [
+        "fluid"
+      ],
+      "phases": [
+        "liquid",
+        "gas"
+      ],
+      "fluids": [],
+      "limits": [],
+      "assumptions": [
+        "单相、水平、不可逆局部损失模型；不含动压静压恢复、管壁沿程摩擦或两相流；K 以小端流速为基准"
+      ]
+    },
+    "design": false,
+    "composite": false,
+    "description": "两端独立管径、渐变或突变过渡；按实际流向选择收缩／扩张局部阻力，适用于单相管网。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "plate_exchanger",
+    "version": 1,
+    "name": "板式换热器（双侧阻力与污垢）",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "hot_in",
+        "required": true,
+        "circuit": "hot"
+      },
+      {
+        "id": "hot_out",
+        "required": true,
+        "circuit": "hot"
+      },
+      {
+        "id": "cold_in",
+        "required": true,
+        "circuit": "cold"
+      },
+      {
+        "id": "cold_out",
+        "required": true,
+        "circuit": "cold"
+      }
+    ],
+    "scope": {
+      "execution_domains": [
+        "fluid"
+      ],
+      "phases": [
+        "liquid",
+        "gas"
+      ],
+      "fluids": [],
+      "limits": [],
+      "assumptions": [
+        "单相、无独立物理储量；设备默认参数为演示参数。"
+      ]
+    },
+    "design": false,
+    "composite": false,
+    "description": "普通单相双回路显热ε–NTU；独立两侧阻力，总污垢热阻K/W串联。反转一侧变并流，零流无热量；无持液热容，不支持湿空气/风水域。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "porous_filter",
+    "version": 1,
+    "name": "自定义多孔滤芯",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": {
+      "execution_domains": [
+        "fluid"
+      ],
+      "phases": [
+        "liquid",
+        "gas"
+      ],
+      "fluids": [],
+      "limits": [],
+      "assumptions": [
+        "单相、无独立物理储量、被动压降；参数仅为公式演示，不代表厂家标定"
+      ]
+    },
+    "design": false,
+    "composite": false,
+    "description": "按当前流量计算线性加二次压降，堵塞比例可运行时调整。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "pressure_independent_valve",
+    "version": 1,
+    "name": "压差无关控制阀（理想稳态调节区）",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": {
+      "execution_domains": [
+        "fluid"
+      ],
+      "phases": [
+        "liquid"
+      ],
+      "fluids": [],
+      "limits": [],
+      "assumptions": [
+        "单相液体、无储量、稳态机械平衡、正向通流；不含动作时间、回差、汽蚀或厂家标定。"
+      ]
+    },
+    "design": false,
+    "composite": false,
+    "description": "压差无关控制阀（理想稳态调节区）。反压关闭，超出允许压差拒绝最终结果。达到最小压差时调节到设定体积流量，低压差受最大Kv限制；无无限压差工作假设。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "programmable_valve",
+    "version": 1,
+    "name": "可编程阀门",
+    "runtime": "python",
+    "solver_model": "valve",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "通过 Python evaluate 注册阀门阻力关系，并在 commit_step 中累计通过质量。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "programmable_valve",
+    "version": 2,
+    "name": "可编程阀门（SDK）",
+    "runtime": "python",
+    "solver_model": "valve",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "通过 Python evaluate 注册阀门阻力关系，并在 commit_step 中累计通过质量。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "pump",
+    "version": 1,
+    "name": "离心泵",
+    "runtime": "builtin",
+    "solver_model": "pump_curve",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "pump_variable_speed",
+    "version": 1,
+    "name": "变速水泵",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "按扬程-流量曲线与转速比注册泵曲线关系的变速水泵参考模块：输出扬程、轴功率与电功率并累计能量。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "pumped_drum",
+    "version": 1,
+    "name": "泵供液储液器",
+    "runtime": "builtin",
+    "solver_model": "saturated_vessel",
+    "port_domains": [
+      "refrigerant"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "in1",
+        "required": false,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "vapor",
+        "required": true,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "liquid",
+        "required": true,
+        "circuit": "refrigerant"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "载冷侧饱和两相集总容器：冷风机湿回气进入，vapor 去复叠冷凝侧，liquid 供液泵。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "refrigerant_compressor",
+    "version": 1,
+    "name": "压缩机（强制流量）",
+    "runtime": "builtin",
+    "solver_model": "refrigerant_compressor",
+    "port_domains": [
+      "refrigerant"
+    ],
+    "ports": [
+      {
+        "id": "suction",
+        "required": true,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "discharge",
+        "required": true,
+        "circuit": "refrigerant"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "吸气为吸气容器的饱和气；流量由排量、载量和容积效率决定，排气压力取排气侧容器压力。电机损耗排向机房，不进入制冷剂。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "refrigerant_header",
+    "version": 1,
+    "name": "制冷剂集管",
+    "runtime": "builtin",
+    "solver_model": "refrigerant_header",
+    "port_domains": [
+      "refrigerant"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": false,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "in1",
+        "required": false,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "in2",
+        "required": false,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "in3",
+        "required": false,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "out0",
+        "required": false,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "out1",
+        "required": false,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "out2",
+        "required": false,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "out3",
+        "required": false,
+        "circuit": "refrigerant"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "汇流/分流节点：同一压力等级内的多台设备经集管连到一个容器端口。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "refrigerant_line",
+    "version": 1,
+    "name": "制冷剂单相流股管段",
+    "runtime": "builtin",
+    "solver_model": "refrigerant_line",
+    "port_domains": [
+      "refrigerant"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "refrigerant"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "有焓流股专用串联管段：Darcy压降和环境换热逐段推进真实p/h。无储量、无高差，不接受两相；必须串接有焓压缩机/阀桥。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "refrigerant_pump",
+    "version": 1,
+    "name": "制冷剂液泵",
+    "runtime": "builtin",
+    "solver_model": "refrigerant_pump",
+    "port_domains": [
+      "refrigerant"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "refrigerant"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "屏蔽泵：流量 ∝ 转速，压升 ∝ 转速²；电功率全部进入液体。不计汽蚀余量。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "refrigerant_recuperator",
+    "version": 1,
+    "name": "制冷剂吸液回热器",
+    "runtime": "builtin",
+    "solver_model": "refrigerant_recuperator",
+    "port_domains": [
+      "refrigerant"
+    ],
+    "ports": [
+      {
+        "id": "hot_in",
+        "required": true,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "hot_out",
+        "required": true,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "cold_in",
+        "required": true,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "cold_out",
+        "required": true,
+        "circuit": "refrigerant"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "两条显式单相流股逆流ε-NTU，热流等量反向并与两条质量桥联立；无储量、首版忽略压降，端口焓真实传播。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "refrigerant_subcooler",
+    "version": 1,
+    "name": "制冷剂外部冷源过冷器",
+    "runtime": "builtin",
+    "solver_model": "refrigerant_subcooler",
+    "port_domains": [
+      "refrigerant"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "refrigerant"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "refrigerant"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "独立有焓流股设备：环境冷源UA降低液体焓，下游阀读取实际焓；无储量，外部冷源温度显式输入。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "room_heat_manifold",
+    "version": 1,
+    "name": "库房冷量汇集器",
+    "runtime": "builtin",
+    "solver_model": "room_heat_manifold",
+    "port_domains": [
+      "thermal"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": false,
+        "circuit": "fluid"
+      },
+      {
+        "id": "in1",
+        "required": false,
+        "circuit": "fluid"
+      },
+      {
+        "id": "in2",
+        "required": false,
+        "circuit": "fluid"
+      },
+      {
+        "id": "in3",
+        "required": false,
+        "circuit": "fluid"
+      },
+      {
+        "id": "in4",
+        "required": false,
+        "circuit": "fluid"
+      },
+      {
+        "id": "in5",
+        "required": false,
+        "circuit": "fluid"
+      },
+      {
+        "id": "in6",
+        "required": false,
+        "circuit": "fluid"
+      },
+      {
+        "id": "in7",
+        "required": false,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "八个热输入可级联汇入一个库房；无热容、不改变冷量。环路、空汇集器和重复归属拒绝。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "sdk_resistance",
+    "version": 1,
+    "name": "SDK 局部阻力",
+    "runtime": "python",
+    "solver_model": "valve",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "通过 Python evaluate 注册阀门阻力关系，并在 commit_step 中累计通过质量。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "source",
+    "version": 1,
+    "name": "压力边界",
+    "runtime": "builtin",
+    "solver_model": "pressure_source",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "storage_room",
+    "version": 1,
+    "name": "冻结物库房",
+    "runtime": "builtin",
+    "solver_model": "storage_room",
+    "port_domains": [
+      "thermal"
+    ],
+    "ports": [
+      {
+        "id": "heat",
+        "required": true,
+        "circuit": "thermal"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "库房空气及内部构件等效热节点 + 冻结货物热节点；围护漏热、照明、开门与入库事件。货物只计冻结状态显热。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "tank",
+    "version": 1,
+    "name": "开式水箱",
+    "runtime": "builtin",
+    "solver_model": "tank",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": false,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": false,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "tower_pool",
+    "version": 1,
+    "name": "冷却塔池（外给蒸发）",
+    "runtime": "builtin",
+    "solver_model": "tower_pool",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "in1",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out1",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "开式充分混合池体，补排流量由真实支路计算；外给蒸发/飘水进入质量与焓储量。蒸气焓取池温下饱和水蒸气，不与现有湿空气冷却塔自动联算。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "unit_cooler",
+    "version": 1,
+    "name": "冷风机（库内）",
+    "runtime": "builtin",
+    "solver_model": "unit_cooler",
+    "port_domains": [
+      "thermal"
+    ],
+    "ports": [
+      {
+        "id": "supply",
+        "required": true,
+        "circuit": "thermal"
+      },
+      {
+        "id": "heat",
+        "required": true,
+        "circuit": "thermal"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "空气侧 Q = UA·(T_库 − T_蒸发)；风机热留在库内。电融霜：加热（停机停风机）→ 滴水等待 → 恢复制冷。不计霜量。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "valve",
+    "version": 1,
+    "name": "调节阀",
+    "runtime": "builtin",
+    "solver_model": "valve",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "valve_equal_percentage",
+    "version": 1,
+    "name": "等百分比调节阀",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "复刻倍思鹿截止阀等百分比特性曲线的调节阀参考模块：按 ALF/LF 计算 CVF 并折算为阀门 Kv，开度 0 时精确关断。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "water_balancing_valve",
+    "version": 1,
+    "name": "手动平衡阀",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": {
+      "execution_domains": [
+        "fluid"
+      ],
+      "phases": [
+        "liquid",
+        "gas"
+      ],
+      "fluids": [],
+      "limits": [],
+      "assumptions": [
+        "单相、无独立物理储量；设备默认参数为演示参数。"
+      ]
+    },
+    "design": false,
+    "composite": false,
+    "description": "手动平衡阀：单相基础设备，型号参数须按工程资料填写。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "water_chiller",
+    "version": 1,
+    "name": "水冷冷水机组",
+    "runtime": "builtin",
+    "solver_model": "water_chiller",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "in1",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out1",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "单级蒸气压缩循环，蒸发器与冷凝器各接一条水通路；把冷冻水出水压到设定值，满载不足时出水温度上漂。默认连续调节；可选最小水量保护和低负荷周期平均运行，不模拟逐次启停瞬态；Q冷凝 = Q制冷 + 压缩轴功。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "water_coil",
+    "version": 1,
+    "name": "冷/热水盘管",
+    "runtime": "builtin",
+    "solver_model": "water_coil",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "in1",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out1",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": null,
+    "design": false,
+    "composite": false,
+    "description": "逆流 ε–NTU：干段在进风端、湿段在进水端，交界处表面温度等于进风露点；湿段按 Braun 焓效能法。水侧得热 = 空气焓降 − 凝水携出焓。需开启湿空气模式，水侧接液体回路。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "water_collector_2",
+    "version": 1,
+    "name": "集水器（2支路）",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "branch1",
+        "required": true,
+        "circuit": "fluid0"
+      },
+      {
+        "id": "branch2",
+        "required": true,
+        "circuit": "fluid1"
+      },
+      {
+        "id": "common",
+        "required": true,
+        "circuit": "fluid2"
+      }
+    ],
+    "scope": {
+      "execution_domains": [
+        "fluid"
+      ],
+      "phases": [
+        "liquid",
+        "gas"
+      ],
+      "fluids": [],
+      "limits": [],
+      "assumptions": [
+        "组合展开复用子模块精确版本；外端口和公开参数一对一映射。"
+      ]
+    },
+    "design": false,
+    "composite": true,
+    "description": "集水器（2支路）：内部展开为固定版本部件，按节点质量与焓守恒求解。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "water_collector_4",
+    "version": 1,
+    "name": "集水器（4支路）",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "branch1",
+        "required": true,
+        "circuit": "fluid0"
+      },
+      {
+        "id": "branch2",
+        "required": true,
+        "circuit": "fluid1"
+      },
+      {
+        "id": "branch3",
+        "required": true,
+        "circuit": "fluid2"
+      },
+      {
+        "id": "branch4",
+        "required": true,
+        "circuit": "fluid3"
+      },
+      {
+        "id": "common",
+        "required": true,
+        "circuit": "fluid4"
+      }
+    ],
+    "scope": {
+      "execution_domains": [
+        "fluid"
+      ],
+      "phases": [
+        "liquid",
+        "gas"
+      ],
+      "fluids": [],
+      "limits": [],
+      "assumptions": [
+        "组合展开复用子模块精确版本；外端口和公开参数一对一映射。"
+      ]
+    },
+    "design": false,
+    "composite": true,
+    "description": "集水器（4支路）：内部展开为固定版本部件，按节点质量与焓守恒求解。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "water_collector_6",
+    "version": 1,
+    "name": "集水器（6支路）",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "branch1",
+        "required": true,
+        "circuit": "fluid0"
+      },
+      {
+        "id": "branch2",
+        "required": true,
+        "circuit": "fluid1"
+      },
+      {
+        "id": "branch3",
+        "required": true,
+        "circuit": "fluid2"
+      },
+      {
+        "id": "branch4",
+        "required": true,
+        "circuit": "fluid3"
+      },
+      {
+        "id": "branch5",
+        "required": true,
+        "circuit": "fluid4"
+      },
+      {
+        "id": "branch6",
+        "required": true,
+        "circuit": "fluid5"
+      },
+      {
+        "id": "common",
+        "required": true,
+        "circuit": "fluid6"
+      }
+    ],
+    "scope": {
+      "execution_domains": [
+        "fluid"
+      ],
+      "phases": [
+        "liquid",
+        "gas"
+      ],
+      "fluids": [],
+      "limits": [],
+      "assumptions": [
+        "组合展开复用子模块精确版本；外端口和公开参数一对一映射。"
+      ]
+    },
+    "design": false,
+    "composite": true,
+    "description": "集水器（6支路）：内部展开为固定版本部件，按节点质量与焓守恒求解。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "water_collector_8",
+    "version": 1,
+    "name": "集水器（8支路）",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "branch1",
+        "required": true,
+        "circuit": "fluid0"
+      },
+      {
+        "id": "branch2",
+        "required": true,
+        "circuit": "fluid1"
+      },
+      {
+        "id": "branch3",
+        "required": true,
+        "circuit": "fluid2"
+      },
+      {
+        "id": "branch4",
+        "required": true,
+        "circuit": "fluid3"
+      },
+      {
+        "id": "branch5",
+        "required": true,
+        "circuit": "fluid4"
+      },
+      {
+        "id": "branch6",
+        "required": true,
+        "circuit": "fluid5"
+      },
+      {
+        "id": "branch7",
+        "required": true,
+        "circuit": "fluid6"
+      },
+      {
+        "id": "branch8",
+        "required": true,
+        "circuit": "fluid7"
+      },
+      {
+        "id": "common",
+        "required": true,
+        "circuit": "fluid8"
+      }
+    ],
+    "scope": {
+      "execution_domains": [
+        "fluid"
+      ],
+      "phases": [
+        "liquid",
+        "gas"
+      ],
+      "fluids": [],
+      "limits": [],
+      "assumptions": [
+        "组合展开复用子模块精确版本；外端口和公开参数一对一映射。"
+      ]
+    },
+    "design": false,
+    "composite": true,
+    "description": "集水器（8支路）：内部展开为固定版本部件，按节点质量与焓守恒求解。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "water_header_2",
+    "version": 1,
+    "name": "分水器（2支路）",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "branch1",
+        "required": true,
+        "circuit": "fluid0"
+      },
+      {
+        "id": "branch2",
+        "required": true,
+        "circuit": "fluid1"
+      },
+      {
+        "id": "common",
+        "required": true,
+        "circuit": "fluid2"
+      }
+    ],
+    "scope": {
+      "execution_domains": [
+        "fluid"
+      ],
+      "phases": [
+        "liquid",
+        "gas"
+      ],
+      "fluids": [],
+      "limits": [],
+      "assumptions": [
+        "组合展开复用子模块精确版本；外端口和公开参数一对一映射。"
+      ]
+    },
+    "design": false,
+    "composite": true,
+    "description": "分水器（2支路）：内部展开为固定版本部件，按节点质量与焓守恒求解。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "water_header_4",
+    "version": 1,
+    "name": "分水器（4支路）",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "branch1",
+        "required": true,
+        "circuit": "fluid0"
+      },
+      {
+        "id": "branch2",
+        "required": true,
+        "circuit": "fluid1"
+      },
+      {
+        "id": "branch3",
+        "required": true,
+        "circuit": "fluid2"
+      },
+      {
+        "id": "branch4",
+        "required": true,
+        "circuit": "fluid3"
+      },
+      {
+        "id": "common",
+        "required": true,
+        "circuit": "fluid4"
+      }
+    ],
+    "scope": {
+      "execution_domains": [
+        "fluid"
+      ],
+      "phases": [
+        "liquid",
+        "gas"
+      ],
+      "fluids": [],
+      "limits": [],
+      "assumptions": [
+        "组合展开复用子模块精确版本；外端口和公开参数一对一映射。"
+      ]
+    },
+    "design": false,
+    "composite": true,
+    "description": "分水器（4支路）：内部展开为固定版本部件，按节点质量与焓守恒求解。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "water_header_6",
+    "version": 1,
+    "name": "分水器（6支路）",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "branch1",
+        "required": true,
+        "circuit": "fluid0"
+      },
+      {
+        "id": "branch2",
+        "required": true,
+        "circuit": "fluid1"
+      },
+      {
+        "id": "branch3",
+        "required": true,
+        "circuit": "fluid2"
+      },
+      {
+        "id": "branch4",
+        "required": true,
+        "circuit": "fluid3"
+      },
+      {
+        "id": "branch5",
+        "required": true,
+        "circuit": "fluid4"
+      },
+      {
+        "id": "branch6",
+        "required": true,
+        "circuit": "fluid5"
+      },
+      {
+        "id": "common",
+        "required": true,
+        "circuit": "fluid6"
+      }
+    ],
+    "scope": {
+      "execution_domains": [
+        "fluid"
+      ],
+      "phases": [
+        "liquid",
+        "gas"
+      ],
+      "fluids": [],
+      "limits": [],
+      "assumptions": [
+        "组合展开复用子模块精确版本；外端口和公开参数一对一映射。"
+      ]
+    },
+    "design": false,
+    "composite": true,
+    "description": "分水器（6支路）：内部展开为固定版本部件，按节点质量与焓守恒求解。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "water_header_8",
+    "version": 1,
+    "name": "分水器（8支路）",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "branch1",
+        "required": true,
+        "circuit": "fluid0"
+      },
+      {
+        "id": "branch2",
+        "required": true,
+        "circuit": "fluid1"
+      },
+      {
+        "id": "branch3",
+        "required": true,
+        "circuit": "fluid2"
+      },
+      {
+        "id": "branch4",
+        "required": true,
+        "circuit": "fluid3"
+      },
+      {
+        "id": "branch5",
+        "required": true,
+        "circuit": "fluid4"
+      },
+      {
+        "id": "branch6",
+        "required": true,
+        "circuit": "fluid5"
+      },
+      {
+        "id": "branch7",
+        "required": true,
+        "circuit": "fluid6"
+      },
+      {
+        "id": "branch8",
+        "required": true,
+        "circuit": "fluid7"
+      },
+      {
+        "id": "common",
+        "required": true,
+        "circuit": "fluid8"
+      }
+    ],
+    "scope": {
+      "execution_domains": [
+        "fluid"
+      ],
+      "phases": [
+        "liquid",
+        "gas"
+      ],
+      "fluids": [],
+      "limits": [],
+      "assumptions": [
+        "组合展开复用子模块精确版本；外端口和公开参数一对一映射。"
+      ]
+    },
+    "design": false,
+    "composite": true,
+    "description": "分水器（8支路）：内部展开为固定版本部件，按节点质量与焓守恒求解。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "water_shutoff_valve",
+    "version": 1,
+    "name": "蝶阀／球阀（关断阀）",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": {
+      "execution_domains": [
+        "fluid"
+      ],
+      "phases": [
+        "liquid",
+        "gas"
+      ],
+      "fluids": [],
+      "limits": [],
+      "assumptions": [
+        "单相、无独立物理储量；设备默认参数为演示参数。"
+      ]
+    },
+    "design": false,
+    "composite": false,
+    "description": "蝶阀／球阀（关断阀）：单相基础设备，型号参数须按工程资料填写。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "water_strainer",
+    "version": 1,
+    "name": "Y 型过滤器／除污器",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "in0",
+        "required": true,
+        "circuit": "fluid"
+      },
+      {
+        "id": "out0",
+        "required": true,
+        "circuit": "fluid"
+      }
+    ],
+    "scope": {
+      "execution_domains": [
+        "fluid"
+      ],
+      "phases": [
+        "liquid",
+        "gas"
+      ],
+      "fluids": [],
+      "limits": [],
+      "assumptions": [
+        "单相、无独立物理储量；设备默认参数为演示参数。"
+      ]
+    },
+    "design": false,
+    "composite": false,
+    "description": "Y 型过滤器／除污器：单相基础设备，型号参数须按工程资料填写。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "water_tee",
+    "version": 1,
+    "name": "水侧三通",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "branch1",
+        "required": true,
+        "circuit": "fluid0"
+      },
+      {
+        "id": "branch2",
+        "required": true,
+        "circuit": "fluid1"
+      },
+      {
+        "id": "common",
+        "required": true,
+        "circuit": "fluid2"
+      }
+    ],
+    "scope": {
+      "execution_domains": [
+        "fluid"
+      ],
+      "phases": [
+        "liquid",
+        "gas"
+      ],
+      "fluids": [],
+      "limits": [],
+      "assumptions": [
+        "组合展开复用子模块精确版本；外端口和公开参数一对一映射。"
+      ]
+    },
+    "design": false,
+    "composite": true,
+    "description": "水侧三通：内部展开为固定版本部件，按节点质量与焓守恒求解。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  },
+  {
+    "id": "water_three_way_valve",
+    "version": 1,
+    "name": "三通调节阀（分流／混流）",
+    "runtime": "python",
+    "solver_model": "generic",
+    "port_domains": [
+      "fluid"
+    ],
+    "ports": [
+      {
+        "id": "common",
+        "required": true,
+        "circuit": "fluid0"
+      },
+      {
+        "id": "a",
+        "required": true,
+        "circuit": "fluid1"
+      },
+      {
+        "id": "b",
+        "required": true,
+        "circuit": "fluid2"
+      }
+    ],
+    "scope": {
+      "execution_domains": [
+        "fluid"
+      ],
+      "phases": [
+        "liquid",
+        "gas"
+      ],
+      "fluids": [],
+      "limits": [],
+      "assumptions": [
+        "组合展开复用子模块精确版本；外端口和公开参数一对一映射。"
+      ]
+    },
+    "design": false,
+    "composite": true,
+    "description": "三通调节阀（分流／混流）：内部展开为固定版本部件，按节点质量与焓守恒求解。",
+    "evidence_note": "目录和合同事实；未单独声明工况/执行域不等于任意域已验证"
+  }
+]

@@ -1,0 +1,290 @@
+{
+  "$defs": {
+    "PerformanceImport": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "pump_head",
+            "fan_pressure",
+            "efficiency"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "format": {
+          "enum": [
+            "csv",
+            "json"
+          ],
+          "title": "Format",
+          "type": "string"
+        },
+        "file_name": {
+          "default": "curve.csv",
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "File Name",
+          "type": "string"
+        },
+        "content_base64": {
+          "maxLength": 2796210,
+          "minLength": 1,
+          "title": "Content Base64",
+          "type": "string"
+        },
+        "flow_unit": {
+          "enum": [
+            "m3/h",
+            "m3/s",
+            "L/s"
+          ],
+          "title": "Flow Unit",
+          "type": "string"
+        },
+        "value_unit": {
+          "enum": [
+            "m",
+            "Pa",
+            "kPa",
+            "1",
+            "%"
+          ],
+          "title": "Value Unit",
+          "type": "string"
+        },
+        "flow_column": {
+          "default": "flow",
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Flow Column",
+          "type": "string"
+        },
+        "value_column": {
+          "default": "value",
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Value Column",
+          "type": "string"
+        },
+        "source": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+        },
+        "manufacturer": {
+          "default": "",
+          "maxLength": 200,
+          "title": "Manufacturer",
+          "type": "string"
+        },
+        "model_name": {
+          "default": "",
+          "maxLength": 200,
+          "title": "Model Name",
+          "type": "string"
+        },
+        "reference_fluid": {
+          "default": "Water",
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Reference Fluid",
+          "type": "string"
+        },
+        "reference_density_kg_m3": {
+          "exclusiveMinimum": 0,
+          "title": "Reference Density Kg M3",
+          "type": "number"
+        },
+        "reference_speed_rpm": {
+          "exclusiveMinimum": 0,
+          "title": "Reference Speed Rpm",
+          "type": "number"
+        },
+        "valid_flow_min": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Valid Flow Min"
+        },
+        "valid_flow_max": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Valid Flow Max"
+        },
+        "expected_latest_version": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Expected Latest Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "kind",
+        "format",
+        "content_base64",
+        "flow_unit",
+        "value_unit",
+        "source",
+        "reference_density_kg_m3",
+        "reference_speed_rpm"
+      ],
+      "title": "PerformanceImport",
+      "type": "object"
+    },
+    "PerformanceVersion": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "source_points": {
+          "items": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array"
+          },
+          "title": "Source Points",
+          "type": "array"
+        },
+        "points_m3_h": {
+          "items": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array"
+          },
+          "title": "Points M3 H",
+          "type": "array"
+        },
+        "canonical_value_unit": {
+          "title": "Canonical Value Unit",
+          "type": "string"
+        },
+        "valid_flow_m3_h": {
+          "items": {
+            "type": "number"
+          },
+          "title": "Valid Flow M3 H",
+          "type": "array"
+        },
+        "source_hash": {
+          "title": "Source Hash",
+          "type": "string"
+        },
+        "content_hash": {
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Warnings",
+          "type": "array"
+        },
+        "version": {
+          "title": "Version",
+          "type": "integer"
+        },
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        },
+        "import_data": {
+          "$ref": "#/$defs/PerformanceImport"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "kind",
+        "source_points",
+        "points_m3_h",
+        "canonical_value_unit",
+        "valid_flow_m3_h",
+        "source_hash",
+        "content_hash",
+        "warnings",
+        "version",
+        "created_at",
+        "import_data"
+      ],
+      "title": "PerformanceVersion",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "left": {
+      "$ref": "#/$defs/PerformanceVersion"
+    },
+    "right": {
+      "$ref": "#/$defs/PerformanceVersion"
+    },
+    "comparable": {
+      "title": "Comparable",
+      "type": "boolean"
+    },
+    "reason": {
+      "title": "Reason",
+      "type": "string"
+    },
+    "samples": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Samples",
+      "type": "array"
+    }
+  },
+  "required": [
+    "left",
+    "right",
+    "comparable",
+    "reason"
+  ],
+  "title": "PerformanceComparison",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

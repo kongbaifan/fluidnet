@@ -51,15 +51,23 @@ jobs:
           if-no-files-found: ignore
 
   backend:
-    name: backend (Python 3.11)
+    name: ${{ matrix.openblas == '' && 'backend (Python 3.11)' || 'backend (Python 3.11, Haswell)' }}
     runs-on: windows-latest
-    # 全量测试 + 覆盖率统计比纯 pytest 慢，留足余量（本机实测约 7 分钟，CI 更慢）。
-    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        openblas: ['', 'Haswell']
+    env:
+      OPENBLAS_CORETYPE: ${{ matrix.openblas }}
+    # 新增三组长时温控后，本机全量覆盖率约 80 分钟；预留依赖安装与较慢 runner 的时间。
+    timeout-minutes: 120
     defaults:
       run:
         working-directory: fluidnet-prototype-engine
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -74,6 +82,38 @@ jobs:
       # 当前范围已清零并阻塞回归；未注解函数体的覆盖仍按模块逐步收紧。
       - name: mypy 类型检查
         run: python -m mypy
+      - name: 公共会话接口严格类型检查
+        run: python -m mypy --config-file mypy-session.ini
+      - name: 模块执行器接口严格类型检查
+        run: python -m mypy --config-file mypy-runner.ini
+      - name: 数值运行环境与快速基线
+        run: |
+          python -c "import platform,numpy; print(platform.python_version(), platform.processor()); numpy.show_runtime()"
+          $numericTargets = @(
+            'tests/test_coupled_liquid_examples.py::test_portable_file_contains_frozen_source_and_roundtrips_without_path',
+            'tests/test_hvac_templates.py::test_makeup_water_matches_the_leak_through_the_real_network[0.02]',
+            'tests/test_hvac_templates.py::test_adjacent_small_makeup_flows_conserve_mass_at_different_temperatures[0.01]',
+            'tests/test_hvac_templates.py::test_tiny_makeup_flow_hydraulics_keep_original_physical_residuals',
+            'tests/test_hvac_templates.py::test_extremely_small_makeup_flow_keeps_liquid_phase_guard',
+            'tests/test_analytic_jacobian.py::test_iteration_budget_fallback_preserves_progress_and_physical_gates',
+            'tests/test_analytic_jacobian.py::test_exhausted_fallback_still_rejects_unconverged_solution'
+          )
+          python -m pytest @numericTargets -q
+          $defaultNumericExit = $LASTEXITCODE
+          # 每个完整矩阵项还验证本地基线及可复现失败的内核；任一路径失败均阻塞。
+          $originalBlasCore = $env:OPENBLAS_CORETYPE
+          $contrastNumericExit = 0
+          try {
+            foreach ($contrastCore in @('Haswell', 'Sandybridge')) {
+              $env:OPENBLAS_CORETYPE = $contrastCore
+              python -c "import ctypes,numpy; from pathlib import Path; lib=ctypes.CDLL(str(next((Path(numpy.__file__).parent.parent/'numpy.libs').glob('libscipy_openblas*.dll')))); core=lib.scipy_openblas_get_corename64_; core.restype=ctypes.c_char_p; print('Contrast BLAS:',core().decode())"
+              if ($LASTEXITCODE -ne 0) { $contrastNumericExit = $LASTEXITCODE }
+              python -m pytest @numericTargets -q
+              if ($LASTEXITCODE -ne 0) { $contrastNumericExit = $LASTEXITCODE }
+            }
+          } finally { $env:OPENBLAS_CORETYPE = $originalBlasCore }
+          if ($defaultNumericExit -ne 0) { exit $defaultNumericExit }
+          if ($contrastNumericExit -ne 0) { exit $contrastNumericExit }
       # 覆盖率 floor 配置在 pyproject.toml [tool.coverage.report].fail_under，
       # 低于 floor 时 pytest 以非零退出码失败。
       - name: 后端测试 + 覆盖率
@@ -82,71 +122,131 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: backend-coverage
+          name: ${{ matrix.openblas == '' && 'backend-coverage' || 'backend-coverage-Haswell' }}
           path: fluidnet-prototype-engine/coverage.xml
           if-no-files-found: ignore
-      # 由 generate_contracts.py --check 比对 contracts/ 与可执行模型是否一致。
-      - name: 契约一致性检查
-        run: python scripts/generate_contracts.py --check
+      # All registered generators run read-only; portable examples remain checked in.
+      - name: 契约与生成物一致性检查
+        run: python scripts/generated_artifacts.py --verify
+      - name: 生成物语义审查摘要
+        if: always() && matrix.openblas == ''
+        env:
+          GENERATED_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          New-Item -ItemType Directory -Force artifacts | Out-Null
+          if (-not $env:GENERATED_BASE -or $env:GENERATED_BASE -match '^0+$') { $env:GENERATED_BASE = 'HEAD' }
+          python scripts/generated_artifacts.py --base $env:GENERATED_BASE --json | Out-File -Encoding utf8 artifacts/generated-review.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: 上传生成物审查摘要
+        if: always() && matrix.openblas == ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-artifact-review
+          path: fluidnet-prototype-engine/artifacts/generated-review.json
+          if-no-files-found: error
 
-  frontend:
-    name: frontend (Node 24 + Edge)
+  frontend-checks:
+    name: frontend static and unit checks
     runs-on: windows-latest
-    # npm ci 会顺带安装 Playwright 浏览器（几分钟），job 上限留宽一点，浏览器测试步骤单独限 20 分钟。
-    timeout-minutes: 30
+    timeout-minutes: 15
+    outputs:
+      matrix: ${{ steps.browser-matrix.outputs.matrix }}
     defaults:
       run:
         working-directory: fluidnet-prototype-engine
     steps:
       - uses: actions/checkout@v4
-      # 浏览器脚本用 tests/browser-server.mjs 启动 `python -m fn_engine serve`，所以前端 job 也要装后端依赖。
-      - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-      - name: 安装后端依赖（供浏览器测试启动引擎）
-        run: |
-          python -m pip install -r requirements.txt
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
           cache: npm
           cache-dependency-path: fluidnet-prototype-engine/package-lock.json
-      - name: 安装前端依赖
-        run: npm ci
-      # 前端门禁使用 `node --check` 语法检查（npm run check）。
-      # 暂不引入 eslint：新增 devDependency 必须同步 package-lock.json 才能保证 npm ci 可装，
-      # 当前以语法检查为前端质量门禁，eslint 待后续单独 PR 引入。
+      - run: npm ci
       - name: 前端语法检查
         run: npm run check
-      # windows-latest 自带 Edge，浏览器脚本用 chromium.launch({channel:'msedge',headless:true}) 无头运行。
-      # 逐个运行脚本：清单从 package.json 的 test:browser 解析，保持单一来源。
-      # 失败脚本先记 ::warning::（可见于 CI 注解，便于定位偶发 flake），单次重试；
-      # 两次都失败才终止，避免慢速 runner 的一次超时把整个前端门禁判红。
-      - name: 浏览器冒烟测试
-        timeout-minutes: 25
+      - name: 前端单元测试
+        run: npm run test:ui
+      - name: 核验浏览器清单并输出分组
+        id: browser-matrix
         shell: pwsh
+        env:
+          IMPACT_BASE: ${{ github.event.pull_request.base.sha }}
+          IMPACT_HEAD: ${{ github.event.pull_request.head.sha }}
         run: |
-          $command = (Get-Content package.json -Raw | ConvertFrom-Json).scripts.'test:browser'
-          $scripts = $command -split '&&' | ForEach-Object { $_.Trim() }
-          foreach ($script in $scripts) {
-            Write-Host "::group::$script"
-            # 清单里既有 `node <脚本>`，也有 `npm run <任务>`（如 test:ui），按原命令执行。
-            $run = { if ($script -match '^npm run (\S+)$') { npm run $Matches[1] } else { node ($script -replace '^node\s+', '') } }
-            & $run
-            if ($LASTEXITCODE -ne 0) {
-              Write-Host "::warning::$script failed on first attempt; retrying once (CI runner flake mitigation)"
-              & $run
-            }
-            if ($LASTEXITCODE -ne 0) {
-              Write-Host "::endgroup::"
-              throw "$script failed twice"
-            }
-            Write-Host "::endgroup::"
+          node scripts/browser-groups.mjs --check
+          if ($LASTEXITCODE -ne 0) { throw 'Browser manifest validation failed' }
+          if ($env:IMPACT_BASE -and $env:IMPACT_HEAD) {
+            $browserMatrix = node scripts/browser-impact.mjs --base $env:IMPACT_BASE --head $env:IMPACT_HEAD --matrix --output artifacts/browser-impact.json
+          } else {
+            $browserMatrix = node scripts/browser-impact.mjs --all --matrix --output artifacts/browser-impact.json
           }
-      - name: 上传失败截图
-        if: failure()
+          if ($LASTEXITCODE -ne 0) { throw 'Browser impact selection failed' }
+          "matrix=$browserMatrix" >> $env:GITHUB_OUTPUT
+          Get-Content artifacts/browser-impact.json >> $env:GITHUB_STEP_SUMMARY
+      - name: 上传浏览器选组依据
         uses: actions/upload-artifact@v4
         with:
-          name: browser-artifacts
+          name: browser-impact
+          path: fluidnet-prototype-engine/artifacts/browser-impact.json
+          if-no-files-found: error
+
+  browser:
+    name: browser (${{ matrix.group }})
+    needs: frontend-checks
+    runs-on: windows-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix: ${{ fromJSON(needs.frontend-checks.outputs.matrix) }}
+    defaults:
+      run:
+        working-directory: fluidnet-prototype-engine
+    steps:
+      - uses: actions/checkout@v4
+      # 每个脚本仍使用现有 browser-server，独立临时目录和端口；组内顺序运行。
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: 安装后端依赖（供浏览器测试启动引擎）
+        run: python -m pip install -r requirements.txt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: fluidnet-prototype-engine/package-lock.json
+      - run: npm ci
+      # PR 仅对已审阅的叶子变更缩小范围；smoke 固定执行，未知/共享/身份变更回退全部组。
+      # 失败最多重试一次，恢复通过也显示 warning；永久失败使该组及汇总门失败。
+      - name: 浏览器分组验收
+        timeout-minutes: 45
+        run: node scripts/browser-groups.mjs --run --group ${{ matrix.group }} --retries 1 --ci
+      - name: 上传分组证据
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-artifacts-${{ matrix.group }}
           path: fluidnet-prototype-engine/artifacts/
           if-no-files-found: ignore
+          retention-days: 7
+
+  # 保持既有 required-check 名称；该门必须等待全部矩阵项，不能只代表静态检查。
+  frontend:
+    name: frontend (Node 24 + Edge)
+    needs: [frontend-checks, browser]
+    if: always()
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - name: 汇总本次前端门禁
+        shell: pwsh
+        env:
+          STATIC_RESULT: ${{ needs.frontend-checks.result }}
+          BROWSER_RESULT: ${{ needs.browser.result }}
+        run: |
+          if ($env:STATIC_RESULT -ne 'success' -or $env:BROWSER_RESULT -ne 'success') {
+            throw "Frontend checks did not all pass: static=$env:STATIC_RESULT browser=$env:BROWSER_RESULT"
+          }
+          Write-Host 'All frontend static, unit and selected browser groups passed.'
