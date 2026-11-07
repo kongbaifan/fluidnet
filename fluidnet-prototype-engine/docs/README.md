@@ -4,6 +4,7 @@
 
 | 需要了解的内容 | 入口 |
 | --- | --- |
+| 大型多库房冷库示范、公开来源和设备缺口 | [设计与缺口记录](LARGE_COLD_STORE_DESIGN.md)、[工程文件与运行方法](../examples/large-cold-store/README.md) |
 | 回放遗留修复与日常 CI 收尾 | [P0 验收](P0_REPLAY_CI_ACCEPTANCE.md)、[日常与完整 CI](CI_CHECKS.md) |
 | 架构剩余工作最终收尾 | [AC-1～AC-5验收](ARCHITECTURE_COMPLETION_ACCEPTANCE.md)、[Worker测量决策](WORKER_PRESTART_DECISION.md) |
 | 本轮交互、目录推广和代表工程 | [交互与工程交付验收](INTERACTION_DELIVERY_ACCEPTANCE.md)、[代表工程详细证据](REPRESENTATIVE_PROJECT_ACCEPTANCE.md) |

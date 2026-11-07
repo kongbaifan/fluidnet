@@ -13,6 +13,7 @@
     {"id": "forward-physics", "script": "scripts/generate_forward_physics.py", "outputs": ["examples/forward-physics/*.json"]},
     {"id": "hydronic-buffer", "script": "scripts/generate_hydronic_buffer.py", "outputs": ["examples/forward/hydronic-buffer*.json"]},
     {"id": "refrigeration-author", "script": "scripts/generate_refrigeration_author_example.py", "outputs": ["examples/refrigeration_extensions/author_station*.json"]},
-    {"id": "open-refrigeration", "script": "scripts/generate_open_refrigeration_groups.py", "outputs": ["examples/open-refrigeration-groups/*.json"]}
+    {"id": "open-refrigeration", "script": "scripts/generate_open_refrigeration_groups.py", "outputs": ["examples/open-refrigeration-groups/*.json"]},
+    {"id": "large-cold-store", "script": "scripts/generate_large_cold_store.py", "outputs": ["examples/large-cold-store/*.project.json", "examples/large-cold-store/*.recipe.json", "examples/large-cold-store/design-assumptions.json"]}
   ]
 }

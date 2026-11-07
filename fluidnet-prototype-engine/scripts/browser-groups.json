@@ -583,6 +583,21 @@
       "file": "tests/browser-module-loading.mjs",
       "args": [],
       "group": "smoke"
+    },
+    {
+      "id": "equipment-assembly:large-cold-store",
+      "file": "tests/browser-equipment-assembly.mjs",
+      "args": [
+        "examples/large-cold-store/six-room.recipe.json",
+        "--use-recipe-timing"
+      ],
+      "group": "equipment-refrigeration"
+    },
+    {
+      "id": "large-cold-store",
+      "file": "tests/browser-large-cold-store.mjs",
+      "args": [],
+      "group": "refrigeration"
     }
   ],
   "suites": {
@@ -696,6 +711,10 @@
       "equipment-assembly:standard-plant",
       "hvac-plant",
       "refrigeration-modular"
+    ],
+    "large-cold-store": [
+      "equipment-assembly:large-cold-store",
+      "large-cold-store"
     ]
   }
 }

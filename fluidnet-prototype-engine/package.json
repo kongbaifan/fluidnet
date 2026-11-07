@@ -41,7 +41,9 @@
     "check:browser-impact": "node scripts/browser-impact.mjs --all",
     "test:ui:modules": "node --experimental-vm-modules --test tests/action-router.test.mjs tests/air-settings.test.mjs tests/api-examples.test.mjs tests/canvas-observations.test.mjs tests/canvas-port-access.test.mjs tests/canvas-routing.test.mjs tests/canvas-symbols.test.mjs tests/canvas-workspace.test.mjs tests/catalog-presentation.test.mjs tests/completed-run-control.test.mjs tests/device-application.test.mjs tests/device-batch.test.mjs tests/device-panel.test.mjs tests/device-windows.test.mjs tests/draft-cache.test.mjs tests/equipment-selection.test.mjs tests/frontend-modules.test.mjs tests/module-editor-view.test.mjs tests/module-service.test.mjs tests/open-refrigeration-ui.test.mjs tests/panel-layout.test.mjs tests/parameter-batch.test.mjs tests/path-trace.test.mjs tests/performance-data-ui.test.mjs tests/project-editing.test.mjs tests/project-exchange.test.mjs tests/project-links.test.mjs tests/project-model.test.mjs tests/project-overview.test.mjs tests/project-run-state.test.mjs tests/project-state.test.mjs tests/refrigeration-modular-ui.test.mjs tests/run-archive-cache.test.mjs tests/run-commands.test.mjs tests/run-results-view.test.mjs tests/source-humidity-migration.test.mjs tests/thermal-coupling-ui.test.mjs tests/workbench-refresh.test.mjs tests/workspace-connection.test.mjs tests/workspace-interactions.test.mjs tests/workspace-normalization.test.mjs tests/workspace-storage.test.mjs tests/module-replay-ui.test.mjs",
     "check:ci-quick": "node scripts/ci-quick.mjs --check",
-    "test:ui:ci": "node --test tests/ci-quick.test.mjs tests/browser-impact.test.mjs tests/browser-groups.test.mjs"
+    "test:ui:ci": "node --test tests/ci-quick.test.mjs tests/browser-impact.test.mjs tests/browser-groups.test.mjs",
+    "test:browser:large-cold-store": "node scripts/browser-groups.mjs --run --suite large-cold-store",
+    "check:large-cold-store": "python scripts/generate_large_cold_store.py --check"
   },
   "devDependencies": {
     "@playwright/test": "1.64.0"

@@ -430,8 +430,12 @@ def station_module_results(rows, network):
 
 def station_metrics(rows, network):
     last = rows[-1]['variables']
-    counters = [k for k in last if k.endswith(('.state.electric_energy_j', '.state.fan_energy_j', '.state.heater_energy_j'))]
-    electric = sum(last[k] for k in counters)
+    energy_suffixes = ('.state.electric_energy_j', '.state.fan_energy_j', '.state.heater_energy_j')
+    counters = [k for k in last if k.endswith(energy_suffixes)]
+    expected_counters = {f'{iid}.{variable.id}' for iid, instance in network.instances.items()
+                         for variable in network.modules[instance.module_id].variables
+                         if f'{iid}.{variable.id}'.endswith(energy_suffixes)}
+    electric = sum(last[k] for k in counters) if counters and expected_counters <= set(counters) else None
     controllers = {c.id: c for c in network.project.controllers}
 
     def tracking(cid, start):
@@ -439,20 +443,26 @@ def station_metrics(rows, network):
         if c is None:
             return None
         values = [abs(r['variables'][c.measurement] - r['variables'][f'controller.{cid}.setpoint']) for r in rows
-                  if r['time_s'] >= start and c.measurement in r['variables']]
+                  if r['time_s'] >= start and c.measurement in r['variables'] and f'controller.{cid}.setpoint' in r['variables']]
         return max(values) if values else None
     rooms = {}
     for room in network.room_coolers:
         pid = next((c for c in controllers.values() if c.measurement == f'{room}.state.temperature_k'), None)
-        values = [r['variables'][f'{room}.state.temperature_k'] - (r['variables'][f'controller.{pid.id}.setpoint'] if pid else 255.15)
-                  for r in rows if f'{room}.state.temperature_k' in r['variables']]
-        rooms[room] = {'max_deviation_k': max(abs(v) for v in values), 'final_temperature_k': last[f'{room}.state.temperature_k']}
+        values = ([r['variables'][f'{room}.state.temperature_k'] - r['variables'][f'controller.{pid.id}.setpoint']
+                   for r in rows if f'{room}.state.temperature_k' in r['variables']
+                   and f'controller.{pid.id}.setpoint' in r['variables']] if pid else [])
+        rooms[room] = {'max_deviation_k': max((abs(v) for v in values), default=None),
+                       'final_temperature_k': last.get(f'{room}.state.temperature_k')}
+    levels = {}
+    for vessel in network.vessels:
+        key = f'{vessel}.state.level_ratio'
+        sampled = [row['variables'][key] for row in rows if row['variables'].get(key) is not None]
+        levels[vessel] = {'min': min(sampled, default=None), 'max': max(sampled, default=None)}
     script = lambda key: last.get(f'script.control.state.{key}')
-    return {'electric_energy_j': electric, 'mean_electric_power_w': electric / max(1., rows[-1]['time_s']),
+    return {'electric_energy_j': electric, 'mean_electric_power_w': electric / max(1., rows[-1]['time_s']) if electric is not None else None,
             'satisfaction': script('satisfaction'), 'compressor_starts': script('starts'), 'compressor_stops': script('stops'),
             'condenser_fan_changes': script('fan_changes'), 'last_reason': script('reason'), 'target_infeasible': script('infeasible'),
-            'rooms': rooms, 'levels': {v: {'min': min(r['variables'][f'{v}.state.level_ratio'] for r in rows),
-                                           'max': max(r['variables'][f'{v}.state.level_ratio'] for r in rows)} for v in network.vessels},
+            'rooms': rooms, 'levels': levels,
             'max_tracking_after_1h': {cid: tracking(cid, 3600.) for cid in controllers},
             'energy_residual_j': rows[-1]['metrics']['energy_residual_j'],
             'mass_residual_kg': {k: rows[-1]['metrics'][k] for k in rows[-1]['metrics'] if k.startswith('mass_residual_kg')},
@@ -483,9 +493,10 @@ def station_report(record, rows, network):
             ('压缩机启动 / 停止次数', f'{_text(m["compressor_starts"], "", 0)} / {_text(m["compressor_stops"], "", 0)}'),
             ('冷凝器风机组切换次数', _text(m['condenser_fan_changes'], '', 0)),
             ('最后一次上层动作', html.escape(str(m['last_reason']))),
-            ('目标冷凝压力不可达', '是' if m['target_infeasible'] else '否'),
-            *[(f'{r} 最大偏离设定 / 末态库温', f'{_text(v["max_deviation_k"], "K")} / {_text(v["final_temperature_k"], "C")}') for r, v in m['rooms'].items()],
-            *[(f'{v} 液位范围', f'{x["min"]:.4f} … {x["max"]:.4f}') for v, x in m['levels'].items()],
+            ('目标冷凝压力不可达', '未提供控制判断' if m['target_infeasible'] is None else '是' if m['target_infeasible'] else '否'),
+            *[(f'{r} 最大偏离设定 / 末态库温' if v['max_deviation_k'] is not None else f'{r} 未配置温控目标 / 末态库温',
+               f'{_text(v["max_deviation_k"], "K")} / {_text(v["final_temperature_k"], "C")}') for r, v in m['rooms'].items()],
+            *[(f'{v} 液位范围（已记录采样）', f'{_text(x["min"], digits=4)} … {_text(x["max"], digits=4)}') for v, x in m['levels'].items()],
             *[(f'控制器 {cid} 1 h 后最大跟踪偏差', '—' if v is None else f'{v:.4g}') for cid, v in m['max_tracking_after_1h'].items()],
             *_timestep_rows(rows, network),
             ('能量账本残差', _text(m['energy_residual_j'], 'J')),

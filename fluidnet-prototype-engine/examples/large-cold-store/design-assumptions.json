@@ -1,0 +1,102 @@
+{
+  "basis": "engineering assumptions, not an as-built or calibrated plant",
+  "rooms": [
+    {
+      "id": "F01",
+      "name": "冷冻库 1",
+      "temperature_c": -24.0,
+      "net_load_w": 250000.0,
+      "envelope_load_w": 41769.6,
+      "additional_heat_w": 208230.4,
+      "volume_m3": 14400.0,
+      "heat_capacity_j_k": 700000000.0,
+      "cooler_count": 2,
+      "zone": "LT"
+    },
+    {
+      "id": "F02",
+      "name": "冷冻库 2",
+      "temperature_c": -22.0,
+      "net_load_w": 250000.0,
+      "envelope_load_w": 40070.4,
+      "additional_heat_w": 209929.6,
+      "volume_m3": 14400.0,
+      "heat_capacity_j_k": 700000000.0,
+      "cooler_count": 2,
+      "zone": "LT"
+    },
+    {
+      "id": "F03",
+      "name": "冷冻库 3",
+      "temperature_c": -20.0,
+      "net_load_w": 250000.0,
+      "envelope_load_w": 38371.2,
+      "additional_heat_w": 211628.8,
+      "volume_m3": 14400.0,
+      "heat_capacity_j_k": 700000000.0,
+      "cooler_count": 2,
+      "zone": "LT"
+    },
+    {
+      "id": "F04",
+      "name": "冷冻库 4",
+      "temperature_c": -18.0,
+      "net_load_w": 250000.0,
+      "envelope_load_w": 36672.0,
+      "additional_heat_w": 213328.0,
+      "volume_m3": 14400.0,
+      "heat_capacity_j_k": 700000000.0,
+      "cooler_count": 2,
+      "zone": "LT"
+    },
+    {
+      "id": "C01",
+      "name": "冷藏库 1",
+      "temperature_c": 2.0,
+      "net_load_w": 150000.0,
+      "envelope_load_w": 14364.0,
+      "additional_heat_w": 135636.0,
+      "volume_m3": 9000.0,
+      "heat_capacity_j_k": 1200000000.0,
+      "cooler_count": 2,
+      "zone": "MT"
+    },
+    {
+      "id": "C02",
+      "name": "冷藏库 2",
+      "temperature_c": 4.0,
+      "net_load_w": 150000.0,
+      "envelope_load_w": 13116.0,
+      "additional_heat_w": 136884.0,
+      "volume_m3": 9000.0,
+      "heat_capacity_j_k": 1200000000.0,
+      "cooler_count": 2,
+      "zone": "MT"
+    }
+  ],
+  "net_room_load_w": 1300000.0,
+  "gross_evaporator_load_w": {
+    "LT": 1024000.0,
+    "MT": 308000.0
+  },
+  "circulation_ratio": 4.0,
+  "pump_flow_kg_s": {
+    "LT": 2.999083794,
+    "MT": 0.9554242274
+  },
+  "pump_heat_w": {
+    "LT": 784.0575080477441,
+    "MT": 261.5643433453231
+  },
+  "low_stage_mass_flow_kg_s": 0.815160639355898,
+  "high_stage_mass_flow_kg_s": 1.371275690877422,
+  "heat_rejection_w": 1890619.7012068385,
+  "instances": 51,
+  "connections": 72,
+  "pressure_levels_c": {
+    "LP": -32.0,
+    "IP": -8.0,
+    "HP": 35.0
+  },
+  "total_volume_m3": 75600.0
+}

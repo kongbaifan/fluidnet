@@ -17,5 +17,6 @@ fluidnet-prototype-engine/examples/regulating-valves/*.project.json linguist-gen
 fluidnet-prototype-engine/examples/forward-physics/*.project.json linguist-generated=true
 fluidnet-prototype-engine/examples/forward/hydronic-buffer*.project.json linguist-generated=true
 fluidnet-prototype-engine/examples/open-refrigeration-groups/*.project.json linguist-generated=true
+fluidnet-prototype-engine/examples/large-cold-store/*.project.json linguist-generated=true
 fluidnet-prototype-engine/examples/coupled_liquid_modules/author_loop.json linguist-generated=true
 fluidnet-prototype-engine/examples/refrigeration_extensions/author_station*.json linguist-generated=true

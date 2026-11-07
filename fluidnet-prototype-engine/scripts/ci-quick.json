@@ -14,7 +14,7 @@
     "hydraulics": ["tests/test_hydraulic_dispatch.py", "tests/test_analytic_jacobian.py"],
     "thermal": ["tests/test_thermal.py::test_heat_loop_energy_balance_closes", "tests/test_thermal.py::test_reverse_flow_uses_actual_upwind_side", "tests/test_states.py::test_failed_substeps_are_halved_and_change_nothing", "tests/test_states.py::test_mass_ledger_closes_on_every_step"],
     "hvac": ["tests/test_hvac_equipment.py::test_three_way_endpoints_and_mass_enthalpy_conservation", "tests/test_hvac_equipment.py::test_two_coil_plant_has_three_separate_balanced_circuits_and_no_hidden_makeup", "tests/test_air_water_chiller.py"],
-    "refrigeration": ["tests/test_refrigeration_modular.py::test_device_response_and_energy_ledger_are_physical", "tests/test_refrigeration_execution.py::test_commit_failure_rolls_back_physics_pid_script_and_mass_ledger", "tests/test_open_refrigeration_groups.py"],
+    "refrigeration": ["tests/test_refrigeration_modular.py::test_device_response_and_energy_ledger_are_physical", "tests/test_refrigeration_execution.py::test_commit_failure_rolls_back_physics_pid_script_and_mass_ledger", "tests/test_open_refrigeration_groups.py", "tests/test_large_cold_store.py"],
     "sessions": ["tests/test_session_base.py", "tests/test_parameter_write_atomicity.py"],
     "modules": ["tests/test_module_replay.py", "tests/test_module_versions.py"]
   },

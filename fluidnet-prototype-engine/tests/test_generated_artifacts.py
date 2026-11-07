@@ -31,7 +31,7 @@ def test_summary_limits_output_without_losing_total_or_source_change():
 
 def test_registration_covers_all_read_only_generators():
     entries = reviewer.load_manifest()
-    assert len(entries) == 13
+    assert len(entries) == 14
     assert {'contracts', 'hydronic-buffer', 'open-refrigeration'} <= {entry['id'] for entry in entries}
 
 

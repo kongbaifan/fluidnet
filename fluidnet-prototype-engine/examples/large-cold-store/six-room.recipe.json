@@ -1,0 +1,1720 @@
+{
+  "name": "大型多库房冷库 · 六库/双温区/氨两级泵供液",
+  "fluid": {
+    "backend": "coolprop",
+    "fluid": "Ammonia",
+    "composition": {},
+    "reference": "mass",
+    "phase_policy": "any"
+  },
+  "duration_s": 600.0,
+  "dt_s": 10.0,
+  "solver": {
+    "module_mixed_jacobian": false,
+    "module_cache": false,
+    "pressure_tolerance_pa": 1.0,
+    "mass_tolerance_kg_s": 1e-08,
+    "max_iterations": 80,
+    "dynamic_step_s": 10.0,
+    "thermal": true,
+    "property_coupling": "reference",
+    "thermal_tolerance_k": 1e-06,
+    "max_thermal_iterations": 50,
+    "max_coupling_iterations": 20,
+    "coupling_density_rtol": 1e-06,
+    "thermal_acceleration": "none",
+    "coupling_acceleration": "none",
+    "moist_air": false,
+    "max_step_halvings": 6,
+    "hydraulic_method": "dense",
+    "hydraulic_diagnostics": false,
+    "analytic_jacobian": true,
+    "series_compression": false,
+    "hydraulic_blocks": false,
+    "module_parallelism": 1,
+    "batch_modules": true,
+    "time_step": {
+      "enabled": false,
+      "mass_atol_kg": 1e-09,
+      "energy_atol_j": 0.001,
+      "temperature_atol_k": 1e-05,
+      "rtol": 1e-06,
+      "min_internal_step_s": 0.001,
+      "max_internal_step_s": null,
+      "safety": 0.9,
+      "growth_factor": 2.0,
+      "shrink_factor": 0.5
+    }
+  },
+  "instances": [
+    {
+      "id": "HP",
+      "module_id": "hp_receiver",
+      "name": "高压贮液器",
+      "page_id": "plant",
+      "position": {
+        "x": 1150.0,
+        "y": 160.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "volume_m3": 30.0,
+        "height_m": 3.0,
+        "temperature_k": 308.15,
+        "level_ratio": 0.5
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "IP",
+      "module_id": "lp_drum_multi",
+      "name": "中压中冷兼冷藏供液桶",
+      "page_id": "plant",
+      "position": {
+        "x": 680.0,
+        "y": 400.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "volume_m3": 25.0,
+        "height_m": 3.0,
+        "temperature_k": 265.15,
+        "level_ratio": 0.4
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "LP",
+      "module_id": "lp_drum",
+      "name": "低压冷冻循环桶",
+      "page_id": "plant",
+      "position": {
+        "x": 160.0,
+        "y": 570.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "volume_m3": 35.0,
+        "height_m": 3.0,
+        "temperature_k": 241.15,
+        "level_ratio": 0.4
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "COND",
+      "module_id": "evaporative_condenser",
+      "name": "集中蒸发式冷凝器",
+      "page_id": "plant",
+      "position": {
+        "x": 930.0,
+        "y": 160.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "ua_w_k": 171874.5183,
+        "wet_bulb_temperature_k": 297.15,
+        "fan_power_w": 22000.0,
+        "fan_ratio": 1.0,
+        "return_gas_ratio": 1.0
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "LT_SUC",
+      "module_id": "refrigerant_header",
+      "name": "LT 吸气集管",
+      "page_id": "plant",
+      "position": {
+        "x": 210.0,
+        "y": 400.0
+      },
+      "rotation": 0,
+      "parameters": {},
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "LT_DIS",
+      "module_id": "refrigerant_header",
+      "name": "LT 排气集管",
+      "page_id": "plant",
+      "position": {
+        "x": 510.0,
+        "y": 400.0
+      },
+      "rotation": 0,
+      "parameters": {},
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "LT_K1",
+      "module_id": "refrigerant_compressor",
+      "name": "低级压缩机 1",
+      "page_id": "plant",
+      "position": {
+        "x": 360.0,
+        "y": 400.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "displacement_m3_s": 0.7178208472,
+        "load_ratio": 0.75
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "LT_K2",
+      "module_id": "refrigerant_compressor",
+      "name": "低级压缩机 2",
+      "page_id": "plant",
+      "position": {
+        "x": 360.0,
+        "y": 530.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "displacement_m3_s": 0.7178208472,
+        "load_ratio": 0.75
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "HT_SUC",
+      "module_id": "refrigerant_header",
+      "name": "HT 吸气集管",
+      "page_id": "plant",
+      "position": {
+        "x": 570.0,
+        "y": 160.0
+      },
+      "rotation": 0,
+      "parameters": {},
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "HT_DIS",
+      "module_id": "refrigerant_header",
+      "name": "HT 排气集管",
+      "page_id": "plant",
+      "position": {
+        "x": 870.0,
+        "y": 160.0
+      },
+      "rotation": 0,
+      "parameters": {},
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "HT_K1",
+      "module_id": "refrigerant_compressor",
+      "name": "高级压缩机 1",
+      "page_id": "plant",
+      "position": {
+        "x": 720.0,
+        "y": 160.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "displacement_m3_s": 0.442995584,
+        "load_ratio": 0.75
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "HT_K2",
+      "module_id": "refrigerant_compressor",
+      "name": "高级压缩机 2",
+      "page_id": "plant",
+      "position": {
+        "x": 720.0,
+        "y": 290.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "displacement_m3_s": 0.442995584,
+        "load_ratio": 0.75
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "HP_VALVE",
+      "module_id": "expansion_valve",
+      "name": "高压至中压补液阀",
+      "page_id": "plant",
+      "position": {
+        "x": 1150.0,
+        "y": 400.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "kv_m3_h": 4.003714624,
+        "opening_ratio": 0.5
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "LT_VALVE",
+      "module_id": "expansion_valve",
+      "name": "中压至低压补液阀",
+      "page_id": "plant",
+      "position": {
+        "x": 400.0,
+        "y": 570.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "kv_m3_h": 5.06412913,
+        "opening_ratio": 0.5
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "IP_LIQ",
+      "module_id": "refrigerant_header",
+      "name": "中压液体分流",
+      "page_id": "plant",
+      "position": {
+        "x": 680.0,
+        "y": 570.0
+      },
+      "rotation": 0,
+      "parameters": {},
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "LT_PUMP",
+      "module_id": "refrigerant_pump",
+      "name": "LT 液泵",
+      "page_id": "plant",
+      "position": {
+        "x": 400.0,
+        "y": 790.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "rated_mass_flow_kg_s": 2.999083794,
+        "rated_pressure_rise_pa": 80000.0,
+        "speed_ratio": 1.0
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "LT_FEED",
+      "module_id": "refrigerant_header",
+      "name": "LT 供液总管",
+      "page_id": "plant",
+      "position": {
+        "x": 680.0,
+        "y": 790.0
+      },
+      "rotation": 0,
+      "parameters": {},
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "LT_RETURN",
+      "module_id": "refrigerant_header",
+      "name": "LT 湿回气总管",
+      "page_id": "plant",
+      "position": {
+        "x": 930.0,
+        "y": 790.0
+      },
+      "rotation": 0,
+      "parameters": {},
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "MT_PUMP",
+      "module_id": "refrigerant_pump",
+      "name": "MT 液泵",
+      "page_id": "plant",
+      "position": {
+        "x": 400.0,
+        "y": 1000.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "rated_mass_flow_kg_s": 0.9554242274,
+        "rated_pressure_rise_pa": 80000.0,
+        "speed_ratio": 1.0
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "MT_FEED",
+      "module_id": "refrigerant_header",
+      "name": "MT 供液总管",
+      "page_id": "plant",
+      "position": {
+        "x": 680.0,
+        "y": 1000.0
+      },
+      "rotation": 0,
+      "parameters": {},
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "MT_RETURN",
+      "module_id": "refrigerant_header",
+      "name": "MT 湿回气总管",
+      "page_id": "plant",
+      "position": {
+        "x": 930.0,
+        "y": 1000.0
+      },
+      "rotation": 0,
+      "parameters": {},
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "F01",
+      "module_id": "cold_room_multi",
+      "name": "冷冻库 1",
+      "page_id": "frozen-a",
+      "position": {
+        "x": 1000.0,
+        "y": 260.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "temperature_k": 249.14999999999998,
+        "heat_capacity_j_k": 700000000.0,
+        "ambient_temperature_k": 305.15,
+        "ground_temperature_k": 283.15,
+        "wall_ua_w_k": 369.6,
+        "roof_ua_w_k": 215.99999999999997,
+        "floor_ua_w_k": 264.0,
+        "heat_input_w": 208230.4
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "F01_FEED",
+      "module_id": "refrigerant_header",
+      "name": "冷冻库 1 供液",
+      "page_id": "frozen-a",
+      "position": {
+        "x": 190.0,
+        "y": 260.0
+      },
+      "rotation": 0,
+      "parameters": {},
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "F01_RETURN",
+      "module_id": "refrigerant_header",
+      "name": "冷冻库 1 回气",
+      "page_id": "frozen-a",
+      "position": {
+        "x": 790.0,
+        "y": 260.0
+      },
+      "rotation": 0,
+      "parameters": {},
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "F01_AC1",
+      "module_id": "air_cooler",
+      "name": "冷冻库 1 冷风机 1",
+      "page_id": "frozen-a",
+      "position": {
+        "x": 480.0,
+        "y": 190.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "ua_w_k": 16000.0,
+        "fan_power_w": 3000.0,
+        "fan_ratio": 1.0,
+        "supply_valve_ratio": 1.0
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "F01_AC2",
+      "module_id": "air_cooler",
+      "name": "冷冻库 1 冷风机 2",
+      "page_id": "frozen-a",
+      "position": {
+        "x": 480.0,
+        "y": 340.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "ua_w_k": 16000.0,
+        "fan_power_w": 3000.0,
+        "fan_ratio": 1.0,
+        "supply_valve_ratio": 1.0
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "F02",
+      "module_id": "cold_room_multi",
+      "name": "冷冻库 2",
+      "page_id": "frozen-a",
+      "position": {
+        "x": 1000.0,
+        "y": 600.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "temperature_k": 251.14999999999998,
+        "heat_capacity_j_k": 700000000.0,
+        "ambient_temperature_k": 305.15,
+        "ground_temperature_k": 283.15,
+        "wall_ua_w_k": 369.6,
+        "roof_ua_w_k": 215.99999999999997,
+        "floor_ua_w_k": 264.0,
+        "heat_input_w": 209929.6
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "F02_FEED",
+      "module_id": "refrigerant_header",
+      "name": "冷冻库 2 供液",
+      "page_id": "frozen-a",
+      "position": {
+        "x": 190.0,
+        "y": 600.0
+      },
+      "rotation": 0,
+      "parameters": {},
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "F02_RETURN",
+      "module_id": "refrigerant_header",
+      "name": "冷冻库 2 回气",
+      "page_id": "frozen-a",
+      "position": {
+        "x": 790.0,
+        "y": 600.0
+      },
+      "rotation": 0,
+      "parameters": {},
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "F02_AC1",
+      "module_id": "air_cooler",
+      "name": "冷冻库 2 冷风机 1",
+      "page_id": "frozen-a",
+      "position": {
+        "x": 480.0,
+        "y": 530.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "ua_w_k": 12800.0,
+        "fan_power_w": 3000.0,
+        "fan_ratio": 1.0,
+        "supply_valve_ratio": 1.0
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "F02_AC2",
+      "module_id": "air_cooler",
+      "name": "冷冻库 2 冷风机 2",
+      "page_id": "frozen-a",
+      "position": {
+        "x": 480.0,
+        "y": 680.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "ua_w_k": 12800.0,
+        "fan_power_w": 3000.0,
+        "fan_ratio": 1.0,
+        "supply_valve_ratio": 1.0
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "F03",
+      "module_id": "cold_room_multi",
+      "name": "冷冻库 3",
+      "page_id": "frozen-b",
+      "position": {
+        "x": 1000.0,
+        "y": 260.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "temperature_k": 253.14999999999998,
+        "heat_capacity_j_k": 700000000.0,
+        "ambient_temperature_k": 305.15,
+        "ground_temperature_k": 283.15,
+        "wall_ua_w_k": 369.6,
+        "roof_ua_w_k": 215.99999999999997,
+        "floor_ua_w_k": 264.0,
+        "heat_input_w": 211628.8
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "F03_FEED",
+      "module_id": "refrigerant_header",
+      "name": "冷冻库 3 供液",
+      "page_id": "frozen-b",
+      "position": {
+        "x": 190.0,
+        "y": 260.0
+      },
+      "rotation": 0,
+      "parameters": {},
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "F03_RETURN",
+      "module_id": "refrigerant_header",
+      "name": "冷冻库 3 回气",
+      "page_id": "frozen-b",
+      "position": {
+        "x": 790.0,
+        "y": 260.0
+      },
+      "rotation": 0,
+      "parameters": {},
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "F03_AC1",
+      "module_id": "air_cooler",
+      "name": "冷冻库 3 冷风机 1",
+      "page_id": "frozen-b",
+      "position": {
+        "x": 480.0,
+        "y": 190.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "ua_w_k": 10666.66667,
+        "fan_power_w": 3000.0,
+        "fan_ratio": 1.0,
+        "supply_valve_ratio": 1.0
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "F03_AC2",
+      "module_id": "air_cooler",
+      "name": "冷冻库 3 冷风机 2",
+      "page_id": "frozen-b",
+      "position": {
+        "x": 480.0,
+        "y": 340.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "ua_w_k": 10666.66667,
+        "fan_power_w": 3000.0,
+        "fan_ratio": 1.0,
+        "supply_valve_ratio": 1.0
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "F04",
+      "module_id": "cold_room_multi",
+      "name": "冷冻库 4",
+      "page_id": "frozen-b",
+      "position": {
+        "x": 1000.0,
+        "y": 600.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "temperature_k": 255.14999999999998,
+        "heat_capacity_j_k": 700000000.0,
+        "ambient_temperature_k": 305.15,
+        "ground_temperature_k": 283.15,
+        "wall_ua_w_k": 369.6,
+        "roof_ua_w_k": 215.99999999999997,
+        "floor_ua_w_k": 264.0,
+        "heat_input_w": 213328.0
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "F04_FEED",
+      "module_id": "refrigerant_header",
+      "name": "冷冻库 4 供液",
+      "page_id": "frozen-b",
+      "position": {
+        "x": 190.0,
+        "y": 600.0
+      },
+      "rotation": 0,
+      "parameters": {},
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "F04_RETURN",
+      "module_id": "refrigerant_header",
+      "name": "冷冻库 4 回气",
+      "page_id": "frozen-b",
+      "position": {
+        "x": 790.0,
+        "y": 600.0
+      },
+      "rotation": 0,
+      "parameters": {},
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "F04_AC1",
+      "module_id": "air_cooler",
+      "name": "冷冻库 4 冷风机 1",
+      "page_id": "frozen-b",
+      "position": {
+        "x": 480.0,
+        "y": 530.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "ua_w_k": 9142.857143,
+        "fan_power_w": 3000.0,
+        "fan_ratio": 1.0,
+        "supply_valve_ratio": 1.0
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "F04_AC2",
+      "module_id": "air_cooler",
+      "name": "冷冻库 4 冷风机 2",
+      "page_id": "frozen-b",
+      "position": {
+        "x": 480.0,
+        "y": 680.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "ua_w_k": 9142.857143,
+        "fan_power_w": 3000.0,
+        "fan_ratio": 1.0,
+        "supply_valve_ratio": 1.0
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "C01",
+      "module_id": "cold_room_multi",
+      "name": "冷藏库 1",
+      "page_id": "chilled",
+      "position": {
+        "x": 1000.0,
+        "y": 260.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "temperature_k": 275.15,
+        "heat_capacity_j_k": 1200000000.0,
+        "ambient_temperature_k": 305.15,
+        "ground_temperature_k": 283.15,
+        "wall_ua_w_k": 264.0,
+        "roof_ua_w_k": 161.99999999999997,
+        "floor_ua_w_k": 198.0,
+        "heat_input_w": 135636.0
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "C01_FEED",
+      "module_id": "refrigerant_header",
+      "name": "冷藏库 1 供液",
+      "page_id": "chilled",
+      "position": {
+        "x": 190.0,
+        "y": 260.0
+      },
+      "rotation": 0,
+      "parameters": {},
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "C01_RETURN",
+      "module_id": "refrigerant_header",
+      "name": "冷藏库 1 回气",
+      "page_id": "chilled",
+      "position": {
+        "x": 790.0,
+        "y": 260.0
+      },
+      "rotation": 0,
+      "parameters": {},
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "C01_AC1",
+      "module_id": "air_cooler",
+      "name": "冷藏库 1 冷风机 1",
+      "page_id": "chilled",
+      "position": {
+        "x": 480.0,
+        "y": 190.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "ua_w_k": 7700.0,
+        "fan_power_w": 2000.0,
+        "fan_ratio": 1.0,
+        "supply_valve_ratio": 1.0
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "C01_AC2",
+      "module_id": "air_cooler",
+      "name": "冷藏库 1 冷风机 2",
+      "page_id": "chilled",
+      "position": {
+        "x": 480.0,
+        "y": 340.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "ua_w_k": 7700.0,
+        "fan_power_w": 2000.0,
+        "fan_ratio": 1.0,
+        "supply_valve_ratio": 1.0
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "C02",
+      "module_id": "cold_room_multi",
+      "name": "冷藏库 2",
+      "page_id": "chilled",
+      "position": {
+        "x": 1000.0,
+        "y": 600.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "temperature_k": 277.15,
+        "heat_capacity_j_k": 1200000000.0,
+        "ambient_temperature_k": 305.15,
+        "ground_temperature_k": 283.15,
+        "wall_ua_w_k": 264.0,
+        "roof_ua_w_k": 161.99999999999997,
+        "floor_ua_w_k": 198.0,
+        "heat_input_w": 136884.0
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "C02_FEED",
+      "module_id": "refrigerant_header",
+      "name": "冷藏库 2 供液",
+      "page_id": "chilled",
+      "position": {
+        "x": 190.0,
+        "y": 600.0
+      },
+      "rotation": 0,
+      "parameters": {},
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "C02_RETURN",
+      "module_id": "refrigerant_header",
+      "name": "冷藏库 2 回气",
+      "page_id": "chilled",
+      "position": {
+        "x": 790.0,
+        "y": 600.0
+      },
+      "rotation": 0,
+      "parameters": {},
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "C02_AC1",
+      "module_id": "air_cooler",
+      "name": "冷藏库 2 冷风机 1",
+      "page_id": "chilled",
+      "position": {
+        "x": 480.0,
+        "y": 530.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "ua_w_k": 6416.666667,
+        "fan_power_w": 2000.0,
+        "fan_ratio": 1.0,
+        "supply_valve_ratio": 1.0
+      },
+      "draft_parameters": {},
+      "banks": []
+    },
+    {
+      "id": "C02_AC2",
+      "module_id": "air_cooler",
+      "name": "冷藏库 2 冷风机 2",
+      "page_id": "chilled",
+      "position": {
+        "x": 480.0,
+        "y": 680.0
+      },
+      "rotation": 0,
+      "parameters": {
+        "ua_w_k": 6416.666667,
+        "fan_power_w": 2000.0,
+        "fan_ratio": 1.0,
+        "supply_valve_ratio": 1.0
+      },
+      "draft_parameters": {},
+      "banks": []
+    }
+  ],
+  "connections": [
+    {
+      "id": "pipe-001",
+      "source": {
+        "instance_id": "LT_SUC",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "LT_K1",
+        "port_id": "suction"
+      }
+    },
+    {
+      "id": "pipe-002",
+      "source": {
+        "instance_id": "LT_K1",
+        "port_id": "discharge"
+      },
+      "target": {
+        "instance_id": "LT_DIS",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "pipe-003",
+      "source": {
+        "instance_id": "LT_SUC",
+        "port_id": "out1"
+      },
+      "target": {
+        "instance_id": "LT_K2",
+        "port_id": "suction"
+      }
+    },
+    {
+      "id": "pipe-004",
+      "source": {
+        "instance_id": "LT_K2",
+        "port_id": "discharge"
+      },
+      "target": {
+        "instance_id": "LT_DIS",
+        "port_id": "in1"
+      }
+    },
+    {
+      "id": "pipe-005",
+      "source": {
+        "instance_id": "HT_SUC",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "HT_K1",
+        "port_id": "suction"
+      }
+    },
+    {
+      "id": "pipe-006",
+      "source": {
+        "instance_id": "HT_K1",
+        "port_id": "discharge"
+      },
+      "target": {
+        "instance_id": "HT_DIS",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "pipe-007",
+      "source": {
+        "instance_id": "HT_SUC",
+        "port_id": "out1"
+      },
+      "target": {
+        "instance_id": "HT_K2",
+        "port_id": "suction"
+      }
+    },
+    {
+      "id": "pipe-008",
+      "source": {
+        "instance_id": "HT_K2",
+        "port_id": "discharge"
+      },
+      "target": {
+        "instance_id": "HT_DIS",
+        "port_id": "in1"
+      }
+    },
+    {
+      "id": "pipe-009",
+      "source": {
+        "instance_id": "LP",
+        "port_id": "vapor"
+      },
+      "target": {
+        "instance_id": "LT_SUC",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "pipe-010",
+      "source": {
+        "instance_id": "LT_DIS",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "IP",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "pipe-011",
+      "source": {
+        "instance_id": "IP",
+        "port_id": "vapor"
+      },
+      "target": {
+        "instance_id": "HT_SUC",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "pipe-012",
+      "source": {
+        "instance_id": "HT_DIS",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "COND",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "pipe-013",
+      "source": {
+        "instance_id": "COND",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "HP",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "pipe-014",
+      "source": {
+        "instance_id": "HP",
+        "port_id": "liquid"
+      },
+      "target": {
+        "instance_id": "HP_VALVE",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "pipe-015",
+      "source": {
+        "instance_id": "HP_VALVE",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "IP",
+        "port_id": "in1"
+      }
+    },
+    {
+      "id": "pipe-016",
+      "source": {
+        "instance_id": "IP",
+        "port_id": "liquid"
+      },
+      "target": {
+        "instance_id": "IP_LIQ",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "pipe-017",
+      "source": {
+        "instance_id": "IP_LIQ",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "LT_VALVE",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "pipe-018",
+      "source": {
+        "instance_id": "LT_VALVE",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "LP",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "pipe-019",
+      "source": {
+        "instance_id": "LP",
+        "port_id": "liquid"
+      },
+      "target": {
+        "instance_id": "LT_PUMP",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "pipe-020",
+      "source": {
+        "instance_id": "LT_PUMP",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "LT_FEED",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "pipe-021",
+      "source": {
+        "instance_id": "LT_RETURN",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "LP",
+        "port_id": "in1"
+      }
+    },
+    {
+      "id": "pipe-022",
+      "source": {
+        "instance_id": "IP_LIQ",
+        "port_id": "out1"
+      },
+      "target": {
+        "instance_id": "MT_PUMP",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "pipe-023",
+      "source": {
+        "instance_id": "MT_PUMP",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "MT_FEED",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "pipe-024",
+      "source": {
+        "instance_id": "MT_RETURN",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "IP",
+        "port_id": "in2"
+      }
+    },
+    {
+      "id": "pipe-025",
+      "source": {
+        "instance_id": "LT_FEED",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "F01_FEED",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "pipe-026",
+      "source": {
+        "instance_id": "F01_RETURN",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "LT_RETURN",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "pipe-027",
+      "source": {
+        "instance_id": "F01_FEED",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "F01_AC1",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "pipe-028",
+      "source": {
+        "instance_id": "F01_AC1",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "F01_RETURN",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "pipe-029",
+      "source": {
+        "instance_id": "F01_AC1",
+        "port_id": "heat"
+      },
+      "target": {
+        "instance_id": "F01",
+        "port_id": "heat0"
+      }
+    },
+    {
+      "id": "pipe-030",
+      "source": {
+        "instance_id": "F01_FEED",
+        "port_id": "out1"
+      },
+      "target": {
+        "instance_id": "F01_AC2",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "pipe-031",
+      "source": {
+        "instance_id": "F01_AC2",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "F01_RETURN",
+        "port_id": "in1"
+      }
+    },
+    {
+      "id": "pipe-032",
+      "source": {
+        "instance_id": "F01_AC2",
+        "port_id": "heat"
+      },
+      "target": {
+        "instance_id": "F01",
+        "port_id": "heat1"
+      }
+    },
+    {
+      "id": "pipe-033",
+      "source": {
+        "instance_id": "LT_FEED",
+        "port_id": "out1"
+      },
+      "target": {
+        "instance_id": "F02_FEED",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "pipe-034",
+      "source": {
+        "instance_id": "F02_RETURN",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "LT_RETURN",
+        "port_id": "in1"
+      }
+    },
+    {
+      "id": "pipe-035",
+      "source": {
+        "instance_id": "F02_FEED",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "F02_AC1",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "pipe-036",
+      "source": {
+        "instance_id": "F02_AC1",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "F02_RETURN",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "pipe-037",
+      "source": {
+        "instance_id": "F02_AC1",
+        "port_id": "heat"
+      },
+      "target": {
+        "instance_id": "F02",
+        "port_id": "heat0"
+      }
+    },
+    {
+      "id": "pipe-038",
+      "source": {
+        "instance_id": "F02_FEED",
+        "port_id": "out1"
+      },
+      "target": {
+        "instance_id": "F02_AC2",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "pipe-039",
+      "source": {
+        "instance_id": "F02_AC2",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "F02_RETURN",
+        "port_id": "in1"
+      }
+    },
+    {
+      "id": "pipe-040",
+      "source": {
+        "instance_id": "F02_AC2",
+        "port_id": "heat"
+      },
+      "target": {
+        "instance_id": "F02",
+        "port_id": "heat1"
+      }
+    },
+    {
+      "id": "pipe-041",
+      "source": {
+        "instance_id": "LT_FEED",
+        "port_id": "out2"
+      },
+      "target": {
+        "instance_id": "F03_FEED",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "pipe-042",
+      "source": {
+        "instance_id": "F03_RETURN",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "LT_RETURN",
+        "port_id": "in2"
+      }
+    },
+    {
+      "id": "pipe-043",
+      "source": {
+        "instance_id": "F03_FEED",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "F03_AC1",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "pipe-044",
+      "source": {
+        "instance_id": "F03_AC1",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "F03_RETURN",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "pipe-045",
+      "source": {
+        "instance_id": "F03_AC1",
+        "port_id": "heat"
+      },
+      "target": {
+        "instance_id": "F03",
+        "port_id": "heat0"
+      }
+    },
+    {
+      "id": "pipe-046",
+      "source": {
+        "instance_id": "F03_FEED",
+        "port_id": "out1"
+      },
+      "target": {
+        "instance_id": "F03_AC2",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "pipe-047",
+      "source": {
+        "instance_id": "F03_AC2",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "F03_RETURN",
+        "port_id": "in1"
+      }
+    },
+    {
+      "id": "pipe-048",
+      "source": {
+        "instance_id": "F03_AC2",
+        "port_id": "heat"
+      },
+      "target": {
+        "instance_id": "F03",
+        "port_id": "heat1"
+      }
+    },
+    {
+      "id": "pipe-049",
+      "source": {
+        "instance_id": "LT_FEED",
+        "port_id": "out3"
+      },
+      "target": {
+        "instance_id": "F04_FEED",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "pipe-050",
+      "source": {
+        "instance_id": "F04_RETURN",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "LT_RETURN",
+        "port_id": "in3"
+      }
+    },
+    {
+      "id": "pipe-051",
+      "source": {
+        "instance_id": "F04_FEED",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "F04_AC1",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "pipe-052",
+      "source": {
+        "instance_id": "F04_AC1",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "F04_RETURN",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "pipe-053",
+      "source": {
+        "instance_id": "F04_AC1",
+        "port_id": "heat"
+      },
+      "target": {
+        "instance_id": "F04",
+        "port_id": "heat0"
+      }
+    },
+    {
+      "id": "pipe-054",
+      "source": {
+        "instance_id": "F04_FEED",
+        "port_id": "out1"
+      },
+      "target": {
+        "instance_id": "F04_AC2",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "pipe-055",
+      "source": {
+        "instance_id": "F04_AC2",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "F04_RETURN",
+        "port_id": "in1"
+      }
+    },
+    {
+      "id": "pipe-056",
+      "source": {
+        "instance_id": "F04_AC2",
+        "port_id": "heat"
+      },
+      "target": {
+        "instance_id": "F04",
+        "port_id": "heat1"
+      }
+    },
+    {
+      "id": "pipe-057",
+      "source": {
+        "instance_id": "MT_FEED",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "C01_FEED",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "pipe-058",
+      "source": {
+        "instance_id": "C01_RETURN",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "MT_RETURN",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "pipe-059",
+      "source": {
+        "instance_id": "C01_FEED",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "C01_AC1",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "pipe-060",
+      "source": {
+        "instance_id": "C01_AC1",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "C01_RETURN",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "pipe-061",
+      "source": {
+        "instance_id": "C01_AC1",
+        "port_id": "heat"
+      },
+      "target": {
+        "instance_id": "C01",
+        "port_id": "heat0"
+      }
+    },
+    {
+      "id": "pipe-062",
+      "source": {
+        "instance_id": "C01_FEED",
+        "port_id": "out1"
+      },
+      "target": {
+        "instance_id": "C01_AC2",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "pipe-063",
+      "source": {
+        "instance_id": "C01_AC2",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "C01_RETURN",
+        "port_id": "in1"
+      }
+    },
+    {
+      "id": "pipe-064",
+      "source": {
+        "instance_id": "C01_AC2",
+        "port_id": "heat"
+      },
+      "target": {
+        "instance_id": "C01",
+        "port_id": "heat1"
+      }
+    },
+    {
+      "id": "pipe-065",
+      "source": {
+        "instance_id": "MT_FEED",
+        "port_id": "out1"
+      },
+      "target": {
+        "instance_id": "C02_FEED",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "pipe-066",
+      "source": {
+        "instance_id": "C02_RETURN",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "MT_RETURN",
+        "port_id": "in1"
+      }
+    },
+    {
+      "id": "pipe-067",
+      "source": {
+        "instance_id": "C02_FEED",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "C02_AC1",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "pipe-068",
+      "source": {
+        "instance_id": "C02_AC1",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "C02_RETURN",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "pipe-069",
+      "source": {
+        "instance_id": "C02_AC1",
+        "port_id": "heat"
+      },
+      "target": {
+        "instance_id": "C02",
+        "port_id": "heat0"
+      }
+    },
+    {
+      "id": "pipe-070",
+      "source": {
+        "instance_id": "C02_FEED",
+        "port_id": "out1"
+      },
+      "target": {
+        "instance_id": "C02_AC2",
+        "port_id": "in0"
+      }
+    },
+    {
+      "id": "pipe-071",
+      "source": {
+        "instance_id": "C02_AC2",
+        "port_id": "out0"
+      },
+      "target": {
+        "instance_id": "C02_RETURN",
+        "port_id": "in1"
+      }
+    },
+    {
+      "id": "pipe-072",
+      "source": {
+        "instance_id": "C02_AC2",
+        "port_id": "heat"
+      },
+      "target": {
+        "instance_id": "C02",
+        "port_id": "heat1"
+      }
+    }
+  ]
+}

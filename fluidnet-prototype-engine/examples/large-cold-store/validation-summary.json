@@ -1,0 +1,93 @@
+{
+  "date": "2026-11-07",
+  "scope": "Existing equipment; three 600 s scenarios, no full test suite or plant calibration",
+  "project_sha256": "6b8cd8577f64d9a808e7d693a81365341151db5ecc2bf5e9212f889b0cbdfe9b",
+  "canonical_project": {
+    "devices": 51,
+    "connections": 72,
+    "rooms": 6,
+    "air_coolers": 12,
+    "pages": 4,
+    "net_load_w": 1300000
+  },
+  "simulation": {
+    "baseline": {
+      "valid": true,
+      "frames": 61,
+      "time_s": 600.0,
+      "temperatures_c": {
+        "F01": -24.0,
+        "F02": -22.0,
+        "F03": -20.0,
+        "F04": -18.0,
+        "C01": 2.0,
+        "C02": 4.0
+      },
+      "max_mass_error_kg": 0.0,
+      "max_energy_error_j": 0.055902544409036636,
+      "diagnostic_codes": [
+        "REFRIGERATION_STATION"
+      ],
+      "electric_power_w": 661104.4037594862
+    },
+    "f01-extra-load": {
+      "valid": true,
+      "frames": 61,
+      "time_s": 600.0,
+      "temperatures_c": {
+        "F01": -23.915388368463425,
+        "F02": -21.99990996661589,
+        "F03": -19.99992489437082,
+        "F04": -17.999935575944647,
+        "C01": 2.0000058758072328,
+        "C02": 4.000004897997144
+      },
+      "max_mass_error_kg": 7.275957614183426e-12,
+      "max_energy_error_j": 0.1249420166714117,
+      "diagnostic_codes": [
+        "REFRIGERATION_STATION"
+      ],
+      "electric_power_w": 661128.9115256954
+    },
+    "f01-cooler-off": {
+      "valid": true,
+      "frames": 61,
+      "time_s": 600.0,
+      "temperatures_c": {
+        "F01": -23.90072969438208,
+        "F02": -22.011307647916055,
+        "F03": -20.009436396768564,
+        "F04": -18.008096532105384,
+        "C01": 1.9990784710913658,
+        "C02": 3.9992317561428194
+      },
+      "max_mass_error_kg": 1.0913936421275139e-11,
+      "max_energy_error_j": 0.40409619035199285,
+      "diagnostic_codes": [
+        "REFRIGERATION_STATION"
+      ],
+      "electric_power_w": 655128.8891737137
+    }
+  },
+  "ui": {
+    "assembled_from_empty": true,
+    "assembly_ids_differ_from_recipe": true,
+    "assembly_export_reload": true,
+    "assembly_report_formats": [
+      "html",
+      "csv"
+    ],
+    "assembly_errors": [],
+    "canonical_saved_pages": 4,
+    "canonical_reloaded": true,
+    "scenario_run_ids": {
+      "baseline": "f13d9c741481462ea58c08d51da2fdfa",
+      "f01-extra-load": "394d4fcfacf9438abcdae0cea9edcc83",
+      "f01-cooler-off": "d559bf9ec5a84a57b4baa1e0b6fe1b61",
+      "reloaded": "6d6b9258bd7942ce870335e8b1277f69"
+    },
+    "canonical_page_errors": []
+  },
+  "evidence_directory": "artifacts/large-cold-store/",
+  "unimplemented": "See docs/LARGE_COLD_STORE_DESIGN.md: G01-G08 and workspace limitations"
+}
