@@ -15,7 +15,8 @@ test('leaf changes narrow groups while cross-domain smoke always runs',()=>{
 });
 test('shared, unknown, new, removed and renamed inputs fall back to full coverage',()=>{
   for(const item of [change('frontend/studio.js'),change('backend/fn_engine/solver.py'),change('contracts/openapi.json'),
-    change('frontend/new.js'),change('frontend/canvas-routing.js','A'),change('frontend/canvas-routing.js','D'),
+    change('frontend/new.js'),change('frontend/equipment-selection.js'),change('frontend/performance-library.js'),
+    change('frontend/panel-layout.js'),change('frontend/canvas-routing.js','A'),change('frontend/canvas-routing.js','D'),
     {status:'R100',paths:['fluidnet-prototype-engine/frontend/canvas-routing.js','fluidnet-prototype-engine/frontend/new.js']},
     {status:'M',paths:['.github/workflows/ci.yml']},change('tests/browser-server.mjs')]){
     assert.deepEqual(selectImpact(manifest,[item]).groups,all,JSON.stringify(item));

@@ -117,7 +117,7 @@ node tests/browser-continuous.mjs
 
 用户原有未提交 `module-replay.js` 不改写，专用 `module-replay-adapter.js` 接收其唯一 legacy 全局。它是已记录的兼容边界，不能宣称整个应用零全局。其他 `FluidNet*` 全局在浏览器中为零。
 
-40份隔离单测加载代码迁移到 Node 原生 `SourceTextModule` 链接器，使用 Node 24.8+ 和 `--experimental-vm-modules`；不切片/改写模块源码。真实浏览器测试通过 dynamic import 使用公开模块。参数批测试先前漏加载选型检查，现真实导入会拒绝不匹配模块版本，断言按生产语义修正。
+40份隔离单测加载代码迁移到 Node 原生 `SourceTextModule` 链接器，使用 Node 24.9+ 和 `--experimental-vm-modules`；不切片/改写模块源码。真实浏览器测试通过 dynamic import 使用公开模块。参数批测试先前漏加载选型检查，现真实导入会拒绝不匹配模块版本，断言按生产语义修正。
 
 定向入口 `npm run test:ui:modules` 256项通过。真实浏览器 module-loading 验证45脚本、无重复请求、正确MIME、零FluidNet全局与失败提示；目录60设备、工作区冲突/恢复和作者流程通过。运行控制结果见最终验收。
 

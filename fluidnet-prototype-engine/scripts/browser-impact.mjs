@@ -15,10 +15,7 @@ const leafGroups={
   'frontend/air-side.css':['hvac','equipment-hvac'],
   'frontend/cold-storage.js':['refrigeration','equipment-refrigeration'],
   'frontend/air-side.js':['hvac','equipment-hvac','refrigeration'],
-  'frontend/equipment-selection.js':['workflows'],
-  'frontend/performance-library.js':['workflows','equipment-hvac','equipment-refrigeration'],
   'frontend/module-replay.js':['workflows'],
-  'frontend/panel-layout.js':['workflows','canvas'],
   'frontend/api-examples.js':['workflows'],
 };
 const prefix='fluidnet-prototype-engine/';

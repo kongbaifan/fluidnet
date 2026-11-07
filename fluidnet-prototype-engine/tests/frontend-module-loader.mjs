@@ -7,7 +7,7 @@ const frontendRoot=new URL('../frontend/',import.meta.url);
 // always use their real imports; the substitution is confined to the test VM.
 const mockExports={'project-services.js':'createProjectServices','control-programs.js':'FluidNetControls'};
 export function loadFrontend(url,host){
-  if(!vm.SourceTextModule)throw Error('Use Node 24.8+ with --experimental-vm-modules for isolated frontend module tests');
+  if(!vm.SourceTextModule?.prototype.hasTopLevelAwait)throw Error('Use Node 24.9+ with --experimental-vm-modules for isolated frontend module tests');
   const context=vm.isContext(host)?host:vm.createContext(host);
   let state=contexts.get(context);
   if(!state){state={modules:new Map(),mocks:{...host.window}};contexts.set(context,state);}
