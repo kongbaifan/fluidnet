@@ -1,15 +1,15 @@
+import {loadFrontend} from './frontend-module-loader.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 
-const source=readFileSync(new URL('../frontend/project-services.js',import.meta.url),'utf8');
+
 function fixture(serverRevision, message='本地草稿备份失败：存储空间不足') {
   const state={workspaceRevision:4,projectRevisions:{p:2},projects:[],dirty:false};
   const calls=[];
   const context=vm.createContext({window:{FluidNetControls:{}},console});
-  vm.runInContext(readFileSync(new URL('../frontend/project-model.js',import.meta.url),'utf8'),context);
-  vm.runInContext(source,context);
+  loadFrontend(new URL('../frontend/project-model.js',import.meta.url),context);
+  loadFrontend(new URL('../frontend/project-services.js',import.meta.url),context);
   const services=context.window.createProjectServices({
     ui:{state:()=>state,restoreWorkspace:()=>{throw Error(message);},parameterKey:()=>'',persist:()=>{}},
     health:()=>({capabilities:{persistent_workspace:true}}),

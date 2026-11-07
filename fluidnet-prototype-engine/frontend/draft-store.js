@@ -1,5 +1,5 @@
 /* Lossless local draft format. Acyclic JSON nodes share storage, never mutable decoded objects. */
-window.FluidNetDraftStore=(()=>{
+export const FluidNetDraftStore=(()=>{
   const FORMAT='fluidnet-local-draft-v2';
   function pack(value){
     const nodes=[],known=new Map();
@@ -46,3 +46,5 @@ window.FluidNetDraftStore=(()=>{
   }
   return {pack,decode,parse,write};
 })();
+
+export default FluidNetDraftStore;

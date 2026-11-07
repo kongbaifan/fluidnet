@@ -1,6 +1,6 @@
 /* Workspace data normalization. No DOM, storage or transport access; callers
  * provide definitions and existing project/model adapters. */
-window.FluidNetWorkspaceNormalization = (() => {
+export const FluidNetWorkspaceNormalization = (() => {
   function create({parameterDefinitions: PARAM_DEFS, variablesFor, clone,
     moduleSpecs: MODULE_SPECS, pythonModuleSource, legacyModuleSource,
     defaultGroups, manifestFields, manifestParamSpecs, emptyRun, pinProject,
@@ -96,3 +96,5 @@ function normalize(state) {
   }
   return {create};
 })();
+
+export default FluidNetWorkspaceNormalization;

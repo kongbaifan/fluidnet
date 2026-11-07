@@ -1,10 +1,10 @@
+import {loadFrontend} from './frontend-module-loader.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 
 const context=vm.createContext({window:{},document:{createElement:()=>({dataset:{},textContent:''})}});
-vm.runInContext(readFileSync(new URL('../frontend/device-panel.js',import.meta.url),'utf8'),context);
+loadFrontend(new URL('../frontend/device-panel.js',import.meta.url),context);
 
 // A parameter row with a retained draft; refresh must change its availability, not its value.
 function fixture(owner,frame,specs=[]) {

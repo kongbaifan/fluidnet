@@ -1,9 +1,11 @@
+import {FluidNetCanvasObservations} from './canvas-observations.js';
+import {FluidNetCanvasView} from './canvas-view.js';
 /* Canvas controls and frame ownership. No solver writes or training state. */
-window.FluidNetCanvasWorkspace = (() => {
+export const FluidNetCanvasWorkspace = (() => {
   function create(deps) {
     const {getState,project,activePage,moduleOf,ui,esc,btn,links,domains,quick,channels,projectKey,selectedIds,
       engine,openDialog,closeDialog,render,saveUI,locate}=deps;
-    const observations=window.FluidNetCanvasObservations;
+    const observations=FluidNetCanvasObservations;
     let queued=null,frameId=null;
     const owner=page=>getState().projects.find(p=>p.pages.includes(page))||project();
     function context(p) {
@@ -17,7 +19,7 @@ window.FluidNetCanvasWorkspace = (() => {
         animate:ui.canvasAnimate!==false&&run.status==='running'&&valid&&!!row&&history.at(-1)===row,
         partial:!!history.at(-1)?.partial,time:recent?.t,run};
     }
-    const view=window.FluidNetCanvasView.create({esc,moduleOf:(p,n)=>p.moduleSnapshots?.[n.moduleId]||moduleOf(n),
+    const view=FluidNetCanvasView.create({esc,moduleOf:(p,n)=>p.moduleSnapshots?.[n.moduleId]||moduleOf(n),
       ui:()=>ui,domains,links,quick,channels,context,selectedIds,
       circuit:(p,key)=>{const all=engine().circuits?.(p.id)||[];return all.find(c=>c.ports.includes(key));},
       circuitLabel:c=>`回路 ${c.id+1} · ${c.fluid.fluid}`});
@@ -79,3 +81,5 @@ window.FluidNetCanvasWorkspace = (() => {
   }
   return {create};
 })();
+
+export default FluidNetCanvasWorkspace;

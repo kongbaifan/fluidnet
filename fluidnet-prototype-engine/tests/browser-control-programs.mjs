@@ -27,7 +27,7 @@ const save = async () => {
   await page.locator('[data-action="save"]').first().click();
   expect((await response).ok()).toBe(true);
   await expect(page.locator('[data-save-status]')).not.toContainText('正在保存');
-  return page.evaluate(key => JSON.parse(localStorage.getItem(key)), storageKey);
+  return page.evaluate(async key => JSON.parse(localStorage.getItem(key)), storageKey);
 };
 const selectedProject = data => data.projects.find(project => project.id === data.activeProject);
 const select = id => page.getByLabel('选择控制脚本').selectOption(id);
@@ -47,7 +47,7 @@ try {
   oldOwner.controlScripts = [script('control', 'V1.param.opening_ratio', .5, 9)];
   oldOwner.control = source('saved edit after old run', 'V1.param.opening_ratio', .55);
   oldOwner.controlEnabled = false; delete oldOwner.controlTimeout;
-  await page.evaluate(({key, data}) => localStorage.setItem(key, JSON.stringify(data)), {key: storageKey, data: oldSingle});
+  await page.evaluate(async ({key, data}) => localStorage.setItem(key, JSON.stringify(data)), {key: storageKey, data: oldSingle});
   await page.reload(); await ready();
   await expect(page.getByLabel('项目控制脚本')).toHaveValue(oldOwner.control);
   await expect(page.getByLabel('控制执行超时')).toHaveValue('9');
@@ -61,7 +61,7 @@ try {
   const owner = selectedProject(seed);
   delete owner.controlPrograms; delete owner.selectedControlId;
   owner.controlScripts = [alpha, beta];
-  await page.evaluate(({key, data}) => localStorage.setItem(key, JSON.stringify(data)), {key: storageKey, data: seed});
+  await page.evaluate(async ({key, data}) => localStorage.setItem(key, JSON.stringify(data)), {key: storageKey, data: seed});
   await page.reload(); await ready();
   await expect(page.getByLabel('选择控制脚本').locator('option')).toHaveCount(2);
   await expect(page.getByLabel('项目控制脚本')).toHaveValue(alpha.source);
@@ -130,7 +130,7 @@ try {
   const legacy = await save(); legacy.dirty = true;
   const legacyOwner = selectedProject(legacy);
   legacyOwner.control = '-- preserved legacy script'; delete legacyOwner.controlLanguage;
-  await page.evaluate(({key, data}) => localStorage.setItem(key, JSON.stringify(data)), {key: storageKey, data: legacy});
+  await page.evaluate(async ({key, data}) => localStorage.setItem(key, JSON.stringify(data)), {key: storageKey, data: legacy});
   await page.reload(); await ready();
   await expect(page.getByLabel('项目控制脚本')).toHaveValue('-- preserved legacy script');
   await expect(page.locator('[data-control-enabled]')).toBeDisabled();
@@ -142,8 +142,8 @@ try {
   await expect(page.locator('[data-control-enabled]')).not.toBeChecked();
 
   // The shared list operations reject a seventeenth script without truncating.
-  const capacity = await page.evaluate(() => {
-    const owner = {controlPrograms: []}, controls = window.FluidNetControls;
+  const capacity = await page.evaluate(async () => {
+    const owner = {controlPrograms: []}, controls = (await import('/control-programs.js')).FluidNetControls;
     for (let i = 0; i < 16; i++) controls.add(owner, 'item_' + i, 'Script ' + i);
     let error;
     try { controls.add(owner, 'overflow', 'Overflow'); } catch (failure) { error = failure.message; }

@@ -1,5 +1,5 @@
+import {loadFrontend} from './frontend-module-loader.mjs';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
 import {test} from 'node:test';
 import vm from 'node:vm';
 
@@ -7,7 +7,7 @@ import vm from 'node:vm';
 // different ports/channels from the server catalog's original built-in pipe.
 function editorFixture(enabled = true) {
   const sandbox = {window: {}, document: {getElementById: () => ({addEventListener() {}})}};
-  vm.runInNewContext(readFileSync(new URL('../frontend/cold-storage.js', import.meta.url), 'utf8'), sandbox);
+  loadFrontend(new URL('../frontend/cold-storage.js', import.meta.url),sandbox);
   const project = {id: 'custom', run: {status: 'ready', history: []}, thermalCouplings: [],
     pages: [{nodes: [{id: 'Liquid-1', moduleId: 'custom-pipe', params: {}},
       {id: 'Vessel-1', moduleId: 'vessel', params: {}}]}],

@@ -1,9 +1,9 @@
+import {loadFrontend} from './frontend-module-loader.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import {readFileSync} from 'node:fs';
 const host=vm.createContext({window:{},moduleOf:n=>n.module});
-vm.runInContext(readFileSync(new URL('../frontend/canvas-symbols.js',import.meta.url),'utf8'),host);
+loadFrontend(new URL('../frontend/canvas-symbols.js',import.meta.url),host);
 const geometry=host.window.FluidNetCanvasSymbols;
 test('dense same-side port hit targets do not cover neighboring port centers',()=>{
   for(const count of [4,6,8,16]){

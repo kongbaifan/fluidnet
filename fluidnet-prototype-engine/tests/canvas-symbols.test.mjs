@@ -1,9 +1,9 @@
+import {loadFrontend} from './frontend-module-loader.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 const context=vm.createContext({window:{}});
-vm.runInContext(readFileSync(new URL('../frontend/canvas-symbols.js',import.meta.url),'utf8'),context);
+loadFrontend(new URL('../frontend/canvas-symbols.js',import.meta.url),context);
 const api=context.window.FluidNetCanvasSymbols,plain=x=>JSON.parse(JSON.stringify(x));
 const device=(kind,ports=[{id:'in0',direction:'in',domain:'fluid',x:20,y:50},{id:'out0',direction:'out',domain:'fluid',x:80,y:50}])=>
   ({id:kind,kind,name:kind,ports,drawing:{shape:'rectangle',width:32,height:30,label:kind}});

@@ -1,12 +1,12 @@
+import {loadFrontend} from './frontend-module-loader.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 
 const esc=value=>String(value??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;');
 const button=(name,label,_glyph='',attrs='')=>`<button data-action="${name}" ${attrs}>${esc(label)}</button>`;
 function fixture(){
-  const host=vm.createContext({window:{}});vm.runInContext(readFileSync(new URL('../frontend/run-results-view.js',import.meta.url),'utf8'),host);
+  const host=vm.createContext({window:{}});loadFrontend(new URL('../frontend/run-results-view.js',import.meta.url),host);
   const project={id:'P',name:'当前工程',run:{}},run={history:[],events:[]},records=[];
   const charts={source:'live',range:'window',series:{q:true,a:true},compare:false},ui={runFilter:'all',selectedRecord:'',archivedRuns:[]};
   const registry=new Map(),calls=[],bindings=[],sampleCalls=[];

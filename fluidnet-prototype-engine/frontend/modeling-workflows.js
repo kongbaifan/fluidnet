@@ -1,5 +1,6 @@
+import {FluidNetProjectState} from './project-state.js';
 /* Project revisions, module upgrades, scenarios and archived-run comparison. */
-window.createModelingWorkflows = function (ui) {
+export const createModelingWorkflows = function (ui) {
   const {esc,btn,openDialog,closeDialog,msg,clone,uid}=ui;
   const state=ui.state,engine=ui.engine;
   let scenarioDraft=null,upgradePlan=null,comparison=null,compareKey='';
@@ -10,7 +11,7 @@ window.createModelingWorkflows = function (ui) {
   const nodes=p=>p.pages.flatMap(pg=>pg.nodes);
   const backupProject=p=>localStorage.setItem('fluidnet-prototype-engine-v1-before-project',JSON.stringify(engine().projectDocument(clone(p))));
   function applyDocument(document,receipt){
-    const current=state(),next=window.FluidNetProjectState.mergeDocument(current,document,ui.emptyRun,receipt);
+    const current=state(),next=FluidNetProjectState.mergeDocument(current,document,ui.emptyRun,receipt);
     const previous=current.projects.find(project=>project.id===document.project.id);
     if(previous)backupProject(previous);
     ui.replaceState(next);ui.dirty(ui.project());ui.persist();ui.render();
@@ -112,7 +113,7 @@ window.createModelingWorkflows = function (ui) {
       case 'wf-load':{if(state().projects.some(v=>v.id===d.id))idle(p);const result=await engine().readProject(d.id);applyDocument(result.document,result);closeDialog();msg('项目已载入');break;}
       case 'wf-history':{const data=await engine().projectHistory(p.id);openDialog('项目修订',p.name,`<div class="stack">${data.revisions.map(v=>`<div class="row spread"><span>修订 ${v.revision} · ${esc(v.saved_at)}</span>${btn('wf-restore','恢复','History',`data-id="${p.id}" data-revision="${v.revision}" ${v.deleted?'disabled':''}`)}</div>`).join('')||'<p>请先保存此项目。</p>'}</div>`);break;}
       case 'wf-restore':idle(p);ui.confirm('恢复项目修订','当前项目草稿先保留到浏览器，其他项目和运行档案保留。',()=>{backupProject(p);engine().restoreProject(p.id,Number(d.revision)).then(r=>{applyDocument(r.document,r);msg('项目修订已恢复');}).catch(e=>msg(e.message,true));});break;
-      case 'wf-delete':idle(p);if(state().projects.length===1)throw Error('至少保留一个项目');ui.confirm('删除项目',p.name+'；已保存运行档案保留。',()=>{engine().deleteProject(p.id).then(()=>{window.FluidNetProjectState.removeProject(state(),p.id);ui.dirty();ui.persist();ui.render();}).catch(e=>msg(e.message,true));});break;
+      case 'wf-delete':idle(p);if(state().projects.length===1)throw Error('至少保留一个项目');ui.confirm('删除项目',p.name+'；已保存运行档案保留。',()=>{engine().deleteProject(p.id).then(()=>{FluidNetProjectState.removeProject(state(),p.id);ui.dirty();ui.persist();ui.render();}).catch(e=>msg(e.message,true));});break;
       case 'wf-import':openDialog('导入单个项目','支持单项目、完整原型和规范 Project JSON，保留固定模块快照。',`<div class="stack"><input type="file" id="wf-import-file" accept=".json,application/json" required aria-label="单项目文件"><label class="field"><span>导入方式</span><select name="mode">${option('copy','创建项目副本','copy')}${option('replace','替换同 ID 项目')}</select></label></div>`,data=>{const file=document.getElementById('wf-import-file').files[0];file.text().then(async text=>{const doc=await engine().exchangeDocument(JSON.parse(text));if(data.mode==='copy'){const old=doc.project.id;doc.project.id=uid('project');doc.project.name+=' 导入';doc.charts.forEach(c=>{if(c.projectId===old)c.projectId=doc.project.id;});}else if(state().projects.some(p=>p.id===doc.project.id))idle(owner(doc.project.id));applyDocument(doc);msg('项目已导入，请保存');}).catch(e=>msg(e.message,true));},'导入');break;
       case 'wf-scenarios':scenarioList(p);break;
       case 'wf-new-scenario':scenarioEditor(p,{id:uid('scenario'),name:'新工况',overrides:{}});break;
@@ -141,3 +142,5 @@ window.createModelingWorkflows = function (ui) {
     projectToolbar:()=>btn('wf-server-projects','服务器项目','FolderOpen')+btn('wf-import','导入单项目','Upload'),
     scenarioToolbar:p=>`<label class="row gap-6"><span>工况</span><select data-wf-scenario data-id="${p.id}" aria-label="运行工况">${option('','基础模型',p.activeScenarioId||'')}${(p.scenarios||[]).map(s=>option(s.id,s.name,p.activeScenarioId)).join('')}</select></label>${btn('wf-scenarios','编辑工况','SlidersHorizontal',`data-id="${p.id}"`)}${btn('wf-upgrades','模块版本','Box',`data-id="${p.id}"`)}${btn('nav','批量工况','ListChecks','data-route="batches"')}${btn('create-composite','封装设备组','Network')}`};
 };
+
+export default createModelingWorkflows;

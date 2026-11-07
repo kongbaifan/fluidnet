@@ -1,10 +1,13 @@
+import {EquipmentSelection} from './equipment-selection.js';
+import {FluidNetProjectModel} from './project-model.js';
+import {FluidNetProjectState} from './project-state.js';
 /* Performance files are immutable library versions; adopting one only changes a device draft. */
-window.FluidNetPerformanceData = (() => {
+export const FluidNetPerformanceData = (() => {
   const clone=v=>JSON.parse(JSON.stringify(v));
   function references(node,definition,displayParameters,source='draft'){
     const entries=Object.entries((source==='current'?node.performanceData:node.performanceDataDraft??node.performanceData)||{});
     if(!entries.length||!definition?.parameters)return {};
-    const parameters=window.FluidNetProjectModel.canonicalParameters(definition,displayParameters),result={};
+    const parameters=FluidNetProjectModel.canonicalParameters(definition,displayParameters),result={};
     for(const [key,entry] of entries){
       if(!key||!entry?.parameterValues||!entry.provenance||entry.definitionHash!==definition.definition_hash||entry.contentHash!==definition.content_hash)continue;
       if(Object.entries(entry.parameterValues).every(([id,v])=>JSON.stringify(parameters[id])===JSON.stringify(v)))result[key]=clone(entry);
@@ -19,17 +22,17 @@ window.FluidNetPerformanceData = (() => {
     if(snapshot.applyDraft&&unchanged)delete node.performanceDataDraft;
   }
   function stage(owner,node,definition,proposal){
-    window.FluidNetProjectState.node(owner,node);
+    FluidNetProjectState.node(owner,node);
     const draft={};
     for(const [key,v] of Object.entries(proposal.parameters)){
       const spec=definition.parameters.find(p=>p.id===key);
       if(!spec||spec.writable===false)throw Error('资料方案包含不可写参数：'+key);
-      draft[key]=window.FluidNetProjectModel.toDisplay(spec,v);
+      draft[key]=FluidNetProjectModel.toDisplay(spec,v);
     }
     const parameterValues=Object.fromEntries(Object.entries(proposal.parameters).filter(([key])=>key.endsWith('_curve')||key==='reference_density_kg_m3'));
     const entry={provenance:clone(proposal.provenance),parameterValues:clone(parameterValues),definitionHash:definition.definition_hash,contentHash:definition.content_hash};
     const map={...(node.performanceDataDraft??node.performanceData),[proposal.provenance.parameter_id||Object.keys(parameterValues)[0]]:entry};
-    window.FluidNetProjectState.setDraft(owner,node,draft);node.performanceDataDraft=map;
+    FluidNetProjectState.setDraft(owner,node,draft);node.performanceDataDraft=map;
     node.draftModelId=null;node.draftModelVersion=null;
   }
   function chart(records,esc){
@@ -130,19 +133,19 @@ window.FluidNetPerformanceData = (() => {
     }
     async function apply(row,targetId){
       const node=instance(targetId);if(!node)throw Error('设备已不存在');
-      const owner=ownerOfInstance(node),definition=engine.manifestPayload(moduleOf(node)),before=window.EquipmentSelection.fingerprint(owner,node,definition);
+      const owner=ownerOfInstance(node),definition=engine.manifestPayload(moduleOf(node)),before=EquipmentSelection.fingerprint(owner,node,definition);
       const token=++serial,keys=definition.parameters.filter(p=>p.value_type==='curve'&&p.writable!==false);
       const fluids=[{label:'项目工质 · '+owner.fluid,config:{...(owner.fluidConfig||{}),fluid:owner.fluid,reference:owner.fluidReference||'mass'}},
         ...(owner.circuitFluids||[]).map(c=>({label:c.id+' · '+c.fluid,config:{...(c.fluidConfig||{}),fluid:c.fluid,reference:c.fluidReference||'mass'}}))];
-      const assert=()=>window.EquipmentSelection.assertCurrent(getState(),owner,node,engine.manifestPayload(moduleOf(node)),before);
+      const assert=()=>EquipmentSelection.assertCurrent(getState(),owner,node,engine.manifestPayload(moduleOf(node)),before);
       openDialog('选择资料目标参数',`${node.id} · ${row.name} v${row.version}`,
         `<div data-performance-token="${token}">${pick('parameter','曲线参数',keys.map(p=>[p.id,esc(p.label)]),row.kind==='pump_head'?'head_curve':row.kind==='fan_pressure'?'pressure_curve':'efficiency_curve')}${pick('fluid','设备设计工质',fluids.map((f,i)=>[String(i),esc(f.label)]),'0')}<p>原曲线会显示在下一步差异预览中；这里只提交建议参数，不改变已应用值。</p></div>`,data=>{
           assert();if(!fluids[data.fluid])throw Error('请选择有效设计工质');loading(token,'检查曲线兼容性');engine.request('/performance-data/proposal',{id:row.id,version:row.version,module:definition,
-            parameter_id:data.parameter,parameters:window.FluidNetProjectModel.canonicalParameters(definition,node.draft),
+            parameter_id:data.parameter,parameters:FluidNetProjectModel.canonicalParameters(definition,node.draft),
             references:Object.fromEntries(Object.entries(references(node,definition,node.draft)).map(([key,entry])=>[key,{id:entry.provenance.id,version:entry.provenance.version,content_hash:entry.provenance.content_hash}])),
             fluid:fluids[data.fluid].config}).then(result=>{
               if(!active(token))return;assert();
-              const rows=Object.entries(result.parameters).map(([key,v])=>[key,node.draft[key],window.FluidNetProjectModel.toDisplay(definition.parameters.find(p=>p.id===key),v)]);
+              const rows=Object.entries(result.parameters).map(([key,v])=>[key,node.draft[key],FluidNetProjectModel.toDisplay(definition.parameters.find(p=>p.id===key),v)]);
               openDialog('性能资料应用预览',`${node.id} · 仅填入待应用草稿，设计条件和实际运行工况仍需核对。`,
                 `<div data-performance-token="${token}">${result.warnings.map(w=>`<p class="notice">${esc(w)}</p>`).join('')}<div class="table-wrap"><table><thead><tr><th>参数</th><th>已有草稿</th><th>资料方案</th></tr></thead><tbody>${rows.map(r=>`<tr>${r.map(v=>`<td>${esc(typeof v==='object'?JSON.stringify(v):v)}</td>`).join('')}</tr>`).join('')}</tbody></table></div><p>资料来源：${esc(result.provenance.source)} · v${row.version}</p><label class="check-label"><input type="checkbox" data-performance-reference-confirm required>确认 ${result.provenance.reference_speed_rpm} rpm 为此曲线的 speed_ratio = 1 基准；当前草稿转速比为 ${esc(node.draft.speed_ratio)}，应用后重新选型。</label></div>`,()=>{
                   assert();stage(owner,node,definition,result);dirty(owner);persist();renderFloats();msg('性能资料已填入设备草稿，请预览并应用后再运行。');
@@ -154,3 +157,5 @@ window.FluidNetPerformanceData = (() => {
   }
   return {references,pending,capture,commit,stage,chart,create};
 })();
+
+export default FluidNetPerformanceData;

@@ -1,5 +1,5 @@
 /* Refresh non-structural workbench state while keeping the canvas and open editors alive. */
-window.FluidNetWorkbenchRefresh = (() => {
+export const FluidNetWorkbenchRefresh = (() => {
   function create({root,project,page,ui,viewBox,canvas,selection,chartMarkup,chartRefresh,layout,chrome,icon,history,placingName}){
     function refresh(){
       const owner=project(),current=page(),svg=root.querySelector('#network'),shell=root.querySelector('.workbench');
@@ -37,3 +37,5 @@ window.FluidNetWorkbenchRefresh = (() => {
   }
   return {create};
 })();
+
+export default FluidNetWorkbenchRefresh;

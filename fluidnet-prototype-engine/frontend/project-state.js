@@ -1,7 +1,8 @@
+import {FluidNetLinks} from './project-links.js';
 /* Project editing operations. Rendering, HTTP and backup policy belong to callers. */
-window.FluidNetProjectState = (() => {
+export const FluidNetProjectState = (() => {
   const clone=value=>value===undefined?undefined:JSON.parse(JSON.stringify(value));
-  const links=window.FluidNetLinks;
+  const links=FluidNetLinks;
   function assertCurrent(state,owner) {
     if(state.projects.find(p=>p.id===owner.id)!==owner)throw Error('项目已被替换，请重新打开当前项目。');
     return owner;
@@ -105,3 +106,5 @@ window.FluidNetProjectState = (() => {
     addProject,removeProject,addCanvas,addNode,connect,moveNode,removeNodes,removeConnection,
     canvasSnapshot,restoreCanvas,mergeDocument,replaceWorkspace};
 })();
+
+export default FluidNetProjectState;

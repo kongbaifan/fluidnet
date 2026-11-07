@@ -1,10 +1,10 @@
+import {loadFrontend} from './frontend-module-loader.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 
 const context=vm.createContext({window:{}});
-vm.runInContext(readFileSync(new URL('../frontend/canvas-observations.js',import.meta.url),'utf8'),context);
+loadFrontend(new URL('../frontend/canvas-observations.js',import.meta.url),context);
 const api=context.window.FluidNetCanvasObservations,plain=value=>JSON.parse(JSON.stringify(value));
 const device={ports:[{id:'in0',domain:'fluid',direction:'in'},{id:'out0',domain:'fluid',direction:'out'}],
   channels:[{id:'main',input_port:'in0',output_port:'out0'}],variables:[{id:'is_running',source:'derived'}]};

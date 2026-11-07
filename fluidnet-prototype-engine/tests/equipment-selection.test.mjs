@@ -1,10 +1,10 @@
+import {loadFrontend} from './frontend-module-loader.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 
 const context=vm.createContext({window:{}});
-for(const path of ['project-model.js','project-state.js','equipment-selection.js'])vm.runInContext(readFileSync(new URL('../frontend/'+path,import.meta.url),'utf8'),context);
+for(const path of ['project-model.js','project-state.js','equipment-selection.js'])loadFrontend(new URL('../frontend/'+path,import.meta.url),context);
 const api=context.window.EquipmentSelection;
 const plain=value=>JSON.parse(JSON.stringify(value));
 const definition={id:'device',version:1,runtime:'python',source:{design:'def design(ctx): pass'},definition_hash:'a',content_hash:'b',parameters:[

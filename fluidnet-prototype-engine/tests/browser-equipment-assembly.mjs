@@ -18,7 +18,7 @@ const submit=()=>page.getByRole('dialog').locator('button[type="submit"]').click
 async function save(){
  const wait=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/v1/workspace'&&r.request().method()==='POST');
  await page.locator('[data-action="save"]').first().click();expect((await wait).ok()).toBe(true);
- return page.evaluate(()=>{const s=window.FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1'));return s.projects.find(p=>p.id===s.activeProject);});
+ return page.evaluate(async () =>{const s=(await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1'));return s.projects.find(p=>p.id===s.activeProject);});
 }
 async function run(){
  await nav('workbench');const wait=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/v1/runs'&&r.request().method()==='POST');
@@ -31,7 +31,7 @@ async function arrange(id,index){
  const position={x:110+(index%6)*210,y:110+Math.floor(index/6)*180};
  let points;
  for(let attempt=0;attempt<12;attempt++){
-  points=await page.locator(`[data-node="${id}"]`).evaluate((element,position)=>{
+  points=await page.locator(`[data-node="${id}"]`).evaluate(async (element,position) =>{
    const svg=element.ownerSVGElement,point=svg.createSVGPoint(),box=document.getElementById('network-area').getBoundingClientRect();
    const from=point.matrixTransform(element.getScreenCTM());point.x=position.x;point.y=position.y;
    const to=point.matrixTransform(svg.getScreenCTM()),inside=p=>p.x>box.left+35&&p.x<box.right-35&&p.y>box.top+65&&p.y<box.bottom-90;

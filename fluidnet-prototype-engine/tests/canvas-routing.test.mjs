@@ -1,10 +1,10 @@
+import {loadFrontend} from './frontend-module-loader.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 
 const context=vm.createContext({window:{}});
-vm.runInContext(readFileSync(new URL('../frontend/canvas-routing.js',import.meta.url),'utf8'),context);
+loadFrontend(new URL('../frontend/canvas-routing.js',import.meta.url),context);
 const route=options=>JSON.parse(JSON.stringify(context.window.FluidNetCanvasRouting.route(options)));
 const right={x:1,y:0},left={x:-1,y:0};
 const rectangle=(id,x,y,width,height)=>({id,x,y,width,height});

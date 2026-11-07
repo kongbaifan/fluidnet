@@ -12,7 +12,7 @@ async function save(){
   const response=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/v1/workspace'&&r.request().method()==='POST');
   await page.locator('[data-action="save"]').first().click();
   expect((await response).ok()).toBe(true);
-  return page.evaluate(()=>{const s=window.FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1'));return s.projects.find(p=>p.id===s.activeProject);});
+  return page.evaluate(async () =>{const s=(await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1'));return s.projects.find(p=>p.id===s.activeProject);});
 }
 try {
   await page.goto(server.base);

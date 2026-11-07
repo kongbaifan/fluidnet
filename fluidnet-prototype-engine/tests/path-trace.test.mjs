@@ -1,10 +1,10 @@
+import {loadFrontend} from './frontend-module-loader.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 
 const context=vm.createContext({window:{}});
-vm.runInContext(readFileSync(new URL('../frontend/path-trace.js',import.meta.url),'utf8'),context);
+loadFrontend(new URL('../frontend/path-trace.js',import.meta.url),context);
 const trace=context.window.FluidNetPathTrace,plain=value=>JSON.parse(JSON.stringify(value));
 const ports=['hot_in','hot_out','cold_in','cold_out'].map(id=>({id,label:id,domain:'fluid'}));
 const channels=[{id:'hot',input:'hot_in',output:'hot_out',enabled:true},{id:'cold',input:'cold_in',output:'cold_out',enabled:true}];

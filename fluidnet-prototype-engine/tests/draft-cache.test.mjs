@@ -1,13 +1,13 @@
+import {loadFrontend} from './frontend-module-loader.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 
 const clone=value=>JSON.parse(JSON.stringify(value));
 function context(state,quota=Infinity){
   const stored=new Map(),messages=[],status={localError:'',trimmed:false};
   const ctx=vm.createContext({window:{}});
-  for(const file of ['workspace-storage.js','project-model.js'])vm.runInContext(readFileSync(new URL('../frontend/'+file,import.meta.url),'utf8'),ctx);
+  for(const file of ['workspace-storage.js','project-model.js'])loadFrontend(new URL('../frontend/'+file,import.meta.url),ctx);
   const api=ctx.window.FluidNetWorkspaceStorage.create({read:()=>state,key:'fluidnet-prototype-engine-v1',
     storage:{setItem:(key,value)=>{if(value.length>quota){const error=Error('quota');error.name='QuotaExceededError';throw error;}stored.set(key,value);}},
     status:()=>status,changed:patch=>Object.assign(status,patch),message:(...args)=>messages.push(args)});

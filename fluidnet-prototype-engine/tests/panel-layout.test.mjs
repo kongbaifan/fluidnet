@@ -1,9 +1,9 @@
+import {loadFrontend} from './frontend-module-loader.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import {readFileSync} from 'node:fs';
 const host=vm.createContext({window:{}});
-vm.runInContext(readFileSync(new URL('../frontend/panel-layout.js',import.meta.url),'utf8'),host);
+loadFrontend(new URL('../frontend/panel-layout.js',import.meta.url),host);
 const api=host.window.FluidNetPanelLayout,plain=x=>JSON.parse(JSON.stringify(x));
 const make=()=>({id:'valve',version:1,manifest:{id:'valve',version:1,content_hash:'one',definition_hash:'two',parameters:[{id:'opening',value_type:'number'}]},
  variables:[{id:'runtime:flow',origin:'runtime',canonicalId:'flow',unit:'kg/s'},{id:'in0:TEMP',origin:'port',unit:'°C'},{id:'param:opening',origin:'parameter',param:'opening',unit:'%'}]});

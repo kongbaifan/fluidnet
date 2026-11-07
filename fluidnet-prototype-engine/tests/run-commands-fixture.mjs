@@ -1,4 +1,4 @@
-import {readFileSync} from 'node:fs';
+import {loadFrontend} from './frontend-module-loader.mjs';
 import vm from 'node:vm';
 export const deferred=()=>{let resolve,reject;const promise=new Promise((yes,no)=>{resolve=yes;reject=no;});return {promise,resolve,reject};};
 export function fixture(status='running') {
@@ -9,7 +9,7 @@ export function fixture(status='running') {
   const calls=[],messages=[],pending=new Map();let persists=0,renders=0,refreshes=0,prepared=0;
   const host=vm.createContext({window:{},AbortController,crypto:{randomUUID:()=> 'command-1'},setTimeout});
   for(const file of ['project-run-state.js','run-commands.js'])
-    vm.runInContext(readFileSync(new URL('../frontend/'+file,import.meta.url),'utf8'),host);
+    loadFrontend(new URL('../frontend/'+file,import.meta.url),host);
   const hooks={
     request:async path=>{
       if(path.endsWith('/command'))return {command_id:'command-1',command_status:'queued'};

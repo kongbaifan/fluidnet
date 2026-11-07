@@ -1,9 +1,9 @@
+import {loadFrontend} from './frontend-module-loader.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 const context=vm.createContext({window:{}});
-vm.runInContext(readFileSync(new URL('../frontend/project-run-state.js',import.meta.url),'utf8'),context);
+loadFrontend(new URL('../frontend/project-run-state.js',import.meta.url),context);
 const runs=context.window.FluidNetProjectRunState;
 const row=(t,value,partial=false)=>({t,q:value,a:null,b:null,pressure:null,temperature:null,partial,canonical:{flow:value}});
 
@@ -58,7 +58,7 @@ test('a delayed real adapter response does not overwrite a replacement run',asyn
       throw Error(path);
     }});
   for(const file of ['project-model.js','project-run-state.js','module-service.js','run-commands.js','engine-client.js'])
-    vm.runInContext(readFileSync(new URL('../frontend/'+file,import.meta.url),'utf8'),host);
+    loadFrontend(new URL('../frontend/'+file,import.meta.url),host);
   const client=host.window.createEngineClient({state:()=>state,parameterKey:p=>p.key,emptyRun:()=>({history:[],events:[]}),render:()=>{}});
   const pending=client.command('project','run','p');await submitted;
   const replacement={id:'new',status:'running',history:[row(7,42)],events:[]};owner.run=replacement;
@@ -81,7 +81,7 @@ test('queued controller edits cannot move to a replacement run after the first r
       throw Error('An old queued command reached '+path);
     }});
   for(const file of ['project-model.js','project-run-state.js','module-service.js','run-commands.js','engine-client.js'])
-    vm.runInContext(readFileSync(new URL('../frontend/'+file,import.meta.url),'utf8'),host);
+    loadFrontend(new URL('../frontend/'+file,import.meta.url),host);
   const client=host.window.createEngineClient({state:()=>state,parameterKey:p=>JSON.stringify(p.controllers)});
   const results=Promise.allSettled([client.applyController(owner,'pid','setpoint',2),client.applyController(owner,'pid','setpoint',3)]);
   await submitted;owner.run={id:'new',runId:'new',live:true};deliver();

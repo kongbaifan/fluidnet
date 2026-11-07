@@ -1,5 +1,5 @@
 /* Feature-owned action dispatch. Exact actions precede prefixes; unknown actions stay with the shell. */
-window.FluidNetActionRouter = (() => {
+export const FluidNetActionRouter = (() => {
   function create(onError) {
     const exact=new Map(),prefixes=new Map();
     const register=(table,key,handler)=>{
@@ -20,3 +20,5 @@ window.FluidNetActionRouter = (() => {
   }
   return {create};
 })();
+
+export default FluidNetActionRouter;

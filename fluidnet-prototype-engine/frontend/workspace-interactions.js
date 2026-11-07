@@ -1,5 +1,5 @@
 /* One pointer coordinator for the workspace. Each domain owns its mutations and rendering. */
-window.FluidNetWorkspaceInteractions = (() => {
+export const FluidNetWorkspaceInteractions = (() => {
   const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
   const svgPoint=(svg,event)=>new DOMPoint(event.clientX,event.clientY).matrixTransform(svg.getScreenCTM().inverse());
   function create({root,document:doc,getView,canvas,selection,editor,windows,charts,shell,point=svgPoint,now=()=>Date.now()}) {
@@ -148,3 +148,5 @@ window.FluidNetWorkspaceInteractions = (() => {
   }
   return {create,svgPoint};
 })();
+
+export default FluidNetWorkspaceInteractions;

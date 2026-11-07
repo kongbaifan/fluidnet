@@ -1,5 +1,8 @@
+import {EquipmentSelection} from './equipment-selection.js';
+import {FluidNetProjectModel} from './project-model.js';
+import {FluidNetProjectState} from './project-state.js';
 /* Multi-device proposals are read-only until one engine transaction accepts the batch. */
-window.DeviceBatchEditor = (() => {
+export const DeviceBatchEditor = (() => {
   const clone=value=>JSON.parse(JSON.stringify(value));
   const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
   function fields(node,moduleOf,engine) {
@@ -40,7 +43,7 @@ window.DeviceBatchEditor = (() => {
       return value;
     }
     if(raw==null||!String(raw).trim()||!Number.isFinite(Number(raw)))throw Error(spec.label+' 必须是有限数值。');
-    const value=Number(raw),canonical=window.FluidNetProjectModel.toCanonical(spec,value);
+    const value=Number(raw),canonical=FluidNetProjectModel.toCanonical(spec,value);
     if(spec.minimum!=null&&canonical<spec.minimum||spec.maximum!=null&&canonical>spec.maximum)throw Error(spec.label+' 超出声明范围。');
     return value;
   }
@@ -71,7 +74,7 @@ window.DeviceBatchEditor = (() => {
       if(!modules.length)throw Error('项目中没有可批量编辑的设备。');
       const token=++serial;
       const assertProject=()=>{
-        window.FluidNetProjectState.assertCurrent(getState(),owner);
+        FluidNetProjectState.assertCurrent(getState(),owner);
         if(getState().activeProject!==owner.id||owner.run!==run||serial!==token)throw Error('项目或运行已变化，请重新打开批量编辑。');
       };
       openDialog('批量编辑设备','先按模块筛选，再选择当前项目各画布上的设备。',
@@ -98,13 +101,13 @@ window.DeviceBatchEditor = (() => {
           <label class="field"><span>统一型号</span><select name="batch-model" aria-label="批量型号"><option value="">保持各自型号</option>${compatibleModels.map(m=>`<option value="${esc(m.id)}">${esc(m.name)} · 型号v${esc(m.version)}</option>`).join('')}</select></label>
           <div class="table-wrap"><table><thead><tr><th>修改字段</th><th>统一值</th><th>显示单位</th></tr></thead><tbody>${rows}</tbody></table></div>`,data=>{
             assertProject();const nodes=items.filter(({node})=>data['batch-node:'+node.id]).map(i=>i.node);
-            for(const n of nodes){window.FluidNetProjectState.node(owner,n);if(snapshot(owner,[n],moduleOf,engine)!==baseline.get(n.id))throw Error(n.id+' 的参数、草稿或模块版本已变化，请重新选择。');}
+            for(const n of nodes){FluidNetProjectState.node(owner,n);if(snapshot(owner,[n],moduleOf,engine)!==baseline.get(n.id))throw Error(n.id+' 的参数、草稿或模块版本已变化，请重新选择。');}
             const selectedSource=data['batch-model']?state.models.find(m=>m.id===data['batch-model']):null;
             const selected=selectedSource?clone(selectedSource):null;
             if(data['batch-model']&&(!selected||selected.archived))throw Error('所选型号已失效。');
             const proposed={};
             if(selected){
-              window.EquipmentSelection.assertModelCompatible(selected,definition);
+              EquipmentSelection.assertModelCompatible(selected,definition);
               if(selected.moduleVersion!=null&&selected.moduleVersion!==definition.version)throw Error('型号绑定版本与设备不同。');
               for(const [key,value] of Object.entries(selected.params)){
                 if(!specs.some(f=>f.key===key))throw Error('型号包含未声明或不可写参数 '+key+'，请先检查型号。');
@@ -132,7 +135,7 @@ window.DeviceBatchEditor = (() => {
         })).join('');
         openDialog('批量应用预览',`${entries.length} 台设备${selected?(entries[0].model?' · 型号 ':' · 自定义参数，基于型号 ')+selected.name:''}。确认后整批应用；任一检查失败则整批保留原值。`,
           `<div data-device-batch-preview>${error?`<p class="notice" role="alert">${esc(error)}</p>`:''}<div class="table-wrap"><table><thead><tr><th>设备</th><th>参数</th><th>已应用</th><th>已有草稿</th><th>本次应用</th><th>单位</th></tr></thead><tbody>${lines}</tbody></table></div></div>`,()=>{
-            assertProject();for(const {node} of entries)window.FluidNetProjectState.node(owner,node);
+            assertProject();for(const {node} of entries)FluidNetProjectState.node(owner,node);
             if(snapshot(owner,entries.map(e=>e.node),moduleOf,engine)!==before)throw Error('预览后设备参数、草稿或运行已变化，请重新编辑。');
             if(selected&&JSON.stringify(state.models.find(m=>m.id===selected.id))!==modelBefore)throw Error('型号已变化，请重新预览。');
             checkEntries(owner,entries,moduleOf,engine);
@@ -148,3 +151,5 @@ window.DeviceBatchEditor = (() => {
   }
   return {fields,signature,snapshot,controlOwner,parseValue,checkEntries,create};
 })();
+
+export default DeviceBatchEditor;

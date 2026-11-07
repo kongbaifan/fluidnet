@@ -1,5 +1,5 @@
 /* Live run transport. Accepted frame/state rules remain in project-run-state. */
-window.FluidNetRunCommands = (() => {
+export const FluidNetRunCommands = (() => {
   function create({state,request,runState,pending,key,parameterKey,normalize,runMetadata,trendVariables,
     emptyRun,prepareRun,rowFromFrame,confirmArchiveCache,persist,render,refresh,message,liveRows=2001,
     now=()=>Date.now(),uuid=()=>crypto.randomUUID(),delay=ms=>new Promise(resolve=>setTimeout(resolve,ms)),
@@ -126,3 +126,5 @@ window.FluidNetRunCommands = (() => {
   }
   return {create};
 })();
+
+export default FluidNetRunCommands;

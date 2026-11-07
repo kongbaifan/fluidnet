@@ -1,9 +1,13 @@
+import {FluidNetCanvasObservations} from './canvas-observations.js';
+import {FluidNetCanvasRouting} from './canvas-routing.js';
+import {FluidNetCanvasSymbols} from './canvas-symbols.js';
+import {FluidNetSvgDom} from './svg-dom.js';
 /* Engineering canvas presentation. Geometry and observations never modify the engine project. */
-window.FluidNetCanvasView = (() => {
+export const FluidNetCanvasView = (() => {
   const palette=['var(--orange)','#2f80ed','#27ae60','#9b51e0','#eb5757','#b77912','#219653','#1595ae'];
   const rotate=(x,y,degrees)=>{const a=degrees*Math.PI/180;return {x:x*Math.cos(a)-y*Math.sin(a),y:x*Math.sin(a)+y*Math.cos(a)};};
   function create({esc,moduleOf,ui,domains,links,quick,channels,context,circuit,circuitLabel,selectedIds}) {
-    const symbols=window.FluidNetCanvasSymbols,observations=window.FluidNetCanvasObservations,routing=window.FluidNetCanvasRouting;
+    const symbols=FluidNetCanvasSymbols,observations=FluidNetCanvasObservations,routing=FluidNetCanvasRouting;
     const geometryCache=new WeakMap();
     function endpoint(owner,page,id,portId) {
       const n=page.nodes.find(item=>item.id===id),m=n&&moduleOf(owner,n),p=m?.ports.find(item=>item.id===portId);
@@ -59,7 +63,7 @@ window.FluidNetCanvasView = (() => {
     }
     function paint(svg,owner,page) {
       if(!svg)return;const ctx=context(owner),g=geometry(owner,page),edgeElements=new Map([...svg.querySelectorAll('[data-canvas-edge]')].map(el=>[el.dataset.canvasEdge,el]));
-      for(const e of page.edges){const el=edgeElements.get(e[0]),route=g.routes.get(e[0]);if(el&&route){const html=edgeMarkup(owner,page,e,route,ctx);if(el._canvasMarkup!==html){window.FluidNetSvgDom.patch(el,html);el._canvasMarkup=html;}}}
+      for(const e of page.edges){const el=edgeElements.get(e[0]),route=g.routes.get(e[0]);if(el&&route){const html=edgeMarkup(owner,page,e,route,ctx);if(el._canvasMarkup!==html){FluidNetSvgDom.patch(el,html);el._canvasMarkup=html;}}}
       const nodes=new Map(page.nodes.map(n=>[n.id,n]));
       for(const el of svg.querySelectorAll('[data-node]')){const n=nodes.get(el.dataset.node);if(!n)continue;
         el.setAttribute('transform',`translate(${n.x},${n.y})`);el.classList.toggle('selected',ui().selectedNode===n.id||selectedIds().includes(n.id));
@@ -71,10 +75,12 @@ window.FluidNetCanvasView = (() => {
       el.setAttribute('transform',`translate(${n.x},${n.y})`);el.classList.add('selected');
       const obstacles=page.nodes.map(n=>bounds(owner,n)),ctx=context(owner);
       const edgeElements=new Map([...svg.querySelectorAll('[data-canvas-edge]')].map(el=>[el.dataset.canvasEdge,el]));
-      for(const edge of page.edges.filter(e=>e[1]===id||e[3]===id)){const source=endpoint(owner,page,edge[1],edge[2]),target=endpoint(owner,page,edge[3],edge[4]),element=edgeElements.get(edge[0]);if(!source||!target||!element)continue;window.FluidNetSvgDom.patch(element,edgeMarkup(owner,page,edge,routing.route({source,target,obstacles}),ctx));delete element._canvasMarkup;}
+      for(const edge of page.edges.filter(e=>e[1]===id||e[3]===id)){const source=endpoint(owner,page,edge[1],edge[2]),target=endpoint(owner,page,edge[3],edge[4]),element=edgeElements.get(edge[0]);if(!source||!target||!element)continue;FluidNetSvgDom.patch(element,edgeMarkup(owner,page,edge,routing.route({source,target,obstacles}),ctx));delete element._canvasMarkup;}
       geometryCache.delete(page);
     }
     return {markup,paint,move,endpoint,bounds,hitRadius};
   }
   return {create};
 })();
+
+export default FluidNetCanvasView;

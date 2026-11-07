@@ -1,13 +1,13 @@
+import {loadFrontend} from './frontend-module-loader.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 
 const context = vm.createContext({window:{createProjectServices:()=>({})}});
-vm.runInContext(readFileSync(new URL('../frontend/project-model.js',import.meta.url),'utf8'),context);
-vm.runInContext(readFileSync(new URL('../frontend/project-run-state.js',import.meta.url),'utf8'),context);
-vm.runInContext(readFileSync(new URL('../frontend/module-service.js',import.meta.url),'utf8'),context);
-vm.runInContext(readFileSync(new URL('../frontend/engine-client.js',import.meta.url),'utf8'),context);
+loadFrontend(new URL('../frontend/project-model.js',import.meta.url),context);
+loadFrontend(new URL('../frontend/project-run-state.js',import.meta.url),context);
+loadFrontend(new URL('../frontend/module-service.js',import.meta.url),context);
+loadFrontend(new URL('../frontend/engine-client.js',import.meta.url),context);
 const engine=context.window.createEngineClient({moduleOf:node=>node.definition});
 const plain=value=>JSON.parse(JSON.stringify(value));
 const definition=(id,model,channels=[{id:'main',input_port:'feed',output_port:'return',enabled:true}])=>({id,solver_model:model,

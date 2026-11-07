@@ -1,11 +1,13 @@
+import {FluidNetControls} from './control-programs.js';
+import {FluidNetProjectModel} from './project-model.js';
 /* Project controls and durable workspace operations; all values use engine units. */
-window.createProjectServices = function ({request, ui, normalize, health, authHeaders, pinProject, moduleFromManifest}) {
+export const createProjectServices = function ({request, ui, normalize, health, authHeaders, pinProject, moduleFromManifest}) {
   // Each page owns its base revision. A different tab saving must never advance it.
   let revision = Number(ui.state().workspaceRevision || 0), ready = false;
   let saves = Promise.resolve();
   let projectRevisions={...(ui.state().projectRevisions||{})};
   const clone=value=>JSON.parse(JSON.stringify(value));
-  const controls = window.FluidNetControls;
+  const controls = FluidNetControls;
   function prepare(owner) { controls.normalize(owner); }
   async function loadWorkspace(force=false) {
     if (!health()?.capabilities?.persistent_workspace) return;
@@ -99,7 +101,7 @@ window.createProjectServices = function ({request, ui, normalize, health, authHe
   }
   function projectDocument(owner) {
     prepare(owner);pinProject(owner);
-    return window.FluidNetProjectModel.projectDocument(owner,ui.state());
+    return FluidNetProjectModel.projectDocument(owner,ui.state());
   }
   function projectReceipt(id,receipt) {
     projectRevisions[id]=receipt.revision;ui.state().projectRevisions={...projectRevisions};
@@ -135,10 +137,10 @@ window.createProjectServices = function ({request, ui, normalize, health, authHe
       const validation=await request('/projects/validate',data);
       if(!validation.valid)throw Error(validation.diagnostics.map(d=>d.message).join('；'));
     }
-    return window.FluidNetProjectModel.exchangeDocument(data,{makeProject:ui.makeProject,moduleFromManifest,replaceScripts:controls.replaceScripts});
+    return FluidNetProjectModel.exchangeDocument(data,{makeProject:ui.makeProject,moduleFromManifest,replaceScripts:controls.replaceScripts});
   }
   function upgradeDocument(owner,preview) {
-    return window.FluidNetProjectModel.upgradeDocument(owner,preview,{document:projectDocument(owner),
+    return FluidNetProjectModel.upgradeDocument(owner,preview,{document:projectDocument(owner),
       moduleFromManifest,replaceScripts:controls.replaceScripts,emptyRun:ui.emptyRun});
   }
   return {prepare,previewControl,loadWorkspace,saveWorkspace,refreshArchives,openArchive,deleteArchive,exportRunReport,
@@ -165,3 +167,5 @@ window.createProjectServices = function ({request, ui, normalize, health, authHe
     downloadBackup,
     restoreBackup:async file=> (await backupRequest('restore',file)).json(),restoreRevision};
 };
+
+export default createProjectServices;

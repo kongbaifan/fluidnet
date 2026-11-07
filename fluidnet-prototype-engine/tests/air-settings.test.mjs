@@ -1,9 +1,9 @@
+import {loadFrontend} from './frontend-module-loader.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 const host=vm.createContext({window:{},clearTimeout});
-vm.runInContext(readFileSync(new URL('../frontend/air-side.js',import.meta.url),'utf8'),host);
+loadFrontend(new URL('../frontend/air-side.js',import.meta.url),host);
 function fixture(options={contract_version:1,max_iterations:123,relaxation:.65}){
  let dialog,dirty=0,persisted=0;
  const project={id:'p',run:{live:false},pages:[],solver:{duration:1,dt:.1,mode:'dynamic'},

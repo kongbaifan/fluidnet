@@ -1,9 +1,9 @@
+import {loadFrontend} from './frontend-module-loader.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import {readFileSync} from 'node:fs';
 const host=vm.createContext({window:{}});
-for(const file of ['project-model.js','device-batch.js'])vm.runInContext(readFileSync(new URL('../frontend/'+file,import.meta.url),'utf8'),host);
+for(const file of ['project-model.js','device-batch.js'])loadFrontend(new URL('../frontend/'+file,import.meta.url),host);
 const batch=host.window.DeviceBatchEditor;
 const plain=v=>JSON.parse(JSON.stringify(v));
 const spec={id:'opening_ratio',label:'开度',value_type:'number',unit:{display_scale:.01,display_offset:0},minimum:0,maximum:1,writable:true,runtime:true};

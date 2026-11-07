@@ -1,5 +1,5 @@
 /* Presentation settings are independent of executable module contracts and hashes. */
-window.FluidNetPanelLayout = (() => {
+export const FluidNetPanelLayout = (() => {
   const clone=value=>JSON.parse(JSON.stringify(value));
   function binding(m) {
     const d=m.manifest;
@@ -66,3 +66,5 @@ window.FluidNetPanelLayout = (() => {
   }
   return {binding,results,widgets,validate,resolved,groups,copy,editor};
 })();
+
+export default FluidNetPanelLayout;

@@ -1,6 +1,6 @@
 /* Device parameter application boundary. It owns the preview ticket and the
  * asynchronous acknowledgement guard; the shell supplies project/model adapters. */
-window.FluidNetDeviceApplication = (() => {
+export const FluidNetDeviceApplication = (() => {
   function create({state, projectRunState, projectState, engine, performance, clone, sameValue,
     ownerOfInstance, moduleOf, instanceWritable, ensureInstanceVariables, validateInstanceEdits,
     markDirty, remember, render}) {
@@ -61,3 +61,5 @@ window.FluidNetDeviceApplication = (() => {
   }
   return {create};
 })();
+
+export default FluidNetDeviceApplication;

@@ -7,7 +7,7 @@ const page=await browser.newPage({...FHD_CONTEXT}),errors=[];
 page.on('pageerror',e=>errors.push(e.message));
 const hint=page.locator('#canvas-inspection');
 const port=id=>page.locator(`[data-port-node="HX1"][data-port-id="${id}"]`);
-const state=()=>page.evaluate(()=>{const s=window.FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1'));return s.projects.find(p=>p.id===s.activeProject);});
+const state=()=>page.evaluate(async () =>{const s=(await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1'));return s.projects.find(p=>p.id===s.activeProject);});
 const submit=()=>page.getByRole('dialog').locator('button[type="submit"]').click();
 async function save(){
   const posted=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/v1/workspace'&&r.request().method()==='POST');

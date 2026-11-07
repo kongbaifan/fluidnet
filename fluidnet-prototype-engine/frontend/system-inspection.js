@@ -1,4 +1,4 @@
-window.createSystemInspection = ({engine,project,openDialog,esc,btn,locate,download}) => {
+export const createSystemInspection = ({engine,project,openDialog,esc,btn,locate,download}) => {
   let generation=0;
   const value=v=>v.value==null?'未知':Number(v.value).toLocaleString('zh-CN',{maximumSignificantDigits:8})+' '+v.unit;
   function curve(c){
@@ -55,3 +55,5 @@ window.createSystemInspection = ({engine,project,openDialog,esc,btn,locate,downl
   }
   return {check,run};
 };
+
+export default createSystemInspection;

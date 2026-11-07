@@ -1,5 +1,5 @@
 /* Presentation-only geometry: no mutation of module contracts, instances or physical ports. */
-window.FluidNetCanvasSymbols = (() => {
+export const FluidNetCanvasSymbols = (() => {
   const SCALE=.15, PORT_GAP=12;
   const escape=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const value=(input,fallback,minimum=-Infinity,maximum=Infinity)=>{
@@ -178,3 +178,5 @@ window.FluidNetCanvasSymbols = (() => {
   }
   return {symbol,portOffset,portNormal,hitRadius,bodyBounds,hitBounds,labelY,copyPresentation,family};
 })();
+
+export default FluidNetCanvasSymbols;

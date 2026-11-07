@@ -1,9 +1,9 @@
+import {loadFrontend} from './frontend-module-loader.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 const context=vm.createContext({window:{}});
-vm.runInContext(readFileSync(new URL('../frontend/project-model.js',import.meta.url),'utf8'),context);
+loadFrontend(new URL('../frontend/project-model.js',import.meta.url),context);
 const model=context.window.FluidNetProjectModel;
 const plain=value=>JSON.parse(JSON.stringify(value));
 
@@ -23,7 +23,7 @@ test('duplicate workspace restore ignores only top-level receipt metadata, never
 test('workspace restore compares equally normalized content and rolls back if different-draft backup fails',()=>{
   let state={dirty:false,modules:[],draft:{opening:55},derived:['default']};const definitions={valve:'original'},backups=[];
   const ctx=vm.createContext({window:{}});
-  for(const name of ['project-model.js','project-state.js','workspace-storage.js'])vm.runInContext(readFileSync(new URL('../frontend/'+name,import.meta.url),'utf8'),ctx);
+  for(const name of ['project-model.js','project-state.js','workspace-storage.js'])loadFrontend(new URL('../frontend/'+name,import.meta.url),ctx);
   const api=ctx.window.FluidNetWorkspaceStorage.create({read:()=>state,write:value=>{state=value;},definitions,validate:()=>{},
     normalize:()=>{state.derived||=['default'];definitions.valve='normalized';},projectState:ctx.window.FluidNetProjectState,model:ctx.window.FluidNetProjectModel,
     key:'test',storage:{setItem:(key,text)=>{backups.push({key,source:JSON.parse(text)});throw Error('quota');}},resetView:()=>{},changed:()=>{},render:()=>{}});

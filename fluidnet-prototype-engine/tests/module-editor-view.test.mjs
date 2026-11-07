@@ -1,13 +1,13 @@
+import {loadFrontend} from './frontend-module-loader.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 
 const esc=value=>String(value??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;');
 const button=(name,label,_glyph='',attrs='')=>`<button data-action="${name}" ${attrs}>${esc(label)}</button>`;
 function fixture(){
   const host=vm.createContext({window:{}});
-  for(const name of ['project-model','module-editor-view'])vm.runInContext(readFileSync(new URL(`../frontend/${name}.js`,import.meta.url),'utf8'),host);
+  for(const name of ['project-model','module-editor-view'])loadFrontend(new URL(`../frontend/${name}.js`,import.meta.url),host);
   const m=host.window.FluidNetProjectModel.moduleFromManifest({id:'view_valve',name:'试验阀 <script>',version:1,runtime:'python',solver_model:'generic',category:'阀门',
     content_hash:'source-1',definition_hash:'definition-1',entrypoint:'module:Module',source:{runtime:'def evaluate(ctx):\n    pass',design:'def design(ctx): pass'},
     ports:[{id:'in0',label:'入口',domain:'fluid',direction:'in'},{id:'out0',label:'出口',domain:'fluid',direction:'out'}],

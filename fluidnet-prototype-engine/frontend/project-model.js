@@ -1,5 +1,5 @@
 /* Pure conversions between module contracts, project documents and display values. */
-window.FluidNetProjectModel = (() => {
+export const FluidNetProjectModel = (() => {
   const clone=value=>value===undefined?undefined:JSON.parse(JSON.stringify(value));
   function workspaceContentEqual(left,right) {
     if(!left||!right||typeof left!=='object'||typeof right!=='object')return false;
@@ -247,3 +247,5 @@ function parameterKey(owner,modules,controlKey) {
   return {parameterKey,workspaceContentEqual,toDisplay,toCanonical,displayParameters,canonicalParameters,manifestParamDef,moduleFromManifest,applyCatalogPresentation,installBuiltinCatalog,catalogPresentationIndex,
     manifestFields,manifestParamSpecs,manifestParamDefaults,projectDocument,exchangeDocument,upgradeDocument};
 })();
+
+export default FluidNetProjectModel;

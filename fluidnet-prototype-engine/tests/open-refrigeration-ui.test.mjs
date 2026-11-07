@@ -1,9 +1,9 @@
+import {loadFrontend} from './frontend-module-loader.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import {readFileSync} from 'node:fs';
 const context=vm.createContext({window:{}});
-vm.runInContext(readFileSync(new URL('../frontend/module-test-editor.js',import.meta.url),'utf8'),context);
+loadFrontend(new URL('../frontend/module-test-editor.js',import.meta.url),context);
 const editor=context.window.ModuleTestEditor;
 const definition={sdk:{capabilities:['composite.refrigeration.open.v1']},parameters:[],variables:[],channels:[]};
 const conditions={host_instance_id:'D1',host_project:{name:'真实回路',instances:[{id:'D1'}],fluid:{fluid:'R134a'},connections:[]},fluid:{fluid:'R134a',phase_policy:'any'},duration_s:.1,dt_s:.1};

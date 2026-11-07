@@ -1,5 +1,5 @@
-import {test} from 'node:test';import assert from 'node:assert/strict';import vm from 'node:vm';import {readFileSync} from 'node:fs';
-const host=vm.createContext({window:{}});for(const file of ['project-links','project-state','project-editing','draft-store'])vm.runInContext(readFileSync(new URL('../frontend/'+file+'.js',import.meta.url),'utf8'),host);
+import {loadFrontend} from './frontend-module-loader.mjs';
+import {test} from 'node:test';import assert from 'node:assert/strict';import vm from 'node:vm';const host=vm.createContext({window:{}});for(const file of ['project-links','project-state','project-editing','draft-store'])loadFrontend(new URL('../frontend/'+file+'.js',import.meta.url),host);
 const edit=host.window.FluidNetProjectEditing,store=host.window.FluidNetDraftStore,plain=x=>JSON.parse(JSON.stringify(x));
 const sample=()=>({id:'p',run:{status:'ready'},pages:[{id:'a',name:'主系统',nodes:['A','B','C'].map((id,i)=>({id,name:'泵'+id,moduleId:'pump',x:i*100,y:i*10,params:{speed:1},draft:{speed:.5}})),edges:[['e1','A','out','B','in'],['e2','B','out','C','in']]},{id:'b',name:'二次侧',nodes:[],edges:[]}],
  measurements:[{id:'m',sources:['A.out.temperature_k','B.in.temperature_k']}],thermalCouplings:[{id:'hx',fluid_instance_id:'A',refrigerant_vessel_id:'B',ua_w_k:100}],circuitFluids:[{id:'water',anchor:{instance_id:'A',port_id:'out'},fluid:'Water'}]});

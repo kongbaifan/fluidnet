@@ -1,5 +1,6 @@
+import {FluidNetPanelLayout} from './panel-layout.js';
 /* Device detail presentation. Drafts and apply transactions stay in project-state / engine-client. */
-window.createDevicePanel = deps => {
+export const createDevicePanel = deps => {
   const {moduleOf,ownerOfInstance,instanceVariablesBody,esc,icon,btn,ibtn,badge,number,option,
     pendingCount,model,paramDefs,deviceParamSpecs,sameValue,parameterValueText,PARAM_TYPE_LABELS,
     DOMAINS,links,project,getState,panelRow,parameterKey,observation,observationButton} = deps;
@@ -19,13 +20,13 @@ function deviceExtraParamRows(n, m, selected=null, readonly=false) {
   if(selected)return rows;
   return `<div class="row spread" style="margin-top:18px"><strong>其他参数</strong>${badge('非数值类型')}</div><p class="muted" style="font-size:12px;margin:0 0 10px">布尔、文本和曲线参数按各自类型编辑；曲线使用 JSON 点对数组。</p>${rows}`;
 }
-function panelConfig(n,m) {return window.FluidNetPanelLayout?.resolved(m,deviceParamSpecs(n))||{layout:null,warning:''};}
+function panelConfig(n,m) {return FluidNetPanelLayout?.resolved(m,deviceParamSpecs(n))||{layout:null,warning:''};}
 function configuredFields(n,m,overview=false) {
   const {layout}=panelConfig(n,m);if(!layout)return null;
   const specs=deviceParamSpecs(n),selected=new Set(layout.parameters.map(p=>p.id));
   const rows=[...layout.parameters];
-  if(!overview)for(const spec of specs)if(!selected.has(spec.id))rows.push({id:spec.id,widget:window.FluidNetPanelLayout.widgets(spec)[0],group:'其他参数',order:1000});
-  return window.FluidNetPanelLayout.groups(rows).map(group=>`<section data-panel-parameter-group="${esc(group.name)}"><h3>${esc(group.name||'参数')}</h3>${group.items.map(item=>{
+  if(!overview)for(const spec of specs)if(!selected.has(spec.id))rows.push({id:spec.id,widget:FluidNetPanelLayout.widgets(spec)[0],group:'其他参数',order:1000});
+  return FluidNetPanelLayout.groups(rows).map(group=>`<section data-panel-parameter-group="${esc(group.name)}"><h3>${esc(group.name||'参数')}</h3>${group.items.map(item=>{
     const spec=specs.find(p=>p.id===item.id),f=paramDefs(n).find(f=>f[0]===item.id);
     return f?parameterRow(n,m,f,item.widget):deviceExtraParamRows(n,m,[spec],item.widget==='display');
   }).join('')}</section>`).join('');
@@ -89,7 +90,7 @@ function metricMarkup(n,v) {return `<div class="device-metric" data-device-metri
 function resultMarkup(n,m) {
   const {layout,warning}=panelConfig(n,m);
   if(!layout)return `${warning?`<p class="notice">${esc(warning)}</p>`:''}<div class="device-metrics">${metrics(n).map(v=>metricMarkup(n,v)).join('')||'<p class="muted">此设备没有可显示的计算变量。</p>'}</div>`;
-  return window.FluidNetPanelLayout.groups(layout.results).map(g=>`<section data-panel-result-group="${esc(g.name)}"><h3>${esc(g.name||'运行结果')}</h3><div class="device-metrics">${g.items.map(item=>metricMarkup(n,m.variables.find(v=>v.id===item.id))).join('')}</div></section>`).join('');
+  return FluidNetPanelLayout.groups(layout.results).map(g=>`<section data-panel-result-group="${esc(g.name)}"><h3>${esc(g.name||'运行结果')}</h3><div class="device-metrics">${g.items.map(item=>metricMarkup(n,m.variables.find(v=>v.id===item.id))).join('')}</div></section>`).join('');
 }
 function overview(n) {
   const m=moduleOf(n),result=source(n),defs=paramDefs(n).filter(f=>m.variables.find(v=>v.param===f[0])?.display!==false);
@@ -121,3 +122,5 @@ function refresh(shell,n) {
 }
   return {body:floatBody, refresh};
 };
+
+export default createDevicePanel;

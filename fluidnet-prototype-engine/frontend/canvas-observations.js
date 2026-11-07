@@ -1,5 +1,5 @@
 /* Read-only presentation of accepted engine frames. Nothing here writes a setting or infers a flow from an arrow. */
-window.FluidNetCanvasObservations = (() => {
+export const FluidNetCanvasObservations = (() => {
   const finite = value => typeof value === 'number' && Number.isFinite(value);
   const definition = module => module?.manifest || module || {};
   const ports = module => definition(module).ports || module?.ports || [];
@@ -121,3 +121,5 @@ window.FluidNetCanvasObservations = (() => {
   }
   return {edge,node,legend};
 })();
+
+export default FluidNetCanvasObservations;

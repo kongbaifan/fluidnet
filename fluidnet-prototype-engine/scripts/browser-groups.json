@@ -577,6 +577,12 @@
         "--standard-plant"
       ],
       "group": "equipment-hvac"
+    },
+    {
+      "id": "module-loading",
+      "file": "tests/browser-module-loading.mjs",
+      "args": [],
+      "group": "smoke"
     }
   ],
   "suites": {

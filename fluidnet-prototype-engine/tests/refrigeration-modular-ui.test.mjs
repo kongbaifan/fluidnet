@@ -1,11 +1,11 @@
+import {loadFrontend} from './frontend-module-loader.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 
 function fixture() {
   const host=vm.createContext({window:{}});
-  vm.runInContext(readFileSync(new URL('../frontend/cold-storage.js',import.meta.url),'utf8'),host);
+  loadFrontend(new URL('../frontend/cold-storage.js',import.meta.url),host);
   const definitions={
     custom_room:{solver_model:'cold_room',ports:[{domain:'thermal'}],variables:[{id:'state.temperature_k'}]},
     custom_compressor:{solver_model:'refrigerant_compressor',ports:[{domain:'refrigerant'}],variables:[{id:'mass_flow_kg_s'},{id:'electric_power_w'}]},

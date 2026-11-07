@@ -1,10 +1,10 @@
+import {loadFrontend} from './frontend-module-loader.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 
 const host=vm.createContext({window:{}});
-vm.runInContext(readFileSync(new URL('../frontend/workbench-refresh.js',import.meta.url),'utf8'),host);
+loadFrontend(new URL('../frontend/workbench-refresh.js',import.meta.url),host);
 
 // A small surface implementing only DOM operations used by this public controller.
 function element(dataset={}) {

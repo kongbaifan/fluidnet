@@ -1,11 +1,21 @@
+import {FluidNetCanvasSymbols} from './canvas-symbols.js';
+import {FluidNetPanelLayout} from './panel-layout.js';
+import {FluidNetParameterBatch} from './parameter-batch.js';
+import {FluidNetProjectModel} from './project-model.js';
+import {FluidNetProjectRunState} from './project-run-state.js';
+import {FluidNetProjectState} from './project-state.js';
+import {FluidNetRunCommands} from './run-commands.js';
+import {ModuleTestEditor} from './module-test-editor.js';
+import {createModuleService} from './module-service.js';
+import {createProjectServices} from './project-services.js';
 /* Adapter for the retained prototype. All calculation values originate in /api/v1. */
-window.createEngineClient = function (ui) {
+export const createEngineClient = function (ui) {
   const clone = value => JSON.parse(JSON.stringify(value));
   const queues = new Map(), pending = new Map();
   const controllerWrites = new Map();
   const parameterWrites = new WeakSet();
   const circuitsByProject = new Map();  // project id -> circuits of the last successful check
-  const runState=window.FluidNetProjectRunState;
+  const runState=FluidNetProjectRunState;
   const archiveCacheMetadata=runState.archiveCacheMetadata;
   async function confirmArchiveCache(owner, run, record, historyRows, refresh, signal) {
     let metadata = archiveCacheMetadata(run.id,record,historyRows);
@@ -125,13 +135,13 @@ window.createEngineClient = function (ui) {
     if (cancel.unsupported) return `已${verb}本地结果回放(后端未实现任务${verb},服务端任务未被中断)。`;
     return `已${verb}本地结果回放(服务端任务未能确认${verb}:${cancel.error.message || '未知原因'})。`;
   }
-  const model=window.FluidNetProjectModel;
+  const model=FluidNetProjectModel;
   const manifestParamDef=model.manifestParamDef;
-  const moduleFromManifest=manifest=>model.moduleFromManifest(manifest,window.ModuleTestEditor?.defaultConditions,catalogPresentation[manifest.id]);
-  const moduleService=window.createModuleService({request,model,moduleFromManifest,testFlow:traceFlow,
+  const moduleFromManifest=manifest=>model.moduleFromManifest(manifest,ModuleTestEditor?.defaultConditions,catalogPresentation[manifest.id]);
+  const moduleService=createModuleService({request,model,moduleFromManifest,testFlow:traceFlow,
     modules:()=>ui.state().modules,getBench:()=>ui.state().bench,parameterDefinitions:ui.parameterDefinitions,
-    normalizeProject:normalize,copyPanel:(source,target)=>window.FluidNetPanelLayout?.copy(source,target),
-    copyPresentation:(source,target)=>window.FluidNetCanvasSymbols?.copyPresentation(source,target),
+    normalizeProject:normalize,copyPanel:(source,target)=>FluidNetPanelLayout?.copy(source,target),
+    copyPresentation:(source,target)=>FluidNetCanvasSymbols?.copyPresentation(source,target),
     output:ui.moduleOutput,dirty:ui.dirty,render:ui.render,persist:ui.persist,message:ui.message});
   const {manifestPayload,contractText,moduleForInsert,bindModule,pinProject,applyManifest,checkModule,
     runDesign,versions,loadVersion,saveModule,newModule,newTemplate,newComposite,updateContractItem}=moduleService;
@@ -554,7 +564,7 @@ window.createEngineClient = function (ui) {
       catalog=data;
       moduleCatalog=packages;
       model.installBuiltinCatalog({catalog:data,presentations:catalogPresentation,modules:ui.state().modules,
-        parameterDefinitions:ui.parameterDefinitions,defaultConditions:window.ModuleTestEditor?.defaultConditions});
+        parameterDefinitions:ui.parameterDefinitions,defaultConditions:ModuleTestEditor?.defaultConditions});
       for (const manifest of packages.modules || []) {
         if (manifest.runtime !== 'python') continue;
         const existing=ui.state().modules.find(m => m.id === manifest.id);
@@ -590,7 +600,7 @@ window.createEngineClient = function (ui) {
   }
   let runCommands;
   function liveRuns() {
-    return runCommands ||= window.FluidNetRunCommands.create({state:ui.state,request,runState,pending,key,parameterKey:ui.parameterKey,
+    return runCommands ||= FluidNetRunCommands.create({state:ui.state,request,runState,pending,key,parameterKey:ui.parameterKey,
       normalize,runMetadata:owner=>services.runMetadata(owner),trendVariables,emptyRun:ui.emptyRun,prepareRun,rowFromFrame,
       confirmArchiveCache,persist:ui.persist,render:ui.refreshRun||ui.render,refresh:ui.refresh,message:ui.message});
   }
@@ -624,8 +634,8 @@ window.createEngineClient = function (ui) {
   }
   async function applySingleParameters(owner,node,proposed=node.draft,onAccepted) {
     const ticket=runState.capture(ui.state(),owner),beforeKey=ui.parameterKey(owner);
-    window.FluidNetProjectState.assertCurrent(ui.state(),owner);
-    window.FluidNetProjectState.node(owner,node);
+    FluidNetProjectState.assertCurrent(ui.state(),owner);
+    FluidNetProjectState.node(owner,node);
     const m=ui.moduleOf(node), definition=m.manifest || catalog.modules.find(d=>d.id===m.kind);
     const bindings=m.manifest ? null : catalog.prototype_parameter_bindings[m.kind];
     const edits=Object.entries(proposed).filter(([key,value])=>JSON.stringify(value)!==JSON.stringify(node.params[key])).map(([key,value])=>{
@@ -640,10 +650,10 @@ window.createEngineClient = function (ui) {
     if(edits.length)await confirmedCommand(owner,{action:'write',values:Object.fromEntries(edits.map(edit=>[
       `${node.id}.param.${edit.id}`,edit.canonical]))});
     runState.assertCurrent(ui.state(),ticket);
-    window.FluidNetProjectState.assertCurrent(ui.state(),owner);
-    window.FluidNetProjectState.node(owner,node);
+    FluidNetProjectState.assertCurrent(ui.state(),owner);
+    FluidNetProjectState.node(owner,node);
     const currentKey=ui.parameterKey(owner);
-    window.FluidNetProjectState.applyParameters(owner,node,Object.fromEntries(edits.map(edit=>[edit.key,edit.value])));
+    FluidNetProjectState.applyParameters(owner,node,Object.fromEntries(edits.map(edit=>[edit.key,edit.value])));
     onAccepted?.();
     runState.advanceParameterKey(owner.run,beforeKey,currentKey,ui.parameterKey(owner));ui.persist();ui.render();
   }
@@ -655,7 +665,7 @@ window.createEngineClient = function (ui) {
       return {definition:m.manifest||catalog?.modules.find(d=>d.id===m.kind),
         bindings:m.manifest?null:catalog?.prototype_parameter_bindings[m.kind]};
     };
-    const plan=window.FluidNetParameterBatch.prepare(ui.state(),owner,entries,describe);
+    const plan=FluidNetParameterBatch.prepare(ui.state(),owner,entries,describe);
     for(const item of plan.items)if(parameterWrites.has(item.node))throw Error('设备参数正在应用，请等待确认后再提交。');
     for(const item of plan.items)parameterWrites.add(item.node);
     try {
@@ -663,7 +673,7 @@ window.createEngineClient = function (ui) {
       if(live&&Object.keys(plan.values).length)receipt=await confirmedCommand(owner,{action:'write',values:plan.values});
       runState.assertCurrent(ui.state(),ticket);
       const currentKey=ui.parameterKey(owner);
-      window.FluidNetParameterBatch.commit(ui.state(),owner,plan,describe);
+      FluidNetParameterBatch.commit(ui.state(),owner,plan,describe);
       if(live)runState.advanceParameterKey(owner.run,beforeKey,currentKey,ui.parameterKey(owner));
       owner.run.events ||= [];
       owner.run.events.push({t:receipt?.time_s??owner.run.time,kind:'parameters',text:`批量应用 ${plan.items.length} 台设备、${Object.keys(plan.values).length} 项参数`});
@@ -671,6 +681,8 @@ window.createEngineClient = function (ui) {
       return receipt;
     } finally {for(const item of plan.items)parameterWrites.delete(item.node);}
   }
-  const services=window.createProjectServices({request,ui,normalize,health:()=>health,authHeaders,pinProject,moduleFromManifest});
+  const services=createProjectServices({request,ui,normalize,health:()=>health,authHeaders,pinProject,moduleFromManifest});
   return {...services,cacheCircuits:(owner,items)=>{circuitsByProject.set(owner.id,items||[]);ui.render();},archiveCacheMetadata,overviewBindings,overviewValues,refrigerationReportAvailable,request,normalize,moduleFromManifest,whenReady:()=>initializing || Promise.resolve(),command,tick,validate,init,applyController,applyParameters,applyParameterBatch,isApplyingParameters:node=>parameterWrites.has(node),loadOverview,authHeaders,signOut:()=>{sessionStorage.removeItem(TOKEN_KEY);location.reload();},overview:id=>runCommands?.overview(id),circuits:id=>circuitsByProject.get(id)||[],confirmedCommand,portValue,observation,manifestPayload,contractText,checkModule,saveModule,runDesign,versions,loadVersion,newModule,newTemplate,newComposite,updateContractItem,bindModule,pinProject,moduleForInsert,get catalog(){return catalog;},get health(){return health;}};
 };
+
+export default createEngineClient;

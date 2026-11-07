@@ -11,7 +11,7 @@ const submit=()=>page.getByRole('dialog').locator('button[type="submit"]').click
 async function saved(){
  const receipt=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/v1/workspace'&&r.request().method()==='POST');
  await page.locator('[data-action="save"]').first().click();expect((await receipt).ok()).toBe(true);
- return page.evaluate(()=>window.FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
+ return page.evaluate(async () =>(await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
 }
 const owner=s=>s.projects.find(p=>p.id===s.activeProject);
 const node=s=>owner(s).pages.flatMap(p=>p.nodes).find(n=>n.id==='V1');

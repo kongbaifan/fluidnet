@@ -1,9 +1,9 @@
+import {loadFrontend} from './frontend-module-loader.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 const host=vm.createContext({window:{}});
-for(const file of ['workspace-storage','project-model','project-state'])vm.runInContext(readFileSync(new URL('../frontend/'+file+'.js',import.meta.url),'utf8'),host);
+for(const file of ['workspace-storage','project-model','project-state'])loadFrontend(new URL('../frontend/'+file+'.js',import.meta.url),host);
 const api=host.window.FluidNetWorkspaceStorage;
 function fixture(){
  let state={dirty:true,projects:[{dirty:true}],modules:[],draft:{valve:55}},version=0,requestCount=0,deliver,reject,notify;

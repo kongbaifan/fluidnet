@@ -1,5 +1,5 @@
 /* Run ownership, accepted frame presentation and historical records; no network I/O. */
-window.FluidNetProjectRunState = (() => {
+export const FluidNetProjectRunState = (() => {
   const clone=value=>value===undefined?undefined:JSON.parse(JSON.stringify(value));
   function capture(state,owner) { return {owner,run:owner.run,bench:state.bench===owner}; }
   function isCurrent(state,ticket) {
@@ -77,3 +77,5 @@ window.FluidNetProjectRunState = (() => {
   return {capture,isCurrent,assertCurrent,archiveCacheMetadata,setArchiveCache,advanceParameterKey,prepare,present,append,mergeLive,
     reconcileArchives,archiveRecord,rememberArchive};
 })();
+
+export default FluidNetProjectRunState;

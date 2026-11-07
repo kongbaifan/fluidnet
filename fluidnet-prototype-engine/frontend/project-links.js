@@ -1,5 +1,5 @@
 /* Connections belong to the project; their source canvas stores the existing edge tuple. */
-window.FluidNetLinks = (() => {
+export const FluidNetLinks = (() => {
   const all = owner => owner.pages.flatMap(page => page.edges);
   function locate(owner, id) {
     for (const page of owner.pages) {
@@ -98,3 +98,5 @@ window.FluidNetLinks = (() => {
   }
   return {all, locate, find, atPort, check, connect, remove, rehome, move, removeNodes, cross, validate};
 })();
+
+export default FluidNetLinks;

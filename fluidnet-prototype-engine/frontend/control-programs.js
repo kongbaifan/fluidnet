@@ -1,5 +1,5 @@
 /* Editable control programs and their projection into the engine contract. */
-window.FluidNetControls = (() => {
+export const FluidNetControls = (() => {
   const clone = value => JSON.parse(JSON.stringify(value));
   const names = value => [...new Set((value || '').split(/[\s,，]+/).filter(Boolean))];
   const languageOf = source => /(^|\n)\s*def (initialize|step)\(/.test(source || '') ? 'python' : 'legacy';
@@ -132,3 +132,5 @@ window.FluidNetControls = (() => {
   }
   return {normalize, current, select, update, add, remove, replaceScripts, selectedScript, key, names, MAX_PROGRAMS};
 })();
+
+export default FluidNetControls;

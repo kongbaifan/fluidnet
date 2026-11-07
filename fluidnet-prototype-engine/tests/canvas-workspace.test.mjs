@@ -1,11 +1,11 @@
+import {loadFrontend} from './frontend-module-loader.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import {readFileSync} from 'node:fs';
 const plain=v=>JSON.parse(JSON.stringify(v));
 function fixture(){
   const host=vm.createContext({window:{}});
-  for(const name of ['canvas-symbols','canvas-routing','canvas-observations','canvas-view','canvas-workspace'])vm.runInContext(readFileSync(new URL('../frontend/'+name+'.js',import.meta.url),'utf8'),host);
+  for(const name of ['canvas-symbols','canvas-routing','canvas-observations','canvas-view','canvas-workspace'])loadFrontend(new URL('../frontend/'+name+'.js',import.meta.url),host);
   const modules={source:{id:'source',kind:'source',name:'压力源',ports:[{id:'out0',label:'出口',domain:'fluid',direction:'out'}],variables:[]}};
   const nodes=[{id:'B1',moduleId:'source',name:'入口',x:0,y:0,params:{}},{id:'B2',moduleId:'source',name:'出口',x:200,y:0,params:{}}],page={id:'main',nodes,edges:[['edge','B1','out0','B2','out0']]};
   const run={source:'engine',status:'running',parameterKey:'key',history:[{t:1,canonical:{'B1.out0.mass_flow_kg_s':-2,'B2.out0.mass_flow_kg_s':2},diagnostics:[]}]},owner={id:'p',pages:[page],run},ui={canvasModeValue:'flow'},state={projects:[owner]};

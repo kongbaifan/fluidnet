@@ -1,9 +1,9 @@
+import {loadFrontend} from './frontend-module-loader.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 const host=vm.createContext({window:{}});
-vm.runInContext(readFileSync(new URL('../frontend/workspace-interactions.js',import.meta.url),'utf8'),host);
+loadFrontend(new URL('../frontend/workspace-interactions.js',import.meta.url),host);
 const create=host.window.FluidNetWorkspaceInteractions.create;
 const plain=v=>JSON.parse(JSON.stringify(v));
 function surface(){const listeners=new Map();return {listeners,addEventListener:(key,fn)=>{const list=listeners.get(key)||[];list.push(fn);listeners.set(key,list);},removeEventListener:(key,fn)=>listeners.set(key,(listeners.get(key)||[]).filter(x=>x!==fn))};}

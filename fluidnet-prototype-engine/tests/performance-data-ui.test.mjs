@@ -1,10 +1,10 @@
+import {loadFrontend} from './frontend-module-loader.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 
 const context=vm.createContext({window:{}});
-for(const path of ['project-model.js','project-state.js','equipment-selection.js','performance-library.js'])vm.runInContext(readFileSync(new URL('../frontend/'+path,import.meta.url),'utf8'),context);
+for(const path of ['project-model.js','project-state.js','equipment-selection.js','performance-library.js'])loadFrontend(new URL('../frontend/'+path,import.meta.url),context);
 const api=context.window.FluidNetPerformanceData,selection=context.window.EquipmentSelection;
 const plain=value=>JSON.parse(JSON.stringify(value));
 const definition={id:'pump',version:1,definition_hash:'frozen',content_hash:'runtime',parameters:[

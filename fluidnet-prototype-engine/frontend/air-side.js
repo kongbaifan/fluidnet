@@ -1,5 +1,8 @@
+import {FluidNetControls} from './control-programs.js';
+import {FluidNetProjectModel} from './project-model.js';
+import {FluidNetProjectState} from './project-state.js';
 /* 风系统：服务器负责物性和求解；页面只作单位转换与同一运行帧的展示。 */
-window.createAirSideUI = function (ui) {
+export const createAirSideUI = function (ui) {
   const {esc, btn, msg} = ui, clone = value => JSON.parse(JSON.stringify(value));
   const examples = [['air-coil-wet','湿盘管除湿'],['air-mixing','新回风混合'],['ahu-wet','空气处理机组'],
     ['ahu-room','房间送回风热湿系统'],['air-parallel-wet','并联风侧设备'],['cooling-tower-moist','冷却塔水耗'],
@@ -219,7 +222,7 @@ window.createAirSideUI = function (ui) {
       moduleSnapshots:snapshots,solverOptions:canonical.solver,controllers:clone(canonical.controllers||[]),
       scenarios:clone(canonical.scenarios||[]),selectedVariables:clone(canonical.selected_variables||[]),measurements:clone(canonical.measurements||[]),
       controlEnabled:false,controlPrograms:[],controlScripts:[],caseId:name});
-    window.FluidNetControls.replaceScripts(p,canonical.control_scripts||[]);
+    FluidNetControls.replaceScripts(p,canonical.control_scripts||[]);
     // Canonical scenario parameter values use engine units; Studio scenarios use display units.
     for(const scenario of p.scenarios)for(const [iid,values] of Object.entries(scenario.overrides||{})){
       const inst=canonical.instances.find(item=>item.id===iid),definition=canonical.modules.find(item=>item.id===inst.module_id);
@@ -228,7 +231,7 @@ window.createAirSideUI = function (ui) {
     const controlled=!!canonical.controllers?.length;
     p.solver={...p.solver,mode:controlled||['ahu-room','chiller-air-loop','hvac-pump-switch'].includes(name)?'dynamic':'steady',duration:controlled?2400:name==='chiller-air-loop'?20:name==='ahu-room'?120:10,dt:controlled?30:name==='hvac-pump-switch'?1:2,
       executionMode:'fast',moduleMixedJacobian:false,pressureAtol:1,massAtol:1e-8};
-    window.FluidNetProjectState.addProject(state(),p);ui.normalizeState();view(p);persistView(p);forgetProject();ui.openProject(p.id);ui.navigate('air');ui.persist();
+    FluidNetProjectState.addProject(state(),p);ui.normalizeState();view(p);persistView(p);forgetProject();ui.openProject(p.id);ui.navigate('air');ui.persist();
     msg('风侧示例已创建，可运行计算并保存项目。');
     } finally {model.creating=false;ui.render();}
   }
@@ -291,8 +294,8 @@ window.createAirSideUI = function (ui) {
         for(const definition of next.modules){const m=engine().moduleFromManifest(definition);m.frozen=definition.runtime==='python';p.moduleSnapshots[m.id]=m;}
         for(const node of p.pages.flatMap(pg=>pg.nodes)){
           const inst=next.instances.find(i=>i.id===node.id),definition=next.modules.find(m=>m.id===inst.module_id);
-          const params=window.FluidNetProjectModel.displayParameters(definition,Object.fromEntries(definition.parameters.map(spec=>[spec.id,inst.parameters[spec.id]??spec.default])));
-          window.FluidNetProjectState.updateNode(p,node,{params,draft:clone(params)});
+          const params=FluidNetProjectModel.displayParameters(definition,Object.fromEntries(definition.parameters.map(spec=>[spec.id,inst.parameters[spec.id]??spec.default])));
+          FluidNetProjectState.updateNode(p,node,{params,draft:clone(params)});
         }
         persistView(p);invalidate();ui.render();msg('迁移已应用到草稿，请保存新修订并重新计算。');
       },'备份并应用迁移');
@@ -332,3 +335,5 @@ window.createAirSideUI = function (ui) {
   }
   return {markup,afterRender,action,refresh:()=>{if(active())load();},createExample};
 };
+
+export default createAirSideUI;

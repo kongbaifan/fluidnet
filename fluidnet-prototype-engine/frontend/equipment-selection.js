@@ -1,7 +1,10 @@
+import {FluidNetPerformanceData} from './performance-library.js';
+import {FluidNetProjectModel} from './project-model.js';
+import {FluidNetProjectState} from './project-state.js';
 /* Selection proposals use the device's frozen definition and never apply runtime parameters. */
-window.EquipmentSelection = (() => {
+export const EquipmentSelection = (() => {
   const clone = value => JSON.parse(JSON.stringify(value));
-  const model = () => window.FluidNetProjectModel;
+  const model = () => FluidNetProjectModel;
   const supported = definition => definition?.runtime === 'python' && typeof definition.source?.design === 'string' && !!definition.source.design.trim();
   const defaults = (definition, draft) => Object.fromEntries(definition.parameters.map(p => [p.id,
     clone(draft[p.id] === undefined ? model().toDisplay(p,p.default) : draft[p.id])]));
@@ -44,8 +47,8 @@ window.EquipmentSelection = (() => {
       throw Error('选型型号绑定的模块版本与目标设备不同，请使用相同版本或重新选型。');
   }
   function assertCurrent(state,owner,node,definition,before) {
-    window.FluidNetProjectState.assertCurrent(state,owner);
-    window.FluidNetProjectState.node(owner,node);
+    FluidNetProjectState.assertCurrent(state,owner);
+    FluidNetProjectState.node(owner,node);
     if (state.activeProject !== owner.id || fingerprint(owner,node,definition)!==before) throw Error('设备、草稿或工质已变化，请重新计算选型方案。');
   }
   function create(deps) {
@@ -68,7 +71,7 @@ window.EquipmentSelection = (() => {
     function provenance(id){
       const node=instance(id),item=node&&getState().models.find(m=>m.id===(node.draftModelId||node.modelId));
       if(!node)return;
-      const definition=engine.manifestPayload(moduleOf(node)),api=window.FluidNetPerformanceData;
+      const definition=engine.manifestPayload(moduleOf(node)),api=FluidNetPerformanceData;
       const current=api?.references(node,definition,node.params,'current')||{},draft=api?.references(node,definition,node.draft)||{};
       const data={当前参数资料:current,草稿资料:draft,保存型号时的来源:item?.selection||item?.performanceData||null};
       openDialog('型号设计资料',`${node.id} · ${item?.name||'自定义参数'} · 模块v${definition.version}`,`<p>当前与草稿仅列出曲线及参考条件仍一致的资料。型号来源为保存时的记录。</p><pre class="code-preview">${esc(JSON.stringify(data,null,2))}</pre>`,null,'',true);
@@ -91,7 +94,7 @@ window.EquipmentSelection = (() => {
           }
           openDialog('盘管几何方案预览',node.name,`<div data-selection-token="${token}"><p>有效总UA ${esc(result.effective_ua_w_k)} W/K</p><pre class="code-preview">${esc(JSON.stringify({parameters:result.parameters,areas:result.areas,source:result.source},null,2))}</pre><ul>${result.assumptions.map(t=>`<li>${esc(t)}</li>`).join('')}</ul><p>保存只进入草稿；运行前仍须确认应用，并检查实际工质和工况。</p></div>`,()=>{
             assertCurrent(getState(),owner,node,engine.manifestPayload(moduleOf(node)),before);
-            window.FluidNetProjectState.setDraft(owner,node,proposed);
+            FluidNetProjectState.setDraft(owner,node,proposed);
             node.geometryDesign={inputs,result,definitionHash:definition.definition_hash||null};markDirty(owner);persist();renderFloats();msg('盘管几何方案已填入草稿，请确认应用。');
           },'填入设备草稿',true);
         }).catch(e=>{if(active())openDialog('盘管几何计算未完成',node.name,`<p>${esc(e.message)}</p>`);});
@@ -132,11 +135,11 @@ window.EquipmentSelection = (() => {
                       item={id:uid('model'),moduleId:definition.id,moduleVersion:definition.version,name,description:note,sourceLabel:note,
                         version:1,params:clone(params),values,bank:1,archived:false,
                         selection:{designHash:result.design_hash,definitionHash:definition.definition_hash||null,contentHash:definition.content_hash||null,
-                          fluid:clone(fluids[index].config),inputs:model().canonicalParameters(definition,inputs),performanceData:window.FluidNetPerformanceData?.references(node,definition,inputs)||{}},
+                          fluid:clone(fluids[index].config),inputs:model().canonicalParameters(definition,inputs),performanceData:FluidNetPerformanceData?.references(node,definition,inputs)||{}},
                         versions:[{version:1,note,params:clone(params),values:clone(values)}]};
                     }
-                    window.FluidNetProjectState.setDraft(owner,node,params);
-                    window.FluidNetProjectState.updateNode(owner,node,{draftModelId:item?.id||null,draftModelVersion:item?.version||null});
+                    FluidNetProjectState.setDraft(owner,node,params);
+                    FluidNetProjectState.updateNode(owner,node,{draftModelId:item?.id||null,draftModelVersion:item?.version||null});
                     if(item){state.models.push(item);state.selectedModel=item.id;}
                     markDirty(owner);persist();renderFloats();msg(item?'选型型号已保存，结果已填入设备草稿。确认应用后生效。':'选型结果已填入设备草稿。确认应用后生效。');
                   },'保存方案',true);
@@ -149,3 +152,5 @@ window.EquipmentSelection = (() => {
   }
   return {supported,defaults,readInputs,proposal,fingerprint,assertCurrent,assertModelCompatible,create};
 })();
+
+export default EquipmentSelection;

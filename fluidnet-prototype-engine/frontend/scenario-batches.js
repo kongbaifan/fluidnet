@@ -1,5 +1,5 @@
 /* Saved-input batches: the server owns snapshots, execution and result retention. */
-window.createScenarioBatchesUI = function (ui) {
+export const createScenarioBatchesUI = function (ui) {
   const {esc, btn, heading, msg} = ui;
   const engine = ui.engine;
   const labels = {ready: '待启动', pending: '待运行', running: '运行中', completed: '已完成',
@@ -385,3 +385,5 @@ window.createScenarioBatchesUI = function (ui) {
   }
   return {markup, afterRender, action};
 };
+
+export default createScenarioBatchesUI;

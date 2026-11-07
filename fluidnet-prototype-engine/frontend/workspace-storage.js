@@ -1,5 +1,5 @@
 /* Browser draft persistence is separate from project data and server confirmation. */
-window.FluidNetWorkspaceStorage = (() => {
+export const FluidNetWorkspaceStorage = (() => {
   const clone=value=>JSON.parse(JSON.stringify(value));
   const LOCAL_DRAFT_STEPS=[[200,null],[200,5],[200,1],[50,0]];
 function isQuotaError(error){
@@ -99,3 +99,5 @@ function* draftTexts(source){
   }
   return {create,isQuotaError,trimDraft,compactArchivedDraft,draftTexts};
 })();
+
+export default FluidNetWorkspaceStorage;

@@ -1,10 +1,10 @@
+import {loadFrontend} from './frontend-module-loader.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 
 const host=vm.createContext({window:{}});
-vm.runInContext(readFileSync(new URL('../frontend/device-windows.js',import.meta.url),'utf8'),host);
+loadFrontend(new URL('../frontend/device-windows.js',import.meta.url),host);
 const plain=value=>JSON.parse(JSON.stringify(value));
 function fixture(){
   const nodes={V1:{id:'V1',name:'调节阀',params:{opening:80},draft:{opening:45}},P1:{id:'P1',name:'水泵',params:{speed:1},draft:{speed:.7}}};

@@ -1,9 +1,9 @@
+import {loadFrontend} from './frontend-module-loader.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import {readFileSync} from 'node:fs';
 const host=vm.createContext({window:{}});
-vm.runInContext(readFileSync(new URL('../frontend/api-examples.js',import.meta.url),'utf8'),host);
+loadFrontend(new URL('../frontend/api-examples.js',import.meta.url),host);
 const api=host.window.FluidNetApiExamples;
 const record={request:{project:{instances:[{id:'Balance-X',module_id:'valve',name:'支路平衡阀'}],modules:[{
   id:'valve',variables:[{id:'mass_flow_kg_s',label:'质量流量',unit:{canonical_unit:'kg/s'}}],parameters:[

@@ -1,5 +1,5 @@
 /* Device window layout and presentation. Parameter application remains a separate transaction. */
-window.FluidNetDeviceWindows = (() => {
+export const FluidNetDeviceWindows = (() => {
   const clone=value=>value===undefined?undefined:JSON.parse(JSON.stringify(value));
   const clamp=(n,min,max)=>Math.max(min,Math.min(max,n));
   const tabs=[['overview','总览'],['parameters','参数与型号'],['variables','全部变量'],['connections','连接']];
@@ -104,3 +104,5 @@ window.FluidNetDeviceWindows = (() => {
   }
   return {create};
 })();
+
+export default FluidNetDeviceWindows;

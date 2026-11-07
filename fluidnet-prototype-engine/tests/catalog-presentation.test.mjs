@@ -1,6 +1,6 @@
+import {loadFrontend} from './frontend-module-loader.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 
 const plain=value=>JSON.parse(JSON.stringify(value));
@@ -9,7 +9,7 @@ const metadata=(id='registered_device')=>({module_id:id,runtime:'builtin',domain
 function fixture({status=200,version=1,id='registered_device',initial}={}){
   const messages=[],requests=[];
   const state=initial||{modules:[],projects:[]};
-  const host=vm.createContext({window:{},sessionStorage:{getItem:()=>null},fetch:async path=>{
+  const host=vm.createContext({window:{createProjectServices:()=>({loadWorkspace:async()=>'',refreshArchives:async()=>{}})},sessionStorage:{getItem:()=>null},fetch:async path=>{
     requests.push(path);let body;
     if(path.endsWith('/health'))body={version:'test',auth:{required:false}};
     else if(path.endsWith('/catalog/presentation'))return {ok:status===200,status,json:async()=>status===200?{version,devices:[metadata(id)]}:{detail:'unavailable'}};
@@ -19,8 +19,7 @@ function fixture({status=200,version=1,id='registered_device',initial}={}){
     return {ok:true,status:200,json:async()=>body};
   }});
   for(const file of ['project-model','canvas-symbols','project-run-state','module-service','engine-client'])
-    vm.runInContext(readFileSync(new URL('../frontend/'+file+'.js',import.meta.url),'utf8'),host);
-  host.window.createProjectServices=()=>({loadWorkspace:async()=>'',refreshArchives:async()=>{}});
+    loadFrontend(new URL('../frontend/'+file+'.js',import.meta.url),host);
   const ui={state:()=>state,parameterDefinitions:{},emptyRun:()=>({history:[]}),render:()=>{},message:(text,error)=>messages.push({text,error})};
   const client=host.window.createEngineClient(ui);
   return {client,state,requests,messages,model:host.window.FluidNetProjectModel,symbols:host.window.FluidNetCanvasSymbols};

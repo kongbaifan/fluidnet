@@ -1,5 +1,5 @@
 /* Reconcile generated SVG children without replacing active canvas and chart elements. */
-window.FluidNetSvgDom = (() => {
+export const FluidNetSvgDom = (() => {
   const key=node=>{
     if(node.nodeType!==1)return null;
     for(const attribute of ['id','data-canvas-edge','data-node','data-trace-edge','data-edge','data-series-key','data-hover-mark','data-chart-hit','data-port-id'])
@@ -41,3 +41,5 @@ window.FluidNetSvgDom = (() => {
   }
   return {patch,update};
 })();
+
+export default FluidNetSvgDom;

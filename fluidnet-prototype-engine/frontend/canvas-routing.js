@@ -1,5 +1,5 @@
 /* Deterministic orthogonal routing around device bodies. Geometry only; never changes topology. */
-window.FluidNetCanvasRouting = (() => {
+export const FluidNetCanvasRouting = (() => {
   const EPS=1e-7,MAX_RECTS=256,MAX_VISITED=30000;
   const finite=n=>typeof n==='number'&&Number.isFinite(n)&&Math.abs(n)<Number.MAX_SAFE_INTEGER/8;
   const point=p=>p&&finite(p.x)&&finite(p.y);
@@ -128,3 +128,5 @@ window.FluidNetCanvasRouting = (() => {
   }
   return {route};
 })();
+
+export default FluidNetCanvasRouting;

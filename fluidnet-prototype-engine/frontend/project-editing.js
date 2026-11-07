@@ -1,5 +1,6 @@
+import {FluidNetLinks} from './project-links.js';
 /* Atomic group geometry edits and explicit copy boundaries. */
-window.FluidNetProjectEditing=(()=>{
+export const FluidNetProjectEditing=(()=>{
   const clone=x=>JSON.parse(JSON.stringify(x));
   const nodes=p=>p.pages.flatMap(g=>g.nodes);
   function select(p,ids){const set=new Set(ids),found=nodes(p).filter(n=>set.has(n.id));if(found.length!==set.size||!found.length)throw Error('请选择仍存在的设备');return found;}
@@ -26,7 +27,7 @@ window.FluidNetProjectEditing=(()=>{
     if(plan.measurements.length)p.measurements=[...(p.measurements||[]),...clone(plan.measurements)];if(plan.circuits.length)p.circuitFluids=[...(p.circuitFluids||[]),...clone(plan.circuits)];return plan.nodes.map(n=>n.id);}
   function move(p,ids,pageId){idle(p);const chosen=select(p,ids),target=p.pages.find(g=>g.id===pageId);if(!target)throw Error('目标画布不存在');
     const add=chosen.filter(n=>!target.nodes.includes(n));if(target.nodes.length+add.length>64)throw Error('目标画布每页最多64台设备');
-    for(const g of p.pages)if(g!==target)g.nodes=g.nodes.filter(n=>!chosen.includes(n));target.nodes.push(...add);window.FluidNetLinks.rehome(p);}
+    for(const g of p.pages)if(g!==target)g.nodes=g.nodes.filter(n=>!chosen.includes(n));target.nodes.push(...add);FluidNetLinks.rehome(p);}
   function align(p,ids,mode){idle(p);const list=select(p,ids);if(list.length<2)throw Error('请至少选择两台设备');
     if(!['left','top','horizontal','vertical'].includes(mode))throw Error('未知对齐方式');
     const axis=mode==='left'||mode==='horizontal'?'x':'y',sorted=[...list].sort((a,b)=>a[axis]-b[axis]),low=sorted[0][axis],high=sorted.at(-1)[axis];
@@ -38,3 +39,5 @@ window.FluidNetProjectEditing=(()=>{
     return {node,page,text};})).filter(x=>!q||x.text.toLocaleLowerCase().includes(q));}
   return {select,idle,copy,commitCopy,move,align,search,refs};
 })();
+
+export default FluidNetProjectEditing;

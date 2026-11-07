@@ -110,3 +110,15 @@ node tests/browser-continuous.mjs
 2026-11-07 第三轮补齐 `device-application.js`、`workspace-normalization.js` 和 `run-commands.js`。参数确认、运行命令与旧湿度迁移的三个测试都已改用公开工厂，不再按字符串切取 `studio.js` 或 `engine-client.js`。对应实现和回包归属详见[参数与迁移](INTERACTION_BOUNDARIES.md)、[运行命令](RUN_COMMAND_BOUNDARY.md)。
 
 非结构工作台操作、运行生命周期与图表更新由[局部刷新边界](WORKBENCH_LOCAL_REFRESH.md)处理。这里不声称所有页面均无完整渲染；结构变化和切页面仍保留原渲染入口。设备目录从五类试点推广到60类内置模型，前端可见性和图标登记使用后端目录，兼容回退保留。实际测试与两套工程验收从[交付记录](INTERACTION_DELIVERY_ACCEPTANCE.md)查阅。
+
+## AC-2：原生模块加载（2026-11-07）
+
+前述 classic script 是阶段决策。当前 `index.html` 仅加载 `bootstrap.js`，由动态导入 `studio.js` 启动；41个原全局工厂改成命名导出，消费者显式 import。设备选型与性能资料的循环引用保持延迟到调用时读取，由浏览器原生模块链接处理。未增加 bundler 或 import map（相对路径已足够）。
+
+用户原有未提交 `module-replay.js` 不改写，专用 `module-replay-adapter.js` 接收其唯一 legacy 全局。它是已记录的兼容边界，不能宣称整个应用零全局。其他 `FluidNet*` 全局在浏览器中为零。
+
+40份隔离单测加载代码迁移到 Node 原生 `SourceTextModule` 链接器，使用 Node 24.8+ 和 `--experimental-vm-modules`；不切片/改写模块源码。真实浏览器测试通过 dynamic import 使用公开模块。参数批测试先前漏加载选型检查，现真实导入会拒绝不匹配模块版本，断言按生产语义修正。
+
+定向入口 `npm run test:ui:modules` 256项通过。真实浏览器 module-loading 验证45脚本、无重复请求、正确MIME、零FluidNet全局与失败提示；目录60设备、工作区冲突/恢复和作者流程通过。运行控制结果见最终验收。
+
+一次全部前端轻量单测发现用户原有 replay 改动触发2个既有失败（迟到归档导航、旧复现忙状态）；同一测试针对已提交HEAD源码5项全通过。该文件字节哈希保持不变，未为使门禁变绿覆盖用户修改。没有运行全量后端或完整浏览器链。

@@ -1,5 +1,6 @@
+import {FluidNetProjectState} from './project-state.js';
 /* Curated editable systems and frozen groups, fetched through public project validation. */
-window.createEquipmentLibrary = ({engine,getState,replaceState,emptyRun,uid,openDialog,esc,msg,navigate,persist,dirty}) => {
+export const createEquipmentLibrary = ({engine,getState,replaceState,emptyRun,uid,openDialog,esc,msg,navigate,persist,dirty}) => {
   let ticket=0;
   async function open(){
     const token=++ticket,catalog=await engine.request('/equipment-library');
@@ -10,10 +11,12 @@ window.createEquipmentLibrary = ({engine,getState,replaceState,emptyRun,uid,open
           .then(p=>engine.exchangeDocument(p)).then(doc=>{
             if(token!==ticket||getState()!==owner)throw Error('工作区已变化，请重新创建参考项目');
             doc.project.id=uid('project');doc.project.solver.duration=1;doc.project.solver.dt=.1;
-            const next=window.FluidNetProjectState.mergeDocument(owner,doc,emptyRun);
+            const next=FluidNetProjectState.mergeDocument(owner,doc,emptyRun);
             replaceState(next);dirty();persist();navigate('workbench');msg('设备组参考项目已创建，可修改参数或从模块库插入更多副本。');
           }).catch(e=>msg(e.message,true));
       },'创建参考项目',true);
   }
   return {open};
 };
+
+export default createEquipmentLibrary;

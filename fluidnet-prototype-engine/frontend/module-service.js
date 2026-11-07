@@ -1,5 +1,5 @@
 /* Module authoring and released definitions. Run transport and parameter transactions remain in the engine client. */
-window.createModuleService = function ({request, modules, getBench, parameterDefinitions, normalizeProject,
+export const createModuleService = function ({request, modules, getBench, parameterDefinitions, normalizeProject,
   model, moduleFromManifest, testFlow, copyPanel, copyPresentation, output, dirty, render, persist, message}) {
   const clone = value => JSON.parse(JSON.stringify(value));
   function manifestPayload(m) {
@@ -169,3 +169,5 @@ window.createModuleService = function ({request, modules, getBench, parameterDef
   return {manifestPayload,contractText,moduleForInsert,bindModule,pinProject,applyManifest,checkModule,
     runDesign,versions,loadVersion,saveModule,newModule,newTemplate,newComposite,updateContractItem};
 };
+
+export default createModuleService;

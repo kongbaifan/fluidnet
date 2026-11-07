@@ -1,10 +1,10 @@
+import {loadFrontend} from './frontend-module-loader.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 
 const context=vm.createContext({window:{}});
-vm.runInContext(readFileSync(new URL('../frontend/project-links.js',import.meta.url),'utf8'),context);
+loadFrontend(new URL('../frontend/project-links.js',import.meta.url),context);
 const links=context.window.FluidNetLinks,plain=value=>JSON.parse(JSON.stringify(value));
 const definition=node=>({ports:[{id:'in',label:'入口',direction:'in',domain:node.domain||'fluid'},
   {id:'out',label:'出口',direction:'out',domain:node.domain||'fluid'}]});

@@ -1,6 +1,6 @@
+import {loadFrontend} from './frontend-module-loader.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 
 const plain=value=>JSON.parse(JSON.stringify(value));
@@ -14,7 +14,7 @@ const released=(changes={})=>({id:'test_valve',name:'试验阀',category:'阀门
     {id:'source_note',label:'来源',value_type:'text',default:'教学数据'}],variables:[],bank_names:['额定','部分负荷','备用'],...changes});
 function fixture({definition=released(),handler=()=>{throw Error('Unexpected request');},persist=true}={}){
   const host=vm.createContext({window:{}});
-  for(const name of ['project-model','canvas-symbols','module-service'])vm.runInContext(readFileSync(new URL('../frontend/'+name+'.js',import.meta.url),'utf8'),host);
+  for(const name of ['project-model','canvas-symbols','module-service'])loadFrontend(new URL('../frontend/'+name+'.js',import.meta.url),host);
   const model=host.window.FluidNetProjectModel,moduleFromManifest=value=>model.moduleFromManifest(value),m=moduleFromManifest(plain(definition));
   m.publishedManifest=plain(definition);m.latestVersion=definition.version;m.dirty=false;
   const modules=[m],fields={},calls=[],outputs=[],messages=[],dirties=[],bench={moduleId:'other'},owner={id:'project',pages:[{nodes:[{id:'Device',moduleId:m.id}]}]};

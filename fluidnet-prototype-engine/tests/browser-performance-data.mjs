@@ -16,7 +16,7 @@ const csv='flow,value\n0,30\n2,20\n4,0\n';
 async function saved(){
   const receipt=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/v1/workspace'&&r.request().method()==='POST');
   await page.locator('[data-action="save"]').first().click();expect((await receipt).ok()).toBe(true);
-  return page.evaluate(()=>window.FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
+  return page.evaluate(async () =>(await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
 }
 async function library(){await panel().locator('[data-action="performance-library"]').click();await expect(dialog()).toContainText('导入CSV / JSON');}
 const record=version=>dialog().locator(`[data-performance-record="browser_curve"][data-performance-version="${version}"]`);

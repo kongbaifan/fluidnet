@@ -13,7 +13,7 @@ const nodes=s=>Object.fromEntries(owner(s).pages.flatMap(p=>p.nodes).filter(n=>n
 async function saved(){
   const pending=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/v1/workspace'&&r.request().method()==='POST');
   await page.locator('[data-action="save"]').first().click();expect((await pending).ok()).toBe(true);
-  return page.evaluate(()=>window.FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
+  return page.evaluate(async () =>(await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
 }
 async function edit(value){
   await page.locator('[data-action="device-batch-edit"]').click();

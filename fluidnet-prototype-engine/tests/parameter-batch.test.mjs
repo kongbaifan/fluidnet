@@ -1,7 +1,7 @@
+import {loadFrontend} from './frontend-module-loader.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import {readFileSync} from 'node:fs';
 const plain=x=>JSON.parse(JSON.stringify(x));
 function fixture({live=true,reject=false,delay=false}={}){
   let release,posted;const sent=new Promise(r=>posted=r),gate=delay?new Promise(r=>release=r):Promise.resolve();
@@ -22,7 +22,7 @@ function fixture({live=true,reject=false,delay=false}={}){
       if(path==='/api/v1/runs/run1')return {ok:true,json:async()=>({id:'run1',status:'paused',events:[]})};
       throw Error(path);
     }});
-  for(const name of ['project-model','project-state','project-run-state','performance-library','parameter-batch','module-service','run-commands','engine-client'])vm.runInContext(readFileSync(new URL('../frontend/'+name+'.js',import.meta.url),'utf8'),host);
+  for(const name of ['project-model','project-state','project-run-state','performance-library','parameter-batch','module-service','run-commands','engine-client'])loadFrontend(new URL('../frontend/'+name+'.js',import.meta.url),host);
   const engine=host.window.createEngineClient({state:()=>state,moduleOf:()=>module,parameterKey:key,persist:()=>{},render:()=>{},refresh:()=>{},message:()=>{},dirty:()=>{}});
   const apply=()=>engine.applyParameterBatch(owner,nodes.map(node=>({node,proposed:{opening:40}})));
   return {nodes,owner,state,definition,requests,engine,apply,sent,release:()=>release?.()};
@@ -82,7 +82,7 @@ test('readonly, nonruntime and stale model version changes are rejected before a
 
 test('canonical and display aliases cannot silently write the same parameter twice',()=>{
   const host=vm.createContext({window:{}});
-  for(const name of ['project-model','project-state','parameter-batch'])vm.runInContext(readFileSync(new URL('../frontend/'+name+'.js',import.meta.url),'utf8'),host);
+  for(const name of ['project-model','project-state','parameter-batch'])loadFrontend(new URL('../frontend/'+name+'.js',import.meta.url),host);
   const node={id:'V1',params:{opening:80},draft:{opening:80}},owner={id:'p',pages:[{nodes:[node]}],run:{live:false}},state={projects:[owner],models:[]};
   const describe=()=>({definition:{parameters:[{id:'opening_ratio',label:'开度',unit:{display_scale:.01}}]},bindings:{opening:'opening_ratio'}});
   for(const proposed of [{opening:40,opening_ratio:50},{opening_ratio:50}])assert.throws(()=>host.window.FluidNetParameterBatch.prepare(state,owner,[{node,proposed}],describe),/别名/);
@@ -143,7 +143,8 @@ test('invalid or stale model source cannot be attached to newly applied paramete
     if(fault==='curve')entry.parameterValues.head_curve[0][1]=99;
     if(fault==='contract')entry.definitionHash='old-contract';
     if(fault==='runtime')entry.contentHash='old-runtime';
-    await f.applyModel();assert.deepEqual(plain(f.nodes.map(n=>n.performanceData)),[{},{}]);
+    if(fault==='curve'){await f.applyModel();assert.deepEqual(plain(f.nodes.map(n=>n.performanceData)),[{},{}]);}
+    else {const before=plain(f.nodes);await assert.rejects(f.applyModel(),/模块版本/);assert.deepEqual(plain(f.nodes),before);}
   }
 });
 

@@ -1,6 +1,6 @@
+import {loadFrontend} from './frontend-module-loader.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 
 const plain=value=>JSON.parse(JSON.stringify(value));
@@ -31,7 +31,7 @@ function fixture({rejection,delay=false}={}) {
     markDirty:()=>effects.push('dirty'),remember:()=>effects.push('remember'),render:()=>effects.push('render'),
   });
   for(const name of ['project-model','project-state','project-run-state','performance-library','module-service','run-commands','engine-client','device-application'])
-    vm.runInContext(readFileSync(new URL('../frontend/'+name+'.js',import.meta.url),'utf8'),host);
+    loadFrontend(new URL('../frontend/'+name+'.js',import.meta.url),host);
   host.projectState=host.window.FluidNetProjectState;host.projectRunState=host.window.FluidNetProjectRunState;
   host.engine=host.window.createEngineClient({state:()=>state,moduleOf:()=>module,parameterKey:key,
     persist:()=>{},render:()=>{},refresh:()=>{},message:()=>{}});

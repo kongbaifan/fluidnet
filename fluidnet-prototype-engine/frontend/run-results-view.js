@@ -1,5 +1,5 @@
 /* Run record and curve presentation. Data access and UI mutations are explicitly supplied. */
-window.FluidNetRunResultsView = (() => {
+export const FluidNetRunResultsView = (() => {
   function create({currentRun:currentChartRun,currentProject:project,records,chartState,viewState,overviewSeries,
     chartBindings:chartBindingsForRun,extraValue:extraVariableValue,series:SERIES,registerChart,measureWidth,
     comparisonMarkup,reportAvailable,runControls,chrome,actions}) {
@@ -60,3 +60,5 @@ function extraChartsMarkup() {
   }
   return {create};
 })();
+
+export default FluidNetRunResultsView;

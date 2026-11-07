@@ -1,10 +1,10 @@
+import {loadFrontend} from './frontend-module-loader.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 
 const host=vm.createContext({window:{}});
-vm.runInContext(readFileSync(new URL('../frontend/workspace-normalization.js',import.meta.url),'utf8'),host);
+loadFrontend(new URL('../frontend/workspace-normalization.js',import.meta.url),host);
 const plain=value=>JSON.parse(JSON.stringify(value));
 const emptyRun=()=>({source:'engine',status:'ready',history:[],events:[],values:{q:0}});
 function setup(){

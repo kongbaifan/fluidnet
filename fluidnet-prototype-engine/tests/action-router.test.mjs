@@ -1,9 +1,9 @@
+import {loadFrontend} from './frontend-module-loader.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 const host=vm.createContext({window:{}});
-vm.runInContext(readFileSync(new URL('../frontend/action-router.js',import.meta.url),'utf8'),host);
+loadFrontend(new URL('../frontend/action-router.js',import.meta.url),host);
 const create=host.window.FluidNetActionRouter.create;
 test('exact feature actions win over broad prefixes and unknown actions fall through',()=>{
   const calls=[],router=create(error=>{throw error;});router.prefix('canvas-',()=>calls.push('display'));router.action('canvas-tab',()=>calls.push('navigation'));

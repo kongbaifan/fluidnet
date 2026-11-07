@@ -1,5 +1,5 @@
 /* External API examples use the frozen run contract and its actual published keys. */
-window.FluidNetApiExamples = (() => {
+export const FluidNetApiExamples = (() => {
   function directory(record, values) {
     const project=record.request?.project, metadata=new Map();
     for(const node of project?.instances||[]) {
@@ -28,3 +28,5 @@ window.FluidNetApiExamples = (() => {
   }
   return {directory,request};
 })();
+
+export default FluidNetApiExamples;

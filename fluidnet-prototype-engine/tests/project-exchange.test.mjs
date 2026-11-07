@@ -1,3 +1,4 @@
+import {loadFrontend} from './frontend-module-loader.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -5,9 +6,9 @@ import vm from 'node:vm';
 
 const plain=value=>JSON.parse(JSON.stringify(value));
 const context=vm.createContext({window:{}});
-vm.runInContext(readFileSync(new URL('../frontend/project-model.js',import.meta.url),'utf8'),context);
-vm.runInContext(readFileSync(new URL('../frontend/control-programs.js',import.meta.url),'utf8'),context);
-vm.runInContext(readFileSync(new URL('../frontend/project-services.js',import.meta.url),'utf8'),context);
+loadFrontend(new URL('../frontend/project-model.js',import.meta.url),context);
+loadFrontend(new URL('../frontend/control-programs.js',import.meta.url),context);
+loadFrontend(new URL('../frontend/project-services.js',import.meta.url),context);
 const module={id:'author',version:2,parameters:[
   {id:'opening_ratio',default:.5,value_type:'number',unit:{display_scale:.01,display_offset:0}},
   {id:'characteristic',default:'linear',value_type:'text'},{id:'kv_m3_h',default:.6,value_type:'number'}]};

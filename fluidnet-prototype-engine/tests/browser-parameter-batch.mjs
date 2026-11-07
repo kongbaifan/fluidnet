@@ -25,14 +25,6 @@ export async function verifyParameterBatches(browser, base) {
       contentType: 'text/html', body: '<!doctype html><title>Runtime parameter batch regression</title>'
     }));
     await page.goto(base + '/parameter-batch-test');
-    await page.addScriptTag({url: base + '/control-programs.js'});
-    await page.addScriptTag({url: base + '/project-model.js'});
-    await page.addScriptTag({url: base + '/project-state.js'});
-    await page.addScriptTag({url: base + '/project-run-state.js'});
-    await page.addScriptTag({url: base + '/project-services.js'});
-    await page.addScriptTag({url: base + '/module-service.js'});
-    await page.addScriptTag({url: base + '/run-commands.js'});
-    await page.addScriptTag({url: base + '/engine-client.js'});
     const project = await api('/examples/cold-storage');
     project.controllers = []; project.control_scripts = [];
     const response = await page.request.post(base + '/api/v1/runs?background=true', {data: {
@@ -48,14 +40,14 @@ export async function verifyParameterBatches(browser, base) {
       const spec = definition.parameters.find(parameter => parameter.id === key);
       return [key, before.frame.variables['ROOM1.param.' + key] / spec.unit.display_scale + spec.unit.display_offset];
     }));
-    await page.evaluate(({definition, runId, initial}) => {
+    await page.evaluate(async ({definition, runId, initial}) => {
       const node = {id: 'ROOM1', params: {...initial}, draft: {...initial}};
       const owner = {id: 'batch', pages: [{nodes: [node]}], run: {
         id: runId, runId, live: true, status: 'paused', history: [], offset: 0, events: []
       }};
       const state = {charts: {range: 'window'}, projects: [owner]};
       const messages = [];
-      const client = window.createEngineClient({
+      const client = (await import('/engine-client.js')).createEngineClient({
         state: () => state, project: () => owner,
         moduleOf: () => ({manifest: definition, variables: []}),
         parameterKey: () => JSON.stringify(node.params), persist: () => {},
@@ -135,7 +127,7 @@ export async function verifyParameterBatches(browser, base) {
     expect(await apply(runningDraft)).toEqual({error: null, params: runningDraft, draft: runningDraft});
     expect(writes()).toHaveLength(3);
     expect(errors).toEqual([]);
-    expect(await page.evaluate(() => window.batchTest.messages)).toEqual([]);
+    expect(await page.evaluate(async () => window.batchTest.messages)).toEqual([]);
     return {writes: writes().length, acceptedRevisions: 2, rejectedBatches: 1};
   } finally {
     if (runId) await page.request.post(`${base}/api/v1/runs/${runId}/command`, {data: {action: 'stop'}}).catch(() => {});

@@ -1,9 +1,9 @@
+import {loadFrontend} from './frontend-module-loader.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 const context=vm.createContext({window:{}});
-for(const file of ['project-links.js','project-state.js'])vm.runInContext(readFileSync(new URL('../frontend/'+file,import.meta.url),'utf8'),context);
+for(const file of ['project-links.js','project-state.js'])loadFrontend(new URL('../frontend/'+file,import.meta.url),context);
 const edits=context.window.FluidNetProjectState;
 const plain=value=>JSON.parse(JSON.stringify(value));
 const project=()=>({id:'p',pages:[{id:'a',nodes:[{id:'A',params:{opening:80,enabled:true},draft:{opening:80,enabled:true},

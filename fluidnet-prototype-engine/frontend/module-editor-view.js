@@ -1,5 +1,5 @@
 /* Module-authoring presentation. Reads library drafts; never publishes or mutates project instances. */
-window.FluidNetModuleEditorView = (() => {
+export const FluidNetModuleEditorView = (() => {
   function create({currentModule:mod,editorState,models,parameterDefinitions,contractText,chrome,constants,actions}) {
     const {esc,icon,btn,ibtn,badge,option,number}=chrome;
     const {DOMAINS,PORT_PREFIX,FLUIDS,EDITOR_TABS,PARAM_TYPE_LABELS}=constants;
@@ -86,3 +86,5 @@ function renderChannels(){const m=mod();const first=m.channels[0],a=m.ports.find
   }
   return {create};
 })();
+
+export default FluidNetModuleEditorView;

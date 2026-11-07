@@ -1,5 +1,5 @@
 /* Module-author test cases are workspace drafts, independent of published code hashes. */
-window.ModuleTestEditor = (() => {
+export const ModuleTestEditor = (() => {
   const clone = value => JSON.parse(JSON.stringify(value));
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const number = (value, label, minimum = -Infinity, positive = false) => {
@@ -164,3 +164,5 @@ window.ModuleTestEditor = (() => {
   }
   return {cases,mount,summary,defaultConditions};
 })();
+
+export default ModuleTestEditor;

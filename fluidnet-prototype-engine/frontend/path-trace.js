@@ -1,5 +1,5 @@
 /* Read-only, one-device path inspection. Never infer a flow path from layout or port count. */
-window.FluidNetPathTrace = (() => {
+export const FluidNetPathTrace = (() => {
   function channels(definition) {
     const ports = new Set((definition?.ports || []).map(p => p.id));
     return (definition?.manifest?.channels ?? definition?.channels ?? []).map(c => ({
@@ -66,3 +66,5 @@ window.FluidNetPathTrace = (() => {
   }
   return {channels, describe, markup};
 })();
+
+export default FluidNetPathTrace;

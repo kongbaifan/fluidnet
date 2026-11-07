@@ -1,12 +1,16 @@
+import {EquipmentSelection} from './equipment-selection.js';
+import {FluidNetPerformanceData} from './performance-library.js';
+import {FluidNetProjectModel} from './project-model.js';
+import {FluidNetProjectState} from './project-state.js';
 /* Validate the complete edit before any write; commit all local patches in one turn. */
-window.FluidNetParameterBatch = (() => {
+export const FluidNetParameterBatch = (() => {
   const clone=value=>value===undefined?undefined:JSON.parse(JSON.stringify(value));
   const equal=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
   function value(spec,input) {
     const type=spec.value_type||'number';
     if(type==='number') {
       if(typeof input!=='number'||!Number.isFinite(input))throw Error(`${spec.label} 必须是有限数值`);
-      const canonical=window.FluidNetProjectModel.toCanonical(spec,input);
+      const canonical=FluidNetProjectModel.toCanonical(spec,input);
       if(!Number.isFinite(canonical)||spec.minimum!=null&&canonical<spec.minimum||spec.maximum!=null&&canonical>spec.maximum)throw Error(`${spec.label} 超出范围`);
       return canonical;
     }
@@ -24,11 +28,11 @@ window.FluidNetParameterBatch = (() => {
     return script?'控制脚本 '+(script.name||script.id):'';
   }
   function prepare(state,owner,entries,describe) {
-    window.FluidNetProjectState.assertCurrent(state,owner);
+    FluidNetProjectState.assertCurrent(state,owner);
     if(!Array.isArray(entries)||!entries.length)throw Error('请选择设备与修改项');
     const seen=new Set(),values={};
     const items=entries.map(entry=>{
-      const node=window.FluidNetProjectState.node(owner,entry.node);
+      const node=FluidNetProjectState.node(owner,entry.node);
       if(seen.has(node.id))throw Error('批量设备重复');seen.add(node.id);
       const {definition,bindings}=describe(node);
       if(!definition?.parameters)throw Error('设备参数合同不存在');
@@ -38,7 +42,7 @@ window.FluidNetParameterBatch = (() => {
         selected=state.models.find(m=>m.id===entry.model.id);
         if(!selected||selected.archived||selected.version!==entry.model.version||selected.moduleId!==node.moduleId||
           selected.moduleVersion!=null&&selected.moduleVersion!==definition.version)throw Error('型号或模块版本已变化，请重新预览');
-        window.EquipmentSelection?.assertModelCompatible(selected,definition);
+        EquipmentSelection?.assertModelCompatible(selected,definition);
         if(!Object.entries(selected.params).every(([key,v])=>equal(entry.proposed[key],v)))throw Error('型号参数不完整，请重新选择型号');
       }
       const parameterIds=new Set();
@@ -57,22 +61,22 @@ window.FluidNetParameterBatch = (() => {
         return {key,id,value:clone(input),draft:clone(node.draft?.[key]),changed};
       });
       const performanceData=clone(selected?selected.performanceData||selected.selection?.performanceData||{}:node.performanceData||{});
-      if((Object.keys(performanceData).length||node.performanceDataDraft)&&!window.FluidNetPerformanceData?.references)throw Error('性能资料合同未加载，请重新打开后应用');
+      if((Object.keys(performanceData).length||node.performanceDataDraft)&&!FluidNetPerformanceData?.references)throw Error('性能资料合同未加载，请重新打开后应用');
       return {node,edits,definition:JSON.stringify(definition),selected:clone(selected),performanceData,
         draftModelId:node.draftModelId,draftModelVersion:node.draftModelVersion};
     });
     return {items,values};
   }
   function commit(state,owner,plan,describe) {
-    window.FluidNetProjectState.assertCurrent(state,owner);
+    FluidNetProjectState.assertCurrent(state,owner);
     // Prepare every object before promotion: a missing/replaced second node cannot leave the first updated.
     const patches=plan.items.map(item=>{
-      const n=window.FluidNetProjectState.node(owner,item.node);
+      const n=FluidNetProjectState.node(owner,item.node);
       const {definition,bindings}=describe(n);
       if(JSON.stringify(definition)!==item.definition)throw Error('设备绑定版本已变化，请检查运行档案');
       const params=clone(n.params),draft=clone(n.draft||{});
       const display=values=>Object.fromEntries(Object.entries(values).map(([key,value])=>[bindings?.[key]||key,value]));
-      const performance=window.FluidNetPerformanceData,protectedDraft=new Set();
+      const performance=FluidNetPerformanceData,protectedDraft=new Set();
       // A pending source owns its matching curve draft, including one staged while waiting for acknowledgement.
       if(n.performanceDataDraft&&performance)for(const [key,entry] of Object.entries(performance.references(n,definition,display(draft)))){
         if(!equal(entry,n.performanceData?.[key]))for(const id of Object.keys(entry.parameterValues))protectedDraft.add(id);
@@ -93,3 +97,5 @@ window.FluidNetParameterBatch = (() => {
   }
   return {prepare,commit,controller};
 })();
+
+export default FluidNetParameterBatch;

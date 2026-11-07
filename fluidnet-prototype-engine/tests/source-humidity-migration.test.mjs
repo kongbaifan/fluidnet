@@ -1,9 +1,9 @@
+import {loadFrontend} from './frontend-module-loader.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import {readFileSync} from 'node:fs';
 const host=vm.createContext({window:{}});
-vm.runInContext(readFileSync(new URL('../frontend/workspace-normalization.js',import.meta.url),'utf8'),host);
+loadFrontend(new URL('../frontend/workspace-normalization.js',import.meta.url),host);
 function migrate(data) {
  const options={parameterDefinitions:{source:[['humidity_ratio_kg_kg','含湿量','1',0,.2,.001,0]]},clone:structuredClone,
   variablesFor:()=>[{id:'param:humidity_ratio_kg_kg',origin:'parameter',value:0,unit:'1'}]};
