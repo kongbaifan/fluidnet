@@ -774,7 +774,7 @@
       "entrypoint": "module:Module",
       "content_hash": "c9b76de43ade5c63dddeb6ed0121c629c19fa5a1dbeee736952ce386abe5fefa",
       "definition_hash": "0b73c14ee7f6e7a1415a384b650d621d4dddf47d50baa354f5fb4503500363ac",
-      "package_path": "E:\\liuwangjisuan\\fluidnet-prototype-engine\\modules\\design_pump",
+      "package_path": null,
       "bank_names": [
         "额定工况",
         "部分负荷",

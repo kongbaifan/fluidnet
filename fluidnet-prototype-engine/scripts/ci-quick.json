@@ -7,7 +7,8 @@
     "tests/test_contracts_and_physics.py::test_every_api_route_has_response_model_or_whitelist",
     "tests/test_contracts_and_physics.py::test_every_success_response_has_openapi_schema",
     "tests/test_contracts_and_physics.py::test_runtime_error_envelope_stays_compatible",
-    "tests/test_ci_workflows.py"
+    "tests/test_ci_workflows.py",
+    "tests/test_generated_artifacts.py"
   ],
   "backend_groups": {
     "hydraulics": ["tests/test_hydraulic_dispatch.py", "tests/test_analytic_jacobian.py"],

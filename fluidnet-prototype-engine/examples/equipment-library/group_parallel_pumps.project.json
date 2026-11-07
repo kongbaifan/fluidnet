@@ -1268,7 +1268,7 @@
       "entrypoint": "module:Module",
       "content_hash": "7745a90a996269e1d4ffa34b751ae3e0baeee14d2a4116dcb5c650083bb63400",
       "definition_hash": "4403abc18e8829a53e4df750b5e24a8f588d1e23404e210065d4127ef1ccba81",
-      "package_path": "E:\\liuwangjisuan\\fluidnet-prototype-engine\\modules\\group_parallel_pumps",
+      "package_path": null,
       "bank_names": [
         "额定工况",
         "部分负荷",

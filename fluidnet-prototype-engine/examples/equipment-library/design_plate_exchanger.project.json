@@ -709,7 +709,7 @@
       "entrypoint": "module:Module",
       "content_hash": "0ef82160929c9ea6353b5a66b648a384f7107e0f8d89d641c4239c412b9e1c0c",
       "definition_hash": "8436f4077a5bee3786e8adf8f2f3621dc98a3e940af919d610341ac28d57c05e",
-      "package_path": "E:\\liuwangjisuan\\fluidnet-prototype-engine\\modules\\design_plate_exchanger",
+      "package_path": null,
       "bank_names": [
         "额定工况",
         "部分负荷",

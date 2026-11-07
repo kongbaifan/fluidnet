@@ -791,7 +791,7 @@
       "entrypoint": "module:Module",
       "content_hash": "540cb733a2cf961a114251a74e8af3f721413b6c7d8567de5a5ca0f9513bfcaf",
       "definition_hash": "bd57684e06d6e2c5f4fbd920cc68de4b3d6efc19b5c0a47a6e115aba45554337",
-      "package_path": "E:\\liuwangjisuan\\fluidnet-prototype-engine\\modules\\design_fan",
+      "package_path": null,
       "bank_names": [
         "额定工况",
         "部分负荷",

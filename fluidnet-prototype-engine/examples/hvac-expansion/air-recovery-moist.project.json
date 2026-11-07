@@ -516,7 +516,7 @@
       "entrypoint": "module:Module",
       "content_hash": "f0c04c68cc48900b338c3ae3c6d5bf0b76d51789ccd19b3789fef37b2d602363",
       "definition_hash": "cab6bb5faea8026916e1fd3f750152a2362910f6c6fa986566487f70712a3378",
-      "package_path": "E:\\liuwangjisuan\\fluidnet-prototype-engine\\modules\\air_recovery_sensible",
+      "package_path": null,
       "bank_names": [
         "额定工况",
         "部分负荷",

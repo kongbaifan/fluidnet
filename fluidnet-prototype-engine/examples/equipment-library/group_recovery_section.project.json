@@ -1177,7 +1177,7 @@
       "entrypoint": "module:Module",
       "content_hash": "7745a90a996269e1d4ffa34b751ae3e0baeee14d2a4116dcb5c650083bb63400",
       "definition_hash": "5e6975dea9d8fee15cb533397631a22374acbb24a033b355115e20d653aa0a7b",
-      "package_path": "E:\\liuwangjisuan\\fluidnet-prototype-engine\\modules\\group_recovery_section",
+      "package_path": null,
       "bank_names": [
         "额定工况",
         "部分负荷",
