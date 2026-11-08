@@ -16,7 +16,7 @@ from .module_execution import mark_module_accepted
 from .module_diagnostics import merge_diagnostics
 from .properties import property_service
 from .control import ScriptControl
-from .timestep import TimeStepConfig, ensure_supported
+from .timestep import AdaptiveMarch, StepStatistics, TimeStepConfig, ensure_supported
 from . import trapped as tr
 
 
@@ -25,10 +25,14 @@ class SimulationSession(SessionBase):
         """`duration_s=None` runs until stopped. `keep` bounds the frames held here (the caller
         publishes them); without it every frame is kept and the run is limited to 2001 frames."""
         super().__init__(network,duration_s,dt_s,keep)
-        # A0：通用流体执行域尚未接入误差接受控制；显式开启时明确拒绝，不静默忽略。
         self.timestep = TimeStepConfig.from_solver(network.project.solver)
         if self.timestep.enabled:
-            ensure_supported(getattr(network, 'execution_domain', None))
+            ensure_supported(getattr(network, 'execution_domain', 'fluid'))
+            if any(network.modules[i.module_id].runtime == 'python' for i in network.instances.values()):
+                raise CompilationError('TIMESTEP_AUTHOR_STATE_UNSUPPORTED',
+                    '流体作者模块的半步状态重放尚未接入；请使用固定步长，不能忽略作者状态进行误差估计')
+        self.march = AdaptiveMarch(self.timestep) if self.timestep.enabled else None
+        self.step_stats = self.march.stats if self.march else StepStatistics()
         self.service = property_service(network.project.fluid)
         # 困液定容容积（I0–I4）：初态即“关阀捕获”的 accepted state；M/U 在此冻结，之后只有热量收支。
         self.trapped = tr.initial_states(network)
@@ -56,6 +60,9 @@ class SimulationSession(SessionBase):
             self.result = s.solve_network(initial_view, self.runners, 0., service=self.service if self.network.project.solver.thermal else None)
             self.air_rooms = {node:item.state for node,item in getattr(self.result.thermal,'air_room_results',{}).items()}
             self.cells = dict(self.result.thermal.cell_enthalpies) if self.result.thermal else {}
+            if self.timestep.enabled:
+                from .simulation_adaptive import initialize_coordinates
+                initialize_coordinates(self)
             # Targets and limits were checked by compile_project (validate_controllers).
             for config in self.network.project.controllers:
                 current = self.network.parameters[config.instance_id][config.parameter_id]
@@ -220,6 +227,9 @@ class SimulationSession(SessionBase):
             # Preview the complete frame and script acceptance on copies before promotion.
             preview = copy(self)
             preview.time = self.time + h
+            if not self.timestep.enabled:
+                preview.step_stats = deepcopy(self.step_stats)
+                preview.step_stats.fixed_step(h)
             preview.view, preview.result, preview.tanks, preview.cells = view, result, tanks, cells
             preview.trapped, preview.trapped_ledgers = trapped
             preview.air_rooms = {node:item.state for node,item in getattr(result.thermal,'air_room_results',{}).items()}
@@ -245,7 +255,7 @@ class SimulationSession(SessionBase):
             raise
         transaction.promote()
         for field in ('time', 'view', 'result', 'tanks', 'cells', 'trapped', 'trapped_ledgers', 'committed', 'diagnostics',
-                      'air_rooms','air_accumulators'):
+                      'air_rooms','air_accumulators', 'step_stats'):
             setattr(self, field, getattr(preview, field))
         for key, script in self.scripts.items():
             for field in ('state', 'pending', 'next_s', 'last_s', 'samples', 'last_values'):
@@ -286,16 +296,27 @@ class SimulationSession(SessionBase):
             frame.variables.update(runner.variables())
         frame.sequence = self.sequence
         frame.parameter_revision = self.revision
+        step_metrics = self.step_stats.frame_metrics(adaptive=self.timestep.enabled,
+            fixed_step=self.network.project.solver.dynamic_step_s)
+        if not self.timestep.enabled:
+            # Fixed fluid histories predate adaptive control. Keep useful physical
+            # step statistics without repeating four inapplicable zeros per frame.
+            for key in ('internal_rejections', 'internal_rejections_total',
+                        'boundary_truncations', 'local_error_norm_max'):
+                step_metrics.pop(key)
+        frame.metrics.update(step_metrics)
         from .composites import map_frame
         from .measurements import apply_measurements
         return apply_measurements(self.network.project,map_frame(self.network,frame))
 
     def publish(self):
         frame = self.snapshot()
+        self.last_accepted_frame = frame
         self.frames.append(frame)
         self.sequence += 1
         self.committed.clear()
         self.diagnostics.clear()
+        self.step_stats.end_frame()
         return frame
 
     def advance(self):
@@ -329,6 +350,10 @@ class SimulationSession(SessionBase):
             self._control()
             h = min([target - self.time] + [p.next_s - self.time for p in self.controllers.values()]
                     + [script.next_s - self.time for script in self.scripts.values()])
+            if self.timestep.enabled:
+                from .simulation_adaptive import advance_segment
+                advance_segment(self, h)
+                continue
             for attempt in range(self.network.project.solver.max_step_halvings + 1):
                 try:
                     trial = self._trial(h)

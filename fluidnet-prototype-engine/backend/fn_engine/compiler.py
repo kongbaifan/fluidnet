@@ -388,17 +388,18 @@ def compile_project(project: Project) -> CompiledNetwork:
     role_instances = [instance for instance in project.instances
                       if definitions[instance.module_id].execution_role or definitions[instance.module_id].schema_version==4]
     if role_instances:
-        from .refrigeration_roles import require_throttle_role
+        from .refrigeration_roles import require_refrigeration_role
         for instance in role_instances:
             try:
-                require_throttle_role(definitions[instance.module_id])
+                require_refrigeration_role(definitions[instance.module_id])
             except ValueError as error:
                 raise CompilationError(getattr(error,'code','MODULE_CONTRACT_INVALID'),str(error),instance.id,
                                        getattr(error,'field','execution_role')) from error
-        if project.thermal_couplings or project.solver.moist_air or any(
-                port.domain==Domain.fluid for instance in project.instances for port in definitions[instance.module_id].ports):
+        legacy_roles = any(definitions[i.module_id].schema_version == 4 for i in role_instances)
+        if (project.thermal_couplings and legacy_roles) or project.solver.moist_air or (not project.thermal_couplings and any(
+                port.domain==Domain.fluid for instance in project.instances for port in definitions[instance.module_id].ports)):
             raise CompilationError('MODULE_EXECUTION_DOMAIN_UNSUPPORTED',
-                '制冷作者角色仅支持纯集总制冷站，不能放入流体、湿空气或热耦合项目',role_instances[0].id,'execution_role')
+                '制冷作者角色需要饱和制冷站；schema 5 可通过显式热耦合连接内置液体侧，schema 4 仅支持纯制冷站',role_instances[0].id,'execution_role')
     from .measurements import validate_measurements
     validate_measurements(project)
     from .composites import expand_composites

@@ -8,6 +8,8 @@
         "heat_exchanger",
         "managed_state",
         "refrigeration_throttle",
+        "refrigeration_compressor",
+        "refrigeration_condenser",
         "custom_pressure_drop"
       ],
       "title": "Template",

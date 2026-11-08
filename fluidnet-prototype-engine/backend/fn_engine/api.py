@@ -34,6 +34,8 @@ from starlette.concurrency import run_in_threadpool
 from fastapi.staticfiles import StaticFiles
 
 from . import __version__
+from .model_types.run import RunResumeOptions
+from .model_types.http import RunResumeResponse
 from .auth import AuthConfig, allowed, bearer, websocket_secret
 from .jobs import OVERVIEW_POINTS, TERMINAL, RunManager
 from .bridge import PARAMETER_BINDINGS, normalize_prototype_export
@@ -563,6 +565,21 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
             if name == 'cold-storage-nh3co2':
                 from .refrigeration.examples import station_case
                 return station_case()
+            if name == 'large-cold-store-controlled':
+                from .refrigeration.large_cold_store_control import controlled_large_cold_store
+                return controlled_large_cold_store()
+            if name in ('refrigeration-network', 'refrigeration-network-inventory'):
+                from .refrigeration.network_examples import network_example
+                return network_example(with_inventory=name.endswith('-inventory'))
+            if name == 'refrigeration-cold-store-processes':
+                from .refrigeration.process_examples import process_example
+                return process_example(hotgas=True, oil=True)
+            if name == 'refrigeration-standby':
+                from .refrigeration.standby_example import standby_example
+                return standby_example()
+            if name == 'refrigeration-author-constitutive':
+                from .refrigeration.author_examples import author_station_example
+                return author_station_example()
             if name in ('refrigeration-modular-room', 'refrigeration-modular-two-room'):
                 from .refrigeration.modular_examples import modular_room_example
                 return modular_room_example() if name == 'refrigeration-modular-room' else modular_room_example(2, 2)
@@ -810,6 +827,42 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
             raise HTTPException(422, detail={'code':'RUN_LIMIT', 'message':str(error)}) from error
         return JSONResponse(status_code=202, content=RunStatus(run_id=run_id,status='queued',mode=request.mode).model_dump(mode='json'))
 
+    @app.get('/api/v1/runs/{run_id}/checkpoint-project', response_model=Project,
+             responses=protected_error_responses(404, 409, 422, 'INTERNAL_ERROR'))
+    def checkpoint_project(run_id: str):
+        from .checkpoints import accepted_project
+        record = get_run(run_id)
+        packet = manager.checkpoint_for(run_id) if run_id in manager.jobs else record.get('checkpoint')
+        if packet is None:
+            raise HTTPException(409, detail='该运行没有完整会话快照')
+        try:
+            return accepted_project(packet)
+        except CompilationError as error:
+            raise HTTPException(422, detail=diagnostic(error)) from error
+
+    @app.post('/api/v1/runs/{run_id}/resume', status_code=202, response_model=RunResumeResponse,
+              responses=protected_error_responses(404, 409, 422, 'INTERNAL_ERROR'))
+    def resume_checkpoint(run_id: str, options: RunResumeOptions):
+        from .checkpoints import validate
+        record = get_run(run_id)
+        if record['mode'] != 'dynamic' or record['status'] not in {'interrupted', 'failed', 'cancelled', 'completed'}:
+            raise HTTPException(409, detail='活动会话请使用继续命令；已归档的动态会话可从快照续算')
+        try:
+            packet = manager.checkpoint_for(run_id) if run_id in manager.jobs else record.get('checkpoint')
+            if packet is None:
+                raise HTTPException(409, detail='该运行没有完整会话快照，请新建运行')
+            validate(packet)
+            end = options.duration_s if options.duration_s is not None else record['request'].get('duration_s')
+            if end is not None and end <= packet['frame']['time_s']:
+                raise HTTPException(422, detail='续算终止时刻必须晚于快照时刻')
+            request = RunRequest.model_validate({**record['request'], 'duration_s': end, 'start_paused': options.start_paused})
+            child = manager.submit(request, checkpoint=packet, resumed_from=run_id)
+            return {'run_id': child, 'status': 'queued', 'resumed_from': run_id, 'time_s': packet['frame']['time_s']}
+        except CompilationError as error:
+            raise HTTPException(422, detail=diagnostic(error)) from error
+        except ValueError as error:
+            raise HTTPException(422, detail={'code': 'RUN_LIMIT', 'message': str(error)}) from error
+
     @app.post('/api/v1/runs',status_code=201, response_model=RunCreateResponse,
               responses={202: {'model': RunStatus, 'description': '后台运行已受理（background=true）'},
                          **protected_error_responses('RUN_LIMIT', 'RUN_TOO_LONG', 'MODULE_WORKER_IO_ERROR', 'INTERNAL_ERROR')})
@@ -875,7 +928,7 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
     def run_status(run_id: str):
         record = get_run(run_id)
         # `history` is served by /runs/{id}/history; `events` stays visible here.
-        return {key:value for key,value in record.items() if key not in {'history', 'module_failure'}}
+        return {key:value for key,value in record.items() if key not in {'history', 'module_failure', 'checkpoint'}}
 
     @app.get('/api/v1/runs/{run_id}/module-failure', response_model=ModuleFailureResponse,
              responses=protected_error_responses(404, 'STORAGE_FAILED', 'INTERNAL_ERROR'))

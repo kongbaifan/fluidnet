@@ -71,6 +71,10 @@ class ThermalResult:
     humidifier_outputs: dict[str, float] = field(default_factory=dict)
     humidifier_moisture_kg_s: float = 0.0
     moisture_residual_kg_s: float = 0.0
+    # Accepted air-side output is part of a complete checkpoint, not a dynamic
+    # attribute silently lost by dataclass serialization.
+    air_metrics: dict[str, float] = field(default_factory=dict)
+    air_room_results: dict = field(default_factory=dict)
 
 
 def phase_family(state: FluidState) -> str:

@@ -10,6 +10,7 @@ export const ModuleTestEditor = (() => {
   const boundaryFields = [['inlet_pressure_pa','入口压力 · Pa',250000], ['outlet_pressure_pa','出口压力 · Pa',120000],
     ['inlet_temperature_k','入口温度 · K',293.15], ['outlet_temperature_k','出口温度 · K',293.15]];
   function defaultConditions(definition) {
+    if (definition.schema_version === 5) return {fluid:{fluid:definition.applicability?.fluids?.[0] || 'Ammonia',phase_policy:'any'}, inlet_pressure_pa:definition.execution_role === 'refrigeration.compressor.v1' ? 110000 : 1350000,outlet_pressure_pa:1350000};
     return definition.execution_role ? {fluid:{fluid:definition.applicability?.fluids?.[0] || 'Ammonia',phase_policy:'any'},
       inlet_pressure_pa:1350000,outlet_pressure_pa:110000} : {};
   }
@@ -28,6 +29,7 @@ export const ModuleTestEditor = (() => {
     if (Array.isArray(module.authoringTestCases)) return clone(module.authoringTestCases);
     if (definition.sdk?.capabilities?.includes('composite.refrigeration.open.v1')) return [{id:'host',conditions:{duration_s:.1,dt_s:.1,...clone(module.testConditions || {})}}];
     const conditions = {duration_s:.2, dt_s:.1, inlet_pressure_pa:250000, outlet_pressure_pa:120000, temperature_k:293.15, ...defaultConditions(definition), ...clone(module.testConditions || {})};
+    if (definition.schema_version === 5) return [{id:'nominal',conditions},...(definition.execution_role === 'refrigeration.compressor.v1' ? [{id:'shutdown',conditions:{...clone(conditions),parameters:{...conditions.parameters,running:0}}}] : [])];
     const result = [
       {id:'forward', conditions},
       {id:'reverse', conditions:pressureCase(conditions,true)},
@@ -59,7 +61,7 @@ export const ModuleTestEditor = (() => {
       }).join('')}</div>`;
     }
     function render() {
-      container.innerHTML = `${refrigeration ? '<p class="notice">制冷边界：入口为给定压力的饱和液体，温度由工质与压力确定；出口为给定压力的同焓流股。压力使用绝压，不积分容器存量。</p>' : ''}<p class="muted">预期值使用引擎单位，检查最终帧。通过条件：绝对误差 ≤ max（绝对容差，相对容差 × |预期值|）。未配置预期值时，只检查运行是否有效。</p>
+      container.innerHTML = `${definition.schema_version === 5 ? '<p class="notice">制冷本构边界使用饱和蒸气状态与绝压；平台校验压缩功能量及被动换热方向，验证台不积分容器库存。</p>' : refrigeration ? '<p class="notice">制冷边界：入口为给定压力的饱和液体，温度由工质与压力确定；出口为给定压力的同焓流股。压力使用绝压，不积分容器存量。</p>' : ''}<p class="muted">预期值使用引擎单位，检查最终帧。通过条件：绝对误差 ≤ max（绝对容差，相对容差 × |预期值|）。未配置预期值时，只检查运行是否有效。</p>
         <datalist id="module-assertion-keys">${keys.map(key => `<option value="${esc(key)}"></option>`).join('')}</datalist>
         <div class="stack">${draft.map((c,i) => `<section class="panel" data-suite-case="${i}"><div class="panel-head">
           <label class="field"><span>工况标识</span><input data-case="${i}" data-case-id value="${esc(c.id)}" required maxlength="81" aria-label="工况 ${i+1} 标识"></label>

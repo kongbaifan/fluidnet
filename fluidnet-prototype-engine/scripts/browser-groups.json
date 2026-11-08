@@ -598,6 +598,18 @@
       "file": "tests/browser-large-cold-store.mjs",
       "args": [],
       "group": "refrigeration"
+    },
+    {
+      "id": "cold-store-usability",
+      "file": "tests/browser-cold-store-usability.mjs",
+      "args": [],
+      "group": "refrigeration"
+    },
+    {
+      "id": "checkpoint-resume",
+      "file": "tests/browser-checkpoint-resume.mjs",
+      "args": [],
+      "group": "workspace"
     }
   ],
   "suites": {
@@ -710,11 +722,16 @@
       "canvas-performance-live",
       "equipment-assembly:standard-plant",
       "hvac-plant",
-      "refrigeration-modular"
+      "refrigeration-modular",
+      "checkpoint-resume"
     ],
     "large-cold-store": [
       "equipment-assembly:large-cold-store",
-      "large-cold-store"
+      "large-cold-store",
+      "cold-store-usability"
+    ],
+    "foundation": [
+      "checkpoint-resume"
     ]
   }
 }

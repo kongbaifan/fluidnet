@@ -42,11 +42,11 @@ def check_operating_point(p, result):
         raise DeviceRangeError('COMPRESSOR_ENVELOPE', f'排气温度超出 {p["max_discharge_temperature_k"]:g} K', field='max_discharge_temperature_k')
 
 
-def compressor_point(service, p, suction_pa, discharge_pa, check=True):
+def compressor_point(service, p, suction_pa, discharge_pa, check=True, inlet_state=None):
     validate_maps(p)
     if not all(math.isfinite(v) and v > 0. for v in (suction_pa, discharge_pa)):
         raise DeviceRangeError('COMPRESSOR_PRESSURE', '压缩机两侧绝压必须为有限正数')
-    suction = service.state_pq(suction_pa, 1.)
+    suction = service.state_pq(suction_pa, 1.) if inlet_state is None else inlet_state
     ratio = discharge_pa/suction_pa
     load, speed = p['load_ratio'], p['speed_ratio']
     active = p['running'] >= .5 and load > 0. and speed > 0.

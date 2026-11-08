@@ -10,6 +10,7 @@ from ..compiler import CompilationError
 from ..properties import PropertyError
 from .cycle import DeviceRangeError
 from .stream_devices import BRIDGES, LINES, RECUPERATOR, RECUPERATOR_PORTS, single_phase, line_point, compressor_point, counterflow_heat
+from .vessel_ports import require as require_source
 
 
 def bounded_physical_root(evaluate, samples, iid):
@@ -52,22 +53,55 @@ def bounded_physical_root(evaluate, samples, iid):
     raise DeviceRangeError('STREAM_NOT_CONVERGED',f'声明流股范围内未找到合法包围根：{last_error or "残差未跨零"}',iid)
 
 
-def compile_paths(kinds, nodes, used, parameters):
+def compile_paths(kinds, nodes, used, parameters, excluded_ids=frozenset()):
     groups={}
     for key in used:
         if key in nodes.parent and kinds[key[0]]!='refrigerant_header':groups.setdefault(nodes.find(key),[]).append(key)
     consumed=set();paths={}
+    def boundary(options, backward, key):
+        """Branches may share a reservoir node, but never an unowned pressure node.
+
+        Each independent path then solves against the same physical reservoir;
+        its mass and enthalpy fluxes are accumulated in that reservoir once.
+        A shared finite pipe still needs the graph hydraulic solver, rather than
+        evaluating the same pipe separately for each downstream branch.
+        """
+        reservoirs = [p for p in options if kinds[p[0]] == 'saturated_vessel'
+                      and ((p[1] in ('liquid', 'vapor') or p[1].startswith('tap'))
+                           if backward else p[1].startswith('in'))]
+        if len(reservoirs) != 1:
+            raise CompilationError('STREAM_SERIAL_REQUIRED',
+                '流股可在容器边界分支；内部共享管段或未定压分支需要图式管网模型', key[0], key[1])
+        reservoir = reservoirs[0]
+        for iid, port in options:
+            if (iid, port) == reservoir:
+                continue
+            kind = kinds[iid]
+            legacy = {'expansion_valve': ('in0', 'out0'), 'refrigerant_compressor': ('suction', 'discharge'),
+                      'performance_compressor': ('suction', 'discharge'), 'refrigerant_pump': ('in0', 'out0'),
+                      'evaporative_condenser': ('in0', 'out0'), 'air_cooled_condenser': ('in0', 'out0')}
+            terminals = ({a for a, _ in RECUPERATOR_PORTS.items()} if backward else
+                         set(RECUPERATOR_PORTS.values())) if kind == RECUPERATOR else (
+                {BRIDGES[kind][0 if backward else 1]} if kind in BRIDGES else
+                {legacy[kind][0 if backward else 1]} if kind in legacy else
+                {'in0' if backward else 'out0'} if kind in LINES else set())
+            if port not in terminals:
+                raise CompilationError('STREAM_BRANCH_DIRECTION',
+                    '容器边界分支必须由独立、方向一致的流股通路组成', iid, port)
+        return reservoir
+
     def walk(key,backward):
         steps=[];visited=set()
         while True:
             options=[p for p in groups.get(nodes.find(key),[]) if p!=key]
-            if len(options)!=1:
-                raise CompilationError('STREAM_SERIAL_REQUIRED','有焓流股首版只接受无分支串联路径',key[0],key[1])
-            target=options[0];iid,port=target;kind=kinds[iid]
+            if not options:
+                raise CompilationError('STREAM_SERIAL_REQUIRED','流股通路没有连接到有效边界',key[0],key[1])
+            target=options[0] if len(options)==1 else boundary(options,backward,key)
+            iid,port=target;kind=kinds[iid]
             if iid in visited:raise CompilationError('STREAM_LOOP','有焓流股串联路径存在环',iid)
             visited.add(iid)
             if kind=='saturated_vessel':
-                if backward and port not in ('vapor','liquid') or not backward and not port.startswith('in'):
+                if backward and port not in ('vapor','liquid') and not port.startswith('tap') or not backward and not port.startswith('in'):
                     raise CompilationError('STREAM_VESSEL_PORT','流股从容器相别出口开始并进入容器进口',iid,port)
                 return target,list(reversed(steps)) if backward else steps
             if not backward and kind in ('evaporative_condenser','air_cooled_condenser') and port=='in0':
@@ -86,28 +120,30 @@ def compile_paths(kinds, nodes, used, parameters):
                 raise CompilationError('PARAMETER_RANGE','空间分段数必须为整数',iid,'segments')
             consumed.add(iid);steps.append(iid);key=(iid,'in0' if backward else 'out0')
     for iid,kind in kinds.items():
-        if kind not in BRIDGES:continue
+        if kind not in BRIDGES or iid in excluded_ids:continue
         a,b=BRIDGES[kind];source,before=walk((iid,a),True);sink,after=walk((iid,b),False)
         expected='vapor' if kind=='enthalpy_compressor' else 'liquid'
-        if source[1]!=expected:raise CompilationError('STREAM_SOURCE_PHASE',f'{iid}需要容器{expected}相出口',iid,a)
-        paths[iid]={'source':source,'sink':sink,'before':before,'after':after}
-    unused={iid for iid,kind in kinds.items() if kind in LINES}-consumed
+        if source[1]!=expected and not source[1].startswith('tap'):
+            raise CompilationError('STREAM_SOURCE_PHASE',f'{iid}需要容器{expected}相出口',iid,a)
+        paths[iid]={'source':source,'source_phase':expected,'sink':sink,'before':before,'after':after}
+    unused={iid for iid,kind in kinds.items() if kind in LINES}-consumed-set(excluded_ids)
     if unused:raise CompilationError('STREAM_BRIDGE_REQUIRED','单相流股管段必须属于有焓压缩机或阀路径',sorted(unused)[0])
     for iid,kind in kinds.items():
-        if kind==RECUPERATOR and not {iid+'#hot',iid+'#cold'}<=consumed:
+        if kind==RECUPERATOR and iid not in excluded_ids and not {iid+'#hot',iid+'#cold'}<=consumed:
             raise CompilationError('STREAM_RECUPERATOR_PATHS','回热器两侧必须各自属于有效的流股桥',iid)
     return paths
 
 
 def evaluate_path(iid,path,kind,parameters,service,vessels,options,exchanged=None):
-    source,phase=path['source'];sink,_=path['sink']
+    source,port=path['source'];sink,_=path['sink']
     start,end=vessels[source],vessels[sink]
     p=parameters[iid]
-    source_h=start.vapor_enthalpy_j_kg if phase=='vapor' else start.liquid_enthalpy_j_kg
-    off=(kind=='enthalpy_compressor' and (p['running']<.5 or p['load_ratio']==0.)) or (kind=='enthalpy_valve' and (p['opening_ratio']==0. or start.pressure_pa<=end.pressure_pa))
+    expected_phase=path.get('source_phase', 'vapor' if kind=='enthalpy_compressor' else 'liquid')
+    source_p,source_h=require_source(parameters[source],start,port,expected_phase)
+    off=(kind=='enthalpy_compressor' and (p['running']<.5 or p['load_ratio']==0.)) or (kind=='enthalpy_valve' and (p['opening_ratio']==0. or source_p<=end.pressure_pa))
 
     def candidate(mass,bridge_pressure):
-        pressure,enthalpy=start.pressure_pa,source_h;outputs={};heat=0.
+        pressure,enthalpy=source_p,source_h;outputs={};heat=0.
         def segment(line,pressure,enthalpy):
             if '#' not in line:return line_point(service,parameters[line],pressure,enthalpy,mass)
             device,side=line.split('#');q=(exchanged or {}).get(device,0.)*(-1. if side=='hot' else 1.)
@@ -143,7 +179,7 @@ def evaluate_path(iid,path,kind,parameters,service,vessels,options,exchanged=Non
     if kind=='enthalpy_compressor':
         guess=p['displacement_m3_s']*p['load_ratio']*p['volumetric_efficiency']*start.vapor_density_kg_m3
     else:
-        guess=p['kv_m3_h']*p['opening_ratio']/3600.*math.sqrt(1000.*start.liquid_density_kg_m3*(start.pressure_pa-end.pressure_pa)/1e5)
+        guess=p['kv_m3_h']*p['opening_ratio']/3600.*math.sqrt(1000.*start.liquid_density_kg_m3*(source_p-end.pressure_pa)/1e5)
     def at_mass(mass):
         if not path['after']:
             result=candidate(mass,end.pressure_pa)
@@ -151,7 +187,7 @@ def evaluate_path(iid,path,kind,parameters,service,vessels,options,exchanged=Non
             def pressure_residual(bridge_pressure):
                 row=candidate(mass,bridge_pressure)
                 return row[1]-end.pressure_pa,row
-            maximum=max(start.pressure_pa,end.pressure_pa)*10.
+            maximum=max(source_p,end.pressure_pa)*10.
             _,(_,result)=bounded_physical_root(pressure_residual,
                 [end.pressure_pa+(maximum-end.pressure_pa)*i/16. for i in range(17)],iid)
         return mass-result[0],result

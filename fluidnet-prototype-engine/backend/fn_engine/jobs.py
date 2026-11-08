@@ -66,6 +66,7 @@ class Job:
     overview_dirty: bool = False  # overview changed (stride/trim) since the last archive
     overview_pending: int = 0     # overview points added since the last archived overview
     overview_due: float = 0.0     # monotonic deadline of the next throttled overview write
+    checkpoint: dict | None = None
 
 
 class _ArchiveWriter:
@@ -193,7 +194,7 @@ class RunManager:
         self.active = 0
         self.archive = _ArchiveWriter(self, storage) if storage is not None else None
 
-    def submit(self, request, *, run_id=None):
+    def submit(self, request, *, run_id=None, checkpoint=None, resumed_from=None):
         from .air_variables import make_air_metadata
         air_metadata = make_air_metadata(request.project)
         with self.wake:
@@ -207,7 +208,9 @@ class RunManager:
             record = {'id': run_id, 'status': 'queued', 'mode': request.mode,
                 'request': request.model_dump(mode='json'), 'frame': None, 'history': [], 'events': [{'type': 'queued', 'time_s': 0.}]}
             record['air_metadata'] = air_metadata
-            job = Job(request.model_copy(deep=True), record)
+            if resumed_from is not None:
+                record.update(resumed_from=resumed_from, resume_time_s=checkpoint['frame']['time_s'])
+            job = Job(request.model_copy(deep=True), record, checkpoint=deepcopy(checkpoint))
         # Durable before the scheduler can see the job; one small write per run is fine.
         self._persist(job)
         with self.wake:
@@ -222,10 +225,26 @@ class RunManager:
         with self.lock:
             job = self.jobs[run_id]
             record = job.record
-            result = deepcopy(record if history else {k:v for k,v in record.items() if k!='history'})
+            result = deepcopy({k:v for k,v in record.items() if k != 'checkpoint' and (history or k != 'history')})
             result['total_rows'] = job.published
             result['lag_s'] = max(0., time.monotonic()-job.due) if record['status']=='running' and job.request.execution_mode=='realtime' else 0.
             return result
+
+    def checkpoint_for(self, run_id):
+        with self.lock:
+            return deepcopy(self.jobs[run_id].record.get('checkpoint'))
+
+    def _capture_checkpoint(self, job):
+        from .checkpoints import capture
+        try:
+            packet = capture(job.session)
+            values = {'checkpoint': packet, 'checkpoint_available': True,
+                      'checkpoint_time_s': packet['frame']['time_s']}
+        except CompilationError as error:
+            values = {'checkpoint_available': False,
+                      'checkpoint_diagnostic': error.diagnostic.model_dump(mode='json')}
+        with self.wake:
+            job.record.update(values)
 
     def history(self, run_id, offset, limit):
         """Rows at absolute frame indices [offset, offset+limit) that are still in the window."""
@@ -623,9 +642,14 @@ class RunManager:
                         self._publish(job, frame)
                     self._finish(job, 'completed')
                     return
-                session = create_session(network, job.request.duration_s, job.request.dt_s, keep=SESSION_FRAMES)
+                if job.checkpoint is not None:
+                    from .checkpoints import restore
+                    session = restore(job.checkpoint, duration_s=job.request.duration_s, keep=SESSION_FRAMES)
+                else:
+                    session = create_session(network, job.request.duration_s, job.request.dt_s, keep=SESSION_FRAMES)
                 job.session = session
-                frame = session.initialize()
+                frame = session.frames[-1] if job.checkpoint is not None else session.initialize()
+                self._capture_checkpoint(job)
                 status = 'paused' if job.request.start_paused else 'running'
                 with self.wake:
                     job.record['status'] = status
@@ -658,6 +682,7 @@ class RunManager:
                 if job.archive_error is not None:
                     raise job.archive_error
             frame = job.session.advance()
+            self._capture_checkpoint(job)
             with self.wake:
                 self._publish(job, frame)
                 finished = job.session.done

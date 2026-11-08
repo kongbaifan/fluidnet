@@ -606,7 +606,8 @@
                 "enum": [
                   2,
                   3,
-                  4
+                  4,
+                  5
                 ]
               }
             },
@@ -701,7 +702,10 @@
           "if": {
             "properties": {
               "schema_version": {
-                "const": 4
+                "enum": [
+                  4,
+                  5
+                ]
               }
             },
             "required": [
@@ -711,7 +715,11 @@
           "then": {
             "properties": {
               "execution_role": {
-                "const": "refrigeration.isenthalpic_throttle.v1"
+                "enum": [
+                  "refrigeration.isenthalpic_throttle.v1",
+                  "refrigeration.compressor.v1",
+                  "refrigeration.condenser.v1"
+                ]
               },
               "applicability": {
                 "properties": {
@@ -748,6 +756,47 @@
           "if": {
             "properties": {
               "schema_version": {
+                "const": 4
+              }
+            },
+            "required": [
+              "schema_version"
+            ]
+          },
+          "then": {
+            "properties": {
+              "execution_role": {
+                "const": "refrigeration.isenthalpic_throttle.v1"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "schema_version": {
+                "const": 5
+              }
+            },
+            "required": [
+              "schema_version"
+            ]
+          },
+          "then": {
+            "properties": {
+              "execution_role": {
+                "enum": [
+                  "refrigeration.compressor.v1",
+                  "refrigeration.condenser.v1"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "schema_version": {
                 "enum": [
                   1,
                   2
@@ -772,7 +821,8 @@
             1,
             2,
             3,
-            4
+            4,
+            5
           ],
           "title": "Schema Version",
           "type": "integer"
@@ -969,7 +1019,11 @@
         "execution_role": {
           "anyOf": [
             {
-              "const": "refrigeration.isenthalpic_throttle.v1",
+              "enum": [
+                "refrigeration.isenthalpic_throttle.v1",
+                "refrigeration.compressor.v1",
+                "refrigeration.condenser.v1"
+              ],
               "type": "string"
             },
             {
@@ -1328,10 +1382,14 @@
               "$ref": "#/$defs/RefrigerationThrottleInput"
             },
             {
+              "$ref": "#/$defs/PhysicsInput"
+            },
+            {
               "type": "null"
             }
           ],
-          "default": null
+          "default": null,
+          "title": "Refrigeration"
         },
         "content_hash": {
           "pattern": "^[a-fA-F0-9]{64}$",
@@ -1469,6 +1527,69 @@
         "default"
       ],
       "title": "ParameterSpec",
+      "type": "object"
+    },
+    "PhysicsInput": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "compressor",
+            "condenser"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "inlet_pressure_pa": {
+          "exclusiveMinimum": 0,
+          "title": "Inlet Pressure Pa",
+          "type": "number"
+        },
+        "outlet_pressure_pa": {
+          "exclusiveMinimum": 0,
+          "title": "Outlet Pressure Pa",
+          "type": "number"
+        },
+        "inlet_temperature_k": {
+          "exclusiveMinimum": 0,
+          "title": "Inlet Temperature K",
+          "type": "number"
+        },
+        "inlet_enthalpy_j_kg": {
+          "title": "Inlet Enthalpy J Kg",
+          "type": "number"
+        },
+        "inlet_density_kg_m3": {
+          "exclusiveMinimum": 0,
+          "title": "Inlet Density Kg M3",
+          "type": "number"
+        },
+        "isentropic_outlet_enthalpy_j_kg": {
+          "title": "Isentropic Outlet Enthalpy J Kg",
+          "type": "number"
+        },
+        "sink_temperature_k": {
+          "exclusiveMinimum": 0,
+          "title": "Sink Temperature K",
+          "type": "number"
+        },
+        "enabled": {
+          "title": "Enabled",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "kind",
+        "inlet_pressure_pa",
+        "outlet_pressure_pa",
+        "inlet_temperature_k",
+        "inlet_enthalpy_j_kg",
+        "inlet_density_kg_m3",
+        "isentropic_outlet_enthalpy_j_kg",
+        "sink_temperature_k",
+        "enabled"
+      ],
+      "title": "PhysicsInput",
       "type": "object"
     },
     "PortSpec": {

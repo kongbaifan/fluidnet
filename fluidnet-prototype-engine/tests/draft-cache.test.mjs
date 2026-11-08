@@ -2,6 +2,8 @@ import {loadFrontend} from './frontend-module-loader.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
+import {FluidNetWorkspaceStorage as storageAPI} from '../frontend/workspace-storage.js';
+import {FluidNetDraftStore as codec} from '../frontend/draft-store.js';
 
 const clone=value=>JSON.parse(JSON.stringify(value));
 function context(state,quota=Infinity){
@@ -82,4 +84,32 @@ test('canvas layout and library drafts cannot invalidate a frozen project result
   assert.equal(ctx.projectParameterKey(owner),original);
   owner.pages[0].nodes[0].params.a=2;assert.notEqual(ctx.projectParameterKey(owner),original);
   owner.pages[0].nodes[0].params.a=1;owner.moduleSnapshots.device.manifest.definition_hash='new';assert.notEqual(ctx.projectParameterKey(owner),original);
+});
+
+test('workspace plus replacement backup fit one aggregate quota without losing unarchived records',()=>{
+  const state=largeState();state.projects[0].run.history.forEach((row,i)=>row.canonical.payload=(i+'-').repeat(2000));
+  state.records.push(...[1,2,3].map(i=>({id:'archive-'+i,source:'engine',
+    history:state.projects[0].run.history.map((row,j)=>({...row,canonical:{payload:(i+'-'+j).repeat(1000)}})),
+    archive:{id:'archive-'+i,persisted_at:'saved',persisted_rows:81,total_rows:81,frame:{time_s:2400}}})));
+  const before=clone(state),saved=new Map([['ui','preferences']]),status={};
+  const storage={setItem(key,text){const total=[...saved].reduce((n,[k,v])=>n+(key===k?0:v.length),text.length);
+    if(total>250000)throw Object.assign(Error('aggregate quota'),{name:'QuotaExceededError'});saved.set(key,text);}};
+  const controller=storageAPI.create({read:()=>state,key:'draft',storage,draftStore:codec,status:()=>status,changed:p=>Object.assign(status,p),message:()=>{}});
+  assert.equal(controller.persist(),true);
+  assert.equal(controller.backup('before-project',{project:state.projects[0]}),true);
+  const cached=codec.parse(saved.get('draft')),backup=codec.parse(saved.get('before-project'));
+  assert.deepEqual(cached.records[0],state.records[0]);assert.ok(cached.records[1].archiveCacheOnly);
+  assert.deepEqual(backup.project.controllers,state.projects[0].controllers);
+  assert.deepEqual(backup.project.run.history.at(-1),state.projects[0].run.history.at(-1));
+  assert.deepEqual(state,before);
+});
+
+test('unconfirmed archive metadata never allows destructive history fallback',()=>{
+  const state=largeState();delete state.projects[0].run.archiveCache;
+  const {ctx}=context(state,10),before=clone(state);
+  assert.equal(ctx.persistLocal(),false);assert.deepEqual(state,before);
+  for(const receipt of [{persisted_rows:80,total_rows:81},{persisted_at:null},{id:'wrong'}]){
+    const record={id:'archive',source:'engine',history:[{t:0},{t:1}],archive:{id:'archive',persisted_at:'saved',persisted_rows:2,total_rows:2,frame:{time_s:1},...receipt}};
+    assert.equal(storageAPI.compactArchivedDraft({records:[record]},1),false);assert.equal(record.history.length,2);
+  }
 });

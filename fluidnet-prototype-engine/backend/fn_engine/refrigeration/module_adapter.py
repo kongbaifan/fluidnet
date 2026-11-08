@@ -13,9 +13,12 @@ MASS_COUNTER = 'transferred_mass_kg'
 
 def validate_observations(definition, values):
     from ..refrigeration_roles import RESERVED_FLOW_VARIABLES
+    from ..refrigeration_physics import RESERVED
     declared = {variable.id for variable in definition.variables if variable.source=='derived'}
-    if set(values)-declared or RESERVED_FLOW_VARIABLES & values.keys() or \
-            any(key.startswith(('state.','param.','in0.','out0.')) for key in values):
+    reserved = RESERVED_FLOW_VARIABLES | (RESERVED | {'effective_ua_w_k'} if definition.schema_version == 5 else set())
+    prefixes = ('state.', 'param.', *(p.id + '.' for p in definition.ports))
+    if set(values)-declared or reserved & values.keys() or \
+            any(key.startswith(prefixes) for key in values):
         raise RuntimeErrorBase('制冷设备返回未声明或保留的观察变量',code='MODULE_OUTPUT_INVALID')
 
 
@@ -63,7 +66,9 @@ def evaluate_throttle(runner, service, parameters, inlet_pa, outlet_pa, time_s, 
 
 
 def flow_variables(result):
-    values = {key:result[key] for key in ('mass_flow_kg_s','effective_kv_m3_h','pressure_drop_pa','enthalpy_j_kg','outlet_quality')}
+    values = {key:value for key,value in result.items()
+              if key not in {'module_ports','module_response','diagnostics'} and
+              (value is None or isinstance(value, (str, bool, int, float)))}
     values.update(result['module_response'].variables)
     for port,data in result['module_ports'].items():
         values.update({f'{port}.{key}':value for key,value in data.model_dump().items()
@@ -71,13 +76,50 @@ def flow_variables(result):
     return values
 
 
+def evaluate_constitutive(runner, service, parameters, inlet_pa, outlet_pa, time_s, iteration):
+    from ..refrigeration_physics import PhysicsInput, PhysicsRequest
+    from .._module_schema_v5 import COMPRESSOR_ROLE
+    if runner.parameters != parameters:
+        runner.update_parameters(parameters)
+    compressor = runner.definition.execution_role == COMPRESSOR_ROLE
+    vapor = service.state_pq(inlet_pa, 1.)
+    enabled = parameters.get('running', 1.) >= .5 and parameters.get('load_ratio', 1.) > 0.
+    isentropic = service.state_ps(outlet_pa, vapor.entropy_j_kg_k).enthalpy_j_kg if compressor and outlet_pa > inlet_pa else vapor.enthalpy_j_kg
+    point = PhysicsInput(kind='compressor' if compressor else 'condenser', inlet_pressure_pa=inlet_pa,
+        outlet_pressure_pa=outlet_pa, inlet_temperature_k=vapor.temperature_k,
+        inlet_enthalpy_j_kg=vapor.enthalpy_j_kg, inlet_density_kg_m3=vapor.density_kg_m3,
+        isentropic_outlet_enthalpy_j_kg=isentropic,
+        sink_temperature_k=parameters.get('wet_bulb_temperature_k', vapor.temperature_k), enabled=enabled)
+    response = runner.evaluate_physics(PhysicsRequest(run_id=runner.execution.run_id, instance_id=runner.execution.instance_id,
+        iteration_id=iteration, time_s=time_s, point=point, state_revision=runner.state_revision,
+        context=runner.execution.context()))
+    validate_observations(runner.definition, response.variables)
+    r = response.result
+    inlet, outlet = ('suction', 'discharge') if compressor else ('in0', 'out0')
+    output = service.state_ph(outlet_pa, r.outlet_enthalpy_j_kg)
+    ports = {inlet: PortState(pressure_pa=inlet_pa, temperature_k=vapor.temperature_k,
+                enthalpy_j_kg=vapor.enthalpy_j_kg, density_kg_m3=vapor.density_kg_m3, mass_flow_kg_s=r.mass_flow_kg_s),
+             outlet: PortState(pressure_pa=outlet_pa, temperature_k=output.temperature_k,
+                enthalpy_j_kg=r.outlet_enthalpy_j_kg, density_kg_m3=output.density_kg_m3, mass_flow_kg_s=-r.mass_flow_kg_s)}
+    fields = {'mass_flow_kg_s':r.mass_flow_kg_s, 'shaft_power_w':r.shaft_power_w,
+        'electric_power_w':r.electric_power_w, 'suction_enthalpy_j_kg':vapor.enthalpy_j_kg,
+        'discharge_enthalpy_j_kg':r.outlet_enthalpy_j_kg, 'discharge_temperature_k':output.temperature_k,
+        'pressure_ratio':outlet_pa/inlet_pa, 'running':float(enabled)} if compressor else {
+        'heat_rejection_w':r.heat_rejection_w, 'fan_power_w':r.electric_power_w,
+        'condensing_temperature_k':vapor.temperature_k,
+        'effective_ua_w_k':r.heat_rejection_w / (vapor.temperature_k - point.sink_temperature_k)
+            if vapor.temperature_k != point.sink_temperature_k else 0.}
+    return {**fields, 'module_response':response, 'module_ports':ports, 'diagnostics':response.diagnostics}
+
+
 class RefrigerationModules:
     def __init__(self, network):
         self.network = network
         self.iteration = 0
         run_id = new_identity('refrigeration')
+        from ..refrigeration_physics import inlet_port
         self.runners = {iid:WorkerProcess(definition.model_copy(deep=True),deepcopy(network.parameters[iid]),
-            network.vessel_fluids[network.vessel(iid,'in0')],run_id=run_id,instance_id=iid)
+            network.vessel_fluids[network.vessel(iid,inlet_port(definition))],run_id=run_id,instance_id=iid)
             for iid,definition in network.refrigeration_modules.items()}
 
     def initialize(self):
@@ -90,6 +132,9 @@ class RefrigerationModules:
         from .devices import valve_flow
         if iid not in self.runners:
             return valve_flow(service,parameters,high.pressure_pa,low.pressure_pa)
+        if self.runners[iid].definition.schema_version == 5:
+            self.iteration += 1
+            return evaluate_constitutive(self.runners[iid], service, parameters, high.pressure_pa, low.pressure_pa, time_s, self.iteration)
         self.iteration += 1
         try:
             return evaluate_throttle(self.runners[iid],service,parameters,high.pressure_pa,low.pressure_pa,time_s,self.iteration)

@@ -105,7 +105,7 @@ def main():
             if errors:
                 raise ValueError('; '.join(errors))
             return {'ok': True}
-        if action in ('validate', 'initialize', 'parameters', 'evaluate', 'evaluate_refrigeration', 'commit_step'):
+        if action in ('validate', 'initialize', 'parameters', 'evaluate', 'evaluate_refrigeration', 'evaluate_physics', 'commit_step'):
             _ensure_lazy_properties()
         if action == 'validate':
             from .runtime import _load_module, design_source, validate_lifecycle
@@ -139,6 +139,9 @@ def main():
             else:
                 runner.parameters = dict(message['parameters'])
             return {'ok': True}
+        if action == 'evaluate_physics':
+            from .refrigeration_physics import PhysicsRequest
+            return runner.evaluate_physics(PhysicsRequest.model_validate(message['request'])).model_dump(mode='json')
         if action == 'evaluate_refrigeration':
             return runner.evaluate_refrigeration(RefrigerationEvaluateRequest.model_validate(message['request'])).model_dump(mode='json')
         if action == 'evaluate':
@@ -151,6 +154,10 @@ def main():
         if action == 'synchronize_state':
             from .model_types.protocol import ModuleStepCandidate
             runner.synchronize_state(ModuleStepCandidate.model_validate(message['candidate']))
+            return {'ok': True, 'revision': runner.state_revision}
+        if action == 'restore_checkpoint':
+            runner = runners[message.get('instance_id', 'default')]
+            runner.restore_checkpoint(message['state'], message['revision'], message['time_s'])
             return {'ok': True, 'revision': runner.state_revision}
         if action == 'discard_candidate':
             runner.discard_candidate()

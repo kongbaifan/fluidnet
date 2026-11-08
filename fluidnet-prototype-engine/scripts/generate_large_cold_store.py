@@ -7,6 +7,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'backend'))
 from fn_engine.refrigeration.large_cold_store_example import assembly_recipe, build_large_cold_store  # noqa: E402
+from fn_engine.refrigeration.large_cold_store_control import controlled_large_cold_store  # noqa: E402
 
 
 def main():
@@ -18,6 +19,10 @@ def main():
         definition.package_path = None
     documents = {'six-room.project.json': project.model_dump(mode='json'),
                  'six-room.recipe.json': assembly_recipe(), 'design-assumptions.json': metadata}
+    controlled = controlled_large_cold_store()
+    for definition in controlled.modules:
+        definition.package_path = None
+    documents['six-room-controlled.project.json'] = controlled.model_dump(mode='json')
     for name, data in documents.items():
         path = ROOT / 'examples' / 'large-cold-store' / name
         text = json.dumps(data, ensure_ascii=False, indent=2) + '\n'

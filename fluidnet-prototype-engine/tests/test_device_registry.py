@@ -22,6 +22,10 @@ BASELINE_HASHES = {
     'coupled_tower_pool': 'dafbb478e12969b88a19093c2e6af5fc1445a81be4cddadf2a569c9648df9406',
 }
 
+FOUNDATION_DEVICES = {'refrigerant_network_pipe', 'refrigerant_curve_pump', 'network_air_cooler',
+    'refrigerant_network_valve', 'refrigerant_inventory_cell', 'logistics_cold_room',
+    'frost_hotgas_cooler', 'compressor_oil_system'}
+
 
 def test_registered_catalog_preserves_definition_hashes_order_and_fresh_instances():
     catalog = builtin_catalog()
@@ -62,8 +66,11 @@ def test_every_builtin_retains_full_definition_hash_and_order_after_family_regis
     actual = [{'id': d.id, 'definition_hash': module_definition_hash(d), 'json_sha256': hashlib.sha256(
         json.dumps(d.model_dump(mode='json'), sort_keys=True, ensure_ascii=False, separators=(',', ':')).encode()).hexdigest()}
         for d in builtin_catalog()]
-    assert actual == baseline['devices']
-    assert [len(f.members) for f in BUILTIN_FAMILIES] == [12, 9, 5, 2, 3, 29]
+    # Preserve every published definition and its relative order while allowing
+    # the explicitly versioned foundation devices to add new capabilities.
+    assert [row for row in actual if row['id'] not in FOUNDATION_DEVICES] == baseline['devices']
+    assert {row['id'] for row in actual} - {row['id'] for row in baseline['devices']} == FOUNDATION_DEVICES
+    assert [len(f.members) for f in BUILTIN_FAMILIES[:6]] == [12, 9, 5, 2, 3, 29]
     first, second = builtin_catalog(), builtin_catalog()
     for left, right in zip(first, second):
         assert left is not right and left.parameters is not right.parameters and left.ports is not right.ports
@@ -90,7 +97,7 @@ def test_presentation_reads_metadata_without_building_definitions(monkeypatch):
     def forbidden():
         pytest.fail('presentation must not call physical factories')
     monkeypatch.setattr(registry, 'BUILTIN_FAMILIES', tuple(replace(family, factory=forbidden) for family in BUILTIN_FAMILIES))
-    assert len(registry.presentation_catalog()['devices']) == 60
+    assert len(registry.presentation_catalog()['devices']) == 60 + len(FOUNDATION_DEVICES)
 
 
 def test_all_builtins_have_parameter_bindings_and_new_closed_volume_normalizes_and_compiles():
@@ -101,7 +108,7 @@ def test_all_builtins_have_parameter_bindings_and_new_closed_volume_normalizes_a
     baseline = json.loads((Path(__file__).parent/'fixtures/catalog-registry.json').read_text(encoding='utf-8'))
     before = baseline['prototype_parameter_bindings']
     assert {key: PARAMETER_BINDINGS[key] for key in before} == before
-    assert PARAMETER_BINDINGS.keys() - before.keys() == {'closed_volume'}
+    assert PARAMETER_BINDINGS.keys() - before.keys() == {'closed_volume'} | FOUNDATION_DEVICES
     assert {d.id for d in builtin_catalog()} <= PARAMETER_BINDINGS.keys()
     assert PARAMETER_BINDINGS['source']['pressure'] == 'pressure_pa'
     assert PARAMETER_BINDINGS['valve']['opening'] == 'opening_ratio'

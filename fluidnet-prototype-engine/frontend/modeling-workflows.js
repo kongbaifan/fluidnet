@@ -9,12 +9,11 @@ export const createModelingWorkflows = function (ui) {
   const input=(name,label,value)=>`<label class="field"><span>${esc(label)}</span><input name="${name}" aria-label="${esc(label)}" value="${esc(value??'')}" required></label>`;
   function idle(p){if(['running','solving'].includes(p.run.status)||(p.run.live&&p.run.runId&&p.run.status==='paused'))throw Error('请先停止项目运行，再更改项目、模块版本或工况。');}
   const nodes=p=>p.pages.flatMap(pg=>pg.nodes);
-  const backupProject=p=>localStorage.setItem('fluidnet-prototype-engine-v1-before-project',JSON.stringify(engine().projectDocument(clone(p))));
+  const backupProject=p=>ui.backup('fluidnet-prototype-engine-v1-before-project',engine().projectDocument(clone(p)));
   function applyDocument(document,receipt){
     const current=state(),next=FluidNetProjectState.mergeDocument(current,document,ui.emptyRun,receipt);
     const previous=current.projects.find(project=>project.id===document.project.id);
-    if(previous)backupProject(previous);
-    ui.replaceState(next);ui.dirty(ui.project());ui.persist();ui.render();
+    ui.replaceState(next,()=>{if(previous)backupProject(previous);});ui.dirty(ui.project());ui.persist();ui.render();
   }
   function manage(p){
     openDialog('管理项目',p.name,`<div class="stack"><p>项目修订 ${state().projectRevisions?.[p.id]||'尚未保存'}</p><div class="row wrap">${btn('wf-save','保存此项目','Save',`data-id="${p.id}"`,'primary')}${btn('wf-rename','重命名','Pencil',`data-id="${p.id}"`)}${btn('wf-export','导出此项目','Download',`data-id="${p.id}"`)}${btn('wf-export-canonical','导出计算项目','FileJson',`data-id="${p.id}"`)}${btn('wf-history','项目修订','History',`data-id="${p.id}"`)}${btn('wf-upgrades','模块版本','Box',`data-id="${p.id}"`)}${btn('create-composite','封装设备组','Network')}${btn('wf-scenarios','工况','SlidersHorizontal',`data-id="${p.id}"`)}${btn('wf-delete','删除项目','Trash2',`data-id="${p.id}"`)}</div></div>`);

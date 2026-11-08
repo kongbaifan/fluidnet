@@ -13,11 +13,16 @@ TEMPLATES = {
     'heat_exchanger': {'name': '双侧换热', 'description': '两侧独立工质的单相显热 ε–NTU 模型。'},
     'managed_state': {'name': '受管理状态', 'description': '显式离散累计量；只在接受子步累计，不作为隐式热容。'},
     'refrigeration_throttle': {'name':'制冷等焓节流阀','description':'饱和液体等焓节流；线性或等百分比开度特性，可用于集总制冷站。'},
+    'refrigeration_compressor': {'name':'制冷压缩机本构','description':'自定义排量效率与压缩功；平台校验焓差能量和等熵下限。'},
+    'refrigeration_condenser': {'name':'制冷冷凝器本构','description':'自定义风量与 UA；平台校验热流方向并更新容器能量。'},
     'custom_pressure_drop': {'name':'自定义压降公式','description':'读取当前试算流量，自写被动设备压降公式；由平台联立求解。'},
 }
 
 
 def template_conditions(template):
+    if template in {'refrigeration_compressor', 'refrigeration_condenser'}:
+        return ModuleTestConditions(fluid={'fluid':'Ammonia','phase_policy':'any'},
+            inlet_pressure_pa=110000. if template.endswith('compressor') else 1350000.,outlet_pressure_pa=1350000.)
     if template=='refrigeration_throttle':
         return ModuleTestConditions(fluid={'fluid':'Ammonia','phase_policy':'any'},inlet_pressure_pa=1350000.,outlet_pressure_pa=110000.)
     if template == 'pump':
@@ -32,6 +37,11 @@ def template_conditions(template):
 def create_template(template, identifier, name, category='自定义模块'):
     if template not in TEMPLATES:
         raise ValueError('未知模块模板')
+    if template in {'refrigeration_compressor', 'refrigeration_condenser'}:
+        from .refrigeration.author_examples import definition
+        base = definition(template.removeprefix('refrigeration_'))
+        return ModuleDefinition.model_validate({**base.model_dump(mode='json'), 'id':identifier, 'name':name,
+            'category':category, 'content_hash':None, 'definition_hash':None})
     if template in {'refrigeration_throttle', 'custom_pressure_drop'}:
         package = 'isenthalpic_throttle' if template == 'refrigeration_throttle' else 'porous_filter'
         base=load_module_package(ROOT/'modules'/package)

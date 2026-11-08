@@ -8,6 +8,48 @@ import {FluidNetRunCommands} from './run-commands.js';
 import {ModuleTestEditor} from './module-test-editor.js';
 import {createModuleService} from './module-service.js';
 import {createProjectServices} from './project-services.js';
+
+/* Rehydrate a separate editable project before starting a paused checkpoint child. */
+export function createArchiveResumer({request,exchangeDocument,state,emptyRun,parameterKey,attach,poll,
+  uuid=()=>crypto.randomUUID()}) {
+  const pending=new Map();
+  function resume(id,duration) {
+    if(pending.has(id))return pending.get(id);
+    const work=(async()=>{
+      const workspace=state();
+      if(state().projects.length>=20)throw Error('最多保存 20 个项目，请先移除一个项目再续算。');
+      const record=await request('/runs/'+encodeURIComponent(id));
+      const time=record.checkpoint_time_s;
+      if(record.mode!=='dynamic'||!['completed','failed','cancelled','interrupted'].includes(record.status)||
+          !record.checkpoint_available||!Number.isFinite(time))throw Error('该档案没有可续算的完整会话快照。');
+      const end=Number(duration);
+      if(!Number.isFinite(end)||end<=time||end>604800)throw Error(`终止时刻必须大于快照时刻 ${time} s，且不超过 604800 s。`);
+      const source=await request('/runs/'+encodeURIComponent(id)+'/checkpoint-project');
+      const document=await exchangeDocument(source);
+      if(state()!==workspace)throw Error('工作区已被替换，请重新选择运行档案。');
+      const owner=document.project;
+      owner.id='resume-'+uuid();owner.name=source.name+' · 快照续算';owner.activeScenarioId=null;
+      owner.solver={...owner.solver,mode:'dynamic',duration:end,continuous:false,dt:record.request.dt_s,
+        executionMode:record.request.execution_mode||'realtime',speedRatio:record.request.speed_ratio||1,
+        historyWindow:record.request.history_window||2001};
+      if(state().projects.length>=20)throw Error('项目数量已达到上限，请移除一个项目后重试。');
+      const receipt=await request('/runs/'+encodeURIComponent(id)+'/resume',{duration_s:end,start_paused:true});
+      owner.run={...emptyRun(),source:'engine',status:'solving',id:receipt.run_id,runId:receipt.run_id,live:true,
+        time:receipt.time_s,offset:0,resumedFrom:id,parameterKey:parameterKey(owner)};
+      try {
+        if(state()!==workspace)throw Error('工作区已被替换');
+        attach(document,receipt);
+      } catch(error) {
+        throw Error(`服务端已创建暂停运行 ${receipt.run_id}，项目接入失败：${error.message}。请在运行档案中查看。`);
+      }
+      await poll(owner);
+      return owner;
+    })();
+    pending.set(id,work);
+    return work.finally(()=>{if(pending.get(id)===work)pending.delete(id);});
+  }
+  return resume;
+}
 /* Adapter for the retained prototype. All calculation values originate in /api/v1. */
 export const createEngineClient = function (ui) {
   const clone = value => JSON.parse(JSON.stringify(value));
@@ -210,7 +252,8 @@ export const createEngineClient = function (ui) {
       const enabled = (definition?.channels || []).filter(channel => channel.enabled !== false);
       const model = definition?.solver_model || module?.manifest?.solver_model || module?.kind;
       const role=definition.execution_role || definition.manifest?.execution_role;
-      if(role && definition.ports?.some(p=>p.id==='out0'&&p.domain==='refrigerant'))
+      if(role === 'refrigeration.compressor.v1') return [{node,output:'discharge',priority:0,label:`${node.id} · ${node.name}`,key:`${node.id}.mass_flow_kg_s`}];
+      if(role && role !== 'refrigeration.condenser.v1' && definition.ports?.some(p=>p.id==='out0'&&p.domain==='refrigerant'))
         return [{node,output:'out0',priority:0,label:`${node.id} · ${node.name}`,key:`${node.id}.mass_flow_kg_s`}];
       const priority = ['pump','pump_curve','pump_variable_speed','fan'].includes(model) ? 0
         : ['valve','valve_equal_percentage'].includes(model) ? 1 : 2;
@@ -355,7 +398,7 @@ export const createEngineClient = function (ui) {
         const row = {...rowFromModuleTest(owner, body),...(host?{pressure:null,temperature:null}:{})};
         owner.run.history = body.history.map(f => ({...row,t:f.time_s,canonical:f.variables,q:traceFlow(module, f.variables)}));
         owner.run.time = row.t; owner.run.values = {q:row.q,a:null,b:null,pressure:host?null:owner.boundary.outlet,temperature:host?null:body.execution_domain==='refrigeration' ? body.frame.variables['D1.in0.temperature_k']-273.15 : owner.boundary.temperature};
-        owner.run.worker = {status:'completed',contentHash:body.content_hash,version:module.version,evaluation:body.evaluation,initialState:body.state,committed:body.committed,executionDomain:body.execution_domain,refrigeration:body.refrigeration_evaluation,hostProject:host?conditions.host_project.name:null};
+        owner.run.worker = {status:'completed',contentHash:body.content_hash,version:module.version,evaluation:body.evaluation,initialState:body.state,committed:body.committed,executionDomain:body.execution_domain,refrigeration:body.refrigeration_evaluation,constitutive:body.constitutive_evaluation,hostProject:host?conditions.host_project.name:null};
         owner.run.events = [{t:owner.run.time,text:host?`宿主网络试算完成：${conditions.host_project.name}。`:`Worker evaluate 完成，${body.evaluation.relations.length} 条关系已注册。`},{t:owner.run.time,text:host?`返回 ${Object.keys(body.evaluation.variables).length} 个设备组公开变量。`:`commit_step 完成，状态提交 ${Object.keys(body.committed.state || {}).length} 项。`}]; owner.run.id = body.content_hash; owner.run.status = action === 'step' ? 'paused' : 'completed'; ui.dirty(); ui.render(); ui.message(host?'开放设备组宿主网络测试完成。':'Python 模块 Worker 测试完成。');
       } catch (error) { if(error.name !== 'AbortError') { owner.run.status='failed'; owner.run.failureReplay=error.detail?.replay||null;owner.run.diagnostics=error.detail?.diagnostics||(error.detail?.message?[error.detail]:[{message:error.message}]);owner.run.events=[{t:owner.run.time,text:error.message}]; ui.message('模块测试失败：' + error.message,true); } ui.render(); }
       finally { if(pending.get('__bench') === controller) pending.delete('__bench'); }
@@ -682,7 +725,15 @@ export const createEngineClient = function (ui) {
     } finally {for(const item of plan.items)parameterWrites.delete(item.node);}
   }
   const services=createProjectServices({request,ui,normalize,health:()=>health,authHeaders,pinProject,moduleFromManifest});
-  return {...services,cacheCircuits:(owner,items)=>{circuitsByProject.set(owner.id,items||[]);ui.render();},archiveCacheMetadata,overviewBindings,overviewValues,refrigerationReportAvailable,request,normalize,moduleFromManifest,whenReady:()=>initializing || Promise.resolve(),command,tick,validate,init,applyController,applyParameters,applyParameterBatch,isApplyingParameters:node=>parameterWrites.has(node),loadOverview,authHeaders,signOut:()=>{sessionStorage.removeItem(TOKEN_KEY);location.reload();},overview:id=>runCommands?.overview(id),circuits:id=>circuitsByProject.get(id)||[],confirmedCommand,portValue,observation,manifestPayload,contractText,checkModule,saveModule,runDesign,versions,loadVersion,newModule,newTemplate,newComposite,updateContractItem,bindModule,pinProject,moduleForInsert,get catalog(){return catalog;},get health(){return health;}};
+  const resumeArchive=createArchiveResumer({request,exchangeDocument:services.exchangeDocument,state:ui.state,
+    emptyRun:ui.emptyRun,parameterKey:ui.parameterKey,poll:pollLive,attach:document=>{
+      const current=ui.state(),owner=document.project;
+      FluidNetProjectState.addProject(current,owner);
+      const existing=new Set(current.modules.map(m=>m.id));
+      current.modules.push(...document.modules.filter(m=>!existing.has(m.id)));
+      ui.dirty(owner);ui.persist();ui.showResumedProject(owner);ui.render();
+    }});
+  return {...services,resumeArchive,cacheCircuits:(owner,items)=>{circuitsByProject.set(owner.id,items||[]);ui.render();},archiveCacheMetadata,overviewBindings,overviewValues,refrigerationReportAvailable,request,normalize,moduleFromManifest,whenReady:()=>initializing || Promise.resolve(),command,tick,validate,init,applyController,applyParameters,applyParameterBatch,isApplyingParameters:node=>parameterWrites.has(node),loadOverview,authHeaders,signOut:()=>{sessionStorage.removeItem(TOKEN_KEY);location.reload();},overview:id=>runCommands?.overview(id),circuits:id=>circuitsByProject.get(id)||[],confirmedCommand,portValue,observation,manifestPayload,contractText,checkModule,saveModule,runDesign,versions,loadVersion,newModule,newTemplate,newComposite,updateContractItem,bindModule,pinProject,moduleForInsert,get catalog(){return catalog;},get health(){return health;}};
 };
 
 export default createEngineClient;

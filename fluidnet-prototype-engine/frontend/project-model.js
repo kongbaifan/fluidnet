@@ -146,10 +146,18 @@ function manifestParamDefaults(manifest) {
     const definitions=new Map(data.modules.map(m=>[m.id,m]));
     const snapshots=Object.fromEntries(data.modules.map(m=>[m.id,{...moduleFromManifest(clone(m)),frozen:true}]));
     const display=displayParameters;
-    const pages=new Map(),nodes=new Map();
+    const pages=new Map(),nodes=new Map(),pageIds=new Map();
+    const safePage=id=>/^[A-Za-z][A-Za-z0-9_-]{0,80}$/.test(id);
+    const reserved=new Set(data.instances.map(n=>n.page_id||'main').filter(safePage));
+    for(const n of data.instances){
+      const original=n.page_id||'main';if(pageIds.has(original))continue;
+      let id=original;
+      if(!safePage(id)){let serial=pageIds.size+1;do{id='page-'+serial++;}while(reserved.has(id));reserved.add(id);}
+      pageIds.set(original,id);
+    }
     for(const n of data.instances) {
-      const definition=definitions.get(n.module_id),pageId=n.page_id || 'main';
-      if(!pages.has(pageId))pages.set(pageId,{id:pageId,name:pageId,zoom:1,pan:[0,0],nodes:[],edges:[]});
+      const definition=definitions.get(n.module_id),pageName=n.page_id||'main',pageId=pageIds.get(pageName);
+      if(!pages.has(pageId))pages.set(pageId,{id:pageId,name:pageName,zoom:1,pan:[0,0],nodes:[],edges:[]});
       const defaults=Object.fromEntries(definition.parameters.map(p=>[p.id,clone(p.default)]));
       const params=display(definition,{...defaults,...n.parameters});
       const node={id:n.id,moduleId:n.module_id,name:n.name,x:n.position?.x ?? 100+nodes.size%5*180,

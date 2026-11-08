@@ -101,23 +101,23 @@ def test_minimum_step_must_be_below_maximum_step():
     assert '最小步长' in str(error.value)
 
 
-@pytest.mark.parametrize('domain', ['fluid', 'cold_store'])
+@pytest.mark.parametrize('domain', ['unknown', ''])
 def test_unsupported_execution_domains_are_rejected(domain):
     with pytest.raises(CompilationError) as error:
         ensure_supported(domain)
     assert error.value.diagnostic.code == 'TIMESTEP_DOMAIN_UNSUPPORTED'
-    if domain == 'fluid':
-        project = pid_example('level')
-        project.solver.time_step = TimeStepOptions(enabled=True)
-        with pytest.raises(CompilationError) as error:
-            create_session(compile_project(project), 10., 1.)
-        assert error.value.diagnostic.code == 'TIMESTEP_DOMAIN_UNSUPPORTED'
-    else:
-        project = room_example()
-        project.solver.time_step = TimeStepOptions(enabled=True)
-        with pytest.raises(CompilationError) as error:
-            create_session(compile_project(project), 10., 1.)
-        assert error.value.diagnostic.code == 'TIMESTEP_DOMAIN_UNSUPPORTED'
+
+
+@pytest.mark.parametrize('factory', [lambda: pid_example('level'), room_example])
+def test_fluid_and_cold_store_domains_support_error_control(factory):
+    project = factory()
+    project.solver.time_step = TimeStepOptions(enabled=True)
+    session = create_session(compile_project(project), 1., 1.)
+    try:
+        session.initialize()
+        assert session.advance().metrics['timestep_adaptive'] == 1
+    finally:
+        session.close()
 
 
 def test_effective_minimum_above_dynamic_step_is_rejected():

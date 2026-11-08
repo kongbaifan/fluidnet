@@ -87,3 +87,17 @@ test('module port migration updates cross-canvas references stored on the other 
   assert.equal(result.project.pages[1].edges[0][2],'new_out');
   assert.equal(owner.pages[0].edges[0][4],'old_in');
 });
+
+test('Chinese canvas names import with stable safe IDs without changing device references',async()=>{
+  const source=JSON.parse(readFileSync(new URL('../examples/large-cold-store/six-room.project.json',import.meta.url),'utf8'));
+  const names={plant:'机房', 'frozen-a':'冷冻库 1、2', 'frozen-b':'page-1', chilled:'冷藏库'};
+  source.instances.forEach(n=>n.page_id=names[n.page_id]);const before=plain(source);
+  const service=context.window.createProjectServices({request:async()=>({valid:true}),moduleFromManifest:m=>({id:m.id,manifest:m,bankNames:['A','B','C']}),
+    ui:{state:()=>({}),makeProject:(id,name,description,page)=>({id,name,description,pages:[page],controlPrograms:[],controlScripts:[]})}});
+  const doc=await service.exchangeDocument(source),again=await service.exchangeDocument(source);
+  assert.deepEqual(plain(doc),plain(again));assert.deepEqual(source,before);
+  const pages=doc.project.pages;assert.equal(new Set(pages.map(p=>p.id)).size,4);
+  assert.ok(pages.every(p=>/^[A-Za-z][A-Za-z0-9_-]*$/.test(p.id)));
+  assert.ok(pages.some(p=>p.name==='机房'));assert.equal(pages.find(p=>p.name==='page-1').id,'page-1');
+  assert.equal(pages.flatMap(p=>p.nodes).length,51);assert.equal(pages.flatMap(p=>p.edges).length,72);
+});

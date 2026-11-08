@@ -1,7 +1,6 @@
 /* Browser draft persistence is separate from project data and server confirmation. */
 export const FluidNetWorkspaceStorage = (() => {
   const clone=value=>JSON.parse(JSON.stringify(value));
-  const LOCAL_DRAFT_STEPS=[[200,null],[200,5],[200,1],[50,0]];
 function isQuotaError(error){
   if(!error)return false;
   const name=String(error.name||''), message=String(error.message||'');
@@ -25,7 +24,7 @@ function trimDraft(draft,frames,records){
 // is durable. Explicit RECORD-* snapshots and unsaved bench results are untouched.
 function compactArchivedDraft(draft,frames){
   let changed=false;
-  for(const owner of draft.projects||[]){
+  for(const owner of [...(draft.projects||[]),...(draft.project?[draft.project]:[])]){
     const run=owner.run,cache=run?.archiveCache,history=run?.history;
     if(run?.source!=='engine'||typeof run.id!=='string'||!run.id
       ||typeof cache?.persisted_at!=='string'||!cache.persisted_at.trim()||cache.id!==run.id
@@ -35,6 +34,16 @@ function compactArchivedDraft(draft,frames){
     if(full&&!tail.includes(full))tail.unshift(full);
     if(tail.length>=history.length)continue;
     run.history=tail;changed=true;
+  }
+  for(const record of draft.records||[]){
+    const archive=record.archive,history=record.history;
+    if(record.id?.startsWith('RECORD-')||record.source!=='engine'||archive?.id!==record.id
+      ||typeof archive?.persisted_at!=='string'||!archive.persisted_at.trim()
+      ||!Number.isInteger(archive.persisted_rows)||!Number.isInteger(archive.total_rows)
+      ||archive.persisted_rows<archive.total_rows||!Array.isArray(history)||archive.persisted_rows<history.length
+      ||!Number.isFinite(archive.frame?.time_s)||history.some(row=>!Number.isFinite(row.t)||row.t>archive.frame.time_s)
+      ||history.length<=frames)continue;
+    record.history=history.slice(-frames);record.archiveCacheOnly=true;changed=true;
   }
   return changed;
 }
@@ -48,15 +57,7 @@ function* draftTexts(source){
     last=text;
     yield {frames,text,archivedOnly:true};
   }
-  // Keep the existing visible fallback for older, non-persistent workspaces.
-  const draft=clone(source);
-  for(const step of LOCAL_DRAFT_STEPS){
-    if(!trimDraft(draft,step[0],step[1]))continue;
-    const text=JSON.stringify(draft);
-    if(text===last)continue;
-    last=text;
-    yield {frames:step[0],text};
-  }
+  // Unsaved histories and explicit local records are never discarded to make room.
 }
   function create({read,write,definitions,validate,normalize,projectState,model,storage,key,draftStore,ready,save,revision,status,changed,message,resetView,render,updateWindows,pending}) {
     let saving=false;
@@ -85,7 +86,7 @@ function* draftTexts(source){
         if(read()!==owner)return;
         owner.workspaceRevision=receipt.revision;owner.savedAt=receipt.saved_at;
         if(revision()===version){owner.dirty=false;owner.projects.forEach(p=>p.dirty=false);owner.modules.forEach(m=>{if(m.runtime!=='python')m.dirty=false;});}
-        persist();changed({phase:'saved'});updateWindows();message(`工作区已保存 · 修订 ${receipt.revision}${owner.dirty?' · 仍有后续修改未保存':''}${pending()?` · ${pending()} 项参数待应用`:''}`);
+        persist();changed({phase:'saved'});updateWindows();message(`工作区已保存 · 修订 ${receipt.revision}${owner.dirty?' · 仍有后续修改未保存':''}${pending()?` · ${pending()} 项参数待应用`:''}${status().localError?' · 本地草稿保存失败，请导出备份':''}`,!!status().localError);
       }catch(error){if(read()===owner){changed({phase:'error',error:error.message});owner.dirty=true;persist();message('保存失败：'+error.message,true);}}
       finally{saving=false;if(status().phase==='saving')changed({phase:''});}
     }

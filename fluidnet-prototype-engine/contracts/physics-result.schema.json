@@ -1,0 +1,38 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "mass_flow_kg_s": {
+      "default": 0.0,
+      "minimum": 0,
+      "title": "Mass Flow Kg S",
+      "type": "number"
+    },
+    "outlet_enthalpy_j_kg": {
+      "title": "Outlet Enthalpy J Kg",
+      "type": "number"
+    },
+    "shaft_power_w": {
+      "default": 0.0,
+      "minimum": 0,
+      "title": "Shaft Power W",
+      "type": "number"
+    },
+    "electric_power_w": {
+      "default": 0.0,
+      "minimum": 0,
+      "title": "Electric Power W",
+      "type": "number"
+    },
+    "heat_rejection_w": {
+      "default": 0.0,
+      "title": "Heat Rejection W",
+      "type": "number"
+    }
+  },
+  "required": [
+    "outlet_enthalpy_j_kg"
+  ],
+  "title": "PhysicsResult",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

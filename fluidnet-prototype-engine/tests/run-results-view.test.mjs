@@ -55,3 +55,66 @@ test('result actions delegate identities without accepting unknown commands',()=
   assert.equal(f.view.action('delete-archive',{dataset:{id:'A'}}),false);
   assert.deepEqual(f.calls,[['select','A'],['curves','B'],['toggle','q'],['remove','temp']]);
 });
+
+test('checkpoint resume is offered only for terminal dynamic archives with a complete snapshot',()=>{
+  const f=fixture(),record={id:'source',name:'旧运行',projectName:'旧项目',status:'completed',time:60,history:[],params:{},
+    archive:{mode:'dynamic',checkpoint_available:true,checkpoint_time_s:60}};
+  f.records.push(record);
+  assert.match(f.view.renderRuns(),/data-action="resume-archive" data-id="source"/);
+  assert.match(f.view.renderRuns(),/续算快照/);
+  for(const change of [{status:'running'},{status:'completed',archive:{mode:'steady',checkpoint_available:true}},
+    {archive:{mode:'dynamic',checkpoint_available:false}}]) {
+    Object.assign(record,change);assert.doesNotMatch(f.view.renderRuns(),/data-action="resume-archive"/);
+  }
+});
+
+function resumeFixture() {
+  const host=vm.createContext({window:{}});
+  loadFrontend(new URL('../frontend/engine-client.js',import.meta.url),host);
+  const original={id:'original',pages:[{nodes:[{draft:{heat:999}}]}],run:{history:[{t:60}],status:'completed'}};
+  let state={projects:[original]},resumeDelay=null;
+  const record={id:'source',mode:'dynamic',status:'completed',checkpoint_available:true,checkpoint_time_s:60,
+    request:{project:{id:'original',name:'旧参数'},dt_s:.5,execution_mode:'fast',speed_ratio:2}};
+  const source={id:'original',name:'已接受参数',instances:[{id:'D1',parameters:{heat:123}}]},calls=[],converted=[],polls=[];
+  const resume=host.window.createArchiveResumer({state:()=>state,uuid:()=> 'copy',emptyRun:()=>({history:[],events:[]}),
+    parameterKey:owner=>JSON.stringify(owner.pages),
+    request:async(path,body)=>{calls.push([path,body]);if(path.endsWith('/checkpoint-project'))return source;
+      if(path.endsWith('/resume')){if(resumeDelay)await resumeDelay;return {run_id:'child',time_s:60};}return record;},
+    exchangeDocument:async project=>{converted.push(project);return {project:{id:project.id,name:project.name,
+      pages:[{nodes:[{params:project.instances[0].parameters}]}],solver:{},moduleSnapshots:{frozen:true}},modules:[]};},
+    attach:document=>state.projects.push(document.project),poll:async owner=>{polls.push(owner);owner.run.status='paused';}});
+  return {resume,record,source,calls,converted,polls,original,state:()=>state,replace:()=>{state={projects:[]};},delay:value=>{resumeDelay=value;}};
+}
+
+test('resume creates a paused child bound to an independent accepted-project copy and preserves drafts',async()=>{
+  const f=resumeFixture(),before=JSON.stringify(f.original);
+  const owner=await f.resume('source',120);
+  assert.equal(f.converted[0],f.source);
+  assert.equal(owner.id,'resume-copy');assert.equal(owner.name,'已接受参数 · 快照续算');
+  assert.equal(owner.solver.duration,120);assert.equal(owner.solver.dt,.5);
+  assert.equal(owner.run.id,'child');assert.equal(owner.run.runId,'child');assert.equal(owner.run.live,true);
+  assert.equal(owner.run.status,'paused');assert.equal(owner.run.time,60);
+  assert.equal(f.polls[0],owner);assert.equal(f.state().projects[1],owner);
+  assert.equal(JSON.stringify(f.original),before);
+  const post=f.calls.find(([path])=>path.endsWith('/resume'));
+  assert.deepEqual(JSON.parse(JSON.stringify(post[1])),{duration_s:120,start_paused:true});
+});
+
+test('invalid or missing checkpoint and elapsed end times never submit a child run',async()=>{
+  for(const end of [60,59,NaN,604801]) {
+    const f=resumeFixture();await assert.rejects(f.resume('source',end),/终止时刻/);
+    assert.equal(f.calls.length,1);assert.equal(f.state().projects.length,1);
+  }
+  const f=resumeFixture();f.record.checkpoint_available=false;
+  await assert.rejects(f.resume('source',120),/完整会话快照/);assert.equal(f.calls.length,1);
+});
+
+test('concurrent resume submits once and replaced workspace never receives a late child binding',async()=>{
+  const f=resumeFixture();let release;f.delay(new Promise(resolve=>{release=resolve;}));
+  const one=f.resume('source',120),two=f.resume('source',120);
+  while(!f.calls.some(([path])=>path.endsWith('/resume')))await Promise.resolve();
+  f.replace();release();
+  await assert.rejects(one,/已创建暂停运行 child/);await assert.rejects(two,/已创建暂停运行 child/);
+  assert.equal(f.calls.filter(([path])=>path.endsWith('/resume')).length,1);
+  assert.equal(f.state().projects.length,0);assert.equal(f.polls.length,0);
+});

@@ -1,4 +1,5 @@
 import {FluidNetProjectState} from './project-state.js';
+import {FluidNetColdRoomControls as roomControls} from './cold-room-controls.js';
 /* Cold-storage case: creation, indicators, scenarios, schedule, unit bench and reports.
    All result values come from the shared engine run; this file only arranges inputs and views. */
 export const createColdStorageUI = function (ui) {
@@ -75,10 +76,30 @@ export const createColdStorageUI = function (ui) {
   function modularCurrent(p) {return !!p.run.history.length && p.run.parameterKey===ui.projectKey(p);}
   function modularStatus(p) {return !p.run.history.length?'尚未计算':modularCurrent(p)?'当前设备组合的计算结果':'上次计算结果 · 配置已变更，请重新运行';}
   function modularValue(p,binding) {return modularCurrent(p)?fmt(p,binding.key,binding.scale,binding.offset,3):'—';}
+  function roomOverview(p){
+    const groups=roomControls.groups(p,modularDevices(p));if(!groups.length)return '';
+    const current=modularCurrent(p),metrics=p.run.history.at(-1)?.metrics;
+    const power=current&&Number.isFinite(metrics?.electric_power_w)?(metrics.electric_power_w/1000).toFixed(1)+' kW':'—';
+    return `<div class="row spread"><strong>各库温度 · 当前总功率 ${power}</strong>${btn('cs-room-targets','设置库温','Thermometer',p.run.live?'disabled':'','small')}</div>
+      <div class="table-wrap"><table aria-label="各库温控状态"><thead><tr><th>库房</th><th>目标 / °C</th><th>当前 / °C</th><th>状态</th></tr></thead><tbody>${groups.map(group=>{
+        const value=roomControls.observation(group,key=>raw(p,key),current);
+        return `<tr data-room-status="${esc(group.node.id)}"><td>${esc(group.node.name)}</td><td>${value.target===null?'不一致':(value.target-273.15).toFixed(1)}</td><td>${value.temperature===null?'—':(value.temperature-273.15).toFixed(2)}</td><td class="${value.warning?'warn':''}">${esc(value.status)}</td></tr>`;
+      }).join('')}</tbody></table></div>`;
+  }
+  function roomTargets(p){
+    idle(p);const groups=roomControls.groups(p,modularDevices(p));
+    openDialog('设置各库目标温度','偏热时增加制冷，达到目标后减少制冷；修改后重新运行。',
+      `<div class="fields">${groups.map(g=>field(g.node.id,g.node.name+' / °C',Number((g.controllers[0].setpoint-273.15).toFixed(6)),'type="number" step="any" required')).join('')}</div>`,values=>{
+        idle(p);roomControls.applyTargets(p,groups,values);ui.markDirty(p);ui.persist();ui.render();msg('目标温度已更新，重新运行后生效。');
+      },'应用目标');
+  }
   function modularMarkup(p) {
     const bindings=modularBindings(p),disabled=lastRun(p)?'':'disabled';
     return `<section class="panel cold-storage-summary cold-room" data-modular-cold-summary aria-label="自主冷库运行指标"><div class="panel-head"><strong>自主组装冷库</strong><span data-modular-cold-status>${modularStatus(p)}</span><span class="push"></span>${assemblyToolbar(p)}${btn('cs-report','运行报告','FileText',disabled,'small')}${btn('cs-csv','CSV','Download',disabled,'small')}</div><div class="panel-body">
+      <div data-room-overview>${roomOverview(p)}</div>
+      <details ${roomControls.groups(p,modularDevices(p)).length?'':'open'}><summary>设备详细指标</summary>
       ${bindings.length?`<div class="metric-row cold-metrics">${bindings.map(b=>`<div class="metric"><span>${esc(b.label)} · ${esc(b.unit)}</span><strong data-modular-cold-key="${esc(b.key)}">${modularValue(p,b)}</strong></div>`).join('')}</div>`:'<p>画布从空白开始。展开模块库，依次放置低压桶、压缩机、冷凝器、贮液器、节流阀、液泵、冷风机和库房热节点。</p>'}
+      </details>
       <div data-cold-warnings>${warnings(p).map(w=>`<div class="notice warn">${esc(w)}</div>`).join('')}</div></div></section>`;
   }
 
@@ -86,6 +107,21 @@ export const createColdStorageUI = function (ui) {
     const response=await fetch('/api/v1/examples/'+name,{headers:engine().authHeaders()});
     if(!response.ok)throw Error('无法读取案例');
     return response.json();
+  }
+  async function createMultiRoom(){
+    if(state().projects.length>=20)throw Error('最多保存 20 个项目');
+    await engine().whenReady();
+    const model=await fetchExample('large-cold-store-controlled'),document=await engine().exchangeDocument(model),p=document.project;
+    p.id=ui.uid('project');p.activeScenarioId='baseline';
+    Object.assign(p.solver,{mode:'dynamic',duration:10800,dt:30,executionMode:'fast'});
+    const names={plant:'机房', 'frozen-a':'冷冻库 1、2', 'frozen-b':'冷冻库 3、4', chilled:'冷藏库 1、2'};
+    for(const page of p.pages)page.name=names[page.id]||page.name;
+    ui.replaceState(FluidNetProjectState.mergeDocument(state(),document,ui.emptyRun));
+    const owner=state().projects.find(item=>item.id===p.id);
+    charts(owner,roomControls.groups(owner,modularDevices(owner)).map(({node})=>[node.id,'runtime:state.temperature_k',node.name+' 库温','°C',node.id+'.state.temperature_k',1,-273.15]));
+    ui.ui().showChart=false;
+    ui.markDirty(owner);ui.persist();ui.openProject(owner.id);ui.fitNetwork();
+    msg('六库温控案例已创建，可设置库温、选择工况后运行。');
   }
   function nodesOf(model,positions){
     return model.instances.map(n=>{
@@ -416,6 +452,7 @@ export const createColdStorageUI = function (ui) {
     const modular=document.querySelector('[data-modular-cold-summary]');
     if(modular){
       modular.querySelector('[data-modular-cold-status]').textContent=modularStatus(p);
+      const overview=modular.querySelector('[data-room-overview]');if(overview){const html=roomOverview(p);if(overview.innerHTML!==html)overview.innerHTML=html;}
       const bindings=new Map(modularBindings(p).map(b=>[b.key,b]));
       for(const element of modular.querySelectorAll('[data-modular-cold-key]')){const binding=bindings.get(element.dataset.modularColdKey);element.textContent=binding?modularValue(p,binding):'—';}
       for(const action of ['cs-report','cs-csv']){const b=modular.querySelector(`[data-action="${action}"]`);if(b)b.disabled=!lastRun(p);}
@@ -544,6 +581,8 @@ export const createColdStorageUI = function (ui) {
       case 'cs-assembly-guide':assemblyGuide(p);break;
       case 'cs-create':await create();break;
       case 'cs-create-station':await createStation();break;
+      case 'cs-create-multi':await createMultiRoom();break;
+      case 'cs-room-targets':roomTargets(p);break;
       case 'cs-create-coupled':await createCoupled();break;
       case 'cs-create-dual':dualExampleDialog();break;
       case 'cs-coupling-mode':

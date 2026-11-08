@@ -1,6 +1,7 @@
 {
   "version": 1,
   "generators": [
+    {"id": "foundation", "script": "scripts/generate_foundation.py", "outputs": ["examples/foundation/*.project.json"]},
     {"id": "contracts", "script": "scripts/generate_contracts.py", "outputs": ["contracts/*.json"]},
     {"id": "coupled-liquid", "script": "scripts/generate_coupled_liquid_example.py", "outputs": ["examples/coupled_liquid_modules/author_loop.json"]},
     {"id": "room-control", "script": "scripts/generate_room_control_examples.py", "outputs": ["examples/room-control/*.project.json"]},

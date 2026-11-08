@@ -4499,6 +4499,194 @@
         }
       }
     },
+    "/api/v1/runs/{run_id}/checkpoint-project": {
+      "get": {
+        "summary": "Checkpoint Project",
+        "operationId": "checkpoint_project_api_v1_runs__run_id__checkpoint_project_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "资源不存在（运行记录、项目修订、模块版本、示例或工作区修订）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "资源状态冲突（活动运行、修订号或命令状态）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "请求体或计算结果校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/runs/{run_id}/resume": {
+      "post": {
+        "summary": "Resume Checkpoint",
+        "operationId": "resume_checkpoint_api_v1_runs__run_id__resume_post",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunResumeOptions"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunResumeResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "资源不存在（运行记录、项目修订、模块版本、示例或工作区修订）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "资源状态冲突（活动运行、修订号或命令状态）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "请求体或计算结果校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/runs": {
       "post": {
         "summary": "Run",
@@ -10339,7 +10527,8 @@
                   "enum": [
                     2,
                     3,
-                    4
+                    4,
+                    5
                   ]
                 }
               },
@@ -10434,7 +10623,10 @@
             "if": {
               "properties": {
                 "schema_version": {
-                  "const": 4
+                  "enum": [
+                    4,
+                    5
+                  ]
                 }
               },
               "required": [
@@ -10444,7 +10636,11 @@
             "then": {
               "properties": {
                 "execution_role": {
-                  "const": "refrigeration.isenthalpic_throttle.v1"
+                  "enum": [
+                    "refrigeration.isenthalpic_throttle.v1",
+                    "refrigeration.compressor.v1",
+                    "refrigeration.condenser.v1"
+                  ]
                 },
                 "applicability": {
                   "properties": {
@@ -10488,6 +10684,47 @@
             "if": {
               "properties": {
                 "schema_version": {
+                  "const": 4
+                }
+              },
+              "required": [
+                "schema_version"
+              ]
+            },
+            "then": {
+              "properties": {
+                "execution_role": {
+                  "const": "refrigeration.isenthalpic_throttle.v1"
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "schema_version": {
+                  "const": 5
+                }
+              },
+              "required": [
+                "schema_version"
+              ]
+            },
+            "then": {
+              "properties": {
+                "execution_role": {
+                  "enum": [
+                    "refrigeration.compressor.v1",
+                    "refrigeration.condenser.v1"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "schema_version": {
                   "enum": [
                     1,
                     2
@@ -10511,7 +10748,8 @@
               1,
               2,
               3,
-              4
+              4,
+              5
             ],
             "title": "Schema Version",
             "default": 1
@@ -10702,7 +10940,11 @@
             "anyOf": [
               {
                 "type": "string",
-                "const": "refrigeration.isenthalpic_throttle.v1"
+                "enum": [
+                  "refrigeration.isenthalpic_throttle.v1",
+                  "refrigeration.compressor.v1",
+                  "refrigeration.condenser.v1"
+                ]
               },
               {
                 "type": "null"
@@ -10815,7 +11057,8 @@
                   "enum": [
                     2,
                     3,
-                    4
+                    4,
+                    5
                   ]
                 }
               },
@@ -10910,7 +11153,10 @@
             "if": {
               "properties": {
                 "schema_version": {
-                  "const": 4
+                  "enum": [
+                    4,
+                    5
+                  ]
                 }
               },
               "required": [
@@ -10920,7 +11166,11 @@
             "then": {
               "properties": {
                 "execution_role": {
-                  "const": "refrigeration.isenthalpic_throttle.v1"
+                  "enum": [
+                    "refrigeration.isenthalpic_throttle.v1",
+                    "refrigeration.compressor.v1",
+                    "refrigeration.condenser.v1"
+                  ]
                 },
                 "applicability": {
                   "properties": {
@@ -10964,6 +11214,47 @@
             "if": {
               "properties": {
                 "schema_version": {
+                  "const": 4
+                }
+              },
+              "required": [
+                "schema_version"
+              ]
+            },
+            "then": {
+              "properties": {
+                "execution_role": {
+                  "const": "refrigeration.isenthalpic_throttle.v1"
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "schema_version": {
+                  "const": 5
+                }
+              },
+              "required": [
+                "schema_version"
+              ]
+            },
+            "then": {
+              "properties": {
+                "execution_role": {
+                  "enum": [
+                    "refrigeration.compressor.v1",
+                    "refrigeration.condenser.v1"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "schema_version": {
                   "enum": [
                     1,
                     2
@@ -10987,7 +11278,8 @@
               1,
               2,
               3,
-              4
+              4,
+              5
             ],
             "title": "Schema Version",
             "default": 1
@@ -11178,7 +11470,11 @@
             "anyOf": [
               {
                 "type": "string",
-                "const": "refrigeration.isenthalpic_throttle.v1"
+                "enum": [
+                  "refrigeration.isenthalpic_throttle.v1",
+                  "refrigeration.compressor.v1",
+                  "refrigeration.condenser.v1"
+                ]
               },
               {
                 "type": "null"
@@ -11939,9 +12235,13 @@
                 "$ref": "#/components/schemas/RefrigerationThrottleInput"
               },
               {
+                "$ref": "#/components/schemas/PhysicsInput"
+              },
+              {
                 "type": "null"
               }
-            ]
+            ],
+            "title": "Refrigeration"
           },
           "content_hash": {
             "type": "string",
@@ -12041,6 +12341,8 @@
               "heat_exchanger",
               "managed_state",
               "refrigeration_throttle",
+              "refrigeration_compressor",
+              "refrigeration_condenser",
               "custom_pressure_drop"
             ],
             "title": "Template"
@@ -12500,6 +12802,18 @@
       },
       "ModuleTestResponse": {
         "properties": {
+          "constitutive_evaluation": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Constitutive Evaluation"
+          },
           "execution_domain": {
             "anyOf": [
               {
@@ -13747,6 +14061,69 @@
           "import_data"
         ],
         "title": "PerformanceVersion"
+      },
+      "PhysicsInput": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "compressor",
+              "condenser"
+            ],
+            "title": "Kind"
+          },
+          "inlet_pressure_pa": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Inlet Pressure Pa"
+          },
+          "outlet_pressure_pa": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Outlet Pressure Pa"
+          },
+          "inlet_temperature_k": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Inlet Temperature K"
+          },
+          "inlet_enthalpy_j_kg": {
+            "type": "number",
+            "title": "Inlet Enthalpy J Kg"
+          },
+          "inlet_density_kg_m3": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Inlet Density Kg M3"
+          },
+          "isentropic_outlet_enthalpy_j_kg": {
+            "type": "number",
+            "title": "Isentropic Outlet Enthalpy J Kg"
+          },
+          "sink_temperature_k": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Sink Temperature K"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "inlet_pressure_pa",
+          "outlet_pressure_pa",
+          "inlet_temperature_k",
+          "inlet_enthalpy_j_kg",
+          "inlet_density_kg_m3",
+          "isentropic_outlet_enthalpy_j_kg",
+          "sink_temperature_k",
+          "enabled"
+        ],
+        "title": "PhysicsInput"
       },
       "PortSpec": {
         "properties": {
@@ -15355,6 +15732,62 @@
               }
             ],
             "title": "Air Metadata"
+          },
+          "checkpoint_available": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checkpoint Available"
+          },
+          "checkpoint_time_s": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checkpoint Time S"
+          },
+          "checkpoint_diagnostic": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Diagnostic"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "resumed_from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resumed From"
+          },
+          "resume_time_s": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resume Time S"
           }
         },
         "additionalProperties": false,
@@ -15492,6 +15925,63 @@
           "project"
         ],
         "title": "RunRequest"
+      },
+      "RunResumeOptions": {
+        "properties": {
+          "duration_s": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 604800.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration S"
+          },
+          "start_paused": {
+            "type": "boolean",
+            "title": "Start Paused",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "RunResumeOptions",
+        "description": "Continue an archived checkpoint; duration is the absolute simulation end time."
+      },
+      "RunResumeResponse": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "status": {
+            "type": "string",
+            "const": "queued",
+            "title": "Status",
+            "default": "queued"
+          },
+          "resumed_from": {
+            "type": "string",
+            "title": "Resumed From"
+          },
+          "time_s": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Time S"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "run_id",
+          "resumed_from",
+          "time_s"
+        ],
+        "title": "RunResumeResponse"
       },
       "RunStatus": {
         "properties": {

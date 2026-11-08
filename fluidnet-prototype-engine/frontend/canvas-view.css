@@ -12,5 +12,13 @@
 #fn-studio .canvas-alert-item{display:flex;align-items:flex-start;gap:10px;border-bottom:1px solid var(--border);padding:10px 0}
 #fn-studio .canvas-alert-item p{overflow-wrap:anywhere}
 #fn-studio .canvas-alert-item small{display:block;color:var(--muted)}
+/* Keep the vertical run controls reachable when a multi-room summary or chart is open. */
+#fn-studio .canvas-column:has([data-modular-cold-summary]){overflow-y:auto}
+#fn-studio .canvas-column:has([data-modular-cold-summary]) .canvas-area{flex:1 0 320px;min-height:320px}
+#fn-studio .canvas-column:has([data-modular-cold-summary])>.workbench-chart{flex:0 0 200px}
+#fn-studio [data-room-overview]>.row{padding:6px 12px}
+#fn-studio [data-room-overview] th,#fn-studio [data-room-overview] td{padding:5px 12px}
+#fn-studio [data-room-overview] .warn{color:var(--orange);font-weight:600}
+#fn-studio [data-modular-cold-summary] details>summary{padding:5px 12px;color:var(--muted);cursor:pointer}
 @keyframes canvas-flow{to{stroke-dashoffset:-38}}
 @media(prefers-reduced-motion:reduce){#fn-studio .canvas-flow-animation{animation:none}}

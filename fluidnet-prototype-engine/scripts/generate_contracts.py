@@ -22,6 +22,7 @@ from fn_engine.model_types.http import (
     AirMigrationRequest,
     AirMigrationResponse,
     RunRecordResponse,
+    RunResumeResponse,
 )
 from fn_engine.bridge import normalize_prototype_export
 from fn_engine.model_types.protocol import (
@@ -84,10 +85,13 @@ from fn_engine.model_types.module_testing import (
     UnitWorkpointResponse,
 )
 from fn_engine.model_types.domain import Project, ProjectDocument
-from fn_engine.model_types.run import RunFrame, RunRequest
+from fn_engine.model_types.run import RunFrame, RunRequest, RunResumeOptions
 from fn_engine.compiler import compile_project
 from fn_engine.solver import solve_steady
 from fn_engine._module_schema_v1 import ModuleDefinitionV1
+from fn_engine._module_schema_v5 import ModuleDefinitionV5
+from fn_engine.refrigeration_models import PhysicsInput
+from fn_engine.refrigeration_physics import PhysicsRequest, PhysicsResponse, PhysicsResult
 from fn_engine._module_schema_v2 import ModuleDefinitionV2
 from fn_engine._module_schema_v3 import ModuleDefinitionV3
 from fn_engine._module_schema_v4 import ModuleDefinitionV4
@@ -108,6 +112,8 @@ from fn_engine.performance_data import (PerformanceImport, PerformancePreview, P
     PerformanceSummary, PerformanceList, PerformanceReference, PerformanceProposalRequest, PerformanceProposal, PerformanceComparison)
 
 models = [
+    ('module-v5', ModuleDefinitionV5), ('physics-input', PhysicsInput),
+    ('physics-request', PhysicsRequest), ('physics-response', PhysicsResponse), ('physics-result', PhysicsResult),
     ('composite-test-context-request',CompositeTestContextRequest),
     ('performance-import',PerformanceImport),('performance-preview',PerformancePreview),
     ('performance-version',PerformanceVersion),('performance-summary',PerformanceSummary),
@@ -123,6 +129,7 @@ models = [
     ('air-grid-response',AirGridResponse), ('air-variable-descriptor',AirVariableDescriptor),
     ('air-variable-catalog-response',AirVariableCatalogResponse), ('air-migration-request',AirMigrationRequest),
     ('air-migration-response',AirMigrationResponse), ('run-record-response',RunRecordResponse),
+    ('run-resume-options',RunResumeOptions), ('run-resume-response',RunResumeResponse),
     ('batch-plan-request', BatchPlanRequest), ('batch-create-request', BatchCreateRequest),
     ('batch-setup-response', BatchSetupResponse), ('batch-preview-response', BatchPreviewResponse),
     ('batch-detail-response', BatchDetailResponse), ('batch-list-response', BatchListResponse),

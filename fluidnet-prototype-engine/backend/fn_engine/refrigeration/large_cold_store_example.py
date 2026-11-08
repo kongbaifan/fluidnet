@@ -22,7 +22,7 @@ ROOMS = (
 )
 
 
-def build_large_cold_store():
+def build_large_cold_store(*, fan_ratio=1., condenser_fan=1.):
     catalog = catalog_map()
     fluid = FluidConfig(fluid='Ammonia', phase_policy='any')
     service = property_service(fluid)
@@ -31,7 +31,7 @@ def build_large_cold_store():
     low, middle, high = 241.15, 265.15, 308.15
     lv, ml, mv, hl = (service.state_tq(temperature, quality) for temperature, quality in
                       ((low, 1.), (middle, 0.), (middle, 1.), (high, 0.)))
-    gross = {zone: sum(room[3] + 2 * room[9] for room in ROOMS if room[4] == zone) for zone in ('LT', 'MT')}
+    gross = {zone: sum(room[3] + 2 * room[9] * fan_ratio for room in ROOMS if room[4] == zone) for zone in ('LT', 'MT')}
     pump_flow, pump_heat = {}, {}
     for zone, temperature in (('LT', low), ('MT', middle)):
         liquid, vapor = service.state_tq(temperature, 0.), service.state_tq(temperature, 1.)
@@ -67,8 +67,10 @@ def build_large_cold_store():
     add('HP', 'hp_receiver', '高压贮液器', 1150, 160, volume_m3=30., height_m=3., temperature_k=high, level_ratio=.5)
     add('IP', 'lp_drum_multi', '中压中冷兼冷藏供液桶', 680, 400, volume_m3=25., height_m=3., temperature_k=middle, level_ratio=.4)
     add('LP', 'lp_drum', '低压冷冻循环桶', 160, 570, volume_m3=35., height_m=3., temperature_k=low, level_ratio=.4)
-    add('COND', 'evaporative_condenser', '集中蒸发式冷凝器', 930, 160, ua_w_k=precision(rejection / 11.),
-        wet_bulb_temperature_k=297.15, fan_power_w=22000., fan_ratio=1., return_gas_ratio=1.)
+    cond_natural = defaults('evaporative_condenser')['natural_ua_ratio']
+    add('COND', 'evaporative_condenser', '集中蒸发式冷凝器', 930, 160,
+        ua_w_k=precision(rejection / (11. * (cond_natural + (1 - cond_natural) * condenser_fan))),
+        wet_bulb_temperature_k=297.15, fan_power_w=22000., fan_ratio=condenser_fan, return_gas_ratio=1.)
     for zone, displacement, x, y in (('LT', low_displacement, 360, 400), ('HT', high_displacement, 720, 160)):
         add(zone + '_SUC', 'refrigerant_header', zone + ' 吸气集管', x - 150, y)
         add(zone + '_DIS', 'refrigerant_header', zone + ' 排气集管', x + 150, y)
@@ -113,9 +115,10 @@ def build_large_cold_store():
         evap = low if zone == 'LT' else middle
         for index in range(2):
             cooler = iid + '_AC' + str(index + 1)
+            natural = defaults('air_cooler')['natural_ua_ratio']
             add(cooler, 'air_cooler', name + f' 冷风机 {index + 1}', 480, y + index * 150, page,
-                ua_w_k=precision((net / 2 + fan) / (temperature + 273.15 - evap)), fan_power_w=fan,
-                fan_ratio=1., supply_valve_ratio=1.)
+                ua_w_k=precision((net / 2 + fan * fan_ratio) / ((temperature + 273.15 - evap) * (natural + (1 - natural) * fan_ratio))),
+                fan_power_w=fan, fan_ratio=fan_ratio, supply_valve_ratio=1.)
             link(iid + f'_FEED:out{index}', cooler + ':in0')
             link(cooler + ':out0', iid + f'_RETURN:in{index}')
             link(cooler + ':heat', iid + f':heat{index}')

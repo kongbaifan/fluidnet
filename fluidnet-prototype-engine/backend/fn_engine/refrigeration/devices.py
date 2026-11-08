@@ -35,6 +35,8 @@ class VesselState:
     vapor_density_kg_m3: float
     level_height_ratio: float | None = None
     volume_m3: float | None = None
+    bulk_enthalpy_j_kg: float | None = None
+    phase: str | None = None
 
     def variables(self, prefix):
         return {f'{prefix}.state.{key}' if key in STATE_KEYS else f'{prefix}.{key}': value
@@ -81,6 +83,14 @@ def vessel_state(service, params, mass, internal_energy):
     if not (math.isfinite(mass) and math.isfinite(internal_energy)) or mass <= 0:
         raise DeviceRangeError('VESSEL_PHASE_RANGE', '容器存量必须为有限正数')
     state = service.state_du(mass / volume, internal_energy / mass)
+    if params.get('allow_single_phase', 0.) and state.phase != TWO_PHASE:
+        liquid_phase = state.phase in ('liquid', 'supercritical_liquid')
+        enthalpy = internal_energy / mass + state.pressure_pa * volume / mass
+        return VesselState(state.pressure_pa, state.temperature_k, mass, internal_energy,
+            mass if liquid_phase else 0., 0. if liquid_phase else mass,
+            0. if liquid_phase else 1., 1. if liquid_phase else 0., height if liquid_phase else 0.,
+            enthalpy, enthalpy, state.density_kg_m3, state.density_kg_m3,
+            volume_m3=volume, bulk_enthalpy_j_kg=enthalpy, phase=state.phase)
     if state.phase != TWO_PHASE or state.quality is None:
         raise DeviceRangeError('VESSEL_PHASE_RANGE', f'容器内为 {state.phase}，集总饱和容器只适用于气液两相')
     liquid, vapor = saturated(service, state.temperature_k)
@@ -93,7 +103,9 @@ def vessel_state(service, params, mass, internal_energy):
     return VesselState(state.pressure_pa, state.temperature_k, mass, internal_energy, liquid_mass, vapor_mass,
                        state.quality, level, height_ratio * height, liquid.enthalpy_j_kg, vapor.enthalpy_j_kg,
                        liquid.density_kg_m3, vapor.density_kg_m3,
-                       height_ratio if horizontal else None, volume if horizontal else None)
+                       height_ratio if horizontal else None, volume if horizontal or params.get('allow_single_phase') else None,
+                       internal_energy / mass + state.pressure_pa * volume / mass if params.get('allow_single_phase') else None,
+                       state.phase if params.get('allow_single_phase') else None)
 
 
 def check_vessel(params, state):

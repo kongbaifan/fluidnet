@@ -6,8 +6,9 @@ from ._module_schema_v1 import ModuleDefinitionV1
 from ._module_schema_v2 import ModuleDefinitionV2, ModuleSDKRequirements
 from ._module_schema_v3 import ModuleDefinitionV3
 from ._module_schema_v4 import ModuleDefinitionV4, THROTTLE_CAPABILITY
+from ._module_schema_v5 import ModuleDefinitionV5, PHYSICS_CAPABILITY
 
-CONTRACT_SCHEMAS = {1: ModuleDefinitionV1, 2: ModuleDefinitionV2, 3: ModuleDefinitionV3, 4: ModuleDefinitionV4}
+CONTRACT_SCHEMAS = {1: ModuleDefinitionV1, 2: ModuleDefinitionV2, 3: ModuleDefinitionV3, 4: ModuleDefinitionV4, 5: ModuleDefinitionV5}
 _BASE_CAPABILITIES = frozenset({
     'lifecycle.v1', 'state.json.v1', 'properties.v1',
     'net.pipe', 'net.valve', 'net.pump', 'net.compressor',
@@ -26,6 +27,7 @@ SDK_CAPABILITIES['0.7.0'] = SDK_CAPABILITIES['0.6.0'] | {THROTTLE_CAPABILITY}
 SDK_CAPABILITIES['0.8.0'] = SDK_CAPABILITIES['0.7.0'] | {'net.pressure_drop'}
 SDK_CAPABILITIES['0.9.0'] = SDK_CAPABILITIES['0.8.0'] | {'composite.refrigeration.v1'}
 SDK_CAPABILITIES['0.10.0'] = SDK_CAPABILITIES['0.9.0'] | {'composite.refrigeration.open.v1'}
+SDK_CAPABILITIES['0.11.0'] = SDK_CAPABILITIES['0.10.0'] | {PHYSICS_CAPABILITY}
 STATE_CONTRACT_VERSIONS = frozenset({1})
 
 
@@ -61,7 +63,7 @@ def contract_model(definition):
         raise ModuleCompatibilityError('MODULE_SCHEMA_UNSUPPORTED',
             f'不支持的模块合同 schema_version：{definition.schema_version}', 'schema_version')
     # Only module-contract fields participate; catalog presentation fields do not.
-    fields = set(ModuleDefinitionV3.model_fields) | set(ModuleDefinitionV4.model_fields)
+    fields = set(ModuleDefinitionV3.model_fields) | set(ModuleDefinitionV4.model_fields) | set(ModuleDefinitionV5.model_fields)
     return parser.model_validate(definition.model_dump(mode='json', include=fields))
 
 
@@ -106,12 +108,14 @@ def check_module_compatibility(definition):
             f'不支持的 SDK API 版本：{requirement.api_version}；支持 {", ".join(SDK_CAPABILITIES)}', 'sdk.api_version')
     if module.schema_version==4 and requirement.api_version!='0.7.0':
         raise ModuleCompatibilityError('MODULE_REFRIGERATION_SDK_REQUIRED','制冷角色要求 SDK API 0.7.0','sdk.api_version')
+    if module.schema_version == 5 and requirement.api_version != '0.11.0':
+        raise ModuleCompatibilityError('MODULE_REFRIGERATION_SDK_REQUIRED', '制冷本构要求 SDK API 0.11.0', 'sdk.api_version')
     missing = sorted(set(requirement.capabilities) - supported)
     if missing:
         raise ModuleCompatibilityError('MODULE_CAPABILITY_UNSUPPORTED',
             f'SDK {requirement.api_version} 不支持能力：{", ".join(missing)}', 'sdk.capabilities')
-    role_required = {THROTTLE_CAPABILITY,'state.transactions.v1','context.execution.v1'}
-    if module.schema_version == 4:
+    role_required = {PHYSICS_CAPABILITY if module.schema_version == 5 else THROTTLE_CAPABILITY,'state.transactions.v1','context.execution.v1'}
+    if module.schema_version in (4, 5):
         if role_required-set(requirement.capabilities):
             raise ModuleCompatibilityError('MODULE_REFRIGERATION_CAPABILITY_REQUIRED',
                 f'制冷角色缺少能力：{sorted(role_required-set(requirement.capabilities))}','sdk.capabilities')
@@ -119,7 +123,7 @@ def check_module_compatibility(definition):
         if set(requirement.capabilities)-allowed:
             raise ModuleCompatibilityError('MODULE_REFRIGERATION_CAPABILITY_CONFLICT',
                 '制冷节流角色不能同时声明流体通路、湿空气、热流、组合或导数能力','sdk.capabilities')
-    elif THROTTLE_CAPABILITY in requirement.capabilities:
+    elif {THROTTLE_CAPABILITY, PHYSICS_CAPABILITY} & set(requirement.capabilities):
         raise ModuleCompatibilityError('MODULE_REFRIGERATION_ROLE_REQUIRED',
             '制冷能力必须使用 schema 4 并声明设备角色','schema_version')
     if requirement.state_contract_version not in STATE_CONTRACT_VERSIONS:

@@ -48,6 +48,12 @@ class RunRequest(RunOptions):
     project_revision: int | None = Field(default=None, ge=1)
 
 
+class RunResumeOptions(StrictModel):
+    """Continue an archived checkpoint; duration is the absolute simulation end time."""
+    duration_s: float | None = Field(default=None, gt=0, le=604800)
+    start_paused: bool = True
+
+
 class RunCommand(StrictModel):
     action: Literal["pause", "resume", "step", "stop", "set", "controller", "write"]
     instance_id: str | None = None

@@ -1,0 +1,28 @@
+{
+  "additionalProperties": false,
+  "description": "Continue an archived checkpoint; duration is the absolute simulation end time.",
+  "properties": {
+    "duration_s": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0,
+          "maximum": 604800,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Duration S"
+    },
+    "start_paused": {
+      "default": true,
+      "title": "Start Paused",
+      "type": "boolean"
+    }
+  },
+  "title": "RunResumeOptions",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

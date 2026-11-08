@@ -84,7 +84,7 @@ class ModuleTestSuiteRequest(StrictModel):
 
 
 class ModuleTemplateRequest(StrictModel):
-    template: Literal['resistance', 'pump', 'heat_exchanger', 'managed_state', 'refrigeration_throttle', 'custom_pressure_drop']
+    template: Literal['resistance', 'pump', 'heat_exchanger', 'managed_state', 'refrigeration_throttle', 'refrigeration_compressor', 'refrigeration_condenser', 'custom_pressure_drop']
     id: Identifier
     name: str = Field(min_length=1, max_length=80)
     category: str = '自定义模块'
@@ -104,6 +104,7 @@ class CompositeTestContextRequest(StrictModel):
 
 
 class ModuleTestResponse(StrictModel):
+    constitutive_evaluation: dict | None = Field(default=None, exclude_if=lambda value: value is None)
     execution_domain: Literal['refrigeration'] | None = Field(default=None,exclude_if=lambda value:value is None)
     refrigeration_evaluation: RefrigerationEvaluateResponse | None = Field(default=None,exclude_if=lambda value:value is None)
     module_id: str

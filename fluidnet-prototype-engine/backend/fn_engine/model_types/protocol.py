@@ -8,7 +8,7 @@ from fn_sdk import CallbackPhase, ChannelDataKind, PortDataKind, StateDataKind
 from pydantic import ConfigDict, Field, model_validator
 
 from .._module_schema_v1 import Identifier, StrictModel
-from ..refrigeration_models import RefrigerationThrottleFlow, RefrigerationThrottleInput
+from ..refrigeration_models import RefrigerationThrottleFlow, RefrigerationThrottleInput, PhysicsInput
 from .base import ChannelState, Diagnostic, FluidConfig, ModulePackageRef, PortState
 from .module import ModuleDefinition
 
@@ -188,7 +188,7 @@ class ModuleReplaySnapshot(StrictModel):
     ports: dict[str, PortState] = Field(default_factory=dict)
     channels: dict[str, ChannelState] = Field(default_factory=dict)
     execution: ModuleExecutionInfo
-    refrigeration: RefrigerationThrottleInput | None = None
+    refrigeration: RefrigerationThrottleInput | PhysicsInput | None = None
     content_hash: str = Field(pattern=r'^[a-fA-F0-9]{64}$')
     definition_hash: str = Field(pattern=r'^[a-fA-F0-9]{64}$')
     failure: Diagnostic

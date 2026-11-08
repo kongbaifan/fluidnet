@@ -4,7 +4,9 @@
 
 | 需要了解的内容 | 入口 |
 | --- | --- |
+| 2026-11-08 底层补全进度、实际边界和可导入工程 | [总验收](FOUNDATION_COMPLETION.md)、[五个参考工程](../examples/foundation/README.md)、[时间步](TIMESTEP_DOMAIN_COMPLETION.md)、[作者本构](AUTHOR_CONSTITUTIVE.md)、[冷库过程](COLD_STORE_PROCESSES.md) |
 | 大型多库房冷库示范、公开来源和设备缺口 | [设计与缺口记录](LARGE_COLD_STORE_DESIGN.md)、[工程文件与运行方法](../examples/large-cold-store/README.md) |
+| 六库简单温控、保存导入收尾及 500t 材料核对 | [实用性验证](LARGE_COLD_STORE_USABILITY.md)、[500t 复算核对](RECALC_500T_REVIEW.md) |
 | 回放遗留修复与日常 CI 收尾 | [P0 验收](P0_REPLAY_CI_ACCEPTANCE.md)、[日常与完整 CI](CI_CHECKS.md) |
 | 架构剩余工作最终收尾 | [AC-1～AC-5验收](ARCHITECTURE_COMPLETION_ACCEPTANCE.md)、[Worker测量决策](WORKER_PRESTART_DECISION.md) |
 | 本轮交互、目录推广和代表工程 | [交互与工程交付验收](INTERACTION_DELIVERY_ACCEPTANCE.md)、[代表工程详细证据](REPRESENTATIVE_PROJECT_ACCEPTANCE.md) |

@@ -381,7 +381,7 @@ def station_series_keys(network):
             keys += [(f'{vessel}.state.level_m', 'm'), (f'{vessel}.state.level_height_ratio', '1'),
                      (f'{vessel}.volume_m3', 'm³')]
     for iid, kind in network.kinds.items():
-        if kind in ('air_cooled_condenser', 'performance_compressor','enthalpy_compressor','enthalpy_valve','refrigerant_line','refrigerant_subcooler','refrigerant_recuperator','dx_compressor','dx_expansion_valve') or kind in ('immersed_tube_bundle','room_heat_manifold','closed_buffer_tank') or network.instances[iid].module_id in ('defrost_air_cooler','headed_receiver'):
+        if kind in ('air_cooled_condenser', 'performance_compressor','enthalpy_compressor','enthalpy_valve','refrigerant_line','refrigerant_subcooler','refrigerant_recuperator','dx_compressor','dx_expansion_valve') or kind in ('immersed_tube_bundle','room_heat_manifold','closed_buffer_tank') or network.instances[iid].module_id in ('defrost_air_cooler','headed_receiver','logistics_cold_room','frost_hotgas_cooler','compressor_oil_system') or kind in ('refrigerant_network_pipe','refrigerant_curve_pump','network_air_cooler','refrigerant_network_valve'):
             definition = network.modules[network.instances[iid].module_id]
             keys += [(f'{iid}.{v.id}', v.unit.canonical_unit if v.unit else '1')
                      for v in definition.variables if v.sampleable]
@@ -519,7 +519,7 @@ def station_report(record, rows, network):
     equipment_rows = []
     for iid, instance in network.instances.items():
         definition = network.modules[instance.module_id]
-        if definition.id not in ('horizontal_receiver', 'horizontal_drum', 'cold_room_multi','headed_receiver','room_heat_manifold','closed_buffer_tank') and network.kinds.get(iid) not in ('air_cooled_condenser','performance_compressor','air_cooler','enthalpy_compressor','enthalpy_valve','refrigerant_line','refrigerant_subcooler','refrigerant_recuperator','dx_compressor','dx_expansion_valve','dx_evaporator','immersed_tube_bundle'):
+        if definition.id not in ('horizontal_receiver', 'horizontal_drum', 'cold_room_multi','headed_receiver','room_heat_manifold','closed_buffer_tank','logistics_cold_room','frost_hotgas_cooler','compressor_oil_system','refrigerant_network_pipe','refrigerant_curve_pump','network_air_cooler','refrigerant_network_valve') and network.kinds.get(iid) not in ('air_cooled_condenser','performance_compressor','air_cooler','enthalpy_compressor','enthalpy_valve','refrigerant_line','refrigerant_subcooler','refrigerant_recuperator','dx_compressor','dx_expansion_valve','dx_evaporator','immersed_tube_bundle'):
             continue
         for variable in definition.variables:
             if variable.source == 'parameter':
