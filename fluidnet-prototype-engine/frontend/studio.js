@@ -436,10 +436,9 @@ function pageLinkStrip(pg){
   if(!entries.length)return '';
   return `<div class="cross-page-strip" aria-label="当前画布跨页连接">${entries.map(link=>`<button type="button" data-action="jump-page-link" data-id="${esc(link.edge[0])}" data-node="${esc(link.remote[0])}" title="跳转到 ${esc(link.remotePage.name)} · ${esc(link.remote.join(':'))}">${icon('ArrowRightLeft')}<span>${esc(link.local.join(':'))} ↔ ${esc(link.remotePage.name)} · ${esc(link.remote.join(':'))}</span>${icon('ArrowUpRight')}</button>`).join('')}</div>`;
 }
-// Trend-history runs (RunFrame.full=false) carry only curve variables between key frames; device
-// panels and canvas readings show the most recent full row instead of blanking out.
-function panelRow(run){const history=run?.history||[];for(let i=history.length-1;i>=0;i--)if(!history[i].partial)return history[i];return history.at(-1);}
-function replayingKeyFrame(run){return !!run?.history?.length&&!!run.history.at(-1).partial;}
+// Live readouts prefer the latest full response; old runs fall back to complete history rows.
+function panelRow(run){return projectRunState.completeRow(run)||run?.history?.at(-1);}
+function replayingKeyFrame(run){const last=run?.history?.at(-1),row=projectRunState.completeRow(run);return !!last?.partial&&(!row||row.t<last.t);}
 const CIRCUIT_COLORS=['var(--orange)','#2f80ed','#27ae60','#9b51e0','#eb5757','#f2994a','#219653','#56ccf2'];
 function networkMarkup(pg,mini=false){return canvasView().markup(pg,mini);}
 function fluidBadge(p){const circuits=engine.circuits?.(p.id)||[];if(new Set(circuits.map(c=>c.fluid.fluid)).size>1)return `多工质 · ${circuits.length} 个回路`;const declared=new Set((p.circuitFluids||[]).map(c=>c.fluid||c.medium).filter(Boolean));if(!circuits.length&&declared.size>1)return `多工质 · ${[...declared].join(' / ')}`;return p.fluid||(MEDIA.find(m=>m[0]===p.medium)||MEDIA[0])[1];}
@@ -715,7 +714,7 @@ function meterSources(p) {
   return result.filter((v,i)=>result.findIndex(s=>s.key===v.key)===i);
 }
 function meterValue(p,m) {
-  const value=p.run.history.at(-1)?.canonical?.['measurement.'+m.id];
+  const value=panelRow(p.run)?.canonical?.['measurement.'+m.id];
   return Number.isFinite(value)?number(value/m.unit.display_scale+m.unit.display_offset,3)+' '+esc(m.unit.display_unit):'—';
 }
 function meterPanel(p) {
@@ -779,7 +778,7 @@ function pidPanel(p) {
   return `<section class="panel" style="margin-bottom:20px"><div class="panel-head"><h2>PID 反馈控制</h2>${btn('pid-example','液位示例','Droplets','data-kind="level"','small')}${btn('pid-example','温控示例','Thermometer','data-kind="temperature"','small')}${btn('add-pid','添加控制器','Plus',active?'disabled':'','small')}</div><div class="panel-body stack"><p class="muted">选择反馈变量和执行参数。数值使用选项标注的单位；运行中可调整设定值及手自动模式。</p><div class="fields"><label class="field"><span>计算节奏</span><select data-live-mode ${active?'disabled':''}>${option('realtime','按真实时间运行',p.solver.executionMode || 'realtime')}${option('fast','快速计算',p.solver.executionMode || 'realtime')}</select></label><label class="field"><span>速度倍率</span><input data-live-speed type="number" min="0.1" max="100" value="${p.solver.speedRatio || 1}" ${active?'disabled':''}></label></div>${(p.controllers || []).map(c=>`<section class="panel" data-pid-card="${esc(c.id)}"><div class="panel-head"><strong>${esc(c.id)}</strong>${btn('remove-pid','移除','Trash2',`data-id="${esc(c.id)}" ${active?'disabled':''}`,'small')}</div><div class="panel-body fields"><label class="field"><span>反馈变量</span><select data-pid-id="${esc(c.id)}" data-pid-field="measurement" ${active?'disabled':''}>${measurements.map(([v,l])=>option(v,l,c.measurement)).join('')}</select></label><label class="field"><span>执行参数</span><select data-pid-id="${esc(c.id)}" data-pid-field="target" ${active?'disabled':''}>${targets.map(([v,l])=>option(v,l,c.instance_id+'.'+c.parameter_id)).join('')}</select></label><label class="field"><span>模式</span><select data-pid-id="${esc(c.id)}" data-pid-field="mode">${option('auto','自动',c.mode)}${option('manual','手动',c.mode)}</select></label>${fields.map(([key,label])=>`<label class="field"><span>${label}</span><input type="number" step="any" data-pid-id="${esc(c.id)}" data-pid-field="${key}" value="${c[key] ?? ''}" ${active && !['setpoint','manual_output'].includes(key)?'disabled':''}></label>`).join('')}</div><div class="panel-body" data-pid-readout="${esc(c.id)}">${pidReadout(p,c)}</div></section>`).join('') || '<p>尚未配置控制器；可先运行模型，再选择反馈变量。</p>'}</div></section>`;
 }
 function pidReadout(p,c) {
-  const row=p.run.history.at(-1)?.canonical || {};
+  const row=panelRow(p.run)?.canonical || {};
   return `测量 ${number(row['controller.'+c.id+'.measurement'],3)} · 输出 ${number(row['controller.'+c.id+'.output'],3)} · t = ${number(p.run.time,2)} s`;
 }
 document.addEventListener('click',event=>{
@@ -817,7 +816,7 @@ document.addEventListener('change',async event=>{
   } catch(error) {msg(error.message,true);render();}
 });
 function controlLiveValues(p=project()){
-  const values=p.run.history.at(-1)?.canonical||{}, keys=new Set((p.controlOutputs||'').split(/[\s,，]+/));
+  const values=panelRow(p.run)?.canonical||{}, keys=new Set((p.controlOutputs||'').split(/[\s,，]+/));
   return JSON.stringify(Object.fromEntries(Object.entries(values).filter(([key])=>keys.has(key)||key.startsWith(`script.${p.selectedControlId}.`))),null,2);
 }
 function renderControls(){const p=project(),programs=controls.normalize(p),selected=controls.current(p);return `<div class="page-shell">${heading('项目控制逻辑','按脚本组织控制策略；修改会在下次新运行生效。',btn('control-template','载入示例','FileCode2',selected?'':'disabled')+btn('control-template','载入机房联锁','ShieldCheck',(selected?'':'disabled')+' data-kind="interlock"','small')+btn('preview-control','预览一个周期','StepForward',selected?'':'disabled','primary')+btn('save','保存脚本','Save'))}${meterPanel(p)}${pidPanel(p)}<section class="panel" style="margin-bottom:20px"><div class="panel-head"><h2>控制脚本</h2>${badge(programs.length+' / '+controls.MAX_PROGRAMS)}<span class="push"></span>${btn('add-control-program','新建脚本','Plus',programs.length>=controls.MAX_PROGRAMS?'disabled':'','small')}${btn('remove-control-program','删除所选脚本','Trash2',selected?`data-id="${esc(selected.id)}"`:'disabled','small')}</div><div class="panel-body">${programs.length?`<label class="field"><span>当前脚本</span><select data-control-program aria-label="选择控制脚本">${programs.map(program=>option(program.id,`${program.name} · ${program.id} · ${program.language!=='python'?'待迁移':program.enabled?'已启用':'未启用'}`,p.selectedControlId)).join('')}</select></label>`:'<p>尚无控制脚本。新建脚本后可编辑、预览并单独启用。</p>'}</div></section>${selected?`<details open><summary>编辑 ${esc(selected.id)}</summary><div class="connection-layout"><aside class="stack"><section class="panel"><div class="panel-head"><h3>控制程序</h3>${badge(p.controlLanguage==='python'?'Python':'旧脚本待迁移',p.controlLanguage==='python'?'good':'warn')}</div><div class="panel-body stack">
@@ -1093,11 +1092,11 @@ function projectParameterKey(owner=project()){return projectModel.parameterKey(o
 
 function workbenchResultState() {
   const run = project().run;
-  if (run.history.length < 1) return { text: '尚未采样 · 运行或单步查看结果', tone: '' };
+  if (!panelRow(run)) return { text: '尚未采样 · 运行或单步查看结果', tone: '' };
   if (!run.parameterKey) return { text: '已有结果 · 请单步核对当前参数', tone: 'warn' };
   if (run.parameterKey !== projectParameterKey()) return { text: '参数已变更 · 等待重新采样', tone: 'warn' };
   if (replayingKeyFrame(run)) return { text: `结果已更新 · ${clockLabel(run.history.at(-1).t)} · 回放：显示最近关键帧`, tone: 'good' };
-  return { text: `结果已更新 · ${clockLabel(run.history.at(-1).t)}`, tone: 'good' };
+  return { text: `结果已更新 · ${clockLabel(panelRow(run).t)}`, tone: 'good' };
 }
 
 function entryPathsMarkup() {
@@ -1503,7 +1502,7 @@ function variableObservation(n, v, owner = ownerOfInstance(n)) {
 }
 function projectVariables(owner = project()) {
   return [...owner.pages.flatMap(pg => pg.nodes).flatMap(n => moduleOf(n).variables.map(v => variableObservation(n, v, owner)).filter(Boolean)),
-    ...(owner.measurements||[]).map(m=>({id:'measurement.'+m.id,identifier:'measurement.'+m.id,nodeId:'measurement',variableId:m.id,sampleKey:'measurement.'+m.id,name:m.label,device:'测点',origin:'measurement',writable:false,unit:m.unit.display_unit,value:owner.run.history.at(-1)?.canonical?.['measurement.'+m.id]}))];
+    ...(owner.measurements||[]).map(m=>({id:'measurement.'+m.id,identifier:'measurement.'+m.id,nodeId:'measurement',variableId:m.id,sampleKey:'measurement.'+m.id,name:m.label,device:'测点',origin:'measurement',writable:false,unit:m.unit.display_unit,value:panelRow(owner.run)?.canonical?.['measurement.'+m.id]}))];
 }
 function sampleVariableValues(owner, legacyValues) {
   return Object.fromEntries(projectVariables(owner).map(v => [v.sampleKey,

@@ -336,8 +336,9 @@ export const createEngineClient = function (ui) {
     const canonical = frame.variables;
     const bindings = owner.run.overviewBindings || overviewBindings(owner);
     // partial: a trend-history frame (RunFrame.full=false) that only carries the trend variables.
-    // Curves and the overview read it as usual; device panels use the latest full row (studio panelRow).
-    const row = {t:frame.time_s,canonical,valid:frame.valid,partial:frame.full === false,variables:{},variableValues:{},diagnostics:frame.diagnostics,metrics:frame.metrics,
+    // Live readouts retain the full status frame independently of trend history.
+    const row = {t:frame.time_s,sequence:frame.sequence,parameterRevision:frame.parameter_revision,
+      canonical,valid:frame.valid,partial:frame.full === false,variables:{},variableValues:{},diagnostics:frame.diagnostics,metrics:frame.metrics,
       ...overviewValues(bindings,canonical)};
     for (const n of owner.pages.flatMap(p => p.nodes)) {
       const m = owner.moduleSnapshots?.[n.moduleId] || ui.moduleOf(n);

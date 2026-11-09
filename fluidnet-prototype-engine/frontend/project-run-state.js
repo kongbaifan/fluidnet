@@ -21,6 +21,22 @@ export const FluidNetProjectRunState = (() => {
     run.time=row.t;
     run.values={q:row.q,a:row.a,b:row.b,pressure:row.pressure,temperature:row.temperature};
   }
+  const complete=row=>!!row && !row.partial && row.valid!==false && Number.isFinite(row.t);
+  function older(row,previous) {
+    if(!previous)return false;
+    if(Number.isFinite(row.sequence)&&Number.isFinite(previous.sequence)&&row.sequence!==previous.sequence)
+      return row.sequence<previous.sequence;
+    if(row.t!==previous.t)return row.t<previous.t;
+    return Number.isFinite(row.parameterRevision)&&Number.isFinite(previous.parameterRevision)
+      && row.parameterRevision<previous.parameterRevision;
+  }
+  function completeRow(run) {
+    const historical=run?.history?.findLast(complete),latest=run?.latestFull;
+    return complete(latest)&&!older(latest,historical)?latest:historical;
+  }
+  function rememberComplete(run,row) {
+    if(complete(row)&&!older(row,run.latestFull))run.latestFull=row;
+  }
   function append(run,row) {
     const last=run.history.at(-1);
     if(last && row.t<last.t)return false;
@@ -28,14 +44,20 @@ export const FluidNetProjectRunState = (() => {
       if(!last.partial && row.partial)return false;
       run.history[run.history.length-1]=row;
     } else run.history.push(row);
+    rememberComplete(run,row);
     present(run,row);return true;
   }
   function mergeLive(run,data,rows,{totalRows,latest,limit=2001}) {
-    for(const row of rows)append(run,row);
+    // The status response and history are separate snapshots. History may already
+    // be ahead of the latest full response; retain that response for live readouts.
+    rememberComplete(run,completeRow(run));
+    for(const row of rows){append(run,row);rememberComplete(run,row);}
+    rememberComplete(run,latest);
     if(run.history.length>limit)run.history.splice(0,run.history.length-limit);
     run.offset=totalRows;
-    if(latest && run.history.length && latest.t>=run.time) {
-      if(run.history.at(-1).t===latest.t)append(run,latest);else present(run,latest);
+    const full=run.latestFull;
+    if(full && (!Number.isFinite(run.time)||full.t>=run.time)) {
+      if(run.history.at(-1)?.t===full.t)append(run,full);else present(run,full);
     }
     run.events=data.events.map(e=>({t:e.time_s,text:e.message || (e.command_id?`${e.command?.action || '命令'} ${e.command_status} · ${e.command_id}`:e.type)}));
     run.diagnostics=clone(data.frame?.diagnostics||[]);
@@ -74,7 +96,7 @@ export const FluidNetProjectRunState = (() => {
         || !Number.isFinite(record.frame?.time_s) || record.frame.time_s < 0) return null;
     return {id:runId,rows:record.persisted_rows,time_s:record.frame.time_s,persisted_at:record.persisted_at};
   }
-  return {capture,isCurrent,assertCurrent,archiveCacheMetadata,setArchiveCache,advanceParameterKey,prepare,present,append,mergeLive,
+  return {capture,isCurrent,assertCurrent,archiveCacheMetadata,setArchiveCache,advanceParameterKey,prepare,present,completeRow,append,mergeLive,
     reconcileArchives,archiveRecord,rememberArchive};
 })();
 

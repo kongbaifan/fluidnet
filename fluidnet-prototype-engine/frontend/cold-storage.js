@@ -12,7 +12,7 @@ export const createColdStorageUI = function (ui) {
   const MODES=['制冷','融霜加热','滴水'];
   const EVENT_TYPES=[['door_heat','开门热负荷'],['goods_addition','货物入库'],['ambient_temperature','室外温度变化'],['electric_defrost','电融霜']];
   let eventDraft=null;
-  const raw=(p,key)=>{const rows=p.run.history;for(let i=rows.length-1;i>=0;i--){const v=rows[i].canonical?.[key];if(v!==undefined)return v;}return undefined;};
+  const raw=(p,key)=>{const latest=p.run.latestFull?.canonical?.[key];if(latest!==undefined)return latest;const rows=p.run.history;for(let i=rows.length-1;i>=0;i--){const v=rows[i].canonical?.[key];if(v!==undefined)return v;}return undefined;};
   const fmt=(p,key,scale=1,offset=0,digits=3)=>{const v=raw(p,key);return typeof v==='number'?(v/scale+offset).toFixed(digits):'—';};
   const lastRun=p=>p.run.source==='engine'&&p.run.id&&['completed','failed','stopped'].includes(p.run.status)?p.run.id:null;
   const idle=p=>{if(['running','solving'].includes(p.run.status)||p.run.live&&p.run.runId)throw Error('请先停止当前运行。');};
@@ -78,7 +78,7 @@ export const createColdStorageUI = function (ui) {
   function modularValue(p,binding) {return modularCurrent(p)?fmt(p,binding.key,binding.scale,binding.offset,3):'—';}
   function roomOverview(p){
     const groups=roomControls.groups(p,modularDevices(p));if(!groups.length)return '';
-    const current=modularCurrent(p),metrics=p.run.history.at(-1)?.metrics;
+    const current=modularCurrent(p),metrics=(p.run.latestFull||p.run.history.at(-1))?.metrics;
     const power=current&&Number.isFinite(metrics?.electric_power_w)?(metrics.electric_power_w/1000).toFixed(1)+' kW':'—';
     return `<div class="row spread"><strong>各库温度 · 当前总功率 ${power}</strong>${btn('cs-room-targets','设置库温','Thermometer',p.run.live?'disabled':'','small')}</div>
       <div class="table-wrap"><table aria-label="各库温控状态"><thead><tr><th>库房</th><th>目标 / °C</th><th>当前 / °C</th><th>状态</th></tr></thead><tbody>${groups.map(group=>{
@@ -219,9 +219,9 @@ export const createColdStorageUI = function (ui) {
     ['hp-level','贮液器液位 · %','HP1.state.level_ratio',.01,0,1],['lp-level','低压桶液位 · %','LP1.state.level_ratio',.01,0,1],
     ['running','压缩机台数','script.control.state.running',1,0,0],['load','载量 · %','K1.param.load_ratio',.01,0,1],
     ['fans','冷凝器风机','EC1.param.fan_ratio',1,0,2],['satisfaction','需求满足度 · %','script.control.state.satisfaction',.01,0,2]];
-  function stationPower(p){const v=p.run.history.at(-1)?.metrics?.electric_power_w;return typeof v==='number'?(v/1000).toFixed(1):'—';}
+  function stationPower(p){const v=(p.run.latestFull||p.run.history.at(-1))?.metrics?.electric_power_w;return typeof v==='number'?(v/1000).toFixed(1):'—';}
   function stationEnergy(p){
-    const row=p.run.history.at(-1)?.canonical;if(!row)return '—';
+    const row=(p.run.latestFull||p.run.history.at(-1))?.canonical;if(!row)return '—';
     const keys=Object.keys(row).filter(k=>/\.state\.(electric|fan)_energy_j$/.test(k));
     return keys.length?(keys.reduce((s,k)=>s+row[k],0)/3.6e6).toFixed(1):'—';
   }
