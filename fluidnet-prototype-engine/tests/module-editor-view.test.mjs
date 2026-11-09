@@ -67,3 +67,28 @@ test('authoring actions delegate only known commands to supplied shell callbacks
   assert.equal(f.view.action('save-module-version',{dataset:{}}),false);
   assert.deepEqual(f.calls,[['tab','code'],['port','picture'],['label']]);
 });
+
+test('editor guides an unpublished module to saving and uses the published version despite newer drafts',()=>{
+  const f=fixture();assert.match(f.view.renderEditor(),/先保存新版本/);
+  assert.match(f.view.renderEditor(),/data-action="use-module"[^>]*disabled/);
+  f.m.publishedManifest={version:3};f.m.dirty=true;f.m.version=4;
+  const html=f.view.renderEditor();assert.match(html,/已保存 v3 · 草稿有修改/);
+  assert.doesNotMatch(html,/data-action="use-module"[^>]*disabled/);
+  f.m.saving=true;assert.match(f.view.renderEditor(),/data-action="use-module"[^>]*disabled/);
+});
+
+test('common parameters show display values and keep full definitions in a collapsed section',()=>{
+  const f=fixture();f.ui.moduleTab='attributes';
+  f.m.parameters[0].unit={canonical_unit:'1',display_unit:'%',display_scale:.01,display_offset:0};
+  const html=f.view.renderEditor();assert.match(html,/<td>50<\/td>/);assert.match(html,/<td>0 ~ 100<\/td>/);
+  assert.match(html,/data-action="edit-module-parameter"/);assert.match(html,/<details class="editor-advanced-details editor-parameter-advanced">/);
+  assert.doesNotMatch(html,/默认值 \/ SI|ctx.parameter/);
+  f.m.contractDraft='{';assert.match(f.view.renderEditor(),/尚未应用的 JSON/);assert.match(f.view.renderEditor(),/data-action="edit-module-parameter"[^>]*disabled/);
+});
+
+test('equipment setup exposes metadata and diagnostics expand for errors but remain collapsed during ordinary editing',()=>{
+  const f=fixture();assert.match(f.view.renderEditor(),/data-action="edit-module-metadata"/);
+  f.ui.moduleTab='code';assert.match(f.view.renderAuthoringDiagnostics(f.m),/class="editor-advanced-details" >/);
+  f.m.authoringDiagnostics=[{message:'参数错误',severity:'error'}];assert.match(f.view.renderAuthoringDiagnostics(f.m),/ open>/);
+  assert.match(f.view.renderAuthoringDiagnostics(f.m),/参数错误/);
+});

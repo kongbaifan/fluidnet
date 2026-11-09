@@ -8,7 +8,7 @@ import {FHD_CONTEXT,captureFhd} from './browser-viewport.mjs';
 const directory=mkdtempSync(join(tmpdir(),'fluidnet-cross-page-'));
 const browser=await chromium.launch({channel:'msedge',headless:true});
 const errors=[],runPosts=[];let launched,page;
-const state=()=>page.evaluate(()=>JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
+const state=()=>page.evaluate(async()=>{const {FluidNetDraftStore}=await import('/draft-store.js');return FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1'));});
 const owner=s=>s.projects.find(p=>p.id===s.activeProject);
 const navigate=route=>page.locator('.rail-link[data-route="'+route+'"]').click();
 const submit=()=>page.getByRole('dialog').locator('button[type="submit"]').click();
@@ -86,7 +86,7 @@ try{
   await expect(floater).toContainText(initial.pages[0].name);
   await floater.locator('[data-action="delete-edge"][data-id="'+cross[0]+'"]').click();
   await expect(page.locator('[aria-label="当前画布跨页连接"] button')).toHaveCount(1);
-  await floater.locator('[data-action="add-page-link"][data-port="in0"]').click();
+  await floater.locator('[data-action="connect-device-port"][data-port="in0"]').click();
   await page.getByRole('dialog').locator('[name="targetPage"]').selectOption(main);
   await page.getByRole('dialog').locator('[name="target"]').selectOption(cross[1]+':'+cross[2]);await submit();
   await expect(page.getByRole('dialog')).toHaveCount(0);

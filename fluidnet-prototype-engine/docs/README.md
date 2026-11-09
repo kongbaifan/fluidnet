@@ -1,9 +1,12 @@
 # 文档入口
 
-当前维护日期：2026-11-07。功能文档描述行为；验收记录只对标注的源码基线有效，历史覆盖率和性能数字不自动成为当前版本结论。
+当前维护日期：2026-11-09。功能文档描述行为；验收记录只对标注的源码基线有效，历史覆盖率和性能数字不自动成为当前版本结论。
 
 | 需要了解的内容 | 入口 |
 | --- | --- |
+| 从设备制作到系统搭建、复用与源码交付的完整顺序 | [端到端路线图（2026-11-09）](MODULE_PRODUCT_ROADMAP.md) |
+| 新建设备模块、放入空白画布、连接运行与保存复用 | [模块搭建流程](MODULE_ASSEMBLY_WORKFLOW.md) |
+| 泵曲线点表、常用设备面板、单库房搭建与实际缺口 | [常用设备整理](COMMON_DEVICE_GUIDE.md) |
 | 2026-11-08 底层补全进度、实际边界和可导入工程 | [总验收](FOUNDATION_COMPLETION.md)、[五个参考工程](../examples/foundation/README.md)、[时间步](TIMESTEP_DOMAIN_COMPLETION.md)、[作者本构](AUTHOR_CONSTITUTIVE.md)、[冷库过程](COLD_STORE_PROCESSES.md) |
 | 大型多库房冷库示范、公开来源和设备缺口 | [设计与缺口记录](LARGE_COLD_STORE_DESIGN.md)、[工程文件与运行方法](../examples/large-cold-store/README.md) |
 | 六库简单温控、保存导入收尾及 500t 材料核对 | [实用性验证](LARGE_COLD_STORE_USABILITY.md)、[500t 复算核对](RECALC_500T_REVIEW.md) |

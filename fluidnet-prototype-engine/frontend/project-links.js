@@ -26,12 +26,23 @@ export const FluidNetLinks = (() => {
   function remove(owner, id) {
     for (const page of owner.pages) page.edges = page.edges.filter(edge => edge[0] !== id);
   }
+  function candidates(owner, source, definition, {pageId, excluding} = {}) {
+    return owner.pages.filter(page => !pageId || page.id === pageId).flatMap(page =>
+      page.nodes.flatMap(node => definition(node).ports.flatMap(port => {
+        try { check(owner, source, [node.id, port.id], definition, excluding); }
+        catch { return []; }
+        return [{page, node, port}];
+      })));
+  }
   function connect(owner, id, source, target, definition, replacing = false) {
     if (find(owner, id) && !replacing) throw Error('连接标识重复。');
-    const {start} = check(owner, source, target, definition, replacing ? id : undefined);
+    const {start, end, a} = check(owner, source, target, definition, replacing ? id : undefined);
+    // Directed domains always serialize output → input, even when the user starts at the input.
+    // Fluid connections retain the chosen orientation for reversible flow.
+    const reverse = a.domain !== 'fluid' && a.direction === 'in';
     if (replacing) remove(owner, id);
-    const edge = [id, ...source, ...target];
-    start.page.edges.push(edge);
+    const edge = reverse ? [id, ...target, ...source] : [id, ...source, ...target];
+    (reverse ? end : start).page.edges.push(edge);
     return edge;
   }
   function rehome(owner) {
@@ -96,7 +107,7 @@ export const FluidNetLinks = (() => {
           errors.push({text: `${node.id} · ${port.label} 尚未连接。`, page: page.id, node: node.id});
     return errors;
   }
-  return {all, locate, find, atPort, check, connect, remove, rehome, move, removeNodes, cross, validate};
+  return {all, locate, find, atPort, check, candidates, connect, remove, rehome, move, removeNodes, cross, validate};
 })();
 
 export default FluidNetLinks;

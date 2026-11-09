@@ -185,8 +185,8 @@ export const createEngineClient = function (ui) {
     normalizeProject:normalize,copyPanel:(source,target)=>FluidNetPanelLayout?.copy(source,target),
     copyPresentation:(source,target)=>FluidNetCanvasSymbols?.copyPresentation(source,target),
     output:ui.moduleOutput,dirty:ui.dirty,render:ui.render,persist:ui.persist,message:ui.message});
-  const {manifestPayload,contractText,moduleForInsert,bindModule,pinProject,applyManifest,checkModule,
-    runDesign,versions,loadVersion,saveModule,newModule,newTemplate,newComposite,updateContractItem}=moduleService;
+  const {manifestPayload,contractText,moduleForInsert,insertionPlan,bindModule,pinProject,applyManifest,checkModule,
+    runDesign,versions,loadVersion,saveModule,newModule,newTemplate,newComposite,updateContractItem,parameterEditor,updateDisplayParameter,updateMetadata}=moduleService;
   // A module may drive several internal channels; the single-instance short form only
   // exists for one branch, so fall back to summing the per-channel flows.
   function traceFlow(module, variables) {
@@ -733,7 +733,7 @@ export const createEngineClient = function (ui) {
       current.modules.push(...document.modules.filter(m=>!existing.has(m.id)));
       ui.dirty(owner);ui.persist();ui.showResumedProject(owner);ui.render();
     }});
-  return {...services,resumeArchive,cacheCircuits:(owner,items)=>{circuitsByProject.set(owner.id,items||[]);ui.render();},archiveCacheMetadata,overviewBindings,overviewValues,refrigerationReportAvailable,request,normalize,moduleFromManifest,whenReady:()=>initializing || Promise.resolve(),command,tick,validate,init,applyController,applyParameters,applyParameterBatch,isApplyingParameters:node=>parameterWrites.has(node),loadOverview,authHeaders,signOut:()=>{sessionStorage.removeItem(TOKEN_KEY);location.reload();},overview:id=>runCommands?.overview(id),circuits:id=>circuitsByProject.get(id)||[],confirmedCommand,portValue,observation,manifestPayload,contractText,checkModule,saveModule,runDesign,versions,loadVersion,newModule,newTemplate,newComposite,updateContractItem,bindModule,pinProject,moduleForInsert,get catalog(){return catalog;},get health(){return health;}};
+  return {...services,resumeArchive,cacheCircuits:(owner,items)=>{circuitsByProject.set(owner.id,items||[]);ui.render();},archiveCacheMetadata,overviewBindings,overviewValues,refrigerationReportAvailable,request,normalize,moduleFromManifest,whenReady:()=>initializing || Promise.resolve(),command,tick,validate,init,applyController,applyParameters,applyParameterBatch,isApplyingParameters:node=>parameterWrites.has(node),loadOverview,authHeaders,signOut:()=>{sessionStorage.removeItem(TOKEN_KEY);location.reload();},overview:id=>runCommands?.overview(id),circuits:id=>circuitsByProject.get(id)||[],confirmedCommand,portValue,observation,manifestPayload,contractText,checkModule,saveModule,runDesign,versions,loadVersion,newModule,newTemplate,newComposite,updateContractItem,parameterEditor,updateDisplayParameter,updateMetadata,bindModule,pinProject,moduleForInsert,insertionPlan,get catalog(){return catalog;},get health(){return health;}};
 };
 
 export default createEngineClient;

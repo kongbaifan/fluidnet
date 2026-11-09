@@ -1,15 +1,18 @@
+import {FluidNetPumpCurveEditor} from './pump-curve-editor.js';
 import {FluidNetPanelLayout} from './panel-layout.js';
+import {FluidNetDeviceGuide} from './device-guide.js';
 /* Device detail presentation. Drafts and apply transactions stay in project-state / engine-client. */
 export const createDevicePanel = deps => {
   const {moduleOf,ownerOfInstance,instanceVariablesBody,esc,icon,btn,ibtn,badge,number,option,
     pendingCount,model,paramDefs,deviceParamSpecs,sameValue,parameterValueText,PARAM_TYPE_LABELS,
-    DOMAINS,links,project,getState,panelRow,parameterKey,observation,observationButton} = deps;
+    DOMAINS,links,project,getState,panelRow,parameterKey,observation,observationButton,definitionOf} = deps;
 function deviceExtraParamRows(n, m, selected=null, readonly=false) {
   const specs = (selected||deviceParamSpecs(n)).filter(p => p.value_type !== 'number');
   if (!specs.length) return '';
   const rows = specs.map(p => {
     const draft = n.draft[p.id]===undefined?p.default:n.draft[p.id], current = n.params[p.id]===undefined?p.default:n.params[p.id], edited = !sameValue(draft, current);
     const text = parameterValueText(draft, p.value_type);
+    if(FluidNetPumpCurveEditor.supported(m,p))return `<div class="parameter-row pump-curve-parameter${edited?' edited':''}"><div class="param-title"><strong>${esc(p.label)}</strong><small>已应用 ${Array.isArray(current)?current.length:0} 个数据点${edited?' · 草稿待应用':''}</small><small>体积流量 m³/h · 扬程 m</small></div><div>${btn('edit-pump-curve','编辑点表与预览','ChartNoAxesCombined',`data-id="${esc(n.id)}" data-instance-param="${esc(p.id)}" data-config-readonly="${readonly}"`,'small')}<details class="pump-curve-json"><summary>高级 JSON 输入</summary><textarea class="cell-input mono" rows="3" data-instance-param="${esc(p.id)}" data-config-readonly="${readonly}" data-param-type="curve" data-id="${esc(n.id)}" aria-label="${esc(n.id+' '+p.label+'草稿')}">${esc(text)}</textarea></details></div></div>`;
     const editor = p.value_type === 'boolean'
       ? `<label class="check-label"><input type="checkbox" data-instance-param="${esc(p.id)}" data-config-readonly="${readonly}" data-param-type="boolean" data-id="${n.id}" aria-label="${esc(n.id)} ${esc(p.label)}草稿" ${draft === true ? 'checked' : ''}>启用</label>`
       : p.value_type === 'curve'
@@ -31,16 +34,25 @@ function configuredFields(n,m,overview=false) {
     return f?parameterRow(n,m,f,item.widget):deviceExtraParamRows(n,m,[spec],item.widget==='display');
   }).join('')}</section>`).join('');
 }
+function guidedFields(n,m,overview=false){
+  const groups=FluidNetDeviceGuide.parameters(m,deviceParamSpecs(n));if(!groups)return null;
+  const rows=specs=>specs.map(spec=>{
+    const field=paramDefs(n).find(f=>f[0]===spec.id);
+    return field?parameterRow(n,m,field):deviceExtraParamRows(n,m,[spec]);
+  }).join('');
+  const pending=groups.other.some(p=>!sameValue(n.draft[p.id],n.params[p.id]));
+  return rows(overview?groups.common.slice(0,FluidNetDeviceGuide.get(m).overviewCount):groups.common)+(overview||!groups.other.length?'':`<details class="device-other-parameters" ${pending?'open':''}><summary>其他参数 · ${groups.other.length} 项${pending?' · 有待应用修改':''}</summary>${rows(groups.other)}</details>`);
+}
 function floatBody(f, n) {
   const m = moduleOf(n);
   if (f.tab === 'variables') return instanceVariablesBody(f, n);
   if (f.tab === 'overview' || f.tab === 'results') return overview(n);
-  if (f.tab === 'connections') return `<div class="stack">${m.ports.map(port => {
+  if (f.tab === 'connections') return `<div class="stack">${FluidNetDeviceGuide.markup(m,esc)}${m.ports.map(port => {
     const edge=links.atPort(project(),n.id,port.id),remote=edge&&(edge[1]===n.id?edge.slice(3,5):edge.slice(1,3)),destination=remote&&links.locate(project(),remote[0]);
     const cross=destination&&destination.page.id!==links.locate(project(),n.id).page.id;
-    return `<div class="list-row" style="padding:10px 0"><div class="grow"><strong>${esc(port.label)}</strong><small>${esc(DOMAINS[port.domain].label)} · ${edge?esc((cross?destination.page.name+' · ':'')+remote.join(':')):'未连接'}</small></div>${cross?ibtn('jump-page-link','跳到连接设备','ArrowUpRight',`data-id="${esc(edge[0])}" data-node="${esc(remote[0])}"`)+btn('edit-page-link','修改','Pencil',`data-id="${esc(edge[0])}"`,'small'):''}${edge?btn('delete-edge','断开','X',`data-id="${esc(edge[0])}"`,'small'):btn('add-page-link','跨页连接','ArrowRightLeft',`data-node="${esc(n.id)}" data-port="${esc(port.id)}"`,'small')}</div>`;
+    return `<div class="list-row" style="padding:10px 0"><div class="grow"><strong>${esc(port.label)}</strong><small>${esc(DOMAINS[port.domain].label)} · ${edge?esc((cross?destination.page.name+' · ':'')+remote.join(':')):'未连接'}</small>${FluidNetDeviceGuide.get(m)?.ports[port.id]?`<small class="device-field-help">${esc(FluidNetDeviceGuide.get(m).ports[port.id])}</small>`:''}</div>${cross?ibtn('jump-page-link','跳到连接设备','ArrowUpRight',`data-id="${esc(edge[0])}" data-node="${esc(remote[0])}"`)+btn('edit-page-link','修改','Pencil',`data-id="${esc(edge[0])}"`,'small'):''}${edge?btn('delete-edge','断开','X',`data-id="${esc(edge[0])}"`,'small'):btn('connect-device-port','连接设备','ArrowRightLeft',`data-node="${esc(n.id)}" data-port="${esc(port.id)}"`,'small')}</div>`;
   }).join('')}</div>`;
-  return `<label class="field"><span>设备名称</span><input data-instance-name="${n.id}" value="${esc(n.name)}" aria-label="${n.id} 设备名称" maxlength="50"></label><div class="field" style="margin-top:13px"><span>选择型号 → 进入待应用草稿</span><select data-instance-model="${n.id}" aria-label="${n.id} 设备型号">${option('', '自定义参数', n.draftModelId || n.modelId)}${getState().models.filter(v => v.moduleId === m.id && !v.archived).map(v => option(v.id, v.name + ' · v' + v.version, n.draftModelId || n.modelId)).join('')}</select></div><div class="row spread" style="margin-top:12px"><strong>常用参数</strong><span class="badge ${pendingCount(n) ? 'warn' : 'good'}" data-pending-for="${n.id}">${pendingCount(n)} 项待应用</span></div>${configuredFields(n,m)??(paramDefs(n).filter(f => m.variables.find(v => v.param === f[0])?.display !== false).map(f => parameterRow(n,m,f)).join('')+deviceExtraParamRows(n,m))}${panelConfig(n,m).warning?`<p class="notice">${esc(panelConfig(n,m).warning)}</p>`:''}<div class="row wrap" style="margin-top:16px">${btn('device-definition', '完整模块定义', 'Box', `data-id="${n.id}"`, 'small ghost')}${btn('configure-device-panel','配置此项目面板','Settings2',`data-id="${n.id}"`,'small')}${btn('performance-library','性能资料','Database',`data-id="${n.id}"`,'small')}${btn('equipment-selection', '设备选型', 'SlidersHorizontal', `data-id="${n.id}"`, 'small')}${btn('equipment-provenance','型号设计资料','FileText',`data-id="${n.id}"`,'small')}${deviceParamSpecs(n).some(p=>/^(Coil_)?air_side_ua_w_k$/.test(p.id))?btn('coil-geometry-design','盘管几何设计','Ruler',`data-id="${n.id}"`,'small'):''}${btn('save-instance-model', '保存为型号', 'Database', `data-id="${n.id}"`, 'small')}</div>`;
+  return `${FluidNetDeviceGuide.markup(m,esc)}<label class="field"><span>设备名称</span><input data-instance-name="${n.id}" value="${esc(n.name)}" aria-label="${n.id} 设备名称" maxlength="50"></label><div class="field" style="margin-top:13px"><span>选择型号 → 进入待应用草稿</span><select data-instance-model="${n.id}" aria-label="${n.id} 设备型号">${option('', '自定义参数', n.draftModelId || n.modelId)}${getState().models.filter(v => v.moduleId === m.id && !v.archived).map(v => option(v.id, v.name + ' · v' + v.version, n.draftModelId || n.modelId)).join('')}</select></div><div class="row spread" style="margin-top:12px"><strong>常用参数</strong><span class="badge ${pendingCount(n) ? 'warn' : 'good'}" data-pending-for="${n.id}">${pendingCount(n)} 项待应用</span></div>${configuredFields(n,m)??guidedFields(n,m)??(paramDefs(n).filter(f => m.variables.find(v => v.param === f[0])?.display !== false).map(f => parameterRow(n,m,f)).join('')+deviceExtraParamRows(n,m))}${panelConfig(n,m).warning?`<p class="notice">${esc(panelConfig(n,m).warning)}</p>`:''}<div class="row wrap" style="margin-top:16px">${btn('device-definition', '完整模块定义', 'Box', `data-id="${n.id}"`, 'small ghost')}${btn('configure-device-panel','配置此项目面板','Settings2',`data-id="${n.id}"`,'small')}${btn('performance-library','性能资料','Database',`data-id="${n.id}"`,'small')}${btn('equipment-selection', '设备选型', 'SlidersHorizontal', `data-id="${n.id}"`, 'small')}${btn('equipment-provenance','型号设计资料','FileText',`data-id="${n.id}"`,'small')}${deviceParamSpecs(n).some(p=>/^(Coil_)?air_side_ua_w_k$/.test(p.id))?btn('coil-geometry-design','盘管几何设计','Ruler',`data-id="${n.id}"`,'small'):''}${btn('save-instance-model', '保存为型号', 'Database', `data-id="${n.id}"`, 'small')}</div>`;
 }
 function quickFieldMarkup(n, m, f, widget) {
   if (!widget && m.quickParam !== f[0]) return '';
@@ -49,7 +61,9 @@ function quickFieldMarkup(n, m, f, widget) {
   if (kind === 'switch') return `<label class="check-label" style="margin-top:6px"><input type="checkbox" data-instance-switch="${f[0]}" data-id="${n.id}" ${n.draft[f[0]] > f[3] ? 'checked' : ''}>切换 ${f[3]} / ${f[4]} ${esc(f[2])}</label>`;
   return '';
 }
-function parameterRow(n,m,f,widget) { return `<div class="parameter-row${n.draft[f[0]] !== n.params[f[0]] ? ' edited' : ''}"><div class="param-title"><div class="parameter-label-actions"><strong>${f[1]}</strong>${ibtn('device-variables', '查看 ' + f[1] + ' 的全部变量', 'Table2', `data-id="${n.id}" data-variable="param:${f[0]}"`)}</div><small>已应用设置 ${number(n.params[f[0]], f[0] === 'opening' ? 0 : 2)} ${f[2]}</small><small data-device-actual-param="${esc(f[0])}"></small>${quickFieldMarkup(n, m, f, widget)}</div><input type="number" step="any" min="${f[3]}" max="${f[4]}" data-config-readonly="${widget==='display'}" data-instance-param="${f[0]}" data-id="${n.id}" value="${n.draft[f[0]]}" aria-label="${n.id} ${f[1]}草稿" ${widget==='display'||(!widget && m.quickParam===f[0] && m.quickType==='display')?'readonly':''}><span class="muted">${f[2]}</span></div>`; }
+const settingNumber=value=>value!=null&&Number.isFinite(Number(value))?Number(value).toLocaleString('en-US',{maximumSignificantDigits:6}):'—';
+const inputNumber=value=>Number.isFinite(value)?Number(value.toPrecision(14)):value;
+function parameterRow(n,m,f,widget) { return `<div class="parameter-row${n.draft[f[0]] !== n.params[f[0]] ? ' edited' : ''}"><div class="param-title"><div class="parameter-label-actions"><strong>${f[1]}</strong>${ibtn('device-variables', '查看 ' + f[1] + ' 的全部变量', 'Table2', `data-id="${n.id}" data-variable="param:${f[0]}"`)}</div><small>已应用设置 ${settingNumber(n.params[f[0]])} ${f[2]}</small><small data-device-actual-param="${esc(f[0])}"></small>${quickFieldMarkup(n, m, f, widget)}${FluidNetDeviceGuide.hint(m,f[0])?`<small class="device-field-help">${esc(FluidNetDeviceGuide.hint(m,f[0]))}</small>`:''}</div><input type="number" step="any" min="${f[3]}" max="${f[4]}" data-config-readonly="${widget==='display'}" data-instance-param="${f[0]}" data-id="${n.id}" value="${inputNumber(n.draft[f[0]])}" aria-label="${n.id} ${f[1]}草稿" ${widget==='display'||(!widget && m.quickParam===f[0] && m.quickType==='display')?'readonly':''}><span class="muted">${f[2]}</span></div>`; }
 
 function controlOwner(n, id) {
   const owner=ownerOfInstance(n), variable=moduleOf(n).variables.find(v=>v.param===id);
@@ -84,27 +98,36 @@ function metricValue(n,v) {
   const raw=row.canonical?.[binding.canonicalKey];
   const value=row.canonical ? (typeof raw==='boolean'?raw:Number.isFinite(raw)?raw/(binding.canonicalScale||1)+(binding.canonicalOffset||0):null)
     : row.variableValues?.[n.id+':'+v.id];
+  if(Number.isFinite(value)&&v.valueLabels&&Object.hasOwn(v.valueLabels,value))return v.valueLabels[value];
   return typeof value==='boolean'?(value?'是':'否'):Number.isFinite(value)?number(value,3):'—';
 }
-function metricMarkup(n,v) {return `<div class="device-metric" data-device-metric="${esc(v.id)}"><div class="row spread"><small>${esc(v.label)}</small>${observationButton(n,v)}</div><strong>${metricValue(n,v)}</strong><span>${esc(v.unit)}</span></div>`;}
+function guidedResults(n,m){return FluidNetDeviceGuide.results(m,m.manifest||definitionOf?.(n));}
+function metricMarkup(n,v) {return `<div class="device-metric" data-device-metric="${esc(v.id)}"><div class="row spread"><small>${esc(v.label)}</small>${moduleOf(n).variables.some(item=>item.id===v.id)?observationButton(n,v):''}</div><strong>${esc(metricValue(n,v))}</strong><span>${esc(v.unit)}</span></div>`;}
 function resultMarkup(n,m) {
   const {layout,warning}=panelConfig(n,m);
+  const guided=!layout&&guidedResults(n,m);
+  if(guided?.length){
+    const groups=[...new Set(guided.map(item=>item.group))];
+    return `${warning?`<p class="notice">${esc(warning)}</p>`:''}${groups.map(group=>`<section data-device-result-group="${esc(group)}"><h3>${esc(group)}</h3><div class="device-metrics">${guided.filter(item=>item.group===group).map(item=>metricMarkup(n,item.variable)).join('')}</div></section>`).join('')}`;
+  }
   if(!layout)return `${warning?`<p class="notice">${esc(warning)}</p>`:''}<div class="device-metrics">${metrics(n).map(v=>metricMarkup(n,v)).join('')||'<p class="muted">此设备没有可显示的计算变量。</p>'}</div>`;
   return FluidNetPanelLayout.groups(layout.results).map(g=>`<section data-panel-result-group="${esc(g.name)}"><h3>${esc(g.name||'运行结果')}</h3><div class="device-metrics">${g.items.map(item=>metricMarkup(n,m.variables.find(v=>v.id===item.id))).join('')}</div></section>`).join('');
 }
 function overview(n) {
   const m=moduleOf(n),result=source(n),defs=paramDefs(n).filter(f=>m.variables.find(v=>v.param===f[0])?.display!==false);
   const preferred=defs.find(f=>/setpoint|opening|speed|power/.test(f[0])) || defs.find(f=>f[0]===m.quickParam) || defs[0];
+  const operation=`<div class="device-operation"><div class="row spread"><h3>常用操作</h3>${btn('device-panel-tab','全部参数','SlidersHorizontal',`data-id="${n.id}" data-value="parameters"`,'small ghost')}</div><span class="badge ${pendingCount(n)?'warn':'good'}" data-pending-for="${esc(n.id)}">${pendingCount(n)} 项待应用</span>${configuredFields(n,m,true)??guidedFields(n,m,true)??(preferred?parameterRow(n,m,preferred):'<p class="muted">此设备没有可调参数。</p>')}<small class="muted">修改保留为草稿，预览确认后生效。</small></div>`;
   return `<div class="device-overview" data-device-overview="${esc(n.id)}"><div class="device-identity"><span class="object-icon">${icon(m.icon)}</span><div><strong>${esc(m.name)}</strong><small>${esc(model(n.modelId)?.name||'自定义参数')} · v${esc(m.version||1)}</small></div></div>
     <div class="device-result-source ${result.tone}" data-device-result-source>${esc(result.text)}</div>
-    ${resultMarkup(n,m)}
-    <div class="device-operation"><div class="row spread"><h3>常用操作</h3>${btn('device-panel-tab','全部参数','SlidersHorizontal',`data-id="${n.id}" data-value="parameters"`,'small ghost')}</div>${configuredFields(n,m,true)??(preferred?parameterRow(n,m,preferred):'<p class="muted">此设备没有可调参数。</p>')}<small class="muted">修改保留为草稿，预览确认后生效。</small></div>
+    ${FluidNetDeviceGuide.get(m)?operation+resultMarkup(n,m):resultMarkup(n,m)+operation}
+    ${FluidNetDeviceGuide.markup(m,esc)}
     <div class="device-port-summary"><h3>端口连接</h3>${m.ports.map(p=>{const e=links.atPort(ownerOfInstance(n),n.id,p.id);return `<div class="row spread"><span>${esc(p.label)}</span><small>${e?'已连接':'未连接'}</small></div>`;}).join('')}${btn('device-panel-tab','查看连接','Cable',`data-id="${n.id}" data-value="connections"`,'small ghost')}</div></div>`;
 }
 function refresh(shell,n) {
   const result=source(n);
   for(const el of shell.querySelectorAll('[data-device-result-source]')){el.textContent=result.text;el.className='device-result-source '+result.tone;}
-  for(const el of shell.querySelectorAll('[data-device-metric]')){const v=moduleOf(n).variables.find(v=>v.id===el.dataset.deviceMetric);if(v)el.querySelector('strong').textContent=metricValue(n,v);}
+  const m=moduleOf(n),guided=panelConfig(n,m).layout?null:guidedResults(n,m);
+  for(const el of shell.querySelectorAll('[data-device-metric]')){const v=guided?.find(item=>item.variable.id===el.dataset.deviceMetric)?.variable||m.variables.find(v=>v.id===el.dataset.deviceMetric);if(v)el.querySelector('strong').textContent=metricValue(n,v);}
   const live=!!ownerOfInstance(n).run.live;
   for(const el of shell.querySelectorAll('[data-device-actual-param]')) {
     const v=moduleOf(n).variables.find(v=>v.param===el.dataset.deviceActualParam);

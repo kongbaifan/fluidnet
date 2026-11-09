@@ -30,7 +30,7 @@ try{
  expect(legacy.modules.find(m=>m.id==='valve').panelLayout).toBeTruthy();
  await nav('projects');await page.locator('[data-action="new-project"]').first().click();
  await page.locator('[name="name"]').fill('内置面板继承验收');await page.locator('[name="template"]').selectOption('water');await submit();
- await page.locator('[data-node="V1"]').dblclick();await panel().locator('[data-action="float-tab"][data-value="overview"]').click();
+ await page.locator('.net-node[data-node="V1"]').dblclick();await panel().locator('[data-action="float-tab"][data-value="overview"]').click();
  await expect(panel().locator('[data-panel-parameter-group="内置阀默认"]')).toBeVisible();
  await panel().locator('[data-action="float-close"]').click();await page.locator('[data-action="run-project"][data-command="step"]').first().click();
  await expect(page.locator('#statusbar')).toContainText('已暂停');
@@ -39,7 +39,7 @@ try{
  await page.locator('[data-module-id="design_valve"] [data-action="edit-module"]').click();
  await configure(page.locator('[data-action="configure-module-panel"]'),'常用调节');
  await nav('modules');await page.locator('[data-module-id="design_valve"] [data-action="module-example"]').click();
- await page.locator('[data-node="V1"]').dblclick();await panel().locator('[data-action="float-tab"][data-value="overview"]').click();
+ await page.locator('.net-node[data-node="V1"]').dblclick();await panel().locator('[data-action="float-tab"][data-value="overview"]').click();
  await expect(panel().locator('[data-panel-parameter-group="常用调节"] input[type="range"]')).toBeVisible();
  expect(await panel().locator('[data-panel-result-group]').evaluateAll(xs=>xs.map(x=>x.dataset.panelResultGroup))).toEqual(['运行压力','关键流量']);
  await expect(panel().locator('[data-device-metric] strong').first()).toHaveText('—');
@@ -47,7 +47,7 @@ try{
  expect(bound.panelLayout).toBeTruthy();expect(bound.manifest.panelLayout).toBeUndefined();
  await nav('modules');await page.locator('[data-module-id="design_valve"] [data-action="edit-module"]').click();
  await configure(page.locator('[data-action="configure-module-panel"]'),'库中新布局');
- await nav('workbench');await page.locator('[data-node="V1"]').dblclick();await panel().locator('[data-action="float-tab"][data-value="overview"]').click();
+ await nav('workbench');await page.locator('.net-node[data-node="V1"]').dblclick();await panel().locator('[data-action="float-tab"][data-value="overview"]').click();
  await expect(panel().locator('[data-panel-parameter-group="常用调节"]')).toBeVisible();await expect(panel()).not.toContainText('库中新布局');
  await panel().locator('[data-action="float-tab"][data-value="parameters"]').click();
  await configure(panel().locator('[data-action="configure-device-panel"]'),'本项目调节');
@@ -58,12 +58,12 @@ try{
  const current=await saved();expect(owner(current).pages[0].nodes.find(n=>n.id==='V1').params.opening_ratio).toBe(60);
  expect(owner(current).moduleSnapshots.design_valve.manifest).toEqual(bound.manifest);
  await page.reload();await expect(page.locator('#app-header')).toContainText('模块平台 · v');await expect(page.locator('#toast')).toContainText('已连接');await expect(page.locator('#toast')).not.toContainText('备份失败');
- await page.locator('[data-node="V1"]').dblclick();await panel().locator('[data-action="float-tab"][data-value="overview"]').click();
+ await page.locator('.net-node[data-node="V1"]').dblclick();await panel().locator('[data-action="float-tab"][data-value="overview"]').click();
  await expect(panel().locator('[data-panel-parameter-group="本项目调节"]')).toBeVisible();
  await panel().locator('[data-action="float-tab"][data-value="parameters"]').click();
  // A paused live run retains non-runtime design fields as locked, while opening remains writable.
  await panel().locator('[data-action="float-close"]').click();await page.locator('[data-action="run-project"][data-command="step"]').first().click();
- await expect(page.locator('#statusbar')).toContainText('已暂停');await page.locator('[data-node="V1"]').dblclick();
+ await expect(page.locator('#statusbar')).toContainText('已暂停');await page.locator('.net-node[data-node="V1"]').dblclick();
  await expect(panel().locator('input[data-instance-param="design_flow_m3_s"]')).toBeDisabled();
  await expect(panel().locator('input[type="number"][data-instance-param="opening_ratio"]')).toBeEnabled();
  await captureFhd(page,'artifacts/configurable-device-panel.png');
@@ -74,7 +74,7 @@ try{
  expect(JSON.parse(readFileSync(file,'utf8')).project.moduleSnapshots.design_valve.panelLayout).toEqual(snapshot.moduleSnapshots.design_valve.panelLayout);
  await page.locator('[data-action="close-dialog"]').last().click();await page.locator('[data-action="wf-import"]').click();
  await page.getByLabel('单项目文件').setInputFiles(file);await submit();await expect(page.locator('#toast')).toContainText('项目已导入');await saved();
- await nav('workbench');await page.locator('[data-node="V1"]').dblclick();await panel().locator('[data-action="float-tab"][data-value="overview"]').click();
+ await nav('workbench');await page.locator('.net-node[data-node="V1"]').dblclick();await panel().locator('[data-action="float-tab"][data-value="overview"]').click();
  await expect(panel().locator('[data-panel-parameter-group="本项目调节"]')).toBeVisible();
  expect(owner(await saved()).moduleSnapshots.design_valve.panelLayout).toEqual(snapshot.moduleSnapshots.design_valve.panelLayout);
  const storage=await page.evaluate(()=>Object.keys(localStorage).map(k=>[k,localStorage.getItem(k).length]));console.log(JSON.stringify({storage,baselineBytes:JSON.stringify(baseline).length,panelBytes:JSON.stringify(snapshot.moduleSnapshots.design_valve.panelLayout).length}));

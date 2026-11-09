@@ -111,6 +111,7 @@ try{
     await page.locator('[name="code"]').fill(id.toUpperCase());
     await page.locator('[name="base"]').selectOption(base);
     await submit();
+    await page.locator('.editor-tabs [data-action="editor-tab"][data-value="code"]').click();
     const source=await page.locator('#module-code').inputValue();
     const rewritten=id==='user_filter_law'
       ?source.replace('drop = multiplier * (','drop = 1.5 * multiplier * (')

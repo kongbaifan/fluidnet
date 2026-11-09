@@ -31,7 +31,8 @@ try {
   const presentationResponse=await page.request.get(fixture.base+'/api/v1/catalog/presentation');
   expect(presentationResponse.ok()).toBe(true);
   const presentation=await presentationResponse.json();expect(presentation.version).toBe(1);
-  expect(presentation.devices).toHaveLength(60);
+  const catalog=await(await page.request.get(fixture.base+'/api/v1/catalog')).json();
+  expect(presentation.devices.map(d=>d.module_id).sort()).toEqual(catalog.modules.map(m=>m.id).sort());
   const expectedDevices=presentation.devices.map(item=>({...item,expectedClass:'lucide-'+iconSlug(item.icon)}));
   await expect(page.locator('[data-module-id="room_heat_manifold"]')).toHaveCount(1);
   // Inspect rendered SVGs through the UI, reporting every missing glyph together.
@@ -82,11 +83,12 @@ try {
   await expect(dialog.locator('#dialog-title')).toContainText('管道管件');
   await expect(dialog.locator('#dialog-title')).toContainText('v1');
   await expect(dialog.locator('#dialog-title')).toContainText(CATEGORY);
+  await dialog.locator('details > summary').click();
   await expect(dialog.locator('.module-doc-hint')).toContainText('docs/MODULE_KIT.md');
 
   const tables = dialog.locator('table');
   await expect(tables).toHaveCount(4);
-  await expect(tables.nth(0).locator('thead')).toContainText('单位 / value_type');
+  await expect(tables.nth(0).locator('thead')).toContainText('默认值单位范围');
   await expect(tables.nth(0)).toContainText('diameter_m');
   await expect(tables.nth(1)).toContainText('in0');
   await expect(tables.nth(2)).toContainText('state.throughput_kg');

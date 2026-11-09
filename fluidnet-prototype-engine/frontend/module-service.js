@@ -35,6 +35,21 @@ export const createModuleService = function ({request, modules, getBench, parame
     const target={...moduleFromManifest(clone(draft.publishedManifest)),frozen:true};
     copyPanel?.(draft,target);copyPresentation?.(draft,target);return target;
   }
+  function insertionPlan(owner,id,pageId) {
+    const page=owner.pages.find(item=>item.id===pageId);
+    if(!page)throw Error('目标画布已不存在，请重新选择。');
+    if(owner.run?.live || ['running','solving','paused'].includes(owner.run?.status))
+      throw Error('请先停止目标项目的运行，再添加设备。');
+    if(page.nodes.length>=64)throw Error('目标画布已达到 64 台设备，请选择其他画布。');
+    const pinned=owner.moduleSnapshots?.[id],draft=modules().find(m=>m.id===id);
+    // Imported projects may retain a usable snapshot without a published library copy.
+    const available=pinned&&(!draft||(draft.runtime==='python'&&!draft.publishedManifest))?pinned:moduleForInsert(id);
+    if(!available)throw Error('模块已不存在，请重新选择。');
+    const bound=pinned || available;
+    return {page,module:bound,availableVersion:available.version,
+      usesPinnedVersion:!!owner.moduleSnapshots?.[id] && bound.runtime==='python' &&
+        (bound.version!==available.version || bound.manifest?.definition_hash!==available.manifest?.definition_hash)};
+  }
   function bindModule(owner, id, legacy=false) {
     owner.moduleSnapshots ||= {};
     if (owner.moduleSnapshots[id]) return owner.moduleSnapshots[id];
@@ -127,7 +142,7 @@ export const createModuleService = function ({request, modules, getBench, parame
       try { unchanged=before===JSON.stringify(manifestPayload(m)); } catch { /* Keep incomplete JSON edited during the save. */ }
       m.latestVersion=release.module.version;
       m.publishedManifest=clone(release.module);
-      if (unchanged) { applyManifest(m,release.module); m.dirty=false; }
+      if (unchanged) { applyManifest(m,release.module); m.dirty=false;m.authoringDiagnostics=[];delete m.authoringReplay; }
       output(m,`✓ v${release.module.version} 已保存到后端\n✓ ${test.host_project?'宿主网络试算通过，工况来源：'+test.host_project.name:'Worker 试算通过'+(testFlow(m,release.test_result.frame.variables)===null?'':'，流量 '+testFlow(m,release.test_result.frame.variables)+' kg/s')}\n源码 SHA-256：${release.package.content_hash}\n契约 SHA-256：${release.package.definition_hash}`+(unchanged?'':'\n保存期间的新编辑已保留为草稿。'));
       await versions(m);
       if (!persist()) { message(`后端 v${release.module.version} 已保存，浏览器草稿存储失败（存储空间不足），请导出原型；内存中的修改未丢失。`,true); return; }
@@ -159,15 +174,77 @@ export const createModuleService = function ({request, modules, getBench, parame
     else if(definition.sdk?.capabilities?.includes('composite.refrigeration.v1'))m.testConditions={fluid:clone(sourceProject.fluid),duration_s:.1,dt_s:.1};
     parameterDefinitions[m.kind]=m.parameterDefs;return m;
   }
-  function updateContractItem(m,section,oldId,item) {
+  function updateContractItem(m,section,oldId,item,preserveValues=false) {
     const definition=manifestPayload(m), list=definition[section] || [];
     if (list.some(v=>v.id!==oldId && v.id===item.id)) throw Error('契约标识重复');
     const index=list.findIndex(v=>v.id===oldId);
+    const previous=preserveValues?clone([m.values,...m.banks]):null;
     if(index<0) list.push(item); else list[index]=item;
-    definition[section]=list; applyManifest(m,definition); dirty(m); render();
+    definition[section]=list; applyManifest(m,definition);
+    if(previous)[m.values,...m.banks].forEach((values,i)=>{
+      for(const [key,value] of Object.entries(previous[i]||{}))
+        if(key!=='param:'+item.id&&Object.hasOwn(values,key))values[key]=clone(value);
+    });
+    dirty(m); render();
   }
-  return {manifestPayload,contractText,moduleForInsert,bindModule,pinProject,applyManifest,checkModule,
-    runDesign,versions,loadVersion,saveModule,newModule,newTemplate,newComposite,updateContractItem};
+  const displayUnits=[
+    ['length','m','m',1],['length','m','mm',.001],['length','m','cm',.01],
+    ['pressure','Pa','Pa',1],['pressure','Pa','kPa',1000],['pressure','Pa','MPa',1e6],['pressure','Pa','bar',1e5],
+    ['temperature','K','K',1],['temperature','K','°C',1,-273.15],
+    ['power','W','W',1],['power','W','kW',1000],
+    ['mass_flow','kg/s','kg/s',1],['mass_flow','kg/s','kg/h',1/3600],
+    ['dimensionless','1','1',1],['dimensionless','1','%',.01]
+  ].map(([quantity,canonical_unit,display_unit,display_scale,display_offset=0])=>({quantity,canonical_unit,display_unit,display_scale,display_offset}));
+  function parameterEditor(m,id) {
+    if(m.runtime!=='python')throw Error('内置设备的参数请在项目设备窗口调整，或保存为型号复用。');
+    const definition=manifestPayload(m),spec=definition.parameters.find(p=>p.id===id);
+    if(id&&!spec)throw Error('参数已不存在，请重新打开。');
+    const current=spec || {id:'',label:'',value_type:'number',default:0,minimum:null,maximum:null,writable:true,runtime:false,unit:null};
+    const unit=current.unit,units=[unit?clone(unit):null];
+    for(const choice of displayUnits){
+      if(unit&&(choice.canonical_unit!==unit.canonical_unit || (choice.canonical_unit==='K'&&unit.quantity!=='temperature')))continue;
+      const candidate={...choice,...(unit?{quantity:unit.quantity||choice.quantity}:{})};
+      if(!units.some(item=>item&&item.display_unit===candidate.display_unit&&(item.display_scale??1)===candidate.display_scale&&(item.display_offset??0)===candidate.display_offset))units.push(candidate);
+    }
+    return {spec:clone(current),units};
+  }
+  function updateDisplayParameter(m,id,data) {
+    const {spec,units}=parameterEditor(m,id),type=(id?spec.value_type:data.value_type)||'number';
+    const item={...spec,id:id||String(data.id??'').trim(),label:String(data.label??'').trim(),value_type:type};
+    if(!/^[A-Za-z][A-Za-z0-9_-]{0,80}$/.test(item.id))throw Error('参数标识需以字母开头，仅包含字母、数字、下划线或连字符。');
+    if(!item.label)throw Error('请输入参数名称。');
+    if(type==='number'){
+      const index=Number(data.unit);if(!Number.isInteger(index)||!Object.hasOwn(units,index))throw Error('请选择有效的单位。');
+      item.unit=clone(units[index]);
+      const convert=(value,optional=false)=>{
+        if(String(value??'').trim()===''){if(optional)return null;throw Error('请填写默认值。');}
+        const converted=model.toCanonical(item,Number(value));
+        if(!Number.isFinite(converted))throw Error('默认值和范围必须是有限数值。');return converted;
+      };
+      item.default=convert(data.default);item.minimum=convert(data.minimum,true);item.maximum=convert(data.maximum,true);
+      if(item.minimum!==null&&item.maximum!==null&&item.minimum>item.maximum)throw Error('最小值不能大于最大值。');
+      if(item.minimum!==null&&item.default<item.minimum||item.maximum!==null&&item.default>item.maximum)throw Error('默认值必须在最小值和最大值之间。');
+    }else if(type==='boolean'){
+      if(!['true','false'].includes(data.default))throw Error('请选择是或否。');
+      Object.assign(item,{default:data.default==='true',unit:null,minimum:null,maximum:null});
+    }else if(type==='text')Object.assign(item,{default:String(data.default??''),unit:null,minimum:null,maximum:null});
+    else throw Error('曲线参数请通过高级定义编辑。');
+    updateContractItem(m,'parameters',id,item,true);
+  }
+  function updateMetadata(m,data) {
+    const name=String(data.name??'').trim(),description=String(data.description??'').trim();
+    if(!name)throw Error('请输入设备名称。');
+    const previous=m.name;
+    if(m.runtime==='python'){
+      manifestPayload(m); // Validate any pending JSON before changing either representation.
+      if(m.contractDraft!==undefined)m.contractDraft=JSON.stringify({...JSON.parse(m.contractDraft),name,description},null,2);
+    }
+    m.name=name;m.description=description;
+    if(m.drawing?.label===previous)m.drawing.label=name;
+    dirty(m);render();
+  }
+  return {manifestPayload,contractText,moduleForInsert,insertionPlan,bindModule,pinProject,applyManifest,checkModule,
+    runDesign,versions,loadVersion,saveModule,newModule,newTemplate,newComposite,updateContractItem,parameterEditor,updateDisplayParameter,updateMetadata};
 };
 
 export default createModuleService;

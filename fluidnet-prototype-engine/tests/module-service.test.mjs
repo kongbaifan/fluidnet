@@ -53,6 +53,33 @@ test('builtin presentation snapshots keep their own display parameter definition
   f.service.pinProject(f.owner);f.fields.pipe[0][0]='canonical_length';
   assert.equal(f.owner.moduleSnapshots.pipe.parameterDefs[0][0],'length');assert.equal(f.owner.pages[0].nodes[0].package,undefined);
 });
+
+test('insertion planning reports the actual pinned release and never mutates the project or draft',()=>{
+  const f=fixture();f.owner.pages[0].id='main';
+  const before=plain(f.owner),draft=plain(f.m),plan=f.service.insertionPlan(f.owner,f.m.id,'main');
+  assert.equal(plan.module.version,1);assert.equal(plan.usesPinnedVersion,false);
+  assert.deepEqual(plain(f.owner),before);assert.deepEqual(plain(f.m),draft);
+  f.service.pinProject(f.owner);f.m.publishedManifest=released({version:2,definition_hash:'new'});f.m.source.runtime='unpublished draft';
+  const pinned=f.service.insertionPlan(f.owner,f.m.id,'main');
+  assert.equal(pinned.module.version,1);assert.equal(pinned.availableVersion,2);assert.equal(pinned.usesPinnedVersion,true);
+  assert.equal(pinned.module.manifest.source.runtime,'class Module: pass');
+  delete f.m.publishedManifest;
+  assert.equal(f.service.insertionPlan(f.owner,f.m.id,'main').module,pinned.module);
+  f.modules.length=0;
+  assert.equal(f.service.insertionPlan(f.owner,f.m.id,'main').module,pinned.module);
+});
+
+test('insertion refuses unavailable releases, running projects and full or missing canvases without pinning',()=>{
+  const f=fixture();f.owner.pages[0].id='main';const before=plain(f.owner);
+  assert.throws(()=>f.service.insertionPlan(f.owner,f.m.id,'missing'),/不存在/);
+  assert.throws(()=>f.service.insertionPlan(f.owner,'missing','main'),/模块已不存在/);
+  delete f.m.publishedManifest;assert.throws(()=>f.service.insertionPlan(f.owner,f.m.id,'main'),/先校验并保存/);
+  assert.deepEqual(plain(f.owner),before);
+  f.m.publishedManifest=released();
+  for(const status of ['running','solving','paused']){f.owner.run={status};assert.throws(()=>f.service.insertionPlan(f.owner,f.m.id,'main'),/停止/);}
+  f.owner.run={status:'completed'};f.owner.pages[0].nodes=Array.from({length:64},(_,i)=>({id:'n'+i}));
+  assert.throws(()=>f.service.insertionPlan(f.owner,f.m.id,'main'),/64/);assert.equal(f.owner.moduleSnapshots,undefined);
+});
 test('a validation reply cannot overwrite a draft edited while validation is pending',async()=>{
   let deliver;const f=fixture({handler:()=>new Promise(resolve=>{deliver=resolve;})});
   const pending=f.service.checkModule(f.m,true);f.m.source.runtime='edited during request';deliver({valid:true,diagnostics:[]});
@@ -115,4 +142,49 @@ test('contract edits reject duplicate identifiers before changing the authoring 
   const f=fixture(),before=plain(f.m);assert.throws(()=>f.service.updateContractItem(f.m,'ports','in0',{id:'out0'}),/重复/);assert.deepEqual(plain(f.m),before);
   f.service.updateContractItem(f.m,'parameters','opening',{...f.m.parameters[0],default:.7});
   assert.equal(f.m.parameters[0].default,.7);assert.equal(f.m.banks[0]['param:opening'],70);assert.equal(f.dirties[0],f.m);
+});
+
+test('common parameter editing converts percentages, retains other banks and leaves project releases untouched',()=>{
+  const f=fixture();f.service.pinProject(f.owner);f.m.banks[1]['param:temperature']=35;
+  const pinned=plain(f.owner.moduleSnapshots[f.m.id]);
+  f.service.updateDisplayParameter(f.m,'opening',{label:'开度',unit:'0',default:'75',minimum:'10',maximum:'100'});
+  const p=f.m.parameters.find(p=>p.id==='opening');assert.equal(p.default,.75);assert.equal(p.minimum,.1);assert.equal(p.maximum,1);
+  assert.equal(p.runtime,true);assert.equal(f.m.banks[0]['param:opening'],75);assert.equal(f.m.banks[1]['param:temperature'],35);
+  assert.deepEqual(plain(f.owner.moduleSnapshots[f.m.id]),pinned);assert.equal(f.m.publishedManifest.parameters[0].default,.5);
+});
+
+test('common parameter units preserve custom mappings and convert length and absolute temperature bounds',()=>{
+  const f=fixture();let form=f.service.parameterEditor(f.m);
+  const mm=form.units.findIndex(u=>u?.display_unit==='mm');
+  f.service.updateDisplayParameter(f.m,null,{id:'diameter',label:'直径',value_type:'number',unit:String(mm),default:'40',minimum:'10',maximum:'80'});
+  const p=f.m.parameters.find(p=>p.id==='diameter');assert.equal(p.default,.04);assert.equal(p.minimum,.01);assert.equal(p.maximum,.08);
+  form=f.service.parameterEditor(f.m,'diameter');assert.ok(form.units.every(u=>u.canonical_unit==='m'));
+  f.service.updateDisplayParameter(f.m,'temperature',{label:'温度',unit:'0',default:'-10',minimum:'-20',maximum:'30'});
+  const temperature=f.m.parameters.find(p=>p.id==='temperature');
+  for(const [key,expected] of [['default',263.15],['minimum',253.15],['maximum',303.15]])assert.ok(Math.abs(temperature[key]-expected)<1e-10);
+  f.m.parameters[0].unit={quantity:'custom',canonical_unit:'widgets',display_unit:'boxes',display_scale:12,display_offset:2};
+  assert.deepEqual(plain(f.service.parameterEditor(f.m,'opening').units),[f.m.parameters[0].unit]);
+});
+
+test('common parameter validation rejects invalid defaults atomically and preserves boolean and text types',()=>{
+  const f=fixture(),before=plain(f.m);
+  for(const change of [{default:'101'},{default:''},{default:'Infinity'},{minimum:'90',maximum:'20'},{unit:'999'},{label:' '}]){
+    assert.throws(()=>f.service.updateDisplayParameter(f.m,'opening',{label:'开度',unit:'0',default:'75',minimum:'0',maximum:'100',...change}));
+    assert.deepEqual(plain(f.m),before);
+  }
+  f.service.updateDisplayParameter(f.m,null,{id:'enabled',label:'启用',value_type:'boolean',default:'false'});
+  assert.equal(f.m.parameters.find(p=>p.id==='enabled').default,false);
+  f.service.updateDisplayParameter(f.m,'source_note',{label:'说明',default:'设备 A'});
+  assert.equal(f.m.parameters.find(p=>p.id==='source_note').default,'设备 A');
+  const after=plain(f.m);assert.throws(()=>f.service.updateDisplayParameter(f.m,null,{id:'enabled',label:'重复',value_type:'text',default:'x'}),/重复/);
+  assert.deepEqual(plain(f.m),after);
+});
+
+test('metadata edits keep library values, publication and pending contract edits, and reject invalid JSON atomically',()=>{
+  const f=fixture();f.m.banks[0]['param:opening']=70;f.m.contractDraft=JSON.stringify({description:'旧说明',parameters:f.m.parameters});
+  const published=plain(f.m.publishedManifest);f.service.updateMetadata(f.m,{name:'新名称',description:'新用途'});
+  assert.equal(f.m.drawing.label,'新名称');assert.equal(f.m.banks[0]['param:opening'],70);
+  assert.equal(JSON.parse(f.m.contractDraft).description,'新用途');assert.equal(f.service.manifestPayload(f.m).name,'新名称');
+  assert.deepEqual(plain(f.m.publishedManifest),published);
+  f.m.contractDraft='{';const before=plain(f.m);assert.throws(()=>f.service.updateMetadata(f.m,{name:'不可写入'}));assert.deepEqual(plain(f.m),before);
 });

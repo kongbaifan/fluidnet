@@ -20,7 +20,7 @@ const errors=[];
 const watch=p=>p.on('pageerror',e=>errors.push(e.message)); watch(page);
 const localState=async()=>{
   await page.locator('[data-action="save"]').first().click();
-  return page.evaluate(()=>JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
+  return page.evaluate(async()=>{const {FluidNetDraftStore}=await import('/draft-store.js');return FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1'));});
 };
 // The prototype re-renders the whole rail on every state change, which can swallow a click
 // that lands mid-render; retry the navigation until the module page is actually up.
@@ -37,6 +37,7 @@ const edit=async()=>{await expect(async()=>{
 const tab=async name=>{
   await expect(page.locator('.dialog-backdrop')).toHaveCount(0,{timeout:15000});
   await page.locator(`[data-action="editor-tab"][data-value="${name}"]`).first().click();
+  if(name==='attributes')await page.locator('.editor-parameter-advanced > summary').click();
 };
 // 弹窗提交：界面在状态变化时会整体重绘，点击可能被吞掉。若弹窗没关闭就重试；
 // 若弹窗内已显示校验错误则直接抛出错误文本，避免 30 秒盲等。
@@ -72,7 +73,9 @@ try {
   await page.locator('[data-action="new-module"]').click();
   await page.locator('#dialog-form [name="name"]').fill('版本验收阀门');
   await page.locator('#dialog-form [name="code"]').fill('AUTHORING_VALVE');
+  await page.locator('#dialog-form [name="base"]').selectOption('programmable_valve');
   await submitDialog();
+  await page.locator('.editor-tabs [data-action="editor-tab"][data-value="code"]').click();
   const source=await page.locator('#module-code').inputValue();
   const algorithm=source.replace(/kv=ctx.parameter\((['"])kv_m3_h\1\)/,'kv=ctx.parameter("kv_m3_h") * ctx.parameter("gain")')
     .replace(/kv=kv(?=,)/,'kv=kv * ctx.parameter("gain")')
@@ -87,6 +90,7 @@ try {
   await page.locator('#dialog-form [name="minimum"]').fill('0.1');
   await page.locator('#dialog-form [name="maximum"]').fill('3');
   await submitDialog();
+  await page.locator('.editor-parameter-advanced > summary').click();
   await page.locator('[data-action="edit-contract-item"][data-section="variables"]').filter({hasText:'新增输出'}).click();
   await page.locator('#dialog-form [name="id"]').fill('gain');
   await page.locator('#dialog-form [name="label"]').fill('当前校正系数');

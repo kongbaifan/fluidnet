@@ -9,7 +9,9 @@ try{
   await page.goto(server.base+'/#modules');await expect(page.locator('[data-module-id="programmable_valve"]')).toBeVisible();
   await page.locator('[data-action="new-module"]').click();
   await page.locator('[name="name"]').fill('失败复现验收阀');await page.locator('[name="code"]').fill('REPLAY_ACCEPTANCE');
+  await page.locator('#dialog-form [name="base"]').selectOption('programmable_valve');
   await page.locator('#dialog-form button[type="submit"]').click();
+  await page.locator('.editor-tabs [data-action="editor-tab"][data-value="code"]').click();
   const good=await page.locator('#module-code').inputValue();
   const bad=good.replace(/(def evaluate\(self, ctx[^\n]*\n)/,'$1        raise ValueError("frozen replay marker")\n');
   expect(bad).not.toBe(good);await page.locator('#module-code').fill(bad);await page.locator('#module-code').blur();
