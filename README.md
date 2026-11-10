@@ -1,5 +1,7 @@
 # FluidNet
 
+当前开发目标：**聚焦设备组网和运行仿真，把已有的建模、运行、调参、结果查看做稳定、做容易理解。** 从范围收敛到源码交付的步骤与验收标准见[完整实施计划（2026-11-10）](fluidnet-prototype-engine/docs/MODULE_PRODUCT_ROADMAP.md)。
+
 当前项目是 [FluidNet Prototype Engine](fluidnet-prototype-engine/README.md)：可编程流体模块平台，包含 Pydantic 契约、网络水力求解、独立 Worker 和模块版本管理。启动、使用和开发说明见该目录。
 
 当前源码的[架构图与核心时序图（2026-11-03）](fluidnet-prototype-engine/docs/ARCHITECTURE_AND_SEQUENCE.md)按四张架构图与六张时序图梳理多画布与计算项目、五类执行域、暖通设备与理想测点、风水温控、模块事务和保存批量流程，附 SVG、PNG 与可编辑 Mermaid 源码。
