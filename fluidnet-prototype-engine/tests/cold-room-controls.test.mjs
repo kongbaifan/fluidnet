@@ -27,3 +27,13 @@ test('different targets or manual loops do not claim automatic success',()=>{
  p.controllers[0].setpoint=249.15;p.controllers[0].mode='manual';
  assert.match(controls.observation(groups[0],()=>249.15,true).status,/手动/);
 });
+
+test('graph coolers retain shared room controls and show actual defrost stages',()=>{
+ const {p}=fixture(),devices=[{node:{id:'North'},model:'cold_room'},
+  {node:{id:'Coil-1'},model:'frost_hotgas_cooler'},{node:{id:'Coil-2'},model:'network_air_cooler'}];
+ const groups=controls.groups(p,devices);assert.equal(groups[0].controllers.length,2);
+ const values={'North.state.temperature_k':249.15,'Coil-1.defrost_mode':2,'Coil-2.defrost_mode':0};
+ assert.equal(controls.observation(groups[0],key=>values[key],true).status,'部分冷风机融霜中');
+ values['Coil-1.defrost_mode']=0;
+ assert.equal(controls.observation(groups[0],key=>values[key],true).status,'温度正常');
+});

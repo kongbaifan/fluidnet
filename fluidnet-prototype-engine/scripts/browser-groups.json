@@ -600,6 +600,12 @@
       "group": "refrigeration"
     },
     {
+      "id": "six-room-continuous",
+      "file": "tests/browser-six-room-continuous.mjs",
+      "args": [],
+      "group": "refrigeration"
+    },
+    {
       "id": "cold-store-usability",
       "file": "tests/browser-cold-store-usability.mjs",
       "args": [],
@@ -756,6 +762,7 @@
       "checkpoint-resume"
     ],
     "large-cold-store": [
+      "six-room-continuous",
       "equipment-assembly:large-cold-store",
       "large-cold-store",
       "cold-store-usability"

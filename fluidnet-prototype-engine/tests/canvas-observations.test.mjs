@@ -89,6 +89,11 @@ test('only known cooler mode semantics produce defrost/drip states',()=>{
   assert.equal(api.node({node:{id:'C'},module:m,row:sample({'C.state.mode':2})}).state,'drip');
   assert.equal(api.node({node:{id:'C'},module:m,row:sample({'C.state.mode':0})}).state,'unknown');
   assert.equal(api.node({node:{id:'C'},module:{...m,solver_model:'unrelated'},row:sample({'C.state.mode':1})}).state,'unknown');
+  const graph={solver_model:'frost_hotgas_cooler',variables:[{id:'defrost_mode',source:'output'}]};
+  for(const mode of [1,2])assert.equal(api.node({node:{id:'C'},module:graph,row:sample({'C.defrost_mode':mode})}).state,'defrost');
+  assert.equal(api.node({node:{id:'C'},module:graph,row:sample({'C.defrost_mode':3})}).state,'drip');
+  assert.equal(api.node({node:{id:'C'},module:graph,row:sample({'C.defrost_mode':4})}).label,'再冷却');
+  assert.equal(api.node({node:{id:'C'},module:graph,row:sample({'C.defrost_mode':0})}).state,'unknown');
 });
 test('node diagnostics prioritize associated errors and preserve child paths without mutating input',()=>{
   const row=sample({'A.is_running':1},{diagnostics:[{instance_id:'B',severity:'error',message:'other'},

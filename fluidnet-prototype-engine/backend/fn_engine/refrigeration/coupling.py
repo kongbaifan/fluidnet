@@ -224,10 +224,10 @@ class CoupledStationSession(StationSession):
         ordinary={k:v for k,v in temperatures.items() if k not in self.buffer_ids}
         return super()._stored(masses,energies,ordinary)+sum(self.network.parameters[k]['mass_kg']*temperatures[k] for k in self.buffer_ids)
 
-    def _evaluate(self, masses, energies, temperatures):
+    def _evaluate(self, masses, energies, temperatures, freeze_hydraulics=False):
         if self.module_adapter is not None and not self.network.refrigeration_modules:
             self.module_adapter.initialize()
-        result = super()._evaluate(masses, energies, temperatures)
+        result = super()._evaluate(masses, energies, temperatures, freeze_hydraulics=freeze_hydraulics)
         liquid = self.network.fluid_network
         liquid.parameters = {iid: self.network.parameters[iid] for iid in liquid.instances}
         liquid.coupled_buffer_enthalpies={iid:temperatures[iid] for iid in self.buffer_ids}

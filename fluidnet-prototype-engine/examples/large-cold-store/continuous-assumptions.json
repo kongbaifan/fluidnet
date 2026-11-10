@@ -1,0 +1,107 @@
+{
+  "basis": "six-room reference assumptions; no manufacturer calibration",
+  "work_compressors_per_stage": 2,
+  "standby_compressors_per_stage": 1,
+  "pumps_per_zone": {
+    "duty": 1,
+    "standby": 1
+  },
+  "rooms": {
+    "F01": {
+      "zone": "LT",
+      "target_k": 249.14999999999998,
+      "base_heat_input_w": 208230.4,
+      "branch_length_m": 20.0
+    },
+    "F02": {
+      "zone": "LT",
+      "target_k": 251.14999999999998,
+      "base_heat_input_w": 209929.6,
+      "branch_length_m": 25.0
+    },
+    "F03": {
+      "zone": "LT",
+      "target_k": 253.14999999999998,
+      "base_heat_input_w": 211628.8,
+      "branch_length_m": 30.0
+    },
+    "F04": {
+      "zone": "LT",
+      "target_k": 255.14999999999998,
+      "base_heat_input_w": 213328.0,
+      "branch_length_m": 35.0
+    },
+    "C01": {
+      "zone": "MT",
+      "target_k": 275.15,
+      "base_heat_input_w": 135636.0,
+      "branch_length_m": 40.0
+    },
+    "C02": {
+      "zone": "MT",
+      "target_k": 277.15,
+      "base_heat_input_w": 136884.0,
+      "branch_length_m": 45.0
+    }
+  },
+  "pump_curves": {
+    "LT": [
+      [
+        0.0,
+        15.595327825143922
+      ],
+      [
+        15.746922168633398,
+        11.996406019341478
+      ],
+      [
+        23.6203832529501,
+        5.998203009670739
+      ],
+      [
+        31.493844337266797,
+        0.0
+      ]
+    ],
+    "MT": [
+      [
+        0.0,
+        16.33117682054277
+      ],
+      [
+        5.2485263349603475,
+        12.562443708109821
+      ],
+      [
+        7.872789502440521,
+        6.281221854054911
+      ],
+      [
+        10.497052669920695,
+        0.0
+      ]
+    ]
+  },
+  "operation": {
+    "control_sample_s": 30.0,
+    "confirm_s": 30.0,
+    "min_standby_run_s": 120.0,
+    "min_standby_off_s": 120.0,
+    "day_s": 86400.0,
+    "defrost_order": [
+      "F01_AC1",
+      "F02_AC1",
+      "F03_AC1",
+      "F04_AC1",
+      "C01_AC1",
+      "C02_AC1",
+      "F01_AC2",
+      "F02_AC2",
+      "F03_AC2",
+      "F04_AC2",
+      "C01_AC2",
+      "C02_AC2"
+    ],
+    "threshold_basis": "reference simulation only; explicit configurable source, not certified machine protection"
+  }
+}

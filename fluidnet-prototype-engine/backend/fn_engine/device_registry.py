@@ -183,6 +183,8 @@ BUILTIN_FAMILIES = (
         DeviceMetadata('network_air_cooler', 'Snowflake', 'coil', ('refrigerant', 'thermal')),
         DeviceMetadata('refrigerant_network_valve', 'SlidersHorizontal', 'valve', ('refrigerant',)),
         DeviceMetadata('refrigerant_inventory_cell', 'Database', 'tank', ('refrigerant',)),
+        DeviceMetadata('refrigerant_check_valve', 'ArrowRight', 'check', ('refrigerant',)),
+        DeviceMetadata('refrigerant_strainer', 'Filter', 'filter', ('refrigerant',)),
     )),
 )
 

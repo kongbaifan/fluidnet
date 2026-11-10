@@ -32,6 +32,7 @@
       "tests/test_open_refrigeration_groups.py",
       "tests/test_large_cold_store.py",
       "tests/test_large_cold_store_control.py",
+      "tests/test_six_room_continuous.py",
       "tests/test_foundation_stream_branches.py",
       "tests/test_foundation_network.py",
       "tests/test_cold_processes.py",

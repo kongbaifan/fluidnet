@@ -11,6 +11,37 @@ from fn_engine.refrigeration.network_examples import network_example
 from fn_engine.sessions import create_session
 
 
+@pytest.mark.parametrize('reverse', [False, True])
+def test_refrigerant_check_valve_closes_reverse_flow_and_strainer_adds_resistance(reverse):
+    from fn_engine.catalog import catalog_map
+    from fn_engine.models import ModuleInstance, Connection, Endpoint, FluidConfig
+    catalog = catalog_map()
+    project = Project(id='check-filter', name='check-filter', fluid=FluidConfig(fluid='R134a', phase_policy='any'),
+        modules=[catalog[k] for k in ('hp_receiver', 'refrigerant_check_valve', 'refrigerant_strainer', 'refrigerant_network_pipe')],
+        instances=[ModuleInstance(id='A', module_id='hp_receiver', name='A', parameters={'temperature_k': 260. if reverse else 300.}),
+                   ModuleInstance(id='B', module_id='hp_receiver', name='B', parameters={'temperature_k': 300. if reverse else 260.}),
+                   ModuleInstance(id='CV', module_id='refrigerant_check_valve', name='CV', parameters={'kv_m3_h': .02}),
+                   ModuleInstance(id='Filter', module_id='refrigerant_strainer', name='Filter', parameters={'diameter_m': .01}),
+                   ModuleInstance(id='Return', module_id='refrigerant_network_pipe', name='Return', parameters={'diameter_m': .004})],
+        connections=[Connection(id=str(i), source=Endpoint(instance_id=a, port_id=b), target=Endpoint(instance_id=c, port_id=d))
+            for i, (a, b, c, d) in enumerate([('A', 'liquid', 'CV', 'in0'), ('CV', 'out0', 'Filter', 'in0'), ('Filter', 'out0', 'B', 'in0'),
+                                             ('B', 'liquid', 'Return', 'in0'), ('Return', 'out0', 'A', 'in0')])])
+    session = create_session(compile_project(project), .01, .01)
+    try:
+        frame = session.initialize()
+        if reverse:
+            assert abs(frame.variables['CV.mass_flow_kg_s']) < 1e-12
+        else:
+            flow = frame.variables['CV.mass_flow_kg_s']
+            assert flow > 0.
+            assert frame.variables['Filter.pressure_drop_pa'] > 0.
+            assert frame.variables['Filter.mass_flow_kg_s'] == pytest.approx(flow, abs=1e-10)
+        frame = session.advance()
+        assert abs(frame.metrics['energy_residual_j']) < .01
+        assert abs(frame.metrics['mass_residual_kg_circuit0']) < 1e-8
+    finally: session.close()
+
+
 def test_public_correlation_and_independent_laminar_limit():
     script = Path(__file__).parents[1] / 'scripts/validate_foundation_reference.py'
     result = runpy.run_path(str(script))['evaluate_reference']()

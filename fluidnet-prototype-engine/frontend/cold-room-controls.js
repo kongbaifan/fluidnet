@@ -1,7 +1,7 @@
 /* Simple room controls over existing PID definitions and actual run observations. */
 export const FluidNetColdRoomControls=(()=>{
   function groups(project,devices){
-    const coolers=new Set(devices.filter(d=>['air_cooler','defrost_air_cooler'].includes(d.model)).map(d=>d.node.id));
+    const coolers=new Set(devices.filter(d=>['air_cooler','defrost_air_cooler','network_air_cooler','frost_hotgas_cooler'].includes(d.model)).map(d=>d.node.id));
     return devices.filter(d=>d.model==='cold_room').map(({node})=>({node,controllers:(project.controllers||[])
       .filter(c=>c.measurement===node.id+'.state.temperature_k'&&coolers.has(c.instance_id)&&c.parameter_id==='fan_ratio'&&c.kp<0)}))
       .filter(group=>group.controllers.length);
@@ -13,6 +13,7 @@ export const FluidNetColdRoomControls=(()=>{
     const actuators=group.controllers.map(c=>({controller:c,running:read(c.instance_id+'.param.running'),output:read('controller.'+c.id+'.output')}));
     let status='温度正常',warning=false;
     if(!same)status='目标不一致，请调整';
+    else if(group.controllers.some(c=>{const mode=Number(read(c.instance_id+'.defrost_mode'));return mode>=1&&mode<=4;}))status='部分冷风机融霜中';
     else if(actuators.every(a=>Number.isFinite(a.running)&&a.running<.5))status='冷风机已停机';
     else if(group.controllers.some(c=>c.mode==='manual'))status='包含手动控制';
     else if(temperature>target+.5){

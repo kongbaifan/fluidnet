@@ -29,6 +29,19 @@ def test_liquid_pt_ph_roundtrip():
     assert back.viscosity_pa_s == pytest.approx(forward.viscosity_pa_s, rel=1e-12)
 
 
+def test_ammonia_ph_polish_retains_enthalpy_under_small_pressure_perturbations():
+    service = property_service(FluidConfig(fluid='Ammonia', phase_policy='any'))
+    enthalpy = service.state_tq(241.15, 0.).enthalpy_j_kg + 30.
+    densities = []
+    for pressure in (110000., 110000.001, 110000.002, 110000.003):
+        state = service.state_ph(pressure, enthalpy)
+        independent = service.state_pt(pressure, state.temperature_k)
+        assert abs(independent.enthalpy_j_kg - enthalpy) < 2e-7
+        densities.append(state.density_kg_m3)
+    assert all(b > a for a, b in zip(densities, densities[1:]))
+    assert service.state_pq(110000., .5).phase == 'twophase'
+
+
 def test_single_phase_quality_is_none():
     assert water().state_pt(300000, 293.15).quality is None
     assert water().state_ph(300000, 84194.25).quality is None

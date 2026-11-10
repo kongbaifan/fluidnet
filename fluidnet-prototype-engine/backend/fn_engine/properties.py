@@ -284,6 +284,21 @@ def _flash_locked(key: FluidKey, inputs: str, pair, order, first: float, second:
         state = _abstract_state(key)
         state.update(pair, *order(first, second))
         phase = _phase_of(key, state)
+        # PH flash termination can leave a small enthalpy mismatch dependent on
+        # the previous flash's initial guess. Hydraulic finite differences amplify
+        # that jitter. Polish single-phase HEOS states at constant pressure using
+        # dh/dT = cp; the imposed phase is always released before the next call.
+        if inputs == 'PH' and key[0] == 'HEOS' and phase != _TWO_PHASE:
+            error = float(state.hmass()) - second
+            if abs(error) > 1e-7:
+                state.specify_phase(state.phase())
+                try:
+                    for _ in range(4):
+                        state.update(CP.PT_INPUTS, first, state.T() - error / state.cpmass())
+                        error = float(state.hmass()) - second
+                        if abs(error) <= 1e-7: break
+                finally:
+                    state.unspecify_phase()
         quality = float(state.Q()) if phase == _TWO_PHASE else None
         # Strictly inside the dome there is no single viscosity, conductivity, cp or cv;
         # CoolProp would return one-sided values, so they are reported as missing. On the

@@ -5,7 +5,8 @@ from ..model_types.module import ModuleDefinition
 from .._module_schema_v1 import Direction, ParameterSpec, VariableSpec
 
 NETWORK_KINDS = frozenset({'refrigerant_network_pipe', 'refrigerant_curve_pump',
-                           'network_air_cooler', 'refrigerant_network_valve', 'frost_hotgas_cooler', 'compressor_oil_system'})
+                           'network_air_cooler', 'refrigerant_network_valve', 'frost_hotgas_cooler', 'compressor_oil_system',
+                           'refrigerant_check_valve', 'refrigerant_strainer'})
 
 
 def definitions():
@@ -75,7 +76,20 @@ def definitions():
                           _celsius('ambient_temperature_k', '库存环境温度', 293.15)]
     volume.ports = [_stream('in0', '混合物流入', Direction.in_), _stream('bulk', '混合物流出', Direction.out)]
     volume.variables += [_var('bulk_enthalpy_j_kg', '库存混合物比焓', 'specific_enthalpy', 'J/kg')]
-    result = [pipe, pump, cooler, valve, volume]
+    check = ModuleDefinition(id='refrigerant_check_valve', name='制冷剂止回阀', category='制冷管网与过程',
+        solver_model='refrigerant_check_valve', description='正向Kv及开启压差，反向精确零流量；等焓，无动态阀芯或临界流模型。',
+        ports=[_stream('in0', '进口', Direction.in_), _stream('out0', '出口', Direction.out)],
+        parameters=[number('kv_m3_h', '正向Kv', 30., 'flow_coefficient', 'm³/h', minimum=.001),
+                    number('cracking_pressure_pa', '开启压差', 100., 'pressure', 'Pa', 'kPa', 1000., minimum=0.)],
+        variables=[v.model_copy(deep=True) for v in state])
+    strainer = pipe.model_copy(deep=True, update={'id': 'refrigerant_strainer', 'name': '制冷剂过滤器（等效阻力）',
+        'solver_model': 'refrigerant_strainer',
+        'description': '均相Darcy通流阻力及可调局部阻力K；可模拟堵塞增阻，不计算颗粒捕集和滤芯寿命。'})
+    for parameter in strainer.parameters:
+        if parameter.id == 'length_m': parameter.default = .3
+        if parameter.id == 'loss_coefficient':
+            parameter.default, parameter.runtime = 2., True
+    result = [pipe, pump, cooler, valve, volume, check, strainer]
     for definition in result:
         expose_parameters(definition)
     return result

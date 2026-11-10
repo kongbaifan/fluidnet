@@ -350,7 +350,7 @@ def _device(instance_id, call, *args):
         raise devices.DeviceRangeError(error.code, f'{instance_id}：{error}', instance_id) from error
 
 
-def evaluate(network, services, masses, energies, temperatures, *, valve_evaluator=None, defrost_states=None, graph_warm=None):
+def evaluate(network, services, masses, energies, temperatures, *, valve_evaluator=None, defrost_states=None, graph_warm=None, freeze_hydraulics=False):
     """Device outputs and the state derivatives (dM/dt, dU/dt per vessel, dT/dt per room) at one state."""
     if network.refrigeration_modules and valve_evaluator is None:
         raise CompilationError('REFRIGERATION_MODULE_CONTEXT_REQUIRED',
@@ -365,7 +365,7 @@ def evaluate(network, services, masses, energies, temperatures, *, valve_evaluat
     if graph_ids:
         from .network import evaluate_network
         graph_dm, graph_du, graph_boundary, graph_outputs, graph_cache, graph_metrics = evaluate_network(
-            network, services, vessel, temperatures, graph_warm, valve_evaluator)
+            network, services, vessel, temperatures, graph_warm, valve_evaluator, freeze_hydraulics)
         for v in network.vessels:
             dm[v] += graph_dm[v]; du[v] += graph_du[v]
         boundary += graph_boundary
@@ -427,7 +427,7 @@ def evaluate(network, services, masses, energies, temperatures, *, valve_evaluat
              _device(iid, duty, services[v], p[iid], vessel[v].pressure_pa))
         du[v] -= r['heat_rejection_w']
         boundary -= r['heat_rejection_w']
-        out[iid] = r
+        out[iid] = {**out.get(iid, {}), **r}
     for iid in by_kind.get('cascade_exchanger', ()):
         evap, cond = network.vessel(iid, 'evap_in'), network.vessel(iid, 'cond_in')
         r = _device(iid, devices.cascade_duty, services[evap], services[cond], p[iid],
@@ -560,13 +560,13 @@ class StationSession(ThermalSession):
         temperatures = {r: values[2 * n + i] for i, r in enumerate(self.temperatures)}
         return masses, energies, temperatures
 
-    def _flux(self, x):
-        result = self._evaluate(*self._unpack(x))
+    def _flux(self, x, freeze_hydraulics=False):
+        result = self._evaluate(*self._unpack(x), freeze_hydraulics=freeze_hydraulics)
         rate = [r for v in self.network.vessels for r in (result['dm'][v], result['du'][v])] + \
                [result['dt'][r] for r in self.temperatures]
         return np.array(rate) / self.scale, result
 
-    def _evaluate(self, masses, energies, temperatures):
+    def _evaluate(self, masses, energies, temperatures, freeze_hydraulics=False):
         callback = None if self.module_adapter is None else lambda iid,service,parameters,high,low: \
             self.module_adapter.evaluate(iid,service,parameters,high,low,self._candidate_time)
         process = self.process_engine
@@ -578,7 +578,7 @@ class StationSession(ThermalSession):
         try:
             self.network.parameters = {**original, **effective}
             result = evaluate(self.network,self.services,masses,energies,room_temperatures,valve_evaluator=callback,
-                              defrost_states=self.defrost_states, graph_warm=self._graph_warm)
+                              defrost_states=self.defrost_states, graph_warm=self._graph_warm, freeze_hydraulics=freeze_hydraulics)
         finally:
             self.network.parameters = original
         result = process.apply(result, physical, self.process_modes, room_temperatures, effective)
@@ -591,11 +591,29 @@ class StationSession(ThermalSession):
 
     def _derivative(self, x, base):
         jac = np.empty((len(x), len(x)))
-        for i in range(len(x)):
-            probe = x.copy()
-            delta = (1e-8 if self.network.hydraulic_graph is not None else 1e-7) * max(1., abs(x[i]))
-            probe[i] += delta
-            jac[:, i] = (self._flux(probe)[0] - base) / delta
+        reservoir_columns = 2 * len(self.network.vessels)
+        coordinates = list(self.temperatures)
+        graph_cache = self._graph_warm
+        approximate = self.network.hydraulic_graph is not None and len(x) > 30
+        try:
+            frozen_base = self._flux(x, freeze_hydraulics=True)[0] if approximate else base
+            for i in range(len(x)):
+                coordinate = self.process_engine.space.coordinates.get(coordinates[i - reservoir_columns]) if i >= reservoir_columns else None
+                if coordinate is not None and coordinate.ledger:
+                    jac[:, i] = 0.
+                    continue
+                probe = x.copy()
+                delta = (1e-6 if self.network.hydraulic_graph is not None else 1e-7) * max(1., abs(x[i]))
+                probe[i] += delta
+                # Thermal/oil/frost derivatives use the already solved hydraulic
+                # working point as a preconditioner. Every Newton trial and accepted
+                # result still solves the full graph and checks original tolerances.
+                frost_energy = coordinate is not None and coordinate.name == 'surface_energy_j'
+                frozen = approximate and i >= reservoir_columns and not frost_energy
+                self._graph_warm = graph_cache
+                jac[:, i] = (self._flux(probe, freeze_hydraulics=frozen)[0] - (frozen_base if frozen else base)) / delta
+        finally:
+            self._graph_warm = graph_cache
         return jac
 
     def _solve(self, x_old, h):
@@ -613,9 +631,7 @@ class StationSession(ThermalSession):
             norm = float(np.max(np.abs(residual)))
             if norm < self.TOLERANCE:
                 return x, result
-            if graph and iteration:
-                self._jacobian = self._derivative(x, f)
-            if norm > .5 * previous and not refreshed:
+            if norm > .5 * previous and (not refreshed or graph and iteration > 1):
                 self._jacobian, refreshed = self._derivative(x, f), True
             previous = norm
             step = np.linalg.solve(np.eye(len(x)) - h * self._jacobian, residual)
@@ -626,6 +642,15 @@ class StationSession(ThermalSession):
                     if graph and np.max(np.abs(trial - x_old - h * trial_f)) >= norm:
                         step = step / 2
                         continue
+                    if graph:
+                        displacement = trial - x
+                        for i, key in enumerate(self.temperatures, 2 * len(self.network.vessels)):
+                            coordinate = self.process_engine.space.coordinates.get(key)
+                            if coordinate is not None and coordinate.ledger:
+                                displacement[i] = 0.
+                        length = float(displacement @ displacement)
+                        if length > 1e-24:
+                            self._jacobian = self._jacobian + np.outer(trial_f - f - self._jacobian @ displacement, displacement) / length
                     f, result = trial_f, trial_result
                     x = trial
                     break
@@ -997,7 +1022,9 @@ class StationSession(ThermalSession):
         if self.module_adapter is not None:
             values.update(self.module_adapter.variables(result))
         scope = Diagnostic(code='REFRIGERATION_STATION', severity='info',
-            message=('集总制冷站：容器M/U决定饱和压力，专用流股管段计算单相p/h；新管束由显式壳侧容器持有库存，其他设备无隐藏库存。' if network.stream_paths else '集总制冷站：压力只在饱和容器中，设备为容器状态的代数关系；不计普通管路压降或隐藏换热器持液'))
+            message=('图式制冷站：容器库存与热湿、霜水、油状态共同积分；管网联立求压力、流量和焓，管路按声明阻力计算，无隐藏持液。' if network.hydraulic_graph else
+                     '集总制冷站：容器M/U决定饱和压力，专用流股管段计算单相p/h；新管束由显式壳侧容器持有库存，其他设备无隐藏库存。' if network.stream_paths else
+                     '集总制冷站：压力只在饱和容器中，设备为容器状态的代数关系；不计普通管路压降或隐藏换热器持液'))
         envelope = [d.model_copy(update={'instance_id': iid}) for iid, r in result['devices'].items()
                     for d in r.get('diagnostics', ())]
         electric = sum(r.get('electric_power_w', 0.) + r.get('fan_power_w', 0.) + r.get('heater_power_w',0.) for iid, r in result['devices'].items()

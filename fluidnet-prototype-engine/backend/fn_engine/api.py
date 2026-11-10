@@ -568,6 +568,9 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
             if name == 'large-cold-store-controlled':
                 from .refrigeration.large_cold_store_control import controlled_large_cold_store
                 return controlled_large_cold_store()
+            if name == 'large-cold-store-continuous':
+                from .refrigeration.six_room_continuous import continuous_large_cold_store
+                return continuous_large_cold_store()[0]
             if name in ('refrigeration-network', 'refrigeration-network-inventory'):
                 from .refrigeration.network_examples import network_example
                 return network_example(with_inventory=name.endswith('-inventory'))

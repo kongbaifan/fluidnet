@@ -166,8 +166,9 @@ class ProbeSession(StationSession):
         raise RuntimeErrorBase(message,code='RF0_OUTPUT_INVALID',diagnostics=[Diagnostic(code='RF0_OUTPUT_INVALID',
             message=message,instance_id=iid,phase='evaluate',time_s=self._candidate_time)])
 
-    def _evaluate(self, masses, energies, temperatures):
-        return evaluate(self.network,self.services,masses,energies,temperatures,valve_evaluator=self._valve)
+    def _evaluate(self, masses, energies, temperatures, freeze_hydraulics=False):
+        return evaluate(self.network,self.services,masses,energies,temperatures,valve_evaluator=self._valve,
+                        freeze_hydraulics=freeze_hydraulics)
 
     def _derivative(self, x, base):
         self.derivatives += 1

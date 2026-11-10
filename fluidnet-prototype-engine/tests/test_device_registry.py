@@ -24,7 +24,7 @@ BASELINE_HASHES = {
 
 FOUNDATION_DEVICES = {'refrigerant_network_pipe', 'refrigerant_curve_pump', 'network_air_cooler',
     'refrigerant_network_valve', 'refrigerant_inventory_cell', 'logistics_cold_room',
-    'frost_hotgas_cooler', 'compressor_oil_system'}
+    'frost_hotgas_cooler', 'compressor_oil_system', 'refrigerant_check_valve', 'refrigerant_strainer'}
 
 
 def test_registered_catalog_preserves_definition_hashes_order_and_fresh_instances():
