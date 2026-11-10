@@ -2,6 +2,16 @@
 
 默认服务：127.0.0.1:8798。`/docs` 为交互文档，`/openapi.json` 为运行时定义，`contracts/openapi.json` 为生成的合同快照。
 
+## 通用计算适配器
+
+| 方法与路径 | 返回模型与用途 |
+| --- | --- |
+| GET /api/v1/adapters | `AdapterCatalog`：当前实例的适配器、版本、输入输出 JSON Schema 和单位 |
+| GET /api/v1/adapters/{adapter_id}?version=1 | `AdapterDescription`：指定适配器版本的合同 |
+| POST /api/v1/adapters/execute | `AdapterRequest` → `AdapterResult`：一次同步计算，结果含 request_id、版本和输出单位 |
+
+这三个入口与 Python `AdapterRegistry` 共用分派逻辑，可由宿主注册新业务。现开放 14 项水力、换热、物性、管网、模块设计与闭式水系统设计能力，其中 `hydronics.design_cases` 支持 2～8 个工况共用管径并分别复算。单位转换只覆盖已声明的顶层数值；原生嵌套对象保持原合同。完整示例、扩展方法、版本约定与 `ADAPTER_*` 错误码见[通用计算适配层](CALCULATION_ADAPTERS.md)。动态会话仍使用下方运行 API。
+
 ## 已实现端点
 
 | 方法与路径 | 请求 | 返回模型与内容 | 错误响应（`detail.code`） |
@@ -57,7 +67,7 @@
 
 ## 错误响应与错误码（v0.4.10 起）
 
-所有 HTTP 错误仍保持 FastAPI 的 `{"detail": …}` 包络，运行时响应体与状态码语义未变；OpenAPI 只是把错误路径文档化（`contracts/openapi.json` 中每个错误状态都引用 `ErrorResponse`）：
+HTTP 错误保持 FastAPI 的 `{"detail": …}` 包络。既有路由在 `contracts/openapi.json` 中引用 `ErrorResponse`，运行时响应体与状态码语义未变；新增适配器执行和单项查询接口的 404/422/500 使用 `AdapterErrorResponse`，401/403 仍引用 `ErrorResponse`。既有路由的错误形状为：
 
 - 结构化错误：`{"detail": {"code": "...", "message": "...", "diagnostics": [...], "keys": [...], "instance_id": ..., "field": ...}}`，用于服务端主动抛出的业务错误；
 - 纯文本错误：`{"detail": "..."}`，用于 404 资源不存在、409 活动运行、413 上传超限、422 文本校验、503 持久存储未启用等；

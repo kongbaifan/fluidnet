@@ -24,6 +24,12 @@ class ErrorCode:
 ERROR_CODES: dict[str, ErrorCode] = {
     'AUTH_REQUIRED': ErrorCode(401, '缺少或无效的访问令牌'),
     'AUTH_SCOPE': ErrorCode(403, '令牌权限不足以执行该请求方法'),
+    'ADAPTER_NOT_FOUND': ErrorCode(404, '计算适配器或指定版本不存在'),
+    'ADAPTER_INPUT_INVALID': ErrorCode(422, '计算适配器的请求或输入参数无效'),
+    'ADAPTER_UNIT_INVALID': ErrorCode(422, '计算适配器的单位或单位换算无效'),
+    'ADAPTER_CALCULATION_FAILED': ErrorCode(422, '计算适配器调用的计算失败'),
+    'ADAPTER_INTERNAL_ERROR': ErrorCode(500, '计算适配器内部错误（已记录日志）'),
+    'ADAPTER_OUTPUT_INVALID': ErrorCode(500, '计算适配器输出不符合结果合同'),
     'RUN_NOT_FOUND': ErrorCode(404, '运行记录不存在或已过期'),
     'BATCH_NOT_FOUND': ErrorCode(404, '批次、条目或源项目修订不存在'),
     'BATCH_CONFLICT': ErrorCode(409, '批次状态、提交标识或预览快照冲突'),

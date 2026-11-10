@@ -10,6 +10,11 @@ import sys
 from pathlib import Path
 
 from fn_engine.api import create_app
+from fn_engine.adapters.contracts import (
+    AdapterCatalog, AdapterDescription, AdapterErrorResponse, AdapterRequest, AdapterResult,
+)
+from fn_engine.adapters.hydronics import HydronicDesignInput, HydronicDesignOutput
+from fn_engine.adapters.hydronic_cases import HydronicCasesInput, HydronicCasesOutput
 from fn_engine.batch_models import (
     BatchCreateRequest, BatchCurveResponse, BatchDeleteResponse, BatchDetailResponse,
     BatchListResponse, BatchPlanRequest, BatchPreviewResponse, BatchSetupResponse,
@@ -112,6 +117,11 @@ from fn_engine.performance_data import (PerformanceImport, PerformancePreview, P
     PerformanceSummary, PerformanceList, PerformanceReference, PerformanceProposalRequest, PerformanceProposal, PerformanceComparison)
 
 models = [
+    ('hydronic-cases-input', HydronicCasesInput), ('hydronic-cases-output', HydronicCasesOutput),
+    ('hydronic-design-input', HydronicDesignInput), ('hydronic-design-output', HydronicDesignOutput),
+    ('adapter-request', AdapterRequest), ('adapter-result', AdapterResult),
+    ('adapter-catalog', AdapterCatalog), ('adapter-description', AdapterDescription),
+    ('adapter-error-response', AdapterErrorResponse),
     ('module-v5', ModuleDefinitionV5), ('physics-input', PhysicsInput),
     ('physics-request', PhysicsRequest), ('physics-response', PhysicsResponse), ('physics-result', PhysicsResult),
     ('composite-test-context-request',CompositeTestContextRequest),

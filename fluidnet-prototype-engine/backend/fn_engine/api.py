@@ -10,6 +10,8 @@ from .model_types.module_testing import (
 from .model_types.http import ModuleReplayRequest, ModuleReplayResponse, ModuleFailureResponse
 from .system_inspection import SystemInspection, InspectionComparison
 from .equipment_library import LibraryCatalog, LibraryRequest
+from .adapters import AdapterRegistry, default_registry
+from .adapters.api import adapter_router, validation_response as adapter_validation_response
 from .coil_geometry import CoilGeometryRequest, CoilGeometryResponse
 
 import asyncio
@@ -210,7 +212,8 @@ def _unexpected_failure(error: BaseException) -> tuple[int, dict]:
 
 def create_app(frontend_root: str | Path | None = None, module_storage_root: str | Path | None = None,
                auth: AuthConfig | None = None, cors_origins: list[str] | tuple[str, ...] = (),
-               data_root: str | Path | None = None) -> FastAPI:
+               data_root: str | Path | None = None,
+               adapter_registry: AdapterRegistry | None = None) -> FastAPI:
     """`auth.required` puts every /api/ call except /api/v1/health behind a bearer token (see auth.py)."""
     auth = auth or AuthConfig()
     runs = OrderedDict()
@@ -248,8 +251,11 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
     app = FastAPI(title='FluidNet Prototype Engine', version=__version__, lifespan=lifespan)
     app.include_router(batch_router(batch_service))
     app.include_router(performance_router(performance_store))
+    app.include_router(adapter_router(adapter_registry if adapter_registry is not None else default_registry()))
     @app.exception_handler(RequestValidationError)
     async def request_validation_error(request: Request, error: RequestValidationError):
+        if request.url.path == '/api/v1/adapters' or request.url.path.startswith('/api/v1/adapters/'):
+            return adapter_validation_response(error)
         # Rejected JSON numbers (including overflow such as 1e999) must not make
         # the validation response itself fail strict JSON serialization.
         def finite_detail(value):

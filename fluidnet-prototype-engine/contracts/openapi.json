@@ -1684,6 +1684,233 @@
         }
       }
     },
+    "/api/v1/adapters": {
+      "get": {
+        "tags": [
+          "Calculation adapters"
+        ],
+        "summary": "Catalog",
+        "operationId": "catalog_api_v1_adapters_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdapterCatalog"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/adapters/execute": {
+      "post": {
+        "tags": [
+          "Calculation adapters"
+        ],
+        "summary": "Execute",
+        "operationId": "execute_api_v1_adapters_execute_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdapterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdapterResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ADAPTER_NOT_FOUND：计算适配器或指定版本不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdapterErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ADAPTER_INPUT_INVALID：计算适配器的请求或输入参数无效；ADAPTER_UNIT_INVALID：计算适配器的单位或单位换算无效；ADAPTER_CALCULATION_FAILED：计算适配器调用的计算失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdapterErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "ADAPTER_INTERNAL_ERROR：计算适配器内部错误（已记录日志）；ADAPTER_OUTPUT_INVALID：计算适配器输出不符合结果合同",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdapterErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/adapters/{adapter_id}": {
+      "get": {
+        "tags": [
+          "Calculation adapters"
+        ],
+        "summary": "Describe",
+        "operationId": "describe_api_v1_adapters__adapter_id__get",
+        "parameters": [
+          {
+            "name": "adapter_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 100,
+              "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$",
+              "title": "Adapter Id"
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdapterDescription"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ADAPTER_NOT_FOUND：计算适配器或指定版本不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdapterErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ADAPTER_INPUT_INVALID：计算适配器的请求或输入参数无效；ADAPTER_UNIT_INVALID：计算适配器的单位或单位换算无效；ADAPTER_CALCULATION_FAILED：计算适配器调用的计算失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdapterErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "ADAPTER_INTERNAL_ERROR：计算适配器内部错误（已记录日志）；ADAPTER_OUTPUT_INVALID：计算适配器输出不符合结果合同",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdapterErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/health": {
       "get": {
         "summary": "Health",
@@ -6759,6 +6986,278 @@
   },
   "components": {
     "schemas": {
+      "AdapterCatalog": {
+        "properties": {
+          "contract_version": {
+            "type": "integer",
+            "const": 1,
+            "title": "Contract Version",
+            "default": 1
+          },
+          "adapters": {
+            "items": {
+              "$ref": "#/components/schemas/AdapterDescription"
+            },
+            "type": "array",
+            "title": "Adapters"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "adapters"
+        ],
+        "title": "AdapterCatalog"
+      },
+      "AdapterDescription": {
+        "properties": {
+          "adapter_id": {
+            "type": "string",
+            "maxLength": 100,
+            "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$",
+            "title": "Adapter Id"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Version"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "input_schema": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Input Schema"
+          },
+          "output_schema": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Output Schema"
+          },
+          "input_units": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/UnitDescription"
+            },
+            "type": "object",
+            "title": "Input Units"
+          },
+          "output_units": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/UnitDescription"
+            },
+            "type": "object",
+            "title": "Output Units"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "adapter_id",
+          "version",
+          "description",
+          "input_schema",
+          "output_schema",
+          "input_units",
+          "output_units"
+        ],
+        "title": "AdapterDescription"
+      },
+      "AdapterErrorResponse": {
+        "properties": {
+          "detail": {
+            "$ref": "#/components/schemas/AdapterFailure"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "detail"
+        ],
+        "title": "AdapterErrorResponse"
+      },
+      "AdapterFailure": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "adapter_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adapter Id"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          },
+          "field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field"
+          },
+          "diagnostics": {
+            "items": {
+              "additionalProperties": {
+                "$ref": "#/components/schemas/JsonValue"
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Diagnostics"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "AdapterFailure"
+      },
+      "AdapterRequest": {
+        "properties": {
+          "adapter_id": {
+            "type": "string",
+            "maxLength": 100,
+            "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$",
+            "title": "Adapter Id"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Version",
+            "default": 1
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          },
+          "inputs": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Inputs"
+          },
+          "input_units": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Input Units"
+          },
+          "output_units": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Output Units"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "adapter_id"
+        ],
+        "title": "AdapterRequest"
+      },
+      "AdapterResult": {
+        "properties": {
+          "adapter_id": {
+            "type": "string",
+            "maxLength": 100,
+            "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$",
+            "title": "Adapter Id"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          },
+          "engine_version": {
+            "type": "string",
+            "title": "Engine Version"
+          },
+          "outputs": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Outputs"
+          },
+          "output_units": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Output Units"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "adapter_id",
+          "version",
+          "engine_version",
+          "outputs",
+          "output_units"
+        ],
+        "title": "AdapterResult"
+      },
       "AirGridResponse": {
         "properties": {
           "contract_version": {
@@ -10312,6 +10811,7 @@
         ],
         "title": "InspectionValue"
       },
+      "JsonValue": {},
       "LibraryBank": {
         "properties": {
           "name": {
@@ -16808,6 +17308,33 @@
         "type": "object",
         "title": "TimeStepOptions",
         "description": "Euler 时间步误差控制（A0；计划 §12.1）。\n\n默认关闭，关闭时按 `SolverOptions.dynamic_step_s` 固定步长推进，旧项目与旧默认完全不变。\n开启后每次整步试算都要用两个半步做局部截断误差估计；容差按单位分开，不用一个裸数混合 kg/J/K。"
+      },
+      "UnitDescription": {
+        "properties": {
+          "quantity": {
+            "type": "string",
+            "title": "Quantity"
+          },
+          "canonical_unit": {
+            "type": "string",
+            "title": "Canonical Unit"
+          },
+          "accepted_units": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Accepted Units"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "quantity",
+          "canonical_unit",
+          "accepted_units"
+        ],
+        "title": "UnitDescription"
       },
       "UnitSpec": {
         "properties": {

@@ -1,0 +1,421 @@
+{
+  "$defs": {
+    "CurvePoint": {
+      "additionalProperties": false,
+      "properties": {
+        "flow_m3_h": {
+          "maximum": 1000000.0,
+          "minimum": 0,
+          "title": "Flow M3 H",
+          "type": "number"
+        },
+        "head_m": {
+          "maximum": 10000.0,
+          "minimum": 0,
+          "title": "Head M",
+          "type": "number"
+        },
+        "efficiency": {
+          "description": "Overall wire-to-water efficiency.",
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "title": "Efficiency",
+          "type": "number"
+        }
+      },
+      "required": [
+        "flow_m3_h",
+        "head_m",
+        "efficiency"
+      ],
+      "title": "CurvePoint",
+      "type": "object"
+    },
+    "PumpSelection": {
+      "additionalProperties": false,
+      "properties": {
+        "pump": {
+          "$ref": "#/$defs/PumpSpec"
+        },
+        "available_head_m": {
+          "title": "Available Head M",
+          "type": "number"
+        },
+        "excess_head_m": {
+          "title": "Excess Head M",
+          "type": "number"
+        },
+        "efficiency": {
+          "title": "Efficiency",
+          "type": "number"
+        },
+        "input_power_kw": {
+          "title": "Input Power Kw",
+          "type": "number"
+        }
+      },
+      "required": [
+        "pump",
+        "available_head_m",
+        "excess_head_m",
+        "efficiency",
+        "input_power_kw"
+      ],
+      "title": "PumpSelection",
+      "type": "object"
+    },
+    "PumpSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "data_kind": {
+          "enum": [
+            "example",
+            "manufacturer"
+          ],
+          "title": "Data Kind",
+          "type": "string"
+        },
+        "source": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+        },
+        "points": {
+          "items": {
+            "$ref": "#/$defs/CurvePoint"
+          },
+          "maxItems": 100,
+          "minItems": 2,
+          "title": "Points",
+          "type": "array"
+        },
+        "min_flow_m3_h": {
+          "minimum": 0,
+          "title": "Min Flow M3 H",
+          "type": "number"
+        },
+        "max_flow_m3_h": {
+          "exclusiveMinimum": 0,
+          "title": "Max Flow M3 H",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "data_kind",
+        "source",
+        "points",
+        "min_flow_m3_h",
+        "max_flow_m3_h"
+      ],
+      "title": "PumpSpec",
+      "type": "object"
+    },
+    "SegmentResult": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "parent_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Parent Id"
+        },
+        "heat_load_w": {
+          "title": "Heat Load W",
+          "type": "number"
+        },
+        "flow_m3_h": {
+          "title": "Flow M3 H",
+          "type": "number"
+        },
+        "mass_flow_kg_s": {
+          "title": "Mass Flow Kg S",
+          "type": "number"
+        },
+        "dn": {
+          "title": "Dn",
+          "type": "integer"
+        },
+        "inner_diameter_m": {
+          "title": "Inner Diameter M",
+          "type": "number"
+        },
+        "velocity_m_s": {
+          "title": "Velocity M S",
+          "type": "number"
+        },
+        "specific_drop_pa_m": {
+          "title": "Specific Drop Pa M",
+          "type": "number"
+        },
+        "pipe_pressure_drop_pa": {
+          "title": "Pipe Pressure Drop Pa",
+          "type": "number"
+        },
+        "local_pressure_drop_pa": {
+          "title": "Local Pressure Drop Pa",
+          "type": "number"
+        },
+        "equipment_pressure_drop_pa": {
+          "title": "Equipment Pressure Drop Pa",
+          "type": "number"
+        },
+        "valve_pressure_drop_pa": {
+          "title": "Valve Pressure Drop Pa",
+          "type": "number"
+        },
+        "pressure_drop_pa": {
+          "title": "Pressure Drop Pa",
+          "type": "number"
+        },
+        "path_pressure_drop_pa": {
+          "default": 0,
+          "title": "Path Pressure Drop Pa",
+          "type": "number"
+        },
+        "balancing_pressure_drop_pa": {
+          "default": 0,
+          "title": "Balancing Pressure Drop Pa",
+          "type": "number"
+        },
+        "status": {
+          "enum": [
+            "ok",
+            "limit_exceeded",
+            "no_load"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "valve": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ValveSelection"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "parent_id",
+        "heat_load_w",
+        "flow_m3_h",
+        "mass_flow_kg_s",
+        "dn",
+        "inner_diameter_m",
+        "velocity_m_s",
+        "specific_drop_pa_m",
+        "pipe_pressure_drop_pa",
+        "local_pressure_drop_pa",
+        "equipment_pressure_drop_pa",
+        "valve_pressure_drop_pa",
+        "pressure_drop_pa",
+        "status",
+        "valve"
+      ],
+      "title": "SegmentResult",
+      "type": "object"
+    },
+    "ValveSelection": {
+      "additionalProperties": false,
+      "properties": {
+        "required_kv_m3_h": {
+          "title": "Required Kv M3 H",
+          "type": "number"
+        },
+        "selected": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ValveSpec"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "full_open_pressure_drop_pa": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Full Open Pressure Drop Pa"
+        }
+      },
+      "required": [
+        "required_kv_m3_h",
+        "selected",
+        "full_open_pressure_drop_pa"
+      ],
+      "title": "ValveSelection",
+      "type": "object"
+    },
+    "ValveSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "data_kind": {
+          "enum": [
+            "example",
+            "manufacturer"
+          ],
+          "title": "Data Kind",
+          "type": "string"
+        },
+        "source": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+        },
+        "dn": {
+          "exclusiveMinimum": 0,
+          "maximum": 2000,
+          "title": "Dn",
+          "type": "integer"
+        },
+        "kvs_m3_h": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000.0,
+          "title": "Kvs M3 H",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "data_kind",
+        "source",
+        "dn",
+        "kvs_m3_h"
+      ],
+      "title": "ValveSpec",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "feasible": {
+      "title": "Feasible",
+      "type": "boolean"
+    },
+    "total_load_w": {
+      "title": "Total Load W",
+      "type": "number"
+    },
+    "total_flow_m3_h": {
+      "title": "Total Flow M3 H",
+      "type": "number"
+    },
+    "density_kg_m3": {
+      "title": "Density Kg M3",
+      "type": "number"
+    },
+    "specific_heat_j_kg_k": {
+      "title": "Specific Heat J Kg K",
+      "type": "number"
+    },
+    "viscosity_pa_s": {
+      "title": "Viscosity Pa S",
+      "type": "number"
+    },
+    "circuit_pressure_drop_pa": {
+      "title": "Circuit Pressure Drop Pa",
+      "type": "number"
+    },
+    "required_head_m": {
+      "title": "Required Head M",
+      "type": "number"
+    },
+    "critical_path": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Critical Path",
+      "type": "array"
+    },
+    "segments": {
+      "items": {
+        "$ref": "#/$defs/SegmentResult"
+      },
+      "title": "Segments",
+      "type": "array"
+    },
+    "pump_candidates": {
+      "items": {
+        "$ref": "#/$defs/PumpSelection"
+      },
+      "title": "Pump Candidates",
+      "type": "array"
+    },
+    "warnings": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "feasible",
+    "total_load_w",
+    "total_flow_m3_h",
+    "density_kg_m3",
+    "specific_heat_j_kg_k",
+    "viscosity_pa_s",
+    "circuit_pressure_drop_pa",
+    "required_head_m",
+    "critical_path",
+    "segments",
+    "pump_candidates",
+    "warnings"
+  ],
+  "title": "HydronicDesignOutput",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

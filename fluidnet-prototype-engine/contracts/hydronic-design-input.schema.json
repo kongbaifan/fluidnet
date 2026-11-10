@@ -1,0 +1,341 @@
+{
+  "$defs": {
+    "CurvePoint": {
+      "additionalProperties": false,
+      "properties": {
+        "flow_m3_h": {
+          "maximum": 1000000.0,
+          "minimum": 0,
+          "title": "Flow M3 H",
+          "type": "number"
+        },
+        "head_m": {
+          "maximum": 10000.0,
+          "minimum": 0,
+          "title": "Head M",
+          "type": "number"
+        },
+        "efficiency": {
+          "description": "Overall wire-to-water efficiency.",
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "title": "Efficiency",
+          "type": "number"
+        }
+      },
+      "required": [
+        "flow_m3_h",
+        "head_m",
+        "efficiency"
+      ],
+      "title": "CurvePoint",
+      "type": "object"
+    },
+    "DesignSegment": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "parent_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parent Id"
+        },
+        "heat_load_w": {
+          "default": 0,
+          "maximum": 1000000000.0,
+          "minimum": 0,
+          "title": "Heat Load W",
+          "type": "number"
+        },
+        "length_m": {
+          "default": 20,
+          "maximum": 10000,
+          "minimum": 0,
+          "title": "Length M",
+          "type": "number"
+        },
+        "local_loss_coefficient": {
+          "default": 3,
+          "maximum": 1000,
+          "minimum": 0,
+          "title": "Local Loss Coefficient",
+          "type": "number"
+        },
+        "equipment_pressure_drop_pa": {
+          "default": 0,
+          "maximum": 10000000.0,
+          "minimum": 0,
+          "title": "Equipment Pressure Drop Pa",
+          "type": "number"
+        },
+        "valve_pressure_drop_pa": {
+          "default": 0,
+          "maximum": 1000000.0,
+          "minimum": 0,
+          "title": "Valve Pressure Drop Pa",
+          "type": "number"
+        },
+        "fixed_dn": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fixed Dn"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "title": "DesignSegment",
+      "type": "object"
+    },
+    "PipeSize": {
+      "additionalProperties": false,
+      "properties": {
+        "dn": {
+          "exclusiveMinimum": 0,
+          "maximum": 2000,
+          "title": "Dn",
+          "type": "integer"
+        },
+        "inner_diameter_m": {
+          "exclusiveMinimum": 0,
+          "maximum": 2,
+          "title": "Inner Diameter M",
+          "type": "number"
+        }
+      },
+      "required": [
+        "dn",
+        "inner_diameter_m"
+      ],
+      "title": "PipeSize",
+      "type": "object"
+    },
+    "PumpSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "data_kind": {
+          "enum": [
+            "example",
+            "manufacturer"
+          ],
+          "title": "Data Kind",
+          "type": "string"
+        },
+        "source": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+        },
+        "points": {
+          "items": {
+            "$ref": "#/$defs/CurvePoint"
+          },
+          "maxItems": 100,
+          "minItems": 2,
+          "title": "Points",
+          "type": "array"
+        },
+        "min_flow_m3_h": {
+          "minimum": 0,
+          "title": "Min Flow M3 H",
+          "type": "number"
+        },
+        "max_flow_m3_h": {
+          "exclusiveMinimum": 0,
+          "title": "Max Flow M3 H",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "data_kind",
+        "source",
+        "points",
+        "min_flow_m3_h",
+        "max_flow_m3_h"
+      ],
+      "title": "PumpSpec",
+      "type": "object"
+    },
+    "ValveSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "data_kind": {
+          "enum": [
+            "example",
+            "manufacturer"
+          ],
+          "title": "Data Kind",
+          "type": "string"
+        },
+        "source": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+        },
+        "dn": {
+          "exclusiveMinimum": 0,
+          "maximum": 2000,
+          "title": "Dn",
+          "type": "integer"
+        },
+        "kvs_m3_h": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000.0,
+          "title": "Kvs M3 H",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "data_kind",
+        "source",
+        "dn",
+        "kvs_m3_h"
+      ],
+      "title": "ValveSpec",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "temperature_k": {
+      "default": 282.65,
+      "maximum": 363.15,
+      "minimum": 274.15,
+      "title": "Temperature K",
+      "type": "number"
+    },
+    "temperature_difference_k": {
+      "default": 5,
+      "exclusiveMinimum": 0,
+      "maximum": 50,
+      "title": "Temperature Difference K",
+      "type": "number"
+    },
+    "roughness_m": {
+      "default": 4.5e-05,
+      "maximum": 0.005,
+      "minimum": 0,
+      "title": "Roughness M",
+      "type": "number"
+    },
+    "max_velocity_m_s": {
+      "default": 1.5,
+      "exclusiveMinimum": 0,
+      "maximum": 5,
+      "title": "Max Velocity M S",
+      "type": "number"
+    },
+    "max_specific_drop_pa_m": {
+      "default": 200,
+      "exclusiveMinimum": 0,
+      "maximum": 2000,
+      "title": "Max Specific Drop Pa M",
+      "type": "number"
+    },
+    "head_margin_ratio": {
+      "default": 0.1,
+      "maximum": 0.5,
+      "minimum": 0,
+      "title": "Head Margin Ratio",
+      "type": "number"
+    },
+    "segments": {
+      "items": {
+        "$ref": "#/$defs/DesignSegment"
+      },
+      "maxItems": 1200,
+      "minItems": 1,
+      "title": "Segments",
+      "type": "array"
+    },
+    "pipe_sizes": {
+      "items": {
+        "$ref": "#/$defs/PipeSize"
+      },
+      "maxItems": 100,
+      "minItems": 1,
+      "title": "Pipe Sizes",
+      "type": "array"
+    },
+    "pumps": {
+      "items": {
+        "$ref": "#/$defs/PumpSpec"
+      },
+      "maxItems": 200,
+      "title": "Pumps",
+      "type": "array"
+    },
+    "valves": {
+      "items": {
+        "$ref": "#/$defs/ValveSpec"
+      },
+      "maxItems": 200,
+      "title": "Valves",
+      "type": "array"
+    }
+  },
+  "required": [
+    "segments",
+    "pipe_sizes"
+  ],
+  "title": "HydronicDesignInput",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

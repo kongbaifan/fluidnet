@@ -1,5 +1,7 @@
 # 已保存项目的外部客户端
 
+一次性计算使用 [calculation_adapters.py](calculation_adapters.py)：默认通过 HTTP 发现并调用计算能力，`--local` 使用 Python 进程内注册表。该示例无需已保存项目；接入和新业务注册见[通用计算适配层](../../docs/CALCULATION_ADAPTERS.md)。下文介绍需要运行会话的客户端。
+
 [saved_project.py](saved_project.py) 和 [saved_project.mjs](saved_project.mjs) 通过 HTTP/WebSocket 驱动已保存项目，不需要打开 Studio。两者依次启动持续动态运行、订阅三帧、按配置写入变量、暂停/继续并停止，等待命令 `applied` 回执后再继续。异常退出时也会尝试发送停止命令。
 
 从 `fluidnet-prototype-engine` 目录执行。先在 Studio 中保存一个能动态运行的项目，再停止原服务，并用相同工作区启动无界面服务。安装项目依赖（已包含 WebSocket 传输）后创建控制令牌，令牌只显示一次：
