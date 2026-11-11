@@ -73,7 +73,10 @@ function controlOwner(n, id) {
   const key=variable && observation(n,variable).canonicalKey;
   const parameter=key?.split('.param.')[1] || id;
   const pid=(frozen?.controllers||owner.controllers||[]).find(c=>c.instance_id===n.id && c.parameter_id===parameter);
-  if(pid)return `PID ${pid.id} · ${pid.mode==='manual'?'手动输出':'自动控制'}`;
+  if(pid){
+    const mode=owner.run.live?panelRow(owner.run)?.canonical?.[`controller.${pid.id}.mode`]:pid.mode;
+    return `PID ${pid.id} · ${mode==='manual'?'手动输出':mode==='auto'?'自动控制':'模式未记录'}`;
+  }
   const script=(frozen?.controls||owner.controlPrograms||owner.controlScripts||[]).find(p=>p.enabled && p.language!=='legacy' && (p.outputs||[]).includes(`${n.id}.param.${parameter}`));
   return script ? `控制脚本 ${script.name||script.id}` : '';
 }
@@ -102,7 +105,7 @@ function metricValue(n,v) {
   return typeof value==='boolean'?(value?'是':'否'):Number.isFinite(value)?number(value,3):'—';
 }
 function guidedResults(n,m){return FluidNetDeviceGuide.results(m,m.manifest||definitionOf?.(n));}
-function metricMarkup(n,v) {return `<div class="device-metric" data-device-metric="${esc(v.id)}"><div class="row spread"><small>${esc(v.label)}</small>${moduleOf(n).variables.some(item=>item.id===v.id)?observationButton(n,v):''}</div><strong>${esc(metricValue(n,v))}</strong><span>${esc(v.unit)}</span></div>`;}
+function metricMarkup(n,v) {return `<div class="device-metric" data-device-metric="${esc(v.id)}"><div class="row spread"><small>${esc(v.label)}</small>${observationButton?.(n,v)||''}</div><strong>${esc(metricValue(n,v))}</strong><span>${esc(v.unit)}</span></div>`;}
 function resultMarkup(n,m) {
   const {layout,warning}=panelConfig(n,m);
   const guided=!layout&&guidedResults(n,m);

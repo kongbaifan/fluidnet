@@ -27,6 +27,19 @@ try{
  await page.locator('[data-action="inspection-compare"]').click();await page.getByRole('dialog').locator('[name="other"]').selectOption(second);
  await page.getByRole('dialog').locator('button[type="submit"]').click();
  await expect(page.locator('[data-system-comparison]')).toContainText('V1.in0.pressure_pa');
+ await page.getByRole('dialog').locator('[data-action="close-dialog"]').first().click();
+ await page.locator(`[data-action="inspect-run"][data-id="${id}"]`).click();
+ await expect(page.locator('[data-system-inspection]')).toContainText(id);
+ let release,captured=false,delivered=false;const gate=new Promise(resolve=>{release=resolve;});
+ await page.route(server.base+'/api/v1/runs',async route=>{
+   captured=true;await gate;await route.fulfill({status:503,json:{detail:'已关闭操作的迟到目录错误'}});delivered=true;
+ });
+ await page.locator('[data-action="inspection-compare"]').click();await expect.poll(()=>captured).toBe(true);
+ await page.getByRole('dialog').locator('[data-action="close-dialog"]').first().click();
+ await page.locator('.rail-link[data-route="workbench"]').click();release();await expect.poll(()=>delivered).toBe(true);
+ await page.unroute(server.base+'/api/v1/runs');
+ await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+ await expect(page.getByRole('dialog')).toHaveCount(0);
  expect(errors).toEqual([]);
- console.log(JSON.stringify({preflight:true,frozenRun:true,actualInstance:true,errors}));
+ console.log(JSON.stringify({preflight:true,frozenRun:true,actualInstance:true,closedComparisonIgnoresLateError:true,errors}));
 }finally{await browser.close();await server.close();}

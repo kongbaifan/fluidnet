@@ -39,6 +39,24 @@ test('chart paths preserve gaps, hidden series, time bounds and project-local co
   const data=f.registry.get('chart');assert.equal(data.rows,history);assert.deepEqual(Array.from(data.keys),['q']);assert.equal(data.minT,1);assert.equal(data.maxT,3);
 });
 
+test('historical overlays follow the selected record project even after switching projects',()=>{
+  for(const identity of [{projectId:'history-owner'},{archive:{request:{project:{id:'history-owner'}}}}]){
+    const f=fixture(),history=[{t:0,q:10},{t:1,q:10}];
+    f.charts.source='selected-history';Object.assign(f.run,identity,{history});
+    f.records.push({source:'engine',projectId:f.project.id,history:[{t:0,q:999},{t:1,q:999}]},
+      {source:'engine',projectId:'history-owner',history});
+    const html=f.view.chartSvg(history,['q'],'chart',true);
+    const path=key=>html.match(new RegExp(`data-series-key="${key}" d="([^"]*)"`))?.[1];
+    assert.equal(path('baseline-q'),path('q'));
+  }
+});
+
+test('a historical record with no project identity never borrows a current-project baseline',()=>{
+  const f=fixture();f.charts.source='legacy-history';f.run.history=[{t:0,q:10},{t:1,q:10}];
+  f.records.push({source:'engine',projectId:f.project.id,history:[{t:0,q:999},{t:1,q:999}]});
+  assert.doesNotMatch(f.view.chartSvg(f.run.history,['q'],'chart',true),/data-series-key="baseline-q"/);
+});
+
 test('historical observations use their own data and suppress live edit controls',()=>{
   const f=fixture();f.charts.source='archive';f.run.history=[{t:1,temp:300},{t:2,temp:null}];f.bindings.push({id:'temp',label:'旧温度 <probe>',unit:'K'});
   const before=JSON.stringify(f.run),html=f.view.extraChartsMarkup();assert.match(html,/旧温度 &lt;probe>/);assert.doesNotMatch(html,/data-action="remove-chart-var"/);
@@ -48,6 +66,17 @@ test('historical observations use their own data and suppress live edit controls
 test('curves with no physical samples show the empty state and do not fabricate stored results',()=>{
   const f=fixture();f.setOverview({});assert.match(f.view.renderCurves(),/还没有当前运行数据/);
   assert.equal(f.run.history.length,0);assert.equal(f.registry.size,0);
+});
+
+test('sampled non-network projects distinguish absent flow observations from absent results',()=>{
+  const f=fixture();f.setOverview({});f.run.history=[{t:600,temperature:251.15,power:1500}];
+  const html=f.view.renderCurves();assert.match(html,/本工程没有管网流量观察项/);
+  assert.doesNotMatch(html,/还没有当前运行数据/);
+});
+
+test('historical records with missing variable provenance explicitly show unknown source',()=>{
+  const f=fixture();f.setOverview({});f.charts.source='orphan';f.run.history=[{t:1,q:2}];
+  assert.match(f.view.renderCurves(),/历史主曲线来源未知/);
 });
 
 test('result actions delegate identities without accepting unknown commands',()=>{

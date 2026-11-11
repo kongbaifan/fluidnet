@@ -36,10 +36,15 @@ def test_pid_metadata_uses_actual_frozen_units_and_ids():
     assert output.unit.from_canonical(.35) == pytest.approx(35.)
     assert not output.writable
     assert catalog['controller.Supply-Control.integral'].unit == output.unit
+    manual = catalog['controller.Supply-Control.manual_output']
+    assert manual.unit == output.unit and manual.unit.from_canonical(.35) == pytest.approx(35.)
+    assert manual.writable and manual.nullable and manual.value_type == 'number'
+    assert manual.available_in == ['dynamic']
     assert catalog['controller.Supply-Control.mode'].value_type == 'text'
     choices = {v.key: v for v in observation_choices(project)}
     assert choices['controller.Supply-Control.setpoint'].unit == temperature.unit
     assert choices['controller.Supply-Control.output'].unit == output.unit
+    assert choices['controller.Supply-Control.manual_output'].unit == output.unit
     assert 'controller.Supply-Control.mode' not in choices
 
 

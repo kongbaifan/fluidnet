@@ -410,8 +410,8 @@ function undo(redo=false) {
   ui.selectedNode='';ui.selectedEdge='';ui.connecting=null;ui.pinnedChart=null;
   ui.floats=ui.floats.filter(f=>instance(f.id));markDirty(owner);persistLocal();render();msg(redo?'已重做':'已撤销');
 }
-function navigate(route,options={}){if(!PAGE_META[route])route='home';if(ui.route!==route)moduleReplay?.navigationChanged();if(ui.route!==route)ui.pinnedChart=null;Object.assign(ui,options);ui.route=route;contextMenu=null;ui.taskDrawer=false;if(location.hash!==`#${route}`)history.replaceState(null,'',`#${route}`);saveUI();render();page.scrollTop=0;if(route==='runs')engine.refreshArchives();}
-function openProject(id){if(!state.projects.some(p=>p.id===id))return;state.activeProject=id;ui.pinnedChart=null;ui.chartCursor=null;ui.selectedNode='';ui.floats=[];undoStack=[];redoStack=[];navigate('workbench');}
+function navigate(route,options={}){if(!PAGE_META[route])route='home';if(ui.route!==route){engine?.cancelArchiveRead?.();moduleReplay?.navigationChanged();}if(ui.route!==route)ui.pinnedChart=null;Object.assign(ui,options);ui.route=route;contextMenu=null;ui.taskDrawer=false;if(location.hash!==`#${route}`)history.replaceState(null,'',`#${route}`);saveUI();render();page.scrollTop=0;if(route==='runs')engine.refreshArchives();}
+function openProject(id){if(!state.projects.some(p=>p.id===id))return;engine?.cancelArchiveRead?.();state.activeProject=id;ui.pinnedChart=null;ui.chartCursor=null;ui.selectedNode='';ui.floats=[];undoStack=[];redoStack=[];navigate('workbench');}
 function openEditor(id,tab='drawing',origin=null){ui.editorOrigin=origin;state.selectedModule=id;ui.editorPort='';ui.moduleTab=['design','header'].includes(tab)?'code':tab;if(['design','header'].includes(tab))ui.codeKind=tab;ui.arrayVar='system:form';navigate('editor');}
 function heading(title,subtitle,actions='',eyebrow=''){return `<div class="page-heading"><div>${eyebrow?`<div class="eyebrow">${eyebrow}</div>`:''}<h1>${title}</h1><p>${subtitle}</p></div><div class="row wrap">${actions}</div></div>`;}
 function renderHeader(){document.getElementById('app-header').innerHTML=`<button class="brand" data-action="nav" data-route="home" aria-label="FluidNet Studio 首页"><span class="brand-mark">${icon('Network')}</span>FluidNet <span class="brand-sub">Studio</span></button><span class="header-rule"></span><button class="project-picker" data-action="project-picker">${icon('FolderOpen')}<span>${esc(project().name)}</span>${icon('ChevronDown')}</button>${badge(engine?.health ? '模块平台 · v' + engine.health.version : '连接计算服务…',engine?.health ? 'good' : 'warn')}<button class="header-search" data-action="page-map" aria-label="页面导航与快捷入口">${icon('Search')}<span>页面与操作</span><kbd>Ctrl K</kbd></button><span class="save-indicator" data-save-status></span>${btn('workspace-tools','备份与恢复','Database')+btn('reload-workspace','载入服务器','FolderOpen','title="载入服务器工作区，当前草稿会先备份到浏览器"')+btn('save','<span>保存工作区</span>','Save','title="保存全部项目、模块、型号和界面状态；待应用参数仍需单独应用"','header-save')}${ibtn('theme',ui.theme==='dark'?'切换浅色':'切换深色',ui.theme==='dark'?'Sun':'Moon')}${ibtn('nav','使用指南','CircleHelp','data-route="help"')}`;}
@@ -471,8 +471,11 @@ function runResultsView(){return runResultsPresentation ||= FluidNetRunResultsVi
   measureWidth:id=>document.getElementById(id)?.getBoundingClientRect().width||(ui.route==='bench'?page.clientWidth-390:page.clientWidth-125),
   comparisonMarkup:()=>workflows.comparisonMarkup(),reportAvailable:record=>engine.refrigerationReportAvailable(record),runControls,
   chrome:{esc,icon,btn,ibtn,badge,option,number,heading,clockLabel},actions:{
-    selectRecord:id=>{ui.selectedRecord=id;render();},recordCurves:async id=>{
-      try{if(state.records.find(r=>r.id===id)?.archiveCacheOnly)await engine.openArchive(id);
+    selectRecord:id=>{engine.cancelArchiveRead?.();ui.selectedRecord=id;render();},recordCurves:async id=>{
+      const workspace=state,projectId=state.activeProject,route=ui.route;
+      engine.cancelArchiveRead?.();
+      try{if(state.records.find(r=>r.id===id)?.archiveCacheOnly&&await engine.openArchive(id)===false)return;
+        if(state!==workspace||state.activeProject!==projectId||ui.route!==route||!state.records.some(r=>r.id===id))return;
         state.charts.source=id;navigate('curves');}catch(error){msg('完整曲线暂时无法读取：'+error.message,true);}},
     toggleSeries:key=>{ui.pinnedChart=null;state.charts.series[key]=!state.charts.series[key];markDirty();render();},
     removeVariable:id=>{state.charts.extra=state.charts.extra.filter(v=>v.id!==id||v.projectId!==project().id);markDirty();render();}}
@@ -674,9 +677,23 @@ function benchResults() {
   ${ui.benchTab === 'results' ? table('evaluate 变量与物性',worker?.evaluation.variables) + table('commit_step 状态',worker?.committed.state) + (m.manifest?.schema_version===5 ? table('本构守恒结果',worker?.constitutive?.result) : m.manifest?.execution_role ? table('制冷流股',worker?.refrigeration?.flow) : table('网络关系',Object.fromEntries((worker?.evaluation.relations || []).map(r=>[r.channel,{kind:r.kind,...r.parameters}])))) : ''}
   <div class="panel-body stack"><small class="muted mono" style="overflow-wrap:anywhere">${worker ? '内容哈希：'+esc(worker.contentHash) : '运行后返回实际求解流量、模块变量和状态。'}</small><div>${btn('record-bench','保存测试记录','Save','','small')}</div></div>`;
 }
-function currentChartRun(){if(state.charts.source!=='live')return state.records.find(r=>r.id===state.charts.source)||project().run;const run=project().run,overview=state.charts.range==='all'&&run.source==='engine'?engine.overview(run.id):null;return overview?.rows?{...run,history:overview.rows}:run;}
+function currentChartRun(){
+  if(state.charts.source!=='live'){
+    const record=state.records.find(r=>r.id===state.charts.source);
+    if(record)return record;
+    state.charts.source='live';ui.pinnedChart=null;ui.chartCursor=null;
+  }
+  const owner=project(),run=owner.run,overview=state.charts.range==='all'&&run.source==='engine'?engine.overview(run.id):null;
+  return overview?.rows?{...run,projectId:owner.id,history:overview.rows}:run;
+}
 function overviewSeries(run) {
-  const bindings=run.overviewBindings || (run.archive?engine.overviewBindings(run.archive.request.project):engine.overviewBindings(project()));
+  const archived=run.archive?.request?.project,owner=state.projects.find(p=>p.run===run||p.id===run.projectId);
+  const benchName=run.scope==='bench'?(run.projectName||run.moduleId):run===state.bench.run?mod(state.bench.moduleId).name:'';
+  let bindings=run.overviewBindings || (archived?engine.overviewBindings(archived):owner?engine.overviewBindings(owner):null);
+  if(!bindings&&benchName)bindings=Object.fromEntries([['q','质量流量','kg/s'],['pressure','出口压力','kPa'],['temperature','温度','°C']]
+    .filter(([key])=>run.history.some(row=>Number.isFinite(row[key])))
+    .map(([key,label,unit])=>[key,{key,label:benchName+' · '+label,short:'独立测试',unit,scale:1,offset:0}]));
+  bindings ||= {};
   for(const key of ['q','a','b','pressure','temperature']) {
     const binding=bindings[key];
     SERIES[key]={...SERIES[key],name:binding?.label || '未绑定',short:binding?.short || '未绑定'};
@@ -810,19 +827,56 @@ function executionSettings(p) {
   const locked=projectSettingsLocked(p)||p.solver.mode==='steady',pace=p.solver.executionMode||'realtime';
   return `<label class="field"><span>计算节奏</span><select data-live-mode ${locked?'disabled':''}>${option('realtime','按真实时间运行',pace)}${option('fast','快速计算',pace)}</select></label><label class="field"><span>速度倍率</span><input data-live-speed type="number" min="0.1" max="100" step="any" value="${p.solver.speedRatio ?? 1}" ${locked||pace==='fast'?'disabled':''}><small class="muted">仅按真实时间运行时使用。</small></label>`;
 }
+const pidPendingFields=new WeakMap();
+const pidMode=value=>({auto:'自动',manual:'手动'}[value]||'未记录');
+function pidView(p,c){const row=panelRow(p.run);return controls.controllerView(p,c,row?.canonical,row||{});}
+function pidFieldNote(view,key){
+  if(!view.live)return view.active?'正在创建或结束运行，暂不可编辑。':'';
+  const item=view.fields[key],initial=key==='mode'?pidMode(item.initial):item.initial===null?'未设定':number(item.initial,3);
+  const source=item.owner?`由脚本 ${item.owner} 接管`:!view.ownershipKnown?'运行控制归属未记录':item.awaitingSample?'已接受，等待下一帧采样':item.known?'当前运行采样':'当前运行未记录此值';
+  return `${source} · 初始配置 ${initial}`;
+}
+function pidFieldMarkup(c,key,label,view){
+  const runtime=controls.controllerRuntimeFields.includes(key),item=runtime?view.fields[key]:null;
+  const value=runtime?item.value:view.bound[key],disabled=runtime?!item.editable:view.active;
+  const attrs=`data-pid-id="${esc(c.id)}" data-pid-field="${key}" ${disabled?'disabled':''}`;
+  const input=key==='mode'?`<select ${attrs}><option value="" disabled ${item.known?'hidden':'selected'}>未记录</option>${option('auto','自动',value)}${option('manual','手动',value)}</select>`
+    :`<input type="number" step="any" ${attrs} value="${value??''}" ${key==='sample_s'?'min="0" max="60"':key==='manual_output'?`min="${view.bound.minimum??0}" max="${view.bound.maximum??1}"`:''} placeholder="${runtime&&!item.known?'未记录':key==='manual_output'?'未设定，保持当前输出':''}">`;
+  return `<label class="field"><span>${label}</span>${input}${runtime?`<small class="muted" data-pid-field-note="${key}">${esc(pidFieldNote(view,key))}</small>`:''}</label>`;
+}
 function pidPanel(p) {
-  const {measurements,targets}=pidOptions(p), active=!!p.run.live;
-  const fields=[['setpoint','设定值'],['kp','比例 Kp'],['ki','积分 Ki（每秒）'],['kd','微分 Kd（秒）'],['sample_s','采样周期（秒）'],['minimum','输出下限'],['maximum','输出上限'],['manual_output','手动输出']];
-  return `<section class="panel" style="margin-bottom:20px"><div class="panel-head"><h2>PID 反馈控制</h2>${btn('pid-example','液位示例','Droplets','data-kind="level"','small')}${btn('pid-example','温控示例','Thermometer','data-kind="temperature"','small')}${btn('add-pid','添加控制器','Plus',active?'disabled':'','small')}</div><div class="panel-body stack"><p class="muted">选择反馈变量和执行参数。数值使用选项标注的单位；运行中可调整设定值及手自动模式。</p><div class="fields">${executionSettings(p)}</div>${(p.controllers || []).map(c=>`<section class="panel" data-pid-card="${esc(c.id)}"><div class="panel-head"><strong>${esc(c.id)}</strong>${btn('remove-pid','移除','Trash2',`data-id="${esc(c.id)}" ${active?'disabled':''}`,'small')}</div><div class="panel-body fields"><label class="field"><span>反馈变量</span><select data-pid-id="${esc(c.id)}" data-pid-field="measurement" ${active?'disabled':''}>${measurements.map(([v,l])=>option(v,l,c.measurement)).join('')}</select></label><label class="field"><span>执行参数</span><select data-pid-id="${esc(c.id)}" data-pid-field="target" ${active?'disabled':''}>${targets.map(([v,l])=>option(v,l,c.instance_id+'.'+c.parameter_id)).join('')}</select></label><label class="field"><span>模式</span><select data-pid-id="${esc(c.id)}" data-pid-field="mode">${option('auto','自动',c.mode)}${option('manual','手动',c.mode)}</select></label>${fields.map(([key,label])=>`<label class="field"><span>${label}</span><input type="number" step="any" data-pid-id="${esc(c.id)}" data-pid-field="${key}" value="${c[key] ?? ''}" ${active && !['setpoint','manual_output'].includes(key)?'disabled':''}></label>`).join('')}</div><div class="panel-body" data-pid-readout="${esc(c.id)}">${pidReadout(p,c)}</div></section>`).join('') || '<p>尚未配置控制器；可先运行模型，再选择反馈变量。</p>'}</div></section>`;
+  const {measurements,targets}=pidOptions(p),active=projectSettingsLocked(p);
+  const fields=[['mode','模式'],['setpoint','设定值'],['kp','比例 Kp'],['ki','积分 Ki（每秒）'],['kd','微分 Kd（秒）'],['sample_s','采样周期（秒）'],['minimum','输出下限'],['maximum','输出上限'],['manual_output','手动输出']];
+  return `<section class="panel" style="margin-bottom:20px"><div class="panel-head"><h2>PID 反馈控制</h2>${btn('pid-example','液位示例','Droplets',`data-kind="level" ${active?'disabled':''}`,'small')}${btn('pid-example','温控示例','Thermometer',`data-kind="temperature" ${active?'disabled':''}`,'small')}${btn('add-pid','添加控制器','Plus',active?'disabled':'','small')}</div><div class="panel-body stack"><p class="muted">数值使用所选变量标注的单位。运行中显示当前采样；脚本接管的字段由脚本调节，初始配置保留供下次运行使用。</p><div class="fields">${executionSettings(p)}</div>${(p.controllers||[]).map(c=>{
+    const view=pidView(p,c),bound=view.bound;
+    return `<section class="panel" data-pid-card="${esc(c.id)}"><div class="panel-head"><strong>${esc(c.id)}</strong>${btn('remove-pid','移除','Trash2',`data-id="${esc(c.id)}" ${active?'disabled':''}`,'small')}</div><div class="panel-body fields"><label class="field"><span>反馈变量</span><select data-pid-id="${esc(c.id)}" data-pid-field="measurement" ${active?'disabled':''}>${measurements.map(([v,l])=>option(v,l,bound.measurement)).join('')}</select></label><label class="field"><span>执行参数</span><select data-pid-id="${esc(c.id)}" data-pid-field="target" ${active?'disabled':''}>${targets.map(([v,l])=>option(v,l,bound.instance_id+'.'+bound.parameter_id)).join('')}</select></label>${fields.map(([key,label])=>pidFieldMarkup(c,key,label,view)).join('')}</div><div class="panel-body" data-pid-readout="${esc(c.id)}">${pidReadout(p,c)}</div></section>`;
+  }).join('')||'<p>尚未配置控制器；可先运行模型，再选择反馈变量。</p>'}</div></section>`;
 }
 function pidReadout(p,c) {
-  const row=panelRow(p.run)?.canonical || {};
-  return `测量 ${number(row['controller.'+c.id+'.measurement'],3)} · 输出 ${number(row['controller.'+c.id+'.output'],3)} · t = ${number(p.run.time,2)} s`;
+  const frame=panelRow(p.run),row=frame?.canonical||{},value=key=>Number.isFinite(row[`controller.${c.id}.${key}`])?number(row[`controller.${c.id}.${key}`],3):'未记录';
+  if(!frame)return '运行后查看控制采样。';
+  return `模式 ${pidMode(row[`controller.${c.id}.mode`])} · 设定 ${value('setpoint')} · 测量 ${value('measurement')} · 输出 ${value('output')} · t = ${number(frame.t,2)} s`;
+}
+function refreshPidControls(p=project()){
+  for(const c of p.controllers||[]){
+    const card=document.querySelector(`[data-pid-card="${c.id}"]`);if(!card)continue;
+    const view=pidView(p,c),pending=pidPendingFields.get(c);
+    for(const el of card.querySelectorAll('[data-pid-field]')){
+      const key=el.dataset.pidField,item=view.fields[key];
+      el.disabled=item?!item.editable:view.active;
+      if(item){
+        if(!pending?.has(key)&&el!==document.activeElement)el.value=item.value??'';
+        const unknown=el.querySelector('option[value=""]');if(unknown)unknown.hidden=item.known;
+        const note=card.querySelector(`[data-pid-field-note="${key}"]`);if(note)note.textContent=pidFieldNote(view,key);
+      }
+    }
+    card.querySelector('[data-pid-readout]').textContent=pidReadout(p,c);
+  }
 }
 document.addEventListener('click',event=>{
   const button=event.target.closest('[data-action="add-pid"],[data-action="remove-pid"]');
   if(!button) return;
-  const p=project(); if(p.run.live) return;
+  const p=project(); if(projectSettingsLocked(p)){msg('请先停止运行，再修改控制器结构。',true);return;}
   p.controllers ||= [];
   if(button.dataset.action==='remove-pid') p.controllers=p.controllers.filter(c=>c.id!==button.dataset.id);
   else {
@@ -840,16 +894,38 @@ document.addEventListener('change',async event=>{
   if(!el.dataset.pidField) return;
   const c=p.controllers.find(c=>c.id===el.dataset.pidId),key=el.dataset.pidField;
   if(!c) return;
+  const raw=el.value;let pending;
   try {
-    const value=['mode','measurement','target'].includes(key)?el.value:Number(el.value);
-    if(p.run.live) await engine.applyController(p,c.id,key,value);
-    if(key==='target') {
-      [c.instance_id,c.parameter_id]=value.split('.');
-      const spec=pidOptions(p).targets.find(t=>t[0]===value)[2];
-      c.minimum=spec.minimum ?? -10000;c.maximum=spec.maximum ?? 10000;c.manual_output=spec.default;
-    } else c[key]=value;
-    markDirty(p);render();
-  } catch(error) {msg(error.message,true);render();}
+    const view=pidView(p,c),item=view.fields[key];
+    if(view.active&&(!view.live||!item))throw Error('请先停止运行，再修改控制器结构与系数。');
+    if(view.live&&!item.editable)throw Error(item.owner?`该字段由脚本 ${item.owner} 接管。`:'当前控制值或控制归属未记录，请等待采样或停止后修改。');
+    if(['measurement','target'].includes(key)){
+      const options=pidOptions(p),selected=(key==='target'?options.targets:options.measurements).find(value=>value[0]===raw);
+      if(!selected)throw Error('请选择有效的反馈变量或执行参数。');
+      if(key==='target'){
+        const [instance_id,parameter_id]=raw.split('.'),spec=selected[2];
+        Object.assign(c,{instance_id,parameter_id,minimum:spec.minimum??-10000,maximum:spec.maximum??10000,manual_output:spec.default});
+      }else c.measurement=raw;
+      markDirty(p);render();return;
+    }
+    const base=view.live?{...view.bound,...Object.fromEntries(Object.entries(view.fields).filter(([,field])=>field.known).map(([name,field])=>[name,field.value]))}:c;
+    const value=controls.controllerValue(base,key,raw);
+    if(view.live){
+      let fields=pidPendingFields.get(c);if(!fields){fields=new Map();pidPendingFields.set(c,fields);}
+      const queued=fields.get(key);
+      if(queued?.last===value||!queued&&item.value===value)return;
+      pending=queued||{count:0,last:value};pending.count++;pending.last=value;fields.set(key,pending);
+      await engine.applyController(p,c.id,key,value);
+    }else {c[key]=value;markDirty(p);}
+  } catch(error) {
+    if(project()===p&&p.controllers.includes(c)){
+      if(el.isConnected&&el.value===raw){const view=pidView(p,c),value=view.fields[key]?view.fields[key].value:key==='target'?`${c.instance_id}.${c.parameter_id}`:c[key];el.value=value??'';el.setAttribute('aria-invalid','true');}
+      msg(error.message,true);
+    }
+  } finally {
+    if(pending&&!--pending.count)pidPendingFields.get(c)?.delete(key);
+    if(project()===p&&p.controllers.includes(c))refreshPidControls(p);
+  }
 });
 function controlLiveValues(p=project()){
   const values=panelRow(p.run)?.canonical||{}, keys=new Set((p.controlOutputs||'').split(/[\s,，]+/));
@@ -952,7 +1028,12 @@ function ensureInstanceVariables(n, m = moduleOf(n), owner = ownerOfInstance(n))
 function instanceVariableValue(n, v, owner = ownerOfInstance(n)) {
   if (v.origin === 'parameter') return n.params[v.param];
   if (v.origin === 'custom') return ensureInstanceVariables(n).values[v.id];
-  if (v.origin === 'runtime') return panelRow(owner.run)?.variableValues?.[n.id + ':' + v.id] ?? null;
+  if (v.origin === 'runtime') {
+    const row=panelRow(owner.run),sampleKey=n.id+':'+v.id;
+    if(row?.variableValues&&Object.hasOwn(row.variableValues,sampleKey))return row.variableValues[sampleKey]??null;
+    const binding=engine?.observation(n,v),raw=row?.canonical?.[binding?.canonicalKey];
+    return Number.isFinite(raw)?raw/(binding.canonicalScale??1)+(binding.canonicalOffset??0):null;
+  }
   if (v.id === 'system:step') return owner.solver.dt * 1000;
   if (v.id === 'system:run') return owner.run.status === 'running' ? 1 : 0;
   if (v.id === 'system:form') return [125, 0, 0, 0, 0, 0, 0, 0];
@@ -1597,8 +1678,12 @@ function variableObservation(n, v, owner = ownerOfInstance(n)) {
     name: v.label, device: n.name, unit: v.unit, value: instanceVariableValue(n, v, owner), writable: instanceWritable(v),
     origin: v.origin, sampleKey: n.id + ':' + v.id, legacyFactor: factor };
 }
+function observationVariables(n){
+  const m=moduleOf(n),definition=m.manifest||engine?.catalog?.modules.find(item=>item.id===m.kind);
+  return FluidNetDeviceGuide.observationVariables(m,definition);
+}
 function projectVariables(owner = project()) {
-  return [...owner.pages.flatMap(pg => pg.nodes).flatMap(n => moduleOf(n).variables.map(v => variableObservation(n, v, owner)).filter(Boolean)),
+  return [...owner.pages.flatMap(pg => pg.nodes).flatMap(n => observationVariables(n).map(v => variableObservation(n, v, owner)).filter(Boolean)),
     ...(owner.measurements||[]).map(m=>({id:'measurement.'+m.id,identifier:'measurement.'+m.id,nodeId:'measurement',variableId:m.id,sampleKey:'measurement.'+m.id,name:m.label,device:'测点',origin:'measurement',writable:false,unit:m.unit.display_unit,value:panelRow(owner.run)?.canonical?.['measurement.'+m.id]}))];
 }
 function sampleVariableValues(owner, legacyValues) {
@@ -1607,7 +1692,7 @@ function sampleVariableValues(owner, legacyValues) {
       ? Number.isFinite(legacyValues[v.legacyId]) ? legacyValues[v.legacyId] * v.legacyFactor : null : clone(v.value)]));
 }
 function observeInstanceVariable(id, variableId) {
-  const n = instance(id), v = n && moduleOf(n).variables.find(v => v.id === variableId), binding = v && variableObservation(n, v);
+  const n = instance(id), v = n && observationVariables(n).find(v => v.id === variableId), binding = v && variableObservation(n, v);
   if (!binding) throw Error('此变量暂不提供曲线采样；数组和未采样端口可在表格中查看。');
   const f = ui.floats.find(f => f.id === id);
   if (f) {
@@ -2188,7 +2273,7 @@ function refreshLive(paintCanvas=true,readoutsOnly=false) {
   airSide.refresh();
   const controlLive=document.getElementById('control-live');if(controlLive)controlLive.textContent=controlLiveValues();
   for(const m of project().measurements||[]){const el=document.querySelector(`[data-meter-value="${m.id}"]`);if(el)el.innerHTML=meterValue(project(),m);}
-  for(const c of project().controllers||[]){const el=document.querySelector(`[data-pid-readout="${c.id}"]`);if(el)el.textContent=pidReadout(project(),c);}
+  refreshPidControls();
   if (!readoutsOnly && ui.route === 'curves') {
     const run = currentChartRun();
     const items = [['main-chart', ['q', 'a', 'b'], 'main-flow-chart'], ['pressure-chart', ['pressure'], 'pressure-line'], ['temperature-chart', ['temperature'], 'temperature-line']];
@@ -2217,9 +2302,11 @@ function runChartSnapshot(owner) {
 function recordRun(scope) {
   const owner = scope === 'bench' ? state.bench : project(), run = owner.run;
   if (run.history.length < 1) throw Error('先运行或单步，生成数据后再保存记录。');
+  if(scope!=='bench'&&run.source==='engine'&&run.parameterKey!==projectParameterKey(owner))
+    throw Error('当前结果与项目参数不一致，请重新运行或单步后记录；已有结果仍可查看或导出。');
   const name = scope === 'bench' ? mod(owner.moduleId).name + ' · 独立测试' : owner.name + ' · ' + clockLabel(run.time);
   const id = uid('RECORD');
-  state.records.unshift({ id, name, projectId: scope === 'bench' ? null : owner.id, projectName: scope === 'bench' ? mod(owner.moduleId).name + ' · 单机测试' : owner.name, moduleId: scope === 'bench' ? owner.moduleId : null, scope, status: run.status, mode: scope === 'bench' ? '单机测试' : owner.solver.mode === 'steady' ? '稳态' : '动态', time: run.time, history: clone(run.history), events: clone(run.events), params: clone(scope === 'bench' ? owner.params : Object.fromEntries(owner.pages.flatMap(pg => pg.nodes).map(n => [n.id, n.params]))), boundary: scope === 'bench' ? clone(owner.boundary) : null, sample: run.source !== 'engine', source: run.source, chartBindings: scope === 'bench' ? [] : runChartSnapshot(owner) });
+  state.records.unshift({ id, name, projectId: scope === 'bench' ? null : owner.id, projectName: scope === 'bench' ? mod(owner.moduleId).name + ' · 单机测试' : owner.name, moduleId: scope === 'bench' ? owner.moduleId : null, scope, status: run.status, mode: scope === 'bench' ? '单机测试' : owner.solver.mode === 'steady' ? '稳态' : '动态', time: run.time, history: clone(run.history), events: clone(run.events), params: clone(scope === 'bench' ? owner.params : Object.fromEntries(owner.pages.flatMap(pg => pg.nodes).map(n => [n.id, n.params]))), boundary: scope === 'bench' ? clone(owner.boundary) : null, sample: run.source !== 'engine', source: run.source, sourceRunId:run.id, overviewBindings:clone(overviewSeries(run)), chartBindings: scope === 'bench' ? [] : runChartSnapshot(owner) });
   state.records = state.records.slice(0, 30); ui.selectedRecord = id; markDirty(); navigate('runs'); msg('运行快照已记录；保存原型后可重新打开。');
 }
 function showDiagnostics(issues = []) {
@@ -2314,16 +2401,18 @@ function legacyApiPreview(kind = ui.apiKind || 'read') {
 function addChartVariable(id, label, inline = false) {
   const meter=project().measurements?.find(m=>'measurement.'+m.id===id);
   if(meter){
+    engine.cancelArchiveRead?.();
     const key='measurement.'+meter.id;
     if(!state.charts.extra.some(c=>c.projectId===project().id&&c.canonicalKey===key))state.charts.extra.push({id:key,projectId:project().id,label:meter.label,unit:meter.unit.display_unit,canonicalKey:key,canonicalScale:meter.unit.display_scale,canonicalOffset:meter.unit.display_offset,identifier:key,sampleKey:key});
     state.charts.source='live';markDirty(project());navigate('curves');return;
   }
   const v = projectVariables().find(v => v.id === id); if (!v) throw Error('变量不属于当前项目或暂未提供采样。');
+  engine.cancelArchiveRead?.();
   let binding = state.charts.extra.find(x => x.projectId === project().id && (x.nodeId === v.nodeId && x.variableId === v.variableId || !x.variableId && v.origin !== 'custom' && x.id === v.legacyId));
   if (!binding) { binding = {}; state.charts.extra.push(binding); }
   const stableId = v.sampleKey;
   Object.assign(binding, { id: stableId, label: label || `${v.device} · ${v.name}`, unit: v.unit, projectId: project().id, nodeId: v.nodeId,
-    variableId: v.variableId, identifier: v.identifier, sampleKey: v.sampleKey, legacyId: v.legacyId, legacyFactor: v.legacyFactor, ...engine.observation(instance(v.nodeId),moduleOf(instance(v.nodeId)).variables.find(item=>item.id===v.variableId)) });
+    variableId: v.variableId, identifier: v.identifier, sampleKey: v.sampleKey, legacyId: v.legacyId, legacyFactor: v.legacyFactor, ...engine.observation(instance(v.nodeId),observationVariables(instance(v.nodeId)).find(item=>item.id===v.variableId)) });
   state.charts.source = 'live'; markDirty();
   if (inline) { ui.showChart = true; ui.workbenchChart = stableId; ui.pinnedChart = null; saveUI(); retainFocus(); msg('已加入同屏观察，运行或单步后更新当前值曲线。'); }
   else navigate('curves');
@@ -2532,7 +2621,11 @@ function handleAction(action, el) {
       if(workspaceStorage().isSaving())throw Error('请等待当前保存结束。');
       confirmChange('载入服务器工作区','当前草稿将先备份到浏览器；可先导出原型保留独立文件。',()=>engine.init(true));break;
     case 'refresh-archives': engine.refreshArchives();break;
-    case 'delete-archive': confirmChange('删除运行档案','将删除该运行的服务端快照和历史。',()=>engine.deleteArchive(id).then(()=>{state.records=state.records.filter(r=>r.id!==id);render();}).catch(error=>msg(error.message,true)));break;
+    case 'delete-archive': confirmChange('删除运行档案','将删除该运行的服务端快照和历史。',()=>engine.deleteArchive(id).then(()=>{
+      state.records=state.records.filter(r=>r.id!==id);
+      if(state.charts.source===id){state.charts.source='live';ui.pinnedChart=null;ui.chartCursor=null;}
+      markDirty();persistLocal();render();
+    }).catch(error=>msg(error.message,true)));break;
     case 'open-archive': engine.openArchive(id).catch(error=>msg(error.message,true));break;
     case 'resume-archive': resumeArchiveDialog(id).catch(error=>msg(error.message,true));break;
     case 'theme': ui.theme = ui.theme === 'dark' ? 'light' : 'dark'; saveUI(); render(); break;
@@ -2955,7 +3048,7 @@ function handleChange(el) {
   else if ('benchFluid' in d) { if (['running','solving'].includes(state.bench.run.status)) throw Error('停止测试后编辑工质。'); state.bench.boundary.fluid=value.trim(); markDirty(); }
   else if (d.benchBoundary) { if (state.bench.run.status === 'running') throw Error('暂停后编辑测试边界。'); state.bench.boundary[d.benchBoundary] = numeric(value, d.benchBoundary === 'temperature' ? -273 : .001, 100000); markDirty(); }
   else if ('benchStep' in d) { state.bench.run.step = numeric(value, .01, 10); markDirty(); }
-  else if ('chartSource' in d) { ui.pinnedChart = null; state.charts.source = value; markDirty(); }
+  else if ('chartSource' in d) { engine.cancelArchiveRead?.();ui.pinnedChart = null; state.charts.source = value; markDirty(); }
   else if ('chartCompare' in d) { state.charts.compare = el.checked; markDirty(); }
   else if ('chartRange' in d) { state.charts.range = value; markDirty(); if (value === 'all') engine.loadOverview(project()); }
   else if ('solverContinuous' in d) { project().solver.continuous = el.checked; markDirty(project()); }

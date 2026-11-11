@@ -671,11 +671,16 @@ export const createEngineClient = function (ui) {
       runState.assertCurrent(ui.state(),ticket);
       const controller=owner.controllers.find(c=>c.id===controllerId);
       if(!controller)throw Error('控制器已不存在，请重新选择。');
-      await confirmedCommand(owner,{action:'controller',controller_id:controllerId,parameter_id:field,value});
+      const receipt=await confirmedCommand(owner,{action:'controller',controller_id:controllerId,parameter_id:field,value});
       runState.assertCurrent(ui.state(),ticket);
       if(owner.controllers.find(c=>c.id===controllerId)!==controller)throw Error('控制器已被替换。');
       const currentKey=ui.parameterKey(owner);
       controller[field]=value;
+      // A paused session acknowledges the setting before publishing its next
+      // physical sample. Preserve that receipt without relabeling the old frame.
+      owner.run.controllerReceipts ||= {};
+      owner.run.controllerReceipts[controllerId] ||= {};
+      owner.run.controllerReceipts[controllerId][field]={value,parameterRevision:receipt.parameter_revision,time:receipt.time_s};
       runState.advanceParameterKey(owner.run,beforeKey,currentKey,ui.parameterKey(owner));
       ui.dirty(owner);ui.persist();
     });

@@ -35,7 +35,11 @@ export const FluidNetRunCommands = (() => {
             ||beforeMeta!==JSON.stringify([ticket.run.events,ticket.run.diagnostics,ticket.run.connectionError||'']))refresh();
         } catch(error) {
           if(!current(ticket)||ticket.run.runId!==id)return;
-          ticket.run.connectionError=error.message;message('运行连接中断，正在重连：'+error.message,true);
+          const changed=ticket.run.connectionError!==error.message;
+          ticket.run.connectionError=error.message;
+          if(changed&&state().activeProject===owner.id){
+            refresh();message('运行连接中断，正在重连：'+error.message,true);
+          }
         }
       })();
       polling.set(ticket.run,work);

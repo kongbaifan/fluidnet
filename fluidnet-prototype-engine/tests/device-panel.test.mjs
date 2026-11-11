@@ -71,10 +71,20 @@ test('a script enabled for the next run does not lock the current run parameter'
 test('a PID in manual mode still owns its output parameter until the run ends',()=>{
   const owner={run:{live:true,parameterKey:JSON.stringify({controllers:[
     {id:'flow',instance_id:'V1',parameter_id:'opening_ratio',mode:'manual'}],controls:[]})},controllers:[]};
-  const view=fixture(owner);
+  const view=fixture(owner,{t:1,canonical:{'controller.flow.mode':'manual'}});
   view.refresh();
   assert.equal(view.input.disabled,true);
   assert.match(view.note().textContent,/PID flow · 手动输出/);
+});
+
+test('PID ownership stays frozen while its displayed mode follows actual sampled control',()=>{
+  const owner={controllers:[],run:{live:true,parameterKey:JSON.stringify({controllers:[
+    {id:'flow',instance_id:'V1',parameter_id:'opening_ratio',mode:'auto'}],controls:[]})}};
+  const before=JSON.stringify(owner),view=fixture(owner,{t:1,canonical:{'controller.flow.mode':'manual'}});
+  view.refresh();assert.match(view.note().textContent,/手动输出/);assert.equal(view.input.disabled,true);
+  view.setFrame({t:2,canonical:{}});view.refresh();
+  assert.match(view.note().textContent,/模式未记录/);assert.equal(view.input.disabled,true);
+  assert.equal(JSON.stringify(owner),before);
 });
 
 test('sampled parameter values use the run frame and do not overwrite applied settings or drafts',()=>{

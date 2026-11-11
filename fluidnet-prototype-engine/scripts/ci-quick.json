@@ -68,7 +68,9 @@
       "workspace",
       "settings-runtime",
       "settings-fluid-project",
-      "settings-preferences"
+      "settings-preferences",
+      "parameter-controls",
+      "results-boundaries"
     ],
     "authoring": [
       "module-catalog"
@@ -77,11 +79,14 @@
       "hvac-plant"
     ],
     "refrigeration": [
-      "open-refrigeration-groups"
+      "open-refrigeration-groups",
+      "core-workflow:cold-room",
+      "core-workflow:six-room"
     ],
     "workflows": [
       "device-transactions",
-      "module-replay"
+      "module-replay",
+      "core-workflow:water"
     ],
     "equipment-hvac": [
       "equipment-assembly:standard-plant"

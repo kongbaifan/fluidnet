@@ -59,7 +59,7 @@ export const createSystemInspection = ({engine,project,openDialog,closeDialog=()
           openDialog('冻结运行差值',id+' → '+values.other,`<div data-system-comparison>${result.notes.map(n=>`<p>${esc(n)}</p>`).join('')}<div class="table-wrap"><table><thead><tr><th>变量</th><th>左侧</th><th>右侧</th><th>差值</th><th>单位</th></tr></thead><tbody>${result.differences.map(r=>`<tr><td>${esc(r.key)}</td><td>${esc(r.left??'未知')}</td><td>${esc(r.right??'未知')}</td><td>${esc(r.difference??r.reason)}</td><td>${esc(r.unit)}</td></tr>`).join('')}</tbody></table></div></div>`,null,'',true);
         }).catch(e=>{if(ticket===generation&&document.querySelector('[data-inspection-loading]'))openDialog('比较未完成','',`<p>${esc(e.message)}</p>`);});
       },'比较',true);
-    }catch(e){openDialog('比较未完成','',`<p>${esc(e.message)}</p>`);}
+    }catch(e){if(ticket===generation&&document.querySelector('[data-inspection-loading]'))openDialog('比较未完成','',`<p>${esc(e.message)}</p>`);}
   }
   return {check,run};
 };

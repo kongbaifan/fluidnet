@@ -36,6 +36,24 @@ test('late poll rejection neither marks a replacement disconnected nor emits its
   assert.equal(replacement.connectionError,undefined);assert.equal(f.messages.length,0);
 });
 
+test('first connection loss refreshes its active project once and recovery clears the warning',async()=>{
+  const f=fixture(),request=f.hooks.request;f.state.activeProject=f.owner.id;
+  f.hooks.request=async()=>{throw Error('connection lost');};
+  await f.api.pollLive(f.owner);await f.api.pollLive(f.owner);await f.api.pollLive(f.owner);
+  assert.equal(f.run.connectionError,'connection lost');assert.equal(f.counts().refreshes,1);
+  assert.equal(f.counts().renders,0);assert.equal(f.messages.length,1);
+  f.hooks.request=request;await f.api.pollLive(f.owner);
+  assert.equal(f.run.connectionError,'');assert.equal(f.counts().refreshes,2);
+});
+
+test('a background project connection loss cannot replace the visible project status or toast',async()=>{
+  const f=fixture();f.state.activeProject='another-project';
+  f.hooks.request=async()=>{throw Error('background connection lost');};
+  await f.api.pollLive(f.owner);
+  assert.equal(f.run.connectionError,'background connection lost');assert.equal(f.counts().refreshes,0);
+  assert.equal(f.counts().renders,0);assert.equal(f.messages.length,0);
+});
+
 test('confirmed command awaits an existing poll before handing applied receipt to its caller',async()=>{
   const f=fixture(),pollResponse=deferred(),eventRead=deferred(),request=f.hooks.request;
   f.hooks.request=path=>{

@@ -38,6 +38,21 @@ test('extra metrics require declared output and matching units and cannot invent
   definition.variables[0].source='derived';definition.variables[0].unit.canonical_unit='Pa';assert.equal(guide.results(m,definition).length,3);
 });
 
+test('overview output observations preserve units and frozen definitions without duplicate variables',()=>{
+  const m=device('pump'),definition={variables:[{id:'shaft_power_w',source:'derived',unit:{canonical_unit:'W'}}]},before=JSON.stringify(m);
+  const projected=guide.observationVariables(m,definition),shaft=projected.find(v=>v.canonicalId==='shaft_power_w');
+  assert.equal(shaft.id,'runtime:shaft_power_w');assert.equal(shaft.unit,'kW');assert.equal(shaft.unitSpec.display_scale,1000);
+  assert.equal(shaft.writable,false);assert.equal(JSON.stringify(m),before);
+  assert.equal(guide.observationVariables(m,{variables:[]}).length,m.variables.length);
+  assert.equal(guide.observationVariables({...m,runtime:'python'},definition).length,m.variables.length);
+  m.variables.push({...shaft,label:'保存的自定义名称'});
+  const again=guide.observationVariables(m,definition);
+  assert.equal(again.filter(v=>v.canonicalId==='shaft_power_w').length,1);
+  assert.equal(again.find(v=>v.canonicalId==='shaft_power_w').label,'保存的自定义名称');
+  const valve=guide.observationVariables(device('valve'),{variables:[{id:'pressure_drop_pa',source:'derived',unit:{canonical_unit:'Pa'}}]});
+  assert.equal(valve.find(v=>v.canonicalId==='pressure_drop_pa').unitSpec.display_scale,1000);
+});
+
 test('help retains user port labels and escapes labels rather than altering device definitions',()=>{
   const m=device('valve');m.ports[0].label='<自定义入口>';const before=plain(m);
   const html=guide.markup(m,s=>String(s).replaceAll('<','&lt;'),true);

@@ -66,6 +66,36 @@
       "group": "workspace"
     },
     {
+      "id": "core-workflow:water",
+      "file": "tests/browser-core-workflow.mjs",
+      "args": ["--case", "water"],
+      "group": "workflows"
+    },
+    {
+      "id": "core-workflow:cold-room",
+      "file": "tests/browser-core-workflow.mjs",
+      "args": ["--case", "cold-room"],
+      "group": "refrigeration"
+    },
+    {
+      "id": "core-workflow:six-room",
+      "file": "tests/browser-core-workflow.mjs",
+      "args": ["--case", "six-room"],
+      "group": "refrigeration"
+    },
+    {
+      "id": "parameter-controls",
+      "file": "tests/browser-parameter-controls.mjs",
+      "args": [],
+      "group": "workspace"
+    },
+    {
+      "id": "results-boundaries",
+      "file": "tests/browser-results-boundaries.mjs",
+      "args": [],
+      "group": "workspace"
+    },
+    {
       "id": "pid",
       "file": "tests/browser-pid.mjs",
       "args": [],
@@ -807,6 +837,13 @@
       "settings-runtime",
       "settings-fluid-project",
       "settings-preferences"
+    ],
+    "core-workflow": [
+      "core-workflow:water",
+      "core-workflow:cold-room",
+      "core-workflow:six-room",
+      "parameter-controls",
+      "results-boundaries"
     ]
   }
 }

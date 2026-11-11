@@ -109,12 +109,22 @@ export const FluidNetDeviceGuide = (() => {
       return [{variable:{...variable,label:item.label},group:item.group||'运行结果'}];
     });
   }
+  function observationVariables(m,definition){
+    const variables=[...(m.variables||[])],ids=new Set(variables.map(v=>v.id));
+    // Overview metrics are read-only projections of declared solver outputs.
+    // Keep them selectable without changing a project's frozen module snapshot.
+    for(const {variable} of results(m,definition)||[]){
+      if(ids.has(variable.id))continue;
+      ids.add(variable.id);variables.push({...variable,writable:false});
+    }
+    return variables;
+  }
   function markup(m,esc,open=false){
     const guide=get(m);if(!guide)return '';
     return `<details class="device-use-guide" data-device-guide="${esc(m.id)}" ${open?'open':''}><summary>怎么连接与调节</summary><p>${esc(guide.summary)}</p><dl>${(m.ports||[]).filter(p=>guide.ports[p.id]).map(p=>`<dt>${esc(p.label||p.id)} <span class="mono">${esc(p.id)}</span></dt><dd>${esc(guide.ports[p.id])}</dd>`).join('')}</dl><p>${esc(guide.adjust)}</p><p class="muted">${esc(guide.scope)}</p></details>`;
   }
   const hint=(m,id)=>get(m)?.hints[id]||'';
-  return {get,parameters,results,markup,hint};
+  return {get,parameters,results,observationVariables,markup,hint};
 })();
 
 export default FluidNetDeviceGuide;

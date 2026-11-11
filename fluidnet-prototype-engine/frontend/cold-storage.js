@@ -104,9 +104,9 @@ export const createColdStorageUI = function (ui) {
     const current=modularCurrent(p),metrics=(p.run.latestFull||p.run.history.at(-1))?.metrics;
     const power=current&&Number.isFinite(metrics?.electric_power_w)?(metrics.electric_power_w/1000).toFixed(1)+' kW':'—';
     return `<div class="row spread"><strong>各库温度 · 当前总功率 ${power}</strong>${btn('cs-room-targets','设置库温','Thermometer',p.run.live?'disabled':'','small')}</div>
-      <div class="table-wrap"><table aria-label="各库温控状态"><thead><tr><th>库房</th><th>目标 / °C</th><th>当前 / °C</th><th>状态</th></tr></thead><tbody>${groups.map(group=>{
+      <div class="table-wrap"><table aria-label="各库温控状态"><thead><tr><th>库房</th><th>${current?'当前目标':'初始目标'} / °C</th><th>当前 / °C</th><th>状态</th></tr></thead><tbody>${groups.map(group=>{
         const value=roomControls.observation(group,key=>raw(p,key),current);
-        return `<tr data-room-status="${esc(group.node.id)}"><td>${esc(group.node.name)}</td><td>${value.target===null?'不一致':(value.target-273.15).toFixed(1)}</td><td>${value.temperature===null?'—':(value.temperature-273.15).toFixed(2)}</td><td class="${value.warning?'warn':''}">${esc(value.status)}</td></tr>`;
+        return `<tr data-room-status="${esc(group.node.id)}"><td>${esc(group.node.name)}</td><td>${value.target===null?esc(value.targetLabel||'未记录'):(value.target-273.15).toFixed(1)}</td><td>${value.temperature===null?'—':(value.temperature-273.15).toFixed(2)}</td><td class="${value.warning?'warn':''}">${esc(value.status)}</td></tr>`;
       }).join('')}</tbody></table></div>`;
   }
   function roomTargets(p){

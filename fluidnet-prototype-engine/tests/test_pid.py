@@ -23,6 +23,15 @@ def run(pid, measurements, start=0):
     return [pid.sample(float(start + t), {'x': x}) for t, x in enumerate(measurements)]
 
 
+def test_manual_output_observation_is_distinct_from_actual_output_and_preserves_unset_state():
+    pid = PID(controller(), .5)
+    assert pid.variables()['controller.c.manual_output'] is None
+    pid.config = controller(manual_output=.8)
+    assert pid.variables()['controller.c.manual_output'] == .8
+    assert pid.variables()['controller.c.output'] == .5
+    assert pid.variables()['controller.c.mode'] == 'auto'
+
+
 def test_integral_stops_exactly_at_saturation_and_unwinds_at_once():
     pid = PID(controller(kp=.1, ki=.3, setpoint=.6), 0.)
     outputs = run(pid, [0.] * 12)
@@ -105,6 +114,10 @@ def test_controlled_parameter_rejects_manual_writes_until_manual_mode():
         session.update_controller('level', 'manual_output', .3)
         frame = session.advance()
         assert frame.variables['controller.level.output'] == .3
+        assert frame.variables['controller.level.manual_output'] == .3
+        assert frame.variables['controller.level.mode'] == 'manual'
+        assert session.network.project.controllers[0].mode == 'auto'
+        assert session.network.project.controllers[0].manual_output is None
         assert session.network.parameters['V1']['opening_ratio'] == .3
     finally:
         session.close()

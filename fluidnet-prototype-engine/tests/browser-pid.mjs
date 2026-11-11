@@ -11,7 +11,7 @@ import { launchEngine } from './browser-server.mjs';
 const store = mkdtempSync(join(tmpdir(), 'fluidnet-runcontrol-'));
 let server, port, base, serverLog = '', launched;
 async function startServer() {
-  launched = await launchEngine({ args: [], env: { FLUIDNET_MODULE_STORE: store } });
+  launched = await launchEngine({ args: ['--data-dir', join(store, 'data')], env: { FLUIDNET_MODULE_STORE: store } });
   ({ server, port, base } = launched);
   serverLog = launched.log();
 }
@@ -24,8 +24,8 @@ const errors = []; page.on('pageerror', e => errors.push(e.message));
 // `保存` is the app's own way of flushing it to localStorage.
 const projectState = async () => {
   await page.locator('[data-action="save"]').first().click();
-  return page.evaluate(() => {
-    const s = JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1') || '{}');
+  return page.evaluate(async () => {
+    const s = (await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1') || '{}');
     const p = (s.projects || []).find(project => project.id === s.activeProject);
     return p ? { status: p.run.status, runId: p.run.runId ?? null, rows: p.run.history.length, time: p.run.time,
       events: (p.run.events || []).map(event => event.text) } : null;
@@ -62,8 +62,8 @@ try {
   await card.locator('[data-pid-field="mode"]').selectOption('manual');
   await card.locator('[data-pid-field="manual_output"]').fill('1500');
   await card.locator('[data-pid-field="manual_output"]').blur();
-  await expect.poll(async()=>page.evaluate(()=>{
-    const state=JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1'));
+  await expect.poll(async()=>page.evaluate(async()=>{
+    const state=(await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1'));
     const p=state.projects.find(p=>p.id===state.activeProject);
     const current=p.controllers.find(c=>c.id==='temperature');
     const accepted=JSON.parse(p.run.parameterKey).controllers.find(c=>c.id==='temperature');

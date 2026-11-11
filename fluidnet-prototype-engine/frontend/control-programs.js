@@ -130,7 +130,54 @@ export const FluidNetControls = (() => {
     return normalize(owner).map(program => Object.fromEntries(FIELDS.filter(field => field !== 'content_hash')
       .map(field => [field, program[field]])));
   }
-  return {normalize, current, select, update, add, remove, replaceScripts, selectedScript, key, names, MAX_PROGRAMS};
+  const controllerRuntimeFields=['setpoint','mode','manual_output'];
+  function controllerValue(controller,field,raw){
+    let value;
+    if(field==='mode'){
+      if(!['auto','manual'].includes(raw))throw Error('请选择自动或手动模式。');
+      value=raw;
+    }else{
+      if(!['setpoint','kp','ki','kd','sample_s','minimum','maximum','manual_output'].includes(field))
+        throw Error('控制器字段不可编辑。');
+      if(raw===null||raw===undefined||typeof raw==='boolean'||String(raw).trim()===''||!Number.isFinite(Number(raw)))
+        throw Error('请输入有效数值。');
+      value=Number(raw);
+    }
+    const candidate={minimum:0,maximum:1,sample_s:.1,...controller,[field]:value};
+    if(!Number.isFinite(candidate.sample_s)||candidate.sample_s<=0||candidate.sample_s>60)
+      throw Error('PID 采样周期必须大于 0 且不超过 60 秒。');
+    if(!Number.isFinite(candidate.minimum)||!Number.isFinite(candidate.maximum)||candidate.minimum>=candidate.maximum)
+      throw Error('PID 输出下限必须小于上限。');
+    if(candidate.manual_output!=null&&(!Number.isFinite(candidate.manual_output)
+      ||candidate.manual_output<candidate.minimum||candidate.manual_output>candidate.maximum))
+      throw Error('PID 手动输出超出范围。');
+    return value;
+  }
+  function controllerView(owner,controller,variables,sample={}){
+    const live=!!owner.run?.live,active=live||['running','solving','paused'].includes(owner.run?.status);
+    let snapshot;
+    if(live){try{snapshot=JSON.parse(owner.run.parameterKey);}catch{/* Missing frozen ownership remains unknown. */}}
+    const scripts=live?snapshot?.controls:(owner.controlPrograms||owner.controlScripts||[]);
+    const ownershipKnown=!live||Array.isArray(scripts),fields={};
+    const bound=live?snapshot?.controllers?.find(item=>item.id===controller.id)||controller:controller;
+    for(const field of controllerRuntimeFields){
+      const initial=field==='mode'?(controller.mode||'auto'):(controller[field]??null);
+      const receipt=live?owner.run.controllerReceipts?.[controller.id]?.[field]:null;
+      const awaitingSample=!!receipt&&(Number.isInteger(receipt.parameterRevision)
+        ?!Number.isInteger(sample.parameterRevision)||sample.parameterRevision<receipt.parameterRevision
+        :!Number.isFinite(sample.t)||!Number.isFinite(receipt.time)||sample.t<=receipt.time);
+      const value=live?(awaitingSample?receipt.value:variables?.[`controller.${controller.id}.${field}`]):initial;
+      const known=field==='mode'?['auto','manual'].includes(value)
+        :Number.isFinite(value)||field==='manual_output'&&value===null;
+      const script=(scripts||[]).find(item=>item.enabled&&item.language!=='legacy'
+        &&item.outputs?.includes(`controller.${controller.id}.${field}`));
+      fields[field]={value:known?value:undefined,initial,known,awaitingSample,owner:script?.name||script?.id||'',
+        editable:!active||live&&known&&ownershipKnown&&!script};
+    }
+    return {live,active,ownershipKnown,bound,fields};
+  }
+  return {normalize, current, select, update, add, remove, replaceScripts, selectedScript, key, names, MAX_PROGRAMS,
+    controllerRuntimeFields,controllerValue,controllerView};
 })();
 
 export default FluidNetControls;
