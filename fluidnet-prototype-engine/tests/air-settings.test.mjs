@@ -14,6 +14,21 @@ function fixture(options={contract_version:1,max_iterations:123,relaxation:.65})
  return {feature,project,get:()=>dialog,effects:()=>({dirty,persisted})};
 }
 const valid={enabled:'on',pressure:'101.325',duration:'1',dt:'.1',mode:'dynamic',maxIterations:'400'};
+
+test('moist settings reject active and starting runs before opening the editor',async()=>{
+ for(const run of [{live:false,status:'solving'},{live:false,status:'paused'},{live:true,status:'running'}]){
+  const f=fixture();Object.assign(f.project.run,run);const before=JSON.stringify(f.project);
+  await assert.rejects(f.feature.action('air-config'),/停止运行/);
+  assert.equal(f.get(),undefined);assert.equal(JSON.stringify(f.project),before);
+ }
+});
+
+test('a run starting after the moist settings editor opens prevents applying physical changes',async()=>{
+ const f=fixture();await f.feature.action('air-config');f.project.run.status='solving';
+ const before=JSON.stringify(f.project);
+ assert.throws(()=>f.get().submit(valid),/停止运行/);
+ assert.equal(JSON.stringify(f.project),before);assert.deepEqual(f.effects(),{dirty:0,persisted:0});
+});
 test('moist settings expose the existing backend iteration limit and preserve other options',async()=>{
  const f=fixture();await f.feature.action('air-config');
  assert.match(f.get().html,/name="maxIterations"[^>]*value="123"[^>]*min="1" max="500"/);

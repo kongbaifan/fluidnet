@@ -7,17 +7,23 @@ export function fixture(status='running') {
   const run={id:'archive',runId:status==='running'?'archive':null,live:status==='running',status,history:[frame],events:[]};
   const owner={id:'p',run,pages:[{nodes:[node]}],solver:{continuous:false,duration:1,dt:.1}},state={projects:[owner],charts:{range:'window'}};
   const calls=[],messages=[],pending=new Map();let persists=0,renders=0,refreshes=0,prepared=0;
+  const statuses=new Map([['archive',status]]);
   const host=vm.createContext({window:{},AbortController,crypto:{randomUUID:()=> 'command-1'},setTimeout});
   for(const file of ['project-run-state.js','run-commands.js'])
     loadFrontend(new URL('../frontend/'+file,import.meta.url),host);
   const hooks={
-    request:async path=>{
-      if(path.endsWith('/command'))return {command_id:'command-1',command_status:'queued'};
+    request:async (path,body)=>{
+      if(path.endsWith('/command')){
+        const next={resume:'running',pause:'paused',step:'paused',stop:'cancelled'}[body?.action];
+        if(next)statuses.set(path.split('/')[2],next);
+        return {command_id:'command-1',command_status:body?.action==='stop'?'applied':'queued',status:next};
+      }
       if(path.endsWith('/events'))return {events:[{command_id:'command-1',command_status:'applied',time_s:61}]};
       if(path.includes('/history'))return {total_rows:2,rows:[{time_s:61,variables:{flow:2}}]};
       if(path.endsWith('/overview'))return {rows:[{time_s:61,variables:{flow:2}}],stride:1,total_rows:2};
-      if(path==='/runs?background=true')return {run_id:'started'};
-      return {id:path.split('/').at(-1),status:'running',events:[],frame:{valid:true,time_s:61,variables:{flow:2}}};
+      if(path==='/runs?background=true'){statuses.set('started',body?.start_paused?'paused':'running');return {run_id:'started'};}
+      const id=path.split('/').at(-1);
+      return {id,status:statuses.get(id)||'running',events:[],frame:{valid:true,time_s:61,variables:{flow:2}}};
     },
     normalize:async()=>({id:'canonical'}),delay:async()=>{},confirmArchiveCache:async()=>{},key:()=> 'stable',
   };

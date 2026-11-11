@@ -19,7 +19,7 @@ function fixture(){
   const calls=[],models=[];
   const view=host.window.FluidNetModuleEditorView.create({currentModule:()=>current,editorState:()=>ui,models:()=>models,
     parameterDefinitions:()=>[],contractText:value=>JSON.stringify(value.manifest),
-    chrome:{esc,icon:()=>'',btn:button,ibtn:button,badge:esc,option:(value,label)=>`<option value="${esc(value)}">${esc(label)}</option>`,number:String},
+    chrome:{esc,icon:()=>'',btn:button,ibtn:button,badge:esc,option:(value,label)=>`<option value="${esc(value)}">${esc(label)}</option>`,number:(value,digits=2)=>Number(value).toFixed(digits)},
     constants:{DOMAINS:{fluid:{label:'流体',color:'blue'}},PORT_PREFIX:{fluid:'F'},FLUIDS:[['water','水',125]],
       EDITOR_TABS:['drawing','attributes','values','models','code','channels'].map(id=>[id,id,'']),PARAM_TYPE_LABELS:{number:'数值'}},
     actions:{selectTab:value=>calls.push(['tab',value]),selectPort:value=>calls.push(['port',value]),editLabel:()=>calls.push(['label'])}});
@@ -59,6 +59,21 @@ test('bank differences report writable values only and leave current values unto
   f.m.values={a:1,b:2};f.m.banks=[{a:3,b:4},{a:1,b:4}];
   assert.deepEqual(Array.from(f.view.bankDiff(f.m),v=>v.id),['a']);
   f.ui.bank=1;assert.equal(f.view.bankDiff(f.m).length,0);assert.deepEqual(f.m.values,{a:1,b:2});
+});
+
+test('browser precision formats scalar and array values without changing module values or precision',()=>{
+  const f=fixture();f.ui.moduleTab='values';f.m.precision=4;f.m.values['param:opening']=.12345678;
+  const before=JSON.stringify(f.m);
+  f.ui.modulePrecision=2;
+  let html=f.view.renderEditor();
+  assert.match(html,/data-value-id="param:opening" data-bank="-1"[^>]*value="0\.12"/);
+  assert.match(html,/data-id="system:mix"[^>]*>1\.00, 0\.00/);
+  assert.match(html,/data-id="system:form"[^>]*>125, 0, 0/);
+  f.ui.modulePrecision=8;html=f.view.renderEditor();
+  assert.match(html,/data-value-id="param:opening" data-bank="-1"[^>]*value="0\.12345678"/);
+  f.ui.modulePrecision=null;html=f.view.renderEditor();
+  assert.match(html,/data-value-id="param:opening" data-bank="-1"[^>]*value="0\.1235"/);
+  assert.equal(JSON.stringify(f.m),before);
 });
 
 test('authoring actions delegate only known commands to supplied shell callbacks',()=>{

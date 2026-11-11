@@ -48,6 +48,24 @@
       "group": "workspace"
     },
     {
+      "id": "settings-runtime",
+      "file": "tests/browser-settings-runtime.mjs",
+      "args": [],
+      "group": "workspace"
+    },
+    {
+      "id": "settings-fluid-project",
+      "file": "tests/browser-settings-fluid-project.mjs",
+      "args": [],
+      "group": "workspace"
+    },
+    {
+      "id": "settings-preferences",
+      "file": "tests/browser-settings-preferences.mjs",
+      "args": [],
+      "group": "workspace"
+    },
+    {
       "id": "pid",
       "file": "tests/browser-pid.mjs",
       "args": [],
@@ -784,6 +802,11 @@
     ],
     "cold-device-guidance": [
       "cold-device-guidance"
+    ],
+    "settings": [
+      "settings-runtime",
+      "settings-fluid-project",
+      "settings-preferences"
     ]
   }
 }

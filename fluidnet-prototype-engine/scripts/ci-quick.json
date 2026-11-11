@@ -64,7 +64,10 @@
     ],
     "workspace": [
       "run-control",
-      "workspace"
+      "workspace",
+      "settings-runtime",
+      "settings-fluid-project",
+      "settings-preferences"
     ],
     "authoring": [
       "module-catalog"

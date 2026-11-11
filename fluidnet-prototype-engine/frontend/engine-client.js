@@ -366,7 +366,8 @@ export const createEngineClient = function (ui) {
     if (initializing) await initializing;
     if (scope !== 'bench' && health?.capabilities?.live_runs) {
       const owner = ui.state().projects.find(p => p.id === (projectId || ui.state().activeProject));
-      if (owner && (owner.solver.mode === 'dynamic' || owner.run.live || action === 'step')) return liveCommand(owner, action);
+      if (owner && (owner.solver.mode === 'dynamic' || owner.run.live || action === 'step'
+        || runCommands?.isCreating?.(owner))) return liveCommand(owner, action);
     }
     if (scope === 'bench') {
       const owner = ui.state().bench, module = ui.state().modules.find(m => m.id === owner.moduleId);

@@ -236,9 +236,12 @@ export const createAirSideUI = function (ui) {
     } finally {model.creating=false;ui.render();}
   }
   function configure() {
-    const p=project();if(p.solverOptions?.moist_air&&!p.solverOptions?.moist_air_options)throw Error('请先使用“升级旧项目”查看迁移预览。');if(p.run.live&&['running','paused','solving'].includes(p.run.status))throw Error('请先停止运行再修改物理配置');
+    const p=project();
+    const assertIdle=()=>{if(p.run.live||['running','paused','solving'].includes(p.run.status))throw Error('请先停止运行再修改物理配置');};
+    if(p.solverOptions?.moist_air&&!p.solverOptions?.moist_air_options)throw Error('请先使用“升级旧项目”查看迁移预览。');assertIdle();
     ui.openDialog('湿空气设置','含湿量是保存和计算的唯一湿度输入。湿空气采用 Air 气相、节点物性耦合。',
       `<label class="check-label"><input name="enabled" type="checkbox" ${p.solverOptions?.moist_air?'checked':''}>启用湿空气（Air 气相）</label>${field('pressure','状态图参考压力 / kPa',view(p).reference_pressure_pa/1000,'type="number" min="60" max="120" step="any"')}${field('duration','动态运行时长 / s',p.solver.duration,'type="number" min="1" max="86400"')}${field('dt','时间步长 / s',p.solver.dt,'type="number" min="0.01" max="60" step="any"')}${field('maxIterations','热湿最大迭代次数',p.solverOptions?.moist_air_options?.max_iterations??60,'type="number" min="1" max="500" step="1" required')}<label class="field"><span>运行模式</span><select name="mode">${!['steady','dynamic'].includes(p.solver.mode)?option(p.solver.mode,'未知模式：'+p.solver.mode,p.solver.mode):''}${option('steady','稳态',p.solver.mode)}${option('dynamic','动态',p.solver.mode)}</select></label>`,data=>{
+        assertIdle();
         if(![data.pressure,data.duration,data.dt].every(value=>String(value).trim()&&Number.isFinite(Number(value)))||Number(data.pressure)<60||Number(data.pressure)>120||Number(data.duration)<1||Number(data.duration)>86400||Number(data.dt)<.01||Number(data.dt)>60||!['steady','dynamic'].includes(data.mode))throw Error('请填写合法的压力、时长、步长和运行模式。');
         const maxIterations=Number(data.maxIterations);
         if(!String(data.maxIterations??'').trim()||!Number.isInteger(maxIterations)||maxIterations<1||maxIterations>500)throw Error('热湿最大迭代次数须为 1–500 的整数。');
