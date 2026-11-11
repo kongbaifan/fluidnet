@@ -24,11 +24,15 @@ export const FluidNetRunCommands = (() => {
           await confirmArchiveCache(owner,ticket.run,data,history.total_rows,['completed','failed','cancelled','interrupted'].includes(data.status));
           if(!current(ticket)||ticket.run.runId!==id)return;
           prepareRun(owner);
+          const beforeSample=runState.sampleKey(runState.completeRow(ticket.run));
+          const beforeMeta=JSON.stringify([ticket.run.events,ticket.run.diagnostics,ticket.run.connectionError||'']);
           const outcome=runState.mergeLive(ticket.run,data,history.rows.map(frame=>rowFromFrame(owner,frame)),{
             totalRows:history.total_rows,latest:data.frame?.valid?rowFromFrame(owner,data.frame):null,limit:liveRows});
           if(state().charts?.range==='all'&&now()-(overviews.get(id)?.at||0)>2000)loadOverview(owner);
           if(outcome.terminal)persist();
-          if(outcome.changed)render();else refresh();
+          if(outcome.changed)render();
+          else if(history.rows.length||beforeSample!==runState.sampleKey(runState.completeRow(ticket.run))
+            ||beforeMeta!==JSON.stringify([ticket.run.events,ticket.run.diagnostics,ticket.run.connectionError||'']))refresh();
         } catch(error) {
           if(!current(ticket)||ticket.run.runId!==id)return;
           ticket.run.connectionError=error.message;message('运行连接中断，正在重连：'+error.message,true);

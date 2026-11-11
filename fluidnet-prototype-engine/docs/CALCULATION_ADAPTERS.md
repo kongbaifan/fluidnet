@@ -13,7 +13,7 @@ Python 与 HTTP 使用同一个 `AdapterRegistry`。首批适配器调用现有 
 | `POST /api/v1/adapters/execute` | 执行一次同步计算，返回结果或结构化错误 |
 | `default_registry().execute(request)` | Python 进程内调用，采用同一份请求和结果合同 |
 
-以下 14 项能力的初始版本均为 `1`。括号内为省略单位声明时使用的规范单位；完整必填项、默认值和范围以发现接口为准。
+以下 16 项能力的初始版本均为 `1`。括号内为省略单位声明时使用的规范单位；完整必填项、默认值和范围以发现接口为准。
 
 | `adapter_id` | 输入 | 输出 |
 | --- | --- | --- |
@@ -31,6 +31,8 @@ Python 与 HTTP 使用同一个 `AdapterRegistry`。首批适配器调用现有 
 | `modules.design` | 原生 `ModuleDesignRequest` 的字段 | 原生 `ModuleDesignResponse` 参数建议，不保存或应用 |
 | `hydronics.design` | 通用树形管段、末端热流、水温/温差、管径与泵阀目录 | 设计水量、管径、环路阻力、额外平衡需求和有来源的泵阀候选 |
 | `hydronics.design_cases` | 2～8 个具名工况，各含完整 `HydronicDesignInput`，共用同一管路几何与内径目录 | 逐段共用管径、各工况初选管径与决定工况、按共用管径复算的完整工况结果 |
+| `ventilation.requirements` | 区域列表：面积、层高、人数、人均新风量和机械换气次数 | 每区两种需求、采用量和决定条件，及逐区取大后的汇总 |
+| `airflow.duct_design` | 指定末端风量的树形风管、圆形/矩形内尺寸目录、空气状态及选管限值 | 流量汇总、尺寸、流速、分项总压损失、最不利路径、平衡需求及风机全压/功率估算 |
 
 管道压降不包含局部阻力或高差；压降和流量保留方向符号。Kv 单相计算要求开度大于零。`network.validate` 成功完成检查但发现工程问题时返回 HTTP 200 和 `outputs.valid=false`，调用方必须读取该字段。
 
@@ -76,6 +78,50 @@ print(result.outputs["shared_pipes"])
 此示例未提供泵阀目录，只进行管路校核。所有嵌套字段仍按字段名所示单位传入，多工况模型不接受嵌套路径单位转换。
 
 湿空气模式分别为 `ptw`（`temperature` + `humidity_ratio`）、`ptrh`（`temperature` + `relative_humidity`）、`phw`（`enthalpy_dry_air` + `humidity_ratio`），每次只提供对应组合。干空气的露点未定义时为 `null`。
+
+### 新风与低压风管
+
+`ventilation.requirements` 接受 `zones`，每区包含 `id/name/area_m2/height_m/people/per_person_m3_h/air_changes_h`。逐区计算 `max(people × per_person_m3_h, area_m2 × height_m × air_changes_h)` 再汇总。两种需求不相加，也不先汇总后取大；调用方应将渗透量与机械新风区分。所有规范取值由调用方确定，适配器不内置用途分类或规范合规判定。Schema 为 `contracts/ventilation-*.schema.json`。
+
+`airflow.duct_design` 使用 `DuctDesignInput`/`DuctDesignOutput`，Schema 为 `contracts/duct-design-*.schema.json`。仅叶节点填写实际计算状态下的 `flow_m3_h`，内部节点汇总下游风量。几何为单路送风或排风树；管长为**单程**。`duct_sizes` 的圆形规格填写 `diameter_m`，矩形填写 `width_m/height_m`，另一形状字段应省略。矩形高度保持输入方向，不自动旋转。每段 `fixed_size_id` 可指定规格，也可省略自动选择。
+
+自动按真实截面积递增试选，同时检查流速、比摩阻、安装限高和最大宽高比（至多 4）。圆管使用实际内径，矩形使用真实面积计算速度、水力直径 `2ab/(a+b)` 计算沿程阻力。矩形层流采用截面 Poiseuille 修正，Re 2300～4000 与 SDK Haaland 模型线性过渡；湍流按水力直径近似。物性由指定温度和绝对压力下的干空气取得，不含结露或热湿过程。
+
+`equipment_pressure_drop_pa` 为设计流量处的设备及风口**全压损失**，应包含实际入口、出口损失；局部 K 采用该管段平均速度作为参考。系统阻力取最大根到末端路径，较短路径返回待实现的平衡阻力。`required_fan_total_pressure_pa` 加上 `pressure_margin_ratio`，不能直接用作机外静压；`estimated_input_power_kw` 按 `VΔp/η` 估算，η 为整体电到风效率。这里没有匹配风机曲线或求实际风网流量分配。
+
+`feasible=false` 表示有尺寸/速度/比摩阻超限，或所需压升超过输入绝对压力的 5%（不适用低压定密度假设）；此时功率估算为 `null`，压力只作诊断。零风量时所有管路及设备压降为零，不推荐风机。调用方可独立使用任一个适配器；不依赖建筑、楼层或暖通业务对象。
+
+```python
+from fn_engine.adapters import default_registry
+
+registry = default_registry()
+fresh = registry.execute({
+    "adapter_id": "ventilation.requirements",
+    "inputs": {"zones": [
+        {"id": "a", "name": "区域 A", "area_m2": 20.0, "height_m": 3.0,
+         "people": 10, "per_person_m3_h": 30.0, "air_changes_h": 1.0},
+        {"id": "b", "name": "区域 B", "area_m2": 40.0, "height_m": 3.0,
+         "people": 5, "per_person_m3_h": 30.0, "air_changes_h": 2.0}
+    ]},
+})
+ducts = registry.execute({
+    "adapter_id": "airflow.duct_design",
+    "inputs": {
+        "duct_sizes": [
+            {"id": "250x200", "name": "250 × 200", "shape": "rectangular", "width_m": 0.25, "height_m": 0.2},
+            {"id": "400x200", "name": "400 × 200", "shape": "rectangular", "width_m": 0.4, "height_m": 0.2}
+        ],
+        "segments": [
+            {"id": "main", "name": "总管", "shape": "rectangular", "equipment_pressure_drop_pa": 150.0},
+            *[{"id": z["id"], "name": z["name"], "parent_id": "main", "shape": "rectangular",
+               "flow_m3_h": z["design_flow_m3_h"], "equipment_pressure_drop_pa": 30.0}
+              for z in fresh.outputs["zones"]]
+        ],
+    },
+})
+print(fresh.outputs["total_flow_m3_h"])  # 540 m³/h
+print(ducts.outputs["required_fan_total_pressure_pa"])
+```
 
 ## 请求和结果
 
@@ -241,4 +287,4 @@ python examples/external_clients/calculation_adapters.py
 
 HTTP 模式读取 `FLUIDNET_URL`（默认 `http://127.0.0.1:8798`）和可选的 `FLUIDNET_TOKEN`。入口 JSON Schema 位于 `contracts/adapter-*.schema.json`，OpenAPI 位于 `contracts/openapi.json`，单项能力的模型通过发现接口提供。
 
-回归测试入口为 `tests/test_adapters.py`、`tests/test_adapter_api.py` 与 `tests/test_hydronic_design.py`，已加入快速 CI。覆盖独立物理算式、单位边界、注册与版本隔离、跨业务扩展、Python/HTTP 一致性、原生管网/模块设计、认证，以及多工况逐段选径与共享管径后的复算。模型与 OpenAPI 通过 `scripts/generate_contracts.py` 生成和检查。
+回归测试入口为 `tests/test_adapters.py`、`tests/test_adapter_api.py`、`tests/test_hydronic_design.py` 与 `tests/test_airduct_design.py`，已加入快速 CI。覆盖独立物理算式、单位边界、注册与版本隔离、跨业务扩展、Python/HTTP 一致性、原生管网/模块设计、认证，以及多工况水管复算、新风逐区取大、圆/矩形风管摩阻、路径守恒与尺寸超限。模型与 OpenAPI 通过 `scripts/generate_contracts.py` 生成和检查。

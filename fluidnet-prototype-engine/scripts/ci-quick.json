@@ -1,6 +1,7 @@
 {
   "version": 1,
   "backend_core": [
+    "tests/test_airduct_design.py",
     "tests/test_adapters.py",
     "tests/test_adapter_api.py",
     "tests/test_hydronic_design.py",

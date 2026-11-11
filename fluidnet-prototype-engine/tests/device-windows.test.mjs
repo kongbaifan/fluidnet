@@ -16,7 +16,7 @@ function fixture(){
   const api=host.window.FluidNetDeviceWindows.create({
     windows:{list:()=>state.floats,replace:v=>{state.floats=v;},front:()=>state.front,focus:id=>{state.front=id;return ++state.serial;},route:()=>state.route,select:id=>{state.selected=id;},project:()=>state.project},
     storage:{read:(project,id)=>state.positions[project+':'+id],write:(project,id,value)=>{state.positions[project+':'+id]=value;}},
-    elements:{root:()=>({querySelector:()=>workbench}),page:()=>({getBoundingClientRect:()=>rect}),layer:()=>layer,dock:()=>({getBoundingClientRect:()=>({left:1400,top:54,width:520,height:996})}),viewport:()=>({width:state.width,height:1080})},
+    elements:{root:()=>({querySelector:()=>workbench}),page:()=>({getBoundingClientRect:()=>rect}),floatingTop:()=>state.floatingTop||0,floatingRight:()=>state.floatingRight,layer:()=>layer,dock:()=>({getBoundingClientRect:()=>({left:1400,top:54,width:520,height:996})}),viewport:()=>({width:state.width,height:1080})},
     content:{node:id=>nodes[id],body:(f,n)=>`body:${n.id}:${f.tab}`,footer:(f,n)=>`footer:${n.id}`,extras:()=>'<aside>shared overlays</aside>'},
     chrome:{esc,icon:id=>`<i>${id}</i>`,ibtn:(action,label,icon,attrs)=>`<button data-action="${action}" ${attrs}>${label}</button>`},
     effects:{dirty:()=>state.dirty++,selection:()=>state.selection++,message:s=>state.messages.push(s),retainFocus:fn=>{state.retained++;fn();},rendered:()=>{state.rendered++;for(const f of state.floats)if(!elements.has(f.id))elements.set(f.id,{dataset:{floatId:f.id},style:{}});}}
@@ -57,6 +57,17 @@ test('late pointer work cannot write into a closed, replaced or different-projec
     const before=plain(f.state);assert.equal(f.api.movePointer(ticket,20,20),false);assert.equal(f.api.finishPointer(ticket),false);
     assert.deepEqual(plain(f.state),before);
   }
+});
+
+test('opening, dragging and maximizing leave the workbench run controls reachable',()=>{
+  const f=fixture();f.state.floatingTop=180;f.state.floatingRight=1830;f.state.positions['p1:V1']={x:1300,y:80,w:440,h:950};
+  const window=f.api.open('V1');assert.equal(window.y,180);assert.ok(window.y+window.h<=f.rect.bottom-8);
+  const drag=f.api.beginPointer(f.event('V1'));f.api.movePointer(drag,0,-1000);f.api.finishPointer(drag);
+  assert.equal(window.y,180);
+  f.act('float-max');assert.equal(window.y,180);assert.ok(window.y+window.h<=f.rect.bottom-8);
+  assert.ok(window.x+window.w<=1830);
+  const moveRight=f.api.beginPointer(f.event('V1'));f.api.movePointer(moveRight,5000,0);f.api.finishPointer(moveRight);assert.ok(window.x+window.w<=1830);
+  f.state.floatingTop=220;f.state.floatingRight=1750;f.api.render();assert.equal(window.y,220);assert.ok(window.y+window.h<=f.rect.bottom-8);assert.ok(window.x+window.w<=1750);
 });
 test('header controls and docked windows cannot accidentally start pointer moves',()=>{
   const f=fixture();f.api.open('V1');assert.equal(f.api.beginPointer(f.event('V1','window',true)),null);

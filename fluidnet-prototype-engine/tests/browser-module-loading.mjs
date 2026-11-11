@@ -16,11 +16,37 @@ try{
   expect(new Set(paths).size).toBe(paths.length);
   for(const response of scripts){expect(response.ok()).toBe(true);expect(response.headers()['content-type']).toMatch(/javascript/);}
   expect(errors).toEqual([]);
+  // A cached engine predating the optional live-readout hooks must still open.
+  const compatible=await browser.newPage(),compatibilityErrors=[];
+  compatible.on('pageerror',error=>compatibilityErrors.push(error.message));
+  await compatible.route('**/engine-client.js*',route=>{
+    const url=new URL(route.request().url());
+    if(url.searchParams.has('test-current-factory'))return route.continue();
+    return route.fulfill({status:200,contentType:'text/javascript',body:`
+      export * from './engine-client.js?test-current-factory=1';
+      import {createEngineClient as currentFactory} from './engine-client.js?test-current-factory=1';
+      export const createEngineClient = ui => {
+        const client=currentFactory(ui);
+        delete client.syncLiveReadouts; delete client.dispose;
+        return client;
+      };
+      export default createEngineClient;
+    `});
+  });
+  await compatible.goto(server.base+'/#workbench');
+  await expect(compatible.locator('#network')).toBeVisible();
+  await expect(compatible.locator('#page [role="alert"]')).toHaveCount(0);
+  await compatible.evaluate(()=>{
+    dispatchEvent(new PageTransitionEvent('pagehide',{persisted:true}));
+    dispatchEvent(new PageTransitionEvent('pageshow',{persisted:true}));
+  });
+  await expect(compatible.locator('#network')).toBeVisible();
+  expect(compatibilityErrors).toEqual([]);
   // A failed dependency must produce a visible failure, not an apparently ready shell.
   const failed=await browser.newPage();
   await failed.route('**/canvas-symbols.js',route=>route.fulfill({status:503,contentType:'text/plain',body:'controlled failure'}));
   await failed.goto(server.base+'/');
   await expect(failed.locator('#page [role="alert"]')).toContainText('工作台加载失败');
   await expect(failed.locator('#network')).toHaveCount(0);
-  console.log(JSON.stringify({nativeModules:paths.length,duplicateFetches:0,fluidNetGlobals:0,failureVisible:true,errors}));
+  console.log(JSON.stringify({nativeModules:paths.length,duplicateFetches:0,fluidNetGlobals:0,legacyEngineOpens:true,failureVisible:true,errors}));
 }finally{await browser.close();await server.close();}

@@ -1,0 +1,80 @@
+{
+  "$defs": {
+    "VentilationZone": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "area_m2": {
+          "exclusiveMinimum": 0,
+          "maximum": 10000000.0,
+          "title": "Area M2",
+          "type": "number"
+        },
+        "height_m": {
+          "exclusiveMinimum": 0,
+          "maximum": 100,
+          "title": "Height M",
+          "type": "number"
+        },
+        "people": {
+          "maximum": 1000000,
+          "minimum": 0,
+          "title": "People",
+          "type": "integer"
+        },
+        "per_person_m3_h": {
+          "default": 30,
+          "maximum": 1000,
+          "minimum": 0,
+          "title": "Per Person M3 H",
+          "type": "number"
+        },
+        "air_changes_h": {
+          "default": 0,
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Air Changes H",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "area_m2",
+        "height_m",
+        "people"
+      ],
+      "title": "VentilationZone",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "zones": {
+      "items": {
+        "$ref": "#/$defs/VentilationZone"
+      },
+      "maxItems": 1000,
+      "minItems": 1,
+      "title": "Zones",
+      "type": "array"
+    }
+  },
+  "required": [
+    "zones"
+  ],
+  "title": "VentilationInput",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

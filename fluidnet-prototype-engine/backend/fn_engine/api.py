@@ -33,7 +33,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse, Response
 from starlette.background import BackgroundTask
 from starlette.concurrency import run_in_threadpool
-from fastapi.staticfiles import StaticFiles
+from .frontend_assets import FrontendAssets
 
 from . import __version__
 from .model_types.run import RunResumeOptions
@@ -1179,7 +1179,8 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
         return status_payload(manager.snapshot(run_id)) | receipt
 
     @app.websocket('/api/v1/runs/{run_id}/stream')
-    async def run_stream(websocket: WebSocket, run_id: str, keys: str | None = None, interval_ms: int = 50):
+    async def run_stream(websocket: WebSocket, run_id: str, keys: str | None = None, interval_ms: int = 50,
+                         full_frame: bool = False):
         """Push the latest frame (selected `keys`) whenever a new one is published, then an `end` message.
 
         A slow client skips frames instead of queueing them; `sequence` shows the gaps.
@@ -1194,11 +1195,16 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
         wanted = split_keys(keys)
         interval = min(max(interval_ms, 10), 5000) / 1000
         await websocket.accept(subprotocol=subprotocol)
+        if full_frame and wanted:
+            await websocket.send_json({'type': 'error', 'code': 'FRAME_KEYS_UNSUPPORTED',
+                                       'message': '完整帧订阅不能同时筛选变量键'})
+            await websocket.close(code=4422)
+            return
         last = None
         try:
             while True:
                 try:
-                    data = manager.latest(run_id, wanted)
+                    data = manager.latest(run_id, wanted, include_frame=full_frame)
                 except KeyError:
                     await websocket.send_json({'type': 'error', 'code': 'RUN_NOT_FOUND', 'message': RUN_NOT_FOUND + '；只有后台运行可以订阅'})
                     await websocket.close(code=4404)
@@ -1211,7 +1217,10 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
                 terminal = data['status'] in TERMINAL
                 if data['known'] and data['sequence'] != last and not (terminal and data['status'] == 'failed'):
                     last = data['sequence']
-                    await websocket.send_json({'type': 'frame', **{k: data[k] for k in ('status', 'time_s', 'sequence', 'parameter_revision', 'values')}})
+                    if full_frame:
+                        await websocket.send_json({'type': 'frame', 'status': data['status'], 'frame': data['frame']})
+                    else:
+                        await websocket.send_json({'type': 'frame', **{k: data[k] for k in ('status', 'time_s', 'sequence', 'parameter_revision', 'values')}})
                 if terminal:
                     await websocket.send_json({'type': 'end', 'status': data['status']})
                     await websocket.close()
@@ -1223,5 +1232,5 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
     from .air_api import register_air_routes
     register_air_routes(app,get_run)
     if frontend_root:
-        app.mount('/',StaticFiles(directory=str(Path(frontend_root)),html=True),name='frontend')
+        app.mount('/',FrontendAssets(directory=frontend_root),name='frontend')
     return app

@@ -62,8 +62,23 @@ try{
   const after=await save();
   for(const id of ['pump','valve','pipe','exchanger'])expect(after.modules.find(m=>m.id===id)).toEqual(initial.modules.find(m=>m.id===id));
 
+  // A blank project must recover the equipment library after the guided example hid it.
+  await nav('home');await page.locator('[data-action="start-modeling"]').click();
+  await createProject('blank');
+  await expect(page.locator('.canvas-library')).toBeVisible();
+  await expect(page.locator('#workbench-guide')).toBeEmpty();
+  await page.locator('.canvas-tools [data-action="toggle-library"]').click();
+  await expect(page.locator('.canvas-library')).toBeHidden();
+  await page.locator('.workbench-empty [data-value="add"]').click();
+  await expect(page.locator('.canvas-library')).toBeVisible();
+  await expect(page.locator('[data-filter="canvasModuleSearch"]')).toBeFocused();
+  await captureFhd(page,output+'/blank-start.png');
   await createProject('water');
+  await expect(page.locator('.canvas-area > .runbar')).toBeVisible();
+  await expect(page.locator('#workbench-guide')).toBeEmpty();
   let region=await panel('P1');await expect(metric(region,'runtime:shaft_power_w')).toHaveText('—');
+  const runBounds=await page.locator('.canvas-area > .runbar').boundingBox(),panelBounds=await region.boundingBox();
+  expect(panelBounds.x+panelBounds.width).toBeLessThanOrEqual(runBounds.x);
   expect(await region.locator('input[type="number"][data-instance-param]').count()).toBe(1);
   await expect(region.locator('[data-instance-param="speed"]')).toBeVisible();await close(region);
   region=await panel('L1','parameters');
@@ -76,11 +91,24 @@ try{
   await region.locator('[data-instance-param="heatLoss"]').blur();await close(region);
   region=await panel('L1','parameters');await expect(region.locator('.device-other-parameters')).toHaveAttribute('open','');
   await expect(region.locator('[data-instance-param="heatLoss"]')).toHaveValue('10');await captureFhd(page,output+'/pipe-parameters.png');await close(region);
+  // Closing a parameter window must leave a direct route back to its unapplied draft.
+  await expect(page.locator('#workbench-guide')).toContainText('1 项修改尚未应用');
+  await page.locator('#workbench-guide [data-value="pending"]').click();
+  region=page.getByRole('region',{name:'L1 设备参数',exact:true});
+  await expect(region.locator('[data-instance-param="heatLoss"]')).toHaveValue('10');
+  await captureFhd(page,output+'/pending-reopened.png');await close(region);
   const baseline=await run();evidence.water=baseline.id;
   region=await panel('P1');
   await expect(region.locator('[data-device-result-source]')).toContainText('当前计算结果');
   expect(await value(metric(region,'runtime:shaft_power_w'))).toBeCloseTo(baseline.frame.variables['P1.shaft_power_w']/1000,3);
-  await region.locator('[data-instance-param="speed"]').fill('0.8');await region.locator('[data-action="apply-instance"]').click();await submit();
+  await region.locator('[data-instance-param="speed"]').fill('0.8');await region.locator('[data-instance-param="speed"]').blur();await close(region);
+  await page.locator('#workbench-guide [data-value="pending"]').click();
+  await expect(page.getByRole('dialog')).toContainText('查看待应用修改');
+  await page.locator('[data-action="workbench-pending-device"][data-id="P1"]').click();
+  region=page.getByRole('region',{name:'P1 设备参数',exact:true});
+  await expect(region.locator('[data-instance-param="speed"]')).toHaveValue('0.8');
+  await region.locator('[data-action="apply-instance"]').click();await submit();
+  await region.locator('[data-action="float-tab"][data-value="overview"]').click();
   await expect(region.locator('[data-device-result-source]')).toContainText('已过期');
   await expect(region.locator('[data-pending-for="P1"]')).toContainText('0 项待应用');
   await region.locator('[data-action="float-dock"]').click();
@@ -105,7 +133,19 @@ try{
   await page.reload();await expect(page.locator('#app-header')).toContainText('模块平台 · v');
   region=await panel('HX1');expect(await value(metric(region,'runtime:ch0.heat_w'))).toBeCloseTo(heat.frame.variables['HX1.ch0.heat_w']/1000,3);
   await region.locator('[data-action="float-tab"][data-value="connections"]').click();await expect(region).toContainText('与 out1 二次侧出口');
-  const finalCatalog=await api('/catalog');expect(finalCatalog).toEqual(catalog);expect(errors).toEqual([]);
+  const finalCatalog=await api('/catalog');expect(finalCatalog).toEqual(catalog);
+  // A real invalid topology must expose its failure, even if it never produced a frame.
+  await createProject('blank');
+  await page.locator('[data-action="place-module"][data-id="pump"]').click();
+  await page.locator('#network').click({position:{x:450,y:260}});
+  await expect(page.locator('.net-node')).toHaveCount(1);
+  await page.locator('.runbar [data-command="run"]').click();
+  await expect(page.locator('#workbench-guide')).toContainText('本次运行失败',{timeout:20000});
+  await page.locator('#workbench-guide [data-value="diagnostics"]').click();
+  await expect(page.getByRole('dialog')).not.toContainText('当前没有可显示的运行警告或错误');
+  await expect(page.getByRole('dialog')).toContainText(/压力|连接|边界|端口/);
+  await captureFhd(page,output+'/failed-run-reason.png');
+  expect(errors).toEqual([]);
   evidence.passed=true;evidence.heatW=[heat.frame.variables['HX1.ch0.heat_w'],heat.frame.variables['HX1.ch1.heat_w']];
   writeFileSync(output+'/evidence.json',JSON.stringify(evidence,null,2)+'\n');
   console.log('Device guidance passed: four builtin docs, unit/default consistency, common fields, retained drafts, actual pump/valve/pipe/heat results and reload.');

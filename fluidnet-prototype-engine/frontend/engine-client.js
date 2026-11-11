@@ -5,6 +5,7 @@ import {FluidNetProjectModel} from './project-model.js';
 import {FluidNetProjectRunState} from './project-run-state.js';
 import {FluidNetProjectState} from './project-state.js';
 import {FluidNetRunCommands} from './run-commands.js';
+import {FluidNetLiveReadouts} from './live-readouts.js';
 import {ModuleTestEditor} from './module-test-editor.js';
 import {createModuleService} from './module-service.js';
 import {createProjectServices} from './project-services.js';
@@ -550,6 +551,7 @@ export const createEngineClient = function (ui) {
     } finally { if (pending.get(owner.id) === controller) pending.delete(owner.id); }
   }
   function tick() {
+    syncLiveReadouts();
     for (const owner of ui.state().projects) if (owner.run.live && owner.run.runId) pollLive(owner);
     let changed=false, ended=false;
     for (const owner of ui.state().projects) {
@@ -638,7 +640,7 @@ export const createEngineClient = function (ui) {
         const pythonModule=ui.state().modules.find(m=>m.runtime==='python' && m.manifest);
         if (pythonModule) { ui.state().bench.moduleId=pythonModule.id; ui.state().bench.params=Object.fromEntries(ui.parameterDefinitions[pythonModule.kind].map(f=>[f[0],f[6]])); }
       }
-      ui.message(workspaceWarning || presentation?.warning || `计算服务 v${health.version} 已连接：稳态水力${health.capabilities?.tank_state ? '、水箱隐式积分' : ''}与准稳态时间序列可用。`,!!(workspaceWarning||presentation?.warning));
+      if(workspaceWarning || presentation?.warning)ui.message(workspaceWarning || presentation.warning,true);
       ui.render();
       await services.refreshArchives();
     } catch (error) { const local=/^本地草稿/.test(error.message||''); ui.message((local ? '' : '计算服务未连接，请通过启动脚本打开此页面。') + error.message,true); }
@@ -653,6 +655,15 @@ export const createEngineClient = function (ui) {
   const confirmedCommand=(owner,body)=>liveRuns().confirmedCommand(owner,body);
   const liveCommand=(owner,action)=>liveRuns().liveCommand(owner,action);
   const loadOverview=owner=>liveRuns().loadOverview(owner);
+  let readouts;
+  function syncLiveReadouts() {
+    readouts ||= FluidNetLiveReadouts.create({state:ui.state,runState,rowFromFrame,poll:pollLive,
+      token:()=>sessionStorage.getItem(TOKEN_KEY)||'',refresh:owner=>{
+        if(ui.state().activeProject===owner.id)(ui.refreshReadouts||ui.refresh)?.(owner);
+      }});
+    readouts.sync();
+  }
+  function dispose(){readouts?.dispose();readouts=null;}
   function applyController(owner,controllerId,field,value) {
     const ticket=runState.capture(ui.state(),owner);
     const job=(controllerWrites.get(owner) || Promise.resolve()).catch(()=>{}).then(async()=>{
@@ -735,7 +746,7 @@ export const createEngineClient = function (ui) {
       current.modules.push(...document.modules.filter(m=>!existing.has(m.id)));
       ui.dirty(owner);ui.persist();ui.showResumedProject(owner);ui.render();
     }});
-  return {...services,resumeArchive,cacheCircuits:(owner,items)=>{circuitsByProject.set(owner.id,items||[]);ui.render();},archiveCacheMetadata,overviewBindings,overviewValues,refrigerationReportAvailable,request,normalize,moduleFromManifest,whenReady:()=>initializing || Promise.resolve(),command,tick,validate,init,applyController,applyParameters,applyParameterBatch,isApplyingParameters:node=>parameterWrites.has(node),loadOverview,authHeaders,signOut:()=>{sessionStorage.removeItem(TOKEN_KEY);location.reload();},overview:id=>runCommands?.overview(id),circuits:id=>circuitsByProject.get(id)||[],confirmedCommand,portValue,observation,manifestPayload,contractText,checkModule,saveModule,runDesign,versions,loadVersion,newModule,newTemplate,newComposite,updateContractItem,parameterEditor,updateDisplayParameter,updateMetadata,bindModule,pinProject,moduleForInsert,insertionPlan,get catalog(){return catalog;},get health(){return health;}};
+  return {...services,resumeArchive,cacheCircuits:(owner,items)=>{circuitsByProject.set(owner.id,items||[]);ui.render();},archiveCacheMetadata,overviewBindings,overviewValues,refrigerationReportAvailable,request,normalize,moduleFromManifest,whenReady:()=>initializing || Promise.resolve(),command,tick,syncLiveReadouts,dispose,validate,init,applyController,applyParameters,applyParameterBatch,isApplyingParameters:node=>parameterWrites.has(node),loadOverview,authHeaders,signOut:()=>{dispose();sessionStorage.removeItem(TOKEN_KEY);location.reload();},overview:id=>runCommands?.overview(id),circuits:id=>circuitsByProject.get(id)||[],confirmedCommand,portValue,observation,manifestPayload,contractText,checkModule,saveModule,runDesign,versions,loadVersion,newModule,newTemplate,newComposite,updateContractItem,parameterEditor,updateDisplayParameter,updateMetadata,bindModule,pinProject,moduleForInsert,insertionPlan,get catalog(){return catalog;},get health(){return health;}};
 };
 
 export default createEngineClient;

@@ -29,7 +29,7 @@ def test_catalog_describes_schemas_versions_and_units(client):
     assert response.status_code == 200
     catalog = response.json()
     assert catalog['contract_version'] == 1
-    assert len(catalog['adapters']) == 14
+    assert len(catalog['adapters']) == 16
     description = client.get('/api/v1/adapters/hydraulics.pipe_pressure_drop').json()
     assert description['input_schema']['additionalProperties'] is False
     assert 'diameter' in description['input_schema']['required']

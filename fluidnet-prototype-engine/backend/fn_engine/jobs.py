@@ -135,8 +135,14 @@ class _ArchiveWriter:
                     return
                 # Let a few frames accumulate before committing, unless someone is waiting
                 # on a write-through (commands, terminal records, shutdown).
-                if not self.closed and not any(item['waiters'] for item in self.items.values()):
-                    self.condition.wait(timeout=ARCHIVE_COALESCE_S)
+                deadline = time.monotonic() + ARCHIVE_COALESCE_S
+                while not self.closed and not any(item['waiters'] for item in self.items.values()):
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        break
+                    # New rows wake the writer too; they join the same window instead
+                    # of ending it early. Commands and shutdown still flush at once.
+                    self.condition.wait(timeout=remaining)
                 # Write-through items (command receipts, terminal records) jump the queue
                 # so a stop/command never waits for a full coalescing batch of frames;
                 # per-run order is still preserved because one run owns one item.
@@ -276,7 +282,7 @@ class RunManager:
                     return deepcopy(receipt)
                 self.wake.wait(timeout=remaining)
 
-    def latest(self, run_id, keys=None):
+    def latest(self, run_id, keys=None, *, include_frame=False):
         """Latest published frame values (all, or `keys`) without copying the whole record."""
         with self.lock:
             job = self.jobs[run_id]
@@ -284,9 +290,12 @@ class RunManager:
             variables = frame.get('variables') or {}
             if keys is not None:
                 variables = {key: variables[key] for key in keys if key in variables}
-            return {'run_id': run_id, 'status': job.record['status'], 'time_s': frame.get('time_s'),
+            result = {'run_id': run_id, 'status': job.record['status'], 'time_s': frame.get('time_s'),
                     'sequence': frame.get('sequence'), 'parameter_revision': frame.get('parameter_revision'),
                     'values': dict(variables), 'known': set(frame.get('variables') or ())}
+            if include_frame:
+                result['frame'] = deepcopy(frame) if frame else None
+            return result
 
     def records(self):
         with self.lock:

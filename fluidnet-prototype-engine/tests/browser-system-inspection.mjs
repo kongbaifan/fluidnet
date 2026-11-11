@@ -7,8 +7,8 @@ try{
  await page.goto(server.base);await expect(page.locator('#app-header')).toContainText('模块平台 · v');
  await page.locator('[data-action="start-modeling"]').first().click();
  await page.locator('[data-action="validate"]').first().click();
- await expect(page.locator('[data-system-inspection]')).toContainText('当前项目预检 · 通过');
- await page.locator('[data-action="close-dialog"]').last().click();
+ await expect(page.locator('[data-system-inspection]')).toContainText('连接与参数检查通过');
+ await page.locator('[data-inspection-return]').click();
  const started=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/v1/runs'&&r.request().method()==='POST');
  await page.locator('[data-action="run-project"][data-command="step"]').first().click();const id=(await(await started).json()).run_id;
  await expect(page.locator('#statusbar')).toContainText('已暂停');

@@ -7,9 +7,13 @@ const browser = await chromium.launch({channel:'msedge',headless:true});
 const page = await browser.newPage({...FHD_CONTEXT});
 const errors=[];page.on('pageerror',e=>errors.push(e.message));
 const runButton=(command)=>page.locator(`[data-action="run-project"][data-command="${command}"]`).first();
+const readState=()=>page.evaluate(async()=>{
+  const {FluidNetDraftStore}=await import('/draft-store.js');
+  return FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1'));
+});
 async function step() {
   await page.locator('[data-action="save"]').first().click();
-  const old=await page.evaluate(()=>{const s=JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1'));return s.projects.find(p=>p.id===s.activeProject).run;});
+  const before=await readState(),old=before.projects.find(p=>p.id===before.activeProject).run;
   const response=page.waitForResponse(r=>r.request().method()==='POST' && (new URL(r.url()).pathname.endsWith('/runs') || new URL(r.url()).pathname.endsWith('/command')));
   await runButton('step').click();
   const accepted=await (await response).json(),runId=accepted.run_id || old.runId;
@@ -18,7 +22,7 @@ async function step() {
   await expect(page.locator('[data-result-status]').first()).toContainText('t = '+result.frame.time_s.toFixed(1)+' s');
   await expect(page.locator('[data-result-status]').first()).toContainText('结果已更新');
   await page.locator('[data-action="save"]').first().click();
-  const state=await page.evaluate(()=>JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
+  const state=await readState();
   const run=state.projects.find(p=>p.id===state.activeProject).run;
   expect(run.history.at(-1).canonical['V1.mass_flow_kg_s']).toBe(result.frame.variables['V1.mass_flow_kg_s']);
   expect(run.history.at(-1).variableValues['V1:out0:FLOW']).toBe(result.frame.variables['V1.mass_flow_kg_s']);
@@ -34,7 +38,7 @@ try {
   await expect(page.locator('#app-header')).toContainText(/v\d+\.\d+\.\d+/);
   await page.locator('[data-action="start-modeling"]').click();
   await page.locator('[data-action="save"]').first().click();
-  const state = await page.evaluate(()=>JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
+  const state = await readState();
   expect(state.records).toHaveLength(0);
   if (process.argv.includes('--refresh-fixture')) {
     mkdirSync('tests/fixtures',{recursive:true});
@@ -51,7 +55,8 @@ try {
   await opening.fill('40'); await opening.blur();
   await page.locator('[data-action="apply-instance"][data-id="V1"]').click();
   await page.getByRole('dialog').locator('button[type="submit"]').click();
-  await expect.poll(async()=>{await page.locator('[data-action="save"]').first().click();return page.evaluate(()=>{const s=JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1'));return s.projects.find(p=>p.id===s.activeProject).pages[0].nodes.find(n=>n.id==='V1').params.opening;});}).toBe(40);
+  await expect(page.getByRole('dialog')).toHaveCount(0,{timeout:30000});
+  await expect.poll(async()=>{await page.locator('[data-action="save"]').first().click();const s=await readState();return s.projects.find(p=>p.id===s.activeProject).pages[0].nodes.find(n=>n.id==='V1').params.opening;}).toBe(40);
   const second=await step();
   expect(second.result.frame.variables['V1.mass_flow_kg_s']).toBeLessThan(first.result.frame.variables['V1.mass_flow_kg_s']);
   expect(second.result.frame.variables['V2.mass_flow_kg_s']).toBeGreaterThan(first.result.frame.variables['V2.mass_flow_kg_s']);

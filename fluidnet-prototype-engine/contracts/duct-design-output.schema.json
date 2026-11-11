@@ -1,0 +1,266 @@
+{
+  "$defs": {
+    "DuctSegmentResult": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "parent_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Parent Id"
+        },
+        "flow_m3_h": {
+          "title": "Flow M3 H",
+          "type": "number"
+        },
+        "size": {
+          "$ref": "#/$defs/DuctSize"
+        },
+        "selection": {
+          "enum": [
+            "automatic",
+            "fixed"
+          ],
+          "title": "Selection",
+          "type": "string"
+        },
+        "area_m2": {
+          "title": "Area M2",
+          "type": "number"
+        },
+        "hydraulic_diameter_m": {
+          "title": "Hydraulic Diameter M",
+          "type": "number"
+        },
+        "velocity_m_s": {
+          "title": "Velocity M S",
+          "type": "number"
+        },
+        "reynolds": {
+          "title": "Reynolds",
+          "type": "number"
+        },
+        "specific_drop_pa_m": {
+          "title": "Specific Drop Pa M",
+          "type": "number"
+        },
+        "friction_pressure_drop_pa": {
+          "title": "Friction Pressure Drop Pa",
+          "type": "number"
+        },
+        "local_pressure_drop_pa": {
+          "title": "Local Pressure Drop Pa",
+          "type": "number"
+        },
+        "equipment_pressure_drop_pa": {
+          "title": "Equipment Pressure Drop Pa",
+          "type": "number"
+        },
+        "pressure_drop_pa": {
+          "title": "Pressure Drop Pa",
+          "type": "number"
+        },
+        "path_pressure_drop_pa": {
+          "title": "Path Pressure Drop Pa",
+          "type": "number"
+        },
+        "balancing_pressure_drop_pa": {
+          "default": 0,
+          "title": "Balancing Pressure Drop Pa",
+          "type": "number"
+        },
+        "status": {
+          "enum": [
+            "ok",
+            "limit_exceeded",
+            "no_flow"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "parent_id",
+        "flow_m3_h",
+        "size",
+        "selection",
+        "area_m2",
+        "hydraulic_diameter_m",
+        "velocity_m_s",
+        "reynolds",
+        "specific_drop_pa_m",
+        "friction_pressure_drop_pa",
+        "local_pressure_drop_pa",
+        "equipment_pressure_drop_pa",
+        "pressure_drop_pa",
+        "path_pressure_drop_pa",
+        "status"
+      ],
+      "title": "DuctSegmentResult",
+      "type": "object"
+    },
+    "DuctSize": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "shape": {
+          "enum": [
+            "round",
+            "rectangular"
+          ],
+          "title": "Shape",
+          "type": "string"
+        },
+        "diameter_m": {
+          "anyOf": [
+            {
+              "maximum": 4,
+              "minimum": 0.05,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Diameter M"
+        },
+        "width_m": {
+          "anyOf": [
+            {
+              "maximum": 4,
+              "minimum": 0.05,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Width M"
+        },
+        "height_m": {
+          "anyOf": [
+            {
+              "maximum": 4,
+              "minimum": 0.05,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Height M"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "shape"
+      ],
+      "title": "DuctSize",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "feasible": {
+      "title": "Feasible",
+      "type": "boolean"
+    },
+    "total_flow_m3_h": {
+      "title": "Total Flow M3 H",
+      "type": "number"
+    },
+    "density_kg_m3": {
+      "title": "Density Kg M3",
+      "type": "number"
+    },
+    "viscosity_pa_s": {
+      "title": "Viscosity Pa S",
+      "type": "number"
+    },
+    "system_pressure_drop_pa": {
+      "title": "System Pressure Drop Pa",
+      "type": "number"
+    },
+    "required_fan_total_pressure_pa": {
+      "title": "Required Fan Total Pressure Pa",
+      "type": "number"
+    },
+    "estimated_input_power_kw": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Estimated Input Power Kw"
+    },
+    "critical_path": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Critical Path",
+      "type": "array"
+    },
+    "segments": {
+      "items": {
+        "$ref": "#/$defs/DuctSegmentResult"
+      },
+      "title": "Segments",
+      "type": "array"
+    },
+    "warnings": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "feasible",
+    "total_flow_m3_h",
+    "density_kg_m3",
+    "viscosity_pa_s",
+    "system_pressure_drop_pa",
+    "required_fan_total_pressure_pa",
+    "estimated_input_power_kw",
+    "critical_path",
+    "segments",
+    "warnings"
+  ],
+  "title": "DuctDesignOutput",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

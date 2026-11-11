@@ -45,6 +45,11 @@ try {
   // so a stop can land while the timeline is genuinely still running.
   await page.locator('.rail-link[data-route="settings"]').click();
   await page.locator('[data-action="settings-tab"][data-value="solver"]').click();
+  await expect(page.locator('[data-live-mode]')).toHaveValue('realtime');
+  await expect(page.locator('[data-live-speed]')).toHaveValue('1');
+  await page.locator('[data-live-speed]').fill('2');
+  await page.locator('[data-live-speed]').blur();
+  await page.locator('[data-live-speed]').fill('1');
   await page.locator('input[data-solver-field="duration"]').fill('30');
   await page.locator('input[data-solver-field="dt"]').fill('0.05');
   await page.locator('[data-action="save"]').first().click();
@@ -57,10 +62,25 @@ try {
   // stop could only ever race an already-finished timeline.
   const record = await (await page.request.get(`${base}/api/v1/runs/${runId}`)).json();
   expect(record.request.duration_s).toBe(30);
+  expect(record.request.execution_mode).toBe('realtime');expect(record.request.speed_ratio).toBe(1);
 
   // The frontend must have published the backend id before polling, otherwise
   // stop has nothing real to cancel.
   await expect.poll(async () => (await projectState()).runId, { timeout: 5000 }).toBe(runId);
+
+  // BFCache does not rerun the entry module. Restored pages must restart both
+  // polling and the optional readout stream without leaving duplicate timers.
+  const beforeRestore=(await projectState()).time;
+  await page.evaluate(()=>{
+    dispatchEvent(new PageTransitionEvent('pagehide',{persisted:true}));
+    dispatchEvent(new PageTransitionEvent('pageshow',{persisted:true}));
+    dispatchEvent(new PageTransitionEvent('pageshow',{persisted:true}));
+  });
+  await expect.poll(async()=>(await projectState()).time,{timeout:5000}).toBeGreaterThan(beforeRestore);
+  await page.locator('.runbar [data-action="workbench-settings"]').click();
+  await expect(page.locator('[data-live-mode]')).toBeDisabled();
+  await expect(page.locator('[data-live-speed]')).toBeDisabled();
+  await page.locator('.rail-link[data-route="workbench"]').click();
 
   await page.locator('[data-action="run-project"][data-command="stop"]').first().click();
 

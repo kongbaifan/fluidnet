@@ -12,6 +12,15 @@ test('concurrent polls share one request and refresh only current accepted frame
   await f.api.pollLive(f.owner);assert.equal(f.calls.length,4);
 });
 
+test('unchanged HTTP samples do not repeatedly redraw a paused or streaming run',async()=>{
+  const f=fixture();
+  f.hooks.request=async path=>path.includes('/history')?{total_rows:1,rows:[]}:
+    {status:'running',events:[],frame:{valid:true,time_s:61,variables:{flow:2}}};
+  await f.api.pollLive(f.owner);const count=f.counts().refreshes;
+  await f.api.pollLive(f.owner);await f.api.pollLive(f.owner);
+  assert.equal(f.counts().refreshes,count);assert.equal(f.calls.length,6);
+});
+
 test('a replacement run can poll while the previous run is unresolved, including reused run IDs',async()=>{
   const f=fixture(),late=deferred(),request=f.hooks.request;let count=0;
   f.hooks.request=path=>path==='/runs/archive'&&count++===0?late.promise:request(path);

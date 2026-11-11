@@ -121,6 +121,41 @@ def test_stream_rejects_unknown_runs_and_keys():
         client.post(f'/api/v1/runs/{run_id}/command', json={'action': 'stop'})
 
 
+def test_full_frame_stream_matches_published_result_without_sending_the_project():
+    with TestClient(create_app()) as client:
+        run_id = level_run(client, history='trend', trend_variables=['T1.state.level_m'])
+        with client.websocket_connect(f'/api/v1/runs/{run_id}/stream?full_frame=true&interval_ms=10') as ws:
+            initial = ws.receive_json()
+            record = client.get(f'/api/v1/runs/{run_id}').json()
+            assert set(initial) == {'type', 'status', 'frame'}
+            assert initial['type'] == 'frame' and initial['status'] == 'paused'
+            assert initial['frame'] == record['frame']
+            assert initial['frame']['full'] and initial['frame']['valid']
+            assert len(initial['frame']['variables']) > 50
+            written = client.post(f'/api/v1/runs/{run_id}/variables', json={
+                'wait_s': 5, 'values': {'V2.param.opening_ratio': .3}}).json()
+            assert written['command_status'] == 'applied'
+            advanced = step(client, run_id)
+            message = ws.receive_json()
+            assert message['frame'] == advanced['frame']
+            assert message['frame']['sequence'] > initial['frame']['sequence']
+            assert message['frame']['parameter_revision'] == 1
+            assert message['frame']['variables']['V2.param.opening_ratio'] == .3
+            client.post(f'/api/v1/runs/{run_id}/command', json={'action': 'stop'})
+            assert ws.receive_json() == {'type': 'end', 'status': 'cancelled'}
+
+
+def test_full_frame_stream_cannot_mislabel_selected_values_as_a_complete_frame():
+    with TestClient(create_app()) as client:
+        run_id = level_run(client)
+        with client.websocket_connect(f'/api/v1/runs/{run_id}/stream?full_frame=true&keys=T1.state.level_m') as ws:
+            assert ws.receive_json()['code'] == 'FRAME_KEYS_UNSUPPORTED'
+            with pytest.raises(WebSocketDisconnect) as closed:
+                ws.receive_json()
+            assert closed.value.code == 4422
+        client.post(f'/api/v1/runs/{run_id}/command', json={'action': 'stop'})
+
+
 @pytest.fixture
 def secured(tmp_path):
     store = TokenStore(tmp_path / 'tokens.json')

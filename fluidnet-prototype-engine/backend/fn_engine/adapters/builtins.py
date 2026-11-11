@@ -14,6 +14,8 @@ from .contracts import AdapterError, AdapterModel
 from .hydraulics import definitions as hydraulic_definitions
 from .hydronics import definition as hydronic_definition
 from .hydronic_cases import definition as hydronic_cases_definition
+from .airducts import definition as airduct_definition
+from .ventilation import definition as ventilation_definition
 from .registry import AdapterDefinition
 from .units import UnitRule
 
@@ -122,6 +124,8 @@ def definitions() -> list[AdapterDefinition]:
     return hydraulic_definitions() + [
         hydronic_definition(),
         hydronic_cases_definition(),
+        ventilation_definition(),
+        airduct_definition(),
         AdapterDefinition('thermal.heat_exchanger_effectiveness', '单相显热换热器 ε–NTU 效率。',
             HeatExchangerInput, EffectivenessOutput, exchanger,
             input_units={key: conductance for key in ('ua', 'capacity_a', 'capacity_b')},

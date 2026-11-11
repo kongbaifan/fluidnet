@@ -1,0 +1,85 @@
+{
+  "$defs": {
+    "VentilationZoneResult": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "volume_m3": {
+          "title": "Volume M3",
+          "type": "number"
+        },
+        "people_flow_m3_h": {
+          "title": "People Flow M3 H",
+          "type": "number"
+        },
+        "air_changes_flow_m3_h": {
+          "title": "Air Changes Flow M3 H",
+          "type": "number"
+        },
+        "design_flow_m3_h": {
+          "title": "Design Flow M3 H",
+          "type": "number"
+        },
+        "governing": {
+          "enum": [
+            "people",
+            "air_changes",
+            "both",
+            "none"
+          ],
+          "title": "Governing",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "volume_m3",
+        "people_flow_m3_h",
+        "air_changes_flow_m3_h",
+        "design_flow_m3_h",
+        "governing"
+      ],
+      "title": "VentilationZoneResult",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "total_flow_m3_h": {
+      "title": "Total Flow M3 H",
+      "type": "number"
+    },
+    "total_people": {
+      "title": "Total People",
+      "type": "integer"
+    },
+    "total_area_m2": {
+      "title": "Total Area M2",
+      "type": "number"
+    },
+    "zones": {
+      "items": {
+        "$ref": "#/$defs/VentilationZoneResult"
+      },
+      "title": "Zones",
+      "type": "array"
+    }
+  },
+  "required": [
+    "total_flow_m3_h",
+    "total_people",
+    "total_area_m2",
+    "zones"
+  ],
+  "title": "VentilationOutput",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

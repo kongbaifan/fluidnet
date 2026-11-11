@@ -10,7 +10,7 @@
 | GET /api/v1/adapters/{adapter_id}?version=1 | `AdapterDescription`：指定适配器版本的合同 |
 | POST /api/v1/adapters/execute | `AdapterRequest` → `AdapterResult`：一次同步计算，结果含 request_id、版本和输出单位 |
 
-这三个入口与 Python `AdapterRegistry` 共用分派逻辑，可由宿主注册新业务。现开放 14 项水力、换热、物性、管网、模块设计与闭式水系统设计能力，其中 `hydronics.design_cases` 支持 2～8 个工况共用管径并分别复算。单位转换只覆盖已声明的顶层数值；原生嵌套对象保持原合同。完整示例、扩展方法、版本约定与 `ADAPTER_*` 错误码见[通用计算适配层](CALCULATION_ADAPTERS.md)。动态会话仍使用下方运行 API。
+这三个入口与 Python `AdapterRegistry` 共用分派逻辑，可由宿主注册新业务。现开放 16 项水力、换热、物性、管网、模块设计、水系统、新风量与风管设计能力。`hydronics.design_cases` 支持 2～8 个工况共用管径并分别复算；`ventilation.requirements` 按区域计算新风需求，`airflow.duct_design` 计算圆形/矩形低压风管。单位转换只覆盖已声明的顶层数值；原生嵌套对象保持原合同。完整示例、扩展方法、版本约定与 `ADAPTER_*` 错误码见[通用计算适配层](CALCULATION_ADAPTERS.md)。动态会话仍使用下方运行 API。
 
 ## 已实现端点
 
@@ -314,6 +314,7 @@ Worker RPC 超时默认 10 秒，超时返回 `MODULE_RUNTIME_TIMEOUT` 并终止
   - 被 PID 绑定的参数一律拒绝直接写入，手动模式也一样（手动时 PID 每个子步写 manual_output，外部写入会被覆盖）；请改控制器字段。
   - `wait_s` > 0 时等到命令 applied 或 rejected 再返回（最多 10 秒），否则立即返回 `accepted` 回执，与 `/command` 相同；暂停的会话也会处理写入。底层是新的 RunCommand `action="write"`、`values`。
 - 推送：`WS /runs/{id}/stream?keys=…` 在每个新发布的帧推送一条 `{"type":"frame","status","time_s","sequence","parameter_revision","values"}`。客户端慢时跳过中间帧而不排队，`sequence` 体现跳过的帧；运行结束发 `{"type":"end","status":…}` 并关闭。未知运行关闭码 4404，未知变量 4422，令牌无效 4401。只有后台运行可以订阅。
+- 完整读数帧：`WS /runs/{id}/stream?full_frame=true&interval_ms=50` 返回 `{"type":"frame","status":"running","frame":<RunFrame>}`，包括实际变量、有效性、诊断、时间、序号与参数修订，不重复发送冻结项目。默认仍为原有 `values` 协议；完整帧模式不能与 `keys` 同用，否则返回 `FRAME_KEYS_UNSUPPORTED` 并以 4422 关闭。完整帧遵守运行的 `selected_variables`，不是解除变量筛选。结束消息和令牌子协议保持不变。
 
 ## 无界面服务与已保存项目运行
 
