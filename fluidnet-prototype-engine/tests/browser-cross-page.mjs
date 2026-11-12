@@ -16,8 +16,12 @@ async function api(path){const response=await page.request.get(launched.base+'/a
 async function mode(value){
   await navigate('settings');await page.locator('[data-action="settings-tab"][data-value="solver"]').click();
   await page.locator('[data-solver-field="mode"]').selectOption(value);
-  await page.locator('[data-solver-field="duration"]').fill('10');await page.locator('[data-solver-field="duration"]').blur();
-  await page.locator('[data-solver-field="dt"]').fill('1');await page.locator('[data-solver-field="dt"]').blur();
+  if(value==='dynamic'){
+    await page.locator('[data-solver-field="duration"]').fill('10');await page.locator('[data-solver-field="duration"]').blur();
+    await page.locator('[data-solver-field="dt"]').fill('1');await page.locator('[data-solver-field="dt"]').blur();
+  }else{
+    await expect(page.locator('[data-solver-field="duration"]')).toBeDisabled();
+  }
 }
 async function run(command='run'){
   await navigate('workbench');

@@ -79,7 +79,7 @@ async function verifyValues(detail) {
 try {
   await start();
   await page.locator('[data-action="start-modeling"]').click();
-  await page.locator('.canvas-tools [data-route="batches"]').click();
+  await page.locator('.rail-link[data-route="batches"]').click();
   await expect(page.locator('#batch-page')).toBeVisible();
   await page.getByRole('button', {name: '保存项目并准备工况', exact: true}).click();
   await expect(page.getByLabel('扫描设备', {exact: true})).toBeVisible();

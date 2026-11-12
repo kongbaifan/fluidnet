@@ -73,8 +73,21 @@ function* draftTexts(source){
       }return fail('本地草稿保存失败：存储空间不足，已保留内存数据，请导出工作区后清理浏览器存储。');}
       catch(error){return fail('本地草稿保存失败：'+(error.message||'未知错误')+'；内存数据仍在，请导出工作区。');}
     }
+    function compactStoredDraft(){
+      if(!draftStore?.pack||!draftStore?.parse||!storage.getItem)return false;
+      try{
+        const original=storage.getItem(key);if(!original)return false;
+        const packed=draftStore.pack(draftStore.parse(original));
+        if(packed.length>=original.length||storage.getItem(key)!==original)return false;
+        // Re-encode only the already stored value, never the incoming workspace.
+        storage.setItem(key,packed);return true;
+      }catch{return false;}
+    }
     function backup(target,source=read()){
-      try{for(const {text} of draftTexts(source)){try{put(target,text);return true;}catch(error){if(isQuotaError(error))continue;throw Error('本地草稿备份失败：'+(error.message||'浏览器拒绝写入'));}}}
+      try{for(const {text} of draftTexts(source)){try{
+        try{put(target,text);}catch(error){if(!isQuotaError(error)||!compactStoredDraft())throw error;put(target,text);}
+        return true;
+      }catch(error){if(isQuotaError(error))continue;throw Error('本地草稿备份失败：'+(error.message||'浏览器拒绝写入'));}}}
       catch(error){if(!/^本地草稿备份失败/.test(error.message||''))throw Error('本地草稿备份失败：'+(error.message||'未知错误')+'，请先导出工作区再继续。');throw error;}
       throw Error('本地草稿备份失败：存储空间不足，请先导出工作区再继续。');
     }

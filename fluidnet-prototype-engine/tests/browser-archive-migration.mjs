@@ -5,6 +5,7 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { launchEngine } from './browser-server.mjs';
+import { FluidNetDraftStore } from '../frontend/draft-store.js';
 
 // 浏览器旧存档迁移验收（M1 收尾项）：
 // 旧版本只把原型草稿写在 localStorage（fluidnet-prototype-engine-v1），没有服务器工作区。
@@ -160,7 +161,7 @@ try {
   await expect.poll(async () => (await localText(BEFORE_WORKSPACE)) !== null, { timeout: 20000 }).toBe(true);
   await expect.poll(async () => (await localState())?.projects?.length, { timeout: 20000 }).toBe(3);
   const backupText = await localText(BEFORE_WORKSPACE);
-  const backup = JSON.parse(backupText);
+  const backup = FluidNetDraftStore.parse(backupText);
   expect(backup.projects, '载入前备份应保留 5 个旧项目').toHaveLength(5);
   const backupPython = backup.projects.find(p => p.id === pythonProjectId);
   expect(backupPython.name).toBe('旧版存档 · 可编程阀门管网');

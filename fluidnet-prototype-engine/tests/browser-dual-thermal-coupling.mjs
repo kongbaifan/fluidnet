@@ -16,6 +16,7 @@ async function start(){
   page.on('response',response=>{responses.push([new URL(response.url()).pathname,response.status()]);if(responses.length>30)responses.shift();});
   await page.goto(base+'/#projects');
   await expect(page.locator('[data-action="cs-create-dual"]')).toBeVisible();
+  await save(); // Wait for catalog/workspace initialization before creating the coupled example.
 }
 const dialog=()=>page.getByRole('dialog');
 const closeDialog=async()=>{if(await dialog().count())await dialog().locator('[data-action="close-dialog"]').first().click();};

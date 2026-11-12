@@ -125,7 +125,7 @@ try{
 
   // A pre-existing Lua draft is preserved and cannot be enabled accidentally.
   await page.evaluate(async k => {
-    const {FluidNetDraftStore}=await import('/draft-store.js');const data=FluidNetDraftStore.parse(localStorage.getItem(k));data.projects[0].control='-- preserved legacy script';delete data.projects[0].controlLanguage;data.dirty=true;localStorage.setItem(k,JSON.stringify(data));},key);
+    const {FluidNetDraftStore}=await import('/draft-store.js');const data=FluidNetDraftStore.parse(localStorage.getItem(k));data.projects[0].control='-- preserved legacy script';delete data.projects[0].controlLanguage;data.dirty=true;FluidNetDraftStore.write(localStorage,k,JSON.stringify(data));},key);
   await page.goto(base+'/#controls');await page.reload();await ready(page);
   await expect(page.getByLabel('项目控制脚本')).toHaveValue('-- preserved legacy script');
   await expect(page.locator('[data-control-enabled]')).toBeDisabled();

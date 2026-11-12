@@ -64,7 +64,9 @@ try{
  const filename=join(out,'six-room-continuous.studio.json');await(await download).saveAs(filename);
  await page.locator('[data-action="close-dialog"]').last().click();
  await page.locator('[data-action="wf-import"]').click();await page.getByLabel('单项目文件').setInputFiles(filename);
- await page.getByRole('dialog').locator('[name="mode"]').selectOption('replace');
+ // Import a copy: the original remains available without allocating a second
+ // full replacement backup inside the browser's limited local storage.
+ await page.getByRole('dialog').locator('[name="mode"]').selectOption('copy');
  await page.getByRole('dialog').locator('button[type="submit"]').click();
  await expect(page.locator('#toast')).toContainText('项目已导入');await save();
  await page.reload();await expect(page.locator('#app-header')).toContainText('模块平台 · v');await nav('workbench');

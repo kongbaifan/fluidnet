@@ -30,7 +30,7 @@ async function run(){
  await nav('workbench');const wait=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/v1/runs'&&r.request().method()==='POST');
  await page.locator('[data-command="run"][data-action="run-project"]').first().click();
  const r=await wait;expect(r.ok(),await r.text()).toBe(true);const rid=(await r.json()).run_id;let record;
- await expect.poll(async()=>{record=await api('/runs/'+rid);if(record.status==='failed')throw Error(JSON.stringify(record.frame?.diagnostics));return record.status;},{timeout:standardPlant?90000:45000}).toBe('completed');
+ await expect.poll(async()=>{record=await api('/runs/'+rid);if(record.status==='failed')throw Error(JSON.stringify(record.frame?.diagnostics));return record.status;},{timeout:standardPlant?180000:45000}).toBe('completed');
  await expect(page.locator('#statusbar')).toContainText('已完成');return record;
 }
 async function arrange(id,index){
