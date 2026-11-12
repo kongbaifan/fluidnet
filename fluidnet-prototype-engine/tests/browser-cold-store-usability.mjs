@@ -14,6 +14,12 @@ const submit=()=>page.getByRole('dialog').locator('button[type="submit"]').click
 const api=async path=>{const response=await page.request.get(server.base+'/api/v1'+path);expect(response.ok(),await response.text()).toBe(true);return response.json();};
 const stored=()=>page.evaluate(async()=>{const {FluidNetDraftStore}=await import('/draft-store.js');return FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1'));});
 const active=state=>state.projects.find(p=>p.id===state.activeProject);
+async function reloadWorkspace(){
+ const loaded=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/v1/workspace'&&r.request().method()==='GET',{timeout:30000});
+ loaded.catch(()=>{});
+ await page.reload();expect((await loaded).ok()).toBe(true);
+ await expect(page.locator('#app-header')).toContainText('模块平台 · v',{timeout:30000});
+}
 async function save(){
  const response=page.waitForResponse(r=>r.url().endsWith('/api/v1/workspace')&&r.request().method()==='POST');
  response.catch(()=>{});
@@ -67,7 +73,7 @@ try{
  await page.getByLabel('冷冻库 1 / °C',{exact:true}).fill('-23');await submit();
  await expect(page.locator('[data-modular-cold-status]')).toContainText('配置已变更');
  owner=await save();expect(owner.controllers.filter(c=>c.measurement==='F01.state.temperature_k').every(c=>c.setpoint===250.15)).toBe(true);
- await page.reload();await expect(page.locator('#app-header')).toContainText('模块平台 · v');
+ await reloadWorkspace();
  await nav('workbench');await page.locator('[data-action="cs-room-targets"]').click();
  await expect(page.getByLabel('冷冻库 1 / °C',{exact:true})).toHaveValue('-23');
  await page.getByLabel('冷冻库 1 / °C',{exact:true}).fill('-24');await submit();
