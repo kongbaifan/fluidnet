@@ -41,7 +41,7 @@ async function propose(version){
 try{
   await page.goto(server.base);await expect(page.locator('#app-header')).toContainText('模块平台 · v');
   await nav('modules');await page.locator('[data-module-id="design_pump"] [data-action="module-example"]').click();
-  await page.locator('[data-node="V1"]').dblclick();const before=await saved();
+  await page.locator('.net-node[data-node="V1"]').dblclick();const before=await saved();
   await library();await importPreview();await close();
   expect((await (await page.request.get(server.base+'/api/v1/performance-data')).json()).items).toHaveLength(0);
   await library();await importPreview({invalid:true});await close();
@@ -76,7 +76,7 @@ try{
   const inserted=owner(current).pages.flatMap(p=>p.nodes).find(n=>n.id!=='V1'&&n.modelId===model.id);expect(inserted.performanceData).toEqual(model.performanceData);expect(inserted.params.head_curve).toEqual(model.params.head_curve);
   await page.reload();await expect(page.locator('#app-header')).toContainText('模块平台 · v');
   const restored=await saved();expect(node(restored).performanceData).toEqual(node(current).performanceData);expect(node(restored).performanceDataDraft).toEqual(node(current).performanceDataDraft);expect(restored.models.find(m=>m.id===model.id)).toEqual(model);
-  await nav('workbench');await page.locator('[data-node="V1"]').dblclick();
+  await nav('workbench');await page.locator('.net-node[data-node="V1"]').dblclick();
   await panel().locator('[data-action="apply-instance"]').click();await submit();
   await library();await importPreview({version:3});await submit();await expect(record(3)).toBeVisible();await propose(3);await submit();
   current=await saved();expect(node(current).params).toEqual(node(current).draft);

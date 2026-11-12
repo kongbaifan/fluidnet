@@ -59,7 +59,7 @@ try {
   await expect(page.locator('[data-air-value="Coil.out0.humidity_ratio_kg_kg"]')).not.toHaveText('—',{timeout:30000});
   // 修改真实盘管参数，过期保护和新运行比较。
   await page.getByRole('button',{name:'编辑拓扑',exact:true}).click();
-  await page.locator('[data-node="Coil"]').first().dblclick();
+  await page.locator('.net-node[data-node="Coil"]').first().dblclick();
   const bf=page.getByRole('spinbutton',{name:/Coil.*旁通.*草稿/}).first();
   await bf.fill('0.5');await bf.blur();
   await page.locator('[data-action="apply-instance"][data-id="Coil"]').click();

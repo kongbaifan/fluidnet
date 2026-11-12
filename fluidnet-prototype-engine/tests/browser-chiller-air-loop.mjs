@@ -84,7 +84,7 @@ try {
   expect(second.frame.variables['Chiller.state.electric_energy_j']).toBeCloseTo(first.frame.variables['Chiller.state.electric_energy_j'],5);
   // Change a physical water setpoint through the regular device editor, then rerun.
   await page.getByRole('button',{name:'编辑拓扑',exact:true}).click();
-  await page.locator('[data-node="Chiller"]').first().dblclick();
+  await page.locator('.net-node[data-node="Chiller"]').first().dblclick();
   const setpoint=page.getByRole('spinbutton',{name:/Chiller.*冷冻水出水设定.*草稿/}).first();
   await setpoint.fill('9');await setpoint.blur();
   await page.locator('[data-action="apply-instance"][data-id="Chiller"]').click();

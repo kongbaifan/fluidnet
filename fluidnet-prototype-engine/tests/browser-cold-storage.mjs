@@ -88,7 +88,7 @@ try {
   // 3. 单步（暂停态），在设备窗口把温控设定改为 −19 °C 并应用，再继续运行到结束。
   const stepped = await posted(() => page.locator('[data-action="run-project"][data-command="step"]').first().click());
   await finished(stepped.id, 'paused');
-  await page.locator('[data-node="ROOM1"]').dblclick();
+  await page.locator('.net-node[data-node="ROOM1"]').dblclick();
   const setpoint = page.locator('[data-instance-param="setpoint_temperature_k"][data-id="ROOM1"]');
   await expect(setpoint).toBeVisible();
   await setpoint.fill('-19'); await setpoint.blur();

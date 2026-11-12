@@ -156,7 +156,7 @@ try {
   const oldFlow=original.run.history.at(-1).canonical['V1.mass_flow_kg_s'];
 
   // Every declared parameter type is editable in the device panel and applies through one draft.
-  await page.locator('[data-node="V1"]').dblclick();
+  await page.locator('.net-node[data-node="V1"]').dblclick();
   await expect(page.locator('[data-instance-param="enabled_flag"][data-param-type="boolean"]')).toBeChecked();
   await expect(page.locator('[data-instance-param="tag"][data-param-type="text"]')).toHaveValue('验收');
   await expect(page.locator('[data-instance-param="samples"][data-param-type="curve"]')).toHaveValue('[[0,1],[1,0.5]]');

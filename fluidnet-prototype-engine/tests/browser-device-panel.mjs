@@ -56,7 +56,7 @@ try {
   owner=await save();
   await page.reload();
   await expect(page.locator('#app-header')).toContainText('模块平台 · v');
-  await page.locator('[data-node="V1"]').dblclick();
+  await page.locator('.net-node[data-node="V1"]').dblclick();
   await expect(opening()).toHaveValue('40');
   await panel().locator('[data-action="float-tab"][data-value="overview"]').click();
   await expect(panel().locator('[data-device-result-source]')).toContainText('当前计算结果');
@@ -111,7 +111,7 @@ try {
   const stoppedTime=await sampleTime();
   await page.reload();
   await expect(page.locator('#app-header')).toContainText('模块平台 · v');
-  await page.locator('[data-node="V1"]').dblclick();
+  await page.locator('.net-node[data-node="V1"]').dblclick();
   await panel().locator('[data-action="float-tab"][data-value="overview"]').click();
   expect(await sampleTime()).toBe(stoppedTime);
   expect(errors).toEqual([]);

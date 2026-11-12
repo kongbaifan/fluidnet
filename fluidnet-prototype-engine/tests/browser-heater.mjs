@@ -108,7 +108,7 @@ try {
   await page.locator('.project-preview[data-id="heater-ui"]').click();
   const first = await run(2000);
 
-  await page.locator('[data-node="H1"]').first().dblclick();
+  await page.locator('.net-node[data-node="H1"]').first().dblclick();
   const power = page.getByRole('spinbutton', {name: 'H1 加热功率草稿', exact: true});
   await expect(power).toHaveValue('2');
   await power.fill('5');
@@ -127,7 +127,7 @@ try {
   reloaded.catch(() => {});
   await page.reload();
   expect((await reloaded).ok()).toBe(true);
-  await expect(page.locator('[data-node="H1"]').first()).toBeVisible();
+  await expect(page.locator('.net-node[data-node="H1"]').first()).toBeVisible();
   expect((await state()).projects.find(project => project.id === 'heater-ui')
     .pages[0].nodes.find(node => node.id === 'H1').params.power).toBe(5);
   mkdirSync('artifacts', {recursive: true});

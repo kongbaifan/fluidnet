@@ -47,7 +47,7 @@ try{
   await page.getByRole('dialog').locator('[name="name"]').fill('第二阀组');await submit();
   const destination=owner(await saved()).activePage;
   await page.locator(`[data-action="canvas-tab"][data-id="${main}"]`).click();
-  await page.locator('[data-node="V2"]').click();await page.locator('[data-action="move-device-page"][data-id="V2"]').click();
+  await page.locator('.net-node[data-node="V2"]').click();await page.locator('[data-action="move-device-page"][data-id="V2"]').click();
   await page.getByRole('dialog').locator('[name="page"]').selectOption(destination);await submit();
   await page.locator(`[data-action="canvas-tab"][data-id="${main}"]`).click();
   const id=await step(),eventsBefore=(await api('/runs/'+id+'/events')).events.filter(e=>e.command?.action==='write').length;

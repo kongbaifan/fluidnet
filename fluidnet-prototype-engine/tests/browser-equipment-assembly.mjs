@@ -39,7 +39,7 @@ async function arrange(id,index){
  if(large)await page.locator('[data-action="fit"]').click();
  let points;
  for(let attempt=0;attempt<12;attempt++){
-  points=await page.locator(`[data-node="${id}"]`).evaluate(async (element,position) =>{
+  points=await page.locator(`.net-node[data-node="${id}"]`).evaluate(async (element,position) =>{
    const svg=element.ownerSVGElement,point=svg.createSVGPoint(),box=document.getElementById('network-area').getBoundingClientRect();
    const from=point.matrixTransform(element.getScreenCTM());point.x=position.x;point.y=position.y;
    const to=point.matrixTransform(svg.getScreenCTM()),inside=p=>p.x>box.left+35&&p.x<box.right-35&&p.y>box.top+65&&p.y<box.bottom-90;
@@ -71,7 +71,7 @@ try{
   await arrange(n.id,index);
   const definition=definitions.find(m=>m.id===item.module_id),binding=catalog.prototype_parameter_bindings[item.module_id]||{};
   expect(definition,'definition for '+item.module_id).toBeTruthy();
-  await page.locator(`[data-node="${n.id}"]`).dblclick();const panel=page.locator(`[data-float-id="${n.id}"]`);
+  await page.locator(`.net-node[data-node="${n.id}"]`).dblclick();const panel=page.locator(`[data-float-id="${n.id}"]`);
   for(const [key,value] of Object.entries(item.parameters||{})){
    const spec=definition.parameters.find(p=>p.id===key),uiKey=Object.keys(binding).find(k=>binding[k]===key)||key;
    expect(spec,item.module_id+'.'+key).toBeTruthy();
@@ -168,7 +168,7 @@ try{
  let comparison=first;
  if(standardPlant){
   await page.locator('[data-command="stop"][data-action="run-project"]').first().click();
-  await page.locator(`[data-node="${ids.Balance1}"]`).dblclick();
+  await page.locator(`.net-node[data-node="${ids.Balance1}"]`).dblclick();
   const panel=page.locator(`[data-float-id="${ids.Balance1}"]`),opening=panel.locator('input[type="number"][data-instance-param="opening_ratio"]');
   await expect(opening).toHaveValue('80');await opening.fill('40');await opening.blur();
   await panel.locator('[data-action="apply-instance"]').click();await submit();

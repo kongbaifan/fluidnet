@@ -35,7 +35,7 @@ async function design(){
 try{
  await page.goto(server.base);await expect(page.locator('#app-header')).toContainText('模块平台 · v');
  await nav('modules');await page.locator('[data-module-id="design_valve"] [data-action="module-example"]').click();
- await page.locator('[data-node="V1"]').dblclick();
+ await page.locator('.net-node[data-node="V1"]').dblclick();
  const before=await saved(),frozen=owner(before).moduleSnapshots.design_valve.manifest;
  const first=await design();
  expect(first.request.module.definition_hash).toBe(frozen.definition_hash);
@@ -50,7 +50,7 @@ try{
  const publish=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/v1/modules/versions'&&r.request().method()==='POST');
  await page.locator('[data-action="save-module-version"]').click();expect((await publish).ok()).toBe(true);
  await expect(page.locator('[data-action="save-module-version"]')).toBeEnabled();
- await nav('workbench');await page.locator('[data-node="V1"]').dblclick();
+ await nav('workbench');await page.locator('.net-node[data-node="V1"]').dblclick();
  const second=await design();
  expect(second.request.module.definition_hash).toBe(frozen.definition_hash);
  expect(second.response.parameters.kv_m3_h).toBe(first.response.parameters.kv_m3_h);
@@ -69,7 +69,7 @@ try{
  await page.reload();await expect(page.locator('#app-header')).toContainText('模块平台 · v');
  const restored=await saved();expect(node(restored).params).toEqual(node(current).params);
  expect(restored.models.find(m=>m.id===selected.id).selection).toEqual(selected.selection);
- await page.locator('[data-node="V1"]').dblclick();await captureFhd(page,'artifacts/equipment-selection-1080p.png');
+ await page.locator('.net-node[data-node="V1"]').dblclick();await captureFhd(page,'artifacts/equipment-selection-1080p.png');
  expect(errors).toEqual([]);console.log(JSON.stringify({selection:true,cancelUnchanged:true,frozenDesign:true,savedModel:true,explicitApply:true,reload:true,errors}));
 }catch(e){console.error(e);await captureFhd(page,'artifacts/equipment-selection-failure.png').catch(()=>{});process.exitCode=1;}
 finally{await browser.close();await server.close();}

@@ -38,13 +38,13 @@ async function quickInsert(id){
   const owner=active(await save());return owner.pages.find(pg=>pg.id===owner.activePage).nodes.at(-1);
 }
 async function parameter(id,key,value){
-  await page.locator(`[data-node="${id}"]`).dblclick();
+  await page.locator(`.net-node[data-node="${id}"]`).dblclick();
   const field=page.locator(`[data-instance-param="${key}"][data-id="${id}"]`).last();await field.fill(String(value));await field.blur();
   await page.locator(`[data-action="apply-instance"][data-id="${id}"]`).last().click();await submit();
   await page.locator('[data-action="float-close"]').last().click();
 }
 async function connect(id,port,target){
-  await page.locator(`[data-node="${id}"]`).dblclick();
+  await page.locator(`.net-node[data-node="${id}"]`).dblclick();
   const panel=page.getByRole('region',{name:id+' 设备参数',exact:true});
   await panel.locator('[data-action="float-tab"][data-value="connections"]').click();
   await panel.locator(`[data-action="connect-device-port"][data-port="${port}"]`).click();

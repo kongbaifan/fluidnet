@@ -42,7 +42,7 @@ try{
   const opening=release.module.parameters.find(p=>p.id==='opening_ratio'),displayOpening=.4/(opening.unit?.display_scale||1)+(opening.unit?.display_offset||0);
   await expect(page.locator('[data-action="save-module-version"]')).toBeEnabled();await nav('modules');
   await page.locator('[data-module-id="replay_acceptance"] [data-action="module-example"]').click();
-  await page.locator('[data-node="V1"]').dblclick();
+  await page.locator('.net-node[data-node="V1"]').dblclick();
   await page.locator('[data-float-id="V1"] input[type="number"][data-instance-param="opening_ratio"]').fill(String(displayOpening));
   await page.locator('[data-float-id="V1"] [data-action="apply-instance"]').click();
   await page.locator('#dialog-form button[type="submit"]').click();

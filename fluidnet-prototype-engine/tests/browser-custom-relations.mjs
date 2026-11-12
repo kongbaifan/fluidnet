@@ -50,7 +50,7 @@ const connect=async(a,ap,b,bp)=>{
   await page.locator(`[data-port-node="${b}"][data-port-id="${bp}"]`).click();
 };
 const parameter=async(id,key,value)=>{
-  await page.locator(`[data-node="${id}"]`).dblclick();
+  await page.locator(`.net-node[data-node="${id}"]`).dblclick();
   const input=page.locator(`[data-instance-param="${key}"][data-id="${id}"]`).last();
   await input.fill(String(value)); await input.blur();
   await page.locator(`[data-action="apply-instance"][data-id="${id}"]`).last().click();

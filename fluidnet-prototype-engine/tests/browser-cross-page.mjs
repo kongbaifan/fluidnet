@@ -36,7 +36,7 @@ async function addCanvas(name){
 async function move(id,source,target){
   await page.locator('[data-action="canvas-tab"][data-id="'+source+'"]').click();
   await page.getByRole('button',{name:'适应画布',exact:true}).click();
-  await page.locator('[data-node="'+id+'"]').click();
+  await page.locator('.net-node[data-node="'+id+'"]').click();
   await page.locator('[data-action="move-device-page"][data-id="'+id+'"]').click();
   await page.getByRole('dialog').locator('[name="page"]').selectOption(target);await submit();
 }
@@ -108,9 +108,9 @@ try{
   const restoredLinks=await run();expect(restoredLinks.frame.variables['V1.mass_flow_kg_s']).toBeCloseTo(baseline.frame.variables['V1.mass_flow_kg_s'],6);
   // Deleting a cross-page endpoint clears both canvases; undo restores the complete network.
   await page.locator('[data-action="canvas-tab"][data-id="'+terminal1+'"]').click();
-  await page.locator('[data-node="V1"]').click();
+  await page.locator('.net-node[data-node="V1"]').click();
   await page.locator('[data-action="delete-node"][data-id="V1"]').first().click();
-  await expect(page.locator('[data-node="V1"]')).toHaveCount(0);
+  await expect(page.locator('.net-node[data-node="V1"]')).toHaveCount(0);
   await save();const deleted=(await api('/workspace')).data.projects.find(p=>p.id===initial.id);
   expect(deleted.pages.flatMap(pg=>pg.nodes).some(n=>n.id==='V1')).toBe(false);
   expect(deleted.pages.flatMap(pg=>pg.edges).some(e=>e[1]==='V1'||e[3]==='V1')).toBe(false);
@@ -141,7 +141,7 @@ try{
   expect(copied.request.project.id).toBe(copy.id);
   expect(copied.frame.variables['V1.mass_flow_kg_s']).toBeCloseTo(baseline.frame.variables['V1.mass_flow_kg_s'],6);
   await page.locator('[data-action="canvas-tab"][data-id="'+terminal1+'"]').click();await page.getByRole('button',{name:'适应画布',exact:true}).click();
-  await page.locator('[data-node="V1"]').dblclick();
+  await page.locator('.net-node[data-node="V1"]').dblclick();
   const valve=page.getByRole('region',{name:'V1 设备参数',exact:true});
   await valve.locator('[data-instance-param="opening_ratio"][type="number"]').fill('30');
   await valve.locator('[data-instance-param="opening_ratio"][type="number"]').blur();
