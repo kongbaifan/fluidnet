@@ -65,18 +65,18 @@ function* draftTexts(source){
     function put(target,text){if(draftStore)draftStore.write(storage,target,text);else storage.setItem(target,text);}
     function persist(){
       try{for(const {frames,text,archivedOnly} of draftTexts(read())){
-        try{put(key,text);}catch(error){if(isQuotaError(error))continue;return fail('本地草稿保存失败：'+(error.message||'浏览器拒绝写入')+'；内存数据仍在，请导出原型。');}
+        try{put(key,text);}catch(error){if(isQuotaError(error))continue;return fail('本地草稿保存失败：'+(error.message||'浏览器拒绝写入')+'；内存数据仍在，请导出工作区。');}
         if(frames===null){if(status().localError||status().trimmed)changed({localError:'',trimmed:false});return true;}
         const first=!status().trimmed;changed({localError:'',trimmed:true});
-        if(first)message(archivedOnly?`浏览器草稿已保存；已归档运行仅缓存末个完整帧及最近 ${frames} 帧，完整结果可从服务端档案读取。`:`浏览器草稿已保存；存储空间不足，运行历史已裁剪为最近 ${frames} 帧，完整曲线仍在内存，请导出原型。`);
+        if(first)message(archivedOnly?`浏览器草稿已保存；已归档运行仅缓存末个完整帧及最近 ${frames} 帧，完整结果可从服务端档案读取。`:`浏览器草稿已保存；存储空间不足，运行历史已裁剪为最近 ${frames} 帧，完整曲线仍在内存，请导出工作区。`);
         return true;
-      }return fail('本地草稿保存失败：存储空间不足，已保留内存数据，请导出原型后清理浏览器存储。');}
-      catch(error){return fail('本地草稿保存失败：'+(error.message||'未知错误')+'；内存数据仍在，请导出原型。');}
+      }return fail('本地草稿保存失败：存储空间不足，已保留内存数据，请导出工作区后清理浏览器存储。');}
+      catch(error){return fail('本地草稿保存失败：'+(error.message||'未知错误')+'；内存数据仍在，请导出工作区。');}
     }
     function backup(target,source=read()){
       try{for(const {text} of draftTexts(source)){try{put(target,text);return true;}catch(error){if(isQuotaError(error))continue;throw Error('本地草稿备份失败：'+(error.message||'浏览器拒绝写入'));}}}
-      catch(error){if(!/^本地草稿备份失败/.test(error.message||''))throw Error('本地草稿备份失败：'+(error.message||'未知错误')+'，请先导出原型再继续。');throw error;}
-      throw Error('本地草稿备份失败：存储空间不足，请先导出原型再继续。');
+      catch(error){if(!/^本地草稿备份失败/.test(error.message||''))throw Error('本地草稿备份失败：'+(error.message||'未知错误')+'，请先导出工作区再继续。');throw error;}
+      throw Error('本地草稿备份失败：存储空间不足，请先导出工作区再继续。');
     }
     async function saveAll(){
       if(saving)return;saving=true;let owner=read();changed({phase:'saving',error:''});

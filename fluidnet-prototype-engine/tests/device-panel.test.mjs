@@ -11,6 +11,8 @@ function fixture(owner,frame,specs=[]) {
   const input={dataset:{instanceParam:'opening'},disabled:false,value:'45'};
   const slider={dataset:{instanceParam:'opening'},disabled:false,value:'45'};
   const actual={dataset:{deviceActualParam:'opening'},textContent:''};
+  const pending={hidden:false,textContent:'',className:''};
+  let pendingValue=1;
   let note;
   const row={
     querySelector:selector=>selector==='[data-parameter-owner]'?note
@@ -18,7 +20,7 @@ function fixture(owner,frame,specs=[]) {
     querySelectorAll:()=>[input,slider],
   };
   const shell={querySelectorAll:selector=>selector==='.parameter-row'?[row]
-    :selector==='[data-device-actual-param]'?[actual]:[]};
+    :selector==='[data-device-actual-param]'?[actual]:selector==='[data-pending-for]'?[pending]:[]};
   const node={id:'V1',name:'阀门',params:{opening:80},draft:{opening:45}};
   const panel=context.window.createDevicePanel({
     ownerOfInstance:()=>owner,
@@ -26,14 +28,23 @@ function fixture(owner,frame,specs=[]) {
     observation:()=>({canonicalKey:'V1.param.opening_ratio',canonicalScale:.01,canonicalOffset:0}),
     panelRow:()=>frame,parameterKey:()=>owner.run.parameterKey,
     esc:String,number:String,btn:()=>'',ibtn:()=>'',option:()=>'',model:()=>null,
-    getState:()=>({models:[]}),pendingCount:()=>1,deviceParamSpecs:()=>specs,
+    getState:()=>({models:[]}),pendingCount:()=>pendingValue,deviceParamSpecs:()=>specs,
     paramDefs:()=>[['opening','阀门开度','%',0,100,1,80]],
   });
   return {refresh:()=>panel.refresh(shell,node),markup:()=>panel.body({tab:'parameters'},node),
-    input,slider,note:()=>note,actual,setFrame:value=>{frame=value;}};
+    input,slider,note:()=>note,actual,pending,setPending:value=>{pendingValue=value;},setFrame:value=>{frame=value;}};
 }
 
 const script=(id,enabled)=>({id,language:'python',enabled,outputs:['V1.param.opening_ratio']});
+
+test('quiet pending badge becomes visible for unapplied edits and clears after application without changing the input',()=>{
+  const view=fixture({run:{live:false},controllers:[]});
+  view.setPending(0);view.refresh();assert.equal(view.pending.hidden,true);
+  view.setPending(2);view.refresh();assert.equal(view.pending.hidden,false);
+  assert.equal(view.pending.textContent,'2 项待应用');assert.equal(view.pending.className,'badge warn');
+  view.setPending(0);view.refresh();assert.equal(view.pending.hidden,true);
+  assert.equal(view.input.value,'45');
+});
 
 test('editing a running script cannot change the current run parameter ownership',()=>{
   const running=script('original',true);

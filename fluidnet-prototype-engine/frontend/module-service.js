@@ -145,7 +145,7 @@ export const createModuleService = function ({request, modules, getBench, parame
       if (unchanged) { applyManifest(m,release.module); m.dirty=false;m.authoringDiagnostics=[];delete m.authoringReplay; }
       output(m,`✓ v${release.module.version} 已保存到后端\n✓ ${test.host_project?'宿主网络试算通过，工况来源：'+test.host_project.name:'Worker 试算通过'+(testFlow(m,release.test_result.frame.variables)===null?'':'，流量 '+testFlow(m,release.test_result.frame.variables)+' kg/s')}\n源码 SHA-256：${release.package.content_hash}\n契约 SHA-256：${release.package.definition_hash}`+(unchanged?'':'\n保存期间的新编辑已保留为草稿。'));
       await versions(m);
-      if (!persist()) { message(`后端 v${release.module.version} 已保存，浏览器草稿存储失败（存储空间不足），请导出原型；内存中的修改未丢失。`,true); return; }
+      if (!persist()) { message(`后端 v${release.module.version} 已保存，浏览器草稿存储失败（存储空间不足），请导出工作区；内存中的修改未丢失。`,true); return; }
       message(`模块 v${release.module.version} 已保存；已有项目版本保持绑定。`);
     } catch(error) { m.authoringDiagnostics=error.detail?.diagnostics || (error.detail?.source_line ? [error.detail] : []);m.authoringReplay=error.detail?.replay;output(m,'版本未保存：'+error.message); message('版本保存失败，草稿已保留。',true); }
     finally { m.saving=false; render(); }

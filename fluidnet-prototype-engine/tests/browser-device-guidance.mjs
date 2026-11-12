@@ -110,7 +110,7 @@ try{
   await region.locator('[data-action="apply-instance"]').click();await submit();
   await region.locator('[data-action="float-tab"][data-value="overview"]').click();
   await expect(region.locator('[data-device-result-source]')).toContainText('已过期');
-  await expect(region.locator('[data-pending-for="P1"]')).toContainText('0 项待应用');
+  await expect(region.locator('[data-pending-for="P1"]')).toBeHidden();
   await region.locator('[data-action="float-dock"]').click();
   const slowed=await run();
   await expect.poll(()=>value(metric(region,'runtime:shaft_power_w'))).toBeCloseTo(slowed.frame.variables['P1.shaft_power_w']/1000,3);
@@ -126,13 +126,13 @@ try{
   for(const [key,scale] of [['ch0.heat_w',1000],['ch1.heat_w',1000]])expect(await value(metric(region,'runtime:'+key))).toBeCloseTo(heat.frame.variables['HX1.'+key]/scale,3);
   expect(await value(metric(region,'runtime:ch0.heat_w'))).toBeLessThan(0);expect(await value(metric(region,'runtime:ch1.heat_w'))).toBeGreaterThan(0);
   expect(Math.abs(heat.frame.variables['HX1.ch0.heat_w']+heat.frame.variables['HX1.ch1.heat_w'])).toBeLessThan(.01);
-  await region.locator('[data-device-guide] > summary').click();await expect(region.locator('[data-device-guide]')).toContainText('同一工质');
-  await region.locator('[data-device-guide] > summary').click();await region.locator('[data-action="float-dock"]').click();
+  await expect(region.locator('[data-device-guide]')).toHaveCount(0);
+  await region.locator('[data-action="float-dock"]').click();
   await region.locator('[data-device-result-source]').scrollIntoViewIfNeeded();
   await captureFhd(page,output+'/exchanger-overview.png');await save();await close(region);
   await page.reload();await expect(page.locator('#app-header')).toContainText('模块平台 · v');
   region=await panel('HX1');expect(await value(metric(region,'runtime:ch0.heat_w'))).toBeCloseTo(heat.frame.variables['HX1.ch0.heat_w']/1000,3);
-  await region.locator('[data-action="float-tab"][data-value="connections"]').click();await expect(region).toContainText('与 out1 二次侧出口');
+  await region.locator('[data-action="float-tab"][data-value="connections"]').click();await expect(region).toContainText('二次侧入口');await expect(region.locator('[data-device-guide],.device-field-help')).toHaveCount(0);
   const finalCatalog=await api('/catalog');expect(finalCatalog).toEqual(catalog);
   // A real invalid topology must expose its failure, even if it never produced a frame.
   await createProject('blank');

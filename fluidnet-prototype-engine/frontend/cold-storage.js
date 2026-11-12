@@ -263,7 +263,7 @@ export const createColdStorageUI = function (ui) {
   function targets(p){
     const c=id=>(p.controllers||[]).find(c=>c.id===id);
     openDialog('目标蒸发 / 冷凝压力',p.run.live&&p.run.runId?'运行中修改：作为 PID 设定值命令在下一帧边界生效并记入运行事件。':'修改项目中的 PID 设定值，下次运行生效。',
-      `<div class="fields">${field('evaporating','目标蒸发压力 · kPa',(c('suction').setpoint/1000).toFixed(1),'type="number" step="any" min="50" max="400"')}${field('condensing','目标冷凝压力 · kPa',(c('head').setpoint/1000).toFixed(1),'type="number" step="any" min="800" max="1800"')}</div><p class="muted">冷凝目标低于当时冷凝能力（湿球温度高、风机已全开）时达不到，控制脚本会记录“目标冷凝压力不可达”。</p>`,
+      `<div class="fields">${field('evaporating','目标蒸发压力 · kPa',(c('suction').setpoint/1000).toFixed(1),'type="number" step="any" min="50" max="400"')}${field('condensing','目标冷凝压力 · kPa',(c('head').setpoint/1000).toFixed(1),'type="number" step="any" min="800" max="1800"')}</div>`,
       data=>{
         const values={suction:Number(data.evaporating)*1000,head:Number(data.condensing)*1000};
         if(!Object.values(values).every(Number.isFinite))throw Error('请输入有效数值');
@@ -512,7 +512,7 @@ export const createColdStorageUI = function (ui) {
   }
   function scenarios(p){
     const rows=(p.scenarios||[]).map(s=>`<tr><td>${esc(s.name)}</td><td>${DURATIONS[s.id]?(DURATIONS[s.id]/3600)+' h':'—'}</td><td>${s.events?s.events.length:'沿用项目'}</td><td>${btn('cs-run-scenario','运行','Play',`data-scenario="${esc(s.id)}"`,'small primary')}</td></tr>`).join('');
-    openDialog('冷库工况','选择工况运行：时长按案例设定，后台快算并保留全部帧以便导出报告。',`<table class="data-table cold-table"><thead><tr><th>工况</th><th>时长</th><th>事件</th><th></th></tr></thead><tbody>${rows}</tbody></table><p class="muted">${p.caseId===STATION?'B-S01～B-S04 对应 B 版验收场景：额定负荷、负荷阶跃、改目标压力、湿球温度变化。':'A-S05 的两种控制方式使用同一日程；运行后用“策略对照”生成公平性检查与对照报告。'}</p>`,null,'',true);
+    openDialog('冷库工况','选择工况运行：时长按案例设定，后台快算并保留全部帧以便导出报告。',`<table class="data-table cold-table"><thead><tr><th>工况</th><th>时长</th><th>事件</th><th></th></tr></thead><tbody>${rows}</tbody></table>`,null,'',true);
   }
   function runScenario(p,id){
     idle(p);
@@ -537,7 +537,7 @@ export const createColdStorageUI = function (ui) {
       ${field('cs-time','时刻 · h','2','id="cs-time" type="number" step="any" min="0"')}${field('cs-duration','开门时长 · min','10','id="cs-duration" type="number" step="any" min="0"')}
       ${field('cs-heat','开门热负荷 · kW','5','id="cs-heat" type="number" step="any" min="0"')}${field('cs-mass','入库质量 · kg','500','id="cs-mass" type="number" step="any" min="0"')}
       ${field('cs-temperature','货温或室外温度 · °C','-12','id="cs-temperature" type="number" step="any"')}</div>
-      <p class="muted">开门用时长与热负荷；入库用质量与货温（须在冻结货物模型范围内）；室外温度变化用温度；电融霜按冷风机参数执行。</p>${btn('cs-add-event','加入事件','Plus')}`,
+      ${btn('cs-add-event','加入事件','Plus')}`,
       ()=>{
         const target=state().projects.find(x=>x.id===eventDraft.projectId);idle(target);
         const candidate=JSON.parse(JSON.stringify(target)),list=eventDraft.list,current=scheduleOwner(target);

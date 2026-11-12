@@ -25,7 +25,7 @@ export const FluidNetPumpCurveEditor=(()=>{
   }
   function mount(root,initial,{esc,onValidity=()=>{}}){
     let rows=Array.isArray(initial)?initial.map(p=>Array.isArray(p)?p.slice():['','']):[];
-    root.innerHTML='<div class="pump-curve-editor"><div><div class="pump-curve-table table-wrap"><table><thead><tr><th>点</th><th>流量 / m³/h</th><th>扬程 / m</th><th>操作</th></tr></thead><tbody data-curve-rows></tbody></table></div><button type="button" class="btn small" data-curve-add>添加末点</button></div><div class="pump-curve-preview"><div data-curve-plot></div><div data-curve-validation role="status" aria-live="polite"></div><p class="muted">预览为基准转速下的数据点连线。运行时的转速比继续由设备参数控制。</p></div></div>';
+    root.innerHTML='<div class="pump-curve-editor"><div><div class="pump-curve-table table-wrap"><table><thead><tr><th>点</th><th>流量 / m³/h</th><th>扬程 / m</th><th>操作</th></tr></thead><tbody data-curve-rows></tbody></table></div><button type="button" class="btn small" data-curve-add>添加末点</button></div><div class="pump-curve-preview"><div data-curve-plot></div><div data-curve-validation role="status" aria-live="polite"></div></div></div>';
     const table=root.querySelector('[data-curve-rows]');
     function validate(){
       const result=inspect(rows);
