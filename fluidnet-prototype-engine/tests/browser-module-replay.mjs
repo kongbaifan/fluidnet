@@ -9,7 +9,9 @@ try{
   await page.goto(server.base+'/#modules');await expect(page.locator('[data-module-id="programmable_valve"]')).toBeVisible();
   await page.locator('[data-action="new-module"]').click();
   await page.locator('[name="name"]').fill('失败复现验收阀');await page.locator('[name="code"]').fill('REPLAY_ACCEPTANCE');
+  await page.locator('#dialog-form [name="base"]').selectOption('programmable_valve');
   await page.locator('#dialog-form button[type="submit"]').click();
+  await page.locator('.editor-tabs [data-action="editor-tab"][data-value="code"]').click();
   const good=await page.locator('#module-code').inputValue();
   const bad=good.replace(/(def evaluate\(self, ctx[^\n]*\n)/,'$1        raise ValueError("frozen replay marker")\n');
   expect(bad).not.toBe(good);await page.locator('#module-code').fill(bad);await page.locator('#module-code').blur();
@@ -40,7 +42,7 @@ try{
   const opening=release.module.parameters.find(p=>p.id==='opening_ratio'),displayOpening=.4/(opening.unit?.display_scale||1)+(opening.unit?.display_offset||0);
   await expect(page.locator('[data-action="save-module-version"]')).toBeEnabled();await nav('modules');
   await page.locator('[data-module-id="replay_acceptance"] [data-action="module-example"]').click();
-  await page.locator('[data-node="V1"]').dblclick();
+  await page.locator('.net-node[data-node="V1"]').dblclick();
   await page.locator('[data-float-id="V1"] input[type="number"][data-instance-param="opening_ratio"]').fill(String(displayOpening));
   await page.locator('[data-float-id="V1"] [data-action="apply-instance"]').click();
   await page.locator('#dialog-form button[type="submit"]').click();

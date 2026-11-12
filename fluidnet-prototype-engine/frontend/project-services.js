@@ -5,6 +5,7 @@ export const createProjectServices = function ({request, ui, normalize, health, 
   // Each page owns its base revision. A different tab saving must never advance it.
   let revision = Number(ui.state().workspaceRevision || 0), ready = false;
   let saves = Promise.resolve();
+  let archiveRead = null;
   let projectRevisions={...(ui.state().projectRevisions||{})};
   const clone=value=>JSON.parse(JSON.stringify(value));
   const controls = FluidNetControls;
@@ -62,12 +63,21 @@ export const createProjectServices = function ({request, ui, normalize, health, 
     catch(error) { ui.message('运行档案读取失败：'+error.message,true); }
   }
   async function openArchive(id) {
-    const record=await request('/runs/'+encodeURIComponent(id));
-    const overview=await request(`/runs/${encodeURIComponent(id)}/overview`);
-    ui.showArchive(record,overview);
+    const workspace=ui.state(),ticket={id,workspace,projectId:workspace.activeProject};
+    archiveRead=ticket;
+    const current=()=>archiveRead===ticket&&ui.state()===workspace&&workspace.activeProject===ticket.projectId;
+    try {
+      const record=await request('/runs/'+encodeURIComponent(id));
+      if(!current())return false;
+      const overview=await request(`/runs/${encodeURIComponent(id)}/overview`);
+      if(!current())return false;
+      ui.showArchive(record,overview);return true;
+    } catch(error) {if(current())throw error;return false;}
   }
+  function cancelArchiveRead(){archiveRead=null;}
   async function deleteArchive(id) {
     await request('/runs/'+encodeURIComponent(id)+'/delete',{});
+    if(archiveRead?.id===id)cancelArchiveRead();
     await refreshArchives();
   }
   async function exportRunReport(id,format) {
@@ -143,7 +153,7 @@ export const createProjectServices = function ({request, ui, normalize, health, 
     return FluidNetProjectModel.upgradeDocument(owner,preview,{document:projectDocument(owner),
       moduleFromManifest,replaceScripts:controls.replaceScripts,emptyRun:ui.emptyRun});
   }
-  return {prepare,previewControl,loadWorkspace,saveWorkspace,refreshArchives,openArchive,deleteArchive,exportRunReport,
+  return {prepare,previewControl,loadWorkspace,saveWorkspace,refreshArchives,openArchive,cancelArchiveRead,deleteArchive,exportRunReport,
     projectDocument,exchangeDocument,saveProject,restoreProject,deleteProject,previewUpgrade,upgradeDocument,
     batchOptions:(id,revision)=>request('/projects/'+encodeURIComponent(id)+'/batch-options?revision='+revision),
     previewBatch:(id,body)=>request('/projects/'+encodeURIComponent(id)+'/batches/preview',body),

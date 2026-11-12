@@ -14,10 +14,10 @@ export const FluidNetWorkbenchRefresh = (() => {
       shell.classList.toggle('show-library',!!ui.showLibrary);shell.classList.toggle('with-chart',!!ui.showChart);
       root.querySelector('#network-area')?.classList.toggle('grid',!!ui.pageGrid);
       const zoom=root.querySelector('.zoom > span');if(zoom)zoom.textContent=Math.round(current.zoom*100)+'%';
-      const hint=root.querySelector('[data-canvas-hint]');if(hint)hint.textContent=ui.placing?'点击画布放置 '+placingName():ui.connecting?'可切换画布选择另一个空闲端口 · Esc 取消':'双击设备编辑参数 · 拖动空白处平移';
+      const hint=root.querySelector('[data-canvas-hint]');if(hint)hint.textContent=ui.placing?'点击画布放置 '+placingName():ui.connecting?'可切换画布选择另一个空闲端口 · Esc 取消':'';
       for(const button of root.querySelectorAll('.canvas-tools [data-action="toggle-library"]')){
-        const label=ui.showLibrary?'收起模块库':'展开模块库';button.setAttribute('aria-label',label);button.setAttribute('title',label);button.setAttribute('aria-expanded',String(!!ui.showLibrary));
-        const markup=icon(ui.showLibrary?'PanelLeftClose':'PanelLeftOpen');if(button.innerHTML!==markup)button.innerHTML=markup;
+        const label=ui.showLibrary?'收起设备库':'展开设备库';button.setAttribute('aria-label',label);button.setAttribute('title',label);button.setAttribute('aria-expanded',String(!!ui.showLibrary));
+        const markup=icon(ui.showLibrary?'PanelLeftClose':'PanelLeftOpen')+(button.querySelector('[data-library-label]')?'<span data-library-label>设备库</span>':'');if(button.innerHTML!==markup)button.innerHTML=markup;
       }
       for(const button of root.querySelectorAll('.runbar [data-action="toggle-chart"]')){
         button.setAttribute('aria-label',ui.showChart?'收起同屏曲线':'展开同屏曲线');button.setAttribute('aria-expanded',String(!!ui.showChart));button.classList.toggle('active',!!ui.showChart);

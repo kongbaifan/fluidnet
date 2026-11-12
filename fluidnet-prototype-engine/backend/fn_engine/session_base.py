@@ -312,6 +312,8 @@ class SessionBase(ABC):
 
 
     def _control(self) -> None:
+        if not self.scripts and not self.controllers:
+            return
         variables = self.snapshot().variables
         for runner in self.scripts.values():
             if runner.next_s <= self.time + 1e-10:

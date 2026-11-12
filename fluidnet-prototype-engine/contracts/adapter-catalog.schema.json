@@ -1,0 +1,108 @@
+{
+  "$defs": {
+    "AdapterDescription": {
+      "additionalProperties": false,
+      "properties": {
+        "adapter_id": {
+          "maxLength": 100,
+          "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$",
+          "title": "Adapter Id",
+          "type": "string"
+        },
+        "version": {
+          "minimum": 1,
+          "title": "Version",
+          "type": "integer"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "input_schema": {
+          "additionalProperties": true,
+          "title": "Input Schema",
+          "type": "object"
+        },
+        "output_schema": {
+          "additionalProperties": true,
+          "title": "Output Schema",
+          "type": "object"
+        },
+        "input_units": {
+          "additionalProperties": {
+            "$ref": "#/$defs/UnitDescription"
+          },
+          "title": "Input Units",
+          "type": "object"
+        },
+        "output_units": {
+          "additionalProperties": {
+            "$ref": "#/$defs/UnitDescription"
+          },
+          "title": "Output Units",
+          "type": "object"
+        }
+      },
+      "required": [
+        "adapter_id",
+        "version",
+        "description",
+        "input_schema",
+        "output_schema",
+        "input_units",
+        "output_units"
+      ],
+      "title": "AdapterDescription",
+      "type": "object"
+    },
+    "UnitDescription": {
+      "additionalProperties": false,
+      "properties": {
+        "quantity": {
+          "title": "Quantity",
+          "type": "string"
+        },
+        "canonical_unit": {
+          "title": "Canonical Unit",
+          "type": "string"
+        },
+        "accepted_units": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Accepted Units",
+          "type": "array"
+        }
+      },
+      "required": [
+        "quantity",
+        "canonical_unit",
+        "accepted_units"
+      ],
+      "title": "UnitDescription",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "contract_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Contract Version",
+      "type": "integer"
+    },
+    "adapters": {
+      "items": {
+        "$ref": "#/$defs/AdapterDescription"
+      },
+      "title": "Adapters",
+      "type": "array"
+    }
+  },
+  "required": [
+    "adapters"
+  ],
+  "title": "AdapterCatalog",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

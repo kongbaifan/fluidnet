@@ -80,7 +80,7 @@ try {
   const posted=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/v1/workspace'&&r.request().method()==='POST');
   await page.locator('[data-action="save"]').first().click();
   expect((await posted).ok()).toBe(true);
-  const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
+  const saved=await page.evaluate(async () => (await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
   const owner=saved.projects.find(project=>project.id===saved.activeProject);
   expect(owner.measurements.map(meter=>meter.label)).toContain('平衡阀压差');
   const reloaded=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/v1/workspace'&&r.request().method()==='GET');

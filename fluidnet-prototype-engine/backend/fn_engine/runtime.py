@@ -4,6 +4,7 @@ import hashlib
 import importlib.util
 import inspect
 import json
+import math
 import os
 import queue
 import subprocess
@@ -131,7 +132,9 @@ class ModuleContext:
         self.heat_w: dict[str, float] = {}
         self.derivatives:dict[str,dict[str,Any]] = {}
         from .refrigeration_roles import RefrigerationCollector
-        self._refrigeration = RefrigerationCollector(refrigeration_input) if refrigeration_input is not None else None
+        from .refrigeration_physics import PhysicsInput, PhysicsCollector
+        collector = PhysicsCollector if isinstance(refrigeration_input, PhysicsInput) else RefrigerationCollector
+        self._refrigeration = collector(refrigeration_input) if refrigeration_input is not None else None
 
     @property
     def refrigeration(self):
@@ -251,8 +254,8 @@ class InProcessModuleRunner:
                  initial_state: dict[str, Any] | None = None, port_fluids: dict[str, FluidConfig] | None = None,
                  *, run_id=None, instance_id=None, cache_enabled=False):
         if definition.execution_role:
-            from .refrigeration_roles import require_throttle_role, role_parameters, role_fluid
-            require_throttle_role(definition)
+            from .refrigeration_roles import require_refrigeration_role, role_parameters, role_fluid
+            require_refrigeration_role(definition)
             parameters = role_parameters(definition,parameters)
             role_fluid(definition,fluid,port_fluids)
         self.definition = definition
@@ -409,6 +412,10 @@ class InProcessModuleRunner:
                     self._evaluate_cache.popitem(last=False)
         return response
 
+    def evaluate_physics(self, request):
+        from .refrigeration_physics import evaluate_in_process
+        return evaluate_in_process(self, request)
+
     def evaluate_refrigeration(self, request: RefrigerationEvaluateRequest) -> RefrigerationEvaluateResponse:
         from .refrigeration_roles import require_throttle_role, validate_throttle_input, validate_throttle_flow, RESERVED_FLOW_VARIABLES
         require_throttle_role(self.definition)
@@ -496,6 +503,16 @@ class InProcessModuleRunner:
             content_hash=self._source_hashes[0],definition_hash=self._source_hashes[1])
         self._pending_candidate, self._pending_digest = candidate, digest
         return candidate
+
+    def restore_checkpoint(self, state, revision, time_s):
+        """Restore managed state without invoking user callbacks or committing another step."""
+        if not self.initialized or not isinstance(revision, int) or revision < 0 or not math.isfinite(time_s) or time_s < 0:
+            raise RuntimeErrorBase('模块续算状态或修订无效', code='MODULE_CHECKPOINT_INVALID')
+        self.state = checked_state(state)
+        self.state_revision = revision
+        self._last_committed_time_s = time_s
+        self.execution.accepted_time_s = time_s
+        self._accepted_candidate = self._pending_candidate = None
 
     def synchronize_state(self, candidate: ModuleStepCandidate) -> None:
         if self._accepted_candidate is not None and candidate == self._accepted_candidate:
@@ -587,8 +604,8 @@ class WorkerProcess:
                  port_fluids: dict[str, FluidConfig] | None = None, *, run_id=None, instance_id=None, cache_enabled=False):
         check_module_compatibility(definition)
         if definition.execution_role:
-            from .refrigeration_roles import require_throttle_role, role_parameters, role_fluid
-            require_throttle_role(definition)
+            from .refrigeration_roles import require_refrigeration_role, role_parameters, role_fluid
+            require_refrigeration_role(definition)
             parameters = role_parameters(definition,parameters)
             role_fluid(definition,fluid,port_fluids)
         self.definition = definition
@@ -714,7 +731,7 @@ class WorkerProcess:
             request = payload.get('request', {})
             action = payload.get('action')
             instance = request.get('instance_id', payload.get('instance_id', self.execution.instance_id))
-            info = ModuleExecutionInfo(phase='evaluate' if action=='evaluate_refrigeration' else 'commit_step' if action == 'prepare_step' else
+            info = ModuleExecutionInfo(phase='evaluate' if action in ('evaluate_refrigeration', 'evaluate_physics') else 'commit_step' if action == 'prepare_step' else
                 action if action in {'initialize', 'evaluate', 'commit_step', 'finalize'} else 'manual',
                 instance_id=instance, time_s=request.get('time_s'))
             definition = self._definitions.get(payload.get('instance_id','default'),self.definition)
@@ -805,6 +822,10 @@ class WorkerProcess:
             self._parent_cache.remember(key, response)
         return response
 
+    def evaluate_physics(self, request):
+        from .refrigeration_physics import evaluate_worker
+        return evaluate_worker(self, request)
+
     def evaluate_refrigeration(self, request: RefrigerationEvaluateRequest):
         from .refrigeration_roles import require_throttle_role, validate_throttle_input, validate_throttle_flow, RESERVED_FLOW_VARIABLES
         require_throttle_role(self.definition)
@@ -853,6 +874,17 @@ class WorkerProcess:
 
     def discard_candidate(self) -> None:
         self._request({'action': 'discard_candidate'})
+
+    def restore_checkpoint(self, state, revision, time_s):
+        state = checked_state(state)
+        response = self._request({'action': 'restore_checkpoint', 'state': state,
+                                  'revision': revision, 'time_s': time_s})
+        if response.get('ok') is not True or response.get('revision') != revision:
+            raise RuntimeErrorBase('模块续算回执无效', code='MODULE_CHECKPOINT_INVALID')
+        self.state, self.state_revision = state, revision
+        self.execution.accepted_time_s = time_s
+        self._accepted_candidate = None
+        self._parent_cache.clear()
 
     def phase_call(self, phase: str, request: ModulePhaseRequest
                    ) -> ModuleThermalResponse | ModuleDerivativeResponse | EvaluateResponse:

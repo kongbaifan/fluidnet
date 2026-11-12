@@ -89,6 +89,16 @@ def registered_definitions(descriptors: Iterable[DeviceDescriptor] = STORAGE_DEV
     return definitions
 
 
+def _process_definitions():
+    from .refrigeration.process_devices import definitions
+    return definitions()
+
+
+def _network_definitions() -> list[ModuleDefinition]:
+    from .refrigeration.network_devices import definitions
+    return definitions()
+
+
 def _family_definitions(factory: str) -> list[ModuleDefinition]:
     return getattr(import_module('.catalog_definitions', package=__package__), factory)()
 
@@ -161,6 +171,20 @@ BUILTIN_FAMILIES = (
         DeviceMetadata('dx_evaporator', 'Snowflake', 'coil', ('refrigerant', 'thermal')),
         DeviceMetadata('dx_compressor', 'Gauge', 'compressor', ('refrigerant',)),
         DeviceMetadata('room_heat_manifold', 'GitMerge', 'header', ('thermal',)),
+    )),
+    DeviceFamily('cold-process', _process_definitions, (
+        DeviceMetadata('logistics_cold_room', 'Home', 'room', ('thermal',)),
+        DeviceMetadata('frost_hotgas_cooler', 'Snowflake', 'coil', ('refrigerant', 'thermal')),
+        DeviceMetadata('compressor_oil_system', 'Filter', 'filter', ('refrigerant',)),
+    )),
+    DeviceFamily('refrigeration-network', _network_definitions, (
+        DeviceMetadata('refrigerant_network_pipe', 'Minus', 'pipe', ('refrigerant',)),
+        DeviceMetadata('refrigerant_curve_pump', 'Gauge', 'pump', ('refrigerant',)),
+        DeviceMetadata('network_air_cooler', 'Snowflake', 'coil', ('refrigerant', 'thermal')),
+        DeviceMetadata('refrigerant_network_valve', 'SlidersHorizontal', 'valve', ('refrigerant',)),
+        DeviceMetadata('refrigerant_inventory_cell', 'Database', 'tank', ('refrigerant',)),
+        DeviceMetadata('refrigerant_check_valve', 'ArrowRight', 'check', ('refrigerant',)),
+        DeviceMetadata('refrigerant_strainer', 'Filter', 'filter', ('refrigerant',)),
     )),
 )
 

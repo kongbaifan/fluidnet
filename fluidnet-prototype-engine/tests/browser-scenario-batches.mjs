@@ -79,7 +79,7 @@ async function verifyValues(detail) {
 try {
   await start();
   await page.locator('[data-action="start-modeling"]').click();
-  await page.locator('.canvas-tools [data-route="batches"]').click();
+  await page.locator('.rail-link[data-route="batches"]').click();
   await expect(page.locator('#batch-page')).toBeVisible();
   await page.getByRole('button', {name: '保存项目并准备工况', exact: true}).click();
   await expect(page.getByLabel('扫描设备', {exact: true})).toBeVisible();
@@ -118,8 +118,9 @@ try {
   expect(Number(rows[1][11])).toBeCloseTo(detail.items[0].values['V1.mass_flow_kg_s'], 9);
   await page.locator('#batch-detail').scrollIntoViewIfNeeded();
   await captureFhd(page, 'artifacts/batches-comparison.png');
-  const local = await page.evaluate(() => {
-    const state = JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1'));
+  const local = await page.evaluate(async () => {
+    const {FluidNetDraftStore}=await import('/draft-store.js');
+    const state = FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1'));
     return state.projects.find(p => p.id === state.activeProject).pages[0].nodes.find(n => n.id === 'V1').params.opening;
   });
   expect(local).toBe(80);

@@ -33,8 +33,11 @@ try {
   await page.locator('[data-action="start-modeling"]').first().click();
   // Curve inputs parse on blur. Their apply control must refresh even when no number was edited.
   await panel().locator('[data-action="float-close"]').click();
-  await page.locator('[data-node="P1"]').dblclick();
-  const pump=page.locator('[data-float-id="P1"]'),curve=pump.locator('[data-instance-param="head_curve"]');
+  await page.locator('.net-node[data-node="P1"]').dblclick();
+  const pump=page.locator('[data-float-id="P1"]'),curve=pump.locator('textarea[data-instance-param="head_curve"]');
+  await pump.locator('[data-action="float-tab"][data-value="parameters"]').click();
+  await pump.locator('.device-other-parameters > summary').click();
+  await pump.locator('.pump-curve-json > summary').click();
   const points=[[0,21],[10,18],[20,12],[30,0]];
   await curve.fill(JSON.stringify(points));await curve.blur();
   await expect(pump.locator('[data-action="apply-instance"]')).toBeEnabled();
@@ -43,7 +46,7 @@ try {
   const pumpState=owner(await saved()).pages.flatMap(p=>p.nodes).find(n=>n.id==='P1');
   expect(pumpState.params.head_curve).toEqual(points);
   await pump.locator('[data-action="float-close"]').click();
-  await page.locator('[data-node="V1"]').dblclick();
+  await page.locator('.net-node[data-node="V1"]').dblclick();
   const first=await step();
   expect((await api('/runs/'+first)).request.project.instances.find(n=>n.id==='P1').parameters.head_curve).toEqual(points);
   await panel().locator('input[type="number"][data-instance-param="opening"]').fill('55');
@@ -63,7 +66,7 @@ try {
   await page.locator('[data-control-enabled]').check();
   await page.locator('.rail-link[data-route="workbench"]').click();
   const controlled=await step();
-  await page.locator('[data-node="V1"]').dblclick();
+  await page.locator('.net-node[data-node="V1"]').dblclick();
   await panel().locator('[data-action="float-tab"][data-value="variables"]').click();
   await panel().locator('[data-instance-source-select]').selectOption('-1');
   await panel().locator('[data-instance-value="param:opening"]').fill('55');
@@ -79,7 +82,7 @@ try {
   await page.locator('.rail-link[data-route="modules"]').click();
   const card=page.locator('[data-module-id="programmable_valve"]');
   await card.locator('[data-action="module-example"]').click();
-  await page.locator('[data-node="V1"]').dblclick();
+  await page.locator('.net-node[data-node="V1"]').dblclick();
   await panel().locator('[data-action="device-definition"]').first().click();
   const bound=page.locator('[data-bound-definition="programmable_valve"]');
   const version=Number(await bound.getAttribute('data-bound-version'));

@@ -30,6 +30,51 @@ test('late or partial frames cannot erase a newer complete frame',()=>{
   assert.equal(run.history.length,1);assert.equal(run.values.q,10);
   runs.append(run,row(5,11));assert.equal(run.history.length,1);assert.equal(run.values.q,11);
 });
+
+test('live readouts advance on full responses even when trend history is already ahead',()=>{
+  const initial=row(0,0),run={history:[initial],time:0,status:'running',live:true};
+  for(let t=1;t<=3;t++){
+    const latest={...row(t,t*10),sequence:t},trend={...row(t+1,t+1,true),sequence:t+1};
+    runs.mergeLive(run,{status:'running',events:[],frame:{}},[trend],{totalRows:t+1,latest,limit:2});
+    assert.equal(runs.completeRow(run),latest);
+    assert.equal(run.time,t+1);
+    assert.equal(run.history.at(-1),trend);
+    assert.equal(run.history.at(-1).partial,true);
+    assert.equal(run.offset,t+1);
+  }
+  assert.equal(run.history.length,2);
+  assert.ok(run.history.every(r=>r.partial));
+  const restored=JSON.parse(JSON.stringify(run));
+  assert.equal(runs.completeRow(restored).canonical.flow,30);
+});
+
+test('same-time full frames keep the newest sequence and parameter revision',()=>{
+  const run={history:[],status:'running'},latest={...row(5,50),sequence:10,parameterRevision:2};
+  const merge=value=>runs.mergeLive(run,{status:'paused',events:[],frame:{}},[],{totalRows:0,latest:value});
+  merge(latest);
+  assert.equal(run.time,5);assert.equal(run.values.q,50);assert.equal(run.history.length,0);
+  for(const rejected of [{...row(5,40),sequence:9,parameterRevision:3},
+    {...row(5,30),sequence:10,parameterRevision:1},{...row(6,60,true),sequence:11},
+    {...row(6,60),sequence:11,valid:false}]){
+    merge(rejected);assert.equal(runs.completeRow(run),latest);assert.equal(run.values.q,50);
+  }
+  const applied={...row(5,55),sequence:10,parameterRevision:3};merge(applied);
+  assert.equal(runs.completeRow(run),applied);assert.equal(run.values.q,55);
+});
+
+test('newer complete history wins and failed frames preserve the last accepted readout',()=>{
+  const initial=row(0,0),current={...row(3,30),sequence:3};
+  const run={history:[initial],time:0,status:'running',live:true,runId:'run'};
+  runs.mergeLive(run,{status:'running',events:[],frame:{}},[current,row(4,40,true)],
+    {totalRows:3,latest:{...row(2,20),sequence:2},limit:1});
+  assert.equal(runs.completeRow(run),current);assert.equal(run.history.length,1);
+  runs.mergeLive(run,{status:'failed',events:[],frame:{time_s:5,valid:false,diagnostics:[{message:'failed'}]}},[],
+    {totalRows:3,latest:null});
+  assert.equal(run.live,false);assert.equal(runs.completeRow(run),current);
+  assert.equal(run.diagnosticTime,5);assert.equal(run.diagnostics[0].message,'failed');
+  assert.equal(runs.completeRow({history:[initial,row(1,1,true)]}),initial);
+  assert.equal(runs.completeRow({history:[]}),undefined);
+});
 test('live result windows, final status and diagnostics come from one run record',()=>{
   const run={history:[],events:[],live:true,runId:'run',status:'running'};
   const data={status:'failed',events:[{time_s:3,type:'failed'}],frame:{time_s:3,diagnostics:[{message:'range'}]}};

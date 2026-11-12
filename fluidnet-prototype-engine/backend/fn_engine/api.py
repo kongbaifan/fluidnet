@@ -10,6 +10,8 @@ from .model_types.module_testing import (
 from .model_types.http import ModuleReplayRequest, ModuleReplayResponse, ModuleFailureResponse
 from .system_inspection import SystemInspection, InspectionComparison
 from .equipment_library import LibraryCatalog, LibraryRequest
+from .adapters import AdapterRegistry, default_registry
+from .adapters.api import adapter_router, validation_response as adapter_validation_response
 from .coil_geometry import CoilGeometryRequest, CoilGeometryResponse
 
 import asyncio
@@ -31,9 +33,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse, Response
 from starlette.background import BackgroundTask
 from starlette.concurrency import run_in_threadpool
-from fastapi.staticfiles import StaticFiles
+from .frontend_assets import FrontendAssets
 
 from . import __version__
+from .model_types.run import RunResumeOptions
+from .model_types.http import RunResumeResponse
 from .auth import AuthConfig, allowed, bearer, websocket_secret
 from .jobs import OVERVIEW_POINTS, TERMINAL, RunManager
 from .bridge import PARAMETER_BINDINGS, normalize_prototype_export
@@ -208,7 +212,8 @@ def _unexpected_failure(error: BaseException) -> tuple[int, dict]:
 
 def create_app(frontend_root: str | Path | None = None, module_storage_root: str | Path | None = None,
                auth: AuthConfig | None = None, cors_origins: list[str] | tuple[str, ...] = (),
-               data_root: str | Path | None = None) -> FastAPI:
+               data_root: str | Path | None = None,
+               adapter_registry: AdapterRegistry | None = None) -> FastAPI:
     """`auth.required` puts every /api/ call except /api/v1/health behind a bearer token (see auth.py)."""
     auth = auth or AuthConfig()
     runs = OrderedDict()
@@ -246,8 +251,11 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
     app = FastAPI(title='FluidNet Prototype Engine', version=__version__, lifespan=lifespan)
     app.include_router(batch_router(batch_service))
     app.include_router(performance_router(performance_store))
+    app.include_router(adapter_router(adapter_registry if adapter_registry is not None else default_registry()))
     @app.exception_handler(RequestValidationError)
     async def request_validation_error(request: Request, error: RequestValidationError):
+        if request.url.path == '/api/v1/adapters' or request.url.path.startswith('/api/v1/adapters/'):
+            return adapter_validation_response(error)
         # Rejected JSON numbers (including overflow such as 1e999) must not make
         # the validation response itself fail strict JSON serialization.
         def finite_detail(value):
@@ -563,6 +571,24 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
             if name == 'cold-storage-nh3co2':
                 from .refrigeration.examples import station_case
                 return station_case()
+            if name == 'large-cold-store-controlled':
+                from .refrigeration.large_cold_store_control import controlled_large_cold_store
+                return controlled_large_cold_store()
+            if name == 'large-cold-store-continuous':
+                from .refrigeration.six_room_continuous import continuous_large_cold_store
+                return continuous_large_cold_store()[0]
+            if name in ('refrigeration-network', 'refrigeration-network-inventory'):
+                from .refrigeration.network_examples import network_example
+                return network_example(with_inventory=name.endswith('-inventory'))
+            if name == 'refrigeration-cold-store-processes':
+                from .refrigeration.process_examples import process_example
+                return process_example(hotgas=True, oil=True)
+            if name == 'refrigeration-standby':
+                from .refrigeration.standby_example import standby_example
+                return standby_example()
+            if name == 'refrigeration-author-constitutive':
+                from .refrigeration.author_examples import author_station_example
+                return author_station_example()
             if name in ('refrigeration-modular-room', 'refrigeration-modular-two-room'):
                 from .refrigeration.modular_examples import modular_room_example
                 return modular_room_example() if name == 'refrigeration-modular-room' else modular_room_example(2, 2)
@@ -810,6 +836,42 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
             raise HTTPException(422, detail={'code':'RUN_LIMIT', 'message':str(error)}) from error
         return JSONResponse(status_code=202, content=RunStatus(run_id=run_id,status='queued',mode=request.mode).model_dump(mode='json'))
 
+    @app.get('/api/v1/runs/{run_id}/checkpoint-project', response_model=Project,
+             responses=protected_error_responses(404, 409, 422, 'INTERNAL_ERROR'))
+    def checkpoint_project(run_id: str):
+        from .checkpoints import accepted_project
+        record = get_run(run_id)
+        packet = manager.checkpoint_for(run_id) if run_id in manager.jobs else record.get('checkpoint')
+        if packet is None:
+            raise HTTPException(409, detail='该运行没有完整会话快照')
+        try:
+            return accepted_project(packet)
+        except CompilationError as error:
+            raise HTTPException(422, detail=diagnostic(error)) from error
+
+    @app.post('/api/v1/runs/{run_id}/resume', status_code=202, response_model=RunResumeResponse,
+              responses=protected_error_responses(404, 409, 422, 'INTERNAL_ERROR'))
+    def resume_checkpoint(run_id: str, options: RunResumeOptions):
+        from .checkpoints import validate
+        record = get_run(run_id)
+        if record['mode'] != 'dynamic' or record['status'] not in {'interrupted', 'failed', 'cancelled', 'completed'}:
+            raise HTTPException(409, detail='活动会话请使用继续命令；已归档的动态会话可从快照续算')
+        try:
+            packet = manager.checkpoint_for(run_id) if run_id in manager.jobs else record.get('checkpoint')
+            if packet is None:
+                raise HTTPException(409, detail='该运行没有完整会话快照，请新建运行')
+            validate(packet)
+            end = options.duration_s if options.duration_s is not None else record['request'].get('duration_s')
+            if end is not None and end <= packet['frame']['time_s']:
+                raise HTTPException(422, detail='续算终止时刻必须晚于快照时刻')
+            request = RunRequest.model_validate({**record['request'], 'duration_s': end, 'start_paused': options.start_paused})
+            child = manager.submit(request, checkpoint=packet, resumed_from=run_id)
+            return {'run_id': child, 'status': 'queued', 'resumed_from': run_id, 'time_s': packet['frame']['time_s']}
+        except CompilationError as error:
+            raise HTTPException(422, detail=diagnostic(error)) from error
+        except ValueError as error:
+            raise HTTPException(422, detail={'code': 'RUN_LIMIT', 'message': str(error)}) from error
+
     @app.post('/api/v1/runs',status_code=201, response_model=RunCreateResponse,
               responses={202: {'model': RunStatus, 'description': '后台运行已受理（background=true）'},
                          **protected_error_responses('RUN_LIMIT', 'RUN_TOO_LONG', 'MODULE_WORKER_IO_ERROR', 'INTERNAL_ERROR')})
@@ -875,7 +937,7 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
     def run_status(run_id: str):
         record = get_run(run_id)
         # `history` is served by /runs/{id}/history; `events` stays visible here.
-        return {key:value for key,value in record.items() if key not in {'history', 'module_failure'}}
+        return {key:value for key,value in record.items() if key not in {'history', 'module_failure', 'checkpoint'}}
 
     @app.get('/api/v1/runs/{run_id}/module-failure', response_model=ModuleFailureResponse,
              responses=protected_error_responses(404, 'STORAGE_FAILED', 'INTERNAL_ERROR'))
@@ -1117,7 +1179,8 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
         return status_payload(manager.snapshot(run_id)) | receipt
 
     @app.websocket('/api/v1/runs/{run_id}/stream')
-    async def run_stream(websocket: WebSocket, run_id: str, keys: str | None = None, interval_ms: int = 50):
+    async def run_stream(websocket: WebSocket, run_id: str, keys: str | None = None, interval_ms: int = 50,
+                         full_frame: bool = False):
         """Push the latest frame (selected `keys`) whenever a new one is published, then an `end` message.
 
         A slow client skips frames instead of queueing them; `sequence` shows the gaps.
@@ -1132,11 +1195,16 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
         wanted = split_keys(keys)
         interval = min(max(interval_ms, 10), 5000) / 1000
         await websocket.accept(subprotocol=subprotocol)
+        if full_frame and wanted:
+            await websocket.send_json({'type': 'error', 'code': 'FRAME_KEYS_UNSUPPORTED',
+                                       'message': '完整帧订阅不能同时筛选变量键'})
+            await websocket.close(code=4422)
+            return
         last = None
         try:
             while True:
                 try:
-                    data = manager.latest(run_id, wanted)
+                    data = manager.latest(run_id, wanted, include_frame=full_frame)
                 except KeyError:
                     await websocket.send_json({'type': 'error', 'code': 'RUN_NOT_FOUND', 'message': RUN_NOT_FOUND + '；只有后台运行可以订阅'})
                     await websocket.close(code=4404)
@@ -1149,7 +1217,10 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
                 terminal = data['status'] in TERMINAL
                 if data['known'] and data['sequence'] != last and not (terminal and data['status'] == 'failed'):
                     last = data['sequence']
-                    await websocket.send_json({'type': 'frame', **{k: data[k] for k in ('status', 'time_s', 'sequence', 'parameter_revision', 'values')}})
+                    if full_frame:
+                        await websocket.send_json({'type': 'frame', 'status': data['status'], 'frame': data['frame']})
+                    else:
+                        await websocket.send_json({'type': 'frame', **{k: data[k] for k in ('status', 'time_s', 'sequence', 'parameter_revision', 'values')}})
                 if terminal:
                     await websocket.send_json({'type': 'end', 'status': data['status']})
                     await websocket.close()
@@ -1161,5 +1232,5 @@ def create_app(frontend_root: str | Path | None = None, module_storage_root: str
     from .air_api import register_air_routes
     register_air_routes(app,get_run)
     if frontend_root:
-        app.mount('/',StaticFiles(directory=str(Path(frontend_root)),html=True),name='frontend')
+        app.mount('/',FrontendAssets(directory=frontend_root),name='frontend')
     return app

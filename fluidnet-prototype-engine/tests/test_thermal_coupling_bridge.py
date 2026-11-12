@@ -81,6 +81,28 @@ def test_imported_fluid_composition_and_phase_policy_survive_visible_selectors()
     assert actual.circuit_fluids[1].fluid == FluidConfig.model_validate(config)
 
 
+@pytest.mark.parametrize('visible', [None, '', '   ', 'Water'])
+def test_config_only_fluid_and_explicit_preset_selection_remain_distinct(visible):
+    _, payload = prototype_case()
+    raw = payload['projects'][0]
+    config = FluidConfig(fluid='REFPROP::R32[0.5]&R125[0.5]', reference='mole', phase_policy='liquid').model_dump()
+    for target, medium in [(raw, 'water'), (raw['circuitFluids'][1], 'meg30')]:
+        target['fluidConfig'] = deepcopy(config)
+        target['medium'] = medium
+        target.pop('fluid', None)
+        target.pop('fluidReference', None)
+        if visible is not None:
+            target['fluid'] = visible
+            target['fluidReference'] = 'mass'
+    before = deepcopy(payload)
+    actual = normalize_prototype_export(payload)
+    assert payload == before
+    for fluid, preset in [(actual.fluid, 'Water'), (actual.circuit_fluids[1].fluid, 'INCOMP::MEG[0.3]')]:
+        assert fluid.fluid == (config['fluid'] if visible is None else visible.strip() or preset)
+        assert fluid.reference == ('mole' if visible is None else 'mass')
+        assert fluid.phase_policy == 'liquid'
+
+
 def custom_named_case():
     model = thermal_coupling_example()
     rename = {instance.id: 'Plant_' + instance.id for instance in model.instances}

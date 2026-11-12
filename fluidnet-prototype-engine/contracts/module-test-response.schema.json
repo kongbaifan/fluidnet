@@ -496,6 +496,19 @@
   },
   "additionalProperties": false,
   "properties": {
+    "constitutive_evaluation": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Constitutive Evaluation"
+    },
     "execution_domain": {
       "anyOf": [
         {

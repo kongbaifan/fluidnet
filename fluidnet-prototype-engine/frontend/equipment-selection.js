@@ -113,7 +113,7 @@ export const EquipmentSelection = (() => {
       const active=()=>document.querySelector(`[data-selection-token="${token}"]`);
       function form(values=defaults(definition,node.draft),fluidIndex='0',error='') {
         openDialog('设备选型 · '+node.id,`${definition.name} · 绑定版本 v${definition.version}。填写设计条件后计算方案，确认应用才改变设备运行设置。`,
-          `<div data-selection-token="${token}">${error?`<p class="notice" role="alert">${esc(error)}</p>`:''}<label class="field"><span>设计工质</span><select name="selection-fluid" aria-label="设计工质">${fluids.map((f,i)=>`<option value="${i}" ${String(i)===fluidIndex?'selected':''}>${esc(f.label)}</option>`).join('')}</select></label><p class="muted">选择本次设计所用工质；所有输入来自当前绑定模块的参数合同。</p><div class="fields">${fields(definition,values)}</div></div>`,data=>{
+          `<div data-selection-token="${token}">${error?`<p class="notice" role="alert">${esc(error)}</p>`:''}<label class="field"><span>设计工质</span><select name="selection-fluid" aria-label="设计工质">${fluids.map((f,i)=>`<option value="${i}" ${String(i)===fluidIndex?'selected':''}>${esc(f.label)}</option>`).join('')}</select></label><div class="fields">${fields(definition,values)}</div></div>`,data=>{
             assert();const inputs=readInputs(definition,data),index=data['selection-fluid'];
             if(!fluids[index])throw Error('请选择有效设计工质。');
             openDialog('正在计算选型方案',node.name,`<p data-selection-token="${token}" role="status">正在执行绑定版本的设计函数…</p>`);

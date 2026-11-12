@@ -1,0 +1,29 @@
+{
+  "reference_version": 1,
+  "reviewed_on": "2026-11-08",
+  "calibration_status": "public_correlation_and_analytic_checks_only",
+  "ammonia_saturation": {
+    "source": "NIST Chemistry WebBook, SRD 69, Ammonia, Antoine Equation Parameters",
+    "url": "https://webbook.nist.gov/cgi/cbook.cgi?ID=C7664417&Mask=4#Thermo-Phase",
+    "original_reference": "Stull, D.R. (1947), Vapor Pressure of Pure Substances. Organic and Inorganic Compounds, Industrial & Engineering Chemistry 39(4), 517-540",
+    "formula": "log10(p_bar) = A - B / (T_K + C)",
+    "A": 4.86886,
+    "B": 1113.928,
+    "C": -10.409,
+    "valid_temperature_k": [239.6, 371.5],
+    "evaluation_temperature_k": [239.6, 248.15, 263.15, 273.15, 283.15, 298.15, 313.15, 333.15],
+    "maximum_relative_disagreement": 0.03,
+    "tolerance_note": "3% is an engineering regression threshold against this older correlation, not a NIST uncertainty claim or a bound on EOS accuracy."
+  },
+  "cold_store_processes": {
+    "source": "FAO, Planning and engineering data 1. Fresh fish handling, 5. Ice manufacturing equipment",
+    "url": "https://www.fao.org/4/p3407e/P3407E05.HTM",
+    "use": "Separately account for cooling to freezing point, phase-change latent heat and subsequent cooling. Ambient infiltration adds sensible and latent load.",
+    "parameter_status": "Goods mass, water fraction, freezing temperature, UA, door coefficient, frost density and oil transport time constants are user-defined equivalent parameters; they are not measurements or a manufacturer map."
+  },
+  "eos": {
+    "source": "CoolProp Ammonia fluid documentation",
+    "url": "https://coolprop.org/fluid_properties/fluids/Ammonia.html",
+    "use": "Documents the current EOS and comparisons. CoolProp-vs-CoolProp self-consistency is not counted as an independent benchmark."
+  }
+}

@@ -13,6 +13,7 @@ blocked start/stop becomes allowed. Schedule events apply once, at their simulat
 control sample of that instant.
 """
 from dataclasses import dataclass, field
+from copy import copy, deepcopy
 import math
 
 import numpy as np
@@ -25,6 +26,7 @@ from ..model_types.domain import Project
 from ..model_types.run import RunFrame
 from ..properties import PropertyError, property_service
 from ..solver import SolveFailed
+from ..timestep import TrialFailure, normalized_error
 from .cycle import DeviceRangeError, check_envelope, cycle_point, cycle_rates, rated_design, superheat_warning
 from .schedule import apply_set_variable, check_set_variable, check_unique
 from .session import ThermalSession
@@ -202,6 +204,9 @@ class ColdStoreSession(ThermalSession):
     TOLERANCE = 1e-9          # coil and condenser balances relative to the rated cooling power
     MAX_ITERATIONS = 40
     MAX_HALVINGS = 6
+    _segment_fields = ('temperatures', 'goods', 'goods_mass', 'counters', 'rooms', 'units', 'coolers',
+                       'last', 'doors', 'event_index', 'events_applied', 'frame_warnings', '_controlled',
+                       'energy_residual_j', 'frame_residual_j')
 
     def _init_state(self):
         network = self.network
@@ -332,15 +337,17 @@ class ColdStoreSession(ThermalSession):
             target = min(target, self.duration)
         while target - self.time > 1e-12 * max(1., target):
             # Same-instant order: schedule inputs → control sample → discrete state → physics.
-            self._apply_events()
-            self._control()
-            self._switch()
-            step = min([target - self.time, self.network.project.solver.dynamic_step_s, *self._boundaries()]
-                       + [pid.next_s - self.time for pid in self.controllers.values()]
-                       + [script.next_s - self.time for script in self.scripts.values()])
-            if step <= 0:
-                raise CompilationError('THERMAL_STEP_INVALID', '冷库控制时钟未推进')
-            self._advance_heat(step)
+            with self._segment_transaction():
+                self._apply_events()
+                self._control()
+                self._switch()
+                limit = self.timestep.max_step_s if self.timestep.enabled else self.network.project.solver.dynamic_step_s
+                step = min([target - self.time, limit, *self._boundaries()]
+                           + [pid.next_s - self.time for pid in self.controllers.values()]
+                           + [script.next_s - self.time for script in self.scripts.values()])
+                if step <= 0:
+                    raise CompilationError('THERMAL_STEP_INVALID', '冷库控制时钟未推进')
+                self._advance_heat(step)
         self.time = target
         self.index += 1
         return self.publish()
@@ -469,6 +476,8 @@ class ColdStoreSession(ThermalSession):
 
     def _integrate(self, step):
         """Substeps of `step`; a failed trial is retried with half the step (discrete state stays fixed)."""
+        if self.timestep.enabled:
+            return self._integrate_adaptive(step)
         done, h, halvings = 0., step, 0
         while done < step - 1e-12 * max(1., step):
             h = min(h, step - done)
@@ -486,6 +495,40 @@ class ColdStoreSession(ThermalSession):
             for chain, trial in trials:
                 self._commit(chain, trial, h, self.time + done + h)
             done += h
+            self.step_stats.fixed_step(h)
+
+    def _integrate_adaptive(self, step):
+        worker = copy(self)
+        def candidate(base, h):
+            trial = copy(base)
+            for key in self._segment_fields:
+                setattr(trial, key, deepcopy(getattr(base, key)))
+            try:
+                points = [(chain, trial._trial(chain, h)) for chain in self.network.chains]
+                for chain, point in points:
+                    trial._commit(chain, point, h, base.time + h)
+            except DeviceRangeError as error:
+                raise TrialFailure(error) from error
+            trial.time = base.time + h
+            return trial
+        def values(state):
+            return [v for _, _, room in self.network.chains for v in
+                    (state.temperatures[room], state.goods[room])]
+        def trial(h):
+            full = candidate(worker, h)
+            middle = candidate(worker, h / 2.)
+            fine = candidate(middle, h / 2.)
+            old = values(worker)
+            error = normalized_error(old, values(full), values(fine),
+                categories=['temperature'] * len(old),
+                atol={'temperature': self.timestep.temperature_atol_k}, rtol=self.timestep.rtol)
+            return fine, error
+        def accept(payload, h, error):
+            nonlocal worker
+            worker = payload
+        self._march_adaptive(step, trial, accept)
+        for key in self._segment_fields:
+            setattr(self, key, getattr(worker, key))
 
     def _stored(self, room):
         p = self.network.parameters[room]
@@ -619,6 +662,8 @@ class ColdStoreSession(ThermalSession):
                    'energy_residual_j': self.energy_residual_j, 'storage_power_w': storage,
                    'electric_power_w': electric, 'lighting_power_w': lighting, 'coupling_residual_w': coupling,
                    'events_applied': self.events_applied}
+        metrics.update(self.step_stats.frame_metrics(adaptive=self.timestep.enabled,
+            fixed_step=self.network.project.solver.dynamic_step_s))
         return RunFrame(status='converged', valid=True, time_s=self.time, variables=values,
                         diagnostics=[*network.diagnostics, scope, *self.frame_warnings.values(), *shortfall, *self.diagnostics],
                         metrics=metrics, sequence=self.sequence, parameter_revision=self.revision)

@@ -1,0 +1,137 @@
+{
+  "source": "Audited additive foundation contracts, 2026-11-08; original model-layering baseline retained",
+  "changes": [
+    "Schema 5 refrigeration constitutive roles and SDK negotiation; nested module/project schemas follow this extension.",
+    "ModuleTestResponse.constitutive_evaluation is optional and omitted for existing role responses.",
+    "ModuleTemplateRequest adds refrigeration_compressor and refrigeration_condenser.",
+    "ModuleReplaySnapshot supports typed constitutive input alongside the existing throttle input."
+  ],
+  "classes": {
+    "ModuleDefinition": {
+      "previous_sha256": "6e55d682478f0d904aeb5bf935313fb6446adbc1f2a70170cefbe201034d20a1",
+      "schema_sha256": "564352b4280d1371643755c29e763054810d9f57497c432c51cc0d2743503b7b"
+    },
+    "Project": {
+      "previous_sha256": "18fb583081f8cd61a743bda128de10c22713a6c04de4378ab6ea3008b575b175",
+      "schema_sha256": "522e0008bec79e3b3055acd6e77c02ee01d7e3894e84d857b915893cbb1575a9"
+    },
+    "ControlPreviewRequest": {
+      "previous_sha256": "aafe081db8c3160f3e8b4dfe3eb77a5d9c912a15dac065383300fa28559557c8",
+      "schema_sha256": "9761219070e2e3c79c570a7b6d7e65ef6cb3f42ea64ce18ddb5c4e11d485281e"
+    },
+    "ProjectUpgradeRequest": {
+      "previous_sha256": "b5c5d929f532d4c141425c02c2e62728f3078fed29c53daf158ee6a34b86ebc2",
+      "schema_sha256": "474cc982351e091844b9490433f40fc5493c3203b40182b526ac1c8e8003c85a"
+    },
+    "RunRequest": {
+      "previous_sha256": "8b70f8761a0b19d6ef66796cadf049accec615ce2c33c15a8538500d04e71561",
+      "schema_sha256": "e7c325aa8c1adf11c39c03f19a6293dbaf59c0007c0d4d8688e8ba72c10cf84d"
+    },
+    "RunRecord": {
+      "previous_sha256": "27f09b7fba666d2970be8bbde32ebdaa5dd18e9229aa0058e35fc718ed1fca18",
+      "schema_sha256": "c73bcc6b69c74bf6e167ebb4b7f979f12632ce513e653af8edba6f7dd35d543d"
+    },
+    "ModuleManifest": {
+      "previous_sha256": "23afb67a9ccae2f4fbbec5418cdde500cc0c58f845fb422bf292227fabf465f6",
+      "schema_sha256": "009f9563f6b86e532d2d92b33b2987336b8dcb304bfd42f0bd9197a6a68232af"
+    },
+    "ModuleTestConditions": {
+      "previous_sha256": "ded35822b11c17a07efebf984e1c56ae77bf08069082248d6acf8f76e101ae7c",
+      "schema_sha256": "79ab3b0f564ba07ac1f32a6accdd88d059ffffd30736ba2c5606368f6063f41c"
+    },
+    "ModuleTestRequest": {
+      "previous_sha256": "756050a5b63b6ece1eddef255bdc157c52e773926d47061dfda3c5fb07b236ee",
+      "schema_sha256": "8df07deb2a0d19ffb32d1b41581d791300e35dd13113e039abda84b4104fc0b7"
+    },
+    "ModuleTestCase": {
+      "previous_sha256": "eb0cda6fb003160cece48b4c78a0b2e3b4de537d74e55920e23cef831eee772f",
+      "schema_sha256": "0589ed7c14b5e0c4b95e96bae74befbee92077b60d7133510b693b99776a45c4"
+    },
+    "ModuleTestSuiteRequest": {
+      "previous_sha256": "d691805afe41f7da94478cc3e16cb308ad3587881e78a83ef2fb0877e76b1dae",
+      "schema_sha256": "9f6bbf13549c4f26b06747b476453726a1f4f0e313b5470785f6476216055707"
+    },
+    "ModuleTemplateRequest": {
+      "previous_sha256": "e41202db407551298dc4fa30013a24ab2565804190f09a3276ada9ba03b9e035",
+      "schema_sha256": "bc9b258a97b81d4e29cb9b2848b6c48b1cd1643f14561783997b96d1582d8414"
+    },
+    "ModuleGroupRequest": {
+      "previous_sha256": "b0e8d5e872fd5745f6260460eac7ac22c7f51b9b33437c857c8613cc8271bda1",
+      "schema_sha256": "dc333e01ec14b2b63e2808c64366a1ea05c5f1e47dfdb48f98687e71a2aec6c1"
+    },
+    "CompositeTestContextRequest": {
+      "previous_sha256": "e7a970de25492899755330c434dbd5f57b3fe6c1d694e4e3e2652fa880226eda",
+      "schema_sha256": "30f1a43411e131b849509184930ee5ea0d64f94ff6d448af1c877cded6fc0d93"
+    },
+    "ModuleTestResponse": {
+      "previous_sha256": "62dca78821e48358177d8a36a5da63793d07ca4426d84dde2a612b735c9c3249",
+      "schema_sha256": "7a5930b27af87f1737664b61e71b2f1fc2a1ca6accee254b739ca06a8dcadc03"
+    },
+    "ModuleTestCaseResult": {
+      "previous_sha256": "606cbf9b95f4bf99941b35665c52eb6f1c2b8d2bfce458ac52c79628d42f4ddf",
+      "schema_sha256": "b441913030f2315f6e722673938929ecbbd81f609dc28c606e360d691c2d5659"
+    },
+    "ModuleTestSuiteResponse": {
+      "previous_sha256": "99983aa47c266ccdec58a2c56e2e41e51e7a7202651274c654fcdd2187f9e757",
+      "schema_sha256": "6c9ac493cec4ec937951f7b2107c7fd7e3f09402e58d23f5f720d99ff58fd795"
+    },
+    "ModuleDesignRequest": {
+      "previous_sha256": "19759c7b06d82fe19315310c6a6290fa257578a9683c7f009fba039848bd16f9",
+      "schema_sha256": "190faf18c999f379e5ec4d29e53442c0db0d48ad5a3783b408b969ce3c5a9f29"
+    },
+    "ModuleReplaySnapshot": {
+      "previous_sha256": "9620f09f581dd0e1ffdebdd38c36ed93b23d57599dd0f21429de27192c68889e",
+      "schema_sha256": "151bffd41dd5007c7dc3febe9fafc8332792d159616a75d8aca46f52e532ae35"
+    },
+    "ModuleReplayRequest": {
+      "previous_sha256": "fa950c0d723818f3e3172bb0107496ab183b31858deb276a2394c7161945c9a1",
+      "schema_sha256": "40e781cdf874f2e04482dff5d04333be2e791e323ffdeda94b3bfaaa9d0333cf"
+    },
+    "ModuleFailureResponse": {
+      "previous_sha256": "ab63946894d70e2c9527a1a9c8f4538a65520e66d3309438a33fb9232cbec864",
+      "schema_sha256": "a1e8a3150d9713b486f5893dc0af0de91e3afbf208a9fb298cab30c57826fea0"
+    },
+    "ModuleSaveRequest": {
+      "previous_sha256": "60da5803f07c32600b02543095c6dd769d4ce6d4d0ff4a2d77c93dcd924a21fe",
+      "schema_sha256": "fcbc23e6f9e7711366cb3a77e112d42d0847967d9a70880cc24521274b5b18cb"
+    },
+    "ModuleVersionResponse": {
+      "previous_sha256": "5cc9b46c7c659ceecc5805d3e4bd8aae88f450eff5c6ad9b19224f292d245b84",
+      "schema_sha256": "a9567c52f68988e34f9ed80a475db80661fab8818b7dc0d32508dbf5459021a7"
+    },
+    "CatalogResponse": {
+      "previous_sha256": "e68b59bd2307f6e7a5af0ebcd77e62d16eea33ccd363807df8ed1cd875978173",
+      "schema_sha256": "c358b8b452043a402f3552e731b4ad4f0496c9b9fedb7c8cc258d876477baa73"
+    },
+    "ModuleCatalogItem": {
+      "previous_sha256": "ca2b48e93191bcd19e8f72a42e303d15fc4dffe87d8971b732a9d3c698c3527a",
+      "schema_sha256": "14b8e8394abe241b66e3b07877255e89b88bd0af55c16cf2833f96eb017e9578"
+    },
+    "ModuleCatalogResponse": {
+      "previous_sha256": "03b37afe85f5049b11ebcd97359f1c682ca4ce191ae3f730a3dd3fa411a74b14",
+      "schema_sha256": "0be7c3de3feda53a4803645e231ca3f0d6066526dc22168428ff8fe6063cddee"
+    },
+    "RunRecordResponse": {
+      "previous_sha256": "becb84c489dbf331556b1bf2a3eea2ae0580d3f45e806b1390cdbb29481aea24",
+      "schema_sha256": "4a031aa999b09cd319b03c3b6f200535e369630bccf51fa4715e6e9fbb25cbee"
+    },
+    "AirMigrationRequest": {
+      "previous_sha256": "67b74aec1f99950e428d355c209b16ad26eb2e7ef34b7c38bdb3eaf98d24d2ee",
+      "schema_sha256": "8154a3af4b5a17541eec535a651fbe10f47bd6bf8d343ec3a9695cb883f73743"
+    },
+    "AirMigrationResponse": {
+      "previous_sha256": "945799b21aa5dd9dbdc22e550701dc775b3c4275e2f51d38d970b5aaee12a135",
+      "schema_sha256": "d62feebc767209f0f3be80d00e4f5eeb00d704b2e518f5a9fdeda1c16acf2feb"
+    },
+    "ProjectUpgradeResponse": {
+      "previous_sha256": "274e6eb21d37315d22e4342f28c783a01157949bd7b5d0da97f620972ca98a63",
+      "schema_sha256": "e46e0118ef73e1d35d942d6083ff1d8190aedaa170b1135a0bf2cb560b3efb0b"
+    }
+  },
+  "frozen_contract_schemas": {
+    "ModuleDefinitionV1": "1b78e976e56992e5d94c8eee5dd2804b8e93587b49d062cf819870f3e5502044",
+    "ModuleDefinitionV2": "524ba404f590627eb2d2dffe29f51f32713028b5f2c2154cc15643b23916a502",
+    "ModuleDefinitionV3": "3cd3b5b8e36721499c21dee3e4b5d537c26de450f222c3c2c9beeda16f9b93ad",
+    "ModuleDefinitionV4": "3df903f221891e81ed48f57bbda4bb16e4085ddeab51b6ace4f5cc9edf55cc38"
+  }
+}

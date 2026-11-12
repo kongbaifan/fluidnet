@@ -24,6 +24,8 @@ def example(name):
     air=not name.startswith('plate')
     kind='air_branch_box' if name.startswith('air-branch') else 'fan_performance' if name.startswith('fan') else 'plate_exchanger'
     module=load_module_package(ROOT/'modules'/kind)
+    # Public examples carry frozen inline source; a checkout path is not portable.
+    module.package_path=None
     nodes=[];links=[]
     def source(iid,p,t=298.15,w=.008):
         nodes.append({'id':iid,'name':iid,'module_id':'source','parameters':{'pressure_pa':p,'temperature_k':t,'humidity_ratio_kg_kg':w}})
@@ -73,6 +75,7 @@ def air_chiller_example():
 
 def air_recovery_example():
     module=load_module_package(ROOT/'modules/air_recovery_sensible')
+    module.package_path=None
     instances=[{'id':'Recovery','name':'显热回收器','module_id':module.id,'package':package_ref(module).model_dump(mode='json'),
                 'position':{'x':430.,'y':250.}}]
     connections=[]

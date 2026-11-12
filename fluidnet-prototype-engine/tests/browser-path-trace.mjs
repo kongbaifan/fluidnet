@@ -21,7 +21,7 @@ try{
   await port('in0').hover();
   await expect(hint).toContainText('in0 ↔ out0');
   expect(await activeEdges()).toEqual(['h2','h3']);
-  await expect(page.locator('[data-node="HX1"] .channel-active')).toHaveCount(1);
+  await expect(page.locator('.net-node[data-node="HX1"] .channel-active')).toHaveCount(1);
   await expect(page.locator('[data-port-node="HX1"][data-port-id="in1"]')).not.toHaveClass(/path-trace-active/);
   await expect(page.locator('[data-port-node="P1"][data-port-id="out0"]')).toHaveClass(/path-trace-remote/);
   await expect(hint.locator('[data-trace-destination="B2:out0"]')).toBeVisible();
@@ -41,7 +41,7 @@ try{
   await page.getByRole('dialog').locator('[name="name"]').fill('换热器回水');await submit();
   const remotePage=(await save()).activePage;
   await page.locator(`[data-action="canvas-tab"][data-id="${original.activePage}"]`).click();
-  await page.locator('[data-node="B2"]').click();
+  await page.locator('.net-node[data-node="B2"]').click();
   await page.locator('[data-action="move-device-page"][data-id="B2"]').click();
   await page.getByRole('dialog').locator('[name="page"]').selectOption(remotePage);await submit();
   const split=await save();
@@ -53,7 +53,7 @@ try{
   await expect(page.locator('.cross-page-strip [data-id="h3"]')).toHaveClass(/path-trace-active/);
   await captureFhd(page,'artifacts/path-trace-cross-page.png');
   await hint.locator('[data-trace-destination="B2:out0"]').click();
-  await expect(page.locator('[data-node="B2"]')).toBeVisible();
+  await expect(page.locator('.net-node[data-node="B2"]')).toBeVisible();
   expect((await save()).activePage).toBe(remotePage);
   await page.locator('[data-action="float-close"]').click();
   await page.locator(`[data-action="canvas-tab"][data-id="${original.activePage}"]`).click();
@@ -62,7 +62,7 @@ try{
   await port('out0').focus();
   await expect(hint).toContainText('跨页 · 换热器回水');
   expect(await activeEdges()).toEqual(['h2']);
-  await expect(page.locator('[data-node="HX1"] .channel-active')).toHaveCount(1);
+  await expect(page.locator('.net-node[data-node="HX1"] .channel-active')).toHaveCount(1);
   expect(errors).toEqual([]);
   console.log(JSON.stringify({twoSidesIsolated:true,keyboard:true,crossPage:true,reload:true,errors}));
 }catch(error){await captureFhd(page,'artifacts/path-trace-failure.png');throw error;}

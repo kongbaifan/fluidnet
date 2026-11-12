@@ -40,7 +40,7 @@ try{
 
   await manage('water-net');const download=page.waitForEvent('download');await page.locator('[data-action="wf-export"]').click();const file=await download,path=join(mkdtempSync(join(tmpdir(),'fluidnet-project-')),'project.json');await file.saveAs(path);expect(JSON.parse(readFileSync(path)).project.scenarios).toHaveLength(1);
   await close();await page.locator('[data-action="wf-import"]').click();await page.getByLabel('单项目文件').setInputFiles(path);await page.getByRole('dialog').locator('button[type="submit"]').click();await expect(page.locator('#toast')).toContainText('项目已导入');
-  const imported=await page.evaluate(()=>JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1')).activeProject);expect(imported).not.toBe('water-net');await saveProject(imported);
+  const imported=await page.evaluate(async()=>(await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1')).activeProject);expect(imported).not.toBe('water-net');await saveProject(imported);
   await page.reload();await expect(page.locator('#app-header')).toContainText('模块平台 · v');
   await manage(imported);await page.locator('[data-action="wf-delete"]').click();await page.getByRole('dialog').locator('button[type="submit"]').click();await expect.poll(async()=> (await api('/projects')).projects.some(p=>p.id===imported)).toBe(false);
 
@@ -49,7 +49,7 @@ try{
   const id=await page.locator('[data-wf-scenario]').getAttribute('data-id');
   // Save this project against its own revision; a concurrent project edit intentionally
   // keeps this tab's whole-workspace revision stale until the workspace is reloaded.
-  await saveProject(id);const state=await page.evaluate(()=>JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
+  await saveProject(id);const state=await page.evaluate(async()=>(await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
   // Seeds may already ship several versions (e.g. SDK v2); upgrade from the pinned one to a fresh latest.
   const pinned=state.projects.find(p=>p.id===id).moduleSnapshots.programmable_valve.version;
   const pinnedProject=await api('/projects/'+id),pinnedRevision=pinnedProject.revision;
@@ -61,7 +61,7 @@ try{
   await page.locator('[data-action="wf-upgrades"]').click();await page.locator('[data-action="wf-module-versions"]').click();await page.locator(`[data-action="wf-preview-upgrade"][data-version="${next}"]`).click();await expect(page.getByRole('dialog')).toContainText('兼容检查通过');await captureFhd(page, 'artifacts/workflows-upgrade.png');await page.getByRole('dialog').locator('button[type="submit"]').click();await expect(page.locator('#toast')).toContainText('模块版本已更新并保存');
   const upgraded=await api('/projects/'+id);expect(upgraded.document.project.moduleSnapshots.programmable_valve.version).toBe(next);expect(upgraded.document.project.pages[0].nodes.find(n=>n.id==='V1').params.gain).toBe(2);
   await manage(id);await page.locator('[data-action="wf-history"]').click();await page.locator(`[data-action="wf-restore"][data-revision="${pinnedRevision}"]`).click();await page.getByRole('dialog').locator('button[type="submit"]').click();await expect(page.getByRole('dialog')).toHaveCount(0);await expect(page.locator('#toast')).toContainText('项目修订已恢复');await expect.poll(async()=> (await api('/projects/'+id)).document.project.moduleSnapshots.programmable_valve.version).toBe(pinned);
-  const backup=await page.evaluate(()=>JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1-before-project')));
+  const backup=await page.evaluate(async()=>(await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1-before-project')));
   expect(backup.format).toBe('fluidnet-project');expect(backup.project.id).toBe(id);expect(backup.project.moduleSnapshots.programmable_valve.version).toBe(next);
   expect(errors).toEqual([]);console.log(JSON.stringify({project:id,baseline,throttled,upgrade:`v${pinned} -> v${next} -> v${pinned}`,errors}));
 }catch(error){mkdirSync('artifacts',{recursive:true});await captureFhd(page, 'artifacts/workflows-failure.png');console.error(errors);throw error;}

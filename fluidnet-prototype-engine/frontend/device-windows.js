@@ -10,11 +10,13 @@ export const FluidNetDeviceWindows = (() => {
     const width=()=>elements.viewport().width;
     const isDocked=f=>!!f?.docked&&!f.minimized&&width()>=1000;
     function bounds(f) {
-      const p=elements.page().getBoundingClientRect(),maxW=Math.max(1,p.width-16),maxH=Math.max(1,p.height-16);
+      const p=elements.page().getBoundingClientRect(),top=Math.max(p.top+8,elements.floatingTop?.()||0);
+      const right=Math.min(p.right-8,elements.floatingRight?.()||p.right-8);
+      const maxW=Math.max(1,right-p.left-8),maxH=Math.max(1,p.bottom-top-8);
       f.w=clamp(f.w||440,Math.min(320,maxW),maxW);
       f.h=clamp(f.h||520,Math.min(270,maxH),maxH);
-      f.x=clamp(f.x??p.right-f.w-20,p.left+8,p.right-f.w-8);
-      f.y=clamp(f.y??p.top+28,p.top+8,p.bottom-(f.minimized?46:f.h)-8);
+      f.x=clamp(f.x??right-f.w-12,p.left+8,right-f.w);
+      f.y=clamp(f.y??p.top+28,top,p.bottom-(f.minimized?46:f.h)-8);
       return f;
     }
     function dockBounds(){const r=elements.dock().getBoundingClientRect();return {x:r.left,y:r.top,w:r.width,h:r.height};}

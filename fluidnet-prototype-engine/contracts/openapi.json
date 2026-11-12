@@ -1684,6 +1684,233 @@
         }
       }
     },
+    "/api/v1/adapters": {
+      "get": {
+        "tags": [
+          "Calculation adapters"
+        ],
+        "summary": "Catalog",
+        "operationId": "catalog_api_v1_adapters_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdapterCatalog"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/adapters/execute": {
+      "post": {
+        "tags": [
+          "Calculation adapters"
+        ],
+        "summary": "Execute",
+        "operationId": "execute_api_v1_adapters_execute_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdapterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdapterResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ADAPTER_NOT_FOUND：计算适配器或指定版本不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdapterErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ADAPTER_INPUT_INVALID：计算适配器的请求或输入参数无效；ADAPTER_UNIT_INVALID：计算适配器的单位或单位换算无效；ADAPTER_CALCULATION_FAILED：计算适配器调用的计算失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdapterErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "ADAPTER_INTERNAL_ERROR：计算适配器内部错误（已记录日志）；ADAPTER_OUTPUT_INVALID：计算适配器输出不符合结果合同",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdapterErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/adapters/{adapter_id}": {
+      "get": {
+        "tags": [
+          "Calculation adapters"
+        ],
+        "summary": "Describe",
+        "operationId": "describe_api_v1_adapters__adapter_id__get",
+        "parameters": [
+          {
+            "name": "adapter_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 100,
+              "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$",
+              "title": "Adapter Id"
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdapterDescription"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ADAPTER_NOT_FOUND：计算适配器或指定版本不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdapterErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ADAPTER_INPUT_INVALID：计算适配器的请求或输入参数无效；ADAPTER_UNIT_INVALID：计算适配器的单位或单位换算无效；ADAPTER_CALCULATION_FAILED：计算适配器调用的计算失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdapterErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "ADAPTER_INTERNAL_ERROR：计算适配器内部错误（已记录日志）；ADAPTER_OUTPUT_INVALID：计算适配器输出不符合结果合同",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdapterErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/health": {
       "get": {
         "summary": "Health",
@@ -4499,6 +4726,194 @@
         }
       }
     },
+    "/api/v1/runs/{run_id}/checkpoint-project": {
+      "get": {
+        "summary": "Checkpoint Project",
+        "operationId": "checkpoint_project_api_v1_runs__run_id__checkpoint_project_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "资源不存在（运行记录、项目修订、模块版本、示例或工作区修订）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "资源状态冲突（活动运行、修订号或命令状态）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "请求体或计算结果校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/runs/{run_id}/resume": {
+      "post": {
+        "summary": "Resume Checkpoint",
+        "operationId": "resume_checkpoint_api_v1_runs__run_id__resume_post",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunResumeOptions"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunResumeResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED：缺少或无效的访问令牌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "AUTH_SCOPE：令牌权限不足以执行该请求方法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "资源不存在（运行记录、项目修订、模块版本、示例或工作区修订）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "资源状态冲突（活动运行、修订号或命令状态）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "请求体或计算结果校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：服务内部错误（已记录日志）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/runs": {
       "post": {
         "summary": "Run",
@@ -6571,6 +6986,278 @@
   },
   "components": {
     "schemas": {
+      "AdapterCatalog": {
+        "properties": {
+          "contract_version": {
+            "type": "integer",
+            "const": 1,
+            "title": "Contract Version",
+            "default": 1
+          },
+          "adapters": {
+            "items": {
+              "$ref": "#/components/schemas/AdapterDescription"
+            },
+            "type": "array",
+            "title": "Adapters"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "adapters"
+        ],
+        "title": "AdapterCatalog"
+      },
+      "AdapterDescription": {
+        "properties": {
+          "adapter_id": {
+            "type": "string",
+            "maxLength": 100,
+            "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$",
+            "title": "Adapter Id"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Version"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "input_schema": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Input Schema"
+          },
+          "output_schema": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Output Schema"
+          },
+          "input_units": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/UnitDescription"
+            },
+            "type": "object",
+            "title": "Input Units"
+          },
+          "output_units": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/UnitDescription"
+            },
+            "type": "object",
+            "title": "Output Units"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "adapter_id",
+          "version",
+          "description",
+          "input_schema",
+          "output_schema",
+          "input_units",
+          "output_units"
+        ],
+        "title": "AdapterDescription"
+      },
+      "AdapterErrorResponse": {
+        "properties": {
+          "detail": {
+            "$ref": "#/components/schemas/AdapterFailure"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "detail"
+        ],
+        "title": "AdapterErrorResponse"
+      },
+      "AdapterFailure": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "adapter_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adapter Id"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          },
+          "field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field"
+          },
+          "diagnostics": {
+            "items": {
+              "additionalProperties": {
+                "$ref": "#/components/schemas/JsonValue"
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Diagnostics"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "AdapterFailure"
+      },
+      "AdapterRequest": {
+        "properties": {
+          "adapter_id": {
+            "type": "string",
+            "maxLength": 100,
+            "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$",
+            "title": "Adapter Id"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Version",
+            "default": 1
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          },
+          "inputs": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Inputs"
+          },
+          "input_units": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Input Units"
+          },
+          "output_units": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Output Units"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "adapter_id"
+        ],
+        "title": "AdapterRequest"
+      },
+      "AdapterResult": {
+        "properties": {
+          "adapter_id": {
+            "type": "string",
+            "maxLength": 100,
+            "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$",
+            "title": "Adapter Id"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          },
+          "engine_version": {
+            "type": "string",
+            "title": "Engine Version"
+          },
+          "outputs": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Outputs"
+          },
+          "output_units": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Output Units"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "adapter_id",
+          "version",
+          "engine_version",
+          "outputs",
+          "output_units"
+        ],
+        "title": "AdapterResult"
+      },
       "AirGridResponse": {
         "properties": {
           "contract_version": {
@@ -10124,6 +10811,7 @@
         ],
         "title": "InspectionValue"
       },
+      "JsonValue": {},
       "LibraryBank": {
         "properties": {
           "name": {
@@ -10339,7 +11027,8 @@
                   "enum": [
                     2,
                     3,
-                    4
+                    4,
+                    5
                   ]
                 }
               },
@@ -10434,7 +11123,10 @@
             "if": {
               "properties": {
                 "schema_version": {
-                  "const": 4
+                  "enum": [
+                    4,
+                    5
+                  ]
                 }
               },
               "required": [
@@ -10444,7 +11136,11 @@
             "then": {
               "properties": {
                 "execution_role": {
-                  "const": "refrigeration.isenthalpic_throttle.v1"
+                  "enum": [
+                    "refrigeration.isenthalpic_throttle.v1",
+                    "refrigeration.compressor.v1",
+                    "refrigeration.condenser.v1"
+                  ]
                 },
                 "applicability": {
                   "properties": {
@@ -10488,6 +11184,47 @@
             "if": {
               "properties": {
                 "schema_version": {
+                  "const": 4
+                }
+              },
+              "required": [
+                "schema_version"
+              ]
+            },
+            "then": {
+              "properties": {
+                "execution_role": {
+                  "const": "refrigeration.isenthalpic_throttle.v1"
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "schema_version": {
+                  "const": 5
+                }
+              },
+              "required": [
+                "schema_version"
+              ]
+            },
+            "then": {
+              "properties": {
+                "execution_role": {
+                  "enum": [
+                    "refrigeration.compressor.v1",
+                    "refrigeration.condenser.v1"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "schema_version": {
                   "enum": [
                     1,
                     2
@@ -10511,7 +11248,8 @@
               1,
               2,
               3,
-              4
+              4,
+              5
             ],
             "title": "Schema Version",
             "default": 1
@@ -10702,7 +11440,11 @@
             "anyOf": [
               {
                 "type": "string",
-                "const": "refrigeration.isenthalpic_throttle.v1"
+                "enum": [
+                  "refrigeration.isenthalpic_throttle.v1",
+                  "refrigeration.compressor.v1",
+                  "refrigeration.condenser.v1"
+                ]
               },
               {
                 "type": "null"
@@ -10815,7 +11557,8 @@
                   "enum": [
                     2,
                     3,
-                    4
+                    4,
+                    5
                   ]
                 }
               },
@@ -10910,7 +11653,10 @@
             "if": {
               "properties": {
                 "schema_version": {
-                  "const": 4
+                  "enum": [
+                    4,
+                    5
+                  ]
                 }
               },
               "required": [
@@ -10920,7 +11666,11 @@
             "then": {
               "properties": {
                 "execution_role": {
-                  "const": "refrigeration.isenthalpic_throttle.v1"
+                  "enum": [
+                    "refrigeration.isenthalpic_throttle.v1",
+                    "refrigeration.compressor.v1",
+                    "refrigeration.condenser.v1"
+                  ]
                 },
                 "applicability": {
                   "properties": {
@@ -10964,6 +11714,47 @@
             "if": {
               "properties": {
                 "schema_version": {
+                  "const": 4
+                }
+              },
+              "required": [
+                "schema_version"
+              ]
+            },
+            "then": {
+              "properties": {
+                "execution_role": {
+                  "const": "refrigeration.isenthalpic_throttle.v1"
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "schema_version": {
+                  "const": 5
+                }
+              },
+              "required": [
+                "schema_version"
+              ]
+            },
+            "then": {
+              "properties": {
+                "execution_role": {
+                  "enum": [
+                    "refrigeration.compressor.v1",
+                    "refrigeration.condenser.v1"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "schema_version": {
                   "enum": [
                     1,
                     2
@@ -10987,7 +11778,8 @@
               1,
               2,
               3,
-              4
+              4,
+              5
             ],
             "title": "Schema Version",
             "default": 1
@@ -11178,7 +11970,11 @@
             "anyOf": [
               {
                 "type": "string",
-                "const": "refrigeration.isenthalpic_throttle.v1"
+                "enum": [
+                  "refrigeration.isenthalpic_throttle.v1",
+                  "refrigeration.compressor.v1",
+                  "refrigeration.condenser.v1"
+                ]
               },
               {
                 "type": "null"
@@ -11939,9 +12735,13 @@
                 "$ref": "#/components/schemas/RefrigerationThrottleInput"
               },
               {
+                "$ref": "#/components/schemas/PhysicsInput"
+              },
+              {
                 "type": "null"
               }
-            ]
+            ],
+            "title": "Refrigeration"
           },
           "content_hash": {
             "type": "string",
@@ -12041,6 +12841,8 @@
               "heat_exchanger",
               "managed_state",
               "refrigeration_throttle",
+              "refrigeration_compressor",
+              "refrigeration_condenser",
               "custom_pressure_drop"
             ],
             "title": "Template"
@@ -12500,6 +13302,18 @@
       },
       "ModuleTestResponse": {
         "properties": {
+          "constitutive_evaluation": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Constitutive Evaluation"
+          },
           "execution_domain": {
             "anyOf": [
               {
@@ -13747,6 +14561,69 @@
           "import_data"
         ],
         "title": "PerformanceVersion"
+      },
+      "PhysicsInput": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "compressor",
+              "condenser"
+            ],
+            "title": "Kind"
+          },
+          "inlet_pressure_pa": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Inlet Pressure Pa"
+          },
+          "outlet_pressure_pa": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Outlet Pressure Pa"
+          },
+          "inlet_temperature_k": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Inlet Temperature K"
+          },
+          "inlet_enthalpy_j_kg": {
+            "type": "number",
+            "title": "Inlet Enthalpy J Kg"
+          },
+          "inlet_density_kg_m3": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Inlet Density Kg M3"
+          },
+          "isentropic_outlet_enthalpy_j_kg": {
+            "type": "number",
+            "title": "Isentropic Outlet Enthalpy J Kg"
+          },
+          "sink_temperature_k": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Sink Temperature K"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "inlet_pressure_pa",
+          "outlet_pressure_pa",
+          "inlet_temperature_k",
+          "inlet_enthalpy_j_kg",
+          "inlet_density_kg_m3",
+          "isentropic_outlet_enthalpy_j_kg",
+          "sink_temperature_k",
+          "enabled"
+        ],
+        "title": "PhysicsInput"
       },
       "PortSpec": {
         "properties": {
@@ -15355,6 +16232,62 @@
               }
             ],
             "title": "Air Metadata"
+          },
+          "checkpoint_available": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checkpoint Available"
+          },
+          "checkpoint_time_s": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checkpoint Time S"
+          },
+          "checkpoint_diagnostic": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Diagnostic"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "resumed_from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resumed From"
+          },
+          "resume_time_s": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resume Time S"
           }
         },
         "additionalProperties": false,
@@ -15492,6 +16425,63 @@
           "project"
         ],
         "title": "RunRequest"
+      },
+      "RunResumeOptions": {
+        "properties": {
+          "duration_s": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 604800.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration S"
+          },
+          "start_paused": {
+            "type": "boolean",
+            "title": "Start Paused",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "RunResumeOptions",
+        "description": "Continue an archived checkpoint; duration is the absolute simulation end time."
+      },
+      "RunResumeResponse": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "status": {
+            "type": "string",
+            "const": "queued",
+            "title": "Status",
+            "default": "queued"
+          },
+          "resumed_from": {
+            "type": "string",
+            "title": "Resumed From"
+          },
+          "time_s": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Time S"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "run_id",
+          "resumed_from",
+          "time_s"
+        ],
+        "title": "RunResumeResponse"
       },
       "RunStatus": {
         "properties": {
@@ -16318,6 +17308,33 @@
         "type": "object",
         "title": "TimeStepOptions",
         "description": "Euler 时间步误差控制（A0；计划 §12.1）。\n\n默认关闭，关闭时按 `SolverOptions.dynamic_step_s` 固定步长推进，旧项目与旧默认完全不变。\n开启后每次整步试算都要用两个半步做局部截断误差估计；容差按单位分开，不用一个裸数混合 kg/J/K。"
+      },
+      "UnitDescription": {
+        "properties": {
+          "quantity": {
+            "type": "string",
+            "title": "Quantity"
+          },
+          "canonical_unit": {
+            "type": "string",
+            "title": "Canonical Unit"
+          },
+          "accepted_units": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Accepted Units"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "quantity",
+          "canonical_unit",
+          "accepted_units"
+        ],
+        "title": "UnitDescription"
       },
       "UnitSpec": {
         "properties": {

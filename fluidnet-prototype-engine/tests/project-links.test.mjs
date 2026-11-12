@@ -61,3 +61,26 @@ test('serialization and project copies retain links without coupling their edits
   assert.deepEqual(plain(links.all(copy)),plain(links.all(p)));
   links.remove(copy,'supply');assert.equal(links.all(p).length,1);
 });
+
+test('connection choices exclude self, incompatible directions and ports occupied on any page',()=>{
+  const p=owner();p.pages[0].nodes.forEach(n=>n.domain='thermal');p.pages[1].nodes[0].domain='thermal';
+  links.connect(p,'used',['B','out'],['C','in'],definition);
+  const before=plain(p),choices=links.candidates(p,['A','out'],definition,{pageId:'plant'});
+  assert.deepEqual(plain(choices.map(c=>[c.node.id,c.port.id])),[['B','in']]);
+  assert.equal(links.candidates(p,['C','in'],definition).length,0);
+  assert.deepEqual(plain(links.candidates(p,['C','in'],definition,{excluding:'used'}).map(c=>[c.node.id,c.port.id])),[['A','out'],['B','out']]);
+  assert.deepEqual(plain(p),before);
+});
+
+test('starting at a directed input stores output first on its canvas and keeps fluid orientation',()=>{
+  for(const domain of ['thermal','refrigerant','signal']){
+    const p=owner();p.pages.flatMap(pg=>pg.nodes).forEach(n=>n.domain=domain);
+    const edge=links.connect(p,'link',['A','in'],['C','out'],definition);
+    assert.deepEqual(plain(edge),['link','C','out','A','in']);
+    assert.equal(p.pages[0].edges.length,0);assert.equal(p.pages[1].edges[0],edge);
+    assert.equal(links.validate(p,definition,false).length,0);
+    links.connect(p,'link',['B','in'],['C','out'],definition,true);
+    assert.equal(links.atPort(p,'A','in'),undefined);assert.equal(links.all(p).length,1);
+  }
+  const p=owner();assert.deepEqual(plain(links.connect(p,'fluid',['A','in'],['C','out'],definition)),['fluid','A','in','C','out']);
+});

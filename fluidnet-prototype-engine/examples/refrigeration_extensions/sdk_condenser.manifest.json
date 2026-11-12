@@ -1,0 +1,405 @@
+{
+  "schema_version": 5,
+  "id": "author_condenser",
+  "name": "Python 本构冷凝器",
+  "version": 1,
+  "category": "制冷站设备",
+  "description": "自定义参考方程；平台验证能量闭合与热力学方向，设备性能未经厂家标定。",
+  "ports": [
+    {
+      "id": "in0",
+      "label": "排气进口",
+      "domain": "refrigerant",
+      "direction": "in",
+      "required": true,
+      "circuit": "refrigerant"
+    },
+    {
+      "id": "out0",
+      "label": "冷凝液出口",
+      "domain": "refrigerant",
+      "direction": "out",
+      "required": true,
+      "circuit": "refrigerant"
+    }
+  ],
+  "parameters": [
+    {
+      "id": "ua_w_k",
+      "label": "额定 UA（风机全开）",
+      "value_type": "number",
+      "default": 40000.0,
+      "unit": {
+        "quantity": "conductance",
+        "canonical_unit": "W/K",
+        "display_unit": "kW/K",
+        "display_scale": 1000.0,
+        "display_offset": 0.0
+      },
+      "minimum": 0.0,
+      "maximum": null,
+      "runtime": false,
+      "writable": true
+    },
+    {
+      "id": "fan_ratio",
+      "label": "风机投入比例",
+      "value_type": "number",
+      "default": 1.0,
+      "unit": {
+        "quantity": "ratio",
+        "canonical_unit": "1",
+        "display_unit": "%",
+        "display_scale": 0.01,
+        "display_offset": 0.0
+      },
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "runtime": true,
+      "writable": true
+    },
+    {
+      "id": "natural_ua_ratio",
+      "label": "风机全停时 UA 比例",
+      "value_type": "number",
+      "default": 0.2,
+      "unit": {
+        "quantity": "ratio",
+        "canonical_unit": "1",
+        "display_unit": "%",
+        "display_scale": 0.01,
+        "display_offset": 0.0
+      },
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "runtime": false,
+      "writable": true
+    },
+    {
+      "id": "wet_bulb_temperature_k",
+      "label": "室外湿球温度",
+      "value_type": "number",
+      "default": 300.15,
+      "unit": {
+        "quantity": "temperature",
+        "canonical_unit": "K",
+        "display_unit": "°C",
+        "display_scale": 1.0,
+        "display_offset": -273.15
+      },
+      "minimum": 1.0,
+      "maximum": null,
+      "runtime": true,
+      "writable": true
+    },
+    {
+      "id": "fan_power_w",
+      "label": "风机与喷淋泵功率（全开）",
+      "value_type": "number",
+      "default": 7500.0,
+      "unit": {
+        "quantity": "power",
+        "canonical_unit": "W",
+        "display_unit": "kW",
+        "display_scale": 1000.0,
+        "display_offset": 0.0
+      },
+      "minimum": 0.0,
+      "maximum": null,
+      "runtime": false,
+      "writable": true
+    },
+    {
+      "id": "return_gas_ratio",
+      "label": "贮液器回气阀开度",
+      "value_type": "number",
+      "default": 1.0,
+      "unit": {
+        "quantity": "ratio",
+        "canonical_unit": "1",
+        "display_unit": "%",
+        "display_scale": 0.01,
+        "display_offset": 0.0
+      },
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "runtime": true,
+      "writable": true
+    },
+    {
+      "id": "flooded_ua_ratio",
+      "label": "回气阀全关时 UA 比例",
+      "value_type": "number",
+      "default": 0.5,
+      "unit": {
+        "quantity": "ratio",
+        "canonical_unit": "1",
+        "display_unit": "%",
+        "display_scale": 0.01,
+        "display_offset": 0.0
+      },
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "runtime": false,
+      "writable": true
+    }
+  ],
+  "variables": [
+    {
+      "id": "heat_rejection_w",
+      "label": "排热量",
+      "quantity": "power",
+      "unit": {
+        "quantity": "power",
+        "canonical_unit": "W",
+        "display_unit": "kW",
+        "display_scale": 1000.0,
+        "display_offset": 0.0
+      },
+      "source": "derived",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": null,
+      "port_id": null
+    },
+    {
+      "id": "effective_ua_w_k",
+      "label": "有效 UA",
+      "quantity": "conductance",
+      "unit": {
+        "quantity": "conductance",
+        "canonical_unit": "W/K",
+        "display_unit": "kW/K",
+        "display_scale": 1000.0,
+        "display_offset": 0.0
+      },
+      "source": "derived",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": null,
+      "port_id": null
+    },
+    {
+      "id": "condensing_temperature_k",
+      "label": "冷凝温度",
+      "quantity": "temperature",
+      "unit": {
+        "quantity": "temperature",
+        "canonical_unit": "K",
+        "display_unit": "°C",
+        "display_scale": 1.0,
+        "display_offset": -273.15
+      },
+      "source": "derived",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": null,
+      "port_id": null
+    },
+    {
+      "id": "fan_power_w",
+      "label": "风机功率",
+      "quantity": "power",
+      "unit": {
+        "quantity": "power",
+        "canonical_unit": "W",
+        "display_unit": "kW",
+        "display_scale": 1000.0,
+        "display_offset": 0.0
+      },
+      "source": "derived",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": null,
+      "port_id": null
+    },
+    {
+      "id": "state.heat_rejected_j",
+      "label": "累计排热",
+      "quantity": "energy",
+      "unit": {
+        "quantity": "energy",
+        "canonical_unit": "J",
+        "display_unit": "kWh",
+        "display_scale": 3600000.0,
+        "display_offset": 0.0
+      },
+      "source": "state",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": null,
+      "port_id": null
+    },
+    {
+      "id": "state.fan_energy_j",
+      "label": "累计风机电量",
+      "quantity": "energy",
+      "unit": {
+        "quantity": "energy",
+        "canonical_unit": "J",
+        "display_unit": "kWh",
+        "display_scale": 3600000.0,
+        "display_offset": 0.0
+      },
+      "source": "state",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": null,
+      "port_id": null
+    },
+    {
+      "id": "param.ua_w_k",
+      "label": "额定 UA（风机全开）",
+      "quantity": "conductance",
+      "unit": {
+        "quantity": "conductance",
+        "canonical_unit": "W/K",
+        "display_unit": "kW/K",
+        "display_scale": 1000.0,
+        "display_offset": 0.0
+      },
+      "source": "parameter",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": "ua_w_k",
+      "port_id": null
+    },
+    {
+      "id": "param.fan_ratio",
+      "label": "风机投入比例",
+      "quantity": "ratio",
+      "unit": {
+        "quantity": "ratio",
+        "canonical_unit": "1",
+        "display_unit": "%",
+        "display_scale": 0.01,
+        "display_offset": 0.0
+      },
+      "source": "parameter",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": "fan_ratio",
+      "port_id": null
+    },
+    {
+      "id": "param.natural_ua_ratio",
+      "label": "风机全停时 UA 比例",
+      "quantity": "ratio",
+      "unit": {
+        "quantity": "ratio",
+        "canonical_unit": "1",
+        "display_unit": "%",
+        "display_scale": 0.01,
+        "display_offset": 0.0
+      },
+      "source": "parameter",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": "natural_ua_ratio",
+      "port_id": null
+    },
+    {
+      "id": "param.wet_bulb_temperature_k",
+      "label": "室外湿球温度",
+      "quantity": "temperature",
+      "unit": {
+        "quantity": "temperature",
+        "canonical_unit": "K",
+        "display_unit": "°C",
+        "display_scale": 1.0,
+        "display_offset": -273.15
+      },
+      "source": "parameter",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": "wet_bulb_temperature_k",
+      "port_id": null
+    },
+    {
+      "id": "param.fan_power_w",
+      "label": "风机与喷淋泵功率（全开）",
+      "quantity": "power",
+      "unit": {
+        "quantity": "power",
+        "canonical_unit": "W",
+        "display_unit": "kW",
+        "display_scale": 1000.0,
+        "display_offset": 0.0
+      },
+      "source": "parameter",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": "fan_power_w",
+      "port_id": null
+    },
+    {
+      "id": "param.return_gas_ratio",
+      "label": "贮液器回气阀开度",
+      "quantity": "ratio",
+      "unit": {
+        "quantity": "ratio",
+        "canonical_unit": "1",
+        "display_unit": "%",
+        "display_scale": 0.01,
+        "display_offset": 0.0
+      },
+      "source": "parameter",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": "return_gas_ratio",
+      "port_id": null
+    },
+    {
+      "id": "param.flooded_ua_ratio",
+      "label": "回气阀全关时 UA 比例",
+      "quantity": "ratio",
+      "unit": {
+        "quantity": "ratio",
+        "canonical_unit": "1",
+        "display_unit": "%",
+        "display_scale": 0.01,
+        "display_offset": 0.0
+      },
+      "source": "parameter",
+      "writable": false,
+      "sampleable": true,
+      "parameter_id": "flooded_ua_ratio",
+      "port_id": null
+    }
+  ],
+  "channels": [],
+  "solver_model": "generic",
+  "state_model": null,
+  "thermal_model": null,
+  "source_format": "python-v1",
+  "source": {
+    "runtime": "class Condenser:\n    def initialize(self, ctx):\n        pass\n\n    def commit_step(self, ctx, dt_s):\n        pass\n\n    def finalize(self, ctx):\n        pass\n\n    def evaluate(self, ctx):\n        x = ctx.refrigeration.point\n        p = ctx.parameters\n        # A custom fan-speed law, with explicit natural convection at zero fan.\n        ua = p['ua_w_k'] * (p['natural_ua_ratio'] + (1.0 - p['natural_ua_ratio']) * p['fan_ratio'] ** 0.8)\n        ua *= p['flooded_ua_ratio'] + (1.0 - p['flooded_ua_ratio']) * p['return_gas_ratio']\n        ctx.refrigeration.balance(outlet_enthalpy_j_kg=x.inlet_enthalpy_j_kg,\n            heat_rejection_w=ua * (x.inlet_temperature_k - x.sink_temperature_k),\n            electric_power_w=p['fan_power_w'] * p['fan_ratio'] ** 3)\n"
+  },
+  "runtime": "python",
+  "entrypoint": "Condenser",
+  "content_hash": "3de8338153de53bf019bb09c90072a0707b79e3dcda95198333ec5dadb402ef0",
+  "definition_hash": "e7e7348b4e1e1f2119382b891cb6f963a014823ef58def50c2f96644dda02e73",
+  "package_path": null,
+  "bank_names": [
+    "额定工况",
+    "部分负荷",
+    "调试备份"
+  ],
+  "sdk": {
+    "api_version": "0.11.0",
+    "capabilities": [
+      "context.execution.v1",
+      "refrigeration.constitutive.v1",
+      "state.transactions.v1"
+    ],
+    "state_contract_version": 1
+  },
+  "applicability": {
+    "execution_domains": [
+      "refrigeration"
+    ],
+    "fluids": [],
+    "assumptions": []
+  },
+  "execution_role": "refrigeration.condenser.v1"
+}

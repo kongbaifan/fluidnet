@@ -23,7 +23,7 @@ const active=state=>state.projects.find(project=>project.id===state.activeProjec
 async function save(){
   const receipt=page.waitForResponse(response=>response.url().endsWith('/workspace')&&response.request().method()==='POST');
   await page.locator('[data-action="save"]').first().click();expect((await receipt).status()).toBe(200);
-  return page.evaluate(()=>JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
+  return page.evaluate(async () => (await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
 }
 async function importFile(file){
   await navigate('projects');await page.locator('[data-action="wf-import"]').click();

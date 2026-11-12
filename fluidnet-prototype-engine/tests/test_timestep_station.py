@@ -78,13 +78,15 @@ def test_trial_runs_from_any_accepted_vector_and_second_half_from_the_first():
     session = open_session(station_project('B-S01', 600., time_step=adaptive_options()))
     try:
         x = session._vector(session.masses, session.energies, session.temperatures)
-        payload, error = session._trial_doubling(x, 10.)
+        # The kg/J tolerances apply to physical coordinates, so the first step
+        # near the frozen energy reference needs a small accepted interval.
+        payload, error = session._trial_doubling(x, .1)
         assert error.norm <= 1.
         state = session.last_trial
-        assert state['h'] == 10. and state['x_mid'].shape == x.shape
+        assert state['h'] == .1 and state['x_mid'].shape == x.shape
         # 第二个半步确实从第一个半步的 accepted 中间态出发。
-        manual_mid, _ = session._solve(x, 5.)
-        manual_fine, _ = session._solve(manual_mid, 5.)
+        manual_mid, _ = session._solve(x, .05)
+        manual_fine, _ = session._solve(manual_mid, .05)
         assert state['x_mid'] == pytest.approx(manual_mid, rel=0, abs=1e-10)
         assert state['x_fine'] == pytest.approx(manual_fine, rel=0, abs=1e-10)
         assert not (state['x_mid'] == x).all()

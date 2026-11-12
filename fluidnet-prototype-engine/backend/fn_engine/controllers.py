@@ -57,5 +57,5 @@ class PID:
         c = self.config
         return {f'controller.{c.id}.{key}': value for key, value in {
             'measurement': self.measurement, 'setpoint': c.setpoint, 'output': self.output,
-            'integral': self.integral, 'mode': c.mode,
+            'integral': self.integral, 'mode': c.mode, 'manual_output': c.manual_output,
         }.items()}

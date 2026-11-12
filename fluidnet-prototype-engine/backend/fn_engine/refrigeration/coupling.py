@@ -32,7 +32,7 @@ class CompiledCoupled(CompiledStation):
 def compile_coupled_project(project):
     definitions = {module.id:module for module in project.modules}
     for instance in project.instances:
-        if definitions[instance.module_id].execution_role:
+        if definitions[instance.module_id].execution_role and definitions[instance.module_id].schema_version != 5:
             raise CompilationError('MODULE_EXECUTION_DOMAIN_UNSUPPORTED',
                 '热耦合项目尚不支持制冷作者模块',instance.id,'execution_role')
     if not project.solver.thermal:
@@ -71,6 +71,10 @@ def compile_coupled_project(project):
             raise CompilationError('COUPLED_MODULE_DOMAIN', '耦合两侧设备须分别属于单相流体网络或集总制冷站', instance.id)
     if not liquid_ids or not station_ids:
         raise CompilationError('COUPLED_DOMAIN_MISSING', '热耦合必须同时包含单相流体网络和制冷站')
+    if any(modules[i.module_id].execution_role for i in project.instances if i.id in station_ids) and any(
+            modules[i.module_id].runtime == 'python' for i in project.instances if i.id in liquid_ids):
+        raise CompilationError('COUPLED_AUTHOR_ADAPTER_CONFLICT',
+            '当前耦合可选制冷作者设备或液体作者设备；同一会话尚不支持两种作者事务同时存在')
     for entry in project.circuit_fluids:
         if entry.anchor.instance_id not in liquid_ids | station_ids:
             raise CompilationError('CIRCUIT_ANCHOR_UNKNOWN', f'回路工质 {entry.id} 的锚点设备不存在',
@@ -90,8 +94,6 @@ def compile_coupled_project(project):
             'thermal_couplings': [], 'controllers': [], 'control_scripts': [], 'events': [], 'scenarios': [],
         })
 
-    if enhanced and project.solver.time_step.enabled:
-        raise CompilationError('COUPLED_STORAGE_FIXED_STEP','耦合储热首版只支持固定隐式步，时间误差控制需另验收')
     liquid = compile_project(subset(liquid_ids))
     if liquid.storage or liquid.trapped:
         raise CompilationError('COUPLED_FLUID_STATE_UNSUPPORTED', '当前联算的单相侧不包含储量状态')
@@ -191,15 +193,41 @@ class CoupledStationSession(StationSession):
             node=liquid.port_nodes[iid+':in0'];pressure=next(p for n,p in liquid.fixed_pressures.items() if liquid.node_circuit[n]==liquid.node_circuit[node])
             self.temperatures[iid]=service_at(liquid,node).state_pt(pressure,liquid.parameters[iid]['temperature_k']).enthalpy_j_kg
         if self.buffer_ids:self.scale=np.concatenate([self.scale,np.full(len(self.buffer_ids),1e5)])
+        self._buffer_energy_reference = {iid: self.network.parameters[iid]['mass_kg'] * self.temperatures[iid]
+                                         for iid in self.buffer_ids}
+
+    def _error_estimate(self, x, x_full, x_fine, result_full, result_fine):
+        if not self.buffer_ids:
+            return super()._error_estimate(x, x_full, x_fine, result_full, result_fine)
+        from ..timestep import normalized_error
+        categories, references = [], []
+        for iid in self.network.vessels:
+            categories.extend(('mass', 'energy'))
+            references.extend((0., self.energy_reference[iid]))
+        factors = [1.] * len(categories)
+        for iid in self.temperatures:
+            is_buffer = iid in self.buffer_ids
+            coordinate = self.process_engine.space.coordinates.get(iid)
+            categories.append('energy' if is_buffer else coordinate.quantity if coordinate else 'temperature')
+            references.append(self._buffer_energy_reference[iid] if is_buffer else
+                              coordinate.initial if coordinate and coordinate.quantity == 'energy' else 0.)
+            factors.append(self.network.parameters[iid]['mass_kg'] if is_buffer else 1.)
+        pressure = {v: (result_full['vessels'][v].pressure_pa, result_fine['vessels'][v].pressure_pa,
+                       self.network.project.solver.pressure_tolerance_pa) for v in self.network.vessels}
+        conversion = self.scale * factors
+        return normalized_error(np.asarray(x) * conversion, np.asarray(x_full) * conversion,
+            np.asarray(x_fine) * conversion, categories=categories,
+            atol={c: self.timestep.atol(c) for c in set(categories)}, rtol=self.timestep.rtol,
+            references=references, extra=pressure)
 
     def _stored(self,masses,energies,temperatures):
         ordinary={k:v for k,v in temperatures.items() if k not in self.buffer_ids}
         return super()._stored(masses,energies,ordinary)+sum(self.network.parameters[k]['mass_kg']*temperatures[k] for k in self.buffer_ids)
 
-    def _evaluate(self, masses, energies, temperatures):
-        if self.module_adapter is not None:
+    def _evaluate(self, masses, energies, temperatures, freeze_hydraulics=False):
+        if self.module_adapter is not None and not self.network.refrigeration_modules:
             self.module_adapter.initialize()
-        result = super()._evaluate(masses, energies, temperatures)
+        result = super()._evaluate(masses, energies, temperatures, freeze_hydraulics=freeze_hydraulics)
         liquid = self.network.fluid_network
         liquid.parameters = {iid: self.network.parameters[iid] for iid in liquid.instances}
         liquid.coupled_buffer_enthalpies={iid:temperatures[iid] for iid in self.buffer_ids}
@@ -208,7 +236,8 @@ class CoupledStationSession(StationSession):
                 (link.ua_w_k, result['vessels'][link.refrigerant_vessel_id].temperature_k)
             for link in self.network.couplings}
         try:
-            water = solve_network(liquid, runners=self.runners, time_s=self._candidate_time, warm=self._fluid_warm)
+            water = solve_network(liquid, runners={} if self.network.refrigeration_modules else self.runners,
+                                  time_s=self._candidate_time, warm=self._fluid_warm)
         except (CompilationError, ValueError) as error:
             from ..runtime import RuntimeErrorBase
             if isinstance(error, RuntimeErrorBase):
@@ -275,7 +304,7 @@ class CoupledStationSession(StationSession):
         for index,outputs in result['fluid_result'].thermal.buffer_outputs.items():
             iid=liquid.branches[index].instance_id
             frame.variables.update({f'{iid}.{key}':value for key,value in outputs.items()})
-        if self.module_adapter is not None:
+        if self.module_adapter is not None and not self.network.refrigeration_modules:
             # The cached hydraulic trial contains the previous accepted module
             # state. Publish the state promoted with this station segment last.
             frame.variables.update(self.module_adapter.variables(result))

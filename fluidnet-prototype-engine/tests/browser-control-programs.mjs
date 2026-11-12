@@ -27,7 +27,7 @@ const save = async () => {
   await page.locator('[data-action="save"]').first().click();
   expect((await response).ok()).toBe(true);
   await expect(page.locator('[data-save-status]')).not.toContainText('正在保存');
-  return page.evaluate(async key => JSON.parse(localStorage.getItem(key)), storageKey);
+  return page.evaluate(async key => (await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem(key)), storageKey);
 };
 const selectedProject = data => data.projects.find(project => project.id === data.activeProject);
 const select = id => page.getByLabel('选择控制脚本').selectOption(id);

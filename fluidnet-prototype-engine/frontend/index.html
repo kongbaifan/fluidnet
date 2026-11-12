@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
-  <title>FluidNet Studio · 全流程交互原型</title>
+  <title>FluidNet Studio</title>
   <style>
 :root { color-scheme:light; font-family:"Segoe UI","Microsoft YaHei",sans-serif; }
 * { box-sizing:border-box; }
@@ -309,6 +309,45 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 #fn-studio .editor-header h1 { font-size:18px;letter-spacing:0; }
 #fn-studio .editor-header small { display:block;color:var(--muted);margin-top:3px; }
 #fn-studio .editor-tabs { background:var(--surface);gap:22px;padding-left:22px; }
+#fn-studio .module-use-bar { display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 20px;border-bottom:1px solid var(--border);color:var(--muted);font-size:12px;flex-wrap:wrap; }
+#fn-studio .module-save-feedback { display:block;margin-top:5px;color:var(--text);overflow-wrap:anywhere; }
+#fn-studio .module-setup { height:100%;display:flex;flex-direction:column; }
+#fn-studio .module-basic-info { display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:16px 22px;border-bottom:1px solid var(--border);background:var(--surface); }
+#fn-studio .module-basic-info .grow { flex:1 1 280px;min-width:0; }
+#fn-studio .module-basic-info p { margin-top:6px;color:var(--muted);font-size:12px;line-height:1.6;max-width:900px;white-space:pre-wrap; }
+#fn-studio .module-setup .editor-drawing { flex:1;height:auto; }
+#fn-studio .editor-advanced-details { border:1px solid var(--border);border-radius:8px;background:var(--surface);padding:12px 16px; }
+#fn-studio .editor-advanced-details > summary { cursor:pointer;color:var(--muted);font-size:12px; }
+#fn-studio .editor-advanced-details[open] > summary { margin-bottom:16px;color:var(--text); }
+#fn-studio .module-parameter-table td { vertical-align:middle; }
+#fn-studio .module-parameter-table td small { display:block;margin-top:4px; }
+#fn-studio .device-use-guide { border:1px solid var(--border);border-radius:7px;background:var(--surface);padding:10px 12px;font-size:12px;line-height:1.6; }
+#fn-studio .device-use-guide summary,#fn-studio .device-other-parameters summary { cursor:pointer;color:var(--text);font-weight:600; }
+#fn-studio .device-use-guide p { margin:10px 0 0; }
+#fn-studio .device-use-guide dl { margin:10px 0; }
+#fn-studio .device-use-guide dt { font-weight:600;margin-top:8px; }
+#fn-studio .device-use-guide dd { margin:2px 0 0;color:var(--muted); }
+#fn-studio .device-other-parameters { margin-top:12px;padding:10px 0;border-top:1px solid var(--border); }
+#fn-studio .pump-curve-parameter { grid-template-columns:1fr;gap:10px; }
+#fn-studio .pump-curve-json { margin-top:10px;font-size:12px; }
+#fn-studio .pump-curve-json summary { cursor:pointer;color:var(--muted);margin-bottom:8px; }
+#fn-studio .pump-curve-editor { display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start; }
+#fn-studio .pump-curve-table { max-height:400px;overflow:auto;margin-bottom:10px; }
+#fn-studio .pump-curve-table input { width:100%;min-width:70px; }
+#fn-studio .pump-curve-table td { padding:8px; }
+#fn-studio .pump-curve-table th { white-space:nowrap; }
+#fn-studio .pump-curve-table [aria-invalid=true] { border-color:var(--red); }
+#fn-studio .pump-curve-preview svg { width:100%;background:var(--surface);border:1px solid var(--border);border-radius:6px; }
+#fn-studio .pump-curve-preview text { font-size:11px;fill:var(--muted); }
+#fn-studio .pump-curve-grid { stroke:var(--border);fill:none;stroke-dasharray:3 3; }
+#fn-studio .pump-curve-axis { stroke:var(--muted);fill:none; }
+#fn-studio .pump-curve-line { stroke:var(--orange);stroke-width:2;fill:none; }
+#fn-studio .pump-curve-preview circle { fill:var(--orange); }
+#fn-studio .pump-curve-error { color:var(--red);font-size:12px;margin-top:8px; }
+#fn-studio .pump-curve-empty { border:1px dashed var(--border);padding:50px 16px;color:var(--muted);text-align:center; }
+@media(max-width:700px){#fn-studio .pump-curve-editor{grid-template-columns:1fr;}}
+#fn-studio .module-setup > .device-use-guide { margin:10px 22px; }
+#fn-studio [data-device-result-group] h3 { font-size:12px;margin-bottom:8px; }
 #fn-studio .editor-content { flex:1;min-height:0;overflow:auto; }
 #fn-studio .editor-footer { padding:9px 22px;display:flex;align-items:center;gap:12px;background:var(--surface);border-top:1px solid var(--border);font-size:11px;color:var(--muted);flex:none; }
 #fn-studio .editor-drawing { height:100%;min-height:380px;display:grid;grid-template-columns:minmax(0,1fr) 250px; }
@@ -648,7 +687,6 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 #fn-studio .dock-chart-head>strong>svg { width:16px;color:var(--accent); }
 #fn-studio .dock-chart-head select { padding:4px 7px;font-size:11px;max-width:210px;min-width:0; }
 #fn-studio .dock-chart-head .icon-btn { min-width:25px;min-height:25px;padding:3px; }
-#fn-studio .dock-source { color:var(--muted);font-size:11px;white-space:nowrap; }
 #fn-studio .dock-chart-meta { display:flex;gap:12px;align-items:center;justify-content:space-between;padding:5px 14px 0;min-height:28px; }
 #fn-studio .result-status { font-size:11px;color:var(--muted); }
 #fn-studio .result-status.warn { color:var(--accent); }
@@ -679,7 +717,6 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 }
 @media(max-width:1150px) {
   #fn-studio .workbench.has-docked { --dock-size:330px; }
-  #fn-studio .dock-source { display:none; }
   #fn-studio .entry-paths { grid-template-columns:1fr;gap:12px; }
   #fn-studio .canvas-info>.optional { display:none; }
 }
@@ -827,6 +864,58 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .cross-page-strip button{display:flex;align-items:center;gap:5px;max-width:100%;padding:4px 8px;border:1px solid var(--line);border-radius:5px;background:var(--surface);color:var(--blue);font-size:11px;text-align:left}
 .cross-page-strip button span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cross-page-strip svg{width:13px;height:13px;flex:none}
+
+/* Keep exceptional state reminders compact; run controls stay beside the canvas. */
+#fn-studio .workbench-flow { display:flex;align-items:center;gap:18px;padding:8px 14px;min-height:0;flex-shrink:0;border-bottom:1px solid var(--border);background:var(--surface); }
+#fn-studio #workbench-guide { flex:1;min-width:0; }
+#fn-studio #workbench-guide:empty { display:none; }
+#fn-studio .workbench-flow:has(#workbench-guide:empty) { display:none; }
+#fn-studio .canvas-area > .runbar { max-height:calc(100% - 32px);overflow-y:auto; }
+#fn-studio .runbar .spacer { height:1px;min-height:1px;width:100%;margin:4px 0;background:var(--border);flex:none; }
+#fn-studio .runbar .run-settings { width:40px;min-width:0;padding:4px 0;border:0;white-space:normal;line-height:1.15;background:transparent; }
+#fn-studio .with-chart .runbar .run-settings { width:34px; }
+
+#fn-studio .workbench-next { display:flex;align-items:center;gap:14px; }
+#fn-studio .workbench-next-copy { min-width:0;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap; }
+#fn-studio .workbench-next-copy strong { display:inline;font-size:12px;line-height:1.5;color:var(--text);font-weight:600; }
+#fn-studio .workbench-next-copy p { margin:0;font-size:12px;line-height:1.55;color:var(--muted); }
+#fn-studio .workbench-next-copy.warn strong { color:var(--accent); }
+#fn-studio .workbench-next-copy.error strong { color:var(--red); }
+#fn-studio .workbench-next-action { flex-shrink:0;white-space:nowrap; }
+#fn-studio .canvas-bar .canvas-tools { gap:5px; }
+#fn-studio .canvas-advanced { display:flex;flex-shrink:0;align-items:center;gap:4px;min-height:38px;padding:4px 12px;border-bottom:1px solid var(--border);background:var(--soft);overflow-x:auto; }
+#fn-studio .canvas-advanced > * { flex-shrink:0; }
+#fn-studio .canvas-advanced-label { color:var(--muted);font-size:10px;letter-spacing:.3px;margin-right:8px; }
+#fn-studio .canvas-advanced .btn { font-size:11px;padding:4px 8px;min-height:28px;border-color:transparent;background:transparent; }
+#fn-studio .canvas-advanced .btn:hover { border-color:var(--border);background:var(--surface); }
+#fn-studio .canvas-advanced select { font-size:11px;padding:4px 7px;max-width:170px; }
+#fn-studio .canvas-advanced label { font-size:11px; }
+#fn-studio .canvas-area > .workbench-empty { display:flex;flex-wrap:wrap;gap:10px;align-content:center;justify-content:center;align-items:center;height:100%;padding:36px 24px; }
+#fn-studio .workbench-empty > svg,#fn-studio .workbench-empty h3,#fn-studio .workbench-empty p { width:100%;margin:0; }
+#fn-studio .workbench-empty > svg { height:40px;margin-bottom:6px; }
+#fn-studio .workbench-empty p { margin-bottom:9px; }
+#fn-studio .canvas-bottom .zoom { margin-left:auto; }
+#fn-studio .dock-event[hidden] { display:none; }
+#fn-studio .result-status.error { color:var(--red); }
+@media(max-width:1400px) {
+  #fn-studio .workbench-flow { gap:12px;padding:8px 12px; }
+  #fn-studio .workbench-next-copy p { font-size:11px; }
+}
+@media(max-width:1100px) {
+  #fn-studio .workbench-flow { flex-wrap:wrap;gap:9px; }
+  #fn-studio #workbench-guide { flex-basis:100%; }
+  #fn-studio .canvas-bar { padding:0 8px; }
+}
+
+
+@media(max-height:850px) {
+  #fn-studio .with-chart .runbar { gap:2px;padding:4px; }
+  #fn-studio .with-chart .runbar button { min-height:27px;gap:1px;font-size:9px;line-height:1; }
+  #fn-studio .with-chart .runbar button > svg { width:13px;height:13px; }
+  #fn-studio .with-chart .runbar .run-settings { font-size:8.5px;padding:2px 0;white-space:nowrap; }
+  #fn-studio .with-chart .runbar .spacer { margin:2px 0; }
+}
+
 </style>
 <link rel="stylesheet" href="air-side.css">
 <link rel="stylesheet" href="path-trace.css">

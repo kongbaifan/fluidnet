@@ -5,6 +5,7 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { launchEngine } from './browser-server.mjs';
+import { FluidNetDraftStore } from '../frontend/draft-store.js';
 
 // 浏览器旧存档迁移验收（M1 收尾项）：
 // 旧版本只把原型草稿写在 localStorage（fluidnet-prototype-engine-v1），没有服务器工作区。
@@ -34,7 +35,7 @@ page.on('pageerror', e => errors.push(e.message));
 
 const sha256File = path => createHash('sha256').update(readFileSync(path)).digest('hex');
 const sha256Text = text => createHash('sha256').update(text, 'utf8').digest('hex');
-const localState = () => page.evaluate(k => JSON.parse(localStorage.getItem(k) || 'null'), KEY);
+const localState = () => page.evaluate(async k => (await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem(k) || 'null'), KEY);
 const localText = key => page.evaluate(k => localStorage.getItem(k), key);
 const ready = p => expect(p.locator('#app-header')).toContainText('模块平台 · v');
 const api = async (path, body) => {
@@ -160,7 +161,7 @@ try {
   await expect.poll(async () => (await localText(BEFORE_WORKSPACE)) !== null, { timeout: 20000 }).toBe(true);
   await expect.poll(async () => (await localState())?.projects?.length, { timeout: 20000 }).toBe(3);
   const backupText = await localText(BEFORE_WORKSPACE);
-  const backup = JSON.parse(backupText);
+  const backup = FluidNetDraftStore.parse(backupText);
   expect(backup.projects, '载入前备份应保留 5 个旧项目').toHaveLength(5);
   const backupPython = backup.projects.find(p => p.id === pythonProjectId);
   expect(backupPython.name).toBe('旧版存档 · 可编程阀门管网');
@@ -239,8 +240,8 @@ try {
   freshPage.on('pageerror', e => errors.push(e.message));
   await freshPage.goto(base + '/#projects');
   await ready(freshPage);
-  await expect.poll(async () => freshPage.evaluate(k => JSON.parse(localStorage.getItem(k) || 'null')?.projects?.length, KEY), { timeout: 20000 }).toBe(4);
-  const restored = await freshPage.evaluate(k => JSON.parse(localStorage.getItem(k) || 'null'), KEY);
+  await expect.poll(async () => freshPage.evaluate(async k => (await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem(k) || 'null')?.projects?.length, KEY), { timeout: 20000 }).toBe(4);
+  const restored = await freshPage.evaluate(async k => (await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem(k) || 'null'), KEY);
   expect(restored.workspaceRevision).toBe(2);
   const restoredProject = restored.projects.find(p => p.id === imported.id);
   expect(restoredProject.moduleSnapshots.programmable_valve.manifest.content_hash).toBe(contentHash);

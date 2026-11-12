@@ -21,21 +21,71 @@ export const FluidNetProjectRunState = (() => {
     run.time=row.t;
     run.values={q:row.q,a:row.a,b:row.b,pressure:row.pressure,temperature:row.temperature};
   }
+  const complete=row=>!!row && !row.partial && row.valid!==false && Number.isFinite(row.t);
+  function older(row,previous) {
+    if(!previous)return false;
+    if(Number.isFinite(row.parameterRevision)&&Number.isFinite(previous.parameterRevision)
+      &&row.parameterRevision<previous.parameterRevision)return true;
+    if(Number.isFinite(row.sequence)&&Number.isFinite(previous.sequence)&&row.sequence!==previous.sequence)
+      return row.sequence<previous.sequence;
+    if(row.t!==previous.t)return row.t<previous.t;
+    return Number.isFinite(row.parameterRevision)&&Number.isFinite(previous.parameterRevision)
+      && row.parameterRevision<previous.parameterRevision;
+  }
+  function completeRow(run) {
+    const historical=run?.history?.findLast(complete),latest=run?.latestFull;
+    return complete(latest)&&(!historical||older(historical,latest)||!older(latest,historical))?latest:historical;
+  }
+  function rememberComplete(run,row) {
+    if(complete(row)&&!older(row,run.latestFull))run.latestFull=row;
+  }
+  function sampleKey(row) {
+    if(!row)return '';
+    return Number.isFinite(row.sequence)?`${row.sequence}:${row.parameterRevision??''}:${row.t}`:
+      `${row.t}:${row.parameterRevision??''}:${JSON.stringify(row.canonical||{})}`;
+  }
+  function acceptLive(run,row) {
+    if(!complete(row))return false;
+    const previous=completeRow(run);
+    if(older(row,previous)||sampleKey(row)===sampleKey(previous))return false;
+    if(Number.isFinite(row.parameterRevision)&&Number.isFinite(previous?.parameterRevision)
+      &&row.parameterRevision<previous.parameterRevision)return false;
+    rememberComplete(run,row);
+    if(!Number.isFinite(run.time)||row.t>=run.time)present(run,row);
+    return true;
+  }
   function append(run,row) {
+    const accepted=completeRow(run);
+    // Earlier revisions are legitimate history. Only an impossible future
+    // sample may be rejected for going backwards in parameter revision.
+    if(accepted&&Number.isFinite(row.parameterRevision)&&Number.isFinite(accepted.parameterRevision)
+      &&row.parameterRevision<accepted.parameterRevision&&(row.t>accepted.t
+        ||Number.isFinite(row.sequence)&&Number.isFinite(accepted.sequence)&&row.sequence>accepted.sequence))return false;
     const last=run.history.at(-1);
     if(last && row.t<last.t)return false;
     if(last && row.t===last.t) {
+      if(older(row,last))return false;
       if(!last.partial && row.partial)return false;
       run.history[run.history.length-1]=row;
     } else run.history.push(row);
-    present(run,row);return true;
+    rememberComplete(run,row);
+    if(!older(row,run.latestFull)&&(!Number.isFinite(run.time)||row.t>=run.time))present(run,row);
+    return true;
   }
   function mergeLive(run,data,rows,{totalRows,latest,limit=2001}) {
-    for(const row of rows)append(run,row);
+    // The status response and history are separate snapshots. History may already
+    // be ahead of the latest full response; retain that response for live readouts.
+    rememberComplete(run,completeRow(run));
+    for(const row of rows){append(run,row);rememberComplete(run,row);}
+    rememberComplete(run,latest);
     if(run.history.length>limit)run.history.splice(0,run.history.length-limit);
     run.offset=totalRows;
-    if(latest && run.history.length && latest.t>=run.time) {
-      if(run.history.at(-1).t===latest.t)append(run,latest);else present(run,latest);
+    // Only an actual HTTP sample can complete HTTP trend history. A streamed
+    // latestFull remains a separate readout cache even at the same timestamp.
+    if(complete(latest)&&run.history.at(-1)?.t===latest.t)append(run,latest);
+    const full=completeRow(run);
+    if(full && (!Number.isFinite(run.time)||full.t>=run.time)) {
+      present(run,full);
     }
     run.events=data.events.map(e=>({t:e.time_s,text:e.message || (e.command_id?`${e.command?.action || '命令'} ${e.command_status} · ${e.command_id}`:e.type)}));
     run.diagnostics=clone(data.frame?.diagnostics||[]);
@@ -74,7 +124,7 @@ export const FluidNetProjectRunState = (() => {
         || !Number.isFinite(record.frame?.time_s) || record.frame.time_s < 0) return null;
     return {id:runId,rows:record.persisted_rows,time_s:record.frame.time_s,persisted_at:record.persisted_at};
   }
-  return {capture,isCurrent,assertCurrent,archiveCacheMetadata,setArchiveCache,advanceParameterKey,prepare,present,append,mergeLive,
+  return {capture,isCurrent,assertCurrent,archiveCacheMetadata,setArchiveCache,advanceParameterKey,prepare,present,completeRow,sampleKey,acceptLive,append,mergeLive,
     reconcileArchives,archiveRecord,rememberArchive};
 })();
 

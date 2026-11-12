@@ -68,7 +68,7 @@ try {
     await page.locator('[data-action="cs-create"]').click();
     await expect(panel).toBeVisible({ timeout: 5000 });
   }).toPass({ timeout: 60000 });
-  const draft = (await page.evaluate(k => JSON.parse(localStorage.getItem(k)), key)).projects.find(p => p.caseId === 'cold-room-minus18-v1');
+  const draft = (await page.evaluate(async k => (await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem(k)), key)).projects.find(p => p.caseId === 'cold-room-minus18-v1');
   const projectId = draft.id;
   expect(draft.pages[0].nodes.map(n => n.id).sort()).toEqual(['AC1', 'CU1', 'ROOM1']);
   expect(draft.scenarios.map(s => s.id)).toContain('A-S05-variable');
@@ -88,7 +88,7 @@ try {
   // 3. 单步（暂停态），在设备窗口把温控设定改为 −19 °C 并应用，再继续运行到结束。
   const stepped = await posted(() => page.locator('[data-action="run-project"][data-command="step"]').first().click());
   await finished(stepped.id, 'paused');
-  await page.locator('[data-node="ROOM1"]').dblclick();
+  await page.locator('.net-node[data-node="ROOM1"]').dblclick();
   const setpoint = page.locator('[data-instance-param="setpoint_temperature_k"][data-id="ROOM1"]');
   await expect(setpoint).toBeVisible();
   await setpoint.fill('-19'); await setpoint.blur();

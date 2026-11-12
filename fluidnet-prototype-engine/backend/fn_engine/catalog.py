@@ -24,7 +24,7 @@ def cold_store_catalog() -> list[ModuleDefinition]:
 
 def refrigeration_catalog() -> list[ModuleDefinition]:
     from .device_registry import family_definitions
-    return family_definitions('refrigeration')
+    return family_definitions('refrigeration') + family_definitions('refrigeration-network') + family_definitions('cold-process')
 
 
 def catalog_map() -> dict[str, ModuleDefinition]:

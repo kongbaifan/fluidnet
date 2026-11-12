@@ -39,6 +39,8 @@ export const FluidNetDraftStore=(()=>{
   }
   function parse(text){return decode(JSON.parse(text));}
   function write(storage,key,text){
+    // Pack large values before the first write so a draft leaves space for its backup.
+    if(text.length>256000){const packed=pack(JSON.parse(text));if(packed.length<text.length){storage.setItem(key,packed);return {packed:true,chars:packed.length};}}
     try{storage.setItem(key,text);return {packed:false,chars:text.length};}
     catch(error){if(!/quota|存储空间/i.test(String(error.name)+' '+String(error.message))&&![22,1014].includes(error.code))throw error;
       const packed=pack(JSON.parse(text));if(packed.length>=text.length)throw error;

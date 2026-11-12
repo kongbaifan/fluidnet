@@ -62,6 +62,14 @@ function backfillBuiltinParams(data) {
     if (kind) { fill(n.params, kind); fill(n.draft, kind); }
   }
 }
+function normalizeFluidSettings(target) {
+  const config=target?.fluidConfig;
+  if(!config || typeof config!=='object')return;
+  // Config-only imports must expose the same selection that the bridge uses.
+  // An explicit empty fluid string means "use the preset" and must stay empty.
+  if(target.fluid===undefined && typeof config.fluid==='string')target.fluid=config.fluid;
+  if(target.fluidReference===undefined && typeof config.reference==='string')target.fluidReference=config.reference;
+}
 function normalize(state) {
   normalizeGroups(state);
   state.modules.forEach(m => { m.saving=false; if (m.manifest) PARAM_DEFS[m.kind] = manifestFields(m.manifest); normalizePythonSource(m); });
@@ -76,6 +84,8 @@ function normalize(state) {
   if (benchModule?.runtime === 'python') { state.bench.params ||= {}; for (const spec of manifestParamSpecs(benchModule.manifest)) if (!(spec.id in state.bench.params)) state.bench.params[spec.id] = clone(spec.default); }
   for (const p of state.projects) {
     p.scenarios ||= [];p.activeScenarioId ||= '';
+    normalizeFluidSettings(p);
+    if(Array.isArray(p.circuitFluids))p.circuitFluids.forEach(normalizeFluidSettings);
     pinProject(p, true);
     normalizeControls(p);
     if (!p.run || typeof p.run !== 'object') p.run = emptyRun();

@@ -217,6 +217,7 @@ def collect_air_variables(project):
         for field, label, reference in (
             ('measurement', '测量值', measurement), ('setpoint', '设定值', measurement),
             ('output', '控制输出', actuator), ('integral', '积分项', actuator),
+            ('manual_output', '手动输出设定', actuator),
         ):
             key = f'{owner}.{field}'
             result[key] = AirVariableDescriptor(
@@ -224,7 +225,7 @@ def collect_air_variables(project):
                 quantity=reference.quantity if reference else 'number',
                 unit=reference.unit.model_copy(deep=True) if reference and reference.unit else None,
                 mass_basis=reference.mass_basis if reference else 'none', source='system',
-                nullable=field == 'measurement', writable=field == 'setpoint', available_in=['dynamic'])
+                nullable=field in {'measurement','manual_output'}, writable=field in {'setpoint','manual_output'}, available_in=['dynamic'])
         key = f'{owner}.mode'
         result[key] = AirVariableDescriptor(
             key=key, label=f'PID {controller.id} · 模式', instance_id=owner,

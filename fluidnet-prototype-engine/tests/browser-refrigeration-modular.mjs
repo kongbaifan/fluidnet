@@ -21,7 +21,7 @@ async function save(){
   return page.evaluate(async () =>(await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
 }
 async function parameters(id,values,definition){
-  await page.locator(`[data-node="${id}"]`).dblclick();
+  await page.locator(`.net-node[data-node="${id}"]`).dblclick();
   const panel=page.locator(`[data-float-id="${id}"]`);
   for(const [key,value] of Object.entries(values)) {
     const spec=definition.parameters.find(p=>p.id===key);
@@ -65,7 +65,7 @@ try {
   }
   // Arrange the independently inserted symbols by dragging, without editing application state.
   for(const item of recipe.instances) {
-    const points=await page.locator(`[data-node="${ids[item.id]}"]`).evaluate(async (element,position) =>{
+    const points=await page.locator(`.net-node[data-node="${ids[item.id]}"]`).evaluate(async (element,position) =>{
       const svg=element.ownerSVGElement,point=svg.createSVGPoint();
       const from=point.matrixTransform(element.getScreenCTM());
       point.x=position.x;point.y=80+(position.y-120)*.7;

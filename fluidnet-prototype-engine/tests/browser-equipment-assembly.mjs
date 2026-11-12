@@ -1,5 +1,5 @@
 import {chromium,expect} from '@playwright/test';
-import {readFileSync,mkdtempSync} from 'node:fs';
+import {readFileSync,mkdtempSync,mkdirSync,writeFileSync,copyFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join,basename} from 'node:path';
 import {testServer} from './browser-server.mjs';
@@ -7,6 +7,12 @@ import {FHD_CONTEXT,captureFhd} from './browser-viewport.mjs';
 
 const path=process.argv[2];if(!path)throw Error('Provide a recipe or Project file');
 const recipe=JSON.parse(readFileSync(path,'utf8')),ids={},errors=[];
+const evidenceFlag=process.argv.indexOf('--evidence-dir'),evidenceDir=evidenceFlag<0?null:process.argv[evidenceFlag+1];
+if(evidenceFlag>=0&&(!evidenceDir||evidenceDir.startsWith('--')))throw Error('--evidence-dir needs a directory');
+if(evidenceDir)mkdirSync(evidenceDir,{recursive:true});
+const recipeTiming=process.argv.includes('--use-recipe-timing');
+const duration=recipeTiming?recipe.duration_s:1,step=recipeTiming?recipe.dt_s:.1;
+if(!Number.isFinite(duration)||duration<=0||!Number.isFinite(step)||step<=0)throw Error('Invalid recipe duration/dt');
 const standardPlant=process.argv.includes('--standard-plant');
 if(standardPlant&&recipe.id!=='hvac-basic-plant')throw Error('--standard-plant requires the standard HVAC project');
 const server=await testServer(),browser=await chromium.launch({channel:'msedge',headless:true});
@@ -24,14 +30,16 @@ async function run(){
  await nav('workbench');const wait=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/v1/runs'&&r.request().method()==='POST');
  await page.locator('[data-command="run"][data-action="run-project"]').first().click();
  const r=await wait;expect(r.ok(),await r.text()).toBe(true);const rid=(await r.json()).run_id;let record;
- await expect.poll(async()=>{record=await api('/runs/'+rid);if(record.status==='failed')throw Error(JSON.stringify(record.frame?.diagnostics));return record.status;},{timeout:standardPlant?90000:45000}).toBe('completed');
+ await expect.poll(async()=>{record=await api('/runs/'+rid);if(record.status==='failed')throw Error(JSON.stringify(record.frame?.diagnostics));return record.status;},{timeout:standardPlant?180000:45000}).toBe('completed');
  await expect(page.locator('#statusbar')).toContainText('已完成');return record;
 }
 async function arrange(id,index){
- const position={x:110+(index%6)*210,y:110+Math.floor(index/6)*180};
+ const large=recipe.instances.length>36;
+ const position=large?{x:110+(index%9)*130,y:110+Math.floor(index/9)*100}:{x:110+(index%6)*210,y:110+Math.floor(index/6)*180};
+ if(large)await page.locator('[data-action="fit"]').click();
  let points;
  for(let attempt=0;attempt<12;attempt++){
-  points=await page.locator(`[data-node="${id}"]`).evaluate(async (element,position) =>{
+  points=await page.locator(`.net-node[data-node="${id}"]`).evaluate(async (element,position) =>{
    const svg=element.ownerSVGElement,point=svg.createSVGPoint(),box=document.getElementById('network-area').getBoundingClientRect();
    const from=point.matrixTransform(element.getScreenCTM());point.x=position.x;point.y=position.y;
    const to=point.matrixTransform(svg.getScreenCTM()),inside=p=>p.x>box.left+35&&p.x<box.right-35&&p.y>box.top+65&&p.y<box.bottom-90;
@@ -43,6 +51,7 @@ async function arrange(id,index){
  expect(points.visible,'drag endpoints must remain inside the canvas').toBe(true);
  await page.mouse.move(points.from.x,points.from.y);await page.mouse.down();
  await page.mouse.move(points.to.x,points.to.y,{steps:8});await page.mouse.up();
+ if(large){await page.locator('[data-action="fit"]').click();await page.locator('[data-action="zoom-out"]').click();}
 }
 async function observe(variable){
  await nav('curves');await page.locator('[data-action="add-chart-variable"]').click();
@@ -62,14 +71,17 @@ try{
   await arrange(n.id,index);
   const definition=definitions.find(m=>m.id===item.module_id),binding=catalog.prototype_parameter_bindings[item.module_id]||{};
   expect(definition,'definition for '+item.module_id).toBeTruthy();
-  await page.locator(`[data-node="${n.id}"]`).dblclick();const panel=page.locator(`[data-float-id="${n.id}"]`);
+  await page.locator(`.net-node[data-node="${n.id}"]`).dblclick();const panel=page.locator(`[data-float-id="${n.id}"]`);
   for(const [key,value] of Object.entries(item.parameters||{})){
    const spec=definition.parameters.find(p=>p.id===key),uiKey=Object.keys(binding).find(k=>binding[k]===key)||key;
    expect(spec,item.module_id+'.'+key).toBeTruthy();
-   const inputs=panel.locator(`[data-instance-param="${uiKey}"]`);
+   const inputs=panel.locator(`input[data-instance-param="${uiKey}"],textarea[data-instance-param="${uiKey}"]`);
    if(!await inputs.count()){
     if(key==='humidity_ratio_kg_kg'&&!recipe.solver?.moist_air)continue;
     throw Error('Missing editor '+item.module_id+'.'+key);
+   }
+   for(const details of await inputs.last().locator('xpath=ancestor::details').all()){
+    if(await details.getAttribute('open')===null)await details.locator(':scope > summary').click();
    }
    if(spec.value_type==='boolean')await inputs.setChecked(value);
    else if(spec.value_type==='curve')await inputs.fill(JSON.stringify(value));
@@ -103,7 +115,7 @@ try{
  }
  await page.locator('[data-action="settings-tab"][data-value="solver"]').click();
  await page.locator('[data-solver-option="property_coupling"]').selectOption(recipe.solver?.property_coupling||'reference');
- for(const [key,value] of Object.entries({duration:1,dt:.1,maxIter:recipe.solver?.max_iterations||80})){
+ for(const [key,value] of Object.entries({duration,dt:step,maxIter:recipe.solver?.max_iterations||80})){
   await page.locator(`[data-solver-field="${key}"]`).fill(String(value));await page.locator(`[data-solver-field="${key}"]`).blur();
  }
  if(recipe.solver?.moist_air){
@@ -113,7 +125,7 @@ try{
    await page.getByRole('dialog').locator('[name="mode"]').selectOption('dynamic');
    await page.getByRole('dialog').locator('[name="maxIterations"]').fill(String(recipe.solver.moist_air_options.max_iterations));
   }
-  await page.getByRole('dialog').locator('[name="duration"]').fill('1');await page.getByRole('dialog').locator('[name="dt"]').fill('.1');await submit();
+  await page.getByRole('dialog').locator('[name="duration"]').fill(String(duration));await page.getByRole('dialog').locator('[name="dt"]').fill(String(step));await submit();
  }
  if(standardPlant){
   await nav('controls');
@@ -143,6 +155,7 @@ try{
   await dialog.locator('[name="refrigerant_vessel_id"]').selectOption(ids[link.refrigerant_vessel_id]);
   await dialog.locator('[name="ua"]').fill(String(link.ua_w_k));await submit();
  }
+ if(recipeTiming){await nav('controls');await page.locator('[data-live-mode]').selectOption('fast');}
  const first=await run();expect(first.frame.valid).toBe(true);
  for(const item of recipe.instances){
   const actual=first.request.project.instances.find(node=>node.id===ids[item.id]);
@@ -155,7 +168,7 @@ try{
  let comparison=first;
  if(standardPlant){
   await page.locator('[data-command="stop"][data-action="run-project"]').first().click();
-  await page.locator(`[data-node="${ids.Balance1}"]`).dblclick();
+  await page.locator(`.net-node[data-node="${ids.Balance1}"]`).dblclick();
   const panel=page.locator(`[data-float-id="${ids.Balance1}"]`),opening=panel.locator('input[type="number"][data-instance-param="opening_ratio"]');
   await expect(opening).toHaveValue('80');await opening.fill('40');await opening.blur();
   await panel.locator('[data-action="apply-instance"]').click();await submit();
@@ -167,10 +180,12 @@ try{
   await nav('workbench');
  }
  const snapshot=await save();await captureFhd(page,'artifacts/assembly-'+basename(path).replace(/\.[^.]+$/,'')+'.png');
+ if(evidenceDir)await captureFhd(page,join(evidenceDir,'assembled-canvas.png'));
  await page.locator('[data-command="stop"][data-action="run-project"]').first().click();
  await nav('projects');await page.locator(`[data-action="wf-manage"][data-id="${snapshot.id}"]`).click();
  const wait=page.waitForEvent('download');await page.locator('[data-action="wf-export"]').click();
  const file=join(mkdtempSync(join(tmpdir(),'equipment-project-')),'project.json');await(await wait).saveAs(file);
+ if(evidenceDir)copyFileSync(file,join(evidenceDir,'ui-built.project.json'));
  await page.locator('[data-action="close-dialog"]').last().click();await page.locator('[data-action="wf-import"]').click();
  await page.getByLabel('单项目文件').setInputFiles(file);await submit();await save();await page.reload();
  await expect(page.locator('#app-header')).toContainText('模块平台 · v',{timeout:15000});const repeated=await run();
@@ -183,9 +198,13 @@ try{
   await page.locator(`[data-action="archive-report"][data-id="${repeated.id}"][data-format="${format}"]`).click();
   const target=join(reports,'report.'+format);await(await download).saveAs(target);
   const contents=readFileSync(target,'utf8');if(format==='html')expect(contents).toContain(repeated.id);else expect(contents.split('\n').length).toBeGreaterThan(1);
+  if(evidenceDir)copyFileSync(target,join(evidenceDir,'report.'+format));
   expect(contents).toContain(Object.values(ids).find(id=>Object.keys(repeated.frame.variables).some(key=>key.startsWith(id+'.'))));
  }
- expect(errors).toEqual([]);console.log(JSON.stringify({path,standardPlant,nodes:Object.keys(ids).length,edges:recipe.connections.length,
-  valveChanged:standardPlant,curves:standardPlant,exportReload:true,reports:['html','csv'],errors}));
+ expect(errors).toEqual([]);
+ const evidence={path,standardPlant,nodes:Object.keys(ids).length,edges:recipe.connections.length,
+  valveChanged:standardPlant,curves:standardPlant,exportReload:true,reports:['html','csv'],duration_s:duration,dt_s:step,ids,errors};
+ if(evidenceDir)writeFileSync(join(evidenceDir,'assembly-result.json'),JSON.stringify({...evidence,first,repeated},null,2));
+ console.log(JSON.stringify(evidence));
 }catch(error){console.error(error,errors,await page.locator('#announcement').textContent(),await page.locator('#toast').textContent());await captureFhd(page,'artifacts/equipment-assembly-failure.png').catch(()=>{});process.exitCode=1;}
 finally{await browser.close();await server.close();}

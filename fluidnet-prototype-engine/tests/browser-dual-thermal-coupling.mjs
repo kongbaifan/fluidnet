@@ -16,10 +16,11 @@ async function start(){
   page.on('response',response=>{responses.push([new URL(response.url()).pathname,response.status()]);if(responses.length>30)responses.shift();});
   await page.goto(base+'/#projects');
   await expect(page.locator('[data-action="cs-create-dual"]')).toBeVisible();
+  await save(); // Wait for catalog/workspace initialization before creating the coupled example.
 }
 const dialog=()=>page.getByRole('dialog');
 const closeDialog=async()=>{if(await dialog().count())await dialog().locator('[data-action="close-dialog"]').first().click();};
-const state=()=>page.evaluate(key=>JSON.parse(localStorage.getItem(key)),storageKey);
+const state=()=>page.evaluate(async key => (await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem(key)),storageKey);
 async function save(){
   const saved=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/v1/workspace'&&r.request().method()==='POST');
   await page.locator('[data-action="save"]').first().click();
@@ -108,7 +109,7 @@ try{
   expect((await api('/runs/'+first.id)).request.project.thermal_couplings[1].ua_w_k).toBe(1400);
 
   // Deleting one endpoint removes only its relation; undo/redo restores both maps.
-  await page.locator('[data-node="HX_W2"]').first().click();
+  await page.locator('.net-node[data-node="HX_W2"]').first().click();
   await page.locator('[data-action="delete-node"][data-id="HX_W2"]').first().click();
   await expect(dialog()).toContainText('HX2');
   await dialog().locator('button[type="submit"]').click();
@@ -126,7 +127,7 @@ try{
   await dialog().getByRole('button',{name:'移除热耦合',exact:true}).click();
   await dialog().getByRole('button',{name:'解除关系',exact:true}).click();
   expect((await save()).thermalCouplings.map(link=>link.id)).toEqual(['HX1']);
-  await expect(page.locator('[data-node="HX_W2"]').first()).toBeVisible();
+  await expect(page.locator('.net-node[data-node="HX_W2"]').first()).toBeVisible();
   await openRelation('HX1');
   await dialog().getByRole('button',{name:'新增关系',exact:true}).click();
   await dialog().getByLabel('关系标识',{exact:true}).fill('HX2');

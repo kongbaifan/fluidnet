@@ -51,7 +51,7 @@ test('older backends and unknown metadata versions retain legacy tank visibility
     const f=fixture({...options,id:'closed_buffer_tank'});await f.client.init();
     const device=f.state.modules.find(m=>m.id==='closed_buffer_tank');assert.ok(device);
     assert.equal(device.icon,'Database');assert.equal(f.symbols.family(device),'tank');
-    assert.equal(f.messages.at(-1).error,false);
+    assert.equal(f.messages.some(message=>message.error),false);
   }
 });
 

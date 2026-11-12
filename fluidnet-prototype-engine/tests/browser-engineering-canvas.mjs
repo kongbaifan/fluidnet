@@ -26,7 +26,7 @@ async function importProject(project){
   const file=join(directory,project.id+'.json');writeFileSync(file,JSON.stringify(project));
   await nav('projects');await page.locator('[data-action="wf-import"]').click();
   await page.getByLabel('单项目文件').setInputFiles(file);await submit();await expect(page.locator('#toast')).toContainText('项目已导入');
-  await nav('workbench');await expect(page.locator('[data-node="V1"]')).toBeVisible();
+  await nav('workbench');await expect(page.locator('.net-node[data-node="V1"]')).toBeVisible();
 }
 async function step(){
   const started=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/v1/runs'&&r.request().method()==='POST');
@@ -89,7 +89,7 @@ try{
     await nav('workbench');expect(physics(await save())).toEqual(physics(persisted));
     if(name==='forward'){
       // A saved parameter change after the run makes its old physical overlay obsolete.
-      await page.locator('[data-node="V1"]').dblclick();
+      await page.locator('.net-node[data-node="V1"]').dblclick();
       await page.locator('[data-float-id="V1"] [data-instance-param="opening_ratio"]').fill('40');
       await page.locator('[data-float-id="V1"] [data-action="apply-instance"]').click();await submit();
       await expect(page.locator('[data-canvas-legend]')).toContainText('结果已过期');
@@ -106,7 +106,7 @@ try{
   warning.instances[1].module_id='capillary_tube';warning.instances[1].parameters={length_m:0,diameter_m:.0015};
   await importProject(warning);const result=await step();
   expect(result.record.frame.diagnostics.some(d=>d.code==='CAP_LENGTH_CLAMPED'&&d.instance_id==='V1')).toBe(true);
-  await expect(page.locator('[data-node="V1"]')).toHaveAttribute('data-canvas-state','warning');
+  await expect(page.locator('.net-node[data-node="V1"]')).toHaveAttribute('data-canvas-state','warning');
   await page.locator('[data-action="canvas-alerts"]').click();await expect(page.getByRole('dialog')).toContainText('CAP_LENGTH_CLAMPED');
   await page.getByRole('dialog').locator('[data-action="canvas-locate-alert"][data-id="V1"]').first().click();
   await expect(page.locator('[data-float-id="V1"]')).toBeVisible();await captureFhd(page,'artifacts/engineering-canvas-alert-1080p.png');

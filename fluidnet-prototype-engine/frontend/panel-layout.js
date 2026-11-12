@@ -53,7 +53,7 @@ export const FluidNetPanelLayout = (() => {
       const row=selected[key].find(r=>r.id===p.id),base=`layout:${key}:${i}`;
       return `<tr data-panel-config-row="${esc(p.id)}"><td><label><input type="checkbox" name="${base}:show" aria-label="显示 ${esc(p.label)}" ${row?'checked':''}>${esc(p.label)}<small class="mono">${esc(p.id)}</small></label></td><td>${key==='parameters'?`<select name="${base}:widget" aria-label="${esc(p.label)}控件">${widgets(p).map(w=>`<option value="${w}" ${w===row?.widget?'selected':''}>${{number:'数值框',slider:'滑块＋数值',switch:'开关',text:'文本框',curve:'曲线JSON',display:'只读显示'}[w]}</option>`).join('')}</select>`:esc(p.unit||'')}</td><td><input name="${base}:group" aria-label="${esc(p.label)}分组" value="${esc(row?.group||(key==='parameters'?'常用操作':'运行结果'))}" maxlength="40"></td><td><input type="number" name="${base}:order" aria-label="${esc(p.label)}顺序" value="${row?.order??i}" min="0" max="999" step="1" required style="width:72px"></td></tr>`;
     }).join('');
-    openDialog('配置设备面板',`${m.name} · v${m.version}。只配置显示顺序与控件，参数单位、写入权限仍由模块合同决定。`,
+    openDialog('配置设备面板',`${m.name} · v${m.version}`,
       `<div data-panel-config><p>${esc(prior.warning||'勾选总览常用字段，顺序从小到大；完整参数仍可在“参数与型号”页查看。')}</p><label class="check-label"><input type="checkbox" name="layout:reset">恢复默认布局</label>${[['parameters','常用参数',specs],['results','结果与读数',results(m)]].map(([key,label,items])=>`<h3>${label}</h3><div class="table-wrap"><table><thead><tr><th>字段</th><th>控件 / 单位</th><th>分组</th><th>顺序</th></tr></thead><tbody>${rows(key,items)}</tbody></table></div>`).join('')}</div>`,data=>{
         if(data['layout:reset']){onSave(null);return;}
         const value={schema:1,binding:binding(m),parameters:[],results:[]};

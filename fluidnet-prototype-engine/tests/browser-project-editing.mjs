@@ -26,7 +26,8 @@ try{
   await nav('workbench');await page.locator('[data-action="project-find"]').click();await page.getByLabel('全项目查找关键词').fill('Part'+(count-1));await page.locator(`[data-action="project-find-node"][data-id="Part${count-1}"]`).click();await expect(page.locator(`[data-float-id="Part${count-1}"]`)).toBeVisible();await page.locator('[data-action="float-close"]').last().click();
   const begin=performance.now();await group('top',['Part1','Part2']);const editMs=performance.now()-begin;await save();
   await nav('projects');await page.locator(`[data-action="wf-manage"][data-id="${current.id}"]`).click();const download=page.waitForEvent('download');await page.locator('[data-action="wf-export"]').click();const out=join(directory,'export-'+count+'.json');await(await download).saveAs(out);expect(JSON.parse(readFileSync(out)).project.pages.flatMap(g=>g.nodes)).toHaveLength(count);await page.locator('[data-action="close-dialog"]').last().click();
-  const reloadStart=performance.now();await page.reload();await expect(page.locator('#app-header')).toContainText('模块平台 · v');await expect(page.locator('#toast')).toContainText('已连接');const reloadMs=performance.now()-reloadStart;
+  const reloadStart=performance.now(),loaded=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/v1/workspace'&&r.request().method()==='GET');
+  await page.reload();expect((await loaded).ok()).toBe(true);await expect(page.locator('#app-header')).toContainText('模块平台 · v');const reloadMs=performance.now()-reloadStart;
   const stored=await page.evaluate(async () =>({rawChars:localStorage.getItem('fluidnet-prototype-engine-v1').length,format:JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1')).format||'legacy',heap:performance.memory?.usedJSHeapSize||null}));
   const workspace=(await api('/workspace')).data;const projectBytes=JSON.stringify(await active()).length;const sections=Object.fromEntries(['modules','projects','records','models'].map(k=>[k,JSON.stringify(workspace[k]||[]).length]));metrics.push({count,solveMs,sections,workspaceChars:JSON.stringify(workspace).length,importMs:imported,saveMs,editMs,reloadMs,projectChars:projectBytes,...stored});
  }
@@ -35,7 +36,7 @@ try{
  await page.locator('[data-action="new-canvas"]').first().click();await page.locator('[name="name"]').fill('设备组副本');await submit();await save();const target=(await active()).activePage;
  await group('copy',['Part1','Part2'],target);await expect(page.getByRole('dialog')).toContainText('1 条内部连线');await submit();await save();let current=await active(),copied=current.pages.find(g=>g.id===target).nodes;expect(copied).toHaveLength(2);expect(current.pages.find(g=>g.id===target).edges).toHaveLength(1);
  await page.locator('[data-action="undo"]').click();await save();expect((await active()).pages.find(g=>g.id===target).nodes).toHaveLength(0);await page.locator('[data-action="redo"]').click();await save();expect((await active()).pages.find(g=>g.id===target).nodes).toHaveLength(2);
- await page.locator(`[data-node="${copied[0].id}"]`).click({modifiers:['Shift']});await page.locator('[data-action="project-group-tools"]').click();await expect(page.getByLabel('组选择 '+copied[0].id,{exact:true})).not.toBeChecked();await page.locator('[data-action="close-dialog"]').last().click();
+ await page.locator(`.net-node[data-node="${copied[0].id}"]`).click({modifiers:['Shift']});await page.locator('[data-action="project-group-tools"]').click();await expect(page.getByLabel('组选择 '+copied[0].id,{exact:true})).not.toBeChecked();await page.locator('[data-action="close-dialog"]').last().click();
  // A true Shift-drag rectangle selects both copied devices from their visible bounds.
  const bounds=await page.locator('#network [data-node]').evaluateAll(xs=>xs.map(x=>{const b=x.getBoundingClientRect();return {x:b.x,y:b.y,right:b.right,bottom:b.bottom};}));
  const left=Math.min(...bounds.map(b=>b.x))-12,top=Math.min(...bounds.map(b=>b.y))-12,right=Math.max(...bounds.map(b=>b.right))+12,bottom=Math.max(...bounds.map(b=>b.bottom))+12;
@@ -53,11 +54,11 @@ try{
  });
  expect(backups.every(b=>b.hasProjects)).toBe(true);
  // A dirty draft must recover from packed local storage even when the server cannot save or load it.
- await page.locator(`[data-node="${copied[0].id}"]`).dblclick();
+ await page.locator(`.net-node[data-node="${copied[0].id}"]`).dblclick();
  await page.locator(`[data-float-id="${copied[0].id}"] input[data-instance-param="length_m"]`).fill('2');
  await page.route('**/api/v1/workspace',route=>route.fulfill({status:507,contentType:'application/json',body:JSON.stringify({detail:'injected workspace unavailable'})}));
  const refused=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/v1/workspace'&&r.request().method()==='POST');await page.locator('[data-action="save"]').first().click();expect((await refused).status()).toBe(507);await expect(page.locator('[data-save-status]')).toContainText('保存失败');
- await page.reload();await expect(page.locator('[data-node="'+copied[0].id+'"]')).toBeVisible();await page.locator('[data-node="'+copied[0].id+'"]').dblclick();
+ await page.reload();await expect(page.locator('.net-node[data-node="'+copied[0].id+'"]')).toBeVisible();await page.locator('.net-node[data-node="'+copied[0].id+'"]').dblclick();
  await expect(page.locator(`[data-float-id="${copied[0].id}"] input[data-instance-param="length_m"]`)).toHaveValue('2');
  const recovered=await page.evaluate(async id =>{const s=(await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1')),p=s.projects.find(p=>p.id===s.activeProject);return p.pages.flatMap(g=>g.nodes).find(n=>n.id===id);},copied[0].id);
  expect(recovered.params.length_m).toBe(1);expect(recovered.draft.length_m).toBe(2);await page.unroute('**/api/v1/workspace');

@@ -7,8 +7,8 @@ try{
  await page.goto(server.base);await expect(page.locator('#app-header')).toContainText('模块平台 · v');
  await page.locator('[data-action="start-modeling"]').first().click();
  await page.locator('[data-action="validate"]').first().click();
- await expect(page.locator('[data-system-inspection]')).toContainText('当前项目预检 · 通过');
- await page.locator('[data-action="close-dialog"]').last().click();
+ await expect(page.locator('[data-system-inspection]')).toContainText('连接与参数检查通过');
+ await page.locator('[data-inspection-return]').click();
  const started=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/v1/runs'&&r.request().method()==='POST');
  await page.locator('[data-action="run-project"][data-command="step"]').first().click();const id=(await(await started).json()).run_id;
  await expect(page.locator('#statusbar')).toContainText('已暂停');
@@ -27,6 +27,19 @@ try{
  await page.locator('[data-action="inspection-compare"]').click();await page.getByRole('dialog').locator('[name="other"]').selectOption(second);
  await page.getByRole('dialog').locator('button[type="submit"]').click();
  await expect(page.locator('[data-system-comparison]')).toContainText('V1.in0.pressure_pa');
+ await page.getByRole('dialog').locator('[data-action="close-dialog"]').first().click();
+ await page.locator(`[data-action="inspect-run"][data-id="${id}"]`).click();
+ await expect(page.locator('[data-system-inspection]')).toContainText(id);
+ let release,captured=false,delivered=false;const gate=new Promise(resolve=>{release=resolve;});
+ await page.route(server.base+'/api/v1/runs',async route=>{
+   captured=true;await gate;await route.fulfill({status:503,json:{detail:'已关闭操作的迟到目录错误'}});delivered=true;
+ });
+ await page.locator('[data-action="inspection-compare"]').click();await expect.poll(()=>captured).toBe(true);
+ await page.getByRole('dialog').locator('[data-action="close-dialog"]').first().click();
+ await page.locator('.rail-link[data-route="workbench"]').click();release();await expect.poll(()=>delivered).toBe(true);
+ await page.unroute(server.base+'/api/v1/runs');
+ await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+ await expect(page.getByRole('dialog')).toHaveCount(0);
  expect(errors).toEqual([]);
- console.log(JSON.stringify({preflight:true,frozenRun:true,actualInstance:true,errors}));
+ console.log(JSON.stringify({preflight:true,frozenRun:true,actualInstance:true,closedComparisonIgnoresLateError:true,errors}));
 }finally{await browser.close();await server.close();}

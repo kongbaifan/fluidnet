@@ -21,7 +21,7 @@ def groups(kinds,links,ports):
     visited=set();assigned=set();result={}
     def descend(iid,stack):
         if iid in stack:raise CompilationError('ROOM_HEAT_CYCLE','冷量汇集不能形成环',iid)
-        if kinds[iid] in ('air_cooler','dx_evaporator'):
+        if kinds[iid] in ('air_cooler','network_air_cooler','frost_hotgas_cooler','dx_evaporator'):
             if iid in assigned:raise CompilationError('ROOM_HEAT_DUPLICATE','冷风机不能重复计入库房',iid)
             assigned.add(iid);return [iid]
         if iid not in manifolds:raise CompilationError('ROOM_HEAT_ROLE','冷量汇集只接受冷风机或汇集器',iid)
@@ -45,7 +45,7 @@ def outputs(network, device_outputs):
         if network.kinds.get(target.instance_id)=='room_heat_manifold':
             inputs.setdefault(target.instance_id,[]).append(source.instance_id)
     def leaves(iid):
-        if network.kinds[iid] in ('air_cooler','dx_evaporator'):return [iid]
+        if network.kinds[iid] in ('air_cooler','network_air_cooler','frost_hotgas_cooler','dx_evaporator'):return [iid]
         return [leaf for child in inputs.get(iid,[]) for leaf in leaves(child)]
     return {iid:{'cooling_power_w':sum(device_outputs[leaf]['room_cooling_w'] for leaf in leaves(iid)),
         'cooler_count':len(leaves(iid))} for iid,kind in network.kinds.items() if kind=='room_heat_manifold'}

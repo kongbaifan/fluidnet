@@ -77,7 +77,7 @@ export const DeviceBatchEditor = (() => {
         FluidNetProjectState.assertCurrent(getState(),owner);
         if(getState().activeProject!==owner.id||owner.run!==run||serial!==token)throw Error('项目或运行已变化，请重新打开批量编辑。');
       };
-      openDialog('批量编辑设备','先按模块筛选，再选择当前项目各画布上的设备。',
+      openDialog('批量编辑设备','',
         `<label class="field"><span>设备模块</span><select name="batch-module" aria-label="批量设备模块">${modules.map(id=>{const n=all.find(i=>i.node.moduleId===id).node;return `<option value="${esc(id)}">${esc(moduleOf(n).name)} · ${all.filter(i=>i.node.moduleId===id).length} 台</option>`;}).join('')}</select></label>`,data=>{
           assertProject();const items=all.filter(i=>i.node.moduleId===data['batch-module']);
           if(!items.length)throw Error('请选择有效模块。');
@@ -96,7 +96,7 @@ export const DeviceBatchEditor = (() => {
             :`<input ${attr} type="${spec.value_type==='text'?'text':'number'}" step="any" value="${esc(show(value))}">`;
           return `<tr><td><label class="check-label"><input type="checkbox" name="batch-change:${esc(key)}" aria-label="修改 ${esc(spec.label)}">${esc(spec.label)}</label></td><td>${input}</td><td>${esc(display?.unit?.display_unit||spec.unit?.display_unit||'')}</td></tr>`;
         }).join('');
-        openDialog('批量编辑 · '+moduleOf(source).name,'勾选要修改的字段；未勾选字段及其待应用草稿会保留。选择型号时先载入型号参数，再叠加勾选字段；改动型号值后作为自定义参数应用。',
+        openDialog('批量编辑 · '+moduleOf(source).name,'仅应用勾选字段；未勾选的值和草稿保留。',
           `<section><h3>选择设备（含跨页）</h3><div class="fields">${items.map(({node,page})=>`<label class="check-label"><input type="checkbox" name="batch-node:${esc(node.id)}" aria-label="选择设备 ${esc(node.id)}" checked>${esc(page.name)} · ${esc(node.id)} · ${esc(node.name)}</label>`).join('')}</div></section>
           <label class="field"><span>统一型号</span><select name="batch-model" aria-label="批量型号"><option value="">保持各自型号</option>${compatibleModels.map(m=>`<option value="${esc(m.id)}">${esc(m.name)} · 型号v${esc(m.version)}</option>`).join('')}</select></label>
           <div class="table-wrap"><table><thead><tr><th>修改字段</th><th>统一值</th><th>显示单位</th></tr></thead><tbody>${rows}</tbody></table></div>`,data=>{

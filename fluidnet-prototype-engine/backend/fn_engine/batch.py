@@ -74,6 +74,19 @@ class Handle:
             from .runtime import RuntimeErrorBase
             raise RuntimeErrorBase('Worker 状态同步回执无效',code='MODULE_SYNC_ACK_INVALID')
 
+    def restore_checkpoint(self, state, revision, time_s):
+        from .module_state import checked_state
+        from .runtime import RuntimeErrorBase
+        state = checked_state(state)
+        response = self.worker._request({'action': 'restore_checkpoint', 'instance_id': self.id,
+                                         'state': state, 'revision': revision, 'time_s': time_s})
+        if response.get('ok') is not True or response.get('revision') != revision:
+            raise RuntimeErrorBase('批量模块续算回执无效', code='MODULE_CHECKPOINT_INVALID')
+        self.state, self.state_revision = state, revision
+        self.execution.accepted_time_s = time_s
+        self._accepted_candidate = None
+        self._parent_cache.clear()
+
     def discard_candidate(self) -> None:
         self.worker._request({'action': 'discard_candidate', 'instance_id': self.id})
 

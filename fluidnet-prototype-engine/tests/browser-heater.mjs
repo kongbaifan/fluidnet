@@ -15,7 +15,7 @@ let releaseCatalog=()=>{};
 let workspacePosts=0;
 page.on('pageerror', error => errors.push(error.message));
 page.on('request',request=>{if(request.method()==='POST' && new URL(request.url()).pathname==='/api/v1/workspace')workspacePosts++;});
-const state = () => page.evaluate(() => JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
+const state = () => page.evaluate(async () => (await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
 const dialog = () => page.getByRole('dialog');
 const runButton = () => page.locator('[data-action="run-project"][data-command="run"]').first();
 
@@ -87,7 +87,17 @@ try {
   document.charts = [];
   document.modules = library.filter(module => ['source', 'valve', 'heater'].includes(module.id));
   project.moduleSnapshots = Object.fromEntries(document.modules.map(module => [module.id, module]));
-  const node = (id, moduleId, params, x) => ({id, moduleId, name: id, x, y: 180, params, draft: {...params}});
+  const catalog=await(await page.request.get(launched.base+'/api/v1/catalog')).json();
+  const node = (id, moduleId, overrides, x) => {
+    const definition=catalog.modules.find(module=>module.id===moduleId);
+    const bindings=catalog.prototype_parameter_bindings[moduleId]||{};
+    const defaults=Object.fromEntries(definition.parameters.map(spec=>[
+      Object.keys(bindings).find(key=>bindings[key]===spec.id)||spec.id,
+      spec.value_type==='number'&&spec.unit?spec.default/spec.unit.display_scale+spec.unit.display_offset:spec.default,
+    ]));
+    const params={...defaults,...overrides};
+    return {id,moduleId,name:id,x,y:180,params,draft:structuredClone(params)};
+  };
   pg.nodes = [
     node('B1', 'source', {pressure: 250, temperature: 20}, 100),
     node('V1', 'valve', {opening: 50, kv: 10}, 330),
@@ -108,7 +118,7 @@ try {
   await page.locator('.project-preview[data-id="heater-ui"]').click();
   const first = await run(2000);
 
-  await page.locator('[data-node="H1"]').first().dblclick();
+  await page.locator('.net-node[data-node="H1"]').first().dblclick();
   const power = page.getByRole('spinbutton', {name: 'H1 加热功率草稿', exact: true});
   await expect(power).toHaveValue('2');
   await power.fill('5');
@@ -127,7 +137,7 @@ try {
   reloaded.catch(() => {});
   await page.reload();
   expect((await reloaded).ok()).toBe(true);
-  await expect(page.locator('[data-node="H1"]').first()).toBeVisible();
+  await expect(page.locator('.net-node[data-node="H1"]').first()).toBeVisible();
   expect((await state()).projects.find(project => project.id === 'heater-ui')
     .pages[0].nodes.find(node => node.id === 'H1').params.power).toBe(5);
   mkdirSync('artifacts', {recursive: true});

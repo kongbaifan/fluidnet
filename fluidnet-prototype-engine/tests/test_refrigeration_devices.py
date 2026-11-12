@@ -34,10 +34,19 @@ def test_catalog_registers_every_station_device_with_canonical_contracts():
                             'air_cooled_condenser', 'performance_compressor', 'cold_room_multi', 'defrost_air_cooler',
                             'enthalpy_compressor', 'enthalpy_valve', 'refrigerant_line', 'refrigerant_subcooler',
                             'refrigerant_recuperator', 'dx_expansion_valve', 'dx_evaporator', 'dx_compressor',
-                            'headed_receiver','room_heat_manifold','immersed_tube_bundle'}
+                            'headed_receiver','room_heat_manifold','immersed_tube_bundle',
+                            'refrigerant_network_pipe', 'refrigerant_curve_pump', 'network_air_cooler',
+                            'refrigerant_network_valve', 'refrigerant_inventory_cell',
+                            'refrigerant_check_valve', 'refrigerant_strainer',
+                            'logistics_cold_room', 'frost_hotgas_cooler', 'compressor_oil_system'}
     assert CATALOG.keys() <= catalog_map().keys()
     for definition in CATALOG.values():
-        assert definition.category == ('冷库案例' if definition.id == 'cold_room_multi' else '制冷站设备')
+        categories = {'cold_room_multi': '冷库案例', 'logistics_cold_room': '冷库过程',
+                      'frost_hotgas_cooler': '冷库过程', 'compressor_oil_system': '冷库过程',
+                      **dict.fromkeys(('refrigerant_network_pipe', 'refrigerant_curve_pump', 'network_air_cooler',
+                                       'refrigerant_network_valve', 'refrigerant_inventory_cell',
+                                       'refrigerant_check_valve', 'refrigerant_strainer'), '制冷管网与过程')}
+        assert definition.category == categories.get(definition.id, '制冷站设备')
         assert definition.runtime == 'builtin'
         assert all(p.domain in (Domain.refrigerant, Domain.thermal) for p in definition.ports)
         assert {v.id for v in definition.variables} >= {'param.' + p.id for p in definition.parameters if p.unit}

@@ -51,7 +51,7 @@ export const createScenarioBatchesUI = function (ui) {
     if (!engine().health?.capabilities?.scenario_batches)
       return '<p class="notice">请连接启用持久工作区的计算服务。</p>';
     const reload = btn('batch-prepare', model.setup ? '重新保存并读取项目' : '保存项目并准备工况', 'Save', model.busy ? 'disabled' : '', model.setup ? 'small' : 'primary');
-    if (!model.setup) return `<div class="stack"><p>${esc(p.name)}</p><p class="muted">使用已应用的设备参数建立批次。每个工况独立运行，结果随批次保存。</p>${reload}</div>`;
+    if (!model.setup) return `<div class="stack"><p>${esc(p.name)}</p>${reload}</div>`;
     const {form, setup} = model;
     const nodes = [...new Map(setup.parameters.map(p => [p.instance_id, p.instance_name])).entries()];
     const parameters = setup.parameters.filter(p => p.instance_id === form.instanceId);
@@ -92,8 +92,8 @@ export const createScenarioBatchesUI = function (ui) {
   }
   function previewMarkup() {
     if (!model.preview) return model.detail
-      ? '<p class="muted">批次输入和结果独立保存。可在左侧修改参数，预览新的工况。</p>'
-      : '<div class="batch-empty"><strong>先预览，再开始计算</strong><p>在左侧选择参数和观察变量，核对生成的工况。</p></div>';
+      ? ''
+      : '<div class="batch-empty"><strong>暂无工况预览</strong></div>';
     const preview = model.preview;
     return `<div class="row spread"><div><h3>工况预览</h3><p class="muted">${esc(preview.source.project_name)} · 修订 ${preview.source.revision} · ${preview.items.length} 个工况</p></div>${btn('batch-create', '保存并运行批次', 'Play', model.busy ? 'disabled' : '', 'primary')}</div>
       <div class="batch-table-scroll"><table class="data-table"><thead><tr><th>工况</th><th>扫描值 / 参数覆盖</th><th>单位</th></tr></thead><tbody>${preview.items.map(item => `<tr><td>${esc(item.name)}</td><td>${previewValue(item)}</td><td>${esc(item.parameter_unit || '按原工况')}</td></tr>`).join('')}</tbody></table></div>`;
@@ -128,7 +128,7 @@ export const createScenarioBatchesUI = function (ui) {
       ${detail.status !== 'running' ? btn('batch-delete', '删除批次', 'Trash2', model.busy ? 'disabled' : '', 'small') : ''}</div></div>
       ${detail.error ? `<p class="notice error">${esc(detail.error)}</p>` : ''}
       ${detail.status === 'interrupted' ? '<p class="notice">服务已中断。继续时从批次保存的输入新建运行，保留已完成项。</p>' : ''}
-      ${quasiSteady ? '<p class="batch-model-note">模型说明：当前管网采用准稳态时间序列，每个时刻求解水力与热力平衡。</p>' : ''}
+      ${quasiSteady ? '<span class="badge" title="各时刻分别求解水力与热力平衡">准稳态时间序列</span>' : ''}
       <div class="batch-table-scroll"><table class="data-table batch-result-table"><thead><tr><th>工况</th><th>状态</th>${detail.variables.map(v => `<th title="${esc(v.key)}">${esc(v.label)}<small>${esc(v.unit.display_unit)}</small></th>`).join('')}<th>诊断</th></tr></thead><tbody>
       ${detail.items.map(item => `<tr data-batch-item="${esc(item.id)}" data-status="${item.status}"><td>${esc(item.name)}${item.attempts.length > 1 ? `<small>第 ${item.attempts.length} 次运行</small>` : ''}</td><td>${badge(item.status)}</td>
       ${detail.variables.map(v => `<td data-batch-value="${esc(v.key)}">${item.status === 'completed' ? format(display(item.values[v.key], v)) : '—'}</td>`).join('')}
@@ -171,7 +171,7 @@ export const createScenarioBatchesUI = function (ui) {
   function markup(project) {
     if (project.id !== model.projectId) resetProject(project);
     return `<div class="page-shell batch-page" id="batch-page">
-      ${heading('批量工况与方案比较', '固定一次输入，依次运行多个工况，并保存可重复查看的结果。',
+      ${heading('批量工况与方案比较', '',
         btn('nav', '返回建模', 'Network', 'data-route="workbench"', 'small'), 'SCENARIO STUDY')}
       <div id="batch-error" class="notice error" role="alert" ${model.error ? '' : 'hidden'}>${esc(model.error)}</div>
       <div class="batch-layout"><section class="panel batch-config"><div class="panel-head"><h2>生成工况</h2></div><div class="panel-body">${configMarkup()}</div>

@@ -44,8 +44,8 @@ import numpy as np
 from .compiler import CompilationError
 from .model_types.domain import SolverOptions
 
-# 首轮支持的执行域：理想热模型（A1）与冷库 B 集总制冷站（A2/A3）。
-SUPPORTED_DOMAINS = frozenset({'thermal', 'refrigeration', 'coupled'})
+# All native dynamic execution domains; each session checks its author-module capabilities.
+SUPPORTED_DOMAINS = frozenset({'thermal', 'refrigeration', 'coupled', 'fluid', 'cold_store'})
 
 # 误差类别的规范单位；配置字段名即单位，避免 kg/J/K 混用。
 CATEGORY_UNITS = {'mass': 'kg', 'energy': 'J', 'temperature': 'K', 'pressure': 'Pa'}
@@ -111,11 +111,10 @@ class TimeStepConfig:
 
 
 def ensure_supported(domain):
-    """首轮只支持理想热模型与冷库 B；其他执行域开启后明确拒绝，不静默忽略。"""
+    """Reject unregistered execution domains rather than silently ignoring error control."""
     if domain not in SUPPORTED_DOMAINS:
         raise CompilationError('TIMESTEP_DOMAIN_UNSUPPORTED',
-                               f'时间步误差控制首轮只支持理想热模型与冷库 B 集总制冷站；'
-                               f'执行域 {domain or "未知"} 尚未接入')
+                               f'执行域 {domain or "未知"} 尚未接入时间步误差控制')
 
 
 @dataclass
@@ -224,7 +223,6 @@ class StepStatistics:
         self.rejected += 1
         self.max_error_norm = max(self.max_error_norm, error_norm)
         self.frame_rejected += 1
-        self.frame_max_error = max(self.frame_max_error, error_norm)
 
     def fixed_step(self, h):
         """旧固定步长路径的计数；只记录，不改变任何数值结果。"""

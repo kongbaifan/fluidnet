@@ -15,3 +15,6 @@ playwright-report/
 # NIST REFPROP is licensed per user; never commit its fluid files, sources or DLL.
 AddIns/
 NISTRefprop9.1/
+# Local reference material (Baselu installer, project copies) and concept drafts.
+beisilu/
+output/device-panel-concept*

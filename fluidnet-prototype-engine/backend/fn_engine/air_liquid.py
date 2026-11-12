@@ -21,6 +21,9 @@ def humidity(state):
 def validate_chiller_flows(network, flows):
     """Protect the final network flow before any module observation or accepted-state update."""
     from .water_chiller import check_chiller_flow_limits
+    chiller_kinds = {'water_chiller', 'air_cooled_chiller', 'air_source_heat_pump'}
+    if not any(module.solver_model in chiller_kinds for module in network.modules.values()):
+        return
     groups = {}
     for j, branch in enumerate(network.branches):
         if network.modules[network.instances[branch.instance_id].module_id].solver_model in ('water_chiller','air_cooled_chiller','air_source_heat_pump'):

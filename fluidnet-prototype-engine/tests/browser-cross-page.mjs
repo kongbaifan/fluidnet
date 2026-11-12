@@ -8,7 +8,7 @@ import {FHD_CONTEXT,captureFhd} from './browser-viewport.mjs';
 const directory=mkdtempSync(join(tmpdir(),'fluidnet-cross-page-'));
 const browser=await chromium.launch({channel:'msedge',headless:true});
 const errors=[],runPosts=[];let launched,page;
-const state=()=>page.evaluate(()=>JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
+const state=()=>page.evaluate(async()=>{const {FluidNetDraftStore}=await import('/draft-store.js');return FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1'));});
 const owner=s=>s.projects.find(p=>p.id===s.activeProject);
 const navigate=route=>page.locator('.rail-link[data-route="'+route+'"]').click();
 const submit=()=>page.getByRole('dialog').locator('button[type="submit"]').click();
@@ -16,8 +16,12 @@ async function api(path){const response=await page.request.get(launched.base+'/a
 async function mode(value){
   await navigate('settings');await page.locator('[data-action="settings-tab"][data-value="solver"]').click();
   await page.locator('[data-solver-field="mode"]').selectOption(value);
-  await page.locator('[data-solver-field="duration"]').fill('10');await page.locator('[data-solver-field="duration"]').blur();
-  await page.locator('[data-solver-field="dt"]').fill('1');await page.locator('[data-solver-field="dt"]').blur();
+  if(value==='dynamic'){
+    await page.locator('[data-solver-field="duration"]').fill('10');await page.locator('[data-solver-field="duration"]').blur();
+    await page.locator('[data-solver-field="dt"]').fill('1');await page.locator('[data-solver-field="dt"]').blur();
+  }else{
+    await expect(page.locator('[data-solver-field="duration"]')).toBeDisabled();
+  }
 }
 async function run(command='run'){
   await navigate('workbench');
@@ -36,7 +40,7 @@ async function addCanvas(name){
 async function move(id,source,target){
   await page.locator('[data-action="canvas-tab"][data-id="'+source+'"]').click();
   await page.getByRole('button',{name:'适应画布',exact:true}).click();
-  await page.locator('[data-node="'+id+'"]').click();
+  await page.locator('.net-node[data-node="'+id+'"]').click();
   await page.locator('[data-action="move-device-page"][data-id="'+id+'"]').click();
   await page.getByRole('dialog').locator('[name="page"]').selectOption(target);await submit();
 }
@@ -86,7 +90,7 @@ try{
   await expect(floater).toContainText(initial.pages[0].name);
   await floater.locator('[data-action="delete-edge"][data-id="'+cross[0]+'"]').click();
   await expect(page.locator('[aria-label="当前画布跨页连接"] button')).toHaveCount(1);
-  await floater.locator('[data-action="add-page-link"][data-port="in0"]').click();
+  await floater.locator('[data-action="connect-device-port"][data-port="in0"]').click();
   await page.getByRole('dialog').locator('[name="targetPage"]').selectOption(main);
   await page.getByRole('dialog').locator('[name="target"]').selectOption(cross[1]+':'+cross[2]);await submit();
   await expect(page.getByRole('dialog')).toHaveCount(0);
@@ -108,9 +112,9 @@ try{
   const restoredLinks=await run();expect(restoredLinks.frame.variables['V1.mass_flow_kg_s']).toBeCloseTo(baseline.frame.variables['V1.mass_flow_kg_s'],6);
   // Deleting a cross-page endpoint clears both canvases; undo restores the complete network.
   await page.locator('[data-action="canvas-tab"][data-id="'+terminal1+'"]').click();
-  await page.locator('[data-node="V1"]').click();
+  await page.locator('.net-node[data-node="V1"]').click();
   await page.locator('[data-action="delete-node"][data-id="V1"]').first().click();
-  await expect(page.locator('[data-node="V1"]')).toHaveCount(0);
+  await expect(page.locator('.net-node[data-node="V1"]')).toHaveCount(0);
   await save();const deleted=(await api('/workspace')).data.projects.find(p=>p.id===initial.id);
   expect(deleted.pages.flatMap(pg=>pg.nodes).some(n=>n.id==='V1')).toBe(false);
   expect(deleted.pages.flatMap(pg=>pg.edges).some(e=>e[1]==='V1'||e[3]==='V1')).toBe(false);
@@ -141,7 +145,7 @@ try{
   expect(copied.request.project.id).toBe(copy.id);
   expect(copied.frame.variables['V1.mass_flow_kg_s']).toBeCloseTo(baseline.frame.variables['V1.mass_flow_kg_s'],6);
   await page.locator('[data-action="canvas-tab"][data-id="'+terminal1+'"]').click();await page.getByRole('button',{name:'适应画布',exact:true}).click();
-  await page.locator('[data-node="V1"]').dblclick();
+  await page.locator('.net-node[data-node="V1"]').dblclick();
   const valve=page.getByRole('region',{name:'V1 设备参数',exact:true});
   await valve.locator('[data-instance-param="opening_ratio"][type="number"]').fill('30');
   await valve.locator('[data-instance-param="opening_ratio"][type="number"]').blur();

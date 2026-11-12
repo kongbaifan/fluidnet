@@ -1,5 +1,6 @@
 """Implicit room heat balance, sharing accepted-state controls and run commands."""
 from contextlib import contextmanager
+from copy import deepcopy
 import math
 
 from ..compiler import CompilationError
@@ -141,7 +142,7 @@ class ThermalSession(SessionBase):
         state = {}
         for key in self._segment_fields:
             value = getattr(self, key)
-            state[key] = value.copy() if isinstance(value, dict) else value
+            state[key] = deepcopy(value) if isinstance(value, (dict, list)) else value
         step_checkpoint, start = self._step_checkpoint(), self.time
         self._control_base = self._capture_control()
         try:

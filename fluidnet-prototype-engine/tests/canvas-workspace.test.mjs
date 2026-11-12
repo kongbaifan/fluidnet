@@ -30,6 +30,20 @@ test('trend frames keep the timestamp of the last complete frame and suspend mot
   assert.match(f.view.markup(f.page),/2 kg\/s/);assert.doesNotMatch(f.view.markup(f.page),/99 kg\/s|class="canvas-flow-animation"/);
   f.run.history.shift();assert.equal(f.view.context(f.owner).row,null);
 });
+
+test('live full responses drive canvas values independently of trend history',()=>{
+  const f=fixture();f.run.history.push({t:3,partial:true,canonical:{}});
+  f.run.latestFull={t:2,sequence:2,canonical:{'B1.out0.mass_flow_kg_s':-7,'B2.out0.mass_flow_kg_s':7}};
+  let c=f.view.context(f.owner);assert.equal(c.time,2);assert.equal(c.partial,true);assert.equal(c.animate,false);
+  assert.match(f.view.markup(f.page),/7 kg\/s/);
+  f.run.latestFull={t:3,sequence:3,canonical:{'B1.out0.mass_flow_kg_s':-8,'B2.out0.mass_flow_kg_s':8}};
+  c=f.view.context(f.owner);assert.equal(c.time,3);assert.equal(c.partial,false);assert.equal(c.animate,true);
+  assert.match(f.view.markup(f.page),/8 kg\/s/);
+  f.run.status='paused';assert.equal(f.view.context(f.owner).animate,false);
+  assert.match(f.view.markup(f.page),/8 kg\/s/);
+  f.run.history=[];assert.equal(f.view.context(f.owner).time,3);
+  f.owner.key='changed';assert.equal(f.view.context(f.owner).row,null);
+});
 test('paused frames retain static direction but never claim continuing physical motion',()=>{
   const f=fixture();f.run.status='paused';const html=f.view.markup(f.page);
   assert.match(html,/data-flow-arrow/);assert.doesNotMatch(html,/class="canvas-flow-animation"/);

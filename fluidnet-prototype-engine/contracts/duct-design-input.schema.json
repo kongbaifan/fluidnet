@@ -1,0 +1,263 @@
+{
+  "$defs": {
+    "DuctSegment": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "parent_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parent Id"
+        },
+        "flow_m3_h": {
+          "default": 0,
+          "description": "Only terminals prescribe actual-condition volume flow.",
+          "maximum": 10000000.0,
+          "minimum": 0,
+          "title": "Flow M3 H",
+          "type": "number"
+        },
+        "shape": {
+          "default": "round",
+          "enum": [
+            "round",
+            "rectangular"
+          ],
+          "title": "Shape",
+          "type": "string"
+        },
+        "length_m": {
+          "default": 10,
+          "maximum": 10000,
+          "minimum": 0,
+          "title": "Length M",
+          "type": "number"
+        },
+        "local_loss_coefficient": {
+          "default": 2,
+          "maximum": 1000,
+          "minimum": 0,
+          "title": "Local Loss Coefficient",
+          "type": "number"
+        },
+        "equipment_pressure_drop_pa": {
+          "default": 0,
+          "description": "Total-pressure loss at design flow; include filters, coils and terminal/outlet losses.",
+          "maximum": 100000,
+          "minimum": 0,
+          "title": "Equipment Pressure Drop Pa",
+          "type": "number"
+        },
+        "fixed_size_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fixed Size Id"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "title": "DuctSegment",
+      "type": "object"
+    },
+    "DuctSize": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "shape": {
+          "enum": [
+            "round",
+            "rectangular"
+          ],
+          "title": "Shape",
+          "type": "string"
+        },
+        "diameter_m": {
+          "anyOf": [
+            {
+              "maximum": 4,
+              "minimum": 0.05,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Diameter M"
+        },
+        "width_m": {
+          "anyOf": [
+            {
+              "maximum": 4,
+              "minimum": 0.05,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Width M"
+        },
+        "height_m": {
+          "anyOf": [
+            {
+              "maximum": 4,
+              "minimum": 0.05,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Height M"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "shape"
+      ],
+      "title": "DuctSize",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "temperature_k": {
+      "default": 293.15,
+      "maximum": 333.15,
+      "minimum": 253.15,
+      "title": "Temperature K",
+      "type": "number"
+    },
+    "pressure_pa": {
+      "default": 101325,
+      "maximum": 120000,
+      "minimum": 60000,
+      "title": "Pressure Pa",
+      "type": "number"
+    },
+    "roughness_m": {
+      "default": 0.00015,
+      "maximum": 0.005,
+      "minimum": 0,
+      "title": "Roughness M",
+      "type": "number"
+    },
+    "max_velocity_m_s": {
+      "default": 5,
+      "maximum": 20,
+      "minimum": 0.1,
+      "title": "Max Velocity M S",
+      "type": "number"
+    },
+    "max_specific_drop_pa_m": {
+      "default": 1,
+      "maximum": 20,
+      "minimum": 0.01,
+      "title": "Max Specific Drop Pa M",
+      "type": "number"
+    },
+    "max_aspect_ratio": {
+      "default": 4,
+      "maximum": 4,
+      "minimum": 1,
+      "title": "Max Aspect Ratio",
+      "type": "number"
+    },
+    "max_height_m": {
+      "anyOf": [
+        {
+          "maximum": 4,
+          "minimum": 0.05,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Max Height M"
+    },
+    "pressure_margin_ratio": {
+      "default": 0.1,
+      "maximum": 0.5,
+      "minimum": 0,
+      "title": "Pressure Margin Ratio",
+      "type": "number"
+    },
+    "fan_efficiency": {
+      "default": 0.6,
+      "description": "Overall wire-to-air efficiency, for power estimate only.",
+      "maximum": 1,
+      "minimum": 0.05,
+      "title": "Fan Efficiency",
+      "type": "number"
+    },
+    "segments": {
+      "items": {
+        "$ref": "#/$defs/DuctSegment"
+      },
+      "maxItems": 1200,
+      "minItems": 1,
+      "title": "Segments",
+      "type": "array"
+    },
+    "duct_sizes": {
+      "items": {
+        "$ref": "#/$defs/DuctSize"
+      },
+      "maxItems": 200,
+      "minItems": 1,
+      "title": "Duct Sizes",
+      "type": "array"
+    }
+  },
+  "required": [
+    "segments",
+    "duct_sizes"
+  ],
+  "title": "DuctDesignInput",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

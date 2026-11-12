@@ -46,7 +46,7 @@ try {
   await (await downloaded).saveAs(join(directory,'report.html'));
   await page.getByRole('button',{name:'保存项目',exact:true}).click();
   await expect(page.locator('#toast')).toContainText('风侧项目已保存');
-  const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
+  const saved=await page.evaluate(async () => (await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
   const owner=saved.projects.find(p=>p.id===saved.activeProject);
   expect(owner.solverOptions.moist_air_options.contract_version).toBe(1);
   expect(owner.airSideView.active_tab).toBe('moisture');
@@ -59,7 +59,7 @@ try {
   await expect(page.locator('[data-air-value="Coil.out0.humidity_ratio_kg_kg"]')).not.toHaveText('—',{timeout:30000});
   // 修改真实盘管参数，过期保护和新运行比较。
   await page.getByRole('button',{name:'编辑拓扑',exact:true}).click();
-  await page.locator('[data-node="Coil"]').first().dblclick();
+  await page.locator('.net-node[data-node="Coil"]').first().dblclick();
   const bf=page.getByRole('spinbutton',{name:/Coil.*旁通.*草稿/}).first();
   await bf.fill('0.5');await bf.blur();
   await page.locator('[data-action="apply-instance"][data-id="Coil"]').click();
@@ -102,7 +102,7 @@ try {
     writeFileSync('artifacts/air-examples/'+name+'.project.json',JSON.stringify(record.request.project,null,2));
     await page.getByRole('button',{name:'保存项目',exact:true}).click();
     await expect(page.locator('#toast')).toContainText('风侧项目已保存');
-    const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
+    const saved=await page.evaluate(async () => (await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
     const current=saved.projects.find(p=>p.id===saved.activeProject);
     const exported={format:'fluidnet-studio-prototype',schema:1,activeProject:current.id,projects:[current],modules:Object.values(current.moduleSnapshots)};
     const normalized=await api('/prototype/normalize',exported);

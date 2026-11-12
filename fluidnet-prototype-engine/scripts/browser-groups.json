@@ -48,6 +48,54 @@
       "group": "workspace"
     },
     {
+      "id": "settings-runtime",
+      "file": "tests/browser-settings-runtime.mjs",
+      "args": [],
+      "group": "workspace"
+    },
+    {
+      "id": "settings-fluid-project",
+      "file": "tests/browser-settings-fluid-project.mjs",
+      "args": [],
+      "group": "workspace"
+    },
+    {
+      "id": "settings-preferences",
+      "file": "tests/browser-settings-preferences.mjs",
+      "args": [],
+      "group": "workspace"
+    },
+    {
+      "id": "core-workflow:water",
+      "file": "tests/browser-core-workflow.mjs",
+      "args": ["--case", "water"],
+      "group": "workflows"
+    },
+    {
+      "id": "core-workflow:cold-room",
+      "file": "tests/browser-core-workflow.mjs",
+      "args": ["--case", "cold-room"],
+      "group": "refrigeration"
+    },
+    {
+      "id": "core-workflow:six-room",
+      "file": "tests/browser-core-workflow.mjs",
+      "args": ["--case", "six-room"],
+      "group": "refrigeration"
+    },
+    {
+      "id": "parameter-controls",
+      "file": "tests/browser-parameter-controls.mjs",
+      "args": [],
+      "group": "workspace"
+    },
+    {
+      "id": "results-boundaries",
+      "file": "tests/browser-results-boundaries.mjs",
+      "args": [],
+      "group": "workspace"
+    },
+    {
       "id": "pid",
       "file": "tests/browser-pid.mjs",
       "args": [],
@@ -583,6 +631,69 @@
       "file": "tests/browser-module-loading.mjs",
       "args": [],
       "group": "smoke"
+    },
+    {
+      "id": "equipment-assembly:large-cold-store",
+      "file": "tests/browser-equipment-assembly.mjs",
+      "args": [
+        "examples/large-cold-store/six-room.recipe.json",
+        "--use-recipe-timing"
+      ],
+      "group": "equipment-refrigeration"
+    },
+    {
+      "id": "large-cold-store",
+      "file": "tests/browser-large-cold-store.mjs",
+      "args": [],
+      "group": "refrigeration"
+    },
+    {
+      "id": "six-room-continuous",
+      "file": "tests/browser-six-room-continuous.mjs",
+      "args": [],
+      "group": "refrigeration"
+    },
+    {
+      "id": "cold-store-usability",
+      "file": "tests/browser-cold-store-usability.mjs",
+      "args": [],
+      "group": "refrigeration"
+    },
+    {
+      "id": "checkpoint-resume",
+      "file": "tests/browser-checkpoint-resume.mjs",
+      "args": [],
+      "group": "workspace"
+    },
+    {
+      "id": "module-assembly",
+      "file": "tests/browser-module-assembly.mjs",
+      "args": [],
+      "group": "authoring"
+    },
+    {
+      "id": "module-editor-simple",
+      "file": "tests/browser-module-editor-simple.mjs",
+      "args": [],
+      "group": "authoring"
+    },
+    {
+      "id": "device-guidance",
+      "file": "tests/browser-device-guidance.mjs",
+      "args": [],
+      "group": "workflows"
+    },
+    {
+      "id": "pump-curve",
+      "file": "tests/browser-pump-curve.mjs",
+      "args": [],
+      "group": "workflows"
+    },
+    {
+      "id": "cold-device-guidance",
+      "file": "tests/browser-cold-device-guidance.mjs",
+      "args": [],
+      "group": "refrigeration"
     }
   ],
   "suites": {
@@ -695,7 +806,44 @@
       "canvas-performance-live",
       "equipment-assembly:standard-plant",
       "hvac-plant",
-      "refrigeration-modular"
+      "refrigeration-modular",
+      "checkpoint-resume"
+    ],
+    "large-cold-store": [
+      "six-room-continuous",
+      "equipment-assembly:large-cold-store",
+      "large-cold-store",
+      "cold-store-usability"
+    ],
+    "foundation": [
+      "checkpoint-resume"
+    ],
+    "module-assembly": [
+      "module-assembly"
+    ],
+    "module-editor-simple": [
+      "module-editor-simple"
+    ],
+    "device-guidance": [
+      "device-guidance"
+    ],
+    "pump-curve": [
+      "pump-curve"
+    ],
+    "cold-device-guidance": [
+      "cold-device-guidance"
+    ],
+    "settings": [
+      "settings-runtime",
+      "settings-fluid-project",
+      "settings-preferences"
+    ],
+    "core-workflow": [
+      "core-workflow:water",
+      "core-workflow:cold-room",
+      "core-workflow:six-room",
+      "parameter-controls",
+      "results-boundaries"
     ]
   }
 }

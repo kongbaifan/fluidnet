@@ -369,7 +369,8 @@
                 "enum": [
                   2,
                   3,
-                  4
+                  4,
+                  5
                 ]
               }
             },
@@ -464,7 +465,10 @@
           "if": {
             "properties": {
               "schema_version": {
-                "const": 4
+                "enum": [
+                  4,
+                  5
+                ]
               }
             },
             "required": [
@@ -474,7 +478,11 @@
           "then": {
             "properties": {
               "execution_role": {
-                "const": "refrigeration.isenthalpic_throttle.v1"
+                "enum": [
+                  "refrigeration.isenthalpic_throttle.v1",
+                  "refrigeration.compressor.v1",
+                  "refrigeration.condenser.v1"
+                ]
               },
               "applicability": {
                 "properties": {
@@ -511,6 +519,47 @@
           "if": {
             "properties": {
               "schema_version": {
+                "const": 4
+              }
+            },
+            "required": [
+              "schema_version"
+            ]
+          },
+          "then": {
+            "properties": {
+              "execution_role": {
+                "const": "refrigeration.isenthalpic_throttle.v1"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "schema_version": {
+                "const": 5
+              }
+            },
+            "required": [
+              "schema_version"
+            ]
+          },
+          "then": {
+            "properties": {
+              "execution_role": {
+                "enum": [
+                  "refrigeration.compressor.v1",
+                  "refrigeration.condenser.v1"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "schema_version": {
                 "enum": [
                   1,
                   2
@@ -535,7 +584,8 @@
             1,
             2,
             3,
-            4
+            4,
+            5
           ],
           "title": "Schema Version",
           "type": "integer"
@@ -732,7 +782,11 @@
         "execution_role": {
           "anyOf": [
             {
-              "const": "refrigeration.isenthalpic_throttle.v1",
+              "enum": [
+                "refrigeration.isenthalpic_throttle.v1",
+                "refrigeration.compressor.v1",
+                "refrigeration.condenser.v1"
+              ],
               "type": "string"
             },
             {

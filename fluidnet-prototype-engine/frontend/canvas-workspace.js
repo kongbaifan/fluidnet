@@ -1,5 +1,6 @@
 import {FluidNetCanvasObservations} from './canvas-observations.js';
 import {FluidNetCanvasView} from './canvas-view.js';
+import {FluidNetProjectRunState} from './project-run-state.js';
 /* Canvas controls and frame ownership. No solver writes or training state. */
 export const FluidNetCanvasWorkspace = (() => {
   function create(deps) {
@@ -9,15 +10,16 @@ export const FluidNetCanvasWorkspace = (() => {
     let queued=null,frameId=null;
     const owner=page=>getState().projects.find(p=>p.pages.includes(page))||project();
     function context(p) {
-      const run=p.run||{},history=run.history||[],row=history.findLast(r=>!r.partial&&r.valid!==false);
-      const stale=!!(history.length||run.diagnostics?.length)&&(!run.parameterKey||run.parameterKey!==projectKey(p));
+      const run=p.run||{},history=run.history||[],row=FluidNetProjectRunState.completeRow(run);
+      const stale=!!(row||history.length||run.diagnostics?.length)&&(!run.parameterKey||run.parameterKey!==projectKey(p));
       const mode=['circuit','flow','temperature','pressure'].includes(ui.canvasModeValue)?ui.canvasModeValue:'circuit';
       const valid=!stale&&run.source==='engine';
       const recent=!valid?null:row?{...row,diagnostics:[...(row.diagnostics||[]),...(run.diagnostics||[])]}:
         run.diagnostics?.length?{t:run.diagnosticTime??run.time,valid:false,canonical:{},diagnostics:run.diagnostics}:null;
+      const last=history.at(-1),partial=!!last?.partial&&(!row||row.t<last.t);
       return {row:recent,stale,mode,scale:ui.canvasScales?.[mode],labels:!!ui.canvasLabels,
-        animate:ui.canvasAnimate!==false&&run.status==='running'&&valid&&!!row&&history.at(-1)===row,
-        partial:!!history.at(-1)?.partial,time:recent?.t,run};
+        animate:ui.canvasAnimate!==false&&run.status==='running'&&valid&&!!row&&!partial,
+        partial,time:recent?.t,run};
     }
     const view=FluidNetCanvasView.create({esc,moduleOf:(p,n)=>p.moduleSnapshots?.[n.moduleId]||moduleOf(n),
       ui:()=>ui,domains,links,quick,channels,context,selectedIds,

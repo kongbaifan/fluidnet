@@ -213,6 +213,13 @@ class ProjectValidationResponse(ValidationResponse):
     pass
 
 
+class RunResumeResponse(StrictModel):
+    run_id: str
+    status: Literal['queued'] = 'queued'
+    resumed_from: str
+    time_s: float = Field(ge=0)
+
+
 class RunRecordResponse(StrictModel):
     id: str
     status: str
@@ -225,6 +232,11 @@ class RunRecordResponse(StrictModel):
     persisted_at: str | None = None
     persisted_rows: int = 0
     air_metadata: dict | None = None
+    checkpoint_available: bool | None = Field(default=None, exclude_if=lambda value: value is None)
+    checkpoint_time_s: float | None = Field(default=None, ge=0, exclude_if=lambda value: value is None)
+    checkpoint_diagnostic: Diagnostic | None = Field(default=None, exclude_if=lambda value: value is None)
+    resumed_from: str | None = Field(default=None, exclude_if=lambda value: value is None)
+    resume_time_s: float | None = Field(default=None, ge=0, exclude_if=lambda value: value is None)
 
 
 class AirVariableCatalogResponse(StrictModel):

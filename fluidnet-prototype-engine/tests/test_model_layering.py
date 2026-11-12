@@ -17,18 +17,41 @@ from fn_engine.model_types.protocol import CommitStepResponse, EvaluateResponse,
 
 ROOT = Path(__file__).resolve().parents[1]
 BASELINE = json.loads((ROOT/'tests/fixtures/model-layering.json').read_text(encoding='utf-8'))
+FOUNDATION = json.loads((ROOT/'tests/fixtures/model-layering-foundation.json').read_text(encoding='utf-8'))
+
+
+def schema_hash(model):
+    data = json.dumps(model.model_json_schema(), sort_keys=True,
+                      separators=(',', ':'), ensure_ascii=False).encode()
+    return hashlib.sha256(data).hexdigest()
 
 
 def test_all_legacy_classes_keep_their_schema_and_import_identity():
     assert len(BASELINE['classes']) == 127
+    changed = set()
     for name, record in BASELINE['classes'].items():
         implementation = getattr(importlib.import_module('fn_engine.model_types.'+record['layer']), name)
         assert getattr(models, name) is implementation
-        data = json.dumps(implementation.model_json_schema(), sort_keys=True,
-                          separators=(',', ':'), ensure_ascii=False).encode()
-        assert hashlib.sha256(data).hexdigest() == record['schema_sha256'], name
+        actual = schema_hash(implementation)
+        if actual != record['schema_sha256']:
+            changed.add(name)
+            extension = FOUNDATION['classes'][name]
+            assert extension['previous_sha256'] == record['schema_sha256'], name
+            assert actual == extension['schema_sha256'], name
+    assert changed == FOUNDATION['classes'].keys()
     assert len(models.__all__) == len(set(models.__all__))
     assert all(hasattr(models, name) for name in models.__all__)
+
+
+def test_frozen_module_contracts_remain_identical_after_foundation_extension():
+    for version in range(1, 5):
+        name = f'ModuleDefinitionV{version}'
+        model = getattr(importlib.import_module(f'fn_engine._module_schema_v{version}'), name)
+        assert schema_hash(model) == FOUNDATION['frozen_contract_schemas'][name]
+    from fn_engine.model_types.module import ModuleDefinition
+    from fn_engine.model_types.module_testing import ModuleTestResponse
+    assert ModuleDefinition.model_fields['schema_version'].default == 1
+    assert ModuleTestResponse.model_fields['constitutive_evaluation'].default is None
 
 
 def test_protocol_defaults_omissions_and_frozen_execution_identity_are_unchanged():

@@ -105,6 +105,12 @@ export const FluidNetCanvasObservations = (() => {
     const declared=(d.variables || module?.variables || []).filter(v=>v.source!=='parameter'&&v.origin!=='parameter')
       .map(v=>v.canonicalId || v.id);
     const kind=d.solver_model || module?.kind || d.id;
+    if(kind==='frost_hotgas_cooler'&&declared.includes('defrost_mode')){
+      const key=instance.id+'.defrost_mode',value=valueAt(values,key);
+      if(value===1||value===2)return set('defrost',key);
+      if(value===3)return set('drip',key);
+      if(value===4)return {...set('defrost',key),label:'再冷却'};
+    }
     if(['unit_cooler','defrost_air_cooler'].includes(kind)){
       const key=instance.id+'.state.mode',value=valueAt(values,key);
       if(declared.includes('state.mode')&&value===1)return set('defrost',key);

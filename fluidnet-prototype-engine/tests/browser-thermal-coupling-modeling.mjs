@@ -35,8 +35,9 @@ async function api(path, body) {
   return response.json();
 }
 
-const current = () => page.evaluate(key => {
-  const state = JSON.parse(localStorage.getItem(key));
+const current = () => page.evaluate(async key => {
+  const {FluidNetDraftStore}=await import('/draft-store.js');
+  const state = FluidNetDraftStore.parse(localStorage.getItem(key));
   return state.projects.find(project => project.id === state.activeProject);
 }, storageKey);
 const runButton = command => page.locator(`[data-action="run-project"][data-command="${command}"]`).first();
@@ -89,7 +90,7 @@ async function run() {
 }
 
 async function selectNode(id) {
-  await page.locator(`[data-node="${id}"]`).first().click();
+  await page.locator(`.net-node[data-node="${id}"]`).first().click();
   await expect(page.locator(`[data-action="delete-node"][data-id="${id}"]`).first()).toBeVisible();
 }
 
@@ -202,13 +203,13 @@ try {
   await page.locator('[data-action="add-chart-variable"]').click();
   await editor().locator('button[type="submit"]').click();
   await save();
-  const addedBinding = await page.evaluate(key => JSON.parse(localStorage.getItem(key)).charts.extra
+  const addedBinding = await page.evaluate(async key => (await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem(key)).charts.extra
     .find(binding => binding.projectId === 'thermal-modeling-custom' && !binding.couplingId), storageKey);
   expect(addedBinding).toBeTruthy();
   await page.locator('.rail-link[data-route="runs"]').click();
   await page.locator('[data-action="record-project"]').click();
   await save();
-  const historical = await page.evaluate(key => JSON.parse(localStorage.getItem(key)).records[0], storageKey);
+  const historical = await page.evaluate(async key => (await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem(key)).records[0], storageKey);
   expect(historical.chartBindings.find(binding => binding.canonicalKey === heatKey).nodeId).toBe(primary);
   expect(historical.chartBindings.some(binding => binding.id === addedBinding.id)).toBe(true);
   await page.locator('.rail-link[data-route="workbench"]').click();
@@ -251,14 +252,14 @@ try {
   await expect(editor()).toContainText(couplingId);
   await closeDialog();
   expect((await save()).thermalCouplings).toHaveLength(1);
-  await expect(page.locator(`[data-node="${spare}"]`).first()).toBeVisible();
+  await expect(page.locator(`.net-node[data-node="${spare}"]`).first()).toBeVisible();
   await deleteNode(spare);
   await editor().locator('button[type="submit"]').click();
   expect((await save()).thermalCouplings).toEqual([]);
-  await expect(page.locator(`[data-node="${spare}"]`)).toHaveCount(0);
+  await expect(page.locator(`.net-node[data-node="${spare}"]`)).toHaveCount(0);
   await page.locator('[data-action="undo"]').first().click();
   expect((await save()).thermalCouplings[0].fluid_instance_id).toBe(spare);
-  await expect(page.locator(`[data-node="${spare}"]`).first()).toBeVisible();
+  await expect(page.locator(`.net-node[data-node="${spare}"]`).first()).toBeVisible();
   await page.locator('[data-action="redo"]').first().click();
   expect((await save()).thermalCouplings).toEqual([]);
   await page.locator('[data-action="undo"]').first().click();
@@ -292,7 +293,7 @@ try {
     await page.locator('[data-action="undo"]').first().click();
     await expect(page.locator('#toast')).toContainText('停止');
     expect((await save()).thermalCouplings[0].fluid_instance_id).toBe(spare);
-    await expect(page.locator(`[data-node="${spare}"]`).first()).toBeVisible();
+    await expect(page.locator(`.net-node[data-node="${spare}"]`).first()).toBeVisible();
   }
   await runButton('stop').click();
   await expect.poll(async () => (await api('/runs/' + live.id)).status, {timeout: 30000}).toBe('cancelled');

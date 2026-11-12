@@ -40,7 +40,7 @@ try {
   await page.getByRole('button',{name:'湿空气设置',exact:true}).click();
   await page.getByLabel('动态运行时长 / s',{exact:true}).fill('4');
   await page.getByRole('button',{name:'应用设置',exact:true}).click();
-  const state=await page.evaluate(()=>JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
+  const state=await page.evaluate(async () => (await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
   expect(state.projects.find(p=>p.id===state.activeProject).solverOptions.moist_air_options.max_iterations).toBe(400);
   await page.getByRole('button',{name:'相对湿度换算',exact:true}).click();
   await expect(page.getByRole('dialog').locator('select[name="instance"] option')).toHaveCount(2);
@@ -69,7 +69,7 @@ try {
   expect(readFileSync(reportPath,'utf8')).toContain('累计耗电量');
   await page.getByRole('button',{name:'保存项目',exact:true}).click();
   await expect(page.locator('#toast')).toContainText('风侧项目已保存');
-  const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
+  const saved=await page.evaluate(async () => (await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
   const owner=saved.projects.find(p=>p.id===saved.activeProject);
   expect(owner.circuitFluids).toHaveLength(2);
   const exported={format:'fluidnet-studio-prototype',schema:1,activeProject:owner.id,projects:[owner],modules:Object.values(owner.moduleSnapshots)};
@@ -84,7 +84,7 @@ try {
   expect(second.frame.variables['Chiller.state.electric_energy_j']).toBeCloseTo(first.frame.variables['Chiller.state.electric_energy_j'],5);
   // Change a physical water setpoint through the regular device editor, then rerun.
   await page.getByRole('button',{name:'编辑拓扑',exact:true}).click();
-  await page.locator('[data-node="Chiller"]').first().dblclick();
+  await page.locator('.net-node[data-node="Chiller"]').first().dblclick();
   const setpoint=page.getByRole('spinbutton',{name:/Chiller.*冷冻水出水设定.*草稿/}).first();
   await setpoint.fill('9');await setpoint.blur();
   await page.locator('[data-action="apply-instance"][data-id="Chiller"]').click();

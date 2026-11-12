@@ -19,7 +19,7 @@ function fixture(){
   const calls=[],models=[];
   const view=host.window.FluidNetModuleEditorView.create({currentModule:()=>current,editorState:()=>ui,models:()=>models,
     parameterDefinitions:()=>[],contractText:value=>JSON.stringify(value.manifest),
-    chrome:{esc,icon:()=>'',btn:button,ibtn:button,badge:esc,option:(value,label)=>`<option value="${esc(value)}">${esc(label)}</option>`,number:String},
+    chrome:{esc,icon:()=>'',btn:button,ibtn:button,badge:esc,option:(value,label)=>`<option value="${esc(value)}">${esc(label)}</option>`,number:(value,digits=2)=>Number(value).toFixed(digits)},
     constants:{DOMAINS:{fluid:{label:'流体',color:'blue'}},PORT_PREFIX:{fluid:'F'},FLUIDS:[['water','水',125]],
       EDITOR_TABS:['drawing','attributes','values','models','code','channels'].map(id=>[id,id,'']),PARAM_TYPE_LABELS:{number:'数值'}},
     actions:{selectTab:value=>calls.push(['tab',value]),selectPort:value=>calls.push(['port',value]),editLabel:()=>calls.push(['label'])}});
@@ -61,9 +61,49 @@ test('bank differences report writable values only and leave current values unto
   f.ui.bank=1;assert.equal(f.view.bankDiff(f.m).length,0);assert.deepEqual(f.m.values,{a:1,b:2});
 });
 
+test('browser precision formats scalar and array values without changing module values or precision',()=>{
+  const f=fixture();f.ui.moduleTab='values';f.m.precision=4;f.m.values['param:opening']=.12345678;
+  const before=JSON.stringify(f.m);
+  f.ui.modulePrecision=2;
+  let html=f.view.renderEditor();
+  assert.match(html,/data-value-id="param:opening" data-bank="-1"[^>]*value="0\.12"/);
+  assert.match(html,/data-id="system:mix"[^>]*>1\.00, 0\.00/);
+  assert.match(html,/data-id="system:form"[^>]*>125, 0, 0/);
+  f.ui.modulePrecision=8;html=f.view.renderEditor();
+  assert.match(html,/data-value-id="param:opening" data-bank="-1"[^>]*value="0\.12345678"/);
+  f.ui.modulePrecision=null;html=f.view.renderEditor();
+  assert.match(html,/data-value-id="param:opening" data-bank="-1"[^>]*value="0\.1235"/);
+  assert.equal(JSON.stringify(f.m),before);
+});
+
 test('authoring actions delegate only known commands to supplied shell callbacks',()=>{
   const f=fixture();assert.equal(f.view.action('editor-tab',{dataset:{value:'code'}}),true);
   assert.equal(f.view.action('select-picture',{dataset:{}}),true);assert.equal(f.view.action('edit-drawing-label',{dataset:{}}),true);
   assert.equal(f.view.action('save-module-version',{dataset:{}}),false);
   assert.deepEqual(f.calls,[['tab','code'],['port','picture'],['label']]);
+});
+
+test('editor guides an unpublished module to saving and uses the published version despite newer drafts',()=>{
+  const f=fixture();assert.match(f.view.renderEditor(),/先保存新版本/);
+  assert.match(f.view.renderEditor(),/data-action="use-module"[^>]*disabled/);
+  f.m.publishedManifest={version:3};f.m.dirty=true;f.m.version=4;
+  const html=f.view.renderEditor();assert.match(html,/已保存 v3 · 草稿有修改/);
+  assert.doesNotMatch(html,/data-action="use-module"[^>]*disabled/);
+  f.m.saving=true;assert.match(f.view.renderEditor(),/data-action="use-module"[^>]*disabled/);
+});
+
+test('common parameters show display values and keep full definitions in a collapsed section',()=>{
+  const f=fixture();f.ui.moduleTab='attributes';
+  f.m.parameters[0].unit={canonical_unit:'1',display_unit:'%',display_scale:.01,display_offset:0};
+  const html=f.view.renderEditor();assert.match(html,/<td>50<\/td>/);assert.match(html,/<td>0 ~ 100<\/td>/);
+  assert.match(html,/data-action="edit-module-parameter"/);assert.match(html,/<details class="editor-advanced-details editor-parameter-advanced">/);
+  assert.doesNotMatch(html,/默认值 \/ SI|ctx.parameter/);
+  f.m.contractDraft='{';assert.match(f.view.renderEditor(),/尚未应用的 JSON/);assert.match(f.view.renderEditor(),/data-action="edit-module-parameter"[^>]*disabled/);
+});
+
+test('equipment setup exposes metadata and diagnostics expand for errors but remain collapsed during ordinary editing',()=>{
+  const f=fixture();assert.match(f.view.renderEditor(),/data-action="edit-module-metadata"/);
+  f.ui.moduleTab='code';assert.match(f.view.renderAuthoringDiagnostics(f.m),/class="editor-advanced-details" >/);
+  f.m.authoringDiagnostics=[{message:'参数错误',severity:'error'}];assert.match(f.view.renderAuthoringDiagnostics(f.m),/ open>/);
+  assert.match(f.view.renderAuthoringDiagnostics(f.m),/参数错误/);
 });

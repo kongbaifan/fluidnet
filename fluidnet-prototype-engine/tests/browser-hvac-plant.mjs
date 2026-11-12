@@ -65,8 +65,9 @@ function verifyPlant(record) {
     branch_residual_kg_s:branchResidual,chilled_residual_w:chilledResidual,cooling_residual_w:coolingResidual};
 }
 async function savedProject() {
-  return page.evaluate(()=>{
-    const state=JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1'));
+  return page.evaluate(async () => {
+    const {FluidNetDraftStore}=await import('/draft-store.js');
+    const state=FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1'));
     return state.projects.find(project=>project.id===state.activeProject);
   });
 }
@@ -85,7 +86,7 @@ async function partitionPlant(){
     for(const id of ids){
       await page.locator('[data-action="canvas-tab"][data-id="'+source+'"]').click();
       await page.getByRole('button',{name:'适应画布',exact:true}).click();
-      await page.locator('[data-node="'+id+'"]').click();
+      await page.locator('.net-node[data-node="'+id+'"]').click();
       await page.locator('[data-action="move-device-page"][data-id="'+id+'"]').click();
       await page.getByRole('dialog').locator('[name="page"]').selectOption(destination);
       await page.getByRole('dialog').locator('button[type="submit"]').click();
@@ -156,7 +157,7 @@ try {
   const valvePage=(await savedProject()).pages.find(pg=>pg.nodes.some(node=>node.id==='Balance1'));
   await page.locator('[data-action="canvas-tab"][data-id="'+valvePage.id+'"]').click();
   await page.getByRole('button',{name:'适应画布',exact:true}).click();
-  await page.locator('[data-node="Balance1"]').first().dblclick();
+  await page.locator('.net-node[data-node="Balance1"]').first().dblclick();
   const valve=page.getByRole('region',{name:'Balance1 设备参数',exact:true});
   const opening=valve.locator('input[type="number"][data-instance-param="opening_ratio"]');
   await expect(opening).toHaveValue('80');

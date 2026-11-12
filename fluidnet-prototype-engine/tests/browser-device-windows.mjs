@@ -34,10 +34,10 @@ try{
   await action('float-dock').click();await expect(panel()).toHaveClass(/docked/);await expect(page.locator('.workbench')).toHaveClass(/has-docked/);
   await action('float-dock').click();await expect(panel()).not.toHaveClass(/docked/);const remembered=await geometry();
   await action('float-close').click();await expect(panel()).toHaveCount(0);
-  await page.locator('[data-node="V1"]').dblclick();expect(await geometry()).toEqual(remembered);await expect(action('float-pin')).toHaveAttribute('aria-pressed','true');
+  await page.locator('.net-node[data-node="V1"]').dblclick();expect(await geometry()).toEqual(remembered);await expect(action('float-pin')).toHaveAttribute('aria-pressed','true');
   const after=await saved();expect(device(after).params).toEqual(device(before).params);expect(device(after).draft).toEqual(device(before).draft);
   await nav('models');await expect(panel()).toHaveCount(0);await nav('workbench');await expect(panel()).toBeVisible();
-  await page.reload();await expect(page.locator('#app-header')).toContainText('模块平台 · v');await page.locator('[data-node="V1"]').dblclick();expect(await geometry()).toEqual(remembered);
+  await page.reload();await expect(page.locator('#app-header')).toContainText('模块平台 · v');await page.locator('.net-node[data-node="V1"]').dblclick();expect(await geometry()).toEqual(remembered);
   const restored=await saved();expect(device(restored).params).toEqual(device(before).params);expect(device(restored).draft).toEqual(device(before).draft);
   // Escape keeps the last displayed window position and must mark/store it as an edit.
   const title=await panel().locator('.float-title').boundingBox(),x=title.x+title.width/2,y=title.y+title.height/2;
@@ -45,7 +45,7 @@ try{
   await page.keyboard.press('Escape');await page.mouse.up();await expect(page.locator('[data-save-status]')).toContainText('有未保存修改');
   const committed=await saved(),position=committed.windowPositions[committed.activeProject+':V1'];
   for(const key of ['x','y','w','h'])expect(position[key]).toBeCloseTo(cancelled[key],1);
-  await page.reload();await expect(page.locator('#app-header')).toContainText('模块平台 · v');await page.locator('[data-node="V1"]').dblclick();expect(await geometry()).toEqual(cancelled);
+  await page.reload();await expect(page.locator('#app-header')).toContainText('模块平台 · v');await page.locator('.net-node[data-node="V1"]').dblclick();expect(await geometry()).toEqual(cancelled);
   await captureFhd(page,'artifacts/device-windows-1080p.png');expect(errors).toEqual([]);
   console.log(JSON.stringify({drag:true,resize:true,dock:true,pin:true,minimize:true,maximize:true,tabs:true,closeReopen:true,reload:true,cancelGestureSaved:true,parametersUnchanged:true,errors}));
 }catch(error){console.error(error,errors);await captureFhd(page,'artifacts/device-windows-failure.png').catch(()=>{});process.exitCode=1;}

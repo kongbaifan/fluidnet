@@ -47,6 +47,39 @@ test('the same normalizer reads each supplied workspace rather than retaining a 
   assert.equal(other.projects[0].pages[0].nodes[0].draft.opening,.8);assert.ok(f.calls.some(c=>c[0]==='pin'&&c[1]==='second'));
 });
 
+test('config-only project and circuit fluids become visible without changing their physical options',()=>{
+  const f=setup(),config={backend:'coolprop',fluid:'REFPROP::R32[0.5]&R125[0.5]',reference:'mole',phase_policy:'liquid',composition:{}};
+  f.owner.fluidConfig=structuredClone(config);
+  f.owner.circuitFluids=[{id:'secondary',anchor:{instance_id:'V1',port_id:'in0'},fluidConfig:{...structuredClone(config),fluid:'INCOMP::MEG[0.3]'}}];
+  f.api.normalize(f.state);
+  assert.equal(f.owner.fluid,config.fluid);assert.equal(f.owner.fluidReference,'mole');
+  assert.deepEqual(f.owner.fluidConfig,config);
+  assert.equal(f.owner.circuitFluids[0].fluid,'INCOMP::MEG[0.3]');
+  assert.equal(f.owner.circuitFluids[0].fluidReference,'mole');
+  const once=JSON.stringify(f.state);f.api.normalize(f.state);assert.equal(JSON.stringify(f.state),once);
+});
+
+test('explicit cleared or edited fluid selectors survive normalization and JSON reload',()=>{
+  for(const fluid of ['', '   ', 'Water']){
+    const f=setup(),config={fluid:'REFPROP::R32[0.5]&R125[0.5]',reference:'mole',phase_policy:'liquid'};
+    Object.assign(f.owner,{medium:'water',fluid,fluidReference:'mass',fluidConfig:structuredClone(config),
+      circuitFluids:[{id:'secondary',anchor:{instance_id:'V1',port_id:'in0'},medium:'meg30',fluid,fluidReference:'mass',fluidConfig:structuredClone(config)}]});
+    f.api.normalize(f.state);
+    const reloaded=plain(f.state);f.api.normalize(reloaded);
+    for(const owner of [f.owner,reloaded.projects[0]])for(const selection of [owner,...owner.circuitFluids]){
+      assert.equal(selection.fluid,fluid);assert.equal(selection.fluidReference,'mass');
+      assert.deepEqual(selection.fluidConfig,config);
+    }
+  }
+});
+
+test('absent fluid settings stay absent and explicit invalid selectors are not silently replaced',()=>{
+  const f=setup();f.api.normalize(f.state);
+  assert.equal(Object.hasOwn(f.owner,'fluid'),false);assert.equal(Object.hasOwn(f.owner,'fluidReference'),false);
+  Object.assign(f.owner,{fluid:null,fluidReference:'unknown',fluidConfig:{fluid:'Water',reference:'mass'}});
+  f.api.normalize(f.state);assert.equal(f.owner.fluid,null);assert.equal(f.owner.fluidReference,'unknown');
+});
+
 test('invalid device payload stays available to the normal validator instead of being silently replaced',()=>{
   const f=setup();f.node.variableState.schema=99;
   assert.throws(()=>f.api.normalize(f.state),/invalid variable state/);

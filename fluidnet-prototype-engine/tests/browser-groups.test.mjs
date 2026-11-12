@@ -30,7 +30,7 @@ test('every browser executable and parameter variant is registered exactly once'
     'design-library','project-editing','system-inspection','forward-integration','module-replay','parameter-batch','module-assertion-boundaries'])
     assert.ok(selected.some(item=>item.id===id),id+' was omitted');
   assert.deepEqual(selected.filter(item=>item.file==='tests/browser-refrigeration-modular.mjs').map(item=>item.args),[[],['--cascade'],['--equipment']]);
-  assert.equal(selected.filter(item=>item.file==='tests/browser-equipment-assembly.mjs').length,24);
+  assert.equal(selected.filter(item=>item.file==='tests/browser-equipment-assembly.mjs').length,25);
   assert.ok(selected.some(item=>item.id==='canvas-performance-live'&&item.args.includes('--live')));
   assert.ok(selected.some(item=>item.id==='equipment-assembly:standard-plant'&&item.args.includes('--standard-plant')));
   assert.deepEqual(selected.filter(item=>item.file==='tests/browser-hvac-plant.mjs').map(item=>item.args),[[],['--multi-page']]);

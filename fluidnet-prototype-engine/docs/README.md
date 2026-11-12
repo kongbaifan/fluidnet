@@ -1,9 +1,21 @@
 # 文档入口
 
-当前维护日期：2026-11-07。功能文档描述行为；验收记录只对标注的源码基线有效，历史覆盖率和性能数字不自动成为当前版本结论。
+当前维护日期：2026-11-12。当前目标是聚焦设备组网与运行仿真，把建模、运行、调参和结果查看做稳定、做容易理解；三个代表任务的核心技术验收已整理，当前进入独立用户试用反馈。实施顺序与完成标准统一见下方完整计划。功能文档描述行为；验收记录只对标注的源码基线有效，历史覆盖率和性能数字不自动成为当前版本结论。
 
 | 需要了解的内容 | 入口 |
 | --- | --- |
+| 第一次运行、三个代表工程、调参观察与保存重开 | [设备组网与运行仿真使用步骤](CORE_WORKFLOW_GUIDE.md) |
+| 当前源码技术验收、交付范围与实际试用待办 | [核心流程与源码交付记录](CORE_WORKFLOW_ACCEPTANCE.md) |
+| 常驻说明、小字与开发措辞的统一清理 | [界面说明清理](INTERFACE_COPY_CLEANUP.md) |
+| 多业务统一计算、单位转换、能力发现与自定义适配器 | [通用计算适配层](CALCULATION_ADAPTERS.md) |
+| 从范围收敛、建模运行到保存复用与源码交付的当前顺序 | [完整实施计划（2026-11-10）](MODULE_PRODUCT_ROADMAP.md) |
+| 新建设备模块、放入空白画布、连接运行与保存复用 | [模块搭建流程](MODULE_ASSEMBLY_WORKFLOW.md) |
+| 工作台如何组网、检查、运行、找回待应用修改与保存 | [工作台使用步骤](WORKBENCH_WORKFLOW.md) |
+| 计算节奏、速度倍率、实时读数与前后性能测量 | [运行推进与实时读数](RUNTIME_FEEDBACK.md) |
+| 泵曲线点表、常用设备面板、单库房搭建与实际缺口 | [常用设备整理](COMMON_DEVICE_GUIDE.md) |
+| 2026-11-08 底层补全进度、实际边界和可导入工程 | [总验收](FOUNDATION_COMPLETION.md)、[五个参考工程](../examples/foundation/README.md)、[时间步](TIMESTEP_DOMAIN_COMPLETION.md)、[作者本构](AUTHOR_CONSTITUTIVE.md)、[冷库过程](COLD_STORE_PROCESSES.md) |
+| 大型多库房冷库示范、公开来源和设备缺口 | [设计与缺口记录](LARGE_COLD_STORE_DESIGN.md)、[工程文件与运行方法](../examples/large-cold-store/README.md) |
+| 六库简单温控、保存导入收尾及 500t 材料核对 | [实用性验证](LARGE_COLD_STORE_USABILITY.md)、[500t 复算核对](RECALC_500T_REVIEW.md) |
 | 回放遗留修复与日常 CI 收尾 | [P0 验收](P0_REPLAY_CI_ACCEPTANCE.md)、[日常与完整 CI](CI_CHECKS.md) |
 | 架构剩余工作最终收尾 | [AC-1～AC-5验收](ARCHITECTURE_COMPLETION_ACCEPTANCE.md)、[Worker测量决策](WORKER_PRESTART_DECISION.md) |
 | 本轮交互、目录推广和代表工程 | [交互与工程交付验收](INTERACTION_DELIVERY_ACCEPTANCE.md)、[代表工程详细证据](REPRESENTATIVE_PROJECT_ACCEPTANCE.md) |

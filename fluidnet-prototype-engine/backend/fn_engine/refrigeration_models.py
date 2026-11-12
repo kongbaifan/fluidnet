@@ -1,4 +1,6 @@
 """Typed, finite SI messages for an isenthalpic refrigeration throttle."""
+from typing import Literal
+
 from pydantic import ConfigDict, Field
 
 from ._module_schema_v1 import StrictModel
@@ -19,3 +21,16 @@ class RefrigerationThrottleFlow(StrictModel):
     model_config = ConfigDict(frozen=True,extra='forbid',allow_inf_nan=False)
     mass_flow_kg_s: float = Field(ge=0,strict=True)
     effective_kv_m3_h: float = Field(ge=0,strict=True)
+
+
+class PhysicsInput(StrictModel):
+    model_config = ConfigDict(frozen=True, extra='forbid', allow_inf_nan=False)
+    kind: Literal['compressor', 'condenser']
+    inlet_pressure_pa: float = Field(gt=0)
+    outlet_pressure_pa: float = Field(gt=0)
+    inlet_temperature_k: float = Field(gt=0)
+    inlet_enthalpy_j_kg: float
+    inlet_density_kg_m3: float = Field(gt=0)
+    isentropic_outlet_enthalpy_j_kg: float
+    sink_temperature_k: float = Field(gt=0)
+    enabled: bool

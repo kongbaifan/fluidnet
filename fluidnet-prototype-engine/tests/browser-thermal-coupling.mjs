@@ -53,7 +53,7 @@ try{
     await page.locator('[data-action="cs-create-coupled"]').click();
     await expect(page.locator('.thermal-coupling')).toBeVisible({timeout:4000});
   }).toPass({timeout:30000});
-  const draft=(await page.evaluate(k=>JSON.parse(localStorage.getItem(k)),storageKey)).projects.find(p=>p.caseId===model.id);
+  const draft=(await page.evaluate(async k => (await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem(k)),storageKey)).projects.find(p=>p.caseId===model.id);
   expect(draft.thermalCouplings).toEqual(model.thermal_couplings);
   expect(draft.fluidConfig).toEqual(model.fluid);
   expect(draft.circuitFluids.map(c=>c.fluidConfig)).toEqual(model.circuit_fluids.map(c=>c.fluid));

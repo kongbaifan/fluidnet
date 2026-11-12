@@ -12,6 +12,33 @@ from test_engine import reference_project
 from test_module_composites import group
 
 
+def test_uncontrolled_steps_only_build_accepted_frames_and_keep_parameter_updates(monkeypatch):
+    session = SimulationSession(compile_project(reference_project()), .2, .1)
+    try:
+        initial = session.initialize()
+        observations = []
+        original = SimulationSession.snapshot
+
+        def observe(current):
+            observations.append(current.time)
+            return original(current)
+
+        monkeypatch.setattr(SimulationSession, 'snapshot', observe)
+        unchanged = session.advance()
+        # With no controller consuming observations, only acceptance and publication
+        # need complete frames; there are no repeated observations of the old state.
+        assert observations == [.1, .1]
+        assert unchanged.variables['V1.mass_flow_kg_s'] == initial.variables['V1.mass_flow_kg_s']
+        session.set_parameter('V1', 'opening_ratio', .4)
+        changed = session.advance()
+        assert changed.valid and changed.time_s == .2
+        assert changed.parameter_revision == 1
+        assert changed.variables['V1.mass_flow_kg_s'] < unchanged.variables['V1.mass_flow_kg_s']
+        assert session.frames[-1] is changed
+    finally:
+        session.close()
+
+
 def test_public_parameter_batch_validates_every_target_before_changing_any_value():
     _, _, project = group()
     session = SimulationSession(compile_project(project), .2, .1)

@@ -51,7 +51,7 @@ try {
     await page.locator('[data-action="cs-create-station"]').click();
     await expect(panel).toBeVisible({ timeout: 5000 });
   }).toPass({ timeout: 60000 });
-  const draft = (await page.evaluate(() => JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1')))).projects.find(p => p.caseId === 'cold-storage-nh3co2-v2');
+  const draft = (await page.evaluate(async () => (await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1')))).projects.find(p => p.caseId === 'cold-storage-nh3co2-v2');
   expect(draft.pages[0].nodes).toHaveLength(20);
   expect(draft.controllers.map(c => c.id).sort()).toEqual(['head', 'level', 'room1', 'room2', 'suction']);
   expect(draft.circuitFluids.map(c => c.fluid).sort()).toEqual(['Ammonia', 'CarbonDioxide']);

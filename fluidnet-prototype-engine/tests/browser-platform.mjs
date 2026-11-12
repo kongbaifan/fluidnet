@@ -10,7 +10,7 @@ const errors=[];
 page.on('pageerror',e=>errors.push(e.message));
 const save=async()=>{
   await page.locator('[data-action="save"]').first().click();
-  return page.evaluate(()=>JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
+  return page.evaluate(async () => (await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
 };
 try {
   await page.goto(fixture.base+'/#modules');
@@ -32,7 +32,7 @@ try {
   await captureFhd(page, 'artifacts/module-bench.png');
   await page.locator('.rail-link[data-route="modules"]').click();
   await card.locator('[data-action="module-example"]').click();
-  await expect(page.locator('[data-node="V1"]')).toContainText('可编程阀门');
+  await expect(page.locator('.net-node[data-node="V1"]')).toContainText('可编程阀门');
   const result=page.waitForResponse(r=>new URL(r.url()).pathname.endsWith('/runs') && r.request().method()==='POST');
   await page.locator('[data-action="run-project"][data-command="run"]').first().click();
   const queued=await (await result).json();
@@ -44,7 +44,7 @@ try {
   expect(project.run.history.at(-1).variableValues['V1:runtime:state.throughput_kg']).toBeGreaterThan(0);
   await page.reload();
   await expect(page.locator('#app-header')).toContainText(/v\d+\.\d+\.\d+/);
-  await page.locator('[data-node="V1"]').dblclick();
+  await page.locator('.net-node[data-node="V1"]').dblclick();
   await expect(page.locator('[data-instance-param="opening_ratio"][type="number"]')).toHaveValue('0.8');
   await captureFhd(page, 'artifacts/module-project.png');
   await page.locator('[data-action="float-close"]').first().click();

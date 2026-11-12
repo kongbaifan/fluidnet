@@ -22,8 +22,10 @@ try{
     await page.locator('[name="code"]').fill(id.toUpperCase());
     await page.locator('[name="base"]').selectOption('template:'+template);
     await page.locator('#dialog-form button[type="submit"]').click();
+    await page.locator('.editor-tabs [data-action="editor-tab"][data-value="code"]').click();
     await expect(page.locator('#module-code')).toBeVisible();
     await page.locator('[data-action="editor-tab"][data-value="attributes"]').first().click();
+    await page.locator('.editor-parameter-advanced > summary').click();
     const parameter=template==='pump'?'speed_ratio':template==='heat_exchanger'?'ua_w_k':template==='resistance'?'loss_coefficient':'opening_ratio';
     await page.locator(`[data-action="edit-contract-item"][data-section="parameters"][data-id="${parameter}"]`).click();
     await page.locator('[name="default"]').fill(template==='pump'?'1.1':template==='heat_exchanger'?'110':template==='resistance'?'9':'.7');
@@ -49,7 +51,7 @@ try{
     const queued=await(await requested).json();
     await expect.poll(async()=>{const data=await(await page.request.get(server.base+'/api/v1/runs/'+queued.run_id)).json();if(data.status==='failed')throw Error(JSON.stringify({template,diagnostics:data.frame?.diagnostics,project:data.request?.project?.instances}));return data.status;},{timeout:30000}).toBe('completed');
     await page.locator('[data-action="save"]').first().click();
-    const before=await page.evaluate(()=>JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
+    const before=await page.evaluate(async()=>{const {FluidNetDraftStore}=await import('/draft-store.js');return FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1'));});
     const project=before.projects.find(p=>p.id===before.activeProject);
     expect(project.pages[0].nodes.some(n=>n.moduleId===id&&n.package.version==='1.0.0')).toBe(true);
     const original=await(await page.request.get(server.base+'/api/v1/runs/'+queued.run_id)).json();

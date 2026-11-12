@@ -25,7 +25,7 @@ const save=async()=>{
   const receipt=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/v1/workspace'&&r.request().method()==='POST');
   await page.locator('[data-action="save"]').first().click();
   expect((await receipt).status()).toBe(200);
-  return page.evaluate(()=>JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
+  return page.evaluate(async () => (await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
 };
 const active=state=>state.projects.find(p=>p.id===state.activeProject);
 const publish=async()=>{
@@ -50,7 +50,7 @@ const connect=async(a,ap,b,bp)=>{
   await page.locator(`[data-port-node="${b}"][data-port-id="${bp}"]`).click();
 };
 const parameter=async(id,key,value)=>{
-  await page.locator(`[data-node="${id}"]`).dblclick();
+  await page.locator(`.net-node[data-node="${id}"]`).dblclick();
   const input=page.locator(`[data-instance-param="${key}"][data-id="${id}"]`).last();
   await input.fill(String(value)); await input.blur();
   await page.locator(`[data-action="apply-instance"][data-id="${id}"]`).last().click();
@@ -80,8 +80,9 @@ const upgrade=async(id,version)=>{
   await expect(page.getByRole('dialog')).toContainText('兼容检查通过');
   await submit();
   await expect(page.locator('#toast')).toContainText('模块版本已更新并保存');
-  await expect.poll(()=>page.evaluate(moduleId=>{
-    const state=JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1'));
+  await expect.poll(()=>page.evaluate(async moduleId => {
+    const {FluidNetDraftStore}=await import('/draft-store.js');
+    const state=FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1'));
     return state.projects.find(p=>p.id===state.activeProject).moduleSnapshots[moduleId].version;
   },id)).toBe(version);
 };
@@ -111,6 +112,7 @@ try{
     await page.locator('[name="code"]').fill(id.toUpperCase());
     await page.locator('[name="base"]').selectOption(base);
     await submit();
+    await page.locator('.editor-tabs [data-action="editor-tab"][data-value="code"]').click();
     const source=await page.locator('#module-code').inputValue();
     const rewritten=id==='user_filter_law'
       ?source.replace('drop = multiplier * (','drop = 1.5 * multiplier * (')

@@ -10,11 +10,23 @@ from .refrigeration_models import RefrigerationThrottleFlow, RefrigerationThrott
 RESERVED_FLOW_VARIABLES = {'mass_flow_kg_s','effective_kv_m3_h','pressure_drop_pa','enthalpy_j_kg','outlet_quality'}
 
 
+def require_refrigeration_role(definition):
+    if definition.schema_version == 5:
+        check_module_compatibility(definition)
+        _require_source(definition)
+    else:
+        require_throttle_role(definition)
+
+
 def require_throttle_role(definition):
     if definition.schema_version != 4 or definition.execution_role != THROTTLE_ROLE:
         raise ModuleCompatibilityError('MODULE_REFRIGERATION_ROLE_REQUIRED',
             '此调用要求 schema 4 的等焓节流角色','execution_role')
     check_module_compatibility(definition)
+    _require_source(definition)
+
+
+def _require_source(definition):
     source = definition.source.get('runtime','')
     if isinstance(source,list): source='\n'.join(source)
     if not source.strip() or not definition.entrypoint:
@@ -45,7 +57,7 @@ def role_fluid(definition, fluid, port_fluids=None):
             '制冷节流需要允许饱和液体与两相出口的回路工质（phase_policy=any）','fluid.phase_policy')
     if definition.applicability.fluids and fluid.fluid.casefold() not in {name.casefold() for name in definition.applicability.fluids}:
         raise ModuleCompatibilityError('MODULE_FLUID_UNSUPPORTED',f'模块不支持工质 {fluid.fluid}','applicability.fluids')
-    if any(key not in {'in0','out0'} or value!=fluid for key,value in (port_fluids or {}).items()):
+    if any(key not in {p.id for p in definition.ports} or value!=fluid for key,value in (port_fluids or {}).items()):
         raise ModuleCompatibilityError('MODULE_REFRIGERATION_FLUID_CONFLICT',
             '等焓节流的两端必须属于同一制冷剂回路','port_fluids')
 
