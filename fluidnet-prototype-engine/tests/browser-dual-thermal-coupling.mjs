@@ -19,7 +19,7 @@ async function start(){
 }
 const dialog=()=>page.getByRole('dialog');
 const closeDialog=async()=>{if(await dialog().count())await dialog().locator('[data-action="close-dialog"]').first().click();};
-const state=()=>page.evaluate(key=>JSON.parse(localStorage.getItem(key)),storageKey);
+const state=()=>page.evaluate(async key => (await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem(key)),storageKey);
 async function save(){
   const saved=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/v1/workspace'&&r.request().method()==='POST');
   await page.locator('[data-action="save"]').first().click();

@@ -68,7 +68,7 @@ try {
     await page.locator('[data-action="cs-create"]').click();
     await expect(panel).toBeVisible({ timeout: 5000 });
   }).toPass({ timeout: 60000 });
-  const draft = (await page.evaluate(k => JSON.parse(localStorage.getItem(k)), key)).projects.find(p => p.caseId === 'cold-room-minus18-v1');
+  const draft = (await page.evaluate(async k => (await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem(k)), key)).projects.find(p => p.caseId === 'cold-room-minus18-v1');
   const projectId = draft.id;
   expect(draft.pages[0].nodes.map(n => n.id).sort()).toEqual(['AC1', 'CU1', 'ROOM1']);
   expect(draft.scenarios.map(s => s.id)).toContain('A-S05-variable');

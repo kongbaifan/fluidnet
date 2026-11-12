@@ -40,7 +40,8 @@ try{
   for(const id of ['pump','valve','exchanger']){
     await edit(id);await expect(page.locator('[data-action="edit-module-metadata"]')).toBeVisible();await tab('attributes');
     await expect(page.locator('.editor-content')).toContainText('常用参数');
-    await expect(page.locator('.editor-content')).toContainText('保存为型号');
+    await expect(page.locator('.editor-content [data-action="editor-tab"][data-value="models"]')).toBeVisible();
+    await expect(page.locator('.editor-content [data-device-guide]')).toHaveCount(0);
     await expect(page.locator('.editor-content details[open]')).toHaveCount(0);
     await expect(page.locator('[data-module-contract]')).toHaveCount(0);
   }

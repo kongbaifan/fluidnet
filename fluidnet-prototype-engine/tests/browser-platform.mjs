@@ -10,7 +10,7 @@ const errors=[];
 page.on('pageerror',e=>errors.push(e.message));
 const save=async()=>{
   await page.locator('[data-action="save"]').first().click();
-  return page.evaluate(()=>JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
+  return page.evaluate(async () => (await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
 };
 try {
   await page.goto(fixture.base+'/#modules');

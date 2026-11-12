@@ -35,8 +35,9 @@ async function api(path, body) {
   return response.json();
 }
 
-const current = () => page.evaluate(key => {
-  const state = JSON.parse(localStorage.getItem(key));
+const current = () => page.evaluate(async key => {
+  const {FluidNetDraftStore}=await import('/draft-store.js');
+  const state = FluidNetDraftStore.parse(localStorage.getItem(key));
   return state.projects.find(project => project.id === state.activeProject);
 }, storageKey);
 const runButton = command => page.locator(`[data-action="run-project"][data-command="${command}"]`).first();
@@ -202,13 +203,13 @@ try {
   await page.locator('[data-action="add-chart-variable"]').click();
   await editor().locator('button[type="submit"]').click();
   await save();
-  const addedBinding = await page.evaluate(key => JSON.parse(localStorage.getItem(key)).charts.extra
+  const addedBinding = await page.evaluate(async key => (await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem(key)).charts.extra
     .find(binding => binding.projectId === 'thermal-modeling-custom' && !binding.couplingId), storageKey);
   expect(addedBinding).toBeTruthy();
   await page.locator('.rail-link[data-route="runs"]').click();
   await page.locator('[data-action="record-project"]').click();
   await save();
-  const historical = await page.evaluate(key => JSON.parse(localStorage.getItem(key)).records[0], storageKey);
+  const historical = await page.evaluate(async key => (await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem(key)).records[0], storageKey);
   expect(historical.chartBindings.find(binding => binding.canonicalKey === heatKey).nodeId).toBe(primary);
   expect(historical.chartBindings.some(binding => binding.id === addedBinding.id)).toBe(true);
   await page.locator('.rail-link[data-route="workbench"]').click();

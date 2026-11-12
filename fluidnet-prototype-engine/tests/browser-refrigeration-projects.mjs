@@ -19,7 +19,7 @@ async function start(){
 const api=async path=>{const r=await page.request.get(server.base+'/api/v1'+path);expect(r.ok(),await r.text()).toBe(true);return r.json();};
 const submit=async()=>{await page.locator('#dialog-form button[type="submit"]').click();await expect(page.locator('#dialog-form')).toHaveCount(0);};
 const navigate=route=>page.locator(`.rail-link[data-route="${route}"]`).click();
-const save=async()=>{const receipt=page.waitForResponse(r=>r.url().endsWith('/workspace')&&r.request().method()==='POST');await page.locator('[data-action="save"]').first().click();expect((await receipt).status()).toBe(200);return page.evaluate(()=>JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));};
+const save=async()=>{const receipt=page.waitForResponse(r=>r.url().endsWith('/workspace')&&r.request().method()==='POST');await page.locator('[data-action="save"]').first().click();expect((await receipt).status()).toBe(200);return page.evaluate(async () => (await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));};
 const active=s=>s.projects.find(p=>p.id===s.activeProject);
 async function edit(){await navigate('modules');await page.locator(`[data-module-id="${moduleId}"] [data-action="edit-module"]`).click();}
 async function publish(){

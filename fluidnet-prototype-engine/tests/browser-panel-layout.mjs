@@ -57,7 +57,9 @@ try{
  await panel().locator('[data-action="apply-instance"]').click();await submit();
  const current=await saved();expect(owner(current).pages[0].nodes.find(n=>n.id==='V1').params.opening_ratio).toBe(60);
  expect(owner(current).moduleSnapshots.design_valve.manifest).toEqual(bound.manifest);
- await page.reload();await expect(page.locator('#app-header')).toContainText('模块平台 · v');await expect(page.locator('#toast')).toContainText('已连接');await expect(page.locator('#toast')).not.toContainText('备份失败');
+ await page.reload();await expect(page.locator('#app-header')).toContainText('模块平台 · v');
+ const restored=await saved();expect(owner(restored).moduleSnapshots.design_valve.panelLayout).toEqual(owner(current).moduleSnapshots.design_valve.panelLayout);
+ await expect(page.locator('#toast')).not.toContainText('备份失败');
  await page.locator('.net-node[data-node="V1"]').dblclick();await panel().locator('[data-action="float-tab"][data-value="overview"]').click();
  await expect(panel().locator('[data-panel-parameter-group="本项目调节"]')).toBeVisible();
  await panel().locator('[data-action="float-tab"][data-value="parameters"]').click();

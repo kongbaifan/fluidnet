@@ -75,10 +75,13 @@ try{
   for(const [key,value] of Object.entries(item.parameters||{})){
    const spec=definition.parameters.find(p=>p.id===key),uiKey=Object.keys(binding).find(k=>binding[k]===key)||key;
    expect(spec,item.module_id+'.'+key).toBeTruthy();
-   const inputs=panel.locator(`[data-instance-param="${uiKey}"]`);
+   const inputs=panel.locator(`input[data-instance-param="${uiKey}"],textarea[data-instance-param="${uiKey}"]`);
    if(!await inputs.count()){
     if(key==='humidity_ratio_kg_kg'&&!recipe.solver?.moist_air)continue;
     throw Error('Missing editor '+item.module_id+'.'+key);
+   }
+   for(const details of await inputs.last().locator('xpath=ancestor::details').all()){
+    if(await details.getAttribute('open')===null)await details.locator(':scope > summary').click();
    }
    if(spec.value_type==='boolean')await inputs.setChecked(value);
    else if(spec.value_type==='curve')await inputs.fill(JSON.stringify(value));

@@ -56,7 +56,7 @@ try {
 
   await nav.click();
   await expect(page.locator('#module-results')).toBeVisible();
-  await expect(page.locator('.module-reference-note')).toContainText('L1/L2/L3');
+  await expect(page.locator('.module-reference-note')).toHaveCount(0);
 
   const cards = page.locator('#module-results article.module-card');
   await expect(cards).toHaveCount(8);

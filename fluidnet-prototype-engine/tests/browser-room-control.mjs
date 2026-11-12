@@ -55,7 +55,7 @@ try{
   expect(first.frame.variables['Room.state.temperature_k']).toBeCloseTo(299.15,0);
   expect(first.frame.variables['Chiller.state.electric_energy_j']).toBeGreaterThan(0);
   await expect(async()=>{
-    const cached=await page.evaluate(()=>JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
+    const cached=await page.evaluate(async () => (await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
     const cachedProject=cached.projects.find(p=>p.id===cached.activeProject);
     expect(cachedProject.controllers[0].setpoint).toBeCloseTo(299.15,8);
     expect(cachedProject.run.history.at(-1).t).toBe(2400);
@@ -86,7 +86,7 @@ try{
   expect(changed.frame.variables['controller.room-temperature.setpoint']).toBeCloseTo(298.15,8);
   await page.getByRole('button',{name:'保存项目',exact:true}).click();
   await expect(page.locator('#toast')).toContainText('风侧项目已保存');
-  const state=await page.evaluate(()=>JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
+  const state=await page.evaluate(async () => (await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
   const owner=state.projects.find(p=>p.id===state.activeProject);
   expect(owner.controllers[0].setpoint).toBeCloseTo(298.15,8);
   const prototype={format:'fluidnet-studio-prototype',schema:1,activeProject:owner.id,projects:[owner],modules:Object.values(owner.moduleSnapshots)};

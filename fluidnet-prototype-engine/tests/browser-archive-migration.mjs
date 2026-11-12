@@ -34,7 +34,7 @@ page.on('pageerror', e => errors.push(e.message));
 
 const sha256File = path => createHash('sha256').update(readFileSync(path)).digest('hex');
 const sha256Text = text => createHash('sha256').update(text, 'utf8').digest('hex');
-const localState = () => page.evaluate(k => JSON.parse(localStorage.getItem(k) || 'null'), KEY);
+const localState = () => page.evaluate(async k => (await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem(k) || 'null'), KEY);
 const localText = key => page.evaluate(k => localStorage.getItem(k), key);
 const ready = p => expect(p.locator('#app-header')).toContainText('模块平台 · v');
 const api = async (path, body) => {
@@ -239,8 +239,8 @@ try {
   freshPage.on('pageerror', e => errors.push(e.message));
   await freshPage.goto(base + '/#projects');
   await ready(freshPage);
-  await expect.poll(async () => freshPage.evaluate(k => JSON.parse(localStorage.getItem(k) || 'null')?.projects?.length, KEY), { timeout: 20000 }).toBe(4);
-  const restored = await freshPage.evaluate(k => JSON.parse(localStorage.getItem(k) || 'null'), KEY);
+  await expect.poll(async () => freshPage.evaluate(async k => (await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem(k) || 'null')?.projects?.length, KEY), { timeout: 20000 }).toBe(4);
+  const restored = await freshPage.evaluate(async k => (await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem(k) || 'null'), KEY);
   expect(restored.workspaceRevision).toBe(2);
   const restoredProject = restored.projects.find(p => p.id === imported.id);
   expect(restoredProject.moduleSnapshots.programmable_valve.manifest.content_hash).toBe(contentHash);

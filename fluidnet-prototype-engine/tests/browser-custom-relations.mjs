@@ -25,7 +25,7 @@ const save=async()=>{
   const receipt=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/v1/workspace'&&r.request().method()==='POST');
   await page.locator('[data-action="save"]').first().click();
   expect((await receipt).status()).toBe(200);
-  return page.evaluate(()=>JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
+  return page.evaluate(async () => (await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
 };
 const active=state=>state.projects.find(p=>p.id===state.activeProject);
 const publish=async()=>{
@@ -80,8 +80,9 @@ const upgrade=async(id,version)=>{
   await expect(page.getByRole('dialog')).toContainText('兼容检查通过');
   await submit();
   await expect(page.locator('#toast')).toContainText('模块版本已更新并保存');
-  await expect.poll(()=>page.evaluate(moduleId=>{
-    const state=JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1'));
+  await expect.poll(()=>page.evaluate(async moduleId => {
+    const {FluidNetDraftStore}=await import('/draft-store.js');
+    const state=FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1'));
     return state.projects.find(p=>p.id===state.activeProject).moduleSnapshots[moduleId].version;
   },id)).toBe(version);
 };

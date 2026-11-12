@@ -15,7 +15,7 @@ let releaseCatalog=()=>{};
 let workspacePosts=0;
 page.on('pageerror', error => errors.push(error.message));
 page.on('request',request=>{if(request.method()==='POST' && new URL(request.url()).pathname==='/api/v1/workspace')workspacePosts++;});
-const state = () => page.evaluate(() => JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
+const state = () => page.evaluate(async () => (await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
 const dialog = () => page.getByRole('dialog');
 const runButton = () => page.locator('[data-action="run-project"][data-command="run"]').first();
 

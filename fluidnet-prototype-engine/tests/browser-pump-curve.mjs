@@ -14,7 +14,14 @@ const state=()=>page.evaluate(async()=>(await import('/draft-store.js')).FluidNe
 const owner=s=>s.projects.find(p=>p.id===s.activeProject),pump=s=>owner(s).pages.flatMap(p=>p.nodes).find(n=>n.id==='P1');
 async function save(){const r=page.waitForResponse(r=>r.url().endsWith('/workspace')&&r.request().method()==='POST');await page.locator('[data-action="save"]').first().click();expect((await r).ok()).toBe(true);return state();}
 async function api(path){const r=await page.request.get(server.base+'/api/v1'+path);expect(r.ok(),await r.text()).toBe(true);return r.json();}
-async function panel(){await page.locator('.net-node[data-node="P1"]').dblclick();const p=page.getByRole('region',{name:'P1 设备参数',exact:true});await p.locator('[data-action="float-tab"][data-value="parameters"]').click();const d=p.locator('.device-other-parameters');if(await d.getAttribute('open')===null)await d.locator('summary').first().click();return p;}
+async function panel(){
+  await nav('workbench');await page.locator('[data-action="project-find"]').click();
+  await page.getByLabel('全项目查找关键词').fill('P1');
+  await page.locator('[data-action="project-find-node"][data-id="P1"]').click();
+  const p=page.getByRole('region',{name:'P1 设备参数',exact:true});await expect(p).toBeVisible();
+  await p.locator('[data-action="float-tab"][data-value="parameters"]').click();
+  const d=p.locator('.device-other-parameters');if(await d.getAttribute('open')===null)await d.locator('summary').first().click();return p;
+}
 async function openCurve(p){const d=p.locator('.device-other-parameters');if(await d.getAttribute('open')===null)await d.locator('summary').first().click();await p.locator('[data-action="edit-pump-curve"]').click();}
 async function run(command,status){const r=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/v1/runs'&&r.request().method()==='POST');await page.locator(`[data-action="run-project"][data-command="${command}"]`).first().click();const response=await r;expect(response.ok(),await response.text()).toBe(true);const {run_id}=await response.json();let record;await expect.poll(async()=>{record=await api('/runs/'+run_id);if(record.status==='failed')throw Error(JSON.stringify(record.frame?.diagnostics));return record.status;},{timeout:45000}).toBe(status);await expect(page.locator('#statusbar')).toContainText(status==='paused'?'已暂停':'已完成');return record;}
 try{

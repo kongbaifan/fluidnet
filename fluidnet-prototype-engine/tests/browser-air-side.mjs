@@ -46,7 +46,7 @@ try {
   await (await downloaded).saveAs(join(directory,'report.html'));
   await page.getByRole('button',{name:'保存项目',exact:true}).click();
   await expect(page.locator('#toast')).toContainText('风侧项目已保存');
-  const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
+  const saved=await page.evaluate(async () => (await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
   const owner=saved.projects.find(p=>p.id===saved.activeProject);
   expect(owner.solverOptions.moist_air_options.contract_version).toBe(1);
   expect(owner.airSideView.active_tab).toBe('moisture');
@@ -102,7 +102,7 @@ try {
     writeFileSync('artifacts/air-examples/'+name+'.project.json',JSON.stringify(record.request.project,null,2));
     await page.getByRole('button',{name:'保存项目',exact:true}).click();
     await expect(page.locator('#toast')).toContainText('风侧项目已保存');
-    const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
+    const saved=await page.evaluate(async () => (await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
     const current=saved.projects.find(p=>p.id===saved.activeProject);
     const exported={format:'fluidnet-studio-prototype',schema:1,activeProject:current.id,projects:[current],modules:Object.values(current.moduleSnapshots)};
     const normalized=await api('/prototype/normalize',exported);

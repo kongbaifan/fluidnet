@@ -65,8 +65,9 @@ function verifyPlant(record) {
     branch_residual_kg_s:branchResidual,chilled_residual_w:chilledResidual,cooling_residual_w:coolingResidual};
 }
 async function savedProject() {
-  return page.evaluate(()=>{
-    const state=JSON.parse(localStorage.getItem('fluidnet-prototype-engine-v1'));
+  return page.evaluate(async () => {
+    const {FluidNetDraftStore}=await import('/draft-store.js');
+    const state=FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1'));
     return state.projects.find(project=>project.id===state.activeProject);
   });
 }

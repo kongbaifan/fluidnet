@@ -28,7 +28,7 @@ async function normalize(workspace){
 }
 async function importPrototype(workspace){
   await settings('storage');await page.locator('#page [data-action="import"]').click();
-  await page.getByLabel('选择原型 JSON').setInputFiles({name:'settings-regression.json',mimeType:'application/json',
+  await page.getByLabel('选择工作区 JSON').setInputFiles({name:'settings-regression.json',mimeType:'application/json',
     buffer:Buffer.from(JSON.stringify({...workspace,format:'fluidnet-studio-prototype'}))});
   await expect(page.locator('#import-preview')).toContainText('个项目');
   await submit();await expect(page.getByRole('dialog')).toHaveCount(0);
