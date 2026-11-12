@@ -74,11 +74,11 @@ try{
   await expect(page.locator('[data-filter="canvasModuleSearch"]')).toBeFocused();
   await captureFhd(page,output+'/blank-start.png');
   await createProject('water');
-  await expect(page.locator('.canvas-area > .runbar')).toBeVisible();
+  await expect(page.locator('.workbench-flow > .runbar')).toBeVisible();
   await expect(page.locator('#workbench-guide')).toBeEmpty();
   let region=await panel('P1');await expect(metric(region,'runtime:shaft_power_w')).toHaveText('—');
-  const runBounds=await page.locator('.canvas-area > .runbar').boundingBox(),panelBounds=await region.boundingBox();
-  expect(panelBounds.x+panelBounds.width).toBeLessThanOrEqual(runBounds.x);
+  const runBounds=await page.locator('.workbench-flow > .runbar').boundingBox(),panelBounds=await region.boundingBox();
+  expect(panelBounds.y).toBeGreaterThanOrEqual(runBounds.y+runBounds.height);
   expect(await region.locator('input[type="number"][data-instance-param]').count()).toBe(1);
   await expect(region.locator('[data-instance-param="speed"]')).toBeVisible();await close(region);
   region=await panel('L1','parameters');
