@@ -1,0 +1,81 @@
+{
+  "source": "Audited additive coupling tolerances, 2026-11-14; original layering and foundation baselines retained",
+  "added_solver_properties": [
+    "coupling_viscosity_rtol",
+    "coupling_flow_rtol"
+  ],
+  "classes": {
+    "SolverOptions": {
+      "previous_sha256": "c74ef502c86bf07efbbaeb311b94a0f5b74a400f41702e484e8e5077e8d7cab4",
+      "schema_sha256": "0b2771a3918a58ae3c0ea7bc9ae77509445600924b1051f749b0c9606b717cfb"
+    },
+    "Project": {
+      "previous_sha256": "522e0008bec79e3b3055acd6e77c02ee01d7e3894e84d857b915893cbb1575a9",
+      "schema_sha256": "42071d523241795640e03fa3a5081707e8e83dc49f5504b089c36e4682e35f8c"
+    },
+    "ControlPreviewRequest": {
+      "previous_sha256": "9761219070e2e3c79c570a7b6d7e65ef6cb3f42ea64ce18ddb5c4e11d485281e",
+      "schema_sha256": "04c73d2e61e94eaa014a3a057f73b4cf36656cf6b6da1855c06186346a30ef51"
+    },
+    "ProjectUpgradeRequest": {
+      "previous_sha256": "474cc982351e091844b9490433f40fc5493c3203b40182b526ac1c8e8003c85a",
+      "schema_sha256": "5b6531d8173a8956e3431df43e8c5793dd6465d73644261f0119a538ed735510"
+    },
+    "RunRequest": {
+      "previous_sha256": "e7c325aa8c1adf11c39c03f19a6293dbaf59c0007c0d4d8688e8ba72c10cf84d",
+      "schema_sha256": "355d0e4b2a472f335ed981308ce8a35d864aad0558cafa1e4338256fc881abc8"
+    },
+    "RunRecord": {
+      "previous_sha256": "c73bcc6b69c74bf6e167ebb4b7f979f12632ce513e653af8edba6f7dd35d543d",
+      "schema_sha256": "e68f06c8558588a2f2301b7926d63f5d8601312c2b977e4406daed79aa0fefaa"
+    },
+    "ModuleTestConditions": {
+      "previous_sha256": "79ab3b0f564ba07ac1f32a6accdd88d059ffffd30736ba2c5606368f6063f41c",
+      "schema_sha256": "b5b6c6405771ef75cc0e0793e9fe349f32352cd226b2dedaa06173106ca92b7a"
+    },
+    "ModuleTestRequest": {
+      "previous_sha256": "8df07deb2a0d19ffb32d1b41581d791300e35dd13113e039abda84b4104fc0b7",
+      "schema_sha256": "e9012379e977b77d6d90845d13604b23cae1465a5a2bdce61eda0f61946fbd3f"
+    },
+    "ModuleTestCase": {
+      "previous_sha256": "0589ed7c14b5e0c4b95e96bae74befbee92077b60d7133510b693b99776a45c4",
+      "schema_sha256": "ce572022debacd18b36953d063b1b1ef632a66d4e095a97cc8f385531ca30eb4"
+    },
+    "ModuleTestSuiteRequest": {
+      "previous_sha256": "9f6bbf13549c4f26b06747b476453726a1f4f0e313b5470785f6476216055707",
+      "schema_sha256": "02bc74b72b8c9fa97f609d378a464e875c16397835263014e9df05a5f4a17069"
+    },
+    "ModuleGroupRequest": {
+      "previous_sha256": "dc333e01ec14b2b63e2808c64366a1ea05c5f1e47dfdb48f98687e71a2aec6c1",
+      "schema_sha256": "ce233781c0ac47888ce3a98262cffcaa1c1c87cabcad9b0b31ff1e91a24fc752"
+    },
+    "CompositeTestContextRequest": {
+      "previous_sha256": "30f1a43411e131b849509184930ee5ea0d64f94ff6d448af1c877cded6fc0d93",
+      "schema_sha256": "135cd5c8f8e82d5fb5ada78a50c4b7218f293b542b4117794a2c9fd6ac3c2220"
+    },
+    "ModuleSaveRequest": {
+      "previous_sha256": "fcbc23e6f9e7711366cb3a77e112d42d0847967d9a70880cc24521274b5b18cb",
+      "schema_sha256": "4b37fe0e5ee9eda1176bf8549ea5a08840bbbb3ca661bf23124b0eb78e5d172a"
+    },
+    "ModuleVersionResponse": {
+      "previous_sha256": "a9567c52f68988e34f9ed80a475db80661fab8818b7dc0d32508dbf5459021a7",
+      "schema_sha256": "15ada5d5d80fe0fc0c9b13cc5fae31f7e4a52076a3722cce5b5f034ceb3eea82"
+    },
+    "RunRecordResponse": {
+      "previous_sha256": "4a031aa999b09cd319b03c3b6f200535e369630bccf51fa4715e6e9fbb25cbee",
+      "schema_sha256": "9c73c72cad856eaf5786db7eb7457e9c089c730c0ae2793a2e9497a74d1d5c02"
+    },
+    "AirMigrationRequest": {
+      "previous_sha256": "8154a3af4b5a17541eec535a651fbe10f47bd6bf8d343ec3a9695cb883f73743",
+      "schema_sha256": "cc470bda6e07d1b923a9bfd74588129224dbe542f6693bd13925662e1c25ece7"
+    },
+    "AirMigrationResponse": {
+      "previous_sha256": "d62feebc767209f0f3be80d00e4f5eeb00d704b2e518f5a9fdeda1c16acf2feb",
+      "schema_sha256": "ddc61615c91986b75bddc0f7e9bbbad5136f017f34458201e26d2ae0638a7f20"
+    },
+    "ProjectUpgradeResponse": {
+      "previous_sha256": "e46e0118ef73e1d35d942d6083ff1d8190aedaa170b1135a0bf2cb560b3efb0b",
+      "schema_sha256": "03b03fbcb204f9db0240ea9b1287ad45d5ba79c66f72a66f770e6091b4ac91a8"
+    }
+  }
+}

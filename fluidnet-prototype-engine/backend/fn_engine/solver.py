@@ -121,6 +121,7 @@ class NetworkResult:
     coupling_iterations: int = 0
     port_states: dict[str, PortState] = field(default_factory=dict)
     module_step_id: str | None = None
+    coupling_defects: dict[str, float] = field(default_factory=dict)
 
 
 def branch_drop(network: CompiledNetwork, branch: CompiledBranch, flow_kg_s: float, density: float,
@@ -1007,7 +1008,8 @@ def _solve_network(network, runners, time_s, warm, service, storage_step=None) -
         return NetworkResult(hydraulic, thermal, 1, build_port_states(network, hydraulic, thermal))
 
     # node coupling: properties frozen during each hydraulic solve, updated between passes.
-    if warm is not None and warm.thermal is not None and warm.hydraulic.branch_density is not None:
+    if (warm is not None and warm.thermal is not None and warm.hydraulic.branch_density is not None
+            and warm.hydraulic.branch_viscosity is not None):
         rho_b, mu_b = warm.hydraulic.branch_density, warm.hydraulic.branch_viscosity
         node_states, previous_t = warm.thermal.node_states, np.array([s.temperature_k for s in warm.thermal.node_states])
     else:
@@ -1018,6 +1020,7 @@ def _solve_network(network, runners, time_s, warm, service, storage_step=None) -
     relaxation = 1.0
     previous_defect = None
     topology_signature = None
+    previous_flows = warm.hydraulic.flows if warm is not None and warm.thermal is not None else None
     for iteration in range(1, options.max_coupling_iterations + 1):
         hydraulic_storage = storage_step
         if storage_step is not None and any(hasattr(spec, 'gas_constant_j') for spec in network.storage.values()):
@@ -1033,8 +1036,15 @@ def _solve_network(network, runners, time_s, warm, service, storage_step=None) -
         temperatures = np.array([s.temperature_k for s in thermal.node_states])
         # 固定点缺陷：目标是“本轮的物性”，与是否松弛无关；L2 不允许用“松弛后步长变小”冒充收敛。
         density_change = float(np.max(np.abs(new_rho - rho_b) / new_rho, initial=0.0))
-        converged = (previous_t is not None and density_change < options.coupling_density_rtol
-                     and float(np.max(np.abs(temperatures - previous_t), initial=0.0)) < options.thermal_tolerance_k)
+        viscosity_change = float(np.max(np.abs(new_mu - mu_b) / new_mu, initial=0.0))
+        temperature_change = (float(np.max(np.abs(temperatures - previous_t), initial=0.0))
+                              if previous_t is not None else math.inf)
+        flow_defect = _coupling_flow_defect(previous_flows, hydraulic.flows, options)
+        defects = {'coupling_density_defect': density_change, 'coupling_viscosity_defect': viscosity_change,
+                   'coupling_temperature_defect_k': temperature_change, 'coupling_flow_defect': flow_defect}
+        converged = (density_change <= options.coupling_density_rtol
+                     and viscosity_change <= options.coupling_viscosity_rtol
+                     and temperature_change <= options.thermal_tolerance_k and flow_defect <= 1.)
         if converged and storage_step is not None:
             for node, old in storage_step[1].items():
                 spec = network.storage[node]
@@ -1043,7 +1053,8 @@ def _solve_network(network, runners, time_s, warm, service, storage_step=None) -
                     pressure = spec.state(mass, float(thermal.enthalpies[node]))[0]
                     converged &= abs(pressure-hydraulic.pressures[node]) <= options.pressure_tolerance_pa
         if converged:
-            return NetworkResult(hydraulic, thermal, iteration, build_port_states(network, hydraulic, thermal))
+            return NetworkResult(hydraulic, thermal, iteration, build_port_states(network, hydraulic, thermal),
+                                 coupling_defects=defects)
         current_signature = (tuple(branch.closed for branch in network.branches),
                              tuple(sorted((key, relation.kind) for key, relation in hydraulic.relations.items())))
         if coupling_acceleration == 'none':
@@ -1066,9 +1077,19 @@ def _solve_network(network, runners, time_s, warm, service, storage_step=None) -
                 rho_b, mu_b = candidate, candidate_mu
         topology_signature = current_signature
         previous_t = temperatures
+        previous_flows = hydraulic.flows
         node_states, start, h_start = thermal.node_states, hydraulic.solution, thermal.enthalpies
     raise ThermalError('COUPLING_NOT_CONVERGED',
-                       f'水力与物性耦合 {options.max_coupling_iterations} 次未收敛（密度相对变化 {density_change:.3g}）')
+                       f'水力与物性耦合 {options.max_coupling_iterations} 次未收敛：密度缺陷 {density_change:.3g}，'
+                       f'黏度缺陷 {viscosity_change:.3g}，流量归一化缺陷 {flow_defect:.3g}，温差 {temperature_change:.3g} K')
+
+
+def _coupling_flow_defect(previous, current, options) -> float:
+    """Unrelaxed flow change / (absolute mass bound + relative flow bound); accept at <= 1."""
+    if previous is None:
+        return math.inf
+    scale = options.mass_tolerance_kg_s + options.coupling_flow_rtol * np.maximum(np.abs(previous), np.abs(current))
+    return float(np.max(np.abs(current - previous) / scale, initial=0.0))
 
 
 def _coupling_relaxation(mode: str, relaxation: float, defect: np.ndarray, previous_defect,
@@ -1238,6 +1259,9 @@ def snapshot(network, result, time_s=0., warning=None):
     if thermal is not None:
         metrics.update({'thermal_iterations': thermal.iterations, 'coupling_iterations': coupling,
                         'energy_residual_w': thermal.energy_residual_w, 'reference_heat_w': thermal.reference_heat_w})
+        metrics.update(result.coupling_defects)
+        if thermal.fixed_point_defect_k is not None:
+            metrics['thermal_fixed_point_defect_k'] = thermal.fixed_point_defect_k
         if thermal.humidity_ratio is not None:
             metrics.update({'moisture_residual_kg_s': thermal.moisture_residual_kg_s,
                             'humidifier_moisture_kg_s': thermal.humidifier_moisture_kg_s})

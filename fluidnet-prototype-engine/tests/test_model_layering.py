@@ -18,10 +18,15 @@ from fn_engine.model_types.protocol import CommitStepResponse, EvaluateResponse,
 ROOT = Path(__file__).resolve().parents[1]
 BASELINE = json.loads((ROOT/'tests/fixtures/model-layering.json').read_text(encoding='utf-8'))
 FOUNDATION = json.loads((ROOT/'tests/fixtures/model-layering-foundation.json').read_text(encoding='utf-8'))
+COUPLING = json.loads((ROOT/'tests/fixtures/model-layering-coupling.json').read_text(encoding='utf-8'))
 
 
 def schema_hash(model):
-    data = json.dumps(model.model_json_schema(), sort_keys=True,
+    return data_hash(model.model_json_schema())
+
+
+def data_hash(schema):
+    data = json.dumps(schema, sort_keys=True,
                       separators=(',', ':'), ensure_ascii=False).encode()
     return hashlib.sha256(data).hexdigest()
 
@@ -35,10 +40,23 @@ def test_all_legacy_classes_keep_their_schema_and_import_identity():
         actual = schema_hash(implementation)
         if actual != record['schema_sha256']:
             changed.add(name)
-            extension = FOUNDATION['classes'][name]
-            assert extension['previous_sha256'] == record['schema_sha256'], name
-            assert actual == extension['schema_sha256'], name
-    assert changed == FOUNDATION['classes'].keys()
+            if name in COUPLING['classes']:
+                extension = COUPLING['classes'][name]
+                previous = FOUNDATION['classes'].get(name, {}).get('schema_sha256', record['schema_sha256'])
+                assert extension['previous_sha256'] == previous, name
+                assert actual == extension['schema_sha256'], name
+                # Removing only the two new options must reproduce the entire prior schema.
+                schema = implementation.model_json_schema()
+                options = schema if name == 'SolverOptions' else schema['$defs']['SolverOptions']
+                for key in COUPLING['added_solver_properties']:
+                    assert key not in options.get('required', []), (name, key)
+                    options['properties'].pop(key)
+                assert data_hash(schema) == previous, name
+            else:
+                extension = FOUNDATION['classes'][name]
+                assert extension['previous_sha256'] == record['schema_sha256'], name
+                assert actual == extension['schema_sha256'], name
+    assert changed == FOUNDATION['classes'].keys() | COUPLING['classes'].keys()
     assert len(models.__all__) == len(set(models.__all__))
     assert all(hasattr(models, name) for name in models.__all__)
 
