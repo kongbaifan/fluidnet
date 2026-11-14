@@ -4,9 +4,10 @@ import pytest
 from fn_engine.checkpoints import capture, restore
 from fn_engine.compiler import compile_project
 from fn_engine.control import ControlRunner
-from fn_engine.model_types.domain import Project, ScheduleEvent
+from fn_engine.model_types.domain import ControlScript, Project, ScheduleEvent
 from fn_engine.refrigeration.six_room_continuous import continuous_large_cold_store
 from fn_engine.sessions import create_session
+from scripts.validate_six_room_continuous import CONTROL_EVENTS, accepted_control_timing, record_control_samples
 
 
 def test_topology_inventory_capacity_and_serialized_project():
@@ -140,3 +141,55 @@ def test_second_temperature_zone_switches_real_pump_and_compressor_capacity():
         assert abs(frame.metrics['energy_residual_j']) < .05
         assert abs(frame.metrics['mass_residual_kg_circuit0']) < 1e-7
     finally: session.close()
+
+
+@pytest.mark.parametrize('fault', ['pump', 'compressor'])
+def test_combined_operating_day_and_supervisor_timing_is_order_and_checkpoint_independent(fault):
+    event = CONTROL_EVENTS[fault]
+    short = {fault: {**event, 'start_s': 60., 'end_s': 240.}}
+
+    def run(reverse):
+        project, _ = continuous_large_cold_store()
+        scripts = []
+        for script in project.control_scripts:
+            values = script.model_dump(exclude={'content_hash'})
+            if script.id == 'operating_day':
+                values['source'] = script.source.replace(f"{event['start_s']:.0f}.", '60.').replace(
+                    f"{event['end_s']:.0f}.", '240.')
+            scripts.append(ControlScript.model_validate(values))
+        project.control_scripts = list(reversed(scripts)) if reverse else scripts
+        session = create_session(compile_project(project), 360., 30., keep=20)
+        samples, frames, checkpoints = [], [], []
+        try:
+            session.initialize()
+            record_control_samples(session, samples, short)
+            while not session.done:
+                frame = session.advance()
+                frames.append(frame)
+                assert abs(frame.metrics['energy_residual_j']) < .05
+                assert abs(frame.metrics['mass_residual_kg_circuit0']) < 1e-7
+                if not reverse and frame.time_s in (60., 90., 120., 150., 240., 270.):
+                    branch = restore(capture(session))
+                    try:
+                        checkpoints.append((frame.time_s, branch.advance()))
+                    finally:
+                        branch.close()
+                for at, twin in checkpoints:
+                    if twin.time_s == frame.time_s:
+                        assert twin.variables == frame.variables, at
+            timing = accepted_control_timing(session, samples, short)[fault]
+            assert timing == {'stop_command_sample_s': 60., 'fault_observed_sample_s': 90.,
+                'backup_start_sample_s': 120., 'recovery_command_sample_s': 240., 'backup_stop_sample_s': 270.}
+            duty, standby = event['duty'] + '.param.running', event['standby'] + '.param.running'
+            assert next(f.time_s for f in frames if f.variables[duty] == 0.) == 90.
+            assert next(f.time_s for f in frames if f.variables[standby] == 1.) == 150.
+            assert frames[-1].variables[duty] == 1. and frames[-1].variables[standby] == 0.
+            assert frames[-1].variables[event['duty'] + '.mass_flow_kg_s'] > .001
+            return frames
+        finally:
+            session.close()
+
+    forward, reversed_order = run(False), run(True)
+    assert [f.time_s for f in forward] == [f.time_s for f in reversed_order]
+    for first, second in zip(forward, reversed_order):
+        assert first.variables == second.variables
