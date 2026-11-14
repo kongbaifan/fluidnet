@@ -52,7 +52,8 @@
     "test:browser:pump-curve": "node scripts/browser-groups.mjs --run --suite pump-curve",
     "test:browser:cold-device-guidance": "node scripts/browser-groups.mjs --run --suite cold-device-guidance",
     "test:browser:settings": "node scripts/browser-groups.mjs --run --suite settings",
-    "test:browser:core-workflow": "node scripts/browser-groups.mjs --run --suite core-workflow"
+    "test:browser:core-workflow": "node scripts/browser-groups.mjs --run --suite core-workflow",
+    "test:browser:desktop-workspace": "node scripts/browser-groups.mjs --run --suite desktop-workspace"
   },
   "devDependencies": {
     "@playwright/test": "1.64.0"

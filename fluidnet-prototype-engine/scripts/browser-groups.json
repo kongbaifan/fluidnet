@@ -694,6 +694,12 @@
       "file": "tests/browser-cold-device-guidance.mjs",
       "args": [],
       "group": "refrigeration"
+    },
+    {
+      "id": "desktop-workspace",
+      "file": "tests/browser-desktop-workspace.mjs",
+      "args": [],
+      "group": "workspace"
     }
   ],
   "suites": {
@@ -844,6 +850,9 @@
       "core-workflow:six-room",
       "parameter-controls",
       "results-boundaries"
+    ],
+    "desktop-workspace": [
+      "desktop-workspace"
     ]
   }
 }
