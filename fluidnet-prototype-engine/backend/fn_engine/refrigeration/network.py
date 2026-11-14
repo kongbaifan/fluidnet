@@ -222,6 +222,8 @@ def _component_point(component, network, service, vessels, temperatures, room_of
             for edge in pumps:
                 p = parameters[edge.instance_id]
                 flow = total / len(carrying) if edge in carrying else 0.
+                if edge in active:
+                    flow = min(flow, p['head_curve'][-1][0] * p['speed_ratio'] * rho / 3600.)
                 vector[len(free) + edge_indices[edge.key]] = flow
                 if edge in active:
                     rise = rho * 9.80665 * pump_head(p['head_curve'], flow / rho * 3600., p['speed_ratio'])
@@ -236,6 +238,31 @@ def _component_point(component, network, service, vessels, temperatures, room_of
                             cp = parameters[check.instance_id]
                             drop = cp['cracking_pressure_pa'] + 1e5 * (3600. * flow / cp['kv_m3_h'])**2 / (1000. * rho)
                             vector[free_columns[check.end]] = (pin + rise - drop) / 1e5
+
+    # Active curve pumps use volume flow as their unknown, so the optimizer stays
+    # inside the declared curve even when liquid density changes with pressure.
+    # Other branches keep mass-flow unknowns; balances and cached flows remain kg/s.
+    edge_columns = {edge.key: len(free) + i for i, edge in enumerate(component.edges)}
+    volume_pumps = {edge.key: edge for edge in component.edges if edge.kind == 'refrigerant_curve_pump'
+                    and parameters[edge.instance_id].get('running', 1.) >= .5
+                    and parameters[edge.instance_id].get('speed_ratio', 1.) > 0.}
+    volume_layout = tuple(sorted(volume_pumps))
+    upper = np.full(len(vector), 1000.)
+    for key, edge in volume_pumps.items():
+        pin = fixed_p[edge.start] if edge.start in fixed_p else vector[free_columns[edge.start]] * 1e5
+        _, density, _ = mixture(service, pin, enthalpies[edge.start])
+        column = edge_columns[key]
+        upper[column] = parameters[edge.instance_id]['head_curve'][-1][0] * parameters[edge.instance_id]['speed_ratio']
+        vector[column] = min(max(0., vector[column] / density * 3600.), upper[column])
+
+    def physical_mass(edge, x, pressures):
+        if edge.key in closed:
+            return 0.
+        value = x[edge_columns[edge.key]]
+        if edge.key in volume_pumps:
+            _, density, _ = mixture(service, pressures[edge.start], enthalpies[edge.start])
+            return value * density / 3600.
+        return value
 
     @lru_cache(maxsize=16384)
     def edge_point(edge, start_p, end_p, q, hin, final):
@@ -400,7 +427,7 @@ def _component_point(component, network, service, vessels, temperatures, room_of
 
     def rows(x, final=False):
         pressures = {**fixed_p, **{n: x[i] * 1e5 for i, n in enumerate(free)}}
-        mass = {e.key: 0. if e.key in closed else x[len(free) + i] for i, e in enumerate(component.edges)}
+        mass = {edge.key: physical_mass(edge, x, pressures) for edge in component.edges}
         result = {}
         pressure_residual = []
         balance = dict.fromkeys(free, 0.)
@@ -439,6 +466,8 @@ def _component_point(component, network, service, vessels, temperatures, room_of
                 if total > 1e-12:
                     enthalpies[node] = sum(q * h for q, h in flows) / total
             for edge in outgoing[node]:
+                if edge.key in volume_pumps:
+                    mass[edge.key] = physical_mass(edge, x, pressures)
                 q = mass[edge.key]
                 equation, point = edge_point(edge, pressures[edge.start], pressures[edge.end], q, enthalpies[node], final)
                 equations[edge.key], points[edge.key] = equation, dict(point)
@@ -468,8 +497,9 @@ def _component_point(component, network, service, vessels, temperatures, room_of
         if freeze_hydraulics:
             _, pressures, mass, points = transported_rows(vector)
             return points, {'p': pressures, 'h': dict(enthalpies), 'm': mass}, 0., 0.
-        vector = np.maximum(vector, lower)
-        cached_jac = warm.get('transport_jac') if warm.get('closed') == closed and not pump_changed else None
+        vector = np.minimum(upper, np.maximum(vector, lower))
+        cached_jac = (warm.get('transport_jac') if warm.get('closed') == closed and not pump_changed
+                      and warm.get('pump_volume_variables') == volume_layout else None)
         jac = cached_jac.copy() if cached_jac is not None else None
         previous_norm = math.inf
         for _ in range(24):
@@ -488,7 +518,7 @@ def _component_point(component, network, service, vessels, temperatures, room_of
             except np.linalg.LinAlgError:
                 direction = np.linalg.lstsq(jac, base, rcond=1e-13)[0]
             for _ in range(16):
-                candidate = np.maximum(lower, vector - direction)
+                candidate = np.minimum(upper, np.maximum(lower, vector - direction))
                 try:
                     trial_residual = transported_rows(candidate)[0]
                     improving = residual_norm(trial_residual) < norm
@@ -505,7 +535,7 @@ def _component_point(component, network, service, vessels, temperatures, room_of
             else: break
         if residual_norm(transported_rows(vector)[0]) >= 1e-9:
             solution = least_squares(lambda v: transported_rows(v)[0] * equation_weights, vector,
-                bounds=(lower, [1000.] * len(vector)), x_scale='jac', method='dogbox',
+                bounds=(lower, upper), x_scale='jac', method='dogbox',
                 ftol=1e-13, xtol=1e-13, gtol=1e-13, max_nfev=160)
             vector = solution.x
         residual, pressures, mass, points = transported_rows(vector, True)
@@ -516,7 +546,8 @@ def _component_point(component, network, service, vessels, temperatures, room_of
         if mass_error > tolerance.mass_tolerance_kg_s or pressure_error > tolerance.pressure_tolerance_pa:
             raise DeviceRangeError('NETWORK_NOT_CONVERGED', f'管网残差 {pressure_error:g} Pa / {mass_error:g} kg/s')
         return points, {'p': pressures, 'h': dict(enthalpies), 'm': mass,
-                        'transport_jac': jac, 'closed': closed, 'pumps': pump_signature}, pressure_error, mass_error
+                        'transport_jac': jac, 'closed': closed, 'pumps': pump_signature,
+                        'pump_volume_variables': volume_layout}, pressure_error, mass_error
 
     outer_error = math.inf
     previous_outer = math.inf
@@ -534,41 +565,55 @@ def _component_point(component, network, service, vessels, temperatures, room_of
                 if abs(scalar(0.)) < 1e-16:
                     vector[index] = 0.
                 else:
-                    lower = 0. if edge.kind in forward else -1000.
-                    vector[index] = brentq(scalar, lower, 1000., xtol=1e-13)
+                    try:
+                        vector[index] = brentq(scalar, float(lower[index]), float(upper[index]), xtol=1e-13)
+                    except ValueError as error:
+                        if getattr(error, 'code', None) is not None:
+                            raise
+                        raise DeviceRangeError('NETWORK_NOT_CONVERGED',
+                            '单支路在声明的求解范围内没有有效工作点', edge.instance_id) from error
         else:
             # A warm network normally needs only a few Newton corrections. Local
             # edge derivatives avoid reevaluating unrelated equipment; the bounded
             # least-squares path remains the fallback for difficult initial guesses.
-            vector = np.maximum(vector, lower)
+            vector = np.minimum(upper, np.maximum(vector, lower))
             for _ in range(12):
                 base, pressures, mass, values = rows(vector)
                 norm = residual_norm(base)
                 if norm < 1e-10: break
                 jac = np.zeros((len(vector), len(vector)))
-                for i, edge in enumerate(component.edges):
-                    flow_column = len(free) + i
-                    if edge.key in closed:
-                        jac[i, flow_column] = 1.
-                        continue
-                    q = mass[edge.key]
-                    hin = enthalpies[edge.start if q >= 0. else edge.end]
-                    start_p, end_p = pressures[edge.start], pressures[edge.end]
-                    delta_q = 1e-6 * max(1., abs(q))
-                    jac[i, flow_column] = (edge_point(edge, start_p, end_p, q + delta_q, hin, False)[0] - base[i]) / delta_q
-                    for node, sign in ((edge.start, -1.), (edge.end, 1.)):
-                        if node not in free_columns: continue
-                        col = free_columns[node]
-                        delta_p = 1e-6 * max(1., abs(vector[col]))
-                        a, b = (start_p + delta_p * 1e5, end_p) if node == edge.start else (start_p, end_p + delta_p * 1e5)
-                        jac[i, col] = (edge_point(edge, a, b, q, hin, False)[0] - base[i]) / delta_p
-                        jac[len(component.edges) + col, flow_column] = sign
+                if volume_pumps:
+                    # m = rho(p,h) * V / 3600 couples pressure and flow columns.
+                    # Differentiate the full physical rows in these coordinates.
+                    for column in range(len(vector)):
+                        delta = min(1e-6 * max(1., abs(vector[column])), .5 * (upper[column]-lower[column]))
+                        if vector[column] + delta > upper[column]: delta = -delta
+                        probe = vector.copy(); probe[column] += delta
+                        jac[:, column] = (rows(probe)[0]-base) / delta
+                else:
+                    for i, edge in enumerate(component.edges):
+                        flow_column = len(free) + i
+                        if edge.key in closed:
+                            jac[i, flow_column] = 1.
+                            continue
+                        q = mass[edge.key]
+                        hin = enthalpies[edge.start if q >= 0. else edge.end]
+                        start_p, end_p = pressures[edge.start], pressures[edge.end]
+                        delta_q = 1e-6 * max(1., abs(q))
+                        jac[i, flow_column] = (edge_point(edge, start_p, end_p, q + delta_q, hin, False)[0] - base[i]) / delta_q
+                        for node, sign in ((edge.start, -1.), (edge.end, 1.)):
+                            if node not in free_columns: continue
+                            col = free_columns[node]
+                            delta_p = 1e-6 * max(1., abs(vector[col]))
+                            a, b = (start_p + delta_p * 1e5, end_p) if node == edge.start else (start_p, end_p + delta_p * 1e5)
+                            jac[i, col] = (edge_point(edge, a, b, q, hin, False)[0] - base[i]) / delta_p
+                            jac[len(component.edges) + col, flow_column] = sign
                 try:
                     direction = np.linalg.solve(jac, base)
                 except np.linalg.LinAlgError:
                     break
                 for _ in range(12):
-                    candidate = np.maximum(lower, vector - direction)
+                    candidate = np.minimum(upper, np.maximum(lower, vector - direction))
                     try:
                         improving = residual_norm(rows(candidate)[0]) < norm
                     except (DeviceRangeError, ValueError):
@@ -580,7 +625,7 @@ def _component_point(component, network, service, vessels, temperatures, room_of
                 else: break
             if residual_norm(rows(vector)[0]) >= 1e-10:
                 solution = least_squares(lambda x: rows(x)[0] * equation_weights, vector, x_scale='jac', method='dogbox',
-                                         bounds=(lower, [1000.] * (len(free) + len(component.edges))),
+                                         bounds=(lower, upper),
                                          ftol=1e-12, xtol=1e-12, gtol=1e-13, max_nfev=300)
                 vector = solution.x
         # Snap the inactive side of a one-way valve to its exact constitutive
@@ -656,7 +701,8 @@ def _component_point(component, network, service, vessels, temperatures, room_of
             pressure_error = max(pressure_error, abs(residual[i]) * 1e5)
     if not freeze_hydraulics and (pressure_error > tolerance.pressure_tolerance_pa or mass_error > tolerance.mass_tolerance_kg_s):
         raise DeviceRangeError('NETWORK_NOT_CONVERGED', f'图式管网压力/质量残差{pressure_error:g} Pa / {mass_error:g} kg/s')
-    return result, {'p': pressures, 'h': enthalpies, 'm': mass, 'pumps': pump_signature}, pressure_error, mass_error
+    return result, {'p': pressures, 'h': enthalpies, 'm': mass, 'pumps': pump_signature,
+                    'pump_volume_variables': volume_layout}, pressure_error, mass_error
 
 
 def evaluate_network(network, services, vessels, temperatures, warm=None, valve_evaluator=None, freeze_hydraulics=False):

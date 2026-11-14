@@ -16990,6 +16990,18 @@
             "title": "Coupling Density Rtol",
             "default": 1e-06
           },
+          "coupling_viscosity_rtol": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Coupling Viscosity Rtol",
+            "default": 1e-06
+          },
+          "coupling_flow_rtol": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Coupling Flow Rtol",
+            "default": 1e-06
+          },
           "thermal_acceleration": {
             "type": "string",
             "enum": [

@@ -75,6 +75,7 @@ class ThermalResult:
     # attribute silently lost by dataclass serialization.
     air_metrics: dict[str, float] = field(default_factory=dict)
     air_room_results: dict = field(default_factory=dict)
+    fixed_point_defect_k: float | None = None
 
 
 def phase_family(state: FluidState) -> str:
@@ -703,6 +704,7 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
     else:
         raise ThermalError('THERMAL_NOT_CONVERGED', f'热力迭代 {options.max_thermal_iterations} 次未收敛，请检查换热与散热参数')
 
+    fixed_point_defect = None
     if module_heat is not None or saturated_coils or 'cooling_tower_moist' in kinds or 'water_chiller' in kinds or 'closed_buffer_tank' in kinds:
         used_heat = heat.copy()
         final_states = node_states(h)
@@ -713,8 +715,9 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
         if not heat_ok or defect > options.thermal_tolerance_k:
             raise ThermalError('COUPLED_THERMAL_DEFECT' if saturated_coils else 'MODULE_THERMAL_DEFECT',
                                '最终换热关系或固定点缺陷超过容差，拒绝结果')
+        fixed_point_defect = defect
 
-    if acceleration != 'none' and nonlinear:
+    if nonlinear and (acceleration != 'none' or fixed_point_defect is None):
         # 未经加速伪装的方程残差复核：在最终 h 上做一次纯 Picard 评估，
         # 用真实的固定点缺陷（而不是加速后的步长）确认收敛。
         check_states = node_states(h)
@@ -722,11 +725,13 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
         check = solve_linear(check_weights, check_consts, storage_terms(check_states, h))
         defect = max((abs(check[k] - h[k]) / (check_states[k].specific_heat_j_kg_k or 4180.0)
                       for k in range(n)), default=0.0)
-        if defect > max(options.thermal_tolerance_k * 10, 1e-5):
-            raise ThermalError('THERMAL_ACCELERATION_DEFECT',
-                               f'热力加速后的固定点残差 {defect:.3g} K 超过容差，拒绝该加速结果')
-        # 后续出口/热流用最终 h 上的关系系数，避免沿用上一轮的冻结系数。
-        weights, consts = check_weights, check_consts
+        if defect > options.thermal_tolerance_k:
+            raise ThermalError('THERMAL_ACCELERATION_DEFECT' if acceleration != 'none' else 'THERMAL_FIXED_POINT_DEFECT',
+                               f'最终热力固定点残差 {defect:.3g} K 超过配置容差 {options.thermal_tolerance_k:.3g} K')
+        fixed_point_defect = defect
+        # 加速路径的出口/热流用最终 h 上的关系系数。
+        if acceleration != 'none':
+            weights, consts = check_weights, check_consts
 
     states = node_states(h)
     outlet_h = np.array([h[downstream[j]] for j in range(m)])
@@ -787,24 +792,42 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
         cell_enthalpies[j] = cell_values
         cell_power[j] = float(mass * np.sum(cell_values - np.asarray(cell_old[j])) / dt_s) if j in cell_old else 0.0
 
+    # Balance energy relative to one enthalpy datum per hydraulic component. Absolute
+    # h would both amplify mass-balance roundoff and change the acceptance threshold
+    # when a property service chooses a different enthalpy zero.
+    reference_h: dict[int, float] = {}
+    for node, value in enumerate(h):
+        reference_h.setdefault(component[node], float(value))
+    datum = np.array([reference_h[component[node]] for node in range(n)])
+    relative_h = h - datum
+    relative_outlet_h = outlet_h - datum[upstream]
+
     # Heat the fallback reference injected: residual of the original node balance at pinned rows.
-    reference_heat = 0.0
+    reference_terms = []
     for node in pins:
-        balance = absorbed.get(node, 0.0) * h[node] - supply.get(node, 0.0) * boundary_states[node].enthalpy_j_kg \
-            if node in boundary_states else 0.0
+        terms = [absorbed.get(node, 0.0) * relative_h[node]]
+        if node in supply:
+            terms.append(-supply[node] * (boundary_states[node].enthalpy_j_kg - datum[node]))
         for j in flowing:
             if upstream[j] == node:
-                balance += weight[j] * h[node]
+                terms.append(weight[j] * relative_h[node])
             if downstream[j] == node:
-                balance -= weight[j] * outlet_h[j]
-        reference_heat += balance
+                terms.append(-weight[j] * relative_outlet_h[j])
+        reference_terms.append(math.fsum(terms))
+    reference_heat = math.fsum(reference_terms)
     # Tanks: enthalpy stream they keep (Σin w·h_in − Σout w·h) and, in an implicit step, the stored power.
+    # Keep the absolute stored power for the inventory ledger; use centered streams
+    # only for the energy acceptance check, removing the enthalpy carried by net mass.
     stream_net = {node: 0.0 for node in storage}
+    relative_stream_terms: dict[int, list[float]] = {node: [] for node in storage}
     for j in flowing:
         if downstream[j] in stream_net:
             stream_net[downstream[j]] += weight[j] * outlet_h[j]
+            relative_stream_terms[downstream[j]].append(weight[j] * relative_outlet_h[j])
         if upstream[j] in stream_net:
             stream_net[upstream[j]] -= weight[j] * h[upstream[j]]
+            relative_stream_terms[upstream[j]].append(-weight[j] * relative_h[upstream[j]])
+    relative_stream_net = {node: math.fsum(terms) for node, terms in relative_stream_terms.items()}
     storage_power = dict(stream_net)
     for node, old in finite.items():
         spec = storage[node]
@@ -812,8 +835,11 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
             mass = old.mass_kg - dt_s * net_out[node]
             _, _, stored, gas_work = spec.energy_terms(old, mass, float(pressures[node]), float(h[node]), dt_s)
             loss = spec.heat_loss_ua_w_k * (states[node].temperature_k - spec.ambient_temperature_k)
-            residual_tank = stored - stream_net[node] - spec.heat_input_w + loss - gas_work
-            if abs(residual_tank) > 1e-4 + ENERGY_RTOL * max(abs(stored), abs(stream_net[node]), 1.):
+            relative_stored = stored - datum[node] * (mass - old.mass_kg) / dt_s
+            expansion_terms = [relative_stored, -relative_stream_net[node], -spec.heat_input_w, loss, -gas_work]
+            residual_tank = math.fsum(expansion_terms)
+            expansion_scale = 1.0 + math.fsum(abs(value) for value in expansion_terms)
+            if abs(residual_tank) > 1e-4 + ENERGY_RTOL * expansion_scale:
                 raise ThermalError('THERMAL_ENERGY_IMBALANCE', '气垫罐液体内能与气体功未闭合', spec.instance_id)
             storage_power[node] = stored
             continue
@@ -825,22 +851,24 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
             continue
         # Own balance: (M_old·h − M_old·h_old)/dt + Σin w·h = Σin w·h_in + Q − loss. The loss was
         # linearised in the last pass, so the remainder is bounded by UA times the thermal tolerance.
-        inflow = sum(weight[j] * outlet_h[j] for j in flowing if downstream[j] == node)
-        tank_residual = old.mass_kg * (h[node] - old.enthalpy_j_kg) / dt_s + inflow_total[node] * h[node] - inflow \
-            - spec.heat_input_w + loss
-        tank_residual += sink - spec.loss_mass_rate()*h[node]
-        tank_scale = 1.0 + old.mass_kg * abs(h[node]) / dt_s + abs(inflow) + abs(spec.heat_input_w)
+        stored_change = old.mass_kg * (h[node] - old.enthalpy_j_kg) / dt_s
+        advection = [weight[j] * (h[node] - outlet_h[j]) for j in flowing if downstream[j] == node]
+        tank_energy_terms = [stored_change, *advection, -spec.heat_input_w, loss, sink - spec.loss_mass_rate()*h[node]]
+        tank_residual = math.fsum(tank_energy_terms)
+        tank_scale = 1.0 + math.fsum(abs(value) for value in tank_energy_terms)
         if abs(tank_residual) > ENERGY_RTOL * tank_scale + 10 * spec.heat_loss_ua_w_k * options.thermal_tolerance_k:
             raise ThermalError('THERMAL_ENERGY_IMBALANCE', f'{spec.instance_id} 储能方程残差 {tank_residual:.6g} W 超出容差',
                                spec.instance_id)
 
-    boundary_in = sum(amount * boundary_states[node].enthalpy_j_kg for node, amount in supply.items()) \
-        - sum(amount * h[node] for node, amount in absorbed.items())
-    residual = float(boundary_in + heat_w.sum() + reference_heat - sum(stream_net.values()))
-    scale = 1.0 + sum(weight[j] * abs(outlet_h[j]) for j in flowing) \
-        + sum(amount * abs(boundary_states[node].enthalpy_j_kg) for node, amount in supply.items())
+    boundary_terms = [amount * (boundary_states[node].enthalpy_j_kg - datum[node])
+                      for node, amount in supply.items()]
+    boundary_terms += [-amount * relative_h[node] for node, amount in absorbed.items()]
+    energy_terms = [*boundary_terms, *heat_w, *reference_terms, *(-value for value in relative_stream_net.values())]
+    residual = math.fsum(energy_terms)
+    scale = 1.0 + math.fsum(abs(value) for value in energy_terms)
     if abs(residual) > ENERGY_RTOL * scale:
-        raise ThermalError('THERMAL_ENERGY_IMBALANCE', f'热力解的能量残差 {residual:.6g} W 超出容差')
+        raise ThermalError('THERMAL_ENERGY_IMBALANCE',
+                           f'热力解的能量残差 {residual:.6g} W 超出容差 {ENERGY_RTOL * scale:.6g} W')
 
     outlet_port: dict[str, int] = {}
     for j in flowing:
@@ -863,5 +891,5 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
                          reference_heat_w=float(reference_heat), energy_residual_w=residual, iterations=iterations,
                          diagnostics=diagnostics, storage_power_w=storage_power,
                          cell_enthalpies=cell_enthalpies, cell_power_w=cell_power, buffer_outputs=buffer_outputs,
-                         coil_outputs=coil_outputs)
+                         coil_outputs=coil_outputs, fixed_point_defect_k=fixed_point_defect)
 

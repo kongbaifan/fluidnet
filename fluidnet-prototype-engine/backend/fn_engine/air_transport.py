@@ -31,7 +31,7 @@ def _initial(network, service, warm):
 
 
 def solve_air_network(network, runners, time_s, warm=None, room_step=None, storage_step=None):
-    from .solver import NetworkResult, _solve_hydraulics, _node_ports, build_port_states
+    from .solver import NetworkResult, _solve_hydraulics, _node_ports, build_port_states, _coupling_flow_defect
     service = MoistAirService()
     try:
         states = _initial(network, service, warm)
@@ -39,6 +39,7 @@ def solve_air_network(network, runners, time_s, warm=None, room_step=None, stora
         air_options = options.moist_air_options
         start = warm.hydraulic.solution if warm else None
         flows = warm.hydraulic.flows if warm else np.ones(len(network.branches))
+        previous_flows = warm.hydraulic.flows if warm else None
         for outer in range(1, options.max_coupling_iterations+1):
             upstream = [b.start_node if q >= 0 else b.end_node for b,q in zip(network.branches,flows)]
             rho = np.array([states[n].density_kg_m3 for n in upstream])
@@ -49,18 +50,47 @@ def solve_air_network(network, runners, time_s, warm=None, room_step=None, stora
             thermal = solve_air_transport(network,hydraulic,states,service,runners,time_s,room_step,storage_step)
             new_upstream = thermal.upstream
             rho_new = np.array([thermal.node_states[n].density_kg_m3 for n in new_upstream])
+            mu_new = np.array([thermal.node_states[n].viscosity_pa_s for n in new_upstream])
             density_defect = float(np.max(np.abs(rho_new-rho)/rho_new))
+            viscosity_defect = float(np.max(np.abs(mu_new-mu)/mu_new))
+            flow_defect = _coupling_flow_defect(previous_flows, hydraulic.flows, options)
             humidity_defect = max(abs(humidity(a)-humidity(b))
                                  for a,b in zip(states,thermal.node_states))
             temp_defect = max(abs(a.temperature_k-b.temperature_k) for a,b in zip(states,thermal.node_states))
+            defects = {'coupling_density_defect': density_defect, 'coupling_viscosity_defect': viscosity_defect,
+                'coupling_flow_defect': flow_defect, 'coupling_temperature_defect_k': temp_defect,
+                'coupling_humidity_defect_kg_kg': humidity_defect}
             if (density_defect <= options.coupling_density_rtol and temp_defect <= options.thermal_tolerance_k
+                    and viscosity_defect <= options.coupling_viscosity_rtol and flow_defect <= 1.
                     and humidity_defect <= air_options.humidity_tolerance_kg_kg):
-                result = NetworkResult(hydraulic,thermal,outer,build_port_states(network,hydraulic,thermal))
+                result = NetworkResult(hydraulic,thermal,outer,build_port_states(network,hydraulic,thermal),
+                                       coupling_defects=defects)
                 return result
             states, flows, start = thermal.node_states, hydraulic.flows, hydraulic.solution
-        raise CompilationError('COUPLING_NOT_CONVERGED','水力与热湿物性联合迭代未收敛')
+            previous_flows = hydraulic.flows
+        raise CompilationError('COUPLING_NOT_CONVERGED',f'水力与热湿物性联合迭代未收敛：密度缺陷 {density_defect:.3g}，'
+            f'黏度缺陷 {viscosity_defect:.3g}，流量归一化缺陷 {flow_defect:.3g}，温差 {temp_defect:.3g} K，湿度缺陷 {humidity_defect:.3g} kg/kg')
     except (AirPropertyError, PropertyError) as error:
         raise CompilationError(error.code,str(error)) from error
+
+
+def _transport_balance(states, devices, boundary_supply, boundary_states, room_results, options):
+    """Independent source/storage defects on the same state used by the devices."""
+    water_terms, energy_terms = [], []
+    for node, q in boundary_supply.items():
+        stream = boundary_states[node] if q > 0 else states[node]
+        water_terms.append(q * humidity(stream))
+        energy_terms.append(q * enthalpy(stream))
+    for device in devices:
+        water_terms.extend((device.water_added_kg_s, -device.water_removed_kg_s))
+        energy_terms.extend((device.heat_to_air_w, -device.water_removed_kg_s * device.removed_water_enthalpy_j_kg))
+    for room in room_results.values():
+        water_terms.extend((room.moisture_source_kg_s, -room.moisture_storage_kg_s))
+        energy_terms.extend((room.energy_source_w, -room.energy_storage_w))
+    water, energy = math.fsum(water_terms), math.fsum(energy_terms)
+    water_limit = options.moisture_atol_kg_s + options.moisture_rtol * max(math.fsum(map(abs, water_terms)), 1e-6)
+    energy_limit = options.energy_atol_w + options.energy_rtol * max(math.fsum(map(abs, energy_terms)), 1.)
+    return water, energy, abs(water) / water_limit, abs(energy) / energy_limit
 
 
 def solve_air_transport(network, hydraulic, previous, service, runners, time_s, room_step=None, storage_step=None):
@@ -105,6 +135,7 @@ def solve_air_transport(network, hydraulic, previous, service, runners, time_s, 
     diagnostics = []
     shaft = shaft_power(network, hydraulic)
     room_results = {}
+    verifying_final = False
     for iteration in range(1,o.max_iterations+1):
         extra_heat, heat_diagnostics = module_heat(states,heat_previous) if module_heat else ({},[])
         coupled = coupled_device_results(network, states, flows, p, up, down, service)
@@ -195,9 +226,29 @@ def solve_air_transport(network, hydraulic, previous, service, runners, time_s, 
         temperature_defect = max(abs(a.temperature_k-b.temperature_k) for a,b in zip(candidate,states))
         heat_previous = np.array([d.heat_to_air_w for d in devices])
         if humidity_defect <= o.humidity_tolerance_kg_kg and temperature_defect <= network.project.solver.thermal_tolerance_k:
-            # 账本使用这一轮设备实际流股，节点误差仍由独立守恒门槛检查。
+            if verifying_final:
+                # Devices were evaluated at this accepted state; candidate measures
+                # its unrelaxed fixed-point defect, rather than replacing it after evaluation.
+                from .air_room import room_result_at_state
+                dt, old = room_step if room_step is not None else (None, {})
+                for node, spec in rooms.items():
+                    supplied = max(boundary_supply.get(node, 0.), 0.)
+                    total = sum(mass[j] for j in incoming[node]) + supplied
+                    h_in = sum(mass[j] * enthalpy(devices[j].outlet_state) for j in incoming[node])
+                    w_in = sum(mass[j] * humidity(devices[j].outlet_state) for j in incoming[node])
+                    if supplied:
+                        h_in += supplied * enthalpy(boundary_states[node])
+                        w_in += supplied * humidity(boundary_states[node])
+                    room_results[node] = room_result_at_state(spec, network.parameters[spec.instance_id],
+                        states[node], old.get(node), dt, total, h_in, w_in, service)
+                _, _, water_defect, energy_defect = _transport_balance(
+                    states, devices, boundary_supply, boundary_states, room_results, o)
+                if water_defect <= 1. and energy_defect <= 1.:
+                    break
             states = candidate
-            break
+            verifying_final = True
+            continue
+        verifying_final = False
         states = [state_phw(node,
                     enthalpy(a)+o.relaxation*(enthalpy(b)-enthalpy(a)),
                     humidity(a)+o.relaxation*(humidity(b)-humidity(a)))
@@ -244,24 +295,13 @@ def solve_air_transport(network, hydraulic, previous, service, runners, time_s, 
             if velocity > 30:
                 diagnostics.append(Diagnostic(code='AIR_VELOCITY_HIGH',severity='warning',instance_id=b.instance_id,
                                               message=f'实际风速 {velocity:.1f} m/s 超过推荐的 30 m/s'))
-    water_terms, energy_terms = [], []
-    for node,q in boundary_supply.items():
-        stream = boundary_states[node] if q > 0 else states[node]
-        water_terms.append(q*humidity(stream))
-        energy_terms.append(q*enthalpy(stream))
-    for d in devices:
-        water_terms.extend((d.water_added_kg_s,-d.water_removed_kg_s))
-        energy_terms.extend((d.heat_to_air_w,-d.water_removed_kg_s*d.removed_water_enthalpy_j_kg))
     for node,room in room_results.items():
         outputs[rooms[node].instance_id] = room.outputs
-        water_terms.extend((room.moisture_source_kg_s,-room.moisture_storage_kg_s))
-        energy_terms.extend((room.energy_source_w,-room.energy_storage_w))
-    wr, er = sum(water_terms),sum(energy_terms)
+    wr, er, water_defect, energy_defect = _transport_balance(states, devices, boundary_supply, boundary_states, room_results, o)
     # 初始动态帧固定房间初态，仅登记不平衡通量，不把它当作接受的时间步。
-    for residual,terms,atol,rtol,scale,code in (
-        (wr,water_terms,o.moisture_atol_kg_s,o.moisture_rtol,1e-6,'AIR_MOISTURE_IMBALANCE'),
-        (er,energy_terms,o.energy_atol_w,o.energy_rtol,1.,'THERMAL_ENERGY_IMBALANCE')):
-        if abs(residual) > atol+rtol*max(sum(map(abs,terms)),scale):
+    for residual, defect, code in ((wr, water_defect, 'AIR_MOISTURE_IMBALANCE'),
+                                   (er, energy_defect, 'THERMAL_ENERGY_IMBALANCE')):
+        if defect > 1.:
             raise CompilationError(code,f'湿空气独立守恒账未闭合：残差 {residual:.8g}')
     port_states = {key:states[node] for key,node in network.port_nodes.items()}
     branch_ports = set()
@@ -287,11 +327,13 @@ def solve_air_transport(network, hydraulic, previous, service, runners, time_s, 
         heat_previous,boundary_supply,boundary_states,port_states,0.,er,iteration,diagnostics=diagnostics,
         humidity_ratio=np.array([humidity(s) for s in states]),coil_outputs=outputs,
         humidifier_moisture_kg_s=sum(d.water_added_kg_s for d in devices),moisture_residual_kg_s=wr)
+    result.fixed_point_defect_k = temperature_defect
     balance = np.zeros(n)
     for j, branch in enumerate(branches):
         balance[branch.start_node] -= flows[j]
         balance[branch.end_node] += flows[j]
     result.air_metrics = {'air_transport_iterations':iteration,'humidity_defect_max_kg_kg':humidity_defect,
+        'air_energy_defect':energy_defect,'air_moisture_defect':water_defect,
         'dry_air_mass_residual_kg_s':max((abs(balance[node]) for node in network.air_nodes if node not in network.fixed_pressures),default=0.),
         'liquid_mass_residual_kg_s':max((abs(balance[node]) for node in range(n) if node not in network.air_nodes and node not in network.fixed_pressures),default=0.),
         'condensate_kg_s':sum(d.water_removed_kg_s for d in devices),
