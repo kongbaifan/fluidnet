@@ -1,0 +1,52 @@
+# REFPROP 专项：GitHub 托管机器没有 REFPROP（NIST 许可软件，不能上传），
+# 这些测试在日常 ci.yml 里全部跳过。这里改在装有 REFPROP 的自托管运行器上执行：
+#   - 运行器标签 refprop；REFPROP 取默认安装目录或 FLUIDNET_REFPROP_PATH
+#   - 只在 master 推送和手动触发时运行，不设 pull_request 触发：
+#     公开仓库的外部 PR 不应在自托管机器上执行代码
+#   - 运行器离线时任务排队等待，不影响其他工作流
+name: refprop
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'fluidnet-prototype-engine/backend/**'
+      - 'fluidnet-prototype-engine/requirements*.txt'
+      - 'fluidnet-prototype-engine/pyproject.toml'
+      - 'fluidnet-prototype-engine/scripts/bundle_refprop.py'
+      - 'fluidnet-prototype-engine/tests/test_refprop.py'
+      - 'fluidnet-prototype-engine/tests/test_refprop_bundle.py'
+      - 'fluidnet-prototype-engine/tests/test_bundle_refprop.py'
+      - 'fluidnet-prototype-engine/tests/test_refrigerant_mixture.py'
+      - '.github/workflows/refprop.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: refprop-${{ github.ref_name }}
+  cancel-in-progress: true
+
+env:
+  PYTHONUTF8: '1'
+
+jobs:
+  refprop:
+    name: REFPROP (self-hosted, Python 3.11)
+    runs-on: [self-hosted, Windows, refprop]
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: cmd
+        working-directory: fluidnet-prototype-engine
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install --disable-pip-version-check -r requirements-dev.txt
+      - name: 确认 REFPROP 可用（否则下面的测试会全部跳过而显示通过）
+        run: python -c "import sys; sys.path.insert(0, 'backend'); from fn_engine.properties import refprop_root; root = refprop_root(); print(root); sys.exit(0 if root else 1)"
+      - name: REFPROP 物性、混合工质与捆绑脚本
+        run: python -m pytest -q -rs tests/test_refprop.py tests/test_refrigerant_mixture.py tests/test_refprop_bundle.py tests/test_bundle_refprop.py
