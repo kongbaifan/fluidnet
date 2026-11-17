@@ -41,6 +41,9 @@ async function save(){
   return (await(await page.request.get(server.base+'/api/v1/workspace')).json()).data;
 }
 async function openVariables(){
+  // A reload first renders the local draft; server initialization replaces it.
+  // Wait for the existing ready header before opening a transient device window.
+  await expect(page.locator('#app-header')).toContainText('模块平台 · v');
   await nav('workbench');await page.locator('.net-node[data-node="V1"]').dblclick();
   await page.locator('[data-float-id="V1"] [data-action="float-tab"][data-value="variables"]').click();
 }

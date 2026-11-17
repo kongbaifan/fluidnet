@@ -69,6 +69,19 @@ def evaluate_room(spec,parameters,pressure,outflow,h_in,w_in,old,dt,service):
                                    '房间在 0–50 °C 非过饱和范围内没有可行热湿状态')
         t=brentq(energy_residual,lower,323.15,xtol=1e-10) if lower < 323.15 else lower
         state=service.state_ptw(pressure,t,w)
+    return room_result_at_state(spec,parameters,state,old,dt,outflow,h_in,w_in,service)
+
+
+def room_result_at_state(spec,parameters,state,old,dt,outflow,h_in,w_in,service):
+    """Sources and inventory rates evaluated at the final accepted room state."""
+    old=old or spec.initial_state
+    mass,c=spec.dry_air_mass_kg,parameters['additional_heat_capacity_j_k']
+    outdoor=service.state_ptw(state.pressure_pa,parameters['outdoor_temperature_k'],parameters['outdoor_humidity_ratio_kg_kg'])
+    infiltration=parameters['infiltration_dry_air_kg_s']
+    moisture,sensible=parameters['moisture_load_kg_s'],parameters['sensible_load_w']
+    source_h=vapor_enthalpy(parameters['moisture_source_temperature_k'])
+    ua=parameters['envelope_ua_w_k']
+    e_old=mass*old.enthalpy_j_kg_dry_air+c*(old.temperature_k-273.15)
     energy=mass*state.enthalpy_j_kg_dry_air+c*(state.temperature_k-273.15)
     envelope=ua*(outdoor.temperature_k-state.temperature_k)
     infiltration_heat=infiltration*(outdoor.enthalpy_j_kg_dry_air-state.enthalpy_j_kg_dry_air)

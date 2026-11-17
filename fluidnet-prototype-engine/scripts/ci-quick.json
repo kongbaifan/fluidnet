@@ -20,6 +20,8 @@
       "tests/test_analytic_jacobian.py"
     ],
     "thermal": [
+      "tests/test_coupling_acceptance.py",
+      "tests/test_thermal_energy_datum.py",
       "tests/test_thermal.py::test_heat_loop_energy_balance_closes",
       "tests/test_thermal.py::test_reverse_flow_uses_actual_upwind_side",
       "tests/test_states.py::test_failed_substeps_are_halved_and_change_nothing",
@@ -33,6 +35,9 @@
     "refrigeration": [
       "tests/test_refrigeration_modular.py::test_device_response_and_energy_ledger_are_physical",
       "tests/test_refrigeration_execution.py::test_commit_failure_rolls_back_physics_pid_script_and_mass_ledger",
+      "tests/test_refrigeration_linear_failures.py",
+      "tests/test_refrigeration_curve_bounds.py",
+      "tests/test_timestep_station.py::test_old_fixed_step_path_is_bit_identical_to_v050",
       "tests/test_open_refrigeration_groups.py",
       "tests/test_large_cold_store.py",
       "tests/test_large_cold_store_control.py",

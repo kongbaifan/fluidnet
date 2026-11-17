@@ -144,6 +144,9 @@ class SolverOptions(StrictModel):
     max_thermal_iterations: int = Field(default=50, ge=1, le=500)
     max_coupling_iterations: int = Field(default=20, ge=1, le=200)
     coupling_density_rtol: float = Field(default=1e-6, gt=0)
+    coupling_viscosity_rtol: float = Field(default=1e-6, gt=0, exclude_if=lambda v: v == 1e-6)
+    # Flow acceptance combines this relative bound with mass_tolerance_kg_s at zero flow.
+    coupling_flow_rtol: float = Field(default=1e-6, gt=0, exclude_if=lambda v: v == 1e-6)
     # L1/L2：迭代加速模式。'none' = v0.5.0 的固定 0.7/0.3 阻尼（旧项目默认不变）。
     thermal_acceleration: Literal['none', 'adaptive', 'aitken'] = 'none'
     coupling_acceleration: Literal['none', 'adaptive', 'aitken'] = 'none'

@@ -1,4 +1,261 @@
 {
-  "status": "pending",
-  "message": "由 scripts/validate_six_room_continuous.py 完整运行日验收后写入。"
+  "status": "failed",
+  "passed": false,
+  "requested_duration_s": 86520.0,
+  "time_s": 14430.0,
+  "wall_s": 193.92933269997593,
+  "devices": 126,
+  "connections": 175,
+  "max_residuals": {
+    "energy_residual_w": 4.547927528619766e-06,
+    "energy_residual_j": 0.0003608994265960064,
+    "water_mass_residual_kg": 1.1368683772161603e-13,
+    "network_pressure_residual_pa": 7.561743404949084e-05,
+    "network_mass_residual_kg_s": 1.0614176204626347e-11,
+    "mass_residual_kg_circuit0": 3.637978807091713e-11,
+    "LT_OIL.oil_mass_residual_kg": 3.694822225952521e-13,
+    "HT_OIL.oil_mass_residual_kg": 3.979039320256561e-13
+  },
+  "evidence": {
+    "load": true,
+    "cooler_stop": true,
+    "pump_backup": false,
+    "pump_recovered": false,
+    "compressor_backup": false,
+    "compressor_recovered": false,
+    "doors": [
+      "F01",
+      "F02",
+      "F03",
+      "F04",
+      "C01",
+      "C02"
+    ],
+    "hotgas_coolers": [],
+    "defrost_modes": {
+      "F01_AC1": [
+        0,
+        1
+      ],
+      "F02_AC1": [
+        0
+      ],
+      "F03_AC1": [
+        0
+      ],
+      "F04_AC1": [
+        0
+      ],
+      "C01_AC1": [
+        0
+      ],
+      "C02_AC1": [
+        0
+      ],
+      "F01_AC2": [
+        0
+      ],
+      "F02_AC2": [
+        0
+      ],
+      "F03_AC2": [
+        0
+      ],
+      "F04_AC2": [
+        0
+      ],
+      "C01_AC2": [
+        0
+      ],
+      "C02_AC2": [
+        0
+      ]
+    },
+    "checkpoint_max_difference": 0.0,
+    "next_day": false,
+    "control_timing": {
+      "pump": {
+        "stop_command_sample_s": null,
+        "fault_observed_sample_s": null,
+        "backup_start_sample_s": null,
+        "recovery_command_sample_s": null,
+        "backup_stop_sample_s": null
+      },
+      "compressor": {
+        "stop_command_sample_s": null,
+        "fault_observed_sample_s": null,
+        "backup_start_sample_s": null,
+        "recovery_command_sample_s": null,
+        "backup_stop_sample_s": null
+      }
+    },
+    "checkpoints": [
+      {
+        "time_s": 900.0,
+        "comparison_time_s": 930.0,
+        "max_difference": 0.0
+      }
+    ]
+  },
+  "transitions": [
+    {
+      "time_s": 0.0,
+      "status": [
+        "",
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0.0,
+        0.0,
+        null,
+        null
+      ]
+    },
+    {
+      "time_s": 30.0,
+      "status": [
+        "normal",
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0.0,
+        0.0,
+        null,
+        null
+      ]
+    },
+    {
+      "time_s": 3630.0,
+      "status": [
+        "load",
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0.0,
+        0.0,
+        null,
+        null
+      ]
+    },
+    {
+      "time_s": 7230.0,
+      "status": [
+        "normal",
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0.0,
+        0.0,
+        null,
+        null
+      ]
+    },
+    {
+      "time_s": 10050.0,
+      "status": [
+        "cooler-stop",
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0.0,
+        0.0,
+        null,
+        null
+      ]
+    },
+    {
+      "time_s": 10650.0,
+      "status": [
+        "normal",
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0.0,
+        0.0,
+        null,
+        null
+      ]
+    },
+    {
+      "time_s": 14430.0,
+      "status": [
+        "normal",
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0.0,
+        0.0,
+        null,
+        null
+      ]
+    }
+  ],
+  "failure": {
+    "type": "SolveFailed",
+    "message": "管网残差 0.00154916 Pa / 1.59176e-07 kg/s",
+    "diagnostic_code": "NETWORK_NOT_CONVERGED"
+  }
 }

@@ -15,10 +15,55 @@ from fn_engine.refrigeration.six_room_continuous import continuous_large_cold_st
 from fn_engine.sessions import create_session
 
 
+CONTROL_EVENTS = {
+    'pump': {'group': 'low_pumps', 'duty': 'LT_PUMP', 'standby': 'LT_PUMP2', 'start_s': 36000., 'end_s': 36600.},
+    'compressor': {'group': 'low_compressors', 'duty': 'LT_K1', 'standby': 'LT_K3', 'start_s': 43200., 'end_s': 43800.},
+}
+
+
+def record_control_samples(session, samples, events=CONTROL_EVENTS):
+    """Observe real script proposals; acceptance is checked against the restored script clocks."""
+    keys = {event[iid] + '.param.running' for event in events.values() for iid in ('duty', 'standby')}
+    state_keys = {event['group'] + '_fault_since' for event in events.values()} | {'day', 'phase'}
+    for runner in session.scripts.values():
+        original, script_id = runner.prepare, runner.script.id
+
+        def prepare(at, variables, original=original, script_id=script_id):
+            response = original(at, variables)
+            samples.append({'script_id': script_id, 'time_s': at,
+                'writes': {key: value for key, value in response['writes'].items() if key in keys},
+                'state': {key: value for key, value in response['state'].items() if key in state_keys}})
+            return response
+
+        runner.prepare = prepare
+
+
+def accepted_control_timing(session, samples, events=CONTROL_EVENTS):
+    accepted = [row for row in samples if session.scripts[row['script_id']].last_s is not None
+                and row['time_s'] <= session.scripts[row['script_id']].last_s]
+    result = {}
+    for name, event in events.items():
+        duty, standby = event['duty'] + '.param.running', event['standby'] + '.param.running'
+        fault = event['group'] + '_fault_since'
+        def first(script, key, value, start):
+            return next((row['time_s'] for row in accepted if row['script_id'] == script
+                         and row['time_s'] >= start and row['writes'].get(key) == value), None)
+        observed = next((row['state'][fault] for row in accepted if row['script_id'] == 'plant_supervisor'
+                         and row['time_s'] >= event['start_s'] and row['state'].get(fault) is not None), None)
+        result[name] = {'stop_command_sample_s': first('operating_day', duty, 0., event['start_s']),
+            'fault_observed_sample_s': observed,
+            'backup_start_sample_s': first('plant_supervisor', standby, 1., event['start_s']),
+            'recovery_command_sample_s': first('operating_day', duty, 1., event['end_s']),
+            'backup_stop_sample_s': first('plant_supervisor', standby, 0., event['end_s'])}
+    return result
+
+
 def validate(duration=86520., out=None, checkpoint=True):
     out = out or ROOT / 'artifacts/six-room-continuous'
     out.mkdir(parents=True, exist_ok=True)
     project, assumptions = continuous_large_cold_store()
+    (out / 'project.json').write_text(project.model_dump_json(indent=2), encoding='utf-8')
+    (out / 'assumptions.json').write_text(json.dumps(assumptions, ensure_ascii=False, indent=2), encoding='utf-8')
     session = create_session(compile_project(project), None, 30., keep=8)
     room_ids = list(assumptions['rooms'])
     cooler_ids = assumptions['operation']['defrost_order']
@@ -33,16 +78,25 @@ def validate(duration=86520., out=None, checkpoint=True):
     selected += [v + suffix for v in ('HP', 'IP', 'LP') for suffix in ('.state.pressure_pa', '.state.level_ratio')]
     selected += [i + '.oil_mass_residual_kg' for i in ('LT_OIL', 'HT_OIL')]
     selected += ['script.operating_day.state.day', 'script.operating_day.state.phase']
+    selected += ['script.plant_supervisor.state.' + event['group'] + '_fault_since' for event in CONTROL_EVENTS.values()]
     rows, transitions, maxima = [], [], {}
     evidence = {'load': False, 'cooler_stop': False, 'pump_backup': False, 'pump_recovered': False,
                 'compressor_backup': False, 'compressor_recovered': False, 'doors': [],
                 'hotgas_coolers': [], 'defrost_modes': {}, 'checkpoint_max_difference': None,
-                'next_day': False}
+                'next_day': False, 'control_timing': {}, 'checkpoints': []}
+    samples = []
+    checkpoint_times = ([min(900., duration / 2.)] if checkpoint else [])
+    if checkpoint and duration >= 86520.:
+        checkpoint_times += [35970., 36000., 36030., 43170., 43200., 43230., 86400.]
+    checkpoints_done = set()
     started = time.perf_counter()
+    last_progress_wall = started - 30.
     last_status = None
     passed = False
+    failure = None
     try:
         frame = session.initialize()
+        record_control_samples(session, samples)
         while frame.time_s <= duration:
             v = frame.variables
             for key, value in frame.metrics.items():
@@ -74,48 +128,85 @@ def validate(duration=86520., out=None, checkpoint=True):
             evidence['compressor_recovered'] |= frame.time_s > 43950 and v['LT_K1.param.running'] == 1. and v['LT_K3.param.running'] == 0.
             evidence['next_day'] |= v.get('script.operating_day.state.day', 0) >= 1
             status = (phase, *(int(v[c + '.defrost_mode']) for c in cooler_ids),
-                      v['LT_PUMP2.param.running'], v['LT_K3.param.running'])
+                      v['LT_PUMP2.param.running'], v['LT_K3.param.running'],
+                      *(v['script.plant_supervisor.state.' + event['group'] + '_fault_since'] for event in CONTROL_EVENTS.values()))
             if status != last_status:
                 transitions.append({'time_s': frame.time_s, 'status': status})
             if frame.time_s % 300 == 0 or status != last_status:
                 row = {'time_s': frame.time_s, 'variables': {k: v.get(k) for k in selected}, 'metrics': frame.metrics}
                 rows.append(row)
                 (out / 'latest.json').write_text(json.dumps(row, ensure_ascii=False, indent=2), encoding='utf-8')
-            if frame.time_s % 600 == 0:
+            if frame.time_s % 600 == 0 or time.perf_counter() - last_progress_wall >= 30.:
                 print(json.dumps({'time_s': frame.time_s, 'wall_s': round(time.perf_counter() - started, 2),
                     'room_c': [round(v[r + '.state.temperature_k'] - 273.15, 3) for r in room_ids],
                     'energy_residual_j': frame.metrics['energy_residual_j']}, ensure_ascii=False), flush=True)
+                last_progress_wall = time.perf_counter()
             last_status = status
             if frame.time_s >= duration: break
-            if checkpoint and frame.time_s >= min(900., duration / 2.) and evidence['checkpoint_max_difference'] is None:
+            due = next((at for at in checkpoint_times if at <= frame.time_s and at not in checkpoints_done), None)
+            if due is not None:
+                saved_at = frame.time_s
                 saved = capture(session)
-                (out / 'checkpoint.json').write_text(json.dumps(saved, ensure_ascii=False), encoding='utf-8')
+                checkpoint_dir = out / 'checkpoints'
+                checkpoint_dir.mkdir(exist_ok=True)
+                (checkpoint_dir / f'{saved_at:g}.json').write_text(json.dumps(saved, ensure_ascii=False), encoding='utf-8')
+                if not evidence['checkpoints']:
+                    (out / 'checkpoint.json').write_text(json.dumps(saved, ensure_ascii=False), encoding='utf-8')
                 branch = restore(saved)
                 try:
                     frame, twin = session.advance(), branch.advance()
                     diffs = [abs(value - twin.variables[key]) for key, value in frame.variables.items()
                              if isinstance(value, (float, int)) and isinstance(twin.variables.get(key), (float, int))]
-                    evidence['checkpoint_max_difference'] = max(diffs, default=0.)
-                    assert evidence['checkpoint_max_difference'] < 1e-6
+                    difference = max(diffs, default=0.)
+                    evidence['checkpoint_max_difference'] = max(evidence['checkpoint_max_difference'] or 0., difference)
+                    assert difference < 1e-6
+                    for key, value in frame.variables.items():
+                        if not isinstance(value, (float, int)):
+                            assert twin.variables[key] == value, key
+                    for key, runner in session.scripts.items():
+                        restored = branch.scripts[key]
+                        assert (runner.state, runner.samples, runner.last_s, runner.next_s) == (
+                            restored.state, restored.samples, restored.last_s, restored.next_s), key
+                    evidence['checkpoints'].append({'time_s': saved_at, 'comparison_time_s': frame.time_s,
+                        'max_difference': difference})
+                    checkpoints_done.add(due)
                 finally: branch.close()
             else:
                 frame = session.advance()
         if duration >= 86520:
+            evidence['control_timing'] = accepted_control_timing(session, samples)
             assert all(evidence[k] for k in ('load', 'cooler_stop', 'pump_backup', 'pump_recovered',
                 'compressor_backup', 'compressor_recovered', 'next_day'))
             assert set(evidence['doors']) == set(room_ids)
             assert set(evidence['hotgas_coolers']) == set(cooler_ids)
             assert all(set(modes) == {0, 1, 2, 3, 4} for modes in evidence['defrost_modes'].values())
+            for name, event in CONTROL_EVENTS.items():
+                timing = evidence['control_timing'][name]
+                assert timing == {'stop_command_sample_s': event['start_s'],
+                    'fault_observed_sample_s': event['start_s'] + 30., 'backup_start_sample_s': event['start_s'] + 60.,
+                    'recovery_command_sample_s': event['end_s'], 'backup_stop_sample_s': event['end_s'] + 30.}, (name, timing)
+            if checkpoint:
+                assert checkpoints_done == set(checkpoint_times)
         passed = True
+    except Exception as error:
+        diagnostic = getattr(error, 'diagnostic', None)
+        failure = {'type': type(error).__name__, 'message': str(error),
+                   'diagnostic_code': diagnostic.code if diagnostic is not None else None}
+        raise
     finally:
-        summary = {'passed': passed, 'time_s': session.time, 'wall_s': time.perf_counter() - started,
+        evidence['control_timing'] = accepted_control_timing(session, samples)
+        summary = {'status': 'passed' if passed and duration >= 86520. else 'partial' if passed else 'failed',
+            'passed': passed, 'requested_duration_s': duration, 'time_s': session.time, 'wall_s': time.perf_counter() - started,
             'devices': len(project.instances), 'connections': len(project.connections),
-            'max_residuals': maxima, 'evidence': evidence, 'transitions': transitions}
+            'max_residuals': maxima, 'evidence': evidence, 'transitions': transitions, 'failure': failure}
         (out / 'summary.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
         if duration >= 86400.:
             (ROOT / 'examples/large-cold-store/continuous-validation-summary.json').write_text(
                 json.dumps(summary, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
         (out / 'trajectory.json').write_text(json.dumps(rows, ensure_ascii=False), encoding='utf-8')
+        accepted_samples = [row for row in samples if session.scripts[row['script_id']].last_s is not None
+                            and row['time_s'] <= session.scripts[row['script_id']].last_s]
+        (out / 'control-samples.json').write_text(json.dumps(accepted_samples, ensure_ascii=False), encoding='utf-8')
         session.close()
     print(json.dumps(summary, ensure_ascii=False), flush=True)
     return summary

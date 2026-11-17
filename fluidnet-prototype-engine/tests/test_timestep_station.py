@@ -46,7 +46,12 @@ def run(project, duration=600., dt_s=60., keep=100000):
 
 def fixed_hash(session):
     frame = session.frames[-1]
-    payload = {'variables': {k: frame.variables[k] for k in sorted(frame.variables)},
+    variables = dict(frame.variables)
+    # v0.5.0 had no manual-output observation. Check its default separately, while
+    # retaining the exact historical hash for every original variable and counter.
+    for controller_id in session.controllers:
+        assert variables.pop(f'controller.{controller_id}.manual_output') is None
+    payload = {'variables': {k: variables[k] for k in sorted(variables)},
                'counters': {f'{a}.{b}': round(c, 12) for (a, b), c in sorted(session.counters.items())}}
     return hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
 

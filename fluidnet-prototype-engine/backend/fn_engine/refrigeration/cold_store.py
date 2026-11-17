@@ -437,6 +437,8 @@ class ColdStoreSession(ThermalSession):
             check_envelope(p, point)
             u['trial_guess'], u['trial_jacobian'] = x.tolist(), jac
             return point
+        if last_error is not None and last_error.code == 'COLD_STORE_JACOBIAN_SINGULAR':
+            raise last_error
         raise DeviceRangeError('COLD_STORE_NOT_CONVERGED', f'蒸发/冷凝温度联立未收敛（{last_error}）')
 
     def _newton(self, residual, jacobian, x, jac):
@@ -448,7 +450,17 @@ class ColdStoreSession(ThermalSession):
             norm = float(np.max(np.abs(f)))
             if norm < self.TOLERANCE:
                 return x, jac
-            step = np.linalg.solve(jac, f)
+            try:
+                step = np.linalg.solve(jac, f)
+            except np.linalg.LinAlgError:
+                # Rebuild a possibly stale Jacobian before trying another initial
+                # guess or handing the failure to the existing time-step retry.
+                jac, fresh = jacobian(x, f), True
+                try:
+                    step = np.linalg.solve(jac, f)
+                except np.linalg.LinAlgError as error:
+                    raise DeviceRangeError('COLD_STORE_JACOBIAN_SINGULAR',
+                        f'冷库牛顿矩阵奇异，重建雅可比后仍无法求解（残差 {norm:.2e}）') from error
             step *= min(1., 5. / max(1e-12, float(np.max(np.abs(step)))))   # at most 5 K per iteration
             accepted = None
             for _ in range(8):

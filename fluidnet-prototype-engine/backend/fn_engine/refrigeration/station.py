@@ -634,7 +634,18 @@ class StationSession(ThermalSession):
             if norm > .5 * previous and (not refreshed or graph and iteration > 1):
                 self._jacobian, refreshed = self._derivative(x, f), True
             previous = norm
-            step = np.linalg.solve(np.eye(len(x)) - h * self._jacobian, residual)
+            try:
+                step = np.linalg.solve(np.eye(len(x)) - h * self._jacobian, residual)
+            except np.linalg.LinAlgError:
+                # A stale flux Jacobian may be singular at this step size. Rebuild
+                # once at the same state, then let the existing time-step retry shrink h.
+                self._jacobian, refreshed = self._derivative(x, f), True
+                try:
+                    step = np.linalg.solve(np.eye(len(x)) - h * self._jacobian, residual)
+                except np.linalg.LinAlgError as error:
+                    self._jacobian = None
+                    raise devices.DeviceRangeError('REFRIGERATION_JACOBIAN_SINGULAR',
+                        f'制冷站牛顿矩阵奇异，重建雅可比后仍无法求解（残差 {norm:.2e}）') from error
             for _ in range(12 if graph else 5):
                 try:
                     trial = x - step

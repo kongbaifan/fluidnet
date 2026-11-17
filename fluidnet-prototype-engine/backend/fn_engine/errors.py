@@ -56,6 +56,7 @@ ERROR_CODES: dict[str, ErrorCode] = {
 # 诊断码：由编译/求解/物性层产生，作为 detail.code 透传，状态由各路由决定（多为 422）。
 # 编译器的完整诊断码集合是开放的，这里只登记 api.py 自己会拼出的静态值。
 DIAGNOSTIC_CODES: dict[str, int] = {
+    'FRAME_KEYS_UNSUPPORTED': 422,
     'SCENARIO_NOT_FOUND': 422,
     'SCENARIO_INSTANCE_MISSING': 422,
     'TREND_VARIABLE_UNKNOWN': 422,
