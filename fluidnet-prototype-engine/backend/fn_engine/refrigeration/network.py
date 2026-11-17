@@ -13,7 +13,7 @@ from scipy.optimize import brentq, least_squares
 from ..compiler import CompilationError, DisjointSet
 from ..solver import pipe_drop, pump_head
 from .cycle import DeviceRangeError
-from .devices import air_cooler_point
+from .devices import air_cooler_point, glide_heat, is_mixture
 from .network_devices import NETWORK_KINDS
 from .stream_devices import BRIDGES, LINES, RECUPERATOR, RECUPERATOR_PORTS, compressor_point, single_phase
 from .vessel_ports import port_state
@@ -111,9 +111,12 @@ def mixture(service, pressure, enthalpy):
     quality = state.quality
     if quality is not None and 1e-9 < quality < 1. - 1e-9:
         liquid, vapor = service.state_pq(pressure, 0.), service.state_pq(pressure, 1.)
+        if not liquid.viscosity_pa_s or not vapor.viscosity_pa_s:
+            raise DeviceRangeError('NETWORK_TRANSPORT_PROPERTIES', '该工质没有黏度方程，不能计算管网阻力')
         specific_volume = (1. - quality) / liquid.density_kg_m3 + quality / vapor.density_kg_m3
         viscosity = 1. / ((1. - quality) / liquid.viscosity_pa_s + quality / vapor.viscosity_pa_s)
-        return state, 1. / specific_volume, viscosity
+        # A mixture's phases are not its bubble and dew states; the flash density is the equilibrium mean.
+        return state, state.density_kg_m3 if is_mixture(service) else 1. / specific_volume, viscosity
     viscosity = state.viscosity_pa_s
     if viscosity is None and quality is not None:
         viscosity = service.state_pq(pressure, 0. if quality < .5 else 1.).viscosity_pa_s
@@ -351,6 +354,9 @@ def _component_point(component, network, service, vessels, temperatures, room_of
             ua = p['ua_w_k'] * (p['natural_ua_ratio'] + (1. - p['natural_ua_ratio']) * fan_ratio)
             available = max(0., ua * (temperatures[room_of[iid]] - service.saturation_t(min(pin, pout))))
             outlet_limit = service.state_pq(pout, p['max_outlet_quality']).enthalpy_j_kg
+            if is_mixture(service):
+                available = glide_heat(service.state_pq(pout, 0.), service.state_pq(pout, p['max_outlet_quality']),
+                                       available, ua, max(q, 0.))
             oil_heat = sum(ua * (t - service.saturation_t(min(pin, pout))) for _, t, ua in p.get('_oil_terms', []))
             air_heat = available
             if kind == 'frost_hotgas_cooler':

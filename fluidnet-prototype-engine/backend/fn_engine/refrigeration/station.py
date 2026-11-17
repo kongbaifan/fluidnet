@@ -47,6 +47,12 @@ PASS_THROUGH.update({kind:[('in0','out0')] for kind in STREAM_LINES})
 PASS_THROUGH[RECUPERATOR]=list(RECUPERATOR_PORTS.items())
 PASS_THROUGH['immersed_tube_bundle']=[('in0','out0'),('shell_in','shell_out')]
 PASS_THROUGH.update({kind:[('in0','out0')] for kind in DX_KINDS})
+# Devices checked against bubble/dew states of a fixed-composition mixture; every other device
+# assumes one saturation temperature per pressure and is rejected on a mixture circuit.
+MIXTURE_KINDS = {'saturated_vessel', 'refrigerant_header', 'refrigerant_compressor', 'expansion_valve', 'refrigerant_pump',
+                 'air_cooler', 'evaporative_condenser', 'air_cooled_condenser', 'refrigerant_network_pipe',
+                 'refrigerant_curve_pump', 'network_air_cooler', 'refrigerant_network_valve', 'refrigerant_check_valve',
+                 'refrigerant_strainer'}
 
 
 def same_parameter_contract(definition, reference):
@@ -281,6 +287,12 @@ def compile_station(project):
         fluids[index], sources[index] = entry.fluid, entry.id
     circuit_of = {vessel: order[circuits.find(vessel)] for vessel in vessels}
     vessel_fluids = {vessel: fluids[circuit_of[vessel]].model_copy(update={'phase_policy': 'any'}) for vessel in vessels}
+    gliding = {vessel for vessel in vessels
+               if devices.is_mixture(fluid_service(project, vessel_fluids[vessel], f'{vessel} 所在回路工质'))}
+    for (iid, port_id), vessel in resolved.items():
+        if vessel in gliding and kinds[iid] not in MIXTURE_KINDS:
+            raise CompilationError('MIXTURE_DEVICE_UNSUPPORTED', f'{iid} 所在回路使用混合工质 {vessel_fluids[vessel].fluid}；'
+                                   '该设备按纯工质的单一饱和温度建模，尚未按泡点/露点核对', iid, port_id)
     for vessel in vessels:
         service = fluid_service(project, vessel_fluids[vessel], f'{vessel} 所在回路工质')
         params = parameters[vessel]

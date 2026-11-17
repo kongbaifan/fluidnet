@@ -12,6 +12,7 @@ from functools import lru_cache
 
 import CoolProp.CoolProp as CP
 from CoolProp import AbstractState
+from scipy.optimize import brentq
 
 from .model_types.base import FluidConfig, FluidState
 
@@ -248,6 +249,49 @@ def _is_mixture(key: FluidKey) -> bool:
     return "&" in key[1] or key[1].upper().endswith(".MIX")
 
 
+def _mass_quality(key: FluidKey, state: AbstractState, quality: float) -> float:
+    """REFPROP reports a mixture's vapor fraction on a molar basis; FluidState.quality is the vapor mass fraction."""
+    if not (key[0] == "REFPROP" and _is_mixture(key)) or not 0.0 < quality < 1.0:
+        return quality
+    return quality * float(state.saturated_vapor_keyed_output(CP.imolar_mass)) / float(state.molar_mass())
+
+
+def _mixture_du(state: AbstractState, density: float, energy: float) -> None:
+    """Density/energy flash of a REFPROP mixture. REFPROP's own flash stops early in the two-phase
+    region (pressure off by tens of Pa, occasionally far off) and fails for liquid-rich states. Its
+    pressure/enthalpy flash is tight, and h = u + p/rho leaves one unknown: the pressure at which
+    that flash returns the requested density. The specific volume falls with pressure and is flat
+    once the state is all liquid, hence a bracket around REFPROP's answer instead of a Newton step."""
+    try:
+        state.update(CP.DmassUmass_INPUTS, density, energy)
+        if not 0.0 <= float(state.Q()) <= 1.0:
+            return
+        low = high = float(state.p())
+    except ValueError:
+        low = high = 0.1 * float(state.p_critical())
+    volume = 1.0 / density
+
+    def error(pressure: float) -> float:
+        state.update(CP.HmassP_INPUTS, energy + pressure * volume, pressure)
+        return 1.0 / float(state.rhomass()) - volume
+
+    first = error(low)
+    if first == 0.0:
+        return
+    for step in (1e-4, 1e-3, 1e-2, 0.1, 0.5, 1.0, 3.0, 10.0, 30.0):
+        if first > 0.0:
+            high = low * (1.0 + step)
+            found = error(high) <= 0.0
+        else:
+            low = high / (1.0 + step)
+            found = error(low) >= 0.0
+        if found:
+            break
+    else:
+        raise ValueError("密度/内能闪蒸在压力搜索范围内没有解")
+    error(brentq(error, low, high, xtol=1e-10 * low, rtol=1e-14))
+
+
 def _optional(read):
     """A property CoolProp may not define for this backend/state (speed of sound in two-phase, INCOMP)."""
     try:
@@ -282,7 +326,20 @@ def _flash(key: FluidKey, inputs: str, first: float, second: float) -> FluidStat
 def _flash_locked(key: FluidKey, inputs: str, pair, order, first: float, second: float) -> FluidState:
     try:
         state = _abstract_state(key)
-        state.update(pair, *order(first, second))
+        refprop_mixture = key[0] == "REFPROP" and _is_mixture(key)
+        if inputs == "DU" and refprop_mixture:
+            _mixture_du(state, first, second)
+        else:
+            state.update(pair, *order(first, second))
+        requested = inputs in ("PQ", "TQ") and refprop_mixture
+        if requested and 0.0 < second < 1.0:
+            # The requested quality is a mass fraction; the phase molar masses depend on the split itself.
+            molar = second
+            for _ in range(8):
+                previous, molar = molar, min(1.0, molar * second / _mass_quality(key, state, molar))
+                state.update(pair, *order(first, molar))
+                if abs(molar - previous) < 1e-10:
+                    break
         phase = _phase_of(key, state)
         # PH flash termination can leave a small enthalpy mismatch dependent on
         # the previous flash's initial guess. Hydraulic finite differences amplify
@@ -299,7 +356,7 @@ def _flash_locked(key: FluidKey, inputs: str, pair, order, first: float, second:
                         if abs(error) <= 1e-7: break
                 finally:
                     state.unspecify_phase()
-        quality = float(state.Q()) if phase == _TWO_PHASE else None
+        quality = None if phase != _TWO_PHASE else second if requested else _mass_quality(key, state, float(state.Q()))
         # Strictly inside the dome there is no single viscosity, conductivity, cp or cv;
         # CoolProp would return one-sided values, so they are reported as missing. On the
         # saturation lines (Q = 0 or 1) they exist and are read when CoolProp provides them.
@@ -502,6 +559,8 @@ class CoolPropPropertyService:
         backend, name, fractions, _ = self.key
         # Components on the configured basis; a predefined REFPROP .MIX file reports itself.
         self.composition = dict(zip(name.split("&"), fractions)) if "&" in name else {self.fluid: 1.0}
+        # Fixed-composition mixture: bubble and dew points differ, so "saturated at T" has no single pressure.
+        self.mixture = _is_mixture(self.key)
         self.phase_policy = config.phase_policy
         self._air_local = threading.local()
 
