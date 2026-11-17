@@ -1,3 +1,4 @@
+import {workspaceControl} from './browser-workspace-controls.mjs';
 import {FHD_CONTEXT, captureFhd} from './browser-viewport.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdirSync, mkdtempSync } from 'node:fs';
@@ -50,7 +51,7 @@ try{
   const model=await api('/examples/thermal-coupling');
   await expect(async()=>{
     if(await page.locator('.thermal-coupling').isVisible().catch(()=>false))return;
-    await page.locator('[data-action="cs-create-coupled"]').click();
+    await (await workspaceControl(page,'[data-action="cs-create-coupled"]')).click();
     await expect(page.locator('.thermal-coupling')).toBeVisible({timeout:4000});
   }).toPass({timeout:30000});
   const draft=(await page.evaluate(async k => (await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem(k)),storageKey)).projects.find(p=>p.caseId===model.id);
@@ -71,7 +72,7 @@ try{
   expect(first.body.project.solver).toEqual(model.solver);
   expect(Math.abs(first.record.frame.variables['coupling.HX1.equation_residual_w'])).toBeLessThan(.01);
   // The editable coupling changes the model key: old results must become stale before rerunning.
-  await page.locator('[data-action="cs-coupling"]').click();
+  await (await workspaceControl(page,'[data-action="cs-coupling"]')).click();
   await page.getByRole('dialog').locator('input[name="ua"]').fill('900');
   await page.getByRole('dialog').locator('button[type="submit"]').click();
   await expect(page.locator('[data-result-status]').first()).toContainText('参数已变更');

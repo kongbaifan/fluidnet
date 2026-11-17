@@ -1,3 +1,4 @@
+import {workspaceControl} from './browser-workspace-controls.mjs';
 import {FHD_CONTEXT, captureFhd} from './browser-viewport.mjs';
 import {testServer} from './browser-server.mjs';
 import {chromium,expect} from '@playwright/test';
@@ -26,7 +27,7 @@ try{
   await manage('water-net');await page.locator('[data-action="wf-history"]').click();await page.locator(`[data-action="wf-restore"][data-revision="${first.revision}"]`).click();await page.getByRole('dialog').locator('button[type="submit"]').click();
   await expect.poll(async()=> (await api('/projects/water-net')).document.project.name).toBe(first.document.project.name);
 
-  await page.goto(base+'/#workbench');await page.locator('[data-action="wf-scenarios"]').first().click();await page.locator('[data-action="wf-new-scenario"]').click();
+  await page.goto(base+'/#workbench');await (await workspaceControl(page,'[data-action="wf-scenarios"]')).click();await page.locator('[data-action="wf-new-scenario"]').click();
   await page.getByLabel('工况名称',{exact:true}).fill('节流 25%');await page.getByLabel('工况设备').selectOption('V1');await page.getByLabel('工况参数').selectOption('opening');await page.getByLabel('覆盖值',{exact:true}).fill('25');await page.locator('[data-action="wf-add-override"]').click();await page.getByRole('dialog').locator('button[type="submit"]').click();await expect(page.locator('#toast')).toContainText('工况已应用');
   await page.goto(base+'/#settings');await page.locator('[data-action="settings-tab"][data-value="solver"]').click();await page.locator('[data-solver-field="mode"]').selectOption('dynamic');await page.locator('[data-solver-field="duration"]').fill('1');await page.locator('[data-solver-field="duration"]').blur();
   await saveProject('water-net');
@@ -58,7 +59,7 @@ try{
   const release=await api('/modules/programmable_valve/versions/'+pinned);const module=release.module;module.content_hash=null;module.definition_hash=null;module.parameters.push({id:'gain',label:'新增增益',value_type:'number',default:2.0});
   await api('/modules/versions',{module,expected_latest_version:latest,release_notes:'兼容增加参数'});
   await page.goto(base+'/#workbench');
-  await page.locator('[data-action="wf-upgrades"]').click();await page.locator('[data-action="wf-module-versions"]').click();await page.locator(`[data-action="wf-preview-upgrade"][data-version="${next}"]`).click();await expect(page.getByRole('dialog')).toContainText('兼容检查通过');await captureFhd(page, 'artifacts/workflows-upgrade.png');await page.getByRole('dialog').locator('button[type="submit"]').click();await expect(page.locator('#toast')).toContainText('模块版本已更新并保存');
+  await (await workspaceControl(page,'[data-action="wf-upgrades"]')).click();await page.locator('[data-action="wf-module-versions"]').click();await page.locator(`[data-action="wf-preview-upgrade"][data-version="${next}"]`).click();await expect(page.getByRole('dialog')).toContainText('兼容检查通过');await captureFhd(page, 'artifacts/workflows-upgrade.png');await page.getByRole('dialog').locator('button[type="submit"]').click();await expect(page.locator('#toast')).toContainText('模块版本已更新并保存');
   const upgraded=await api('/projects/'+id);expect(upgraded.document.project.moduleSnapshots.programmable_valve.version).toBe(next);expect(upgraded.document.project.pages[0].nodes.find(n=>n.id==='V1').params.gain).toBe(2);
   await manage(id);await page.locator('[data-action="wf-history"]').click();await page.locator(`[data-action="wf-restore"][data-revision="${pinnedRevision}"]`).click();await page.getByRole('dialog').locator('button[type="submit"]').click();await expect(page.getByRole('dialog')).toHaveCount(0);await expect(page.locator('#toast')).toContainText('项目修订已恢复');await expect.poll(async()=> (await api('/projects/'+id)).document.project.moduleSnapshots.programmable_valve.version).toBe(pinned);
   const backup=await page.evaluate(async()=>(await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1-before-project')));

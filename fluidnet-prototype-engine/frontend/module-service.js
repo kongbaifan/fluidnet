@@ -1,6 +1,6 @@
 /* Module authoring and released definitions. Run transport and parameter transactions remain in the engine client. */
 export const createModuleService = function ({request, modules, getBench, parameterDefinitions, normalizeProject,
-  model, moduleFromManifest, testFlow, copyPanel, copyPresentation, output, dirty, render, persist, message}) {
+  model, moduleFromManifest, testFlow, copyPanel, copyPresentation, output, dirty, render, persist, message, catalog}) {
   const clone = value => JSON.parse(JSON.stringify(value));
   function manifestPayload(m) {
     if (m.manifest) {
@@ -46,6 +46,7 @@ export const createModuleService = function ({request, modules, getBench, parame
     const available=pinned&&(!draft||(draft.runtime==='python'&&!draft.publishedManifest))?pinned:moduleForInsert(id);
     if(!available)throw Error('模块已不存在，请重新选择。');
     const bound=pinned || available;
+    if(catalog){const status=model.moduleAvailability(bound,catalog());if(!status.available)throw Error(status.reason);}
     return {page,module:bound,availableVersion:available.version,
       usesPinnedVersion:!!owner.moduleSnapshots?.[id] && bound.runtime==='python' &&
         (bound.version!==available.version || bound.manifest?.definition_hash!==available.manifest?.definition_hash)};

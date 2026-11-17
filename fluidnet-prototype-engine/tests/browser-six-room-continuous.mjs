@@ -3,6 +3,7 @@ import {mkdirSync,writeFileSync} from 'node:fs';
 import {resolve,join} from 'node:path';
 import {testServer} from './browser-server.mjs';
 import {FHD_CONTEXT,captureFhd} from './browser-viewport.mjs';
+import {createProjectExample} from './browser-workspace-controls.mjs';
 
 const out=resolve('artifacts/six-room-continuous/browser');mkdirSync(out,{recursive:true});
 const server=await testServer(),browser=await chromium.launch({channel:'msedge',headless:true});
@@ -21,7 +22,7 @@ async function waitRun(id,predicate){
 const command=name=>page.locator(`[data-action="run-project"][data-command="${name}"]`).first().click();
 try{
  await page.goto(server.base+'/#projects');await expect(page.locator('#app-header')).toContainText('模块平台 · v');
- await page.getByRole('button',{name:'六库持续仿真',exact:true}).click();
+ await createProjectExample(page,'cs-create-continuous');
  await expect(page.locator('[data-room-status]')).toHaveCount(6);
  await expect(page.locator('[data-continuous-plant]')).toContainText('全站持续运行');
  let owner=await save();expect(owner.pages.flatMap(p=>p.nodes)).toHaveLength(126);

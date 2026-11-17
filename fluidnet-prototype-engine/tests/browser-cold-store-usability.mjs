@@ -1,3 +1,4 @@
+import {createProjectExample,workspaceControl} from './browser-workspace-controls.mjs';
 import {chromium,expect} from '@playwright/test';
 import {mkdirSync,writeFileSync} from 'node:fs';
 import {resolve,join} from 'node:path';
@@ -54,12 +55,12 @@ async function run(id){
 }
 try{
  await page.goto(server.base+'/#projects');await expect(page.locator('#app-header')).toContainText('模块平台 · v');
- await page.getByRole('button',{name:'六库自动温控',exact:true}).click();
+ await createProjectExample(page,'cs-create-multi');
  await expect(page.locator('[data-room-status]')).toHaveCount(6);
  let owner=await save();expect(owner.pages.flatMap(p=>p.nodes)).toHaveLength(51);expect(owner.controllers).toHaveLength(19);
  summary.projectId=owner.id;console.log('created',owner.id);
  // Real copy, internal connection, and undo on the six-room project.
- await page.locator('[data-action="project-group-tools"]').click();
+ await (await workspaceControl(page,'[data-action="project-group-tools"]')).click();
  for(const checkbox of await page.getByRole('dialog').locator('input[type="checkbox"]').all())await checkbox.uncheck();
  for(const id of ['F01','F01_AC1'])await page.getByLabel('组选择 '+id,{exact:true}).check();
  await page.getByRole('dialog').locator('[name="group-action"]').selectOption('copy');

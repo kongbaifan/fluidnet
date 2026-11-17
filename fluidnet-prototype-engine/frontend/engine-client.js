@@ -181,7 +181,7 @@ export const createEngineClient = function (ui) {
   const model=FluidNetProjectModel;
   const manifestParamDef=model.manifestParamDef;
   const moduleFromManifest=manifest=>model.moduleFromManifest(manifest,ModuleTestEditor?.defaultConditions,catalogPresentation[manifest.id]);
-  const moduleService=createModuleService({request,model,moduleFromManifest,testFlow:traceFlow,
+  const moduleService=createModuleService({request,model,moduleFromManifest,testFlow:traceFlow,catalog:()=>catalog,
     modules:()=>ui.state().modules,getBench:()=>ui.state().bench,parameterDefinitions:ui.parameterDefinitions,
     normalizeProject:normalize,copyPanel:(source,target)=>FluidNetPanelLayout?.copy(source,target),
     copyPresentation:(source,target)=>FluidNetCanvasSymbols?.copyPresentation(source,target),

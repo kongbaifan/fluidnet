@@ -22,8 +22,8 @@ function fixture(){
     charts:{hover:()=>{},pin:()=>{}},shell:{error:e=>errors.push(e),render:()=>calls.push(['render']),action:n=>calls.push(['action',n]),clearContext:()=>{},dismissContext:()=>{},context:()=>{}}
   });
   const ev=(t,x=0,y=0,other={})=>({button:0,pointerId:1,clientX:x,clientY:y,target:t,preventDefault(){this.prevented=true;},...other});
-  const nTarget=target({'#network':svg,'[data-node]':{dataset:{node:'N'}}});
-  return {api,calls,errors,page,view,root,doc,svg,ev,nTarget,blank:target({'#network':svg}),replace:()=>{actualOwner={id:'project'};actualPage={...page,nodes:[...page.nodes]};},setHit:t=>{hit=t;}};
+  const nTarget=target({'#network-area':svg,'[data-node]':{dataset:{node:'N'}}});
+  return {api,calls,errors,page,view,root,doc,svg,ev,nTarget,blank:target({'#network-area':svg}),replace:()=>{actualOwner={id:'project'};actualPage={...page,nodes:[...page.nodes]};},setHit:t=>{hit=t;}};
 }
 test('node drag has one capture and undo boundary, unrelated pointer cannot finish it',()=>{
   const f=fixture();f.api.pointerdown(f.ev(f.nTarget));f.api.pointermove(f.ev(f.nTarget,2,2));assert.equal(f.calls.some(c=>c[0]==='remember'),false);
@@ -53,9 +53,45 @@ test('floating gestures are delegated without taking a canvas undo snapshot',()=
   assert.deepEqual(f.calls.find(c=>c[0]==='window-move'),['window-move','D1',20,30]);assert.equal(f.calls.some(c=>c[0]==='remember'||c[0]==='commit'),false);
 });
 test('port drag connects only the actual released-on target',()=>{
-  const f=fixture(),from=target({'#network':f.svg,'[data-port-node]':{dataset:{portNode:'N',portId:'out0'}}}),to=target({'[data-port-node]':{dataset:{portNode:'B',portId:'in0'}}});
+  const f=fixture(),from=target({'#network-area':f.svg,'[data-port-node]':{dataset:{portNode:'N',portId:'out0'}}}),to=target({'[data-port-node]':{dataset:{portNode:'B',portId:'in0'}}});
   f.setHit(to);f.api.pointerdown(f.ev(from));f.api.pointermove(f.ev(from,40,40));f.api.pointerup(f.ev(from,40,40));
   assert.deepEqual(f.calls.filter(c=>c[0]==='connect'),[['connect','N','out0'],['connect','B','in0']]);
+});
+test('placing a module on an occupied canvas target inserts instead of selecting it',()=>{
+  const f=fixture(),occupied=target({'#network-area':f.svg,'[data-node]':{dataset:{node:'N'}}});f.view.placing='pump';
+  f.api.click(f.ev(occupied,42,24));
+  assert.deepEqual(f.calls.filter(c=>['insert','single','connect'].includes(c[0])),[['insert','pump',{x:42,y:24}]]);
+});
+test('canvas overlay buttons do not start pan or box selection gestures',()=>{
+  for(const shiftKey of [false,true]){
+    const f=fixture(),button={dataset:{action:'zoom-in'}},overlay=target({'#network-area':f.svg,'[data-action]':button});
+    f.api.pointerdown(f.ev(overlay,0,0,{shiftKey}));assert.equal(f.api.busy(),false);
+    f.api.click(f.ev(overlay));assert.deepEqual(f.calls,[['action','zoom-in']]);
+  }
+});
+test('path inspection text and close controls keep native pointer behavior without canvas gestures',()=>{
+  for(const shiftKey of [false,true]){
+    const f=fixture(),overlay=target({'#network-area':f.svg,'#canvas-inspection':{}}),event=f.ev(overlay,0,0,{shiftKey});
+    f.api.pointerdown(event);assert.equal(f.api.busy(),false);assert.equal(event.prevented,undefined);
+    f.api.pointermove(f.ev(overlay,80,20));f.api.pointerup(f.ev(overlay,80,20));
+    assert.deepEqual(f.page.pan,[0,0]);assert.deepEqual(f.calls,[]);
+  }
+});
+test('placing gestures over existing nodes and ports leave their geometry and connections intact',()=>{
+  for(const kind of ['node','port','shift']){
+    const f=fixture(),occupied=kind==='port'?target({'#network-area':f.svg,'[data-port-node]':{dataset:{portNode:'N',portId:'out0'}}}):f.nTarget;
+    f.view.placing='pump';f.setHit(target({'[data-port-node]':{dataset:{portNode:'B',portId:'in0'}}}));
+    f.api.pointerdown(f.ev(occupied,0,0,{shiftKey:kind==='shift'}));
+    assert.equal(f.api.busy(),false);
+    f.api.pointermove(f.ev(occupied,42,24));f.api.pointerup(f.ev(occupied,42,24));f.api.click(f.ev(occupied,42,24));
+    assert.deepEqual(f.calls.filter(c=>['insert','node','group','move','remember','commit','connect'].includes(c[0])),[['insert','pump',{x:42,y:24}]]);
+    assert.deepEqual(f.page.nodes[0],{id:'N',x:0,y:0});
+  }
+});
+test('placing ignores a stale trailing-click suppression window',()=>{
+  const f=fixture(),occupied=target({'#network-area':f.svg,'[data-node]':{dataset:{node:'N'}}});
+  f.api.pointerdown(f.ev(f.nTarget,0,0,{shiftKey:true}));f.view.placing='pump';f.api.click(f.ev(occupied,42,24));
+  assert.deepEqual(f.calls.filter(c=>['insert','single','connect'].includes(c[0])),[['insert','pump',{x:42,y:24}]]);
 });
 test('workbench shortcuts respect text editing and active dialogs',()=>{
   const f=fixture();f.view.selectedNode='N';f.api.keydown(f.ev(target({},true),0,0,{key:'Delete'}));f.view.modal=true;f.api.keydown(f.ev(target(),0,0,{key:'Delete'}));assert.equal(f.calls.length,0);

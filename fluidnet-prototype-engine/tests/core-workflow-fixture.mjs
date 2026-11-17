@@ -5,6 +5,7 @@ import {existsSync,mkdirSync,readdirSync,readFileSync,rmSync,writeFileSync} from
 import {join,resolve} from 'node:path';
 import {testServer} from './browser-server.mjs';
 import {FHD_CONTEXT,captureFhd} from './browser-viewport.mjs';
+import {workspaceControl} from './browser-workspace-controls.mjs';
 
 export const hash=value=>createHash('sha256').update(value).digest('hex');
 function baseline(){
@@ -76,7 +77,7 @@ export async function coreWorkflow(name){
     expect(node.moduleId).toBe(moduleId);note('inserted-device',{id:node.id,moduleId});return node.id;
   }
   async function locate(id){
-    await closePanels();await nav('workbench');await page.locator('[data-action="project-find"]').click();
+    await closePanels();await nav('workbench');await (await workspaceControl(page,'[data-action="project-find"]')).click();
     await page.getByLabel('全项目查找关键词').fill(id);await page.locator(`[data-action="project-find-node"][data-id="${id}"]`).click();
     await expect(page.getByRole('region',{name:id+' 设备参数',exact:true})).toBeVisible();
   }

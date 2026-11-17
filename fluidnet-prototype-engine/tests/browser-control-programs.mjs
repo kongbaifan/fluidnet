@@ -1,3 +1,4 @@
+import {workspaceControl} from './browser-workspace-controls.mjs';
 import {FHD_CONTEXT, captureFhd} from './browser-viewport.mjs';
 import { chromium, expect } from '@playwright/test';
 import { createHash } from 'node:crypto';
@@ -180,7 +181,7 @@ try {
   module.parameters.push({id: 'control_test_gain', label: '控制回归增益', value_type: 'number', default: 2});
   await api('/modules/versions', {module, expected_latest_version: latest, release_notes: 'Control-program preservation regression'});
   await page.locator('.rail-link[data-route="workbench"]').click();
-  await page.locator('[data-action="wf-upgrades"]').click();
+  await (await workspaceControl(page,'[data-action="wf-upgrades"]')).click();
   await page.locator('[data-action="wf-module-versions"]').click();
   await page.locator(`[data-action="wf-preview-upgrade"][data-version="${latest + 1}"]`).click();
   await expect(page.getByRole('dialog')).toContainText('兼容检查通过');

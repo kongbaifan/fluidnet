@@ -1,3 +1,4 @@
+import {workspaceControl} from './browser-workspace-controls.mjs';
 import {chromium,expect} from '@playwright/test';
 import {mkdtempSync,mkdirSync,readFileSync,writeFileSync} from 'node:fs';
 import {join} from 'node:path';
@@ -41,7 +42,7 @@ async function move(id,source,target){
   await page.locator('[data-action="canvas-tab"][data-id="'+source+'"]').click();
   await page.getByRole('button',{name:'适应画布',exact:true}).click();
   await page.locator('.net-node[data-node="'+id+'"]').click();
-  await page.locator('[data-action="move-device-page"][data-id="'+id+'"]').click();
+  await (await workspaceControl(page,'[data-action="move-device-page"][data-id="'+id+'"]')).click();
   await page.getByRole('dialog').locator('[name="page"]').selectOption(target);await submit();
 }
 async function save(){
@@ -106,7 +107,7 @@ try{
   await page.locator('[data-port-node="'+cross[1]+'"][data-port-id="'+cross[2]+'"]').click();
   await page.locator('[data-action="canvas-tab"][data-id="'+terminal1+'"]').click();
   await expect(page.locator('[aria-label="当前画布跨页连接"] button')).toHaveCount(2);
-  await page.locator('[data-action="page-links"]').click();await expect(page.locator('[data-page-link]')).toHaveCount(4);
+  await (await workspaceControl(page,'[data-action="page-links"]')).click();await expect(page.locator('[data-page-link]')).toHaveCount(4);
   await page.getByRole('dialog').getByRole('button',{name:'关闭',exact:true}).click();
   mkdirSync('artifacts',{recursive:true});await captureFhd(page,'artifacts/cross-page-terminals.png');
   const restoredLinks=await run();expect(restoredLinks.frame.variables['V1.mass_flow_kg_s']).toBeCloseTo(baseline.frame.variables['V1.mass_flow_kg_s'],6);

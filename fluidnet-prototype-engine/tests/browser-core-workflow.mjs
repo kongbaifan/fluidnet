@@ -1,3 +1,4 @@
+import {createProjectExample,workspaceControl} from './browser-workspace-controls.mjs';
 import {expect} from '@playwright/test';
 import {readFileSync} from 'node:fs';
 import {coreWorkflow,hash} from './core-workflow-fixture.mjs';
@@ -62,7 +63,7 @@ async function enableThermostat(enabled){
   note(enabled?'enabled-automatic-thermostat':'selected-manual-control');await nav('workbench');
 }
 async function coldRoom(){
-  await page.locator('[data-action="cs-create"]').click();await expect(page.locator('.cold-storage-summary.cold-room')).toBeVisible();
+  await (await workspaceControl(page,'[data-action="cs-create"]')).click();await expect(page.locator('.cold-storage-summary.cold-room')).toBeVisible();
   let owner=current(await save());expect(owner.pages.flatMap(pg=>pg.nodes).map(n=>n.moduleId).sort()).toEqual(['condensing_unit','storage_room','unit_cooler']);
   expect(owner.pages.flatMap(pg=>pg.edges)).toHaveLength(2);const id=owner.id;
   if(await page.locator('[data-wf-scenario]').count())await page.locator('[data-wf-scenario]').selectOption('');
@@ -108,7 +109,7 @@ async function sixRoomState(record,label){
 async function sixRoom(){
   const sourceFile='examples/large-cold-store/six-room-controlled.project.json',source=JSON.parse(readFileSync(sourceFile,'utf8'));
   expect(source.instances).toHaveLength(51);evidence.reference={file:sourceFile,sha256:hash(readFileSync(sourceFile)),id:source.id};
-  await page.getByRole('button',{name:'六库自动温控',exact:true}).click();await expect(page.locator('[data-room-status]')).toHaveCount(6);
+  await createProjectExample(page,'cs-create-multi');await expect(page.locator('[data-room-status]')).toHaveCount(6);
   let owner=current(await save());expect(owner.pages.flatMap(pg=>pg.nodes)).toHaveLength(51);expect(owner.pages.flatMap(pg=>pg.edges)).toHaveLength(72);
   expect(owner.pages).toHaveLength(4);expect(owner.controllers).toHaveLength(19);const originalTargets=Object.fromEntries(owner.controllers.map(c=>[c.id,c.setpoint]));
   for(const pageId of ['plant','frozen-a','frozen-b','chilled']){

@@ -1,3 +1,4 @@
+import {workspaceControl} from './browser-workspace-controls.mjs';
 import {chromium,expect} from '@playwright/test';
 import {execFileSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
@@ -109,7 +110,7 @@ async function liveRound(count,connections){
   const library=page.locator('.canvas-tools [data-action="toggle-library"]');
   if(await library.getAttribute('aria-expanded')!=='true')await library.click();
   if(await page.locator('.runbar [data-action="toggle-chart"]').getAttribute('aria-expanded')!=='true')await page.locator('.runbar [data-action="toggle-chart"]').click();
-  await page.locator('[data-canvas-mode]').selectOption('flow');await page.locator('[data-canvas-labels]').check();await page.locator('[data-canvas-animation]').check();
+  await (await workspaceControl(page,'[data-canvas-mode]')).selectOption('flow');await (await workspaceControl(page,'[data-canvas-labels]')).check();await (await workspaceControl(page,'[data-canvas-animation]')).check();
   await page.locator('[data-action="fit"]').click();await frame();
   const network=await page.locator('#network').elementHandle(),part=await node('Part9').elementHandle(),edge=await page.locator('#network [data-edge]').first().elementHandle();
   const posted=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/v1/runs'&&r.request().method()==='POST');
@@ -120,7 +121,7 @@ async function liveRound(count,connections){
   await expect(page.locator('#workbench-flow-chart')).toBeVisible();
   expect(await network.evaluate(el=>el.isConnected)).toBe(true);expect(await part.evaluate(el=>el.isConnected)).toBe(true);expect(await edge.evaluate(el=>el.isConnected)).toBe(true);
   const chart=await page.locator('#workbench-flow-chart').elementHandle(),line=await page.locator('#workbench-flow-chart .chart-line').first().elementHandle();
-  const body=await bodyPoint('Part0');await page.mouse.click(body.x,body.y);await page.locator('#canvas-device-tools [data-action="open-device"]').click();
+  const body=await bodyPoint('Part0');await page.mouse.click(body.x,body.y);await (await workspaceControl(page,'#canvas-device-tools [data-action="open-device"]')).click();
   const panel=page.locator('[data-float-id="Part0"]'),field=panel.locator('input[type="number"][data-instance-param]:enabled').first();
   const before=Number(await field.inputValue()),draft=String(before+.25);await field.fill(draft);
   const input=await field.elementHandle(),float=await panel.elementHandle();

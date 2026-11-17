@@ -1,3 +1,4 @@
+import {workspaceControl} from './browser-workspace-controls.mjs';
 import {chromium, expect} from '@playwright/test';
 import {mkdirSync, mkdtempSync, readFileSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
@@ -80,7 +81,7 @@ const run = async () => {
 };
 const upgrade = async (id, version) => {
   await navigate('workbench');
-  await page.locator('[data-action="wf-upgrades"]').click();
+  await (await workspaceControl(page,'[data-action="wf-upgrades"]')).click();
   await page.locator(`[data-action="wf-module-versions"][data-module="${id}"]`).click();
   await page.locator(`[data-action="wf-preview-upgrade"][data-version="${version}"]`).click();
   await expect(page.getByRole('dialog')).toContainText('兼容检查通过');
@@ -189,7 +190,7 @@ try {
   expect(changed.request.project.controllers).toEqual(original.request.project.controllers);
   await upgrade(v1.id, 1);
   expect((await run()).frame.variables[flowKey]).toBeCloseTo(flow, 7);
-  await page.locator('[data-action="create-composite"]').click();
+  await (await workspaceControl(page,'[data-action="create-composite"]')).click();
   await page.locator('[name="id"]').fill('pf1_assembly');
   await page.locator('[name="name"]').fill('作者阻力组合');
   await page.locator(`[name="node_${resistor.id}"]`).check();

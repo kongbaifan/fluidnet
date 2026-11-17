@@ -12,7 +12,7 @@ const released=(changes={})=>({id:'test_valve',name:'试验阀',category:'阀门
   parameters:[{id:'opening',label:'开度',value_type:'number',default:.5,minimum:0,maximum:1,writable:true,runtime:true,unit:{display_unit:'%',display_scale:.01,display_offset:0}},
     {id:'temperature',label:'温度',value_type:'number',default:293.15,minimum:273.15,unit:{display_unit:'°C',display_scale:1,display_offset:-273.15}},
     {id:'source_note',label:'来源',value_type:'text',default:'教学数据'}],variables:[],bank_names:['额定','部分负荷','备用'],...changes});
-function fixture({definition=released(),handler=()=>{throw Error('Unexpected request');},persist=true}={}){
+function fixture({definition=released(),handler=()=>{throw Error('Unexpected request');},persist=true,catalog}={}){
   const host=vm.createContext({window:{}});
   for(const name of ['project-model','canvas-symbols','module-service'])loadFrontend(new URL('../frontend/'+name+'.js',import.meta.url),host);
   const model=host.window.FluidNetProjectModel,moduleFromManifest=value=>model.moduleFromManifest(value),m=moduleFromManifest(plain(definition));
@@ -20,7 +20,7 @@ function fixture({definition=released(),handler=()=>{throw Error('Unexpected req
   const modules=[m],fields={},calls=[],outputs=[],messages=[],dirties=[],bench={moduleId:'other'},owner={id:'project',pages:[{nodes:[{id:'Device',moduleId:m.id}]}]};
   const normalized={id:'host',name:'真实宿主',instances:[{id:'Selected',module_id:m.id}],modules:[plain(definition)],fluid:{fluid:'Ammonia'}};
   let renders=0,saves=0;
-  const service=host.window.createModuleService({model,moduleFromManifest,modules:()=>modules,getBench:()=>bench,parameterDefinitions:fields,
+  const service=host.window.createModuleService({model,moduleFromManifest,modules:()=>modules,getBench:()=>bench,parameterDefinitions:fields,catalog,
     request:async(path,body)=>{calls.push({path,body:body&&plain(body)});return handler(path,body);},
     normalizeProject:async p=>{assert.equal(p,owner);return normalized;},
     testFlow:()=>null,copyPanel:(a,b)=>{if(a.panelLayout)b.panelLayout=plain(a.panelLayout);},
@@ -30,6 +30,17 @@ function fixture({definition=released(),handler=()=>{throw Error('Unexpected req
 }
 const release=(module,version=2)=>{const definition={...plain(module),version,content_hash:'c'.repeat(64),definition_hash:'d'.repeat(64)};
   return {module:definition,package:{version:version+'.0.0',content_hash:definition.content_hash,definition_hash:definition.definition_hash},test_result:{frame:{variables:{}}}};};
+
+test('insertion blocks unregistered builtin references before mutating the target project',()=>{
+  const catalog={modules:[{id:'valve'}]},f=fixture({catalog:()=>catalog});
+  const reference={id:'check',kind:'check',name:'止回阀',drawing:{},version:1};f.modules.push(reference);
+  f.owner.pages=[{id:'main',nodes:[]}];const before=plain(f.owner);
+  assert.throws(()=>f.service.insertionPlan(f.owner,'check','main'),/旧参考对象/);
+  f.owner.moduleSnapshots={check:{...reference,frozen:true}};
+  assert.throws(()=>f.service.insertionPlan(f.owner,'check','main'),/旧参考对象/);
+  assert.deepEqual(plain(f.owner.pages),before.pages);
+  catalog.modules.push({id:'check'});assert.equal(f.service.insertionPlan(f.owner,'check','main').module.id,'check');
+});
 
 test('frozen definitions preserve executable hashes and strip only receipt metadata',()=>{
   const f=fixture(),m=f.m;m.frozen=true;m.manifest.package={path:'receipt'};m.manifest.validation_evidence=[{level:'L3'}];
@@ -55,7 +66,7 @@ test('builtin presentation snapshots keep their own display parameter definition
 });
 
 test('insertion planning reports the actual pinned release and never mutates the project or draft',()=>{
-  const f=fixture();f.owner.pages[0].id='main';
+  const f=fixture({catalog:()=>({modules:[]})});f.owner.pages[0].id='main';
   const before=plain(f.owner),draft=plain(f.m),plan=f.service.insertionPlan(f.owner,f.m.id,'main');
   assert.equal(plan.module.version,1);assert.equal(plan.usesPinnedVersion,false);
   assert.deepEqual(plain(f.owner),before);assert.deepEqual(plain(f.m),draft);
@@ -65,6 +76,9 @@ test('insertion planning reports the actual pinned release and never mutates the
   assert.equal(pinned.module.manifest.source.runtime,'class Module: pass');
   delete f.m.publishedManifest;
   assert.equal(f.service.insertionPlan(f.owner,f.m.id,'main').module,pinned.module);
+  const newOwner={id:'new-project',pages:[{id:'main',nodes:[]}]},beforeNew=plain(newOwner);
+  assert.throws(()=>f.service.insertionPlan(newOwner,f.m.id,'main'),/先校验并保存/);
+  assert.deepEqual(newOwner,beforeNew);
   f.modules.length=0;
   assert.equal(f.service.insertionPlan(f.owner,f.m.id,'main').module,pinned.module);
 });

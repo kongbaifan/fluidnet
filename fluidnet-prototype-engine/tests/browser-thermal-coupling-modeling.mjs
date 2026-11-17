@@ -1,3 +1,4 @@
+import {workspaceControl} from './browser-workspace-controls.mjs';
 import {FHD_CONTEXT, FHD_VIEWPORT, captureFhd} from './browser-viewport.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
@@ -46,7 +47,7 @@ const closeDialog = async () => {
   if (await editor().count()) await editor().locator('[data-action="close-dialog"]').first().click();
 };
 const openEditor = async () => {
-  await page.locator('[data-action="cs-coupling"]').first().click();
+  await (await workspaceControl(page,'[data-action="cs-coupling"]')).click();
   await expect(editor()).toContainText('热耦合关系');
 };
 
@@ -146,7 +147,7 @@ try {
   await start();
   await expect(async () => {
     if (await page.locator('.thermal-coupling').isVisible().catch(() => false)) return;
-    await page.locator('[data-action="cs-create-coupled"]').click();
+    await (await workspaceControl(page,'[data-action="cs-create-coupled"]')).click();
     await expect(page.locator('.thermal-coupling')).toBeVisible({timeout: 4000});
   }).toPass({timeout: 30000});
   const original = await save();
@@ -284,7 +285,7 @@ try {
       await runButton('pause').click();
       await expect.poll(async () => (await api('/runs/' + live.id)).status, {timeout: 30000}).toBe('paused');
     }
-    await page.locator('[data-action="cs-coupling"]').first().click();
+    await (await workspaceControl(page,'[data-action="cs-coupling"]')).click();
     await expect(page.locator('#toast')).toContainText('停止');
     await expect(editor()).toHaveCount(0);
     await deleteNode(spare);

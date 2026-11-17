@@ -1,3 +1,4 @@
+import {workspaceControl} from './browser-workspace-controls.mjs';
 import {chromium,expect} from '@playwright/test';
 import {readFileSync,mkdtempSync,mkdirSync,writeFileSync,copyFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
@@ -102,7 +103,10 @@ try{
  }
  await page.locator('[data-action="fit"]').click();
  for(const edge of recipe.connections){
-  for(const endpoint of [edge.source,edge.target])await page.locator(`[data-port-node="${ids[endpoint.instance_id]}"][data-port-id="${endpoint.port_id}"]`).click();
+  for(const endpoint of [edge.source,edge.target]){
+   await page.locator(`[data-port-node="${ids[endpoint.instance_id]}"][data-port-id="${endpoint.port_id}"]`).click();
+   if(endpoint===edge.source)await expect(page.locator('#canvas-inspection')).toBeHidden();
+  }
  }
  expect((await save()).pages[0].edges).toHaveLength(recipe.connections.length);
  await nav('settings');await page.locator('[data-action="settings-tab"][data-value="medium"]').click();
@@ -142,11 +146,11 @@ try{
   await expect(page.locator('#toast')).not.toContainText('尚未识别此操作');
  }
  if(recipe.coupling_mode==='storage_v1'){
-  await nav('workbench');await page.locator('[data-action="cs-coupling-mode"]').click();
+  await nav('workbench');await (await workspaceControl(page,'[data-action="cs-coupling-mode"]')).click();
   await page.getByRole('dialog').locator('[name="mode"]').selectOption('storage_v1');await submit();
  }
  for(const [index,link] of (recipe.thermal_couplings||[]).entries()){
-  await nav('workbench');await page.locator('[data-action="cs-coupling"]').click();
+  await nav('workbench');await (await workspaceControl(page,'[data-action="cs-coupling"]')).click();
   if(index)await page.getByRole('dialog').locator('[data-action="cs-add-coupling"]').click();
   const dialog=page.getByRole('dialog');
   await dialog.locator('[name="id"]').fill(link.id);

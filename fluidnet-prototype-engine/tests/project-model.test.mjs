@@ -7,6 +7,36 @@ loadFrontend(new URL('../frontend/project-model.js',import.meta.url),context);
 const model=context.window.FluidNetProjectModel;
 const plain=value=>JSON.parse(JSON.stringify(value));
 
+test('module availability follows registered model IDs and never guesses from display names',()=>{
+  const catalog={modules:[{id:'valve'}]},reference={id:'check',kind:'check',name:'止回阀'},before=plain(reference);
+  assert.equal(model.moduleAvailability({id:'alias',kind:'valve',name:'任意名称'},catalog).available,true);
+  assert.equal(model.moduleAvailability({...reference,name:'调节阀'},catalog).available,false);
+  assert.match(model.moduleAvailability(reference,catalog).reason,/旧参考对象/);
+  catalog.modules.push({id:'check'});assert.equal(model.moduleAvailability(reference,catalog).available,true);
+  assert.deepEqual(reference,before);
+});
+test('availability requires a connected catalog for builtin insertion and a saved or frozen Python definition',()=>{
+  assert.equal(model.moduleAvailability({id:'valve'}).pending,true);
+  assert.equal(model.moduleAvailability(null,{modules:[]}).available,false);
+  const draft={id:'custom',runtime:'python',manifest:{}};
+  assert.equal(model.moduleAvailability(draft,{modules:[]}).available,false);
+  assert.equal(model.moduleAvailability({...draft,publishedManifest:{version:2}},{modules:[]}).available,true);
+  assert.equal(model.moduleAvailability({...draft,frozen:true},{modules:[]}).available,true);
+});
+
+test('insertion availability uses only the target project snapshot or a published library release',()=>{
+  const draft={id:'custom',runtime:'python',version:2,source:{runtime:'unpublished'}},
+    snapshot={...draft,version:1,frozen:true,source:{runtime:'accepted'}},
+    owner={moduleSnapshots:{custom:snapshot}},catalog={modules:[]},before=plain({draft,owner});
+  assert.equal(model.moduleAvailability(draft,catalog).available,false);
+  const status=model.moduleInsertionAvailability(draft,catalog,owner);
+  assert.equal(status.available,true);assert.equal(status.pinnedVersion,1);
+  assert.equal(model.moduleInsertionAvailability(draft,catalog,{}).available,false);
+  assert.equal(model.moduleInsertionAvailability({...draft,frozen:true},catalog,{}).available,false);
+  assert.equal(model.moduleInsertionAvailability({...draft,publishedManifest:{version:3}},catalog,{}).available,true);
+  assert.deepEqual({draft,owner},before);
+});
+
 test('duplicate workspace restore ignores only top-level receipt metadata, never substantive drafts',()=>{
   const original={schema:1,dirty:false,projects:[{id:'p',dirty:false,run:{history:[{t:0,value:1}]},pages:[{nodes:[{id:'V1',params:{opening:40},draft:{opening:50}}]}]}],
     modules:[{id:'valve',manifest:{definition_hash:'original'},panelLayout:{parameters:['opening']}}],savedAt:'before',workspaceRevision:1};

@@ -1,4 +1,5 @@
 import {chromium,expect} from '@playwright/test';
+import {workspaceControl} from './browser-workspace-controls.mjs';
 import {readFileSync,mkdtempSync,mkdirSync,writeFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
@@ -73,7 +74,7 @@ try{
   let current=owner(await save()),snapshot=current.moduleSnapshots.design_valve;
   expect(snapshot.drawing).toEqual(draft.drawing);expect(snapshot.manifest.content_hash).toBe(release.content_hash);
   expect(snapshot.ports.map(p=>[p.id,p.x,p.y])).toEqual([['in0',10,25],['out0',90,75]]);
-  await page.locator('#network [data-node="V1"]').click();await page.locator('[data-action="rotate-device"][data-id="V1"]:not([data-direction])').click();await checkDrawing(90);
+  await page.locator('#network [data-node="V1"]').click();await (await workspaceControl(page,'[data-action="rotate-device"][data-id="V1"]:not([data-direction])')).click();await checkDrawing(90);
   current=owner(await save());expect(current.pages[0].edges).toHaveLength(3);
   await captureFhd(page,'artifacts/canvas-author-layout-1080p.png');
   // A later library presentation edit must not alter the existing project's frozen drawing.

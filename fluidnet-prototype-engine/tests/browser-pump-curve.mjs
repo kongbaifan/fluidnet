@@ -1,3 +1,4 @@
+import {workspaceControl} from './browser-workspace-controls.mjs';
 import {chromium,expect} from '@playwright/test';
 import {mkdirSync,writeFileSync} from 'node:fs';
 import {testServer} from './browser-server.mjs';
@@ -15,7 +16,7 @@ const owner=s=>s.projects.find(p=>p.id===s.activeProject),pump=s=>owner(s).pages
 async function save(){const r=page.waitForResponse(r=>r.url().endsWith('/workspace')&&r.request().method()==='POST');await page.locator('[data-action="save"]').first().click();expect((await r).ok()).toBe(true);return state();}
 async function api(path){const r=await page.request.get(server.base+'/api/v1'+path);expect(r.ok(),await r.text()).toBe(true);return r.json();}
 async function panel(){
-  await nav('workbench');await page.locator('[data-action="project-find"]').click();
+  await nav('workbench');await (await workspaceControl(page,'[data-action="project-find"]')).click();
   await page.getByLabel('全项目查找关键词').fill('P1');
   await page.locator('[data-action="project-find-node"][data-id="P1"]').click();
   const p=page.getByRole('region',{name:'P1 设备参数',exact:true});await expect(p).toBeVisible();

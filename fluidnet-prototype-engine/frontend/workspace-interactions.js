@@ -37,7 +37,10 @@ export const FluidNetWorkspaceInteractions = (() => {
       }
       if(getView().route!=='workbench')return;
       const svg=canvas.svg(),port=target.closest('[data-port-node]'),node=target.closest('[data-node]');
-      if(!target.closest('#network'))return;
+      if(!target.closest('#network-area'))return;
+      if(target.closest('#canvas-inspection'))return;
+      if(target.closest('[data-action]'))return;
+      if(getView().placing)return;
       const owner=canvas.owner(),page=canvas.page();
       if(event.shiftKey&&!port&&!target.closest('[data-quick-node]')){
         if(node){const ids=new Set(selection.ids());ids.has(node.dataset.node)?ids.delete(node.dataset.node):ids.add(node.dataset.node);selection.group([...ids]);ignoreClickUntil=now()+350;event.preventDefault();return;}
@@ -92,16 +95,16 @@ export const FluidNetWorkspaceInteractions = (() => {
     }
     function click(event) {
       const target=event.target,action=target.closest('[data-action]');
-      if(now()<ignoreClickUntil&&!action)return;
       if(action&&!action.disabled){shell.clearContext();shell.action(action.dataset.action,action);return;}
       if(getView().modal)return;
       const port=target.closest('[data-port-node]'),quick=target.closest('[data-quick-node]'),node=target.closest('[data-node]'),edge=target.closest('[data-edge]'),draw=target.closest('[data-draw-id]');
-      if(port)canvas.connect(port.dataset.portNode,port.dataset.portId);
+      if(target.closest('#network-area')&&getView().placing)canvas.insert(getView().placing,point(canvas.svg(),event));
+      else if(now()<ignoreClickUntil)return;
+      else if(port)canvas.connect(port.dataset.portNode,port.dataset.portId);
       else if(quick)windows.open(quick.dataset.quickNode);
       else if(node)selection.single(node.dataset.node);
       else if(edge)selection.edge(edge.dataset.edge);
       else if(draw){editor.select(draw.dataset.drawId);shell.render();}
-      else if(target.closest('#network')&&getView().placing)canvas.insert(getView().placing,point(canvas.svg(),event));
       else if(target.closest('[data-chart-hit]'))charts.pin(event);
       else shell.dismissContext();
     }

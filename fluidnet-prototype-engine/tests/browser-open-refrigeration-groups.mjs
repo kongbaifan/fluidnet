@@ -1,3 +1,4 @@
+import {workspaceControl} from './browser-workspace-controls.mjs';
 import {chromium,expect} from '@playwright/test';
 import {mkdtempSync,readFileSync,writeFileSync,mkdirSync} from 'node:fs';
 import {join} from 'node:path';import {tmpdir} from 'node:os';
@@ -21,7 +22,7 @@ try{
  await page.locator('[name="library-rooms"]').fill('2');await page.locator('[name="library-compressors"]').fill('2');await submit();await expect(page.locator('.net-node[data-node="Ref-Compressor-1"]')).toBeVisible();
  const source=await save();
  for(const group of groups){
-  await nav('workbench');await page.locator('[data-action="create-composite"]').click();await page.locator('[name="id"]').fill(group.id);await page.locator('[name="name"]').fill(group.name);
+  await nav('workbench');await (await workspaceControl(page,'[data-action="create-composite"]')).click();await page.locator('[name="id"]').fill(group.id);await page.locator('[name="name"]').fill(group.name);
   for(const cb of await page.getByRole('dialog').locator('input[type="checkbox"]').all())await cb.uncheck();for(const child of group.children)await page.locator(`[name="node_${child}"]`).check();await submit();
   await expect(page.locator('[data-module-contract]')).toBeVisible();const manifest=JSON.parse(await page.locator('[data-module-contract]').inputValue());expect(manifest.sdk.capabilities).toContain('composite.refrigeration.open.v1');expect(manifest.ports.length).toBeGreaterThan(0);
   await page.locator('[data-action="configure-module-tests"]').click();await expect(page.getByRole('dialog')).toContainText('宿主工况');await expect(page.getByRole('dialog').locator('[data-suite-case]')).toHaveCount(1);await expect(page.getByRole('dialog').locator('[data-condition="inlet_pressure_pa"]')).toHaveCount(0);await submit();

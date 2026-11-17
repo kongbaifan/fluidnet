@@ -7,12 +7,31 @@ export const createProjectServices = function ({request, ui, normalize, health, 
   let saves = Promise.resolve();
   let archiveRead = null;
   let projectRevisions={...(ui.state().projectRevisions||{})};
+  let workspaceOwner=ui.state(),workspaceGeneration=0,workspaceLoad=null;
   const clone=value=>JSON.parse(JSON.stringify(value));
   const controls = FluidNetControls;
+  function captureWorkspace(){
+    const workspace=ui.state();
+    if(workspace!==workspaceOwner){
+      workspaceOwner=workspace;workspaceGeneration++;archiveRead=null;
+      revision=Number(workspace.workspaceRevision||0);projectRevisions={...(workspace.projectRevisions||{})};
+    }
+    return {workspace,generation:workspaceGeneration};
+  }
+  const current=ticket=>ui.state()===ticket.workspace&&workspaceGeneration===ticket.generation;
+  function assertCurrent(ticket){
+    if(!current(ticket)||ticket.owner&&!ticket.workspace.projects.includes(ticket.owner))
+      throw Object.assign(Error('工作区或项目已被替换，本次响应不再应用。'),{name:'AbortError'});
+  }
+  function adoptWorkspace(){workspaceOwner=ui.state();workspaceGeneration++;archiveRead=null;}
   function prepare(owner) { controls.normalize(owner); }
   async function loadWorkspace(force=false) {
     if (!health()?.capabilities?.persistent_workspace) return;
-    const remote = await request('/workspace');
+    const ticket=captureWorkspace();workspaceLoad=ticket;
+    let remote;
+    try{remote=await request('/workspace');}
+    catch(error){if(workspaceLoad!==ticket||!current(ticket))return false;throw error;}
+    if(workspaceLoad!==ticket||!current(ticket))return false;
     if (remote.data && (force || !ui.state().dirty)) {
       try { ui.restoreWorkspace(remote.data); }
       catch (error) {
@@ -22,6 +41,7 @@ export const createProjectServices = function ({request, ui, normalize, health, 
         ready=true;
         return error.message+' 已保留当前草稿并连接服务；可导出备份或重试保存，服务器修订冲突仍会检查。';
       }
+      adoptWorkspace();
       revision=remote.revision;
       projectRevisions={...(remote.project_revisions||{})};ui.state().projectRevisions=projectRevisions;
       ui.state().projectSavedKeys=Object.fromEntries(ui.state().projects.map(p=>[p.id,ui.parameterKey(p)]));
@@ -36,8 +56,11 @@ export const createProjectServices = function ({request, ui, normalize, health, 
   }
   function saveWorkspace(data) {
     if (!health()?.capabilities?.persistent_workspace || !ready) return Promise.reject(Error('工作区尚未连接，当前草稿仅保存在浏览器；请重试或导出备份。'));
+    const ticket=captureWorkspace();
     const job = saves.catch(()=>{}).then(async()=>{
+      assertCurrent(ticket);
       const result=await request('/workspace',{data,expected_revision:revision});
+      assertCurrent(ticket);
       revision=result.revision;
       projectRevisions={...(result.project_revisions||{})};ui.state().projectRevisions=projectRevisions;
       ui.state().projectSavedKeys=Object.fromEntries(data.projects.map(p=>[p.id,ui.parameterKey(p)]));
@@ -58,9 +81,10 @@ export const createProjectServices = function ({request, ui, normalize, health, 
   }
   async function refreshArchives() {
     if (!health()) return;
+    const ticket=captureWorkspace();
     const observed=ui.state().projects.filter(p=>p.run.live).map(owner=>({owner,run:owner.run}));
-    try { const result=await request('/runs'); ui.archives(result.runs || [],observed); }
-    catch(error) { ui.message('运行档案读取失败：'+error.message,true); }
+    try { const result=await request('/runs');if(current(ticket))ui.archives(result.runs || [],observed); }
+    catch(error) { if(current(ticket))ui.message('运行档案读取失败：'+error.message,true); }
   }
   async function openArchive(id) {
     const workspace=ui.state(),ticket={id,workspace,projectId:workspace.activeProject};
@@ -100,10 +124,14 @@ export const createProjectServices = function ({request, ui, normalize, health, 
     return blob;
   }
   async function restoreRevision(number) {
+    const ticket=captureWorkspace();
     const remote=await request('/workspace?revision='+number);
+    assertCurrent(ticket);
     ui.validateWorkspace(remote.data);
     const receipt=await saveWorkspace(remote.data);
+    assertCurrent(ticket);
     ui.restoreWorkspace(remote.data);
+    adoptWorkspace();
     ui.state().workspaceRevision=receipt.revision;ui.state().savedAt=receipt.saved_at;
     ui.state().projectRevisions={...projectRevisions};
     ui.persist();ui.render();
@@ -113,7 +141,8 @@ export const createProjectServices = function ({request, ui, normalize, health, 
     prepare(owner);pinProject(owner);
     return FluidNetProjectModel.projectDocument(owner,ui.state());
   }
-  function projectReceipt(id,receipt) {
+  function projectReceipt(id,receipt,ticket) {
+    assertCurrent(ticket);
     projectRevisions[id]=receipt.revision;ui.state().projectRevisions={...projectRevisions};
     // A project save merges into the server's latest workspace. Do not authorize a
     // later whole-workspace overwrite if this page never saw concurrent changes.
@@ -121,23 +150,27 @@ export const createProjectServices = function ({request, ui, normalize, health, 
   }
   async function saveProject(owner,document=projectDocument(owner)) {
     if(!ready)throw Error('工作区尚未连接');
-    if(revision===0)await saveWorkspace(clone(ui.state()));
+    const ticket={...captureWorkspace(),owner};assertCurrent(ticket);
     const base=ui.parameterKey(owner),data=clone(document);data.project.dirty=false;
+    if(revision===0)await saveWorkspace(clone(ui.state()));
+    assertCurrent(ticket);
     const receipt=await request('/projects/'+encodeURIComponent(owner.id),{document:data,expected_revision:projectRevisions[owner.id]||0});
-    projectReceipt(owner.id,receipt);
+    projectReceipt(owner.id,receipt,ticket);
     if(base===ui.parameterKey(owner)){
       owner.dirty=false;ui.state().projectSavedKeys||={};ui.state().projectSavedKeys[owner.id]=base;
     }
     ui.persist();return receipt;
   }
   async function restoreProject(id,number) {
+    const ticket={...captureWorkspace(),owner:ui.state().projects.find(p=>p.id===id)};
     const receipt=await request('/projects/'+encodeURIComponent(id)+'/restore',{revision:number,expected_revision:projectRevisions[id]||0});
-    projectReceipt(id,receipt);return receipt;
+    projectReceipt(id,receipt,ticket);return receipt;
   }
   async function deleteProject(id) {
+    const ticket={...captureWorkspace(),owner:ui.state().projects.find(p=>p.id===id)};
     if(!projectRevisions[id])return;
     const receipt=await request('/projects/'+encodeURIComponent(id)+'/delete',{expected_revision:projectRevisions[id]});
-    projectReceipt(id,receipt);return receipt;
+    projectReceipt(id,receipt,ticket);return receipt;
   }
   async function previewUpgrade(owner,id,version,migration=null) {
     return request('/project-upgrades/preview',{project:await normalize(owner),module_id:id,target_version:version,migration});
@@ -168,10 +201,10 @@ export const createProjectServices = function ({request, ui, normalize, health, 
     exportBatch:async id=>{const response=await fetch('/api/v1/batches/'+encodeURIComponent(id)+'/export',{headers:authHeaders()});
       if(!response.ok){const result=await response.json();throw Error(result.detail?.message||result.detail||'导出失败');}return response.blob();},
     projectHistory:id=>request('/projects/'+encodeURIComponent(id)+'/revisions'),
-    listProjects:()=>request('/projects'),readProject:async id=>{const result=await request('/projects/'+encodeURIComponent(id));projectRevisions[id]=result.revision;ui.state().projectRevisions={...projectRevisions};return result;},
+    listProjects:()=>request('/projects'),readProject:async id=>{const ticket=captureWorkspace(),result=await request('/projects/'+encodeURIComponent(id));assertCurrent(ticket);projectRevisions[id]=result.revision;ui.state().projectRevisions={...projectRevisions};return result;},
     validateCandidate:async owner=>request('/projects/validate',await normalize(owner)),
     moduleReleases:id=>request('/modules/'+encodeURIComponent(id)+'/versions'),
-    runMetadata:owner=>({scenario_id:owner.activeScenarioId||null,project_revision:ui.state().projectSavedKeys?.[owner.id]===ui.parameterKey(owner)?projectRevisions[owner.id]||null:null}),
+    runMetadata:owner=>{captureWorkspace();return {scenario_id:owner.activeScenarioId||null,project_revision:ui.state().projectSavedKeys?.[owner.id]===ui.parameterKey(owner)?projectRevisions[owner.id]||null:null};},
     comparison:async(left,right)=>Promise.all([left,right].map(async id=>({record:await request('/runs/'+id),overview:await request('/runs/'+id+'/overview')}))),
     workspaceInfo:()=>Promise.all([request('/workspace/storage'),request('/workspace/revisions')]),
     downloadBackup,
