@@ -1,3 +1,4 @@
+import {workspaceControl} from './browser-workspace-controls.mjs';
 import {FHD_CONTEXT, FHD_VIEWPORT, captureFhd} from './browser-viewport.mjs';
 import {chromium, expect} from '@playwright/test';
 import {mkdirSync, mkdtempSync} from 'node:fs';
@@ -15,7 +16,7 @@ async function start(){
   page=await context.newPage();page.on('pageerror',error=>errors.push(error.message));
   page.on('response',response=>{responses.push([new URL(response.url()).pathname,response.status()]);if(responses.length>30)responses.shift();});
   await page.goto(base+'/#projects');
-  await expect(page.locator('[data-action="cs-create-dual"]')).toBeVisible();
+  await expect(page.locator('[data-action="project-examples"]')).toBeVisible();
   await save(); // Wait for catalog/workspace initialization before creating the coupled example.
 }
 const dialog=()=>page.getByRole('dialog');
@@ -67,14 +68,14 @@ async function run(){
   return {id,record,body:response.request().postDataJSON()};
 }
 async function openRelation(id){
-  await page.locator('[data-action="cs-coupling"]').click();
+  await (await workspaceControl(page,'[data-action="cs-coupling"]')).click();
   const edit=dialog().locator(`[data-action="cs-edit-coupling"][data-coupling="${id}"]`);
   if(await edit.count())await edit.click();
   await expect(dialog().getByLabel('关系标识',{exact:true})).toHaveValue(id);
 }
 async function createExample(topology){
   await page.locator('.rail-link[data-route="projects"]').click();
-  await page.locator('[data-action="cs-create-dual"]').click();
+  await (await workspaceControl(page,'[data-action="cs-create-dual"]')).click();
   await dialog().getByLabel('双盘管拓扑').selectOption(topology);
   await dialog().locator('button[type="submit"]').click();
   await expect(page.locator('[data-coupling-id]')).toHaveCount(2,{timeout:30000});
@@ -136,7 +137,7 @@ try{
   await dialog().locator('button[type="submit"]').click();
   const restored=await save();
   expect(restored.thermalCouplings).toEqual(changedDraft.thermalCouplings);
-  await page.locator('[data-action="cs-coupling"]').click();
+  await (await workspaceControl(page,'[data-action="cs-coupling"]')).click();
   await expect(dialog().getByRole('button',{name:'新增关系',exact:true})).toBeDisabled();
   await closeDialog();
 

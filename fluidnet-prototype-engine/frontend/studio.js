@@ -437,14 +437,34 @@ function renderHome(){
   return `<div class="page-shell home-workspace">${heading('工作区',`${state.projects.length} 个项目 · 当前项目：${esc(project().name)}`,actions,'FLUIDNET STUDIO')}
     <div class="home-main"><div class="stack gap-20">
       <section><div class="section-title"><h2>最近项目</h2>${btn('nav','全部项目','ChevronRight','data-route="projects"','ghost small')}</div><div class="project-grid">${state.projects.slice(0,3).map(projectCard).join('')}</div></section>
-      <section class="panel"><div class="panel-head"><h2>常用模块</h2>${btn('nav','模块库','ArrowUpRight','data-route="modules"','ghost small')}</div>${['valve','pump','exchanger','tank'].map(id=>{const m=mod(id);return `<div class="list-row"><span class="object-icon">${icon(m.icon)}</span><div class="grow"><strong>${m.name}</strong><small>${m.code} · ${m.ports.length} 个端口 · ${m.channels.length} 条内部通路</small></div>${badge('v'+m.version)}${btn('edit-module','编辑定义','Pencil',`data-id="${id}"`,'ghost small')}</div>`;}).join('')}</section>
+      <section class="panel home-equipment"><div class="panel-head"><div><h2>常用设备</h2><small class="muted">添加到当前项目 · ${esc(project().name)}</small></div>${btn('browse-equipment','查找设备','Search','','ghost small')}</div><div class="home-equipment-grid">${['valve','pump','pipe','exchanger','tank','source'].map(id=>state.modules.find(m=>m.id===id)).filter(Boolean).map(m=>`<button class="home-equipment-item" data-action="home-place-module" data-id="${esc(m.id)}"><span class="object-icon">${icon(m.icon)}</span><span class="grow"><strong>${esc(m.name)}</strong><small>${m.ports.length} 个端口 · ${esc(m.category)}</small></span>${icon('Plus')}</button>`).join('')}</div></section>
     </div><aside class="home-aside stack">
-      <section class="panel"><div class="panel-head"><h2>快捷入口</h2>${icon('Grid2X2')}</div><div class="quick-list">${[['new-module','新建算法模块','Box'],['nav','管理设备型号','Database','models'],['nav','查看运行记录','History','runs'],['nav','页面与使用指南','BookOpen','help']].map(([act,label,i,r])=>`<button data-action="${act}" ${r?`data-route="${r}"`:''}>${icon(i)}<span class="grow">${label}</span>${icon('ChevronRight')}</button>`).join('')}</div></section>
+      <section class="panel"><div class="panel-head"><h2>快捷入口</h2>${icon('Grid2X2')}</div><div class="quick-list">${[['project-examples','从示例创建项目','FolderOpen'],['browse-equipment','查找设备','Search'],['new-module','新建算法模块','Box'],['nav','查看运行记录','History','runs'],['nav','管理设备型号','Database','models']].map(([act,label,i,r])=>`<button data-action="${act}" ${r?`data-route="${r}"`:''}>${icon(i)}<span class="grow">${label}</span>${icon('ChevronRight')}</button>`).join('')}</div></section>
       ${entryPathsMarkup()}
       ${messages.length?`<section class="panel"><div class="panel-head"><h2>消息与任务</h2></div><div class="timeline">${messages.map(m=>`<div class="timeline-item"><span class="timeline-point">${icon('CheckCircle2')}</span><div>${esc(m.text)}<small>${m.time} · ${m.kind}</small></div></div>`).join('')}</div></section>`:''}
     </aside></div></div>`;
 }
-function renderProjects(){let list=state.projects.filter(p=>(p.name+p.description).toLowerCase().includes(ui.projectSearch.toLowerCase()));if(ui.projectFilter==='current')list=list.filter(p=>p.id===state.activeProject);return `<div class="page-shell">${heading('项目管理','',workflows.projectToolbar()+btn('cs-create-continuous','六库持续仿真','Activity')+btn('cs-create-multi','六库自动温控','Snowflake')+btn('cs-create','−18°C 冷库案例','Thermometer')+btn('cs-create-station','NH₃/CO₂ 冷库案例','Wind')+btn('cs-create-coupled','制冷站热耦合','ArrowRightLeft')+btn('cs-create-dual','双盘管示例','Network')+btn('import','导入工作区','Upload')+btn('new-project','新建项目','Plus','','primary'))}<div class="filterbar"><label class="search">${icon('Search')}<input aria-label="搜索项目" data-filter="projectSearch" placeholder="搜索项目名称" value="${esc(ui.projectSearch)}"></label><div class="segmented">${[['all','全部项目'],['current','当前项目']].map(([k,v])=>`<button data-action="project-filter" data-value="${k}" class="${ui.projectFilter===k?'active':''}">${v}</button>`).join('')}</div><span class="push"></span><span class="muted">${list.length} 个项目</span><div class="segmented">${['grid','list'].map(k=>`<button aria-label="${k==='grid'?'卡片视图':'列表视图'}" data-action="project-view" data-value="${k}" class="${ui.projectView===k?'active':''}">${icon(k==='grid'?'Grid2X2':'List')}</button>`).join('')}</div></div><div id="project-results" class="project-grid${ui.projectView==='list'?' project-list-view':''}">${list.map(projectCard).join('')||empty('没有匹配的项目','换个关键词，或新建一个项目。')}</div><div class="home-note"><span class="note-icon">${icon('Folder')}</span><div class="grow"><strong>工作区文件</strong></div>${btn('export','导出工作区','Download','data-format="prototype"','ghost')}</div></div>`;}
+function renderProjects(){let list=state.projects.filter(p=>(p.name+p.description).toLowerCase().includes(ui.projectSearch.toLowerCase()));if(ui.projectFilter==='current')list=list.filter(p=>p.id===state.activeProject);return `<div class="page-shell">${heading('项目管理','',workflows.projectToolbar()+btn('project-examples','示例项目','FolderOpen')+btn('import','导入工作区','Upload')+btn('new-project','新建项目','Plus','','primary'))}<div class="filterbar"><label class="search">${icon('Search')}<input aria-label="搜索项目" data-filter="projectSearch" placeholder="搜索项目名称" value="${esc(ui.projectSearch)}"></label><div class="segmented">${[['all','全部项目'],['current','当前项目']].map(([k,v])=>`<button data-action="project-filter" data-value="${k}" class="${ui.projectFilter===k?'active':''}">${v}</button>`).join('')}</div><span class="push"></span><span class="muted">${list.length} 个项目</span><div class="segmented">${['grid','list'].map(k=>`<button aria-label="${k==='grid'?'卡片视图':'列表视图'}" data-action="project-view" data-value="${k}" class="${ui.projectView===k?'active':''}">${icon(k==='grid'?'Grid2X2':'List')}</button>`).join('')}</div></div><div id="project-results" class="project-grid${ui.projectView==='list'?' project-list-view':''}">${list.map(projectCard).join('')||empty('没有匹配的项目','换个关键词，或新建一个项目。')}</div><div class="home-note"><span class="note-icon">${icon('Folder')}</span><div class="grow"><strong>工作区文件</strong></div>${btn('export','导出工作区','Download','data-format="prototype"','ghost')}</div></div>`;}
+function projectExamples(){
+  const groups=[
+    ['基础系统',[
+      ['new-project','泵阀并联管网','水力回路、泵与阀门调节。','Network','water'],
+      ['new-project','双侧换热机组','冷热侧连接与传热过程。','ArrowRightLeft','heat'],
+      ['new-project','水箱液位调节','储液、流量与液位变化。','Container','tank']]],
+    ['冷库与温控',[
+      ['cs-create','−18°C 冷库案例','单库房热平衡与制冷负荷。','Thermometer'],
+      ['cs-create-multi','六库自动温控','六个库房与独立温控。','Snowflake'],
+      ['cs-create-continuous','六库持续仿真','六库、温控和持续运行工况。','Activity']]],
+    ['制冷站与耦合',[
+      ['cs-create-station','NH₃/CO₂ 冷库案例','制冷站与库房设备组。','Wind'],
+      ['cs-create-coupled','制冷站热耦合','制冷回路与库房热侧连接。','ArrowRightLeft'],
+      ['cs-create-dual','双盘管示例','选择双盘管的组装与耦合方式。','Network']]]
+  ];
+  openDialog('示例项目','选择起始系统，再进入工作台查看设备、连接和运行结果。',`<div class="project-examples">${groups.map(([name,items])=>`<section><h3>${name}</h3><div class="example-grid">${items.map(([action,label,description,glyph,template])=>`<button type="button" class="example-card" data-action="${action}" data-example-choice ${template?`data-template="${template}" data-name="${esc(label)}"`:''}><span class="object-icon">${icon(glyph)}</span><strong>${label}</strong><small>${description}</small><span class="example-open">${template?'设置并创建':'创建示例'} ${icon('ArrowUpRight')}</span></button>`).join('')}</div></section>`).join('')}</div>`,null,'确定',true);
+}
+function workspaceMenu(id,label,glyph,body){
+  return `<details class="workspace-menu" name="workbench-tools" data-workspace-menu="${id}"><summary>${icon(glyph)}<span>${esc(label)}</span>${icon('ChevronDown')}</summary><div class="workspace-menu-panel">${body}</div></details>`;
+}
 let engineeringCanvas;
 function canvasView(){return engineeringCanvas ||= FluidNetCanvasWorkspace.create({getState:()=>state,project,activePage,moduleOf,ui,esc,btn,links,domains:DOMAINS,quick:quickCanvasMarkup,channels:internalChannelsMarkup,projectKey:projectParameterKey,selectedIds:groupSelected,engine:()=>engine,openDialog,closeDialog,render,saveUI,
   locate:id=>{const found=links.locate(project(),id);if(!found)throw Error('设备已不存在');project().activePage=found.page.id;ui.selectedNode=id;fitNetwork(found.page);render();openDevice(id);}});}
@@ -464,22 +484,30 @@ const CIRCUIT_COLORS=['var(--orange)','#2f80ed','#27ae60','#9b51e0','#eb5757','#
 function networkMarkup(pg,mini=false){return canvasView().markup(pg,mini);}
 function fluidBadge(p){const circuits=engine.circuits?.(p.id)||[];if(new Set(circuits.map(c=>c.fluid.fluid)).size>1)return `多工质 · ${circuits.length} 个回路`;const declared=new Set((p.circuitFluids||[]).map(c=>c.fluid||c.medium).filter(Boolean));if(!circuits.length&&declared.size>1)return `多工质 · ${[...declared].join(' / ')}`;return p.fluid||(MEDIA.find(m=>m[0]===p.medium)||MEDIA[0])[1];}
 function workbenchControlsMarkup(p){return `<div class="runbar" role="toolbar" aria-label="主系统运行控制"><button data-action="run-project" data-command="run" class="go" ${['running','solving'].includes(p.run.status)?'disabled':''}>${icon('Play')}<span>${p.run.status==='paused'?'继续':'运行'}</span></button><button data-action="run-project" data-command="pause" ${p.run.status==='running'?'':'disabled'}>${icon('Pause')}暂停</button><button data-action="run-project" data-command="step" ${['running','solving'].includes(p.run.status)?'disabled':''}>${icon('StepForward')}单步</button><button data-action="run-project" data-command="stop" ${['ready','stopped'].includes(p.run.status)?'disabled':''}>${icon('Square')}停止</button><span class="spacer"></span><button data-action="toggle-chart" aria-label="${ui.showChart?'收起同屏曲线':'展开同屏曲线'}" aria-expanded="${ui.showChart}" class="${ui.showChart?'active':''}">${icon('Activity')}曲线</button>${btn('workbench-settings','运行设置','Settings2','','run-settings')}</div>`;}
-function renderWorkbench(){const p=project(),pg=activePage(),selected=instance(ui.selectedNode);return `<div class="workbench${ui.showLibrary?' show-library':''}${ui.showChart?' with-chart':''}"><aside class="canvas-library" id="canvas-library"><div class="library-heading"><strong>设备库</strong><small class="muted">${state.modules.length} 类</small>${ibtn('toggle-library','收起设备库','PanelLeftClose')}</div><label class="search">${icon('Search')}<input placeholder="搜索设备名称" aria-label="画布模块搜索" data-filter="canvasModuleSearch"></label><div class="library-scroll" id="canvas-library-list">${libraryMarkup()}</div><div class="selected-properties" id="selected-properties">${propertiesMarkup(selected)}</div></aside><div class="canvas-column"><section class="workbench-flow" aria-label="工作台运行控制">${workbenchControlsMarkup(p)}<div id="workbench-guide">${workbenchGuidanceMarkup()}</div></section><div class="canvas-bar"><div class="canvas-pages">${pgTabs()}${ibtn('new-canvas','新增画布','Plus')}</div><div class="canvas-tools" role="toolbar" aria-label="组网工具">
+function renderWorkbench(){const p=project(),pg=activePage(),selected=instance(ui.selectedNode);return `<div class="workbench${ui.showLibrary?' show-library':''}${ui.showChart?' with-chart':''}"><aside class="canvas-library" id="canvas-library"><div class="library-heading"><strong>设备库</strong><small class="muted">${state.modules.length} 类</small>${ibtn('toggle-library','收起设备库','PanelLeftClose')}</div><label class="search">${icon('Search')}<input placeholder="搜索设备名称" aria-label="画布模块搜索" data-filter="canvasModuleSearch"></label><div class="library-scroll" id="canvas-library-list">${libraryMarkup()}</div><div class="selected-properties" id="selected-properties">${propertiesMarkup(selected)}</div></aside><div class="canvas-column"><section class="workbench-flow" aria-label="工作台运行控制">${workbenchControlsMarkup(p)}${workflows.scenarioSelector(p)}<div id="workbench-guide">${workbenchGuidanceMarkup()}</div></section><div class="canvas-bar"><div class="canvas-pages">${pgTabs()}${ibtn('new-canvas','新增画布','Plus')}</div><div class="canvas-tools" role="toolbar" aria-label="组网工具">
 ${btn('toggle-library','<span data-library-label>设备库</span>',ui.showLibrary?'PanelLeftClose':'PanelLeftOpen',`aria-expanded="${ui.showLibrary}" aria-controls="canvas-library" title="展开或收起设备库，选择设备后点击画布放置"`,'small')}
 ${ibtn('select-mode','选择设备','MousePointer2')}${btn('connect-mode','连接端口','Cable','title="依次点击两个空闲端口完成连线；Esc 取消"','small')}
 ${btn('validate','检查连接','ListChecks','','small')}<span class="tool-divider"></span>
 ${ibtn('undo','撤销 Ctrl+Z','Undo2',undoStack.length?'':'disabled')}${ibtn('redo','重做 Ctrl+Y','Redo2',redoStack.length?'':'disabled')}${ibtn('fit','适应画布','Scan')}
-</div></div><div class="canvas-advanced" aria-label="工况与扩展工具"><span class="canvas-advanced-label">工况与扩展</span>
-${workflows.scenarioToolbar(p)}${coldStorage.couplingToolbar(p)}${coldStorage.assemblyToolbar(p)}
-<span class="push"></span>${ibtn('project-find','全项目查找','Search')}${ibtn('project-group-tools','多选与设备组操作','Boxes')}${ibtn('device-batch-edit','批量编辑设备','SlidersHorizontal')}${ibtn('page-links','跨页连接','ArrowRightLeft')}${ibtn('grid','显示点阵','Grid2X2')}
-</div>${pageLinkStrip(pg)}${canvasView().tools()}<div id="canvas-device-tools">${deviceToolsMarkup(selected)}</div><div class="canvas-area${ui.pageGrid?' grid':''}" id="network-area"><div class="canvas-caption"><span>${esc(pg.name)}</span>${p.caseId==='cold-room-ideal-v1'?'<span class="muted">库房热平衡 · W</span>':''}${badge(p.caseId==='cold-room-ideal-v1'?'传热系统':fluidBadge(p),'blue')}</div>${pg.nodes.length?`<svg id="network" data-project="${esc(p.id)}" data-page="${esc(pg.id)}" class="network-svg" viewBox="${networkViewBox(pg)}" role="group" aria-label="${esc(p.name+' '+pg.name+' 管网画布')}">${networkMarkup(pg)}</svg>`:`<div class="empty workbench-empty">${icon('Network')}<h3>在这里搭建新系统</h3><p>从设备库添加，或使用已有示例。</p>${btn('workbench-next','添加第一台设备','Plus','data-value="add"','primary')} ${p.modelingDomain==='refrigeration'?btn('cs-assembly-guide','查看设备与连接说明','ListChecks','','ghost'):btn('insert-defaults','使用泵阀示例','Network','','ghost')}</div><svg id="network" data-project="${esc(p.id)}" data-page="${esc(pg.id)}" class="network-svg" viewBox="-35 -5 1140 510" style="position:absolute;inset:0" aria-label="空画布"></svg>`}<div id="canvas-inspection" class="canvas-inspection" role="status" hidden></div><div class="canvas-bottom"><span data-canvas-hint>${ui.placing?'点击画布放置 '+mod(ui.placing).name:ui.connecting?'可切换画布选择另一个空闲端口 · Esc 取消':''}</span><div class="zoom">${ibtn('zoom-out','缩小','Minus')}<span>${Math.round(pg.zoom*100)}%</span>${ibtn('zoom-in','放大','Plus')}</div></div></div>${renderWorkbenchChart()}${coldStorage.markup(p)}<div class="canvas-info"><span data-result-status></span><span class="optional">${pg.nodes.length} 个设备 · ${pg.edges.length} 条连接</span><span class="push"></span>${btn('nav','项目设置','Settings2','data-route="settings"','ghost small')}${btn('nav','控制逻辑','Code2','data-route="controls"','ghost small')}</div></div><aside id="inspector-dock" aria-hidden="true"></aside></div>`;}
+${workspaceMenu('extensions','工况与工具','SlidersHorizontal',`<div class="canvas-advanced" aria-label="工况与扩展工具">${workflows.scenarioToolbar(p)}${coldStorage.couplingToolbar(p)}${coldStorage.assemblyToolbar(p)}${btn('project-find','全项目查找','Search')}${btn('project-group-tools','多选与设备组操作','Boxes')}${btn('device-batch-edit','批量编辑设备','SlidersHorizontal')}${btn('page-links','跨页连接','ArrowRightLeft')}</div>`)}
+${workspaceMenu('display','显示','Eye',canvasView().tools()+btn('grid','显示点阵','Grid2X2'))}<div id="canvas-device-tools">${deviceToolsMarkup(selected)}</div>
+</div></div>${pageLinkStrip(pg)}<div class="canvas-area${ui.pageGrid?' grid':''}" id="network-area"><div class="canvas-caption"><span>${esc(pg.name)}</span>${p.caseId==='cold-room-ideal-v1'?'<span class="muted">库房热平衡 · W</span>':''}${badge(p.caseId==='cold-room-ideal-v1'?'传热系统':fluidBadge(p),'blue')}</div>${pg.nodes.length?`<svg id="network" data-project="${esc(p.id)}" data-page="${esc(pg.id)}" class="network-svg" viewBox="${networkViewBox(pg)}" role="group" aria-label="${esc(p.name+' '+pg.name+' 管网画布')}">${networkMarkup(pg)}</svg>`:`<div class="empty workbench-empty">${icon('Network')}<h3>在这里搭建新系统</h3><p>从设备库添加，或使用已有示例。</p>${btn('workbench-next','添加第一台设备','Plus','data-value="add"','primary')} ${p.modelingDomain==='refrigeration'?btn('cs-assembly-guide','查看设备与连接说明','ListChecks','','ghost'):btn('insert-defaults','使用泵阀示例','Network','','ghost')}</div><svg id="network" data-project="${esc(p.id)}" data-page="${esc(pg.id)}" class="network-svg" viewBox="-35 -5 1140 510" style="position:absolute;inset:0" aria-label="空画布"></svg>`}<div id="canvas-inspection" class="canvas-inspection" role="status" hidden></div><div class="canvas-bottom"><span data-canvas-hint>${ui.placing?'点击画布放置 '+mod(ui.placing).name:ui.connecting?'可切换画布选择另一个空闲端口 · Esc 取消':''}</span><div class="zoom">${ibtn('zoom-out','缩小','Minus')}<span>${Math.round(pg.zoom*100)}%</span>${ibtn('zoom-in','放大','Plus')}</div></div></div>${renderWorkbenchChart()}${coldStorage.markup(p)}<div class="canvas-info"><span data-result-status></span><span class="optional">${pg.nodes.length} 个设备 · ${pg.edges.length} 条连接</span><span class="push"></span>${btn('nav','项目设置','Settings2','data-route="settings"','ghost small')}${btn('nav','控制逻辑','Code2','data-route="controls"','ghost small')}</div></div><aside id="inspector-dock" aria-hidden="true"></aside></div>`;}
 function pgTabs(){return project().pages.map(p=>`<button data-action="canvas-tab" data-id="${p.id}" class="${p.id===project().activePage?'active':''}">${esc(p.name)}</button>`).join('');}
-function libraryMarkup(query=''){return moduleGroupNames().map(c=>{const modules=state.modules.filter(m=>m.category===c&&(m.name+m.code).toLowerCase().includes(query.toLowerCase()));return modules.length?`<div class="library-caption">${icon('ChevronDown')}${esc(c)}</div>${modules.map(m=>`<button class="library-item${ui.placing===m.id?' active':''}" data-action="place-module" data-id="${m.id}" draggable="true" data-drag-module="${m.id}">${icon(m.icon)}<span>${m.name}</span><small>${m.runtime === 'python' ? 'Python' : m.code.slice(0,2)}</small></button>`).join('')}`:'';}).join('');}
+function moduleStatus(m){return FluidNetProjectModel.moduleAvailability(m,engine?.catalog);}
+function libraryMarkup(query=''){
+  return moduleGroupNames().map(c=>{
+    const modules=state.modules.filter(m=>m.category===c&&(m.name+m.code).toLowerCase().includes(query.toLowerCase()));
+    return modules.length?`<div class="library-caption">${icon('ChevronDown')}${esc(c)}</div>${modules.map(m=>{
+      const status=moduleStatus(m);
+      return `<button class="library-item${ui.placing===m.id?' active':''}${status.available?'':' reference-item'}" data-action="${status.available?'place-module':'module-availability'}" data-id="${esc(m.id)}" ${status.available?`draggable="true" data-drag-module="${esc(m.id)}"`:`title="${esc(status.reason)}"`}>${icon(m.icon)}<span>${esc(m.name)}</span><small>${status.available?(m.runtime==='python'?'Python':esc(m.code.slice(0,2))):status.pending?'连接中':m.runtime==='python'?'待发布':'参考'}</small></button>`;
+    }).join('')}`:'';
+  }).join('');
+}
 function propertiesMarkup(n){if(n){const m=moduleOf(n);return `<div class="row spread"><h3>对象属性</h3>${badge(n.id,'warn')}</div><dl><dt>名称</dt><dd>${esc(n.name)}</dd><dt>模块</dt><dd>${esc(m.name)}</dd>${m.runtime==='python'?`<dt>模块版本</dt><dd data-module-binding>v${m.version} · ${esc((m.manifest.definition_hash || m.contentHash).slice(0,12))}</dd>`:''}<dt>型号</dt><dd>${esc(model(n.modelId)?.name||'自定义参数')}</dd>${paramDefs(n).slice(0,2).map(f=>`<dt>${f[1].replace('阀门','').replace('流量系数 ','')}</dt><dd>${number(n.params[f[0]],f[0]==='opening'?0:2)} ${f[2]}</dd>`).join('')}</dl><div class="row gap-6">${btn('open-device','详细参数','SlidersHorizontal',`data-id="${n.id}"`,'small')}${ibtn('delete-node','删除选中设备','Trash2',`data-id="${n.id}"`)}</div>`;}return `<h3>画布属性</h3><dl><dt>画布</dt><dd>${esc(activePage().name)}</dd><dt>介质</dt><dd>${esc(fluidBadge(project()))}</dd><dt>选择</dt><dd>${ui.selectedEdge?'已选连接 '+esc(ui.selectedEdge):'单击设备或连接'}</dd></dl>${ui.selectedEdge?btn('delete-edge','删除连接','Trash2',`data-id="${ui.selectedEdge}"`,'small'):btn('nav','管理模块','Boxes','data-route="modules"','small ghost')}`;}
 function channelFor(m,v){return m.channels.find(c=>c.enabled&&(c.input===v.port||c.output===v.port));}
 let moduleEditorPresentation,runResultsPresentation;
 function moduleEditorView(){return moduleEditorPresentation ||= FluidNetModuleEditorView.create({
-  currentModule:mod,editorState:()=>ui,models:()=>state.models,parameterDefinitions:kind=>PARAM_DEFS[kind],builtinDefinition:m=>engine.catalog?.modules.find(d=>d.id===m.kind),contractText:m=>engine.contractText(m),
+  currentModule:mod,editorState:()=>ui,models:()=>state.models,availability:moduleStatus,parameterDefinitions:kind=>PARAM_DEFS[kind],builtinDefinition:m=>engine.catalog?.modules.find(d=>d.id===m.kind),contractText:m=>engine.contractText(m),
   chrome:{esc,icon,btn,ibtn,badge,option,number},constants:{DOMAINS,PORT_PREFIX,FLUIDS,EDITOR_TABS,PARAM_TYPE_LABELS},
   actions:{selectTab:value=>{ui.moduleTab=value;saveUI();render();},selectPort:id=>{ui.editorPort=id;render();},editLabel:()=>{ui.editorPort='picture';render();root.querySelector('[data-drawing-field="label"]')?.focus();}}
 });}
@@ -1327,7 +1355,13 @@ function deviceWindows(){return deviceWindowsController ||= FluidNetDeviceWindow
   effects:{dirty:markDirty,selection:syncDeviceSelection,message:msg,retainFocus,rendered:()=>{syncWorkbenchStatus();requestAnimationFrame(()=>{resizeCharts();restoreChartCursor();});}}
 });}
 function isDocked(f){return deviceWindows().isDocked(f);}
-function syncDockLayout(){return deviceWindows().syncDockLayout();}
+function syncCompactLibraryLayout(){
+  const library=root.querySelector('.canvas-library'),canvas=root.querySelector('#network-area');
+  if(!library)return;
+  if(innerWidth<=500&&ui.showLibrary&&canvas)library.style.top=canvas.getBoundingClientRect().top+'px';
+  else library.style.removeProperty('top');
+}
+function syncDockLayout(){const result=deviceWindows().syncDockLayout();syncCompactLibraryLayout();return result;}
 function dockWindowBounds(){return deviceWindows().dockBounds();}
 function toggleDeviceDock(id){return deviceWindows().toggleDock(id);}
 
@@ -1504,6 +1538,32 @@ function moduleGroupSidebar() {
 }
 
 const isReferenceModule = m => m.category === '倍思鹿参考模块';
+function moduleCardMarkup(m){
+  const status=moduleStatus(m),version=m.runtime==='python'
+    ? (m.publishedManifest?'Python · v'+m.publishedManifest.version:'Python · 未发布')+(m.dirty?' · 有草稿':'')
+    : status.available?'内置 · v'+m.version:status.label;
+  return `<article class="module-card" data-module-id="${esc(m.id)}" data-module-available="${status.available}">
+    <div class="row module-card-title"><span class="object-icon">${icon(m.icon)}</span><div class="grow"><h3>${esc(m.name)}</h3><small class="muted mono">${esc(m.code)}</small></div>${isReferenceModule(m)?badge('参考模块','good'):''}${badge(version,status.available?(m.runtime==='python'?'blue':''):'warn')}</div>
+    <button class="module-group-chip" data-action="move-module-group" data-id="${esc(m.id)}" aria-label="调整 ${esc(m.name)} 的分组" title="调整所属分组">${icon('Folder')}<span>${esc(m.category)}</span>${icon('ChevronDown')}</button>
+    <p>${esc(m.description)}</p>${!status.available?`<p class="module-availability-note">${esc(status.reason)}</p>`:''}
+    <div class="stat-line"><span>${(m.parameters||PARAM_DEFS[m.kind]||[]).length} 个参数</span><span>${m.ports.length} 个端口</span><span>${m.channels.length} 条通路</span><span>${m.variables.length} 个变量</span></div>
+    <div class="card-footer">${btn('module-doc','说明','BookOpen',`data-id="${esc(m.id)}"`,'small')}${btn('edit-module',status.available||m.runtime==='python'?'编辑模块':'查看参考','Pencil',`data-id="${esc(m.id)}"`,'small')}${m.runtime==='python'?btn('test-module','独立验证','CheckCheck',`data-id="${esc(m.id)}"`,'small')+(m.manifest?.execution_role?'':btn('module-example',m.manifest?.sdk?.capabilities?.includes('composite.refrigeration.open.v1')?'宿主验收':'管网算例','Network',`data-id="${esc(m.id)}"`,'small')):''}<span class="push"></span>${status.available?ibtn('insert-module','插入项目 '+m.name,'Plus',`data-id="${esc(m.id)}"`):m.runtime==='python'?ibtn('insert-module','先保存新版本再插入项目','Plus',`data-id="${esc(m.id)}" disabled`):btn('module-availability','替代入口','ArrowRight',`data-id="${esc(m.id)}"`,'small')}</div>
+  </article>`;
+}
+function moduleAvailabilityDialog(id){
+  const m=state.modules.find(item=>item.id===id),status=moduleStatus(m);
+  if(status.available)return;
+  if(m?.runtime==='python'){openEditor(id,'code');return;}
+  const domains=new Set(activePage().nodes.flatMap(node=>moduleOf(node).ports.map(port=>port.domain)));
+  if(!domains.size)domains.add(project().modelingDomain==='refrigeration'?'refrigerant':'fluid');
+  const replacements=m?.kind==='check'?['check_valve','hvac_check_valve','refrigerant_check_valve'].map(id=>state.modules.find(item=>item.id===id)).filter(item=>item&&moduleStatus(item).available&&item.ports.some(port=>domains.has(port.domain))):[];
+  const route=m?.kind==='refprop'?'settings':'controls';
+  const label=m?.kind==='pid'?'到控制页配置 PID':m?.kind==='sensor'?'到控制页添加测点':'到介质与单位设置';
+  const next=replacements.length?replacements.map(item=>btn('choose-module-alternative',esc(item.name)+' · '+esc(item.code),'Plus',`data-id="${esc(item.id)}"`,'primary')).join('')
+    :['sensor','pid','refprop'].includes(m?.kind)?btn('module-alternative-route',label,'ArrowRight',`data-route="${route}" ${route==='settings'?'data-tab="medium"':''}`,'primary')
+    :btn('new-module','新建 Python 模块','Plus','','primary');
+  openDialog(status.pending?'计算服务连接中':`${m?.name||'设备'} · 参考说明`,status.reason,`<div class="stack"><p>参考对象的图形和说明保留在工作区。请选择与当前画布端口类型匹配的可计算设备或使用对应配置入口。</p>${next}</div>`);
+}
 function renderModules() {
   const groups = moduleGroupNames();
   if (ui.category !== '全部模块' && !groups.includes(ui.category)) ui.category = '全部模块';
@@ -1515,7 +1575,7 @@ function renderModules() {
 
       ${ui.category !== '全部模块' ? `<div class="module-group-context"><div class="grow"><h2>${esc(ui.category)}</h2><small>${custom ? '自建分组' : '内置分类'} · ${members.length} 个模块</small></div>${custom ? btn('rename-module-group', '重命名', 'Pencil', `data-value="${esc(ui.category)}"`, 'small') + btn('delete-module-group', '删除分组', 'Trash2', `data-value="${esc(ui.category)}" ${members.length ? 'disabled title="请先将组内模块移到其他分组"' : ''}`, 'small') : ''}</div>` : ''}
       <div class="filterbar"><label class="search">${icon('Search')}<input data-filter="moduleSearch" aria-label="搜索模块" placeholder="名称或模块标识" value="${esc(ui.moduleSearch)}"></label><span class="push muted">${list.length} 个模块</span><div class="segmented" role="group" aria-label="模块库视图">${[['cards', '卡片视图', 'Grid2X2'], ['list', '紧凑列表', 'List']].map(([value, label, glyph]) => `<button data-action="module-view" data-value="${value}" aria-label="${label}" title="${label}" aria-pressed="${ui.moduleView === value}" class="${ui.moduleView === value ? 'active' : ''}">${icon(glyph)}</button>`).join('')}</div>${btn('compile-preview', '批量检查预览', 'CheckCheck', '', 'small')}</div>
-      <div id="module-results" class="module-grid${ui.moduleView === 'list' ? ' module-compact-list' : ''}">${list.map(m => `<article class="module-card" data-module-id="${m.id}"><div class="row module-card-title"><span class="object-icon">${icon(m.icon)}</span><div class="grow"><h3>${esc(m.name)}</h3><small class="muted mono">${esc(m.code)}</small></div>${isReferenceModule(m) ? badge('参考模块', 'good') : ''}${badge(m.runtime === 'python' ? (m.publishedManifest ? 'Python · v'+m.publishedManifest.version : 'Python · 未发布') + (m.dirty?' · 有草稿':'') : '内置 · v'+m.version,m.runtime === 'python' ? 'blue' : '')}</div><button class="module-group-chip" data-action="move-module-group" data-id="${m.id}" aria-label="调整 ${esc(m.name)} 的分组" title="调整所属分组">${icon('Folder')}<span>${esc(m.category)}</span>${icon('ChevronDown')}</button><p>${esc(m.description)}</p><div class="stat-line"><span>${(m.parameters || PARAM_DEFS[m.kind] || []).length} 个参数</span><span>${m.ports.length} 个端口</span><span>${m.channels.length} 条通路</span><span>${m.variables.length} 个变量</span></div><div class="card-footer">${btn('module-doc', '说明', 'BookOpen', `data-id="${m.id}"`, 'small')}${btn('edit-module', '编辑模块', 'Pencil', `data-id="${m.id}"`, 'small')}${m.runtime === 'python' ? btn('test-module','独立验证','CheckCheck',`data-id="${m.id}"`,'small') + (m.manifest?.execution_role ? '' : btn('module-example',m.manifest?.sdk?.capabilities?.includes('composite.refrigeration.open.v1')?'宿主验收':'管网算例','Network',`data-id="${m.id}"`,'small')) : ''}<span class="push"></span>${ibtn('insert-module', '插入项目 ' + m.name, 'Plus', `data-id="${m.id}"`)}</div></article>`).join('') || (blankGroup ? empty('分组已建好，添加第一个模块', '可在此分组中新建模块，也可从“全部模块”的模块卡片调整所属分组。', btn('new-module', '在此分组新建模块', 'Plus', '', 'primary')) : empty('没有匹配的模块', '尝试其他分类或关键词。'))}</div>
+      <div id="module-results" class="module-grid${ui.moduleView === 'list' ? ' module-compact-list' : ''}">${list.map(moduleCardMarkup).join('') || (blankGroup ? empty('分组已建好，添加第一个模块', '可在此分组中新建模块，也可从“全部模块”的模块卡片调整所属分组。', btn('new-module', '在此分组新建模块', 'Plus', '', 'primary')) : empty('没有匹配的模块', '尝试其他分类或关键词。'))}</div>
     </div></div></div>`;
 }
 
@@ -1540,7 +1600,7 @@ function openModuleDoc(id) {
 // 画布操作与模块定义共用端口 / 通路，不根据图形猜测内部连接。
 function deviceToolsMarkup(n) {
   if (!n) return '';
-  return `<div class="device-tools" role="toolbar" aria-label="选中设备操作"><strong>${esc(n.id)} · ${esc(n.name)}</strong>${ibtn('device-overview', '设备总览', 'Gauge', `data-id="${n.id}"`)}${ibtn('open-device', '参数与型号', 'SlidersHorizontal', `data-id="${n.id}"`)}${ibtn('device-variables', '查看全部变量', 'Table2', `data-id="${n.id}"`)}${ibtn('choose-device-model', '选择设备型号', 'Database', `data-id="${n.id}"`)}${ibtn('rotate-device', '顺时针旋转 90° · R', 'RotateCw', `data-id="${n.id}"`)}${ibtn('rotate-device', '逆时针旋转 90° · Shift+R', 'RotateCcw', `data-id="${n.id}" data-direction="-1"`)}${ibtn('device-definition', '查看模块定义', 'Box', `data-id="${n.id}"`)}${ibtn('move-device-page','移到其他画布','Layers',`data-id="${n.id}"`)}</div>`;
+  return workspaceMenu('device','设备操作','Settings2',`<div class="device-tools" role="toolbar" aria-label="选中设备操作"><strong>${esc(n.id)} · ${esc(n.name)}</strong>${btn('device-overview','设备总览','Gauge',`data-id="${n.id}"`)}${btn('open-device','参数与型号','SlidersHorizontal',`data-id="${n.id}"`)}${btn('device-variables','查看全部变量','Table2',`data-id="${n.id}"`)}${btn('choose-device-model','选择设备型号','Database',`data-id="${n.id}"`)}${btn('rotate-device','顺时针旋转 · R','RotateCw',`data-id="${n.id}"`)}${btn('rotate-device','逆时针旋转 · Shift+R','RotateCcw',`data-id="${n.id}" data-direction="-1"`)}${btn('device-definition','查看模块定义','Box',`data-id="${n.id}"`)}${btn('move-device-page','移到其他画布','Layers',`data-id="${n.id}"`)}</div>`);
 }
 let workbenchRefreshController;
 function refreshWorkbench(){
@@ -2012,7 +2072,7 @@ function deviceWindowExtras(){
   if(ui.taskDrawer)html+=taskDrawerMarkup();
   return html;
 }
-function renderFloats(){return deviceWindows().render();}
+function renderFloats(){const result=deviceWindows().render();syncCompactLibraryLayout();return result;}
 function updateFloatBodies(){return deviceWindows().updateBodies();}
 async function setBench(id, params) {
   if (['running', 'solving'].includes(state.bench.run.status)) throw Error('先停止当前单机测试，再切换被测设备。');
@@ -2619,12 +2679,18 @@ function chooseChartVariables(control = false) {
   } else openDialog('添加观察变量', '', selectField('variable', '项目变量', variables.map(v => [v.id, `${v.identifier || v.id} · ${v.device} · ${v.name} / ${v.unit}`]), variables[0].id), data => addChartVariable(data.variable), '加入曲线');
 }
 function handleAction(action, el) {
+  if(el.hasAttribute('data-example-choice'))closeDialog();
+  el.closest('[data-workspace-menu]')?.removeAttribute('open');
   if(featureActions().dispatch(action,el))return;
   const d = el.dataset, id = d.id;
   const changes = { 'project-filter': 'projectFilter', 'project-view': 'projectView', 'module-category': 'category', 'module-view': 'moduleView', 'model-filter': 'modelFilter', 'bench-tab': 'benchTab', 'run-filter': 'runFilter', 'settings-tab': 'settingsTab', 'connection-tab': 'connectionTab', 'node-domain': 'nodeDomain' };
   if (changes[action]) { ui[changes[action]] = d.value; saveUI(); render(); return; }
   switch (action) {
     case 'nav': closeDialog(); navigate(d.route, d.sub ? { connectionTab: d.sub } : {}); break;
+    case 'module-availability': moduleAvailabilityDialog(id); break;
+    case 'module-alternative-route': closeDialog();navigate(d.route,d.tab?{settingsTab:d.tab}:{});break;
+    case 'choose-module-alternative':
+      engine.insertionPlan(project(),id,activePage().id);closeDialog();ui.showLibrary=true;ui.connecting=null;ui.placing=id;navigate('workbench');break;
     case 'page-map': pageMap(); break;
     case 'project-picker': openDialog('切换项目', '任务在后台保留，设备窗口跟随当前项目。', `<div class="stack">${state.projects.map(p => btn('open-project', esc(p.name), 'FolderOpen', `data-id="${p.id}"`)).join('')}</div>`); break;
     case 'close-dialog': closeDialog(); break;
@@ -2648,6 +2714,14 @@ function handleAction(action, el) {
     case 'resume-archive': resumeArchiveDialog(id).catch(error=>msg(error.message,true));break;
     case 'theme': ui.theme = ui.theme === 'dark' ? 'light' : 'dark'; saveUI(); render(); break;
     case 'open-project': closeDialog(); if (id) openProject(id); break;
+    case 'project-examples': projectExamples(); break;
+    case 'browse-equipment':
+    case 'home-place-module':
+      if(action==='home-place-module'){const status=moduleStatus(state.modules.find(m=>m.id===id));if(!status.available)throw Error(status.reason);}
+      ui.showLibrary=true;ui.connecting=null;ui.placing=action==='home-place-module'?id:null;
+      navigate('workbench');
+      if(action==='browse-equipment')root.querySelector('[data-filter="canvasModuleSearch"]')?.focus();
+      break;
     case 'start-modeling': startModeling(); break;
     case 'workbench-next': workbenchNext(el.dataset.value); break;
     case 'workbench-pending-device': openPendingDevice(el.dataset.project,id); break;
@@ -2657,7 +2731,7 @@ function handleAction(action, el) {
     case 'release-cursor': ui.pinnedChart = null; ui.chartCursor = null; refreshWorkbenchChart(); break;
     case 'guided-demo': state.selectedModule = 'valve'; ui.bank = 1; openEditor('valve', 'channels'); msg('从端口与通路开始，再编辑库值、保存型号并应用到项目。'); break;
     case 'new-project':
-      openDialog('新建项目', '', `<div class="stack">${field('name', '项目名称', '新管网项目', 'required maxlength="50"')}${selectField('template', '起始内容', [['blank', '空白画布'], ['cold-storage-blank', '空白冷库画布 · 自选设备组装'], ['water', '泵阀并联管网'], ['heat', '双侧换热机组'], ['tank', '水箱液位调节']], 'blank')}</div>`, data => {
+      openDialog('新建项目', '', `<div class="stack">${field('name', '项目名称', d.name || '新管网项目', 'required maxlength="50"')}${selectField('template', '起始内容', [['blank', '空白画布'], ['cold-storage-blank', '空白冷库画布 · 自选设备组装'], ['water', '泵阀并联管网'], ['heat', '双侧换热机组'], ['tank', '水箱液位调节']], ['water','heat','tank'].includes(d.template)?d.template:'blank')}</div>`, data => {
         if (state.projects.length >= 20) throw Error('当前原型最多保存 20 个项目。');
         const name = data.name.trim(); if (!name) throw Error('请输入项目名称。');
         const pg = data.template === 'water' ? waterPage() : data.template === 'heat' ? heatPage() : data.template === 'tank' ? tankPage() : { id: 'main', name: '主系统', nodes: [], edges: [], zoom: 1, pan: [0, 0] };
@@ -2757,8 +2831,8 @@ function handleAction(action, el) {
     case 'edit-module': openEditor(id || state.selectedModule, d.tab || 'drawing'); break;
     case 'module-doc': openModuleDoc(id); break;
     case 'insert-module': newInstance(id); navigate('workbench'); break;
-    case 'use-module': useModuleDialog(id || state.selectedModule); break;
-    case 'place-module': ui.placing = ui.placing === id ? null : id; ui.connecting = null; render(); break;
+    case 'use-module': {const target=id||state.selectedModule;if(!moduleStatus(state.modules.find(m=>m.id===target)).available)moduleAvailabilityDialog(target);else useModuleDialog(target);break;}
+    case 'place-module': if(ui.placing!==id)engine.insertionPlan(project(),id,activePage().id);ui.placing = ui.placing === id ? null : id; ui.connecting = null; render(); break;
     case 'insert-defaults': remember(); {
       const w = waterPage(), used = project().pages.filter(pg => pg !== activePage()).flatMap(pg => pg.nodes.map(n => n.id));
       const mapping = Object.fromEntries(w.nodes.map(n => [n.id, used.includes(n.id) ? uid(n.id) : n.id]));
@@ -2851,6 +2925,7 @@ function handleAction(action, el) {
     case 'compile-preview': previewCode('runtime', true); break;
     case 'preview-design': runDesign(d.index === undefined ? ui.bank : Number(d.index)); break;
     case 'insert-code-variable': {
+      if(mod().runtime!=='python')throw Error('内置算法说明只读；请新建 Python 模块编写计算关系。');
       const area = root.querySelector(`textarea[data-code-kind="${ui.codeKind}"]`), variable = root.querySelector('[data-code-variable]')?.value;
       if (!area || !mod().variables.some(v => v.name === variable)) break;
       area.setRangeText(variable, area.selectionStart, area.selectionEnd, 'end'); area.dispatchEvent(new Event('input', { bubbles: true })); area.focus(); break;
@@ -2974,6 +3049,7 @@ function handleInput(el) {
   if ('moduleContract' in d) { mod().contractDraft=value; markDirty(mod()); return; }
   if ('releaseNotes' in d) { mod().releaseNotes=value; markDirty(mod()); return; }
   if (d.codeKind) {
+    if(mod().runtime!=='python'||el.readOnly)return;
     if (d.codeKind === 'design-source') mod().designSource = value;
     else if (d.codeKind === 'design') mod().source.design[Number(d.designIndex)] = value; else mod().source[d.codeKind] = value;
     const lines = el.previousElementSibling;
@@ -3131,7 +3207,7 @@ function workspaceInteractions(){return workspaceInput ||= FluidNetWorkspaceInte
   canvas:{owner:project,page:activePage,node:instance,svg:()=>document.getElementById('network'),remember,
     move:(node,x,y)=>{projectState.updateNode(project(),node,{x,y});canvasView().move(node.id);},
     pan:value=>{activePage().pan=value;document.getElementById('network').setAttribute('viewBox',networkViewBox(activePage()));},
-    flush:()=>canvasView().flush(),commit:()=>{markDirty(project());refreshWorkbench();},connect:connectPort,insert:newInstance,hasModule:id=>state.modules.some(m=>m.id===id),
+    flush:()=>canvasView().flush(),commit:()=>{markDirty(project());refreshWorkbench();},connect:connectPort,insert:newInstance,hasModule:id=>moduleStatus(state.modules.find(m=>m.id===id)).available,
     rotate:rotateDevice,undo,copy:copyDevice,paste:pasteDevice,removeNode:deleteNode,removeEdge:deleteEdge,
     pageSelect:id=>{if(!project().pages.some(p=>p.id===id))throw Error('画布已不存在');project().activePage=id;ui.selectedNode='';ui.selectedEdge='';render();},
     zoom:factor=>{activePage().zoom=clamp(activePage().zoom*factor,.35,3);refreshWorkbench();},fit:()=>{fitNetwork();refreshWorkbench();},grid:()=>{ui.pageGrid=!ui.pageGrid;saveUI();refreshWorkbench();}},
@@ -3165,6 +3241,9 @@ function selectCodeTarget(kind) {
   const picker = root.querySelector('[data-code-target]'); if (picker) picker.value = kind;
   saveUI();
 }
+document.addEventListener('click', e => {
+  for(const menu of root.querySelectorAll('[data-workspace-menu][open]'))if(!menu.contains(e.target))menu.removeAttribute('open');
+});
 root.addEventListener('click', e => { if(e.target.closest('[data-trace-close]')) { ui.canvasInspection=null;paintCanvasInspection(); } });
 root.addEventListener('keydown', e => { if(e.key==='Escape') { ui.canvasInspection=null;paintCanvasInspection(); } });
 root.addEventListener('pointerover', e => { if (!workspaceInput?.busy()) showCanvasInspection(e.target); });
@@ -3203,9 +3282,12 @@ document.addEventListener('keydown', e => {
   }
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); saveAll(); return; }
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); pageMap(); return; }
-  if (e.key === 'Escape') { workspaceInput?.cancel(); closeDialog(); contextMenu = null; ui.connecting = null; ui.placing = null; ui.pinnedChart = null; if(ui.route==='workbench'){refreshWorkbench();renderFloats();}else render(); return; }
+  if (e.key === 'Escape') {
+    const menu=root.querySelector('[data-workspace-menu][open]');
+    if(menu){e.preventDefault();menu.removeAttribute('open');menu.querySelector('summary').focus();return;}
+    workspaceInput?.cancel(); closeDialog(); contextMenu = null; ui.connecting = null; ui.placing = null; ui.pinnedChart = null; if(ui.route==='workbench'){refreshWorkbench();renderFloats();}else render(); return; }
   if (edit) {
-    if (e.key === 'Tab' && e.target.tagName === 'TEXTAREA' && (e.target.dataset.codeKind || 'controlCode' in e.target.dataset)) { e.preventDefault(); const el = e.target; el.setRangeText(el.dataset.codeKind ? '    ' : '  ', el.selectionStart, el.selectionEnd, 'end'); el.dispatchEvent(new Event('input', { bubbles: true })); }
+    if (e.key === 'Tab' && e.target.tagName === 'TEXTAREA' && !e.target.readOnly && (e.target.dataset.codeKind || 'controlCode' in e.target.dataset)) { e.preventDefault(); const el = e.target; el.setRangeText(el.dataset.codeKind ? '    ' : '  ', el.selectionStart, el.selectionEnd, 'end'); el.dispatchEvent(new Event('input', { bubbles: true })); }
     return;
   }
   if (modal) return;

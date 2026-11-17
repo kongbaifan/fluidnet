@@ -144,7 +144,8 @@ export const createColdStorageUI = function (ui) {
     const owner=state().projects.find(item=>item.id===p.id);
     charts(owner,roomControls.groups(owner,modularDevices(owner)).map(({node})=>[node.id,'runtime:state.temperature_k',node.name+' 库温','°C',node.id+'.state.temperature_k',1,-273.15]));
     ui.ui().showChart=false;
-    ui.markDirty(owner);ui.persist();ui.openProject(owner.id);ui.fitNetwork();
+    for(const page of owner.pages)ui.fitNetwork(page);
+    ui.markDirty(owner);ui.persist();ui.openProject(owner.id);
     msg(continuous?'六库持续仿真已创建：运行日自动循环，可暂停、单步和继续。':'六库温控案例已创建，可设置库温、选择工况后运行。');
   }
   function nodesOf(model,positions){

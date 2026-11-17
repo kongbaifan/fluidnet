@@ -24,7 +24,7 @@ function fixture(){
 }
 test('every browser executable and parameter variant is registered exactly once',()=>{
   const manifest=loadManifest();const counts=validateManifest(manifest);
-  assert.ok(counts.files>50);assert.equal(counts.helpers,3);
+  assert.ok(counts.files>50);assert.equal(counts.helpers,4);
   const selected=selectCases(manifest);
   for(const id of ['performance-data','open-refrigeration-groups','engineering-canvas','canvas-symbols','canvas-performance',
     'design-library','project-editing','system-inspection','forward-integration','module-replay','parameter-batch','module-assertion-boundaries'])

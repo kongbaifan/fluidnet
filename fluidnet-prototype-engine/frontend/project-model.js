@@ -1,6 +1,16 @@
 /* Pure conversions between module contracts, project documents and display values. */
 export const FluidNetProjectModel = (() => {
   const clone=value=>value===undefined?undefined:JSON.parse(JSON.stringify(value));
+  function moduleAvailability(module,catalog) {
+    if(!module)return {available:false,label:'设备已不存在',reason:'设备已不存在，请重新选择。'};
+    if(module.runtime==='python')return module.frozen||module.publishedManifest
+      ? {available:true,label:'Python 模块',reason:''}
+      : {available:false,label:'先保存新版本',reason:'请先校验并保存模块版本，再插入项目。'};
+    if(!Array.isArray(catalog?.modules))return {available:false,pending:true,label:'等待计算服务',reason:'请等待计算服务连接后再添加设备。'};
+    const kind=module.kind||module.id;
+    if(catalog.modules.some(definition=>definition.id===kind))return {available:true,label:'可计算',reason:''};
+    return {available:false,label:'旧参考对象',reason:`${module.name||module.id} 是旧参考对象，未注册计算算法，不能放入运行项目。`};
+  }
   function workspaceContentEqual(left,right) {
     if(!left||!right||typeof left!=='object'||typeof right!=='object')return false;
     // These top-level fields are receipt metadata/cache rebuilt after a workspace save/load.
@@ -253,7 +263,7 @@ function parameterKey(owner,modules,controlKey) {
   })) });
 }
 
-  return {parameterKey,workspaceContentEqual,toDisplay,toCanonical,displayParameters,canonicalParameters,manifestParamDef,moduleFromManifest,applyCatalogPresentation,installBuiltinCatalog,catalogPresentationIndex,
+  return {moduleAvailability,parameterKey,workspaceContentEqual,toDisplay,toCanonical,displayParameters,canonicalParameters,manifestParamDef,moduleFromManifest,applyCatalogPresentation,installBuiltinCatalog,catalogPresentationIndex,
     manifestFields,manifestParamSpecs,manifestParamDefaults,projectDocument,exchangeDocument,upgradeDocument};
 })();
 

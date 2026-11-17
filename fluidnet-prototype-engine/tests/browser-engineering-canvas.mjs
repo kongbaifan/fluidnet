@@ -1,3 +1,4 @@
+import {workspaceControl} from './browser-workspace-controls.mjs';
 import {chromium,expect} from '@playwright/test';
 import {mkdtempSync,writeFileSync,mkdirSync} from 'node:fs';
 import {join} from 'node:path';
@@ -54,7 +55,7 @@ try{
     // An edge's source/target is an editing convention, not a physical one-way constraint.
     if(direction===-1)for(const connection of input.connections)[connection.source,connection.target]=[connection.target,connection.source];
     await importProject(input);
-    await page.locator('[data-canvas-mode]').selectOption('flow');await page.locator('[data-canvas-labels]').check();
+    await (await workspaceControl(page,'[data-canvas-mode]')).selectOption('flow');await (await workspaceControl(page,'[data-canvas-labels]')).check();
     for(const id of ['left','right']){await expect(metadata(id)).toHaveAttribute('data-edge-known','false');await expect(metadata(id)).toHaveAttribute('data-edge-direction','unknown');}
     await expect(page.locator('.canvas-flow-animation')).toHaveCount(0);
     const result=await step(),flow=result.record.frame.variables['V1.mass_flow_kg_s'];
@@ -65,22 +66,22 @@ try{
       expect(await edge(id).locator('[data-flow-arrow]').count()).toBe(direction?1:0);
     }
     const before=physics(await save());
-    await page.locator('[data-canvas-mode]').selectOption('temperature');
+    await (await workspaceControl(page,'[data-canvas-mode]')).selectOption('temperature');
     await expect(edge('right').locator('.canvas-edge-label')).toContainText('°C');
     const connection=input.connections.find(c=>c.id==='right'),upstream=direction<0?connection.target:connection.source;
     const temperature=result.record.frame.variables[upstream.instance_id+'.'+upstream.port_id+'.temperature_k'];
     if(Number.isFinite(temperature))expect(await edge('right').locator('.canvas-edge-label').textContent()).toContain(String(Number((temperature-273.15).toPrecision(5))));
-    await page.locator('[data-canvas-mode]').selectOption('pressure');
+    await (await workspaceControl(page,'[data-canvas-mode]')).selectOption('pressure');
     await expect(edge('right').locator('.canvas-edge-label')).toContainText('kPa(abs)');
-    await page.locator('[data-action="canvas-range"]').click();await page.getByRole('dialog').locator('[name="max"]').fill('100');await submit();
+    await (await workspaceControl(page,'[data-action="canvas-range"]')).click();await page.getByRole('dialog').locator('[name="max"]').fill('100');await submit();
     await expect(edge('right').locator('[data-trace-edge]')).toHaveCSS('stroke','rgb(186, 61, 61)');
     expect(physics(await save())).toEqual(before);
     if(name==='forward'){
-      await page.locator('[data-canvas-mode]').selectOption('flow');await page.locator('[data-canvas-animation]').check();
+      await (await workspaceControl(page,'[data-canvas-mode]')).selectOption('flow');await (await workspaceControl(page,'[data-canvas-animation]')).check();
       await run('run').click();await expect(run('pause')).toBeEnabled();
       await expect.poll(()=>page.locator('.canvas-flow-animation').count(),{timeout:15000}).toBeGreaterThan(0);
-      await page.locator('[data-canvas-animation]').uncheck();await expect(page.locator('.canvas-flow-animation')).toHaveCount(0);
-      await page.locator('[data-canvas-animation]').check();
+      await (await workspaceControl(page,'[data-canvas-animation]')).uncheck();await expect(page.locator('.canvas-flow-animation')).toHaveCount(0);
+      await (await workspaceControl(page,'[data-canvas-animation]')).check();
       await run('pause').click();await expect(run('pause')).toBeDisabled();await expect(page.locator('.canvas-flow-animation')).toHaveCount(0);
       await captureFhd(page,'artifacts/engineering-canvas-flow-1080p.png');
     }
@@ -107,7 +108,7 @@ try{
   await importProject(warning);const result=await step();
   expect(result.record.frame.diagnostics.some(d=>d.code==='CAP_LENGTH_CLAMPED'&&d.instance_id==='V1')).toBe(true);
   await expect(page.locator('.net-node[data-node="V1"]')).toHaveAttribute('data-canvas-state','warning');
-  await page.locator('[data-action="canvas-alerts"]').click();await expect(page.getByRole('dialog')).toContainText('CAP_LENGTH_CLAMPED');
+  await (await workspaceControl(page,'[data-action="canvas-alerts"]')).click();await expect(page.getByRole('dialog')).toContainText('CAP_LENGTH_CLAMPED');
   await page.getByRole('dialog').locator('[data-action="canvas-locate-alert"][data-id="V1"]').first().click();
   await expect(page.locator('[data-float-id="V1"]')).toBeVisible();await captureFhd(page,'artifacts/engineering-canvas-alert-1080p.png');
   await run('stop').click();await expect(run('stop')).toBeDisabled();
@@ -118,7 +119,7 @@ try{
   await expect.poll(async()=>(await api('/runs/'+failedId)).status,{timeout:15000}).toBe('failed');
   await expect(page.locator('[data-action="canvas-alerts"]')).not.toContainText('运行告警 0');
   await expect(metadata('left')).toHaveAttribute('data-edge-known','false');await expect(page.locator('.canvas-flow-animation')).toHaveCount(0);
-  await page.locator('[data-action="canvas-alerts"]').click();await expect(page.getByRole('dialog')).toContainText('HYDRAULIC_NOT_CONVERGED');
+  await (await workspaceControl(page,'[data-action="canvas-alerts"]')).click();await expect(page.getByRole('dialog')).toContainText('HYDRAULIC_NOT_CONVERGED');
   await expect(page.getByRole('dialog').locator('[data-action="canvas-locate-alert"]')).toHaveCount(0);
   await captureFhd(page,'artifacts/engineering-canvas-initialization-failure-1080p.png');
   expect(errors).toEqual([]);Object.assign(evidence,{warningLocated:true,staleDisabled:true,liveAnimation:true,initializationFailureUnknown:true,errors});

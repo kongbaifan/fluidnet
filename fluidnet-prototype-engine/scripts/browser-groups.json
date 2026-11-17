@@ -12,6 +12,7 @@
     "canvas": "Engineering canvas and editing"
   },
   "helpers": {
+    "tests/browser-workspace-controls.mjs": "Open workbench disclosures and project examples through visible controls",
     "tests/browser-server.mjs": "Isolated service lifecycle shared by browser cases",
     "tests/browser-viewport.mjs": "FHD viewport and screenshot helper",
     "tests/browser-module-assertions.mjs": "Assertion workflow exercised by browser-module-workflow.mjs"
@@ -700,6 +701,12 @@
       "file": "tests/browser-desktop-workspace.mjs",
       "args": [],
       "group": "workspace"
+    },
+    {
+      "id": "desktop-entry-fixes",
+      "file": "tests/browser-desktop-entry-fixes.mjs",
+      "args": [],
+      "group": "workspace"
     }
   ],
   "suites": {
@@ -853,6 +860,9 @@
     ],
     "desktop-workspace": [
       "desktop-workspace"
+    ],
+    "desktop-entry-fixes": [
+      "desktop-entry-fixes"
     ]
   }
 }

@@ -5,7 +5,7 @@ import vm from 'node:vm';
 
 const esc=value=>String(value??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;');
 const button=(name,label,_glyph='',attrs='')=>`<button data-action="${name}" ${attrs}>${esc(label)}</button>`;
-function fixture(){
+function fixture({availability}={}){
   const host=vm.createContext({window:{}});
   for(const name of ['project-model','module-editor-view'])loadFrontend(new URL(`../frontend/${name}.js`,import.meta.url),host);
   const m=host.window.FluidNetProjectModel.moduleFromManifest({id:'view_valve',name:'试验阀 <script>',version:1,runtime:'python',solver_model:'generic',category:'阀门',
@@ -17,7 +17,7 @@ function fixture(){
   let current=m;
   const ui={moduleTab:'drawing',editorPort:'',variableSearch:'',valueSearch:'',bank:0,arrayVar:'system:form',allBanks:false,designIndex:0,codeKind:'runtime',compileOutput:'未检查'};
   const calls=[],models=[];
-  const view=host.window.FluidNetModuleEditorView.create({currentModule:()=>current,editorState:()=>ui,models:()=>models,
+  const view=host.window.FluidNetModuleEditorView.create({currentModule:()=>current,editorState:()=>ui,models:()=>models,availability,
     parameterDefinitions:()=>[],contractText:value=>JSON.stringify(value.manifest),
     chrome:{esc,icon:()=>'',btn:button,ibtn:button,badge:esc,option:(value,label)=>`<option value="${esc(value)}">${esc(label)}</option>`,number:(value,digits=2)=>Number(value).toFixed(digits)},
     constants:{DOMAINS:{fluid:{label:'流体',color:'blue'}},PORT_PREFIX:{fluid:'F'},FLUIDS:[['water','水',125]],
@@ -106,4 +106,20 @@ test('equipment setup exposes metadata and diagnostics expand for errors but rem
   f.ui.moduleTab='code';assert.match(f.view.renderAuthoringDiagnostics(f.m),/class="editor-advanced-details" >/);
   f.m.authoringDiagnostics=[{message:'参数错误',severity:'error'}];assert.match(f.view.renderAuthoringDiagnostics(f.m),/ open>/);
   assert.match(f.view.renderAuthoringDiagnostics(f.m),/参数错误/);
+});
+
+test('builtin algorithm references are read-only and lead to an executable Python authoring path',()=>{
+  const f=fixture();f.m.runtime='builtin';f.ui.moduleTab='code';const before=JSON.stringify(f.m),html=f.view.renderEditor();
+  assert.match(html,/内置算法说明 · 只读/);assert.match(html,/不参与运行/);
+  assert.match(html,/data-action="new-module"/);assert.match(html,/readonly aria-readonly="true"/);
+  assert.doesNotMatch(html,/data-action="insert-code-variable"|data-action="check-code"|data-action="compile-preview"/);
+  assert.match(html,/保存工作区/);assert.equal(JSON.stringify(f.m),before);
+  f.m.runtime='python';const python=f.view.renderEditor();
+  assert.doesNotMatch(python,/readonly aria-readonly="true"|data-builtin-code-notice/);
+  assert.match(python,/data-action="save-module-version"/);
+});
+test('legacy reference editors cannot insert into a project and show the replacement entry',()=>{
+  const f=fixture({availability:()=>({available:false,reason:'此设备是旧参考对象'})});f.m.runtime='builtin';
+  const html=f.view.renderEditor();assert.match(html,/旧参考对象/);
+  assert.match(html,/data-action="use-module"[^>]*disabled/);assert.match(html,/data-action="module-availability"/);
 });

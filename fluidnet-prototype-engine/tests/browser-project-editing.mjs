@@ -1,3 +1,4 @@
+import {workspaceControl} from './browser-workspace-controls.mjs';
 import {chromium,expect} from '@playwright/test';
 import {mkdtempSync,writeFileSync,readFileSync,mkdirSync} from 'node:fs';
 import {join} from 'node:path';import {tmpdir} from 'node:os';
@@ -8,7 +9,7 @@ const nav=r=>page.locator(`.rail-link[data-route="${r}"]`).click(),submit=()=>pa
 const api=async path=>{const r=await page.request.get(server.base+'/api/v1'+path);expect(r.ok()).toBe(true);return r.json();};
 async function save(){const start=performance.now(),pending=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/v1/workspace'&&r.request().method()==='POST');await page.locator('[data-action="save"]').first().click();expect((await pending).ok()).toBe(true);await expect(page.locator('[data-save-status]')).not.toContainText('正在保存');return performance.now()-start;}
 const active=async()=>{const s=(await api('/workspace')).data;return s.projects.find(p=>p.id===s.activeProject);};
-async function group(action,ids,target){await page.locator('[data-action="project-group-tools"]').click();const dialog=page.getByRole('dialog');
+async function group(action,ids,target){await (await workspaceControl(page,'[data-action="project-group-tools"]')).click();const dialog=page.getByRole('dialog');
  for(const cb of await dialog.locator('input[type="checkbox"]').all())await cb.uncheck();
  for(const id of ids)await page.getByLabel('组选择 '+id,{exact:true}).check();
  await dialog.locator('[name="group-action"]').selectOption(action);if(target)await page.getByLabel('设备组目标画布').selectOption(target);await submit();}
@@ -23,7 +24,7 @@ try{
   const file=join(directory,'size-'+count+'.json');writeFileSync(file,JSON.stringify(p));
   await nav('projects');await page.locator('[data-action="wf-import"]').click();const start=performance.now();await page.getByLabel('单项目文件').setInputFiles(file);await submit();await expect(page.locator('#toast')).toContainText('项目已导入');const imported=performance.now()-start;
   const saveMs=await save();const current=await active();expect(current.pages.flatMap(g=>g.nodes)).toHaveLength(count);
-  await nav('workbench');await page.locator('[data-action="project-find"]').click();await page.getByLabel('全项目查找关键词').fill('Part'+(count-1));await page.locator(`[data-action="project-find-node"][data-id="Part${count-1}"]`).click();await expect(page.locator(`[data-float-id="Part${count-1}"]`)).toBeVisible();await page.locator('[data-action="float-close"]').last().click();
+  await nav('workbench');await (await workspaceControl(page,'[data-action="project-find"]')).click();await page.getByLabel('全项目查找关键词').fill('Part'+(count-1));await page.locator(`[data-action="project-find-node"][data-id="Part${count-1}"]`).click();await expect(page.locator(`[data-float-id="Part${count-1}"]`)).toBeVisible();await page.locator('[data-action="float-close"]').last().click();
   const begin=performance.now();await group('top',['Part1','Part2']);const editMs=performance.now()-begin;await save();
   await nav('projects');await page.locator(`[data-action="wf-manage"][data-id="${current.id}"]`).click();const download=page.waitForEvent('download');await page.locator('[data-action="wf-export"]').click();const out=join(directory,'export-'+count+'.json');await(await download).saveAs(out);expect(JSON.parse(readFileSync(out)).project.pages.flatMap(g=>g.nodes)).toHaveLength(count);await page.locator('[data-action="close-dialog"]').last().click();
   const reloadStart=performance.now(),loaded=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/v1/workspace'&&r.request().method()==='GET');
@@ -36,12 +37,12 @@ try{
  await page.locator('[data-action="new-canvas"]').first().click();await page.locator('[name="name"]').fill('设备组副本');await submit();await save();const target=(await active()).activePage;
  await group('copy',['Part1','Part2'],target);await expect(page.getByRole('dialog')).toContainText('1 条内部连线');await submit();await save();let current=await active(),copied=current.pages.find(g=>g.id===target).nodes;expect(copied).toHaveLength(2);expect(current.pages.find(g=>g.id===target).edges).toHaveLength(1);
  await page.locator('[data-action="undo"]').click();await save();expect((await active()).pages.find(g=>g.id===target).nodes).toHaveLength(0);await page.locator('[data-action="redo"]').click();await save();expect((await active()).pages.find(g=>g.id===target).nodes).toHaveLength(2);
- await page.locator(`.net-node[data-node="${copied[0].id}"]`).click({modifiers:['Shift']});await page.locator('[data-action="project-group-tools"]').click();await expect(page.getByLabel('组选择 '+copied[0].id,{exact:true})).not.toBeChecked();await page.locator('[data-action="close-dialog"]').last().click();
+ await page.locator(`.net-node[data-node="${copied[0].id}"]`).click({modifiers:['Shift']});await (await workspaceControl(page,'[data-action="project-group-tools"]')).click();await expect(page.getByLabel('组选择 '+copied[0].id,{exact:true})).not.toBeChecked();await page.locator('[data-action="close-dialog"]').last().click();
  // A true Shift-drag rectangle selects both copied devices from their visible bounds.
  const bounds=await page.locator('#network [data-node]').evaluateAll(xs=>xs.map(x=>{const b=x.getBoundingClientRect();return {x:b.x,y:b.y,right:b.right,bottom:b.bottom};}));
  const left=Math.min(...bounds.map(b=>b.x))-12,top=Math.min(...bounds.map(b=>b.y))-12,right=Math.max(...bounds.map(b=>b.right))+12,bottom=Math.max(...bounds.map(b=>b.bottom))+12;
  await page.keyboard.down('Shift');await page.mouse.move(left,top);await page.mouse.down();await page.mouse.move(right,bottom,{steps:8});await page.mouse.up();await page.keyboard.up('Shift');
- await page.locator('[data-action="project-group-tools"]').click();for(const n of copied)await expect(page.getByLabel('组选择 '+n.id,{exact:true})).toBeChecked();await page.locator('[data-action="close-dialog"]').last().click();
+ await (await workspaceControl(page,'[data-action="project-group-tools"]')).click();for(const n of copied)await expect(page.getByLabel('组选择 '+n.id,{exact:true})).toBeChecked();await page.locator('[data-action="close-dialog"]').last().click();
  await group('move',copied.map(n=>n.id),'page0');await save();expect((await active()).pages.find(g=>g.id===target).nodes).toHaveLength(0);
  await page.locator('[data-action="undo"]').click();await save();expect((await active()).pages.find(g=>g.id===target).nodes.map(n=>n.id)).toEqual(copied.map(n=>n.id));
  await captureFhd(page,'artifacts/project-group-editing.png');

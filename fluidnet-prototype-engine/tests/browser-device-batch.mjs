@@ -1,3 +1,4 @@
+import {workspaceControl} from './browser-workspace-controls.mjs';
 import {chromium,expect} from '@playwright/test';
 import {testServer} from './browser-server.mjs';
 import {FHD_CONTEXT,captureFhd} from './browser-viewport.mjs';
@@ -16,7 +17,7 @@ async function saved(){
   return page.evaluate(async () =>(await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1')));
 }
 async function edit(value){
-  await page.locator('[data-action="device-batch-edit"]').click();
+  await (await workspaceControl(page,'[data-action="device-batch-edit"]')).click();
   await page.getByLabel('批量设备模块',{exact:true}).selectOption('valve');await submit();
   await expect(page.getByLabel('选择设备 V1',{exact:true})).toBeChecked();
   await expect(page.getByLabel('选择设备 V2',{exact:true})).toBeChecked();
@@ -70,12 +71,12 @@ try{
   expect((await api('/runs/'+controlled+'/events')).events.filter(e=>e.command?.action==='write')).toHaveLength(0);
   await run('stop').click();await expect(run('stop')).toBeDisabled();
   // Whole-model replacement keeps model provenance; overriding it becomes custom settings.
-  await page.locator('[data-action="device-batch-edit"]').click();
+  await (await workspaceControl(page,'[data-action="device-batch-edit"]')).click();
   await page.getByLabel('批量设备模块',{exact:true}).selectOption('valve');await submit();
   await page.getByLabel('批量型号',{exact:true}).selectOption('valve-25');await submit();await submit();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   for(const value of Object.values(nodes(await saved()))){expect(value.modelId).toBe('valve-25');expect(value.params.kv).toBe(25);expect(value.params.opening).toBe(65);}
-  await page.locator('[data-action="device-batch-edit"]').click();
+  await (await workspaceControl(page,'[data-action="device-batch-edit"]')).click();
   await page.getByLabel('批量设备模块',{exact:true}).selectOption('valve');await submit();
   await page.getByLabel('批量型号',{exact:true}).selectOption('valve-25');
   await page.getByLabel('修改 阀门开度',{exact:true}).check();await page.getByLabel('批量 阀门开度',{exact:true}).fill('50');await submit();

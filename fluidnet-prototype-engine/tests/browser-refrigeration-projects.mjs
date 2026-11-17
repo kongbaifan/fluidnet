@@ -1,3 +1,4 @@
+import {workspaceControl} from './browser-workspace-controls.mjs';
 import {chromium,expect} from '@playwright/test';
 import {mkdirSync,mkdtempSync,readFileSync,writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
@@ -47,7 +48,7 @@ async function run(){
   await expect(page.locator('[data-result-status]').first()).toContainText('t = 1.0 s');return record;
 }
 async function upgrade(version){
-  await navigate('workbench');await page.locator('[data-action="wf-upgrades"]').click();
+  await navigate('workbench');await (await workspaceControl(page,'[data-action="wf-upgrades"]')).click();
   await page.locator(`[data-action="wf-module-versions"][data-module="${moduleId}"]`).click();
   await page.locator(`[data-action="wf-preview-upgrade"][data-version="${version}"]`).click();
   await expect(page.getByRole('dialog')).toContainText('兼容检查通过');await submit();

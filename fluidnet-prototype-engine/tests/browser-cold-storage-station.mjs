@@ -1,3 +1,4 @@
+import {workspaceControl} from './browser-workspace-controls.mjs';
 import {FHD_CONTEXT, captureFhd} from './browser-viewport.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs';
@@ -48,7 +49,7 @@ try {
   const panel = page.locator('.cold-storage-summary.cold-room');
   await expect(async () => {
     if (await panel.isVisible().catch(() => false)) return;
-    await page.locator('[data-action="cs-create-station"]').click();
+    await (await workspaceControl(page,'[data-action="cs-create-station"]')).click();
     await expect(panel).toBeVisible({ timeout: 5000 });
   }).toPass({ timeout: 60000 });
   const draft = (await page.evaluate(async () => (await import('/draft-store.js')).FluidNetDraftStore.parse(localStorage.getItem('fluidnet-prototype-engine-v1')))).projects.find(p => p.caseId === 'cold-storage-nh3co2-v2');

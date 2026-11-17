@@ -1,3 +1,4 @@
+import {workspaceControl} from './browser-workspace-controls.mjs';
 import {chromium,expect} from '@playwright/test';
 import {mkdtempSync,readFileSync,writeFileSync,mkdirSync} from 'node:fs';import {join} from 'node:path';import {tmpdir} from 'node:os';
 import {testServer} from './browser-server.mjs';import {FHD_CONTEXT,captureFhd} from './browser-viewport.mjs';
@@ -12,12 +13,12 @@ try{
  await page.goto(server.base+'/#modules');await expect(page.locator('[data-action="equipment-library"]')).toBeVisible();await page.locator('[data-action="equipment-library"]').click();
  await page.getByLabel('设备组模板',{exact:true}).selectOption('group_pump_branch');await page.getByLabel('实例前缀',{exact:true}).fill('System');await submit();await expect(page.locator('.net-node[data-node="System-Equipment"]')).toBeVisible();
  const original=await save();
- await page.locator('[data-action="project-group-tools"]').click();for(const cb of await page.getByRole('dialog').locator('input[type="checkbox"]').all())await cb.check();await submit();await expect(page.getByRole('dialog')).toContainText('2 条内部连线');await submit();
+ await (await workspaceControl(page,'[data-action="project-group-tools"]')).click();for(const cb of await page.getByRole('dialog').locator('input[type="checkbox"]').all())await cb.check();await submit();await expect(page.getByRole('dialog')).toContainText('2 条内部连线');await submit();
  const copied=await save(),groups=copied.pages.flatMap(g=>g.nodes).filter(n=>n.moduleId==='group_pump_branch');expect(groups).toHaveLength(2);expect(copied.pages.flatMap(g=>g.edges)).toHaveLength(4);
- await page.locator('[data-action="device-batch-edit"]').click();await page.getByLabel('批量设备模块',{exact:true}).selectOption('group_pump_branch');await submit();
+ await (await workspaceControl(page,'[data-action="device-batch-edit"]')).click();await page.getByLabel('批量设备模块',{exact:true}).selectOption('group_pump_branch');await submit();
  await page.getByLabel('修改 Pump · 转速比',{exact:true}).check();await page.getByLabel('批量 Pump · 转速比',{exact:true}).fill('.9');await submit();await submit();await expect(page.getByRole('dialog')).toHaveCount(0);
  const changed=await save();for(const n of changed.pages.flatMap(g=>g.nodes).filter(n=>n.moduleId==='group_pump_branch'))expect(n.params.Pump_speed_ratio).toBe(.9);
- await page.locator('[data-action="project-find"]').click();await page.getByLabel('全项目查找关键词').fill('System-Equipment');await page.locator('[data-action="project-find-node"][data-id="System-Equipment"]').click();
+ await (await workspaceControl(page,'[data-action="project-find"]')).click();await page.getByLabel('全项目查找关键词').fill('System-Equipment');await page.locator('[data-action="project-find-node"][data-id="System-Equipment"]').click();
  const panel=page.locator('[data-float-id="System-Equipment"]');await panel.locator('[data-action="configure-device-panel"]').click();const config=page.getByRole('dialog');
  for(const cb of await config.locator('[data-panel-config] input[type="checkbox"]').all())await cb.uncheck();
  const speed=config.locator('[data-panel-config-row="Pump_speed_ratio"]');await speed.locator('input[type="checkbox"]').check();await speed.locator('select').selectOption('slider');await speed.locator('input[aria-label$="分组"]').fill('泵组操作');
