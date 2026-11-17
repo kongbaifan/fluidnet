@@ -220,3 +220,21 @@ def test_same_expansion_energy_fault_is_rejected_at_every_datum(offset, filling,
         solve_network(network, service=service, storage_step=(1., old))
     assert caught.value.diagnostic.code == 'THERMAL_ENERGY_IMBALANCE'
     assert caught.value.diagnostic.instance_id == 'Expansion'
+
+
+def test_valve_opened_after_compilation_shares_one_datum_across_it():
+    # Compiled closed, the valve splits the line into two static components; a control script
+    # opening it afterwards must not turn the difference between their data into heat.
+    network = compile_project(project(
+        [('B1', 'source', {'pressure_pa': 200000., 'temperature_k': 353.15}),
+         ('V1', 'valve', {'opening_ratio': 0., 'kv_m3_h': 6.}),
+         ('L1', 'pipe', {'length_m': 30., 'diameter_m': .06, 'heat_loss_ua_w_k': 3000., 'ambient_temperature_k': 293.15}),
+         ('B2', 'source', {'pressure_pa': 100000., 'temperature_k': 353.15})],
+        [('B1:out0', 'V1:in0'), ('V1:out0', 'L1:in0'), ('L1:out0', 'B2:out0')]))
+    assert len(set(network.node_component)) == 2
+    network.parameters['V1']['opening_ratio'] = 1.
+    for branch in network.branches:
+        branch.closed = False
+    thermal_result = solve_network(network).thermal
+    assert thermal_result.heat_w.sum() < -1e4
+    assert abs(thermal_result.energy_residual_w) < 1e-6
