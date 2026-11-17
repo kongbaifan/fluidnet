@@ -7,6 +7,8 @@ vessel(s) it connects to; two-phase properties are queried here, never in the fl
 from dataclasses import asdict, dataclass
 import math
 
+from scipy.optimize import brentq
+
 from ..model_types.base import Diagnostic
 from .cycle import DeviceRangeError, compress, displaced_flow
 from .vessel_geometry import horizontal_height_ratio, horizontal_volume, headed_volume, headed_height_ratio
@@ -52,6 +54,27 @@ def saturated(service, temperature):
     return service.state_tq(temperature, 0.), service.state_tq(temperature, 1.)
 
 
+def is_mixture(service):
+    """Fixed-composition mixture (bubble and dew points differ); services without the flag are pure fluids."""
+    return bool(getattr(service, 'mixture', False))
+
+
+def vessel_phases(service, pressure, temperature):
+    """Liquid and vapor leaving a vessel. A mixture keeps the overall composition everywhere (no
+    fractionation), so its ports deliver bubble-point liquid and dew-point vapor at the vessel pressure."""
+    if is_mixture(service):
+        return service.state_pq(pressure, 0.), service.state_pq(pressure, 1.)
+    return saturated(service, temperature)
+
+
+def phase_change_temperature(service, pressure, start_quality=0., end_quality=1.):
+    """Mean refrigerant temperature of a phase change at `pressure`: the saturation temperature of a
+    pure fluid, the mean of the two end states for a mixture with temperature glide."""
+    if not is_mixture(service):
+        return service.saturation_t(pressure)
+    return .5 * (service.state_pq(pressure, start_quality).temperature_k + service.state_pq(pressure, end_quality).temperature_k)
+
+
 def vessel_dimensions(params):
     """Return (volume, level-height scale, horizontal); legacy vessels keep their original inputs."""
     if 'diameter_m' in params or 'length_m' in params:
@@ -70,6 +93,17 @@ def vessel_initial(service, params):
     level = params['level_ratio']
     if not 0 < level < 1:
         raise DeviceRangeError('VESSEL_PHASE_RANGE', '初始液位必须在 0 与 1 之间（不含端点）')
+    if is_mixture(service):
+        # The liquid volume fraction fixes the vapor mass fraction at this temperature; same level
+        # definition as vessel_state, so the configured level is reproduced exactly.
+        def level_error(quality):
+            state = service.state_tq(params['temperature_k'], quality)
+            return (1. - quality) * state.density_kg_m3 / service.state_pq(state.pressure_pa, 0.).density_kg_m3 - level
+        try:
+            state = service.state_tq(params['temperature_k'], brentq(level_error, 1e-9, 1. - 1e-9, xtol=1e-13))
+        except ValueError as error:
+            raise DeviceRangeError('VESSEL_PHASE_RANGE', '混合工质在该温度与液位下没有气液两相初态') from error
+        return state.density_kg_m3 * volume, state.density_kg_m3 * volume * state.internal_energy_j_kg
     liquid, vapor = saturated(service, params['temperature_k'])
     liquid_mass = level * volume * liquid.density_kg_m3
     vapor_mass = (1 - level) * volume * vapor.density_kg_m3
@@ -93,7 +127,7 @@ def vessel_state(service, params, mass, internal_energy):
             volume_m3=volume, bulk_enthalpy_j_kg=enthalpy, phase=state.phase)
     if state.phase != TWO_PHASE or state.quality is None:
         raise DeviceRangeError('VESSEL_PHASE_RANGE', f'容器内为 {state.phase}，集总饱和容器只适用于气液两相')
-    liquid, vapor = saturated(service, state.temperature_k)
+    liquid, vapor = vessel_phases(service, state.pressure_pa, state.temperature_k)
     vapor_mass = state.quality * mass
     liquid_mass = mass - vapor_mass
     level = liquid_mass / liquid.density_kg_m3 / volume
@@ -106,6 +140,16 @@ def vessel_state(service, params, mass, internal_energy):
                        height_ratio if horizontal else None, volume if horizontal or params.get('allow_single_phase') else None,
                        internal_energy / mass + state.pressure_pa * volume / mass if params.get('allow_single_phase') else None,
                        state.phase if params.get('allow_single_phase') else None)
+
+
+def glide_heat(start, end, heat, conductance, mass_flow):
+    """Air-side heat of an evaporating mixture. `heat` is driven by the bubble point `start`; the
+    refrigerant warms along its glide (taken linear in enthalpy up to `end`), and the coil sees the
+    mean of its inlet and outlet temperatures: heat' = C·(ΔT − ½·slope·heat'/m)."""
+    if heat <= 0. or mass_flow <= 0. or end.enthalpy_j_kg <= start.enthalpy_j_kg:
+        return heat
+    slope = (end.temperature_k - start.temperature_k) / (end.enthalpy_j_kg - start.enthalpy_j_kg)
+    return heat / (1. + .5 * conductance * slope / mass_flow)
 
 
 def check_vessel(params, state):
@@ -145,7 +189,7 @@ def compressor_point(service, params, suction_pa, discharge_pa):
 
 def condenser_duty(service, params, pressure_pa):
     """Heat rejected to the wet-bulb sink. Closing the receiver return-gas valve floods part of the coil."""
-    condensing = service.saturation_t(pressure_pa)
+    condensing = phase_change_temperature(service, pressure_pa)
     fan = params['fan_ratio']
     ua = (params['ua_w_k'] * (params['natural_ua_ratio'] + (1 - params['natural_ua_ratio']) * fan)
           * (params['flooded_ua_ratio'] + (1 - params['flooded_ua_ratio']) * params['return_gas_ratio']))
@@ -205,10 +249,19 @@ def air_cooler_point(service, params, pressure_pa, room_temperature_k, supply_kg
     # A room colder than the coil would only subcool the liquid slightly; that sensible term is neglected.
     air_side = max(0., ua * (room_temperature_k - liquid.temperature_k))
     supply_side = supply_kg_s * latent * params['max_outlet_quality']
+    if is_mixture(service):
+        limit = service.state_pq(pressure_pa, params['max_outlet_quality'])
+        air_side = glide_heat(liquid, limit, air_side, ua, supply_kg_s)
+        supply_side = supply_kg_s * (limit.enthalpy_j_kg - liquid.enthalpy_j_kg)
     heat = min(air_side, supply_side)
+    quality = heat / latent / supply_kg_s if supply_kg_s > 0 else None
+    if is_mixture(service) and supply_kg_s > 0:
+        # Enthalpy is not linear in quality along the glide.
+        quality = (params['max_outlet_quality'] if air_side >= supply_side else
+                   service.state_ph(pressure_pa, liquid.enthalpy_j_kg + heat / supply_kg_s).quality or 0.)
     fan_power = params['fan_power_w'] * fan
     return {'refrigerant_heat_w': heat, 'room_cooling_w': heat - fan_power, 'fan_power_w': fan_power,
             'supply_mass_flow_kg_s': supply_kg_s, 'evaporating_temperature_k': liquid.temperature_k,
-            'outlet_quality': heat / latent / supply_kg_s if supply_kg_s > 0 else None,
+            'outlet_quality': quality,
             'outlet_enthalpy_j_kg': liquid.enthalpy_j_kg + heat / supply_kg_s if supply_kg_s > 0 else liquid.enthalpy_j_kg,
             'supply_limited': air_side > supply_side}

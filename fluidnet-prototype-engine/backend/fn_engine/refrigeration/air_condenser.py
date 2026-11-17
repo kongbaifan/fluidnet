@@ -11,6 +11,7 @@ from typing import Protocol
 
 from ..model_types.module import ModuleDefinition
 from .cycle import DeviceRangeError
+from .devices import phase_change_temperature
 
 
 DEFAULT_PARAMETERS = {
@@ -67,7 +68,7 @@ def condenser_duty(service: SaturationService, params: Mapping[str, float], pres
         raise DeviceRangeError('AIR_CONDENSER_PARAMETER', '风机转速比须在 0–1 内；当前未标定超速工况', field='fan_ratio')
     if not math.isfinite(pressure_pa) or pressure_pa <= 0.:
         raise DeviceRangeError('AIR_CONDENSER_PRESSURE', '冷凝压力必须为有限正数')
-    condensing = service.saturation_t(pressure_pa)
+    condensing = phase_change_temperature(service, pressure_pa)
     if not math.isfinite(condensing) or condensing <= 0.:
         raise DeviceRangeError('AIR_CONDENSER_TEMPERATURE', '制冷剂饱和温度必须为有限正数')
     flow = rated_flow * fan
