@@ -131,5 +131,7 @@ def test_refprop_checks_never_run_pull_request_code_on_the_self_hosted_runner():
     steps = commands(job)
     # Without the licensed library every REFPROP test skips and the job would still be green.
     assert steps.index('refprop_root') < steps.index('pytest')
+    # The runner is somebody's own computer: dependencies go into a throwaway environment.
+    assert steps.index('-m venv') < steps.index('pip install')
     for name in ('ci.yml', 'ci-full.yml'):
         assert all('self-hosted' not in str(other['runs-on']) for other in workflow(name)['jobs'].values())
