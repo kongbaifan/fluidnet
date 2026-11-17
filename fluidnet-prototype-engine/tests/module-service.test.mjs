@@ -66,7 +66,7 @@ test('builtin presentation snapshots keep their own display parameter definition
 });
 
 test('insertion planning reports the actual pinned release and never mutates the project or draft',()=>{
-  const f=fixture();f.owner.pages[0].id='main';
+  const f=fixture({catalog:()=>({modules:[]})});f.owner.pages[0].id='main';
   const before=plain(f.owner),draft=plain(f.m),plan=f.service.insertionPlan(f.owner,f.m.id,'main');
   assert.equal(plan.module.version,1);assert.equal(plan.usesPinnedVersion,false);
   assert.deepEqual(plain(f.owner),before);assert.deepEqual(plain(f.m),draft);
@@ -76,6 +76,9 @@ test('insertion planning reports the actual pinned release and never mutates the
   assert.equal(pinned.module.manifest.source.runtime,'class Module: pass');
   delete f.m.publishedManifest;
   assert.equal(f.service.insertionPlan(f.owner,f.m.id,'main').module,pinned.module);
+  const newOwner={id:'new-project',pages:[{id:'main',nodes:[]}]},beforeNew=plain(newOwner);
+  assert.throws(()=>f.service.insertionPlan(newOwner,f.m.id,'main'),/先校验并保存/);
+  assert.deepEqual(newOwner,beforeNew);
   f.modules.length=0;
   assert.equal(f.service.insertionPlan(f.owner,f.m.id,'main').module,pinned.module);
 });

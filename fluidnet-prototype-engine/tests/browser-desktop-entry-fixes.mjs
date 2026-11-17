@@ -17,6 +17,12 @@ async function save(){
   return (await(await page.request.get(server.base+'/api/v1/workspace')).json()).data;
 }
 async function closeDialog(){await dialog().locator('[data-action="close-dialog"]').first().click();await expect(dialog()).toHaveCount(0);}
+async function importWorkspace(workspace){
+  await nav('projects');await page.locator('[data-action="import"]').click();
+  await page.getByLabel('选择工作区 JSON').setInputFiles({name:'snapshot-reuse.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(workspace))});
+  await expect(page.locator('#import-preview')).toContainText('确认后');
+  await dialog().locator('[type="submit"]').click();await expect(dialog()).toHaveCount(0);
+}
 async function snapshot(name){await page.mouse.move(20,25);await page.evaluate(()=>document.fonts.ready);await page.waitForTimeout(180);await captureFhd(page,output+'/'+name+'.png');}
 async function visibleGeometry(){return page.locator('#network-area').evaluate(area=>{
   const bounds=area.getBoundingClientRect(),nodes=[...area.querySelectorAll('.net-node')].map(node=>node.getBoundingClientRect());
@@ -60,6 +66,37 @@ try{
   expect(owner.pages.flatMap(p=>p.nodes).filter(n=>n.moduleId==='check_valve')).toHaveLength(1);
   expect(owner.moduleSnapshots.check_valve.runtime).toBe('python');evidence.replacementInserted=true;
   await page.locator('[data-action="undo"]').click();await expect(page.locator('#network .net-node')).toHaveCount(before);
+  const originalWorkspace=await save(),imported=structuredClone(inserted),pinned=structuredClone(owner.moduleSnapshots.check_valve);
+  const draft=imported.modules.find(m=>m.id==='check_valve');delete draft.publishedManifest;draft.frozen=false;draft.dirty=true;
+  draft.source.runtime+='\n# unpublished draft must not enter the project\n';const draftSource=draft.source.runtime;
+  await importWorkspace(imported);await nav('modules');
+  await expect(card('check_valve')).toHaveAttribute('data-module-available','true');
+  await expect(card('check_valve')).toContainText('Python · 未发布');
+  await card('check_valve').locator('[data-action="insert-module"]').click();
+  await expect(page.locator('#network .net-node')).toHaveCount(before+2);
+  const reusable=page.locator('.library-item[data-id="check_valve"]');
+  await expect(reusable).toHaveAttribute('data-action','place-module');await expect(reusable).toHaveAttribute('draggable','true');
+  await reusable.click();await page.locator('#network').click({position:{x:30,y:50}});
+  await expect(page.locator('#network .net-node')).toHaveCount(before+3);
+  await nav('modules');await card('check_valve').locator('[data-action="edit-module"]').click();
+  await expect(page.locator('.module-use-bar')).toContainText('先保存新版本');
+  await expect(page.locator('.module-use-bar')).toContainText(`可复用项目固定 v${pinned.version}`);
+  await page.locator('[data-action="use-module"]').click();
+  await expect(dialog().locator('[type="submit"]')).toBeEnabled();
+  await expect(page.locator('#module-insertion-version')).toContainText('模块库草稿仍未发布');
+  const unbound=imported.projects.find(p=>p.id!==owner.id&&!p.moduleSnapshots?.check_valve);expect(unbound).toBeTruthy();
+  await dialog().locator('[name="project"]').selectOption(unbound.id);
+  await expect(dialog().locator('[type="submit"]')).toBeDisabled();
+  await expect(page.locator('#module-insertion-version')).toContainText('请先校验并保存模块版本');
+  await dialog().locator('[name="project"]').selectOption(owner.id);await dialog().locator('[type="submit"]').click();
+  await expect(dialog()).toHaveCount(0);await expect(page.locator('#network .net-node')).toHaveCount(before+4);
+  const reused=await save(),reusedOwner=reused.projects.find(p=>p.id===owner.id);
+  expect(reusedOwner.moduleSnapshots.check_valve).toEqual(pinned);
+  expect(reused.modules.find(m=>m.id==='check_valve').source.runtime).toBe(draftSource);
+  expect(reused.modules.find(m=>m.id==='check_valve').publishedManifest).toBeUndefined();
+  expect(reused.projects.find(p=>p.id===unbound.id)).toEqual(unbound);
+  evidence.frozenProjectReuse={card:true,placement:true,targetSelection:true,unpublishedDraftPreserved:true,newProjectBlocked:true};
+  await importWorkspace(originalWorkspace);await save();
   await nav('modules');await card('valve').locator('[data-action="edit-module"]').click();await page.locator('.editor-tabs [data-value="code"]').click();
   await expect(page.locator('[data-builtin-code-notice]')).toContainText('内置算法说明 · 只读');
   const code=page.locator('#module-code'),source=await code.inputValue();

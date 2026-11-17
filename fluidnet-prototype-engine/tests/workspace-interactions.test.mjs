@@ -69,6 +69,14 @@ test('canvas overlay buttons do not start pan or box selection gestures',()=>{
     f.api.click(f.ev(overlay));assert.deepEqual(f.calls,[['action','zoom-in']]);
   }
 });
+test('path inspection text and close controls keep native pointer behavior without canvas gestures',()=>{
+  for(const shiftKey of [false,true]){
+    const f=fixture(),overlay=target({'#network-area':f.svg,'#canvas-inspection':{}}),event=f.ev(overlay,0,0,{shiftKey});
+    f.api.pointerdown(event);assert.equal(f.api.busy(),false);assert.equal(event.prevented,undefined);
+    f.api.pointermove(f.ev(overlay,80,20));f.api.pointerup(f.ev(overlay,80,20));
+    assert.deepEqual(f.page.pan,[0,0]);assert.deepEqual(f.calls,[]);
+  }
+});
 test('placing gestures over existing nodes and ports leave their geometry and connections intact',()=>{
   for(const kind of ['node','port','shift']){
     const f=fixture(),occupied=kind==='port'?target({'#network-area':f.svg,'[data-port-node]':{dataset:{portNode:'N',portId:'out0'}}}):f.nTarget;

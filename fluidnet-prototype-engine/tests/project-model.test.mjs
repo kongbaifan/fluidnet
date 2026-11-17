@@ -24,6 +24,19 @@ test('availability requires a connected catalog for builtin insertion and a save
   assert.equal(model.moduleAvailability({...draft,frozen:true},{modules:[]}).available,true);
 });
 
+test('insertion availability uses only the target project snapshot or a published library release',()=>{
+  const draft={id:'custom',runtime:'python',version:2,source:{runtime:'unpublished'}},
+    snapshot={...draft,version:1,frozen:true,source:{runtime:'accepted'}},
+    owner={moduleSnapshots:{custom:snapshot}},catalog={modules:[]},before=plain({draft,owner});
+  assert.equal(model.moduleAvailability(draft,catalog).available,false);
+  const status=model.moduleInsertionAvailability(draft,catalog,owner);
+  assert.equal(status.available,true);assert.equal(status.pinnedVersion,1);
+  assert.equal(model.moduleInsertionAvailability(draft,catalog,{}).available,false);
+  assert.equal(model.moduleInsertionAvailability({...draft,frozen:true},catalog,{}).available,false);
+  assert.equal(model.moduleInsertionAvailability({...draft,publishedManifest:{version:3}},catalog,{}).available,true);
+  assert.deepEqual({draft,owner},before);
+});
+
 test('duplicate workspace restore ignores only top-level receipt metadata, never substantive drafts',()=>{
   const original={schema:1,dirty:false,projects:[{id:'p',dirty:false,run:{history:[{t:0,value:1}]},pages:[{nodes:[{id:'V1',params:{opening:40},draft:{opening:50}}]}]}],
     modules:[{id:'valve',manifest:{definition_hash:'original'},panelLayout:{parameters:['opening']}}],savedAt:'before',workspaceRevision:1};

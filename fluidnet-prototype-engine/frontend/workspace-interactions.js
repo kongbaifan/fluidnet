@@ -38,6 +38,7 @@ export const FluidNetWorkspaceInteractions = (() => {
       if(getView().route!=='workbench')return;
       const svg=canvas.svg(),port=target.closest('[data-port-node]'),node=target.closest('[data-node]');
       if(!target.closest('#network-area'))return;
+      if(target.closest('#canvas-inspection'))return;
       if(target.closest('[data-action]'))return;
       if(getView().placing)return;
       const owner=canvas.owner(),page=canvas.page();

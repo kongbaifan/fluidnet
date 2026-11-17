@@ -5,7 +5,7 @@ import vm from 'node:vm';
 
 const esc=value=>String(value??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;');
 const button=(name,label,_glyph='',attrs='')=>`<button data-action="${name}" ${attrs}>${esc(label)}</button>`;
-function fixture({availability}={}){
+function fixture({availability,insertionAvailability}={}){
   const host=vm.createContext({window:{}});
   for(const name of ['project-model','module-editor-view'])loadFrontend(new URL(`../frontend/${name}.js`,import.meta.url),host);
   const m=host.window.FluidNetProjectModel.moduleFromManifest({id:'view_valve',name:'试验阀 <script>',version:1,runtime:'python',solver_model:'generic',category:'阀门',
@@ -17,7 +17,7 @@ function fixture({availability}={}){
   let current=m;
   const ui={moduleTab:'drawing',editorPort:'',variableSearch:'',valueSearch:'',bank:0,arrayVar:'system:form',allBanks:false,designIndex:0,codeKind:'runtime',compileOutput:'未检查'};
   const calls=[],models=[];
-  const view=host.window.FluidNetModuleEditorView.create({currentModule:()=>current,editorState:()=>ui,models:()=>models,availability,
+  const view=host.window.FluidNetModuleEditorView.create({currentModule:()=>current,editorState:()=>ui,models:()=>models,availability,insertionAvailability,
     parameterDefinitions:()=>[],contractText:value=>JSON.stringify(value.manifest),
     chrome:{esc,icon:()=>'',btn:button,ibtn:button,badge:esc,option:(value,label)=>`<option value="${esc(value)}">${esc(label)}</option>`,number:(value,digits=2)=>Number(value).toFixed(digits)},
     constants:{DOMAINS:{fluid:{label:'流体',color:'blue'}},PORT_PREFIX:{fluid:'F'},FLUIDS:[['water','水',125]],
@@ -90,6 +90,14 @@ test('editor guides an unpublished module to saving and uses the published versi
   const html=f.view.renderEditor();assert.match(html,/已保存 v3 · 草稿有修改/);
   assert.doesNotMatch(html,/data-action="use-module"[^>]*disabled/);
   f.m.saving=true;assert.match(f.view.renderEditor(),/data-action="use-module"[^>]*disabled/);
+});
+
+test('project snapshot reuse enables insertion without describing an unpublished draft as published',()=>{
+  const f=fixture({availability:()=>({available:false}),insertionAvailability:()=>({available:true,pinnedVersion:1})});
+  const before=JSON.stringify(f.m),html=f.view.renderEditor();
+  assert.match(html,/先保存新版本/);assert.match(html,/可复用项目固定 v1/);
+  assert.doesNotMatch(html,/data-action="use-module"[^>]*disabled|已发布|已保存 v1/);
+  assert.match(html,/data-action="save-module-version"/);assert.equal(JSON.stringify(f.m),before);
 });
 
 test('common parameters show display values and keep full definitions in a collapsed section',()=>{

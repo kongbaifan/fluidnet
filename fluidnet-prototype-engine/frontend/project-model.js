@@ -11,6 +11,13 @@ export const FluidNetProjectModel = (() => {
     if(catalog.modules.some(definition=>definition.id===kind))return {available:true,label:'可计算',reason:''};
     return {available:false,label:'旧参考对象',reason:`${module.name||module.id} 是旧参考对象，未注册计算算法，不能放入运行项目。`};
   }
+  function moduleInsertionAvailability(module,catalog,owner) {
+    const pinned=owner?.moduleSnapshots?.[module?.id];
+    // A frozen project definition is reusable only in its owning project. A
+    // library entry still needs a published release before use in another one.
+    const status=moduleAvailability(pinned||(module?.runtime==='python'?{...module,frozen:false}:module),catalog);
+    return pinned?.runtime==='python'&&status.available?{...status,pinnedVersion:pinned.version}:status;
+  }
   function workspaceContentEqual(left,right) {
     if(!left||!right||typeof left!=='object'||typeof right!=='object')return false;
     // These top-level fields are receipt metadata/cache rebuilt after a workspace save/load.
@@ -263,7 +270,7 @@ function parameterKey(owner,modules,controlKey) {
   })) });
 }
 
-  return {moduleAvailability,parameterKey,workspaceContentEqual,toDisplay,toCanonical,displayParameters,canonicalParameters,manifestParamDef,moduleFromManifest,applyCatalogPresentation,installBuiltinCatalog,catalogPresentationIndex,
+  return {moduleAvailability,moduleInsertionAvailability,parameterKey,workspaceContentEqual,toDisplay,toCanonical,displayParameters,canonicalParameters,manifestParamDef,moduleFromManifest,applyCatalogPresentation,installBuiltinCatalog,catalogPresentationIndex,
     manifestFields,manifestParamSpecs,manifestParamDefaults,projectDocument,exchangeDocument,upgradeDocument};
 })();
 

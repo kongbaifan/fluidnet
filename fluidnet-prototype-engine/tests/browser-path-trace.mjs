@@ -26,7 +26,14 @@ try{
   await expect(page.locator('[data-port-node="HX1"][data-port-id="in1"]')).not.toHaveClass(/path-trace-active/);
   await expect(page.locator('[data-port-node="P1"][data-port-id="out0"]')).toHaveClass(/path-trace-remote/);
   await expect(hint.locator('[data-trace-destination="B2:out0"]')).toBeVisible();
+  const originalView=await page.locator('#network').getAttribute('viewBox');
+  const text=await hint.locator('.path-trace-scope').boundingBox();
+  await page.mouse.move(text.x+2,text.y+text.height/2);await page.mouse.down();
+  await page.mouse.move(text.x+130,text.y+text.height/2,{steps:8});await page.mouse.up();
+  await expect(page.locator('#network')).toHaveAttribute('viewBox',originalView);
+  expect(await page.evaluate(()=>getSelection().toString().length)).toBeGreaterThan(0);
   await hint.locator('[data-trace-close]').click();await expect(hint).toBeHidden();
+  await expect(page.locator('#network')).toHaveAttribute('viewBox',originalView);
   expect(await activeEdges()).toEqual([]);
 
   // Keyboard focus selects only the other side. No pointer hover or project mutation needed.
