@@ -40,3 +40,11 @@ node scripts/ci-quick.mjs --run-browser --plan artifacts/ci-quick-plan.json --gr
 本地浏览器执行默认不重试；只有明确加 `--ci` 才启用 CI 重试行为。`--run-*` 必须提供已保存计划；更改清单后应重新生成。后端执行前安装 `requirements-dev.txt`；浏览器执行前安装 `requirements.txt` 和 `npm ci`，沿用 Edge 与临时服务 harness。
 
 GitHub Actions 的 `ci-full` 通过 “Run workflow” 手动启动。该工作流始终选全部组，不复用日常的裁剪计划。现有 `npm run test:browser` 也仍是本地完整前端入口，应在明确需要完整验收时使用。本轮实际检查结果在[P0 验收](P0_REPLAY_CI_ACCEPTANCE.md)，配置正确不等于远程 Actions 已运行。
+
+## REFPROP 专项（自托管运行器）
+
+REFPROP 是 NIST 许可软件，不能放到 GitHub 托管机器上，所以 `tests/test_refprop.py`、`tests/test_refrigerant_mixture.py`、`tests/test_refprop_bundle.py`、`tests/test_bundle_refprop.py` 在 `ci.yml` 和 `ci-full.yml` 里都会跳过。`refprop.yml` 在装有 REFPROP 的自托管运行器（标签 `refprop`）上执行这四个文件，先确认 `refprop_root()` 能找到安装目录，找不到直接失败，不让“全部跳过”显示成通过。
+
+- 触发：master 推送（后端、依赖或这四个测试有改动时）和手动 `workflow_dispatch`（可选任意分支）。不设 `pull_request`：公开仓库的外部 PR 不能在自托管机器上执行代码；仓库的 fork PR 工作流审批同时设为“所有外部贡献者都需批准”。
+- 运行器离线时任务排队等待，不属于 `ci quick` 汇总，也不应配置为 required check。
+- 合并前想验证分支：`gh workflow run refprop.yml --ref <分支>`。

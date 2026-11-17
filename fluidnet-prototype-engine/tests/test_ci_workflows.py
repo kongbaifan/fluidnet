@@ -118,3 +118,18 @@ def test_aggregate_gates_reject_failure_cancellation_and_skipped_jobs(file, gate
                             encoding='utf-8', timeout=30,
                             env={**os.environ, 'GITHUB_STEP_SUMMARY': str(tmp_path / 'summary.md')})
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_refprop_checks_never_run_pull_request_code_on_the_self_hosted_runner():
+    document = workflow('refprop.yml')
+    # A public repository must not execute outside pull requests on a self-hosted machine.
+    assert set(triggers(document)) == {'push', 'workflow_dispatch'}
+    assert triggers(document)['push']['branches'] == ['master']
+    assert document['permissions'] == {'contents': 'read'}
+    job = document['jobs']['refprop']
+    assert {'self-hosted', 'refprop'} <= set(job['runs-on'])
+    steps = commands(job)
+    # Without the licensed library every REFPROP test skips and the job would still be green.
+    assert steps.index('refprop_root') < steps.index('pytest')
+    for name in ('ci.yml', 'ci-full.yml'):
+        assert all('self-hosted' not in str(other['runs-on']) for other in workflow(name)['jobs'].values())
