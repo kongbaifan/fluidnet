@@ -23,7 +23,7 @@ from scipy.sparse import coo_matrix, csr_matrix
 from scipy.sparse.csgraph import connected_components
 from scipy.sparse.linalg import MatrixRankWarning, spsolve
 
-from .compiler import CompilationError, CompiledNetwork, service_at
+from .compiler import CompilationError, CompiledNetwork, DisjointSet, service_at
 from .model_types.base import Diagnostic, FluidState
 from .model_types.protocol import NetworkRelation
 from .properties import PropertyError
@@ -794,11 +794,18 @@ def solve_thermal(network: CompiledNetwork, service, pressures, flows,
 
     # Balance energy relative to one enthalpy datum per hydraulic component. Absolute
     # h would both amplify mass-balance roundoff and change the acceptance threshold
-    # when a property service chooses a different enthalpy zero.
+    # when a property service chooses a different enthalpy zero. The static components
+    # are split at valves that were closed at compile time; once such a valve opens, its
+    # flow joins two of them, and two data would book w·(datum difference) as heat.
+    joined = DisjointSet(range(n))
+    for node in range(n):
+        joined.union(component[node], node)
+    for j in flowing:
+        joined.union(upstream[j], downstream[j])
     reference_h: dict[int, float] = {}
     for node, value in enumerate(h):
-        reference_h.setdefault(component[node], float(value))
-    datum = np.array([reference_h[component[node]] for node in range(n)])
+        reference_h.setdefault(joined.find(node), float(value))
+    datum = np.array([reference_h[joined.find(node)] for node in range(n)])
     relative_h = h - datum
     relative_outlet_h = outlet_h - datum[upstream]
 
