@@ -103,7 +103,10 @@ try{
  }
  await page.locator('[data-action="fit"]').click();
  for(const edge of recipe.connections){
-  for(const endpoint of [edge.source,edge.target])await page.locator(`[data-port-node="${ids[endpoint.instance_id]}"][data-port-id="${endpoint.port_id}"]`).click();
+  for(const endpoint of [edge.source,edge.target]){
+   await page.locator(`[data-port-node="${ids[endpoint.instance_id]}"][data-port-id="${endpoint.port_id}"]`).click();
+   if(endpoint===edge.source)await expect(page.locator('#canvas-inspection')).toBeHidden();
+  }
  }
  expect((await save()).pages[0].edges).toHaveLength(recipe.connections.length);
  await nav('settings');await page.locator('[data-action="settings-tab"][data-value="medium"]').click();

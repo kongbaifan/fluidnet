@@ -88,7 +88,7 @@ async function partitionPlant(){
       await page.locator('[data-action="canvas-tab"][data-id="'+source+'"]').click();
       await page.getByRole('button',{name:'适应画布',exact:true}).click();
       await page.locator('.net-node[data-node="'+id+'"]').click();
-      await page.locator('[data-action="move-device-page"][data-id="'+id+'"]').click();
+      await (await workspaceControl(page,'[data-action="move-device-page"][data-id="'+id+'"]')).click();
       await page.getByRole('dialog').locator('[name="page"]').selectOption(destination);
       await page.getByRole('dialog').locator('button[type="submit"]').click();
     }

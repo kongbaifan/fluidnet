@@ -1,4 +1,5 @@
 import {chromium,expect} from '@playwright/test';
+import {workspaceControl} from './browser-workspace-controls.mjs';
 import {testServer} from './browser-server.mjs';
 import {FHD_CONTEXT,captureFhd} from './browser-viewport.mjs';
 
@@ -42,7 +43,7 @@ try{
   const remotePage=(await save()).activePage;
   await page.locator(`[data-action="canvas-tab"][data-id="${original.activePage}"]`).click();
   await page.locator('.net-node[data-node="B2"]').click();
-  await page.locator('[data-action="move-device-page"][data-id="B2"]').click();
+  await (await workspaceControl(page,'[data-action="move-device-page"][data-id="B2"]')).click();
   await page.getByRole('dialog').locator('[name="page"]').selectOption(remotePage);await submit();
   const split=await save();
   expect(split.pages.flatMap(p=>p.edges)).toEqual(original.pages.flatMap(p=>p.edges));

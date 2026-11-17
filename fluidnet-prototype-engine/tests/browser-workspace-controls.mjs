@@ -7,9 +7,8 @@ export async function workspaceControl(page,selector){
   if(selector.includes('cs-create')){
     await page.locator('[data-action="project-examples"]').first().click();
   }else{
-    const menu=selector.includes('canvas-device-tools')?'device':
-      /data-canvas-|canvas-range|canvas-alerts/.test(selector)?'display':'extensions';
-    const disclosure=page.locator(`[data-workspace-menu="${menu}"]`);
+    const disclosure=control.locator('xpath=ancestor::details[@data-workspace-menu]');
+    await expect(disclosure).toHaveCount(1);
     if(!await disclosure.getAttribute('open').then(value=>value!==null))await disclosure.locator('summary').click();
   }
   await expect(control).toBeVisible();

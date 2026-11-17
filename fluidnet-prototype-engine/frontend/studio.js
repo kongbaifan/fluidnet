@@ -1689,6 +1689,7 @@ function internalChannelsMarkup(n) {
   }).join('')}</g>`;
 }
 function showCanvasInspection(target) {
+  if(ui.connecting||ui.placing){ui.canvasInspection=null;paintCanvasInspection();return;}
   if (target?.closest?.('#canvas-inspection')) return;
   const node = target?.closest?.('#network [data-node]'), port = target?.closest?.('[data-port-node]');
   // Keep a port trace while crossing the canvas to its navigation controls.
@@ -1701,7 +1702,7 @@ function showCanvasInspection(target) {
 }
 function paintCanvasInspection() {
   const hint = document.getElementById('canvas-inspection'); if (!hint) return;
-  const selected = ui.canvasInspection;
+  const selected = ui.connecting||ui.placing ? null : ui.canvasInspection;
   const n = activePage().nodes.find(n => n.id === selected?.id);
   const trace = n && FluidNetPathTrace.describe(project(), n.id, selected.portId, moduleOf);
   root.querySelectorAll('.inspecting,.channel-active,.path-trace-active,.path-trace-remote').forEach(el =>
@@ -2273,6 +2274,7 @@ function connectPort(nodeId, portId) {
   if (!next) return;
   const used = links.atPort(owner, nodeId, portId);
   if (used) throw Error('此端口已经连接。请先断开原连接，或使用连接节点分支。');
+  ui.canvasInspection=null;paintCanvasInspection();
   if (!ui.connecting) { ui.connecting = { nodeId, portId }; refreshWorkbench(); return; }
   const first = ui.connecting;
   if (first.nodeId === nodeId) { ui.connecting = null; refreshWorkbench(); return; }
